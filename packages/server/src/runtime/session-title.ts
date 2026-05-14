@@ -1,0 +1,86 @@
+import { completeSimple, type Api, type Model } from "@earendil-works/pi-ai";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+
+export async function generateSessionTitle({
+  model,
+  apiKey,
+  messages,
+}: {
+  model: Model<Api>;
+  apiKey: string;
+  messages: AgentMessage[];
+}) {
+  const transcript = buildTitleTranscript(messages);
+  if (!transcript) return undefined;
+
+  const titleModel: Model<Api> = { ...model, reasoning: false };
+  const response = await completeSimple(
+    titleModel,
+    {
+      systemPrompt:
+        "Generate a concise chat title. Return only the title, with no quotes, no markdown, and no punctuation suffix.",
+      messages: [
+        {
+          role: "user",
+          content: `Create a title of 3 to 7 words for this conversation:\n\n${transcript}`,
+          timestamp: Date.now(),
+        },
+      ],
+    },
+    {
+      apiKey,
+      maxTokens: 32,
+      temperature: 0.2,
+    },
+  );
+
+  return cleanSessionTitle(extractText(response));
+}
+
+export function shouldGenerateSessionTitle(title: string, messages: AgentMessage[]) {
+  if (!isPlaceholderTitle(title)) return false;
+  return countUserMessages(messages) > 0 && messages.some((message) => message.role === "assistant" && !message.errorMessage);
+}
+
+function buildTitleTranscript(messages: AgentMessage[]) {
+  const lines = messages
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .slice(0, 4)
+    .map((message) => {
+      const text = extractText(message);
+      return text ? `${message.role === "user" ? "User" : "Assistant"}: ${text}` : "";
+    })
+    .filter(Boolean);
+  return lines.join("\n").slice(0, 4000);
+}
+
+function extractText(message: AgentMessage) {
+  if (!("content" in message)) return "";
+  if (typeof message.content === "string") return message.content.trim();
+  if (!Array.isArray(message.content)) return "";
+  return message.content
+    .filter((content): content is { type: "text"; text: string } => content.type === "text")
+    .map((content) => content.text.trim())
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
+function cleanSessionTitle(title: string) {
+  const cleaned = title
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.。!！?？:：;；]+$/g, "");
+  if (!cleaned) return undefined;
+  return cleaned.length > 64 ? cleaned.slice(0, 64).trim() : cleaned;
+}
+
+function isPlaceholderTitle(title: string) {
+  const normalized = title.trim().toLowerCase();
+  return normalized === "untitled session" || normalized === "new chat" || normalized.startsWith("session_");
+}
+
+function countUserMessages(messages: AgentMessage[]) {
+  return messages.filter((message) => message.role === "user").length;
+}
