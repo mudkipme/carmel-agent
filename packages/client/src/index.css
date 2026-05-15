@@ -173,3 +173,7 @@ agent-chat-host > * {
   font-size: 14px;
   line-height: 1.45;
 }
+
+.agent-chat-host artifacts-panel > .hidden {
+  display: none !important;
+}
