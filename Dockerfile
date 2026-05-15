@@ -32,7 +32,7 @@ ENV HOST="0.0.0.0"
 ENV PORT="8797"
 ENV CARMEL_AGENT_DATA_DIR="/data"
 
-RUN apk add --no-cache py3-pip python3 && \
+RUN apk add --no-cache podman py3-pip python3 && \
     ln -sf /usr/bin/python3 /usr/local/bin/python
 
 COPY --from=build /app /app
