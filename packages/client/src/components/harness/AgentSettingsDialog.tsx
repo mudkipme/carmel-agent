@@ -1,22 +1,25 @@
 import { PlusIcon, SettingsIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, SectionHeader, ToggleRow } from "@/components/harness/form-primitives";
 import { api } from "@/lib/api";
 import { createClientId } from "@/lib/id";
 import { useHarnessStore } from "@/store/harness-store";
-import type { AgentConfig, AgentPermissions, ModelRef, ProviderConfig } from "@carmel-agent/shared";
+import type { AgentConfig, AgentPermissions, AgentSkillCommand, ModelRef, ProviderConfig } from "@carmel-agent/shared";
 
 export function AgentSettingsDialog({
   agent,
@@ -31,12 +34,13 @@ export function AgentSettingsDialog({
   const [open, setOpen] = useState(false);
   const [settingsAgent, setSettingsAgent] = useState<AgentConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const owned = agent.ownerUserId === activeUserId;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !owned) return;
     let cancelled = false;
     void api
-      .getAgentSettings(agent.id, activeUserId)
+      .getAgentSettings(agent.id)
       .then((payload) => {
         if (!cancelled) setSettingsAgent(payload);
       })
@@ -46,7 +50,7 @@ export function AgentSettingsDialog({
     return () => {
       cancelled = true;
     };
-  }, [activeUserId, agent.id, open]);
+  }, [agent.id, open, owned]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -55,6 +59,8 @@ export function AgentSettingsDialog({
     }
     setOpen(nextOpen);
   };
+
+  if (!owned) return null;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -81,7 +87,7 @@ export function AgentSettingsDialog({
             agent={settingsAgent}
             modelRefs={modelRefs}
             providerConfigs={providerConfigs}
-            onDeleted={() => setOpen(false)}
+            onClose={() => setOpen(false)}
           />
         ) : (
           <p className="text-sm text-muted-foreground">Loading agent settings...</p>
@@ -95,25 +101,54 @@ function AgentSettings({
   agent,
   modelRefs,
   providerConfigs,
-  onDeleted,
+  onClose,
 }: {
   agent: AgentConfig;
   modelRefs: ModelRef[];
   providerConfigs: ProviderConfig[];
-  onDeleted?: () => void;
+  onClose?: () => void;
 }) {
   const upsertAgent = useHarnessStore((state) => state.upsertAgent);
   const deleteAgent = useHarnessStore((state) => state.deleteAgent);
   const [draft, setDraft] = useState(agent);
   const [templateName, setTemplateName] = useState("");
   const [templateBody, setTemplateBody] = useState("");
+  const [availableSkills, setAvailableSkills] = useState<AgentSkillCommand[]>([]);
+  const [skillsError, setSkillsError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const saveAgent = (patch: Partial<AgentConfig>) => {
-    setDraft((current) => {
-      const next = { ...current, ...patch, updatedAt: Date.now() };
-      void upsertAgent(next);
-      return next;
-    });
+  useEffect(() => {
+    let cancelled = false;
+    setSkillsError(null);
+    void api
+      .getGlobalSkills()
+      .then((skills) => {
+        if (!cancelled) setAvailableSkills(skills);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setSkillsError(error instanceof Error ? error.message : "Unable to load global skills");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const updateDraft = (patch: Partial<AgentConfig>) => {
+    setDraft((current) => ({ ...current, ...patch }));
+  };
+
+  const saveAgent = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await upsertAgent({ ...draft, updatedAt: Date.now() });
+      onClose?.();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Unable to save agent");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const removeAgent = async () => {
@@ -121,7 +156,7 @@ function AgentSettings({
     if (!confirmed) return;
     try {
       await deleteAgent(agent.id);
-      onDeleted?.();
+      onClose?.();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Unable to delete agent");
     }
@@ -131,7 +166,7 @@ function AgentSettings({
     const name = templateName.trim();
     const body = templateBody.trim();
     if (!name || !body) return;
-    saveAgent({
+    updateDraft({
       promptTemplates: [
         ...draft.promptTemplates,
         {
@@ -146,130 +181,227 @@ function AgentSettings({
   };
 
   const deletePromptTemplate = (templateId: string) => {
-    saveAgent({
+    updateDraft({
       promptTemplates: draft.promptTemplates.filter((template) => template.id !== templateId),
     });
   };
 
+  const toggleSkill = (skillName: string) => {
+    updateDraft({
+      skills: draft.skills.includes(skillName)
+        ? draft.skills.filter((selectedSkill) => selectedSkill !== skillName)
+        : [...draft.skills, skillName],
+    });
+  };
+
+  const unavailableSelectedSkills = draft.skills.filter(
+    (skillName) => !availableSkills.some((skill) => skill.name === skillName),
+  );
+
   return (
     <div className="grid gap-6">
-      <section className="grid gap-4">
-        <SectionHeader title="Agent" description="Working directory, sharing, global skills, and system prompt." />
-        <div className="grid gap-3">
-          <Field label="Name">
-            <Input
-              value={draft.name}
-              onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-              onBlur={(event) => saveAgent({ name: event.currentTarget.value })}
-            />
-          </Field>
-          <Field label="Working dir">
-            <Input
-              value={draft.workingDir}
-              onChange={(event) => setDraft((current) => ({ ...current, workingDir: event.target.value }))}
-              onBlur={(event) => saveAgent({ workingDir: event.currentTarget.value })}
-            />
-          </Field>
-          <Field label="Global skills">
-            <Input
-              value={draft.skills.join(", ")}
-              onChange={(event) => {
-                const skills = event.target.value.split(",").map((item) => item.trim()).filter(Boolean);
-                setDraft((current) => ({ ...current, skills }));
-              }}
-              onBlur={() => saveAgent({ skills: draft.skills })}
-            />
-          </Field>
-          <Field label="Default model">
-            <Select value={draft.defaultModelRefId} onValueChange={(defaultModelRefId) => saveAgent({ defaultModelRefId })}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {modelRefs.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.label} ·{" "}
-                      {providerConfigs.find((item) => item.id === model.providerConfigId)?.label ?? model.provider}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="System prompt">
-            <Textarea
-              value={draft.systemPrompt}
-              onChange={(event) => setDraft((current) => ({ ...current, systemPrompt: event.target.value }))}
-              onBlur={(event) => saveAgent({ systemPrompt: event.currentTarget.value })}
-            />
-          </Field>
-          <ToggleRow label="Shared" checked={draft.shared} onCheckedChange={(shared) => saveAgent({ shared })} />
-        </div>
-      </section>
+      <Tabs defaultValue="agent" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="agent">Agent</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="permissions">Permissions</TabsTrigger>
+        </TabsList>
 
-      <section className="grid gap-4 border-t pt-6">
-        <SectionHeader
-          title="Prompt Templates"
-          description="Templates appear in the chat command palette for this agent."
-        />
-        <div className="grid gap-3">
-          {draft.promptTemplates.length > 0 ? (
-            <div className="grid gap-2">
-              {draft.promptTemplates.map((template) => (
-                <div key={template.id} className="flex items-start gap-2 rounded-md border p-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{template.name}</div>
-                    <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{template.body}</div>
-                  </div>
-                  <Button
-                    type="button"
-                    size="icon-xs"
-                    variant="ghost"
-                    title="Delete template"
-                    onClick={() => deletePromptTemplate(template.id)}
+        <TabsContent value="agent" className="mt-2">
+          <section className="grid gap-4">
+            <SectionHeader title="Agent" description="Working directory, sharing, global skills, and system prompt." />
+            <div className="grid gap-3">
+              <Field label="Name">
+                <Input
+                  value={draft.name}
+                  onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                />
+              </Field>
+              <Field label="Description">
+                <Input
+                  value={draft.description}
+                  onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+                />
+              </Field>
+              <Field label="Working dir">
+                <div className="grid gap-2">
+                  <Select
+                    value={draft.workingDirMode}
+                    onValueChange={(workingDirMode: AgentConfig["workingDirMode"]) => {
+                      const patch: Partial<AgentConfig> = { workingDirMode };
+                      if (
+                        workingDirMode === "manual" &&
+                        draft.workingDirMode === "default" &&
+                        draft.workingDir === draft.defaultWorkingDir
+                      ) {
+                        patch.workingDir = "";
+                      }
+                      updateDraft(patch);
+                    }}
                   >
-                    <Trash2Icon />
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="default">Default per-agent folder</SelectItem>
+                        <SelectItem value="manual">Manual server folder</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {draft.workingDirMode === "manual" ? (
+                    <Input
+                      value={draft.workingDir}
+                      onChange={(event) => setDraft((current) => ({ ...current, workingDir: event.target.value }))}
+                      placeholder="/path/on/server"
+                    />
+                  ) : null}
+                </div>
+              </Field>
+              <Field label="Global skills">
+                <div className="grid gap-2">
+                  <div className="grid max-h-56 gap-2 overflow-y-auto rounded-md border p-2">
+                    {availableSkills.map((skill) => {
+                      const selected = draft.skills.includes(skill.name);
+                      return (
+                        <button
+                          key={skill.filePath}
+                          type="button"
+                          className="flex min-w-0 items-start justify-between gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => toggleSkill(skill.name)}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium">{skill.name}</span>
+                            <span className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              {skill.description}
+                            </span>
+                          </span>
+                          {selected ? <Badge variant="secondary">Selected</Badge> : null}
+                        </button>
+                      );
+                    })}
+                    {availableSkills.length === 0 ? (
+                      <p className="px-2 py-1 text-sm text-muted-foreground">
+                        {skillsError ?? "No global skills found."}
+                      </p>
+                    ) : null}
+                  </div>
+                  {unavailableSelectedSkills.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {unavailableSelectedSkills.map((skillName) => (
+                        <Button
+                          key={skillName}
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          onClick={() => toggleSkill(skillName)}
+                          title="Remove unavailable skill"
+                        >
+                          {skillName}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </Field>
+              <Field label="Default model">
+                <Select
+                  value={draft.defaultModelRefId}
+                  onValueChange={(defaultModelRefId) => updateDraft({ defaultModelRefId })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {modelRefs.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          {model.label} ·{" "}
+                          {providerConfigs.find((item) => item.id === model.providerConfigId)?.label ?? model.provider}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="System prompt">
+                <Textarea
+                  value={draft.systemPrompt}
+                  onChange={(event) => setDraft((current) => ({ ...current, systemPrompt: event.target.value }))}
+                />
+              </Field>
+              <ToggleRow label="Shared" checked={draft.shared} onCheckedChange={(shared) => updateDraft({ shared })} />
+            </div>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="templates" className="mt-2">
+          <section className="grid gap-4">
+            <SectionHeader
+              title="Prompt Templates"
+              description="Templates appear in the chat command palette for this agent."
+            />
+            <div className="grid gap-3">
+              {draft.promptTemplates.length > 0 ? (
+                <div className="grid gap-2">
+                  {draft.promptTemplates.map((template) => (
+                    <div key={template.id} className="flex items-start gap-2 rounded-md border p-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">{template.name}</div>
+                        <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{template.body}</div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="icon-xs"
+                        variant="ghost"
+                        title="Delete template"
+                        onClick={() => deletePromptTemplate(template.id)}
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <div className="grid gap-3 rounded-md border p-3">
+                <Field label="Template name">
+                  <Input value={templateName} onChange={(event) => setTemplateName(event.target.value)} />
+                </Field>
+                <Field label="Template text">
+                  <Textarea value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} />
+                </Field>
+                <div>
+                  <Button type="button" variant="secondary" onClick={addPromptTemplate}>
+                    <PlusIcon data-icon="inline-start" />
+                    Add template
                   </Button>
                 </div>
+              </div>
+            </div>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="permissions" className="mt-2">
+          <section className="grid gap-4">
+            <SectionHeader
+              title="Permissions"
+              description="Read, write, and edit are enabled by default inside the working directory."
+            />
+            <div className="grid gap-2">
+              {(Object.keys(draft.permissions) as Array<keyof AgentPermissions>).map((permission) => (
+                <ToggleRow
+                  key={permission}
+                  label={permission}
+                  checked={draft.permissions[permission]}
+                  onCheckedChange={(checked) =>
+                    updateDraft({ permissions: { ...draft.permissions, [permission]: checked } })
+                  }
+                />
               ))}
             </div>
-          ) : null}
-          <div className="grid gap-3 rounded-md border p-3">
-            <Field label="Template name">
-              <Input value={templateName} onChange={(event) => setTemplateName(event.target.value)} />
-            </Field>
-            <Field label="Template text">
-              <Textarea value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} />
-            </Field>
-            <div>
-              <Button type="button" variant="secondary" onClick={addPromptTemplate}>
-                <PlusIcon data-icon="inline-start" />
-                Add template
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-4 border-t pt-6">
-        <SectionHeader
-          title="Permissions"
-          description="Read, write, and edit are enabled by default inside the working directory."
-        />
-        <div className="grid gap-2">
-          {(Object.keys(draft.permissions) as Array<keyof AgentPermissions>).map((permission) => (
-            <ToggleRow
-              key={permission}
-              label={permission}
-              checked={draft.permissions[permission]}
-              onCheckedChange={(checked) =>
-                saveAgent({ permissions: { ...draft.permissions, [permission]: checked } })
-              }
-            />
-          ))}
-        </div>
-      </section>
+          </section>
+        </TabsContent>
+      </Tabs>
 
       <section className="grid gap-4 border-t pt-6">
         <SectionHeader title="Danger Zone" description="Deleting an agent also deletes sessions that belong to it." />
@@ -280,6 +412,15 @@ function AgentSettings({
           </Button>
         </div>
       </section>
+      {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
+      <DialogFooter>
+        <Button variant="outline" type="button" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="button" onClick={() => void saveAgent()} disabled={saving}>
+          {saving ? "Saving..." : "Save"}
+        </Button>
+      </DialogFooter>
     </div>
   );
 }

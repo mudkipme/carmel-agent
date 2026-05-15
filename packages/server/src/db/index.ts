@@ -1,17 +1,14 @@
 import Database from "better-sqlite3";
 import { count, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { agents, modelRefs, providerConfigs, sessions, users } from "./schema";
-import { defaultAgent, defaultModelRef, defaultProviderConfig, defaultSession, defaultUser, now } from "./seed";
+import { agents, modelRefs, providerConfigs, sessions, users } from "./schema.ts";
+import { defaultAgent, defaultModelRef, defaultProviderConfig, defaultSession, defaultUser, now } from "./seed.ts";
+import { dataDir, defaultAgentWorkingDir, ensureParentDir, normalizeDataRelativePath } from "../paths.ts";
 
-const defaultDatabaseUrl = fileURLToPath(new URL("../../../../data/carmel-agent.sqlite", import.meta.url));
-const databaseUrl = process.env.DATABASE_URL ?? defaultDatabaseUrl;
+const databaseUrl = process.env.DATABASE_URL ?? `${dataDir}/carmel-agent.sqlite`;
 const databasePath = databaseUrl.startsWith("file:") ? databaseUrl.slice(5) : databaseUrl;
 
-mkdirSync(dirname(resolve(databasePath)), { recursive: true });
+ensureParentDir(databasePath);
 
 export const sqlite = new Database(databasePath);
 sqlite.pragma("journal_mode = WAL");
@@ -23,14 +20,26 @@ export function migrate() {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY NOT NULL,
+      username TEXT,
+      password_hash TEXT,
       name TEXT NOT NULL,
       email TEXT NOT NULL,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS model_refs (
       id TEXT PRIMARY KEY NOT NULL,
+      owner_user_id TEXT NOT NULL REFERENCES users(id),
+      shared INTEGER NOT NULL DEFAULT 0,
       label TEXT NOT NULL,
       provider TEXT NOT NULL,
       provider_config_id TEXT,
@@ -51,7 +60,9 @@ export function migrate() {
       user_id TEXT NOT NULL REFERENCES users(id),
       label TEXT NOT NULL,
       provider TEXT NOT NULL,
+      auth_type TEXT NOT NULL DEFAULT 'api_key',
       api_key TEXT,
+      oauth_credential TEXT,
       base_url TEXT,
       custom_headers TEXT,
       created_at INTEGER NOT NULL,
@@ -64,7 +75,9 @@ export function migrate() {
       shared INTEGER NOT NULL DEFAULT 0,
       name TEXT NOT NULL,
       description TEXT NOT NULL,
+      working_dir_mode TEXT NOT NULL DEFAULT 'manual',
       working_dir TEXT NOT NULL,
+      default_working_dir TEXT,
       skills TEXT NOT NULL,
       system_prompt TEXT NOT NULL,
       prompt_templates TEXT NOT NULL,
@@ -96,7 +109,50 @@ export function migrate() {
       PRIMARY KEY (user_id, provider)
     );
   `);
+  addColumnIfMissing("users", "username", "TEXT");
+  addColumnIfMissing("users", "password_hash", "TEXT");
+  addColumnIfMissing("model_refs", "owner_user_id", "TEXT");
+  addColumnIfMissing("model_refs", "shared", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing("model_refs", "provider_config_id", "TEXT");
+  addColumnIfMissing("provider_configs", "auth_type", "TEXT NOT NULL DEFAULT 'api_key'");
+  addColumnIfMissing("provider_configs", "oauth_credential", "TEXT");
+  addColumnIfMissing("agents", "working_dir_mode", "TEXT NOT NULL DEFAULT 'manual'");
+  addColumnIfMissing("agents", "default_working_dir", "TEXT");
+  backfillModelOwners();
+  normalizeDefaultAgentWorkingDirs();
+  sqlite.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique
+      ON users(username)
+      WHERE username IS NOT NULL;
+  `);
+}
+
+function backfillModelOwners() {
+  const timestamp = now();
+  const configs = new Map(db.select().from(providerConfigs).all().map((config) => [config.id, config]));
+  const fallbackUserId = db.select().from(users).all()[0]?.id ?? defaultUser.id;
+  for (const model of db.select().from(modelRefs).all()) {
+    if (model.ownerUserId) continue;
+    const ownerUserId = model.providerConfigId ? (configs.get(model.providerConfigId)?.userId ?? fallbackUserId) : fallbackUserId;
+    db.update(modelRefs)
+      .set({ ownerUserId, updatedAt: timestamp })
+      .where(eq(modelRefs.id, model.id))
+      .run();
+  }
+}
+
+function normalizeDefaultAgentWorkingDirs() {
+  const timestamp = now();
+  for (const agent of db.select().from(agents).all()) {
+    if (agent.workingDirMode !== "default") continue;
+    const workingDir = normalizeDataRelativePath(agent.workingDir || defaultAgentWorkingDir(agent.id));
+    const defaultWorkingDir = normalizeDataRelativePath(agent.defaultWorkingDir ?? workingDir);
+    if (workingDir === agent.workingDir && defaultWorkingDir === agent.defaultWorkingDir) continue;
+    db.update(agents)
+      .set({ workingDir, defaultWorkingDir, updatedAt: timestamp })
+      .where(eq(agents.id, agent.id))
+      .run();
+  }
 }
 
 export function seed() {

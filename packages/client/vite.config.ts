@@ -8,6 +8,7 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:8797",
     },
+    allowedHosts: ["porygon-z.lan"]
   },
   resolve: {
     alias: {

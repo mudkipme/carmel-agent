@@ -8,14 +8,15 @@ import {
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { eq } from "drizzle-orm";
-import { db } from "../db";
-import { now } from "../db/seed";
-import { agents, modelRefs, providerConfigs, sessions } from "../db/schema";
-import { serializeModelRef } from "../serializers";
-import { createAgentError, resolveServerModelRef } from "./model";
-import { createAgentResourceLoader, serverAgentDir } from "./resources";
-import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title";
-import { createServerToolDefinitions } from "./tools";
+import { db } from "../db/index.ts";
+import { now } from "../db/seed.ts";
+import { agents, modelRefs, providerConfigs, sessions } from "../db/schema.ts";
+import { serializeModelRef } from "../serializers.ts";
+import { cleanupRunClientTools, createClientToolDefinitions } from "./client-tools.ts";
+import { createAgentError, resolveServerModelRef } from "./model.ts";
+import { createAgentResourceLoader, resolveAgentWorkingDirPath, serverAgentDir } from "./resources.ts";
+import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
+import { createServerToolDefinitions } from "./tools.ts";
 import type { PromptInput, Session } from "@carmel-agent/shared";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -48,7 +49,7 @@ export function createAgentRunResponse({
   session,
   modelRef,
   providerConfig,
-  apiKey,
+  authStorage,
   thinkingLevel,
   promptInput,
 }: {
@@ -56,10 +57,11 @@ export function createAgentRunResponse({
   session: SessionRecord;
   modelRef: ModelRefRecord;
   providerConfig?: ProviderConfigRecord;
-  apiKey: string;
+  authStorage: AuthStorage;
   thinkingLevel: Session["thinkingLevel"];
   promptInput?: PromptInput;
 }) {
+  const runId = randomId();
   const model = resolveServerModelRef(
     { ...serializeModelRef(modelRef), customHeaders: modelRef.customHeaders ?? undefined },
     providerConfig,
@@ -72,15 +74,25 @@ export function createAgentRunResponse({
         let sdkSession: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
         let unsubscribe: (() => void) | undefined;
         let messagesToPersist: AgentMessage[] | undefined;
+        const emit = (event: unknown) => {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        };
         try {
-          const authStorage = AuthStorage.inMemory();
-          authStorage.setRuntimeApiKey(model.provider, apiKey);
           const modelRegistry = ModelRegistry.inMemory(authStorage);
           const resourceLoader = await createAgentResourceLoader(agent);
-          const customTools = createServerToolDefinitions(agent);
+          const cwd = resolveAgentWorkingDirPath(agent);
+          const customTools = [
+            ...createServerToolDefinitions(agent),
+            ...createClientToolDefinitions(agent, {
+              runId,
+              userId: session.userId,
+              sessionId: session.id,
+              emit,
+            }),
+          ];
           const allowedTools = customTools.map((tool) => tool.name);
           const { session: piSession } = await createAgentSession({
-            cwd: agent.workingDir,
+            cwd,
             agentDir: serverAgentDir,
             authStorage,
             modelRegistry,
@@ -89,7 +101,7 @@ export function createAgentRunResponse({
             resourceLoader,
             customTools: customTools as unknown as CreateAgentSessionOptions["customTools"],
             tools: allowedTools,
-            sessionManager: SessionManager.inMemory(agent.workingDir),
+            sessionManager: SessionManager.inMemory(cwd),
             settingsManager: SettingsManager.inMemory({
               compaction: { enabled: false },
               retry: { enabled: true, maxRetries: 2, provider: { maxRetryDelayMs: 60000 } },
@@ -99,7 +111,7 @@ export function createAgentRunResponse({
           activeSession = sdkSession;
           sdkSession.agent.state.messages = session.messages;
           unsubscribe = sdkSession.subscribe((event) => {
-            controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+            emit(event);
           });
 
           if (promptInput) {
@@ -113,14 +125,15 @@ export function createAgentRunResponse({
         } catch (error) {
           const errorEvent = createAgentError(error, model);
           messagesToPersist = [...(sdkSession?.agent.state.messages ?? session.messages), ...errorEvent.messages];
-          controller.enqueue(encoder.encode(`${JSON.stringify(errorEvent)}\n`));
+          emit(errorEvent);
         } finally {
+          cleanupRunClientTools(runId);
           await persistSessionRun(session, {
             messages: messagesToPersist ?? sdkSession?.agent.state.messages ?? session.messages,
             modelRefId: modelRef.id,
             thinkingLevel,
             model,
-            apiKey,
+            authStorage,
           });
           unsubscribe?.();
           sdkSession?.dispose();
@@ -136,14 +149,18 @@ export function createAgentRunResponse({
   );
 }
 
-function persistSessionRun(
+function randomId() {
+  return globalThis.crypto?.randomUUID?.() ?? `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+}
+
+async function persistSessionRun(
   session: SessionRecord,
   patch: {
     messages: AgentMessage[];
     modelRefId: string;
     thinkingLevel: Session["thinkingLevel"];
     model: ReturnType<typeof resolveServerModelRef>;
-    apiKey: string;
+    authStorage: AuthStorage;
   },
 ) {
   const timestamp = now();
@@ -158,19 +175,26 @@ function persistSessionRun(
     .run();
 
   if (!shouldGenerateSessionTitle(session.title, patch.messages)) return;
-  return generateSessionTitle({
-    model: patch.model,
-    apiKey: patch.apiKey,
-    messages: patch.messages,
-  })
-    .then((title) => {
-      if (!title) return;
-      db.update(sessions)
-        .set({ title, updatedAt: now() })
-        .where(eq(sessions.id, session.id))
-        .run();
-    })
-    .catch(() => {
-      // Title generation is best-effort and should never fail the completed agent run.
+
+  try {
+    const modelRegistry = ModelRegistry.inMemory(patch.authStorage);
+    const auth = await modelRegistry.getApiKeyAndHeaders(patch.model);
+    if (!auth.ok || !auth.apiKey) return;
+    const title = await generateSessionTitle({
+      model: patch.model,
+      apiKey: auth.apiKey,
+      headers: auth.headers,
+      messages: patch.messages,
     });
+    if (!title) return;
+    db.update(sessions)
+      .set({ title, updatedAt: now() })
+      .where(eq(sessions.id, session.id))
+      .run();
+  } catch (error) {
+    console.warn(
+      "Session title generation failed:",
+      error instanceof Error ? error.message : String(error),
+    );
+  }
 }

@@ -1,16 +1,33 @@
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import type { AgentPermissions, PromptTemplate, Session } from "@carmel-agent/shared";
+import type { AuthCredential } from "@earendil-works/pi-coding-agent";
+import type { AgentPermissions, AgentWorkingDirMode, PromptTemplate, Session } from "@carmel-agent/shared";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
+  username: text("username"),
+  passwordHash: text("password_hash"),
   name: text("name").notNull(),
   email: text("email").notNull(),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const authSessions = sqliteTable("auth_sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: integer("expires_at").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
 export const modelRefs = sqliteTable("model_refs", {
   id: text("id").primaryKey(),
+  ownerUserId: text("owner_user_id")
+    .notNull()
+    .references(() => users.id),
+  shared: integer("shared", { mode: "boolean" }).notNull().default(false),
   label: text("label").notNull(),
   provider: text("provider").notNull(),
   providerConfigId: text("provider_config_id"),
@@ -33,7 +50,9 @@ export const providerConfigs = sqliteTable("provider_configs", {
     .references(() => users.id),
   label: text("label").notNull(),
   provider: text("provider").notNull(),
+  authType: text("auth_type").$type<"api_key" | "oauth">().notNull().default("api_key"),
   apiKey: text("api_key"),
+  oauthCredential: text("oauth_credential", { mode: "json" }).$type<AuthCredential>(),
   baseUrl: text("base_url"),
   customHeaders: text("custom_headers"),
   createdAt: integer("created_at").notNull(),
@@ -62,7 +81,9 @@ export const agents = sqliteTable("agents", {
   shared: integer("shared", { mode: "boolean" }).notNull().default(false),
   name: text("name").notNull(),
   description: text("description").notNull(),
+  workingDirMode: text("working_dir_mode").$type<AgentWorkingDirMode>().notNull().default("manual"),
   workingDir: text("working_dir").notNull(),
+  defaultWorkingDir: text("default_working_dir"),
   skills: text("skills", { mode: "json" }).$type<string[]>().notNull(),
   systemPrompt: text("system_prompt").notNull(),
   promptTemplates: text("prompt_templates", { mode: "json" }).$type<PromptTemplate[]>().notNull(),

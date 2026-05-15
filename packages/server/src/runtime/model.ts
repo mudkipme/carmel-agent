@@ -1,6 +1,6 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { getModel, type Api, type Model } from "@earendil-works/pi-ai";
-import { providerConfigs } from "../db/schema";
+import { providerConfigs } from "../db/schema.ts";
 import type { ModelRef } from "@carmel-agent/shared";
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;

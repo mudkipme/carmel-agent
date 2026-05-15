@@ -4,10 +4,12 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 export async function generateSessionTitle({
   model,
   apiKey,
+  headers,
   messages,
 }: {
   model: Model<Api>;
   apiKey: string;
+  headers?: Record<string, string>;
   messages: AgentMessage[];
 }) {
   const transcript = buildTitleTranscript(messages);
@@ -29,10 +31,13 @@ export async function generateSessionTitle({
     },
     {
       apiKey,
+      headers,
       maxTokens: 32,
-      temperature: 0.2,
     },
   );
+  if (response.stopReason === "error") {
+    throw new Error(response.errorMessage || "Session title generation failed.");
+  }
 
   return cleanSessionTitle(extractText(response));
 }

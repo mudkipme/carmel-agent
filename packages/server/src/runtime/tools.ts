@@ -9,8 +9,8 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
-import { agents } from "../db/schema";
-import { resolveAgentReadableRoots } from "./resources";
+import { agents } from "../db/schema.ts";
+import { resolveAgentReadableRoots, resolveAgentWorkingDirPath } from "./resources.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ToolArgs = Record<string, unknown> | undefined;
@@ -48,7 +48,7 @@ export function createServerToolDefinitions(agent: AgentRecord) {
 }
 
 function resolveWorkingDir(agent: AgentRecord) {
-  const cwd = agent.workingDir || process.cwd();
+  const cwd = resolveAgentWorkingDirPath(agent);
   if (!existsSync(cwd)) throw new Error(`Working directory does not exist: ${cwd}`);
   return resolve(cwd);
 }

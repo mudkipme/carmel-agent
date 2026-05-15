@@ -27,6 +27,8 @@ const model = providerModels[0] ?? getModel("anthropic" as never, "claude-sonnet
 
 export const defaultModelRef: ModelRef = {
   id: "model_default",
+  ownerUserId: defaultUser.id,
+  shared: false,
   label: model?.name ?? "Claude Sonnet",
   provider,
   providerConfigId: "provider_default",
@@ -53,6 +55,7 @@ export const defaultAgent: AgentConfig = {
   shared: false,
   name: "Carmel Self",
   description: "Personal coding and research harness",
+  workingDirMode: "manual",
   workingDir: "/var/home/mudkip/Projects",
   skills: ["codebase", "browser", "obsidian", "shadcn"],
   systemPrompt:

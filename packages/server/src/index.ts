@@ -1,54 +1,146 @@
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { eq } from "drizzle-orm";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { createAgentRunResponse, normalizePromptInput } from "./runtime/agent-runtime";
-import { createAgentResourceLoader } from "./runtime/resources";
-import { db, migrate, seed } from "./db";
-import { agents, modelRefs, providerConfigs, providerKeys, sessions, users } from "./db/schema";
-import { id, now } from "./db/seed";
+import { createAuthSession, clearAuthSession, hashPassword, requireAuth, verifyPassword, type AuthVariables } from "./auth.ts";
+import { createAgentRunResponse, normalizePromptInput } from "./runtime/agent-runtime.ts";
+import { AuthStorage } from "@earendil-works/pi-coding-agent";
+import { createProviderConfigAuthStorage } from "./runtime/auth-storage.ts";
+import { resolveClientToolResult } from "./runtime/client-tools.ts";
 import {
+  listOAuthProviders,
+  readOAuthLoginFlow,
+  startOAuthLoginFlow,
+  submitOAuthLoginFlowInput,
+} from "./runtime/oauth-flows.ts";
+import { createAgentResourceLoader, listAvailableGlobalSkills } from "./runtime/resources.ts";
+import { db, migrate, seed } from "./db/index.ts";
+import { agents, modelRefs, providerConfigs, providerKeys, sessions, users } from "./db/schema.ts";
+import { id, now } from "./db/seed.ts";
+import { defaultAgentWorkingDir, ensureDir, normalizeDataRelativePath, resolveDataPath } from "./paths.ts";
+import {
+  serializeAgentSettings,
   serializeModelRef,
   serializeProviderConfig,
   serializePublicAgent,
   serializeSession,
-} from "./serializers";
+  serializeUser,
+} from "./serializers.ts";
 import type { AgentConfig, ModelRef, PromptInput, ProviderConfig, Session, SessionDraft, User } from "@carmel-agent/shared";
 
 migrate();
 seed();
 
-const app = new Hono();
+const app = new Hono<{ Variables: AuthVariables }>();
 
 app.use(
   "/api/*",
   cors({
     origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
   }),
 );
+app.use("/api/*", requireAuth);
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
+app.post("/api/auth/login", async (c) => {
+  const body = (await c.req.json()) as { username?: string; password?: string };
+  const username = body.username?.trim();
+  if (!username || !body.password) return c.json({ error: "Username and password are required." }, 400);
+
+  const user = db.select().from(users).where(eq(users.username, username)).get();
+  if (!user?.passwordHash || !(await verifyPassword(body.password, user.passwordHash))) {
+    return c.json({ error: "Invalid username or password." }, 401);
+  }
+
+  await createAuthSession(c, user.id);
+  return c.json(readBootstrapPayload(user.id));
+});
+
+app.post("/api/auth/logout", (c) => {
+  clearAuthSession(c);
+  return c.json({ ok: true });
+});
+
+app.post("/api/auth/password", async (c) => {
+  const user = c.get("user");
+  const body = (await c.req.json()) as { currentPassword?: string; newPassword?: string };
+  if (!body.currentPassword || !body.newPassword) {
+    return c.json({ error: "Current and new password are required." }, 400);
+  }
+  if (body.newPassword.length < 8) return c.json({ error: "New password must be at least 8 characters." }, 400);
+  if (!user.passwordHash || !(await verifyPassword(body.currentPassword, user.passwordHash))) {
+    return c.json({ error: "Current password is incorrect." }, 400);
+  }
+  db.update(users)
+    .set({ passwordHash: await hashPassword(body.newPassword), updatedAt: now() })
+    .where(eq(users.id, user.id))
+    .run();
+  return c.json({ ok: true });
+});
+
 app.get("/api/bootstrap", (c) => {
-  return c.json(readBootstrapPayload());
+  return c.json(readBootstrapPayload(c.get("user").id));
+});
+
+app.get("/api/skills/global", (c) => {
+  return c.json(
+    listAvailableGlobalSkills().map((skill) => ({
+      name: skill.name,
+      description: skill.description,
+      filePath: skill.filePath,
+    })),
+  );
+});
+
+app.post("/api/client-tool-results", async (c) => {
+  const user = c.get("user");
+  try {
+    resolveClientToolResult(user.id, await c.req.json());
+    return c.json({ ok: true });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  }
 });
 
 app.put("/api/users/:id", async (c) => {
+  const currentUser = c.get("user");
+  if (c.req.param("id") !== currentUser.id) return c.json({ error: "You can only update your own profile." }, 403);
   const user = (await c.req.json()) as User;
   const timestamp = now();
   db.insert(users)
-    .values({ ...user, id: c.req.param("id"), createdAt: timestamp, updatedAt: timestamp })
+    .values({
+      id: currentUser.id,
+      username: currentUser.username,
+      passwordHash: currentUser.passwordHash,
+      name: user.name,
+      email: user.email,
+      createdAt: currentUser.createdAt,
+      updatedAt: timestamp,
+    })
     .onConflictDoUpdate({
       target: users.id,
       set: { name: user.name, email: user.email, updatedAt: timestamp },
     })
     .run();
-  return c.json(db.select().from(users).where(eq(users.id, c.req.param("id"))).get());
+  return c.json(serializeUser(db.select().from(users).where(eq(users.id, currentUser.id)).get()!));
 });
 
 app.put("/api/models/:id", async (c) => {
+  const currentUserId = c.get("user").id;
   const model = (await c.req.json()) as ModelRef;
+  const current = db.select().from(modelRefs).where(eq(modelRefs.id, c.req.param("id"))).get();
+  if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Model not found." }, 404);
+  if (model.providerConfigId && !ownsProviderConfig(currentUserId, model.providerConfigId)) {
+    return c.json({ error: "Provider config not found." }, 404);
+  }
   const timestamp = now();
   const duplicate = db
     .select()
@@ -68,6 +160,8 @@ app.put("/api/models/:id", async (c) => {
     .values({
       ...model,
       id: c.req.param("id"),
+      ownerUserId: currentUserId,
+      shared: model.shared ?? false,
       input: model.input ?? ["text"],
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -76,6 +170,8 @@ app.put("/api/models/:id", async (c) => {
       target: modelRefs.id,
       set: {
         label: model.label,
+        ownerUserId: currentUserId,
+        shared: model.shared ?? false,
         provider: model.provider,
         providerConfigId: model.providerConfigId,
         modelId: model.modelId,
@@ -94,34 +190,51 @@ app.put("/api/models/:id", async (c) => {
 });
 
 app.delete("/api/models/:id", (c) => {
+  const currentUserId = c.get("user").id;
   const modelId = c.req.param("id");
-  const fallbackModel = db.select().from(modelRefs).all().find((model) => model.id !== modelId);
-  if (!fallbackModel) return c.json({ error: "Create another model before deleting the last model." }, 409);
-  reassignModelReferences(new Set([modelId]), fallbackModel.id);
+  const model = db.select().from(modelRefs).where(eq(modelRefs.id, modelId)).get();
+  if (!model || model.ownerUserId !== currentUserId) return c.json({ error: "Model not found." }, 404);
+  const deletedModelIds = new Set([modelId]);
+  const missingFallbackUserIds = readAffectedModelUserIds(deletedModelIds).filter(
+    (userId) => !readFallbackModelForUser(userId, deletedModelIds),
+  );
+  if (missingFallbackUserIds.length > 0) {
+    return c.json({ error: "Every affected user needs another visible model before deleting this model." }, 409);
+  }
+  reassignModelReferences(deletedModelIds);
   db.delete(modelRefs).where(eq(modelRefs.id, modelId)).run();
-  return c.json(readBootstrapPayload());
+  return c.json(readBootstrapPayload(currentUserId));
 });
 
 app.put("/api/provider-configs/:id", async (c) => {
+  const currentUserId = c.get("user").id;
   const providerConfig = (await c.req.json()) as ProviderConfig;
   const timestamp = now();
   const current = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
-  const apiKey = providerConfig.apiKey ?? current?.apiKey ?? null;
+  if (current && current.userId !== currentUserId) return c.json({ error: "Provider config not found." }, 404);
+  const authType = providerConfig.authType ?? current?.authType ?? "api_key";
+  const apiKey = authType === "api_key" ? (providerConfig.apiKey ?? current?.apiKey ?? null) : null;
+  const oauthCredential = authType === "oauth" ? (current?.oauthCredential ?? null) : null;
   db.insert(providerConfigs)
     .values({
       ...providerConfig,
       id: c.req.param("id"),
+      userId: currentUserId,
+      authType,
       apiKey,
+      oauthCredential,
       createdAt: providerConfig.createdAt ?? timestamp,
       updatedAt: timestamp,
     })
     .onConflictDoUpdate({
       target: providerConfigs.id,
       set: {
-        userId: providerConfig.userId,
+        userId: currentUserId,
         label: providerConfig.label,
         provider: providerConfig.provider,
+        authType,
         apiKey,
+        oauthCredential,
         baseUrl: providerConfig.baseUrl,
         customHeaders: providerConfig.customHeaders,
         updatedAt: timestamp,
@@ -133,36 +246,92 @@ app.put("/api/provider-configs/:id", async (c) => {
   );
 });
 
+app.get("/api/oauth/providers", (c) => {
+  return c.json(listOAuthProviders());
+});
+
+app.post("/api/provider-configs/:id/oauth/login", async (c) => {
+  const currentUserId = c.get("user").id;
+  const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
+  if (!providerConfig || providerConfig.userId !== currentUserId) {
+    return c.json({ error: "Provider config not found." }, 404);
+  }
+  try {
+    return c.json(await startOAuthLoginFlow(currentUserId, providerConfig));
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  }
+});
+
+app.get("/api/oauth/flows/:id", (c) => {
+  const flow = readOAuthLoginFlow(c.get("user").id, c.req.param("id"));
+  if (!flow) return c.json({ error: "OAuth flow not found." }, 404);
+  return c.json(flow);
+});
+
+app.post("/api/oauth/flows/:id/input", async (c) => {
+  const body = (await c.req.json()) as { value?: string };
+  try {
+    const flow = submitOAuthLoginFlowInput(c.get("user").id, c.req.param("id"), body.value ?? "");
+    if (!flow) return c.json({ error: "OAuth flow not found." }, 404);
+    return c.json(flow);
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  }
+});
+
 app.delete("/api/provider-configs/:id", (c) => {
+  const currentUserId = c.get("user").id;
   const providerConfigId = c.req.param("id");
+  if (!ownsProviderConfig(currentUserId, providerConfigId)) return c.json({ error: "Provider config not found." }, 404);
   const relatedModels = db.select().from(modelRefs).where(eq(modelRefs.providerConfigId, providerConfigId)).all();
   const deletedModelIds = new Set(relatedModels.map((model) => model.id));
   if (deletedModelIds.size > 0) {
-    const fallbackModel = db.select().from(modelRefs).all().find((model) => !deletedModelIds.has(model.id));
-    if (!fallbackModel) {
-      return c.json({ error: "Create another provider/model before deleting the last configured models." }, 409);
+    const missingFallbackUserIds = readAffectedModelUserIds(deletedModelIds).filter(
+      (userId) => !readFallbackModelForUser(userId, deletedModelIds),
+    );
+    if (missingFallbackUserIds.length > 0) {
+      return c.json({ error: "Every affected user needs another visible model before deleting this provider." }, 409);
     }
-    reassignModelReferences(deletedModelIds, fallbackModel.id);
+    reassignModelReferences(deletedModelIds);
   }
 
   db.delete(modelRefs).where(eq(modelRefs.providerConfigId, providerConfigId)).run();
   db.delete(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).run();
-  return c.json(readBootstrapPayload());
+  return c.json(readBootstrapPayload(currentUserId));
 });
 
 app.put("/api/agents/:id", async (c) => {
+  const currentUserId = c.get("user").id;
   const agent = (await c.req.json()) as AgentConfig;
+  const agentId = c.req.param("id");
+  const current = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
+  if (!canUseModel(currentUserId, agent.defaultModelRefId)) return c.json({ error: "Model not found." }, 404);
+  const workingDir = resolveAgentWorkingDir(agent, agentId, current);
+  if (!workingDir) return c.json({ error: "Manual working directory is required." }, 400);
   const timestamp = now();
   db.insert(agents)
-    .values({ ...agent, id: c.req.param("id"), createdAt: agent.createdAt ?? timestamp, updatedAt: timestamp })
+    .values({
+      ...agent,
+      id: agentId,
+      ownerUserId: currentUserId,
+      workingDirMode: agent.workingDirMode ?? "manual",
+      workingDir: workingDir.workingDir,
+      defaultWorkingDir: workingDir.defaultWorkingDir,
+      createdAt: agent.createdAt ?? timestamp,
+      updatedAt: timestamp,
+    })
     .onConflictDoUpdate({
       target: agents.id,
       set: {
-        ownerUserId: agent.ownerUserId,
+        ownerUserId: currentUserId,
         shared: agent.shared,
         name: agent.name,
         description: agent.description,
-        workingDir: agent.workingDir,
+        workingDirMode: agent.workingDirMode ?? "manual",
+        workingDir: workingDir.workingDir,
+        defaultWorkingDir: workingDir.defaultWorkingDir,
         skills: agent.skills,
         systemPrompt: agent.systemPrompt,
         promptTemplates: agent.promptTemplates,
@@ -172,11 +341,14 @@ app.put("/api/agents/:id", async (c) => {
       },
     })
     .run();
-  return c.json(serializePublicAgent(db.select().from(agents).where(eq(agents.id, c.req.param("id"))).get()!));
+  return c.json(serializePublicAgent(db.select().from(agents).where(eq(agents.id, agentId)).get()!));
 });
 
 app.delete("/api/agents/:id", (c) => {
+  const currentUserId = c.get("user").id;
   const agentId = c.req.param("id");
+  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  if (!agent || agent.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
   db.delete(sessions).where(eq(sessions.agentId, agentId)).run();
   db.delete(agents).where(eq(agents.id, agentId)).run();
   return c.json({ ok: true });
@@ -185,15 +357,14 @@ app.delete("/api/agents/:id", (c) => {
 app.get("/api/agents/:id/settings", (c) => {
   const agent = db.select().from(agents).where(eq(agents.id, c.req.param("id"))).get();
   if (!agent) return c.json({ error: "Agent not found" }, 404);
-  if (agent.ownerUserId !== c.req.query("userId")) return c.json({ error: "Agent settings are owner-only." }, 403);
-  return c.json(agent);
+  if (agent.ownerUserId !== c.get("user").id) return c.json({ error: "Agent settings are owner-only." }, 403);
+  return c.json(serializeAgentSettings(agent));
 });
 
 app.get("/api/agents/:id/commands", async (c) => {
-  const agent = db.select().from(agents).where(eq(agents.id, c.req.param("id"))).get();
+  const userId = c.get("user").id;
+  const agent = readVisibleAgent(userId, c.req.param("id"));
   if (!agent) return c.json({ error: "Agent not found" }, 404);
-  const userId = c.req.query("userId");
-  if (agent.ownerUserId !== userId && !agent.shared) return c.json({ error: "Agent not found" }, 404);
   const resourceLoader = await createAgentResourceLoader(agent);
   const { skills } = resourceLoader.getSkills();
   return c.json({
@@ -207,7 +378,8 @@ app.get("/api/agents/:id/commands", async (c) => {
 });
 
 app.post("/api/agents/:id/run", async (c) => {
-  const agent = db.select().from(agents).where(eq(agents.id, c.req.param("id"))).get();
+  const currentUserId = c.get("user").id;
+  const agent = readVisibleAgent(currentUserId, c.req.param("id"));
   if (!agent) return c.json({ error: "Agent not found" }, 404);
 
   const body = (await c.req.json()) as {
@@ -219,7 +391,9 @@ app.post("/api/agents/:id/run", async (c) => {
   const session = body.sessionId
     ? db.select().from(sessions).where(eq(sessions.id, body.sessionId)).get()
     : undefined;
-  if (!session || session.agentId !== agent.id) return c.json({ error: "Session not found" }, 404);
+  if (!session || session.userId !== currentUserId || session.agentId !== agent.id) {
+    return c.json({ error: "Session not found" }, 404);
+  }
 
   const modelRef = db
     .select()
@@ -227,6 +401,7 @@ app.post("/api/agents/:id/run", async (c) => {
     .where(eq(modelRefs.id, body.modelRefId ?? session.modelRefId))
     .get();
   if (!modelRef) return c.json({ error: "Model not found" }, 404);
+  if (!canUseModel(currentUserId, modelRef)) return c.json({ error: "Model not found" }, 404);
 
   const providerConfig = modelRef.providerConfigId
     ? db.select().from(providerConfigs).where(eq(providerConfigs.id, modelRef.providerConfigId)).get()
@@ -237,8 +412,11 @@ app.post("/api/agents/:id/run", async (c) => {
     .where(eq(providerKeys.userId, session.userId))
     .all()
     .find((item) => item.provider === modelRef.provider);
-  const apiKey = providerConfig?.apiKey ?? providerKey?.apiKey;
-  if (!apiKey) return c.json({ error: "No API key configured for this model provider." }, 400);
+  const authStorage = providerConfig ? createProviderConfigAuthStorage(providerConfig, modelRef.provider) : AuthStorage.inMemory();
+  if (!providerConfig && providerKey?.apiKey) authStorage.setRuntimeApiKey(modelRef.provider, providerKey.apiKey);
+  if (!authStorage.hasAuth(modelRef.provider)) {
+    return c.json({ error: "No API key or OAuth login configured for this model provider." }, 400);
+  }
 
   let promptInput: PromptInput | undefined;
   try {
@@ -252,7 +430,7 @@ app.post("/api/agents/:id/run", async (c) => {
     session,
     modelRef,
     providerConfig,
-    apiKey,
+    authStorage,
     thinkingLevel: body.thinkingLevel ?? session.thinkingLevel,
     promptInput,
   });
@@ -260,17 +438,21 @@ app.post("/api/agents/:id/run", async (c) => {
 
 app.get("/api/sessions/:id", (c) => {
   const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
-  if (!session) return c.json({ error: "Session not found" }, 404);
+  if (!session || session.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
   return c.json(serializeSession(session));
 });
 
 app.post("/api/sessions", async (c) => {
-  const draft = (await c.req.json()) as SessionDraft & { userId: string; title?: string };
+  const currentUserId = c.get("user").id;
+  const draft = (await c.req.json()) as SessionDraft & { title?: string };
+  const agent = readVisibleAgent(currentUserId, draft.agentId);
+  if (!agent) return c.json({ error: "Agent not found." }, 404);
+  if (!canUseModel(currentUserId, draft.modelRefId)) return c.json({ error: "Model not found." }, 404);
   const timestamp = now();
   const session: Session = {
     id: id("session"),
     title: draft.title ?? "Untitled session",
-    userId: draft.userId,
+    userId: currentUserId,
     agentId: draft.agentId,
     modelRefId: draft.modelRefId,
     thinkingLevel: draft.thinkingLevel,
@@ -286,12 +468,14 @@ app.patch("/api/sessions/:id", async (c) => {
   const patch = (await c.req.json()) as Partial<Session>;
   const sessionId = c.req.param("id");
   const current = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-  if (!current) return c.json({ error: "Session not found" }, 404);
+  if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+  if (patch.modelRefId && !canUseModel(c.get("user").id, patch.modelRefId)) return c.json({ error: "Model not found." }, 404);
   const updated: Session = {
     ...current,
     title: patch.title ?? current.title,
     modelRefId: patch.modelRefId ?? current.modelRefId,
     thinkingLevel: patch.thinkingLevel ?? current.thinkingLevel,
+    messages: patch.messages ?? current.messages,
     forkedFrom: patch.forkedFrom ?? current.forkedFrom ?? undefined,
     id: sessionId,
     updatedAt: now(),
@@ -316,7 +500,7 @@ app.post("/api/sessions/:id/fork", async (c) => {
   const sessionId = c.req.param("id");
   const body = (await c.req.json()) as { messageIndex: number };
   const source = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-  if (!source) return c.json({ error: "Session not found" }, 404);
+  if (!source || source.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
   const timestamp = now();
   const fork: Session = {
     ...source,
@@ -332,21 +516,122 @@ app.post("/api/sessions/:id/fork", async (c) => {
 });
 
 app.delete("/api/sessions/:id", (c) => {
-  db.delete(sessions).where(eq(sessions.id, c.req.param("id"))).run();
+  const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
+  if (!session || session.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+  db.delete(sessions).where(eq(sessions.id, session.id)).run();
   return c.json({ ok: true });
 });
 
-function readBootstrapPayload() {
+function readBootstrapPayload(userId: string) {
+  const visibleProviderConfigs = readUserProviderConfigs(userId);
+  const visibleProviderConfigIds = new Set(visibleProviderConfigs.map((config) => config.id));
   return {
-    users: db.select().from(users).all(),
-    agents: db.select().from(agents).all().map(serializePublicAgent),
-    providerConfigs: db.select().from(providerConfigs).all().map(serializeProviderConfig),
-    modelRefs: db.select().from(modelRefs).all().map(serializeModelRef),
-    sessions: db.select().from(sessions).all().map(serializeSession),
+    users: db.select().from(users).where(eq(users.id, userId)).all().map(serializeUser),
+    agents: readVisibleAgents(userId).map(serializePublicAgent),
+    providerConfigs: visibleProviderConfigs.map(serializeProviderConfig),
+    modelRefs: db
+      .select()
+      .from(modelRefs)
+      .all()
+      .filter(
+        (model) =>
+          model.ownerUserId === userId ||
+          model.shared ||
+          !model.providerConfigId ||
+          visibleProviderConfigIds.has(model.providerConfigId),
+      )
+      .map(serializeModelRef),
+    sessions: db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.userId, userId))
+      .all()
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .map(serializeSession),
   };
 }
 
-function reassignModelReferences(deletedModelIds: Set<string>, fallbackModelId: string) {
+function readUserProviderConfigs(userId: string) {
+  return db.select().from(providerConfigs).where(eq(providerConfigs.userId, userId)).all();
+}
+
+function readVisibleAgents(userId: string) {
+  return db
+    .select()
+    .from(agents)
+    .all()
+    .filter((agent) => agent.ownerUserId === userId || agent.shared);
+}
+
+function readVisibleAgent(userId: string, agentId: string) {
+  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
+  if (!agent || (agent.ownerUserId !== userId && !agent.shared)) return undefined;
+  return agent;
+}
+
+function readVisibleModelRefs(userId: string) {
+  const providerConfigIds = new Set(readUserProviderConfigs(userId).map((config) => config.id));
+  return db
+    .select()
+    .from(modelRefs)
+    .all()
+    .filter(
+      (model) =>
+        model.ownerUserId === userId ||
+        model.shared ||
+        !model.providerConfigId ||
+        providerConfigIds.has(model.providerConfigId),
+    );
+}
+
+function ownsProviderConfig(userId: string, providerConfigId: string) {
+  return Boolean(
+    db
+      .select()
+      .from(providerConfigs)
+      .where(eq(providerConfigs.id, providerConfigId))
+      .get()?.userId === userId,
+  );
+}
+
+function canUseModel(userId: string, model: string | typeof modelRefs.$inferSelect) {
+  const modelRef = typeof model === "string" ? db.select().from(modelRefs).where(eq(modelRefs.id, model)).get() : model;
+  if (!modelRef) return false;
+  return (
+    modelRef.ownerUserId === userId ||
+    modelRef.shared ||
+    !modelRef.providerConfigId ||
+    ownsProviderConfig(userId, modelRef.providerConfigId)
+  );
+}
+
+function resolveAgentWorkingDir(
+  agent: AgentConfig,
+  agentId: string,
+  current?: typeof agents.$inferSelect,
+) {
+  const defaultWorkingDir = normalizeDataRelativePath(
+    current?.defaultWorkingDir ?? agent.defaultWorkingDir ?? defaultAgentWorkingDir(agentId),
+  );
+  if ((agent.workingDirMode ?? "manual") === "default") {
+    ensureDir(resolveDataPath(defaultWorkingDir));
+    return {
+      workingDir: defaultWorkingDir,
+      defaultWorkingDir,
+    };
+  }
+
+  const previousManualWorkingDir =
+    current?.workingDirMode === "manual" && current.workingDir !== defaultWorkingDir ? current.workingDir : "";
+  const workingDir = agent.workingDir.trim() || previousManualWorkingDir;
+  if (!workingDir) return null;
+  return {
+    workingDir,
+    defaultWorkingDir,
+  };
+}
+
+function reassignModelReferences(deletedModelIds: Set<string>) {
   const timestamp = now();
   const affectedAgents = db
     .select()
@@ -355,8 +640,10 @@ function reassignModelReferences(deletedModelIds: Set<string>, fallbackModelId: 
     .filter((agent) => deletedModelIds.has(agent.defaultModelRefId));
 
   for (const agent of affectedAgents) {
+    const fallbackModel = readFallbackModelForUser(agent.ownerUserId, deletedModelIds);
+    if (!fallbackModel) continue;
     db.update(agents)
-      .set({ defaultModelRefId: fallbackModelId, updatedAt: timestamp })
+      .set({ defaultModelRefId: fallbackModel.id, updatedAt: timestamp })
       .where(eq(agents.id, agent.id))
       .run();
   }
@@ -370,12 +657,14 @@ function reassignModelReferences(deletedModelIds: Set<string>, fallbackModelId: 
 
   for (const session of affectedSessions) {
     const agentDefaultModelId = currentAgents.get(session.agentId)?.defaultModelRefId;
+    const fallbackModel = readFallbackModelForUser(session.userId, deletedModelIds);
+    if (!fallbackModel) continue;
     db.update(sessions)
       .set({
         modelRefId:
           agentDefaultModelId && !deletedModelIds.has(agentDefaultModelId)
             ? agentDefaultModelId
-            : fallbackModelId,
+            : fallbackModel.id,
         updatedAt: timestamp,
       })
       .where(eq(sessions.id, session.id))
@@ -383,7 +672,32 @@ function reassignModelReferences(deletedModelIds: Set<string>, fallbackModelId: 
   }
 }
 
+function readAffectedModelUserIds(deletedModelIds: Set<string>) {
+  const userIds = new Set<string>();
+  for (const agent of db.select().from(agents).all()) {
+    if (deletedModelIds.has(agent.defaultModelRefId)) userIds.add(agent.ownerUserId);
+  }
+  for (const session of db.select().from(sessions).all()) {
+    if (deletedModelIds.has(session.modelRefId)) userIds.add(session.userId);
+  }
+  return [...userIds];
+}
+
+function readFallbackModelForUser(userId: string, deletedModelIds: Set<string>) {
+  return readVisibleModelRefs(userId).find((model) => !deletedModelIds.has(model.id));
+}
+
+const clientDistDir = process.env.CLIENT_DIST_DIR ?? fileURLToPath(new URL("../../client/dist/", import.meta.url));
+if (existsSync(clientDistDir)) {
+  app.use("*", serveStatic({ root: clientDistDir }));
+  app.get("*", async (c) => {
+    if (c.req.path.startsWith("/api/")) return c.notFound();
+    return c.html(await readFile(join(clientDistDir, "index.html"), "utf-8"));
+  });
+}
+
 const port = Number(process.env.PORT ?? 8797);
-serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`Carmel agent API listening on http://localhost:${info.port}`);
+const hostname = process.env.HOST ?? "0.0.0.0";
+serve({ fetch: app.fetch, hostname, port }, (info) => {
+  console.log(`Carmel agent listening on http://${hostname}:${info.port}`);
 });

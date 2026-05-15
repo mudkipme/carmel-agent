@@ -1,0 +1,12 @@
+.git
+.woodpecker
+.agents
+node_modules
+**/node_modules
+dist
+**/dist
+data
+.cache
+.DS_Store
+*.log
+*.tsbuildinfo

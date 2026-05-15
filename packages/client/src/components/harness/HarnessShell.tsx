@@ -2,7 +2,6 @@ import {
   BotIcon,
   MessageSquarePlusIcon,
   PencilIcon,
-  Share2Icon,
   Trash2Icon,
 } from "lucide-react";
 import { PiChat } from "@/components/PiChat";
@@ -16,15 +15,21 @@ import { useHarnessStore } from "@/store/harness-store";
 export function HarnessShell() {
   const store = useHarnessStore();
   const activeUser = store.users.find((user) => user.id === store.activeUserId);
-  const selectedSession = store.sessions.find((session) => session.id === store.activeSessionId);
-  const selectedAgent = store.agents.find((agent) => agent.id === store.activeAgentId);
-  const activeAgent = selectedAgent ?? store.agents.find((agent) => agent.id === selectedSession?.agentId);
-  const activeSession = selectedSession?.agentId === activeAgent?.id ? selectedSession : undefined;
-  const activeModel = store.modelRefs.find((model) => model.id === activeSession?.modelRefId);
-  const visibleAgents = store.agents.filter((agent) => agent.shared || agent.ownerUserId === store.activeUserId);
-  const visibleSessions = store.sessions.filter(
-    (session) => session.userId === store.activeUserId && session.agentId === activeAgent?.id,
+  const selectedSession = store.sessions.find(
+    (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
   );
+  const visibleAgents = store.agents.filter((agent) => agent.shared || agent.ownerUserId === store.activeUserId);
+  const selectedAgent = visibleAgents.find((agent) => agent.id === store.activeAgentId);
+  const activeAgent = selectedAgent ?? visibleAgents.find((agent) => agent.id === selectedSession?.agentId);
+  const activeSession =
+    selectedSession?.userId === store.activeUserId && selectedSession.agentId === activeAgent?.id
+      ? selectedSession
+      : undefined;
+  const activeModel = store.modelRefs.find((model) => model.id === activeSession?.modelRefId);
+  const visibleSessions = store.sessions
+    .filter((session) => session.userId === store.activeUserId && session.agentId === activeAgent?.id)
+    .slice()
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 
   const createSidebarAgent = async () => {
     try {
@@ -67,24 +72,34 @@ export function HarnessShell() {
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              {visibleAgents.map((agent) => (
-                <div
-                  key={agent.id}
-                  className={cn(
-                    "group flex items-start gap-1 rounded-md px-2 py-1.5 text-[13px] transition-colors hover:bg-accent hover:text-accent-foreground",
-                    agent.id === activeAgent?.id && "bg-accent text-accent-foreground",
-                  )}
-                >
-                  <button className="min-w-0 flex-1 text-left" onClick={() => store.setActiveAgent(agent.id)}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-[13px]">{agent.name}</span>
-                      {agent.shared ? <Share2Icon className="shrink-0" /> : null}
-                    </div>
-                    <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{agent.description}</p>
-                  </button>
-                  <AgentSettingsDialog agent={agent} modelRefs={store.modelRefs} providerConfigs={store.providerConfigs} />
-                </div>
-              ))}
+              {visibleAgents.map((agent) => {
+                const owned = agent.ownerUserId === store.activeUserId;
+                return (
+                  <div
+                    key={agent.id}
+                    className={cn(
+                      "group flex items-start gap-1 rounded-md px-2 py-1.5 text-[13px] transition-colors hover:bg-accent hover:text-accent-foreground",
+                      agent.id === activeAgent?.id && "bg-accent text-accent-foreground",
+                    )}
+                  >
+                    <button className="min-w-0 flex-1 text-left" onClick={() => store.setActiveAgent(agent.id)}>
+                      <span className="block truncate text-[13px]">{agent.name}</span>
+                      <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                        {agent.shared ? <span className="shrink-0">Shared</span> : null}
+                        {agent.shared && agent.description ? <span className="shrink-0">·</span> : null}
+                        <span className="truncate">{agent.description}</span>
+                      </p>
+                    </button>
+                    {owned ? (
+                      <AgentSettingsDialog
+                        agent={agent}
+                        modelRefs={store.modelRefs}
+                        providerConfigs={store.providerConfigs}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           </section>
 

@@ -15,12 +15,11 @@ import type { AgentCommandPayload, AgentConfig } from "@carmel-agent/shared";
 
 type AgentCommandPaletteProps = {
   agent: AgentConfig;
-  userId: string;
   onInsert: (text: string) => void;
   className?: string;
 };
 
-export function AgentCommandPalette({ agent, userId, onInsert, className }: AgentCommandPaletteProps) {
+export function AgentCommandPalette({ agent, onInsert, className }: AgentCommandPaletteProps) {
   const [open, setOpen] = useState(false);
   const [payload, setPayload] = useState<AgentCommandPayload>({
     promptTemplates: [],
@@ -34,14 +33,14 @@ export function AgentCommandPalette({ agent, userId, onInsert, className }: Agen
     requestSeq.current = seq;
     setLoading(true);
     void api
-      .getAgentCommands(agent.id, userId)
+      .getAgentCommands(agent.id)
       .then((commands) => {
         if (requestSeq.current === seq) setPayload(commands);
       })
       .finally(() => {
         if (requestSeq.current === seq) setLoading(false);
       });
-  }, [agent.id, userId]);
+  }, [agent.id]);
 
   const setPaletteOpen = useCallback(
     (nextOpen: boolean) => {

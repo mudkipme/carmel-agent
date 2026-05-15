@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { HarnessShell } from "@/components/harness/HarnessShell";
+import { LoginScreen } from "@/components/harness/LoginScreen";
 import { Splash } from "@/components/harness/Splash";
 import { useHarnessStore } from "@/store/harness-store";
 
@@ -18,6 +19,10 @@ export default function App() {
 
   if (status === "error") {
     return <Splash title="API unavailable" detail={error ?? "Start the server with pnpm dev:server."} />;
+  }
+
+  if (status === "unauthenticated") {
+    return <LoginScreen />;
   }
 
   return <HarnessShell />;

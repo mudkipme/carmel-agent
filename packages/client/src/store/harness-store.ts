@@ -1,6 +1,7 @@
 import { getModel, getModels, type Api, type Model } from "@earendil-works/pi-ai";
 import { create } from "zustand";
-import { api, type BootstrapPayload } from "@/lib/api";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { ApiError, api, type BootstrapPayload } from "@/lib/api";
 import { createClientId } from "@/lib/id";
 import type {
   AgentConfig,
@@ -14,7 +15,7 @@ import type {
 
 const id = createClientId;
 
-type HarnessStatus = "idle" | "loading" | "ready" | "error";
+type HarnessStatus = "idle" | "loading" | "ready" | "unauthenticated" | "error";
 
 type HarnessState = {
   status: HarnessStatus;
@@ -28,6 +29,9 @@ type HarnessState = {
   sessions: Session[];
   activeSessionId: string;
   bootstrap: () => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   setActiveUser: (userId: string) => void;
   setActiveAgent: (agentId: string) => void;
   setActiveSession: (sessionId: string) => void;
@@ -48,7 +52,11 @@ type HarnessState = {
   deletePromptTemplate: (agentId: string, templateId: string) => Promise<void>;
 };
 
-export const useHarnessStore = create<HarnessState>()((set, get) => ({
+type HarnessPersistedState = Pick<HarnessState, "activeUserId" | "activeAgentId" | "activeSessionId">;
+
+export const useHarnessStore = create<HarnessState>()(
+  persist<HarnessState, [], [], HarnessPersistedState>(
+    (set, get) => ({
   status: "idle",
   users: [],
   activeUserId: "",
@@ -64,13 +72,34 @@ export const useHarnessStore = create<HarnessState>()((set, get) => ({
       const payload = await api.bootstrap();
       set(resolveBootstrapState(payload, get()));
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        set((state) => resetState({ status: "unauthenticated" }, state));
+        return;
+      }
       set({ status: "error", error: error instanceof Error ? error.message : "Failed to load harness" });
     }
   },
+  login: async (username, password) => {
+    set({ status: "loading", error: undefined });
+    try {
+      const payload = await api.login(username, password);
+      set(resolveBootstrapState(payload, get()));
+    } catch (error) {
+      set((state) => ({
+        ...resetState({ status: "unauthenticated" }, state),
+        error: error instanceof Error ? error.message : "Login failed",
+      }));
+    }
+  },
+  logout: async () => {
+    await api.logout();
+    set(resetState({ status: "unauthenticated" }));
+  },
+  changePassword: (currentPassword, newPassword) => api.changePassword(currentPassword, newPassword).then(() => undefined),
   setActiveUser: (userId) => {
     const session = get().sessions.find((item) => item.userId === userId);
     const agent =
-      get().agents.find((item) => item.id === session?.agentId) ??
+      get().agents.find((item) => item.id === session?.agentId && canUserSeeAgent(item, userId)) ??
       get().agents.find((item) => item.ownerUserId === userId || item.shared);
     set({
       activeUserId: userId,
@@ -79,6 +108,8 @@ export const useHarnessStore = create<HarnessState>()((set, get) => ({
     });
   },
   setActiveAgent: (agentId) => {
+    const agent = get().agents.find((item) => item.id === agentId && canUserSeeAgent(item, get().activeUserId));
+    if (!agent) return;
     const session = get().sessions.find(
       (item) => item.agentId === agentId && item.userId === get().activeUserId,
     );
@@ -88,7 +119,7 @@ export const useHarnessStore = create<HarnessState>()((set, get) => ({
     });
   },
   setActiveSession: (sessionId) => {
-    const session = get().sessions.find((item) => item.id === sessionId);
+    const session = get().sessions.find((item) => item.id === sessionId && item.userId === get().activeUserId);
     if (!session) return;
     set({ activeSessionId: sessionId, activeAgentId: session.agentId });
   },
@@ -118,7 +149,9 @@ export const useHarnessStore = create<HarnessState>()((set, get) => ({
       shared: draft?.shared ?? false,
       name: draft?.name ?? "New agent",
       description: draft?.description ?? "Personal agent",
-      workingDir: draft?.workingDir ?? "/tmp",
+      workingDirMode: draft?.workingDirMode ?? "default",
+      workingDir: draft?.workingDir ?? "",
+      defaultWorkingDir: draft?.defaultWorkingDir,
       skills: draft?.skills ?? [],
       systemPrompt: draft?.systemPrompt ?? "You are a helpful agent.",
       promptTemplates: draft?.promptTemplates ?? [],
@@ -187,7 +220,7 @@ export const useHarnessStore = create<HarnessState>()((set, get) => ({
     set((state) => resolveBootstrapState(payload, state));
   },
   createSession: async (draft) => {
-    const session = await api.createSession({ ...draft, userId: get().activeUserId });
+    const session = await api.createSession(draft);
     set((state) => ({
       sessions: [session, ...state.sessions],
       activeSessionId: session.id,
@@ -248,7 +281,36 @@ export const useHarnessStore = create<HarnessState>()((set, get) => ({
       promptTemplates: agent.promptTemplates.filter((template) => template.id !== templateId),
     });
   },
-}));
+}),
+    {
+      name: "carmel-harness-ui",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        activeUserId: state.activeUserId,
+        activeAgentId: state.activeAgentId,
+        activeSessionId: state.activeSessionId,
+      }),
+      version: 1,
+    },
+  ),
+);
+
+function resetState(
+  patch: Pick<HarnessState, "status"> & Partial<Pick<HarnessState, "error">>,
+  preserveSelection?: HarnessPersistedState,
+) {
+  return {
+    ...patch,
+    users: [],
+    activeUserId: preserveSelection?.activeUserId ?? "",
+    agents: [],
+    activeAgentId: preserveSelection?.activeAgentId ?? "",
+    providerConfigs: [],
+    modelRefs: [],
+    sessions: [],
+    activeSessionId: preserveSelection?.activeSessionId ?? "",
+  };
+}
 
 export function resolveModelRef(modelRef: ModelRef): Model<Api> {
   const builtIn = getModel(modelRef.provider as never, modelRef.modelId as never);
@@ -275,6 +337,8 @@ export function makeModelRef(provider: string, modelId: string, providerConfigId
   const model = getModel(provider as never, modelId as never);
   return {
     id: id("model"),
+    ownerUserId: "",
+    shared: false,
     label: model?.name ?? modelId,
     provider,
     providerConfigId,
@@ -298,23 +362,31 @@ function resolveBootstrapState(
   const activeUserId = payload.users.some((user) => user.id === current.activeUserId)
     ? current.activeUserId
     : (payload.users[0]?.id ?? "");
-  const activeSession = payload.sessions.find(
+  const sessions = payload.sessions.filter((session) => session.userId === activeUserId);
+  const agents = payload.agents.filter((agent) => canUserSeeAgent(agent, activeUserId));
+  const activeSession = sessions.find(
     (session) => session.id === current.activeSessionId && session.userId === activeUserId,
   );
   const activeAgent =
-    payload.agents.find((agent) => agent.id === current.activeAgentId) ??
-    payload.agents.find((agent) => agent.id === activeSession?.agentId) ??
-    payload.agents.find((agent) => agent.ownerUserId === activeUserId || agent.shared);
+    agents.find((agent) => agent.id === current.activeAgentId) ??
+    agents.find((agent) => agent.id === activeSession?.agentId) ??
+    agents.find((agent) => agent.ownerUserId === activeUserId || agent.shared);
   const nextActiveSession =
     activeSession?.agentId === activeAgent?.id
       ? activeSession
-      : payload.sessions.find((session) => session.userId === activeUserId && session.agentId === activeAgent?.id);
+      : sessions.find((session) => session.agentId === activeAgent?.id);
 
   return {
     ...payload,
+    agents,
+    sessions,
     activeUserId,
     activeAgentId: activeAgent?.id ?? "",
     activeSessionId: nextActiveSession?.id ?? "",
     status: "ready" as const,
   };
+}
+
+function canUserSeeAgent(agent: AgentConfig, userId: string) {
+  return agent.ownerUserId === userId || agent.shared;
 }
