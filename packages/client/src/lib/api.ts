@@ -8,6 +8,7 @@ import type {
   ProviderConfig,
   Session,
   SessionDraft,
+  SessionMetadata,
   User,
 } from "@carmel-agent/shared";
 
@@ -16,7 +17,7 @@ export type BootstrapPayload = {
   agents: AgentConfig[];
   providerConfigs: ProviderConfig[];
   modelRefs: ModelRef[];
-  sessions: Session[];
+  sessions: SessionMetadata[];
 };
 
 export class ApiError extends Error {

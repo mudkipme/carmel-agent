@@ -1,4 +1,4 @@
-import type { AgentConfig, ModelRef, ProviderConfig, Session, User } from "@carmel-agent/shared";
+import type { AgentConfig, ModelRef, ProviderConfig, Session, SessionMetadata, User } from "@carmel-agent/shared";
 import { agents, modelRefs, providerConfigs, sessions, users } from "./db/schema.ts";
 import { defaultAgentWorkingDir } from "./paths.ts";
 
@@ -56,5 +56,20 @@ export function serializeSession(session: Session | typeof sessions.$inferSelect
   return {
     ...session,
     forkedFrom: session.forkedFrom ?? undefined,
+  };
+}
+
+export function serializeSessionMetadata(session: Session | typeof sessions.$inferSelect): SessionMetadata {
+  return {
+    id: session.id,
+    title: session.title,
+    userId: session.userId,
+    agentId: session.agentId,
+    modelRefId: session.modelRefId,
+    thinkingLevel: session.thinkingLevel,
+    forkedFrom: session.forkedFrom ?? undefined,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    messageCount: session.messages.length,
   };
 }

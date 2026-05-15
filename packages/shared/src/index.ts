@@ -159,4 +159,8 @@ export type Session = {
   updatedAt: number;
 };
 
+export type SessionMetadata = Omit<Session, "messages"> & {
+  messageCount: number;
+};
+
 export type SessionDraft = Pick<Session, "agentId" | "modelRefId" | "thinkingLevel">;

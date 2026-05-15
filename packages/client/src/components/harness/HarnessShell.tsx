@@ -21,11 +21,12 @@ export function HarnessShell() {
   const visibleAgents = store.agents.filter((agent) => agent.shared || agent.ownerUserId === store.activeUserId);
   const selectedAgent = visibleAgents.find((agent) => agent.id === store.activeAgentId);
   const activeAgent = selectedAgent ?? visibleAgents.find((agent) => agent.id === selectedSession?.agentId);
-  const activeSession =
+  const activeSessionMetadata =
     selectedSession?.userId === store.activeUserId && selectedSession.agentId === activeAgent?.id
       ? selectedSession
       : undefined;
-  const activeModel = store.modelRefs.find((model) => model.id === activeSession?.modelRefId);
+  const activeSession = activeSessionMetadata ? store.sessionDetails[activeSessionMetadata.id] : undefined;
+  const activeModel = store.modelRefs.find((model) => model.id === activeSessionMetadata?.modelRefId);
   const visibleSessions = store.sessions
     .filter((session) => session.userId === store.activeUserId && session.agentId === activeAgent?.id)
     .slice()
@@ -127,7 +128,7 @@ export function HarnessShell() {
                   key={session.id}
                   className={cn(
                     "group flex items-start gap-1 rounded-md px-2 py-1.5 transition-colors hover:bg-accent hover:text-accent-foreground",
-                    session.id === activeSession?.id && "bg-accent text-accent-foreground",
+                    session.id === activeSessionMetadata?.id && "bg-accent text-accent-foreground",
                   )}
                 >
                   <button className="min-w-0 flex-1 text-left" onClick={() => store.setActiveSession(session.id)}>
@@ -171,13 +172,13 @@ export function HarnessShell() {
       <section className="flex min-h-0 flex-col">
         <header className="flex h-11 items-center justify-between gap-3 border-b bg-background px-4">
           <div className="min-w-0">
-            <h2 className="truncate text-[13px] font-medium">{activeSession?.title ?? "No session"}</h2>
+            <h2 className="truncate text-[13px] font-medium">{activeSessionMetadata?.title ?? "No session"}</h2>
             <p className="truncate text-xs text-muted-foreground">
               {activeAgent?.workingDir ?? "No working directory"} · {activeModel?.label ?? "No model"}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">{activeSession?.thinkingLevel ?? "off"}</Badge>
+            <Badge variant="secondary">{activeSessionMetadata?.thinkingLevel ?? "off"}</Badge>
             <Badge variant="secondary">{activeAgent?.permissions.bash ? "bash on" : "bash off"}</Badge>
             <SettingsDialog modelRefs={store.modelRefs} providerConfigs={store.providerConfigs} />
           </div>
@@ -192,6 +193,10 @@ export function HarnessShell() {
               modelRefs={store.modelRefs}
               providerConfigs={store.providerConfigs}
             />
+          ) : activeSessionMetadata && activeAgent && activeModel ? (
+            <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+              Loading session...
+            </div>
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
               Create a session to start chatting.

@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
+import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { createAuthSession, clearAuthSession, hashPassword, requireAuth, verifyPassword, type AuthVariables } from "./auth.ts";
 import { createAgentRunResponse, normalizePromptInput } from "./runtime/agent-runtime.ts";
@@ -29,6 +30,7 @@ import {
   serializeProviderConfig,
   serializePublicAgent,
   serializeSession,
+  serializeSessionMetadata,
   serializeUser,
 } from "./serializers.ts";
 import type { AgentConfig, ModelRef, PromptInput, ProviderConfig, Session, SessionDraft, User } from "@carmel-agent/shared";
@@ -38,6 +40,7 @@ seed();
 
 const app = new Hono<{ Variables: AuthVariables }>();
 
+app.use("*", compress({ encoding: "gzip", threshold: 1024 }));
 app.use(
   "/api/*",
   cors({
@@ -547,7 +550,7 @@ function readBootstrapPayload(userId: string) {
       .where(eq(sessions.userId, userId))
       .all()
       .sort((a, b) => b.updatedAt - a.updatedAt)
-      .map(serializeSession),
+      .map(serializeSessionMetadata),
   };
 }
 

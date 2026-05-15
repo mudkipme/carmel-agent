@@ -10,6 +10,7 @@ import type {
   ProviderConfig,
   Session,
   SessionDraft,
+  SessionMetadata,
   User,
 } from "@carmel-agent/shared";
 
@@ -26,7 +27,8 @@ type HarnessState = {
   activeAgentId: string;
   providerConfigs: ProviderConfig[];
   modelRefs: ModelRef[];
-  sessions: Session[];
+  sessions: SessionMetadata[];
+  sessionDetails: Record<string, Session>;
   activeSessionId: string;
   bootstrap: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
@@ -65,12 +67,15 @@ export const useHarnessStore = create<HarnessState>()(
   providerConfigs: [],
   modelRefs: [],
   sessions: [],
+  sessionDetails: {},
   activeSessionId: "",
   bootstrap: async () => {
     set({ status: "loading", error: undefined });
     try {
       const payload = await api.bootstrap();
-      set(resolveBootstrapState(payload, get()));
+      const nextState = resolveBootstrapState(payload, get());
+      set(nextState);
+      if (nextState.activeSessionId) await get().refreshSession(nextState.activeSessionId);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         set((state) => resetState({ status: "unauthenticated" }, state));
@@ -83,7 +88,9 @@ export const useHarnessStore = create<HarnessState>()(
     set({ status: "loading", error: undefined });
     try {
       const payload = await api.login(username, password);
-      set(resolveBootstrapState(payload, get()));
+      const nextState = resolveBootstrapState(payload, get());
+      set(nextState);
+      if (nextState.activeSessionId) await get().refreshSession(nextState.activeSessionId);
     } catch (error) {
       set((state) => ({
         ...resetState({ status: "unauthenticated" }, state),
@@ -101,11 +108,13 @@ export const useHarnessStore = create<HarnessState>()(
     const agent =
       get().agents.find((item) => item.id === session?.agentId && canUserSeeAgent(item, userId)) ??
       get().agents.find((item) => item.ownerUserId === userId || item.shared);
+    const activeSessionId = session?.agentId === agent?.id ? (session?.id ?? "") : "";
     set({
       activeUserId: userId,
       activeAgentId: agent?.id ?? "",
-      activeSessionId: session?.agentId === agent?.id ? (session?.id ?? "") : "",
+      activeSessionId,
     });
+    if (activeSessionId && !get().sessionDetails[activeSessionId]) void get().refreshSession(activeSessionId);
   },
   setActiveAgent: (agentId) => {
     const agent = get().agents.find((item) => item.id === agentId && canUserSeeAgent(item, get().activeUserId));
@@ -117,11 +126,13 @@ export const useHarnessStore = create<HarnessState>()(
       activeAgentId: agentId,
       activeSessionId: session?.id ?? "",
     });
+    if (session?.id && !get().sessionDetails[session.id]) void get().refreshSession(session.id);
   },
   setActiveSession: (sessionId) => {
     const session = get().sessions.find((item) => item.id === sessionId && item.userId === get().activeUserId);
     if (!session) return;
     set({ activeSessionId: sessionId, activeAgentId: session.agentId });
+    if (!get().sessionDetails[sessionId]) void get().refreshSession(sessionId);
   },
   upsertUser: async (user) => {
     const saved = await api.upsertUser(user);
@@ -182,6 +193,10 @@ export const useHarnessStore = create<HarnessState>()(
     set((state) => {
       const agents = state.agents.filter((item) => item.id !== agentId);
       const sessions = state.sessions.filter((item) => item.agentId !== agentId);
+      const deletedSessionIds = new Set(state.sessions.filter((item) => item.agentId === agentId).map((item) => item.id));
+      const sessionDetails = Object.fromEntries(
+        Object.entries(state.sessionDetails).filter(([sessionId]) => !deletedSessionIds.has(sessionId)),
+      );
       const activeAgentId = state.activeAgentId === agentId ? (agents[0]?.id ?? "") : state.activeAgentId;
       const activeSession = sessions.find(
         (item) => item.agentId === activeAgentId && item.userId === state.activeUserId,
@@ -189,6 +204,7 @@ export const useHarnessStore = create<HarnessState>()(
       return {
         agents,
         sessions,
+        sessionDetails,
         activeAgentId,
         activeSessionId: state.activeAgentId === agentId ? (activeSession?.id ?? "") : state.activeSessionId,
       };
@@ -222,7 +238,8 @@ export const useHarnessStore = create<HarnessState>()(
   createSession: async (draft) => {
     const session = await api.createSession(draft);
     set((state) => ({
-      sessions: [session, ...state.sessions],
+      sessions: [toSessionMetadata(session), ...state.sessions],
+      sessionDetails: { ...state.sessionDetails, [session.id]: session },
       activeSessionId: session.id,
       activeAgentId: session.agentId,
     }));
@@ -231,19 +248,22 @@ export const useHarnessStore = create<HarnessState>()(
   updateSession: async (sessionId, patch) => {
     const saved = await api.updateSession(sessionId, patch);
     set((state) => ({
-      sessions: state.sessions.map((item) => (item.id === sessionId ? saved : item)),
+      sessions: state.sessions.map((item) => (item.id === sessionId ? toSessionMetadata(saved) : item)),
+      sessionDetails: { ...state.sessionDetails, [sessionId]: saved },
     }));
   },
   refreshSession: async (sessionId) => {
     const saved = await api.getSession(sessionId);
     set((state) => ({
-      sessions: state.sessions.map((item) => (item.id === sessionId ? saved : item)),
+      sessions: state.sessions.map((item) => (item.id === sessionId ? toSessionMetadata(saved) : item)),
+      sessionDetails: { ...state.sessionDetails, [sessionId]: saved },
     }));
   },
   forkSession: async (sessionId, messageIndex) => {
     const session = await api.forkSession(sessionId, messageIndex);
     set((state) => ({
-      sessions: [session, ...state.sessions],
+      sessions: [toSessionMetadata(session), ...state.sessions],
+      sessionDetails: { ...state.sessionDetails, [session.id]: session },
       activeSessionId: session.id,
       activeAgentId: session.agentId,
     }));
@@ -254,6 +274,7 @@ export const useHarnessStore = create<HarnessState>()(
     set((state) => {
       const deleted = state.sessions.find((item) => item.id === sessionId);
       const sessions = state.sessions.filter((item) => item.id !== sessionId);
+      const { [sessionId]: _deletedSession, ...sessionDetails } = state.sessionDetails;
       const activeSessionId =
         state.activeSessionId === sessionId
           ? (sessions.find(
@@ -262,7 +283,7 @@ export const useHarnessStore = create<HarnessState>()(
                 item.agentId === (deleted?.agentId ?? state.activeAgentId),
             )?.id ?? "")
           : state.activeSessionId;
-      return { sessions, activeSessionId };
+      return { sessions, sessionDetails, activeSessionId };
     });
   },
   addPromptTemplate: async (agentId, template) => {
@@ -308,6 +329,7 @@ function resetState(
     providerConfigs: [],
     modelRefs: [],
     sessions: [],
+    sessionDetails: {},
     activeSessionId: preserveSelection?.activeSessionId ?? "",
   };
 }
@@ -357,7 +379,7 @@ export function modelsForProvider(provider: string) {
 
 function resolveBootstrapState(
   payload: BootstrapPayload,
-  current: Pick<HarnessState, "activeUserId" | "activeAgentId" | "activeSessionId">,
+  current: Pick<HarnessState, "activeUserId" | "activeAgentId" | "activeSessionId" | "sessionDetails">,
 ) {
   const activeUserId = payload.users.some((user) => user.id === current.activeUserId)
     ? current.activeUserId
@@ -375,15 +397,52 @@ function resolveBootstrapState(
     activeSession?.agentId === activeAgent?.id
       ? activeSession
       : sessions.find((session) => session.agentId === activeAgent?.id);
+  const sessionDetails = Object.fromEntries(
+    sessions.flatMap((metadata) => {
+      const detail = current.sessionDetails[metadata.id];
+      return detail ? [[metadata.id, mergeSessionMetadata(detail, metadata)] as const] : [];
+    }),
+  );
 
   return {
     ...payload,
     agents,
     sessions,
+    sessionDetails,
     activeUserId,
     activeAgentId: activeAgent?.id ?? "",
     activeSessionId: nextActiveSession?.id ?? "",
     status: "ready" as const,
+  };
+}
+
+function toSessionMetadata(session: Session): SessionMetadata {
+  return {
+    id: session.id,
+    title: session.title,
+    userId: session.userId,
+    agentId: session.agentId,
+    modelRefId: session.modelRefId,
+    thinkingLevel: session.thinkingLevel,
+    forkedFrom: session.forkedFrom,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    messageCount: session.messages.length,
+  };
+}
+
+function mergeSessionMetadata(session: Session, metadata: SessionMetadata): Session {
+  return {
+    id: metadata.id,
+    title: metadata.title,
+    userId: metadata.userId,
+    agentId: metadata.agentId,
+    modelRefId: metadata.modelRefId,
+    thinkingLevel: metadata.thinkingLevel,
+    forkedFrom: metadata.forkedFrom,
+    createdAt: metadata.createdAt,
+    updatedAt: metadata.updatedAt,
+    messages: session.messages,
   };
 }
 
