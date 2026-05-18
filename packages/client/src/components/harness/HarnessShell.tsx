@@ -12,6 +12,7 @@ import { AgentSettingsDialog } from "@/components/harness/AgentSettingsDialog";
 import { SettingsDialog } from "@/components/harness/SettingsDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 
@@ -93,58 +94,58 @@ export function HarnessShell() {
             <PanelLeftCloseIcon />
           </Button>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
           <section className="flex flex-col gap-1">
             <div className="flex items-center justify-between px-2">
-              <h2 className="text-xs font-normal text-muted-foreground">Agents</h2>
-              <div className="flex items-center gap-1">
-                <Badge variant="secondary">{visibleAgents.length}</Badge>
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  disabled={!store.modelRefs.length}
-                  onClick={() => void createSidebarAgent()}
-                  title="New agent"
-                >
-                  <BotIcon />
-                </Button>
-              </div>
+              <h2 className="text-xs font-normal text-muted-foreground">Agent</h2>
+              <Badge variant="secondary">{visibleAgents.length}</Badge>
             </div>
-            <div className="flex flex-col gap-1">
-              {visibleAgents.map((agent) => {
-                const owned = agent.ownerUserId === store.activeUserId;
-                return (
-                  <div
-                    key={agent.id}
-                    className={cn(
-                      "group flex items-start gap-1 rounded-md px-2 py-1.5 text-[13px] transition-colors hover:bg-accent hover:text-accent-foreground",
-                      agent.id === activeAgent?.id && "bg-accent text-accent-foreground",
-                    )}
-                  >
-                    <button
-                      className="min-w-0 flex-1 text-left"
-                      onClick={() => {
-                        store.setActiveAgent(agent.id);
-                        closeSidebarOnMobile();
-                      }}
-                    >
-                      <span className="block truncate text-[13px]">{agent.name}</span>
-                      <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                        {agent.shared ? <span className="shrink-0">Shared</span> : null}
-                        {agent.shared && agent.description ? <span className="shrink-0">·</span> : null}
-                        <span className="truncate">{agent.description}</span>
-                      </p>
-                    </button>
-                    {owned ? (
-                      <AgentSettingsDialog
-                        agent={agent}
-                        modelRefs={store.modelRefs}
-                        providerConfigs={store.providerConfigs}
-                      />
-                    ) : null}
-                  </div>
-                );
-              })}
+            <div className="flex items-center gap-1">
+              <Select
+                value={activeAgent?.id}
+                disabled={!visibleAgents.length}
+                onValueChange={(agentId) => {
+                  store.setActiveAgent(agentId);
+                  closeSidebarOnMobile();
+                }}
+              >
+                <SelectTrigger className="h-8 min-w-0 flex-1 bg-background px-2 text-[13px]">
+                  <SelectValue placeholder="Select agent" />
+                </SelectTrigger>
+                <SelectContent className="max-w-[280px]">
+                  <SelectGroup>
+                    {visibleAgents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate">{agent.name}</span>
+                          {agent.shared ? (
+                            <Badge variant="secondary" className="shrink-0">
+                              Shared
+                            </Badge>
+                          ) : null}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              {activeAgent?.ownerUserId === store.activeUserId ? (
+                <AgentSettingsDialog
+                  agent={activeAgent}
+                  modelRefs={store.modelRefs}
+                  providerConfigs={store.providerConfigs}
+                  triggerClassName="opacity-100"
+                />
+              ) : null}
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                disabled={!store.modelRefs.length}
+                onClick={() => void createSidebarAgent()}
+                title="New agent"
+              >
+                <BotIcon />
+              </Button>
             </div>
           </section>
 

@@ -47,25 +47,18 @@ export function SettingsDialog({
   const upsertModelRef = useHarnessStore((state) => state.upsertModelRef);
   const themePreference = useThemePreference();
   const [open, setOpen] = useState(false);
-  const [draftModelRefs, setDraftModelRefs] = useState(modelRefs);
+  const [modelShareDrafts, setModelShareDrafts] = useState<Record<string, boolean>>({});
   const [draftThemePreference, setDraftThemePreference] = useState<ThemePreference>(themePreference);
   const [oauthProviders, setOAuthProviders] = useState<OAuthProviderSummary[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setDraftModelRefs((current) =>
-      modelRefs.map((model) => {
-        const draftModel = current.find((item) => item.id === model.id);
-        return draftModel ? { ...model, shared: draftModel.shared } : model;
-      }),
-    );
-  }, [modelRefs, open]);
+  const draftModelRefs = modelRefs.map((model) =>
+    Object.hasOwn(modelShareDrafts, model.id) ? { ...model, shared: modelShareDrafts[model.id] } : model,
+  );
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      setDraftModelRefs(modelRefs);
+      setModelShareDrafts({});
       setDraftThemePreference(themePreference);
       setSaveError(null);
     }
@@ -132,7 +125,7 @@ export function SettingsDialog({
                 modelRefs={draftModelRefs}
                 providerConfigs={providerConfigs}
                 onModelChange={(model) =>
-                  setDraftModelRefs((current) => current.map((item) => (item.id === model.id ? model : item)))
+                  setModelShareDrafts((current) => ({ ...current, [model.id]: model.shared }))
                 }
               />
             </TabsContent>

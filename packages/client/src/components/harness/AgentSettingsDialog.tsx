@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field, SectionHeader, ToggleRow } from "@/components/harness/form-primitives";
 import { api } from "@/lib/api";
 import { createClientId } from "@/lib/id";
+import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, AgentPermissions, AgentSkillCommand, ModelRef, ProviderConfig } from "@carmel-agent/shared";
 
@@ -29,10 +30,12 @@ export function AgentSettingsDialog({
   agent,
   modelRefs,
   providerConfigs,
+  triggerClassName,
 }: {
   agent: AgentConfig;
   modelRefs: ModelRef[];
   providerConfigs: ProviderConfig[];
+  triggerClassName?: string;
 }) {
   const activeUserId = useHarnessStore((state) => state.activeUserId);
   const [open, setOpen] = useState(false);
@@ -72,7 +75,7 @@ export function AgentSettingsDialog({
         <Button
           size="icon-xs"
           variant="ghost"
-          className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          className={cn("shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100", triggerClassName)}
           title="Agent settings"
         >
           <SettingsIcon />
@@ -128,7 +131,6 @@ function AgentSettings({
 
   useEffect(() => {
     let cancelled = false;
-    setSkillsError(null);
     void api
       .getGlobalSkills()
       .then((skills) => {

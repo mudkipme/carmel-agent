@@ -274,7 +274,8 @@ export const useHarnessStore = create<HarnessState>()(
     set((state) => {
       const deleted = state.sessions.find((item) => item.id === sessionId);
       const sessions = state.sessions.filter((item) => item.id !== sessionId);
-      const { [sessionId]: _deletedSession, ...sessionDetails } = state.sessionDetails;
+      const sessionDetails = { ...state.sessionDetails };
+      delete sessionDetails[sessionId];
       const activeSessionId =
         state.activeSessionId === sessionId
           ? (sessions.find(
