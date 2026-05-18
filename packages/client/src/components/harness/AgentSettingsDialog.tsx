@@ -21,6 +21,10 @@ import { createClientId } from "@/lib/id";
 import { useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, AgentPermissions, AgentSkillCommand, ModelRef, ProviderConfig } from "@carmel-agent/shared";
 
+const agentSettingsDialogContentClass =
+  "top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-0 p-3 text-[13px] sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[calc(100vh-2rem)] sm:w-full sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6 sm:text-sm";
+const agentSettingsDialogBodyClass = "min-h-0 flex-1 overflow-y-auto pr-1";
+
 export function AgentSettingsDialog({
   agent,
   modelRefs,
@@ -74,24 +78,28 @@ export function AgentSettingsDialog({
           <SettingsIcon />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Agent Settings</DialogTitle>
-          <DialogDescription>Configure this agent's workspace, prompt, model, and permissions.</DialogDescription>
+      <DialogContent className={agentSettingsDialogContentClass}>
+        <DialogHeader className="shrink-0 pr-8 text-left">
+          <DialogTitle className="text-base sm:text-lg">Agent Settings</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            Configure this agent's workspace, prompt, model, and permissions.
+          </DialogDescription>
         </DialogHeader>
-        {error ? (
-          <p className="text-sm text-destructive">{error}</p>
-        ) : settingsAgent ? (
-          <AgentSettings
-            key={settingsAgent.id}
-            agent={settingsAgent}
-            modelRefs={modelRefs}
-            providerConfigs={providerConfigs}
-            onClose={() => setOpen(false)}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">Loading agent settings...</p>
-        )}
+        <div className={agentSettingsDialogBodyClass}>
+          {error ? (
+            <p className="text-xs text-destructive sm:text-sm">{error}</p>
+          ) : settingsAgent ? (
+            <AgentSettings
+              key={settingsAgent.id}
+              agent={settingsAgent}
+              modelRefs={modelRefs}
+              providerConfigs={providerConfigs}
+              onClose={() => setOpen(false)}
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground sm:text-sm">Loading agent settings...</p>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -199,12 +207,12 @@ function AgentSettings({
   );
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4 sm:gap-6">
       <Tabs defaultValue="agent" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="agent">Agent</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="permissions">Permissions</TabsTrigger>
+        <TabsList className="!grid !h-auto w-full grid-cols-3 gap-1">
+          <TabsTrigger value="agent" className="h-8 text-xs sm:text-sm">Agent</TabsTrigger>
+          <TabsTrigger value="templates" className="h-8 text-xs sm:text-sm">Templates</TabsTrigger>
+          <TabsTrigger value="permissions" className="h-8 text-xs sm:text-sm">Permissions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="agent" className="mt-2">

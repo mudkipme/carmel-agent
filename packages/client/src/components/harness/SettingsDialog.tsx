@@ -32,6 +32,9 @@ import { makeModelRef, modelsForProvider, useHarnessStore } from "@/store/harnes
 import type { ModelRef, OAuthLoginFlowState, OAuthProviderSummary, ProviderConfig } from "@carmel-agent/shared";
 
 const providers = getProviders();
+const settingsDialogContentClass =
+  "top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-0 p-3 text-[13px] sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[calc(100vh-2rem)] sm:w-full sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6 sm:text-sm";
+const settingsDialogBodyClass = "min-h-0 flex-1 overflow-y-auto pr-1";
 
 export function SettingsDialog({
   modelRefs,
@@ -99,55 +102,57 @@ export function SettingsDialog({
           <SettingsIcon />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Harness Settings</DialogTitle>
-          <DialogDescription>Manage global provider and model settings.</DialogDescription>
+      <DialogContent className={settingsDialogContentClass}>
+        <DialogHeader className="shrink-0 pr-8 text-left">
+          <DialogTitle className="text-base sm:text-lg">Harness Settings</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">Manage global provider and model settings.</DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="models">
-          <TabsList>
-            <TabsTrigger value="models">
-              <DatabaseIcon data-icon="inline-start" />
-              Models
-            </TabsTrigger>
-            <TabsTrigger value="providers">
-              <KeyRoundIcon data-icon="inline-start" />
-              Providers
-            </TabsTrigger>
-            <TabsTrigger value="appearance">
-              <MonitorIcon data-icon="inline-start" />
-              Appearance
-            </TabsTrigger>
-            <TabsTrigger value="account">
-              <UserIcon data-icon="inline-start" />
-              Account
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="models">
-            <ModelSettings
-              modelRefs={draftModelRefs}
-              providerConfigs={providerConfigs}
-              onModelChange={(model) =>
-                setDraftModelRefs((current) => current.map((item) => (item.id === model.id ? model : item)))
-              }
-            />
-          </TabsContent>
-          <TabsContent value="providers">
-            <ProviderSettings
-              providerConfigs={providerConfigs}
-              modelRefs={modelRefs}
-              oauthProviders={oauthProviders}
-            />
-          </TabsContent>
-          <TabsContent value="appearance">
-            <AppearanceSettings value={draftThemePreference} onChange={setDraftThemePreference} />
-          </TabsContent>
-          <TabsContent value="account">
-            <AccountSettings />
-          </TabsContent>
-        </Tabs>
-        {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
-        <DialogFooter>
+        <div className={settingsDialogBodyClass}>
+          <Tabs defaultValue="models" className="min-h-0">
+            <TabsList className="!grid !h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
+              <TabsTrigger value="models" className="h-8 text-xs sm:text-sm">
+                <DatabaseIcon data-icon="inline-start" />
+                Models
+              </TabsTrigger>
+              <TabsTrigger value="providers" className="h-8 text-xs sm:text-sm">
+                <KeyRoundIcon data-icon="inline-start" />
+                Providers
+              </TabsTrigger>
+              <TabsTrigger value="appearance" className="h-8 text-xs sm:text-sm">
+                <MonitorIcon data-icon="inline-start" />
+                Appearance
+              </TabsTrigger>
+              <TabsTrigger value="account" className="h-8 text-xs sm:text-sm">
+                <UserIcon data-icon="inline-start" />
+                Account
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="models" className="mt-2">
+              <ModelSettings
+                modelRefs={draftModelRefs}
+                providerConfigs={providerConfigs}
+                onModelChange={(model) =>
+                  setDraftModelRefs((current) => current.map((item) => (item.id === model.id ? model : item)))
+                }
+              />
+            </TabsContent>
+            <TabsContent value="providers" className="mt-2">
+              <ProviderSettings
+                providerConfigs={providerConfigs}
+                modelRefs={modelRefs}
+                oauthProviders={oauthProviders}
+              />
+            </TabsContent>
+            <TabsContent value="appearance" className="mt-2">
+              <AppearanceSettings value={draftThemePreference} onChange={setDraftThemePreference} />
+            </TabsContent>
+            <TabsContent value="account" className="mt-2">
+              <AccountSettings />
+            </TabsContent>
+          </Tabs>
+          {saveError ? <p className="mt-3 text-xs text-destructive sm:text-sm">{saveError}</p> : null}
+        </div>
+        <DialogFooter className="shrink-0 border-t pt-3 sm:border-0 sm:pt-0">
           <Button type="button" variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
