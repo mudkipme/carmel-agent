@@ -1,5 +1,5 @@
-import { BookOpenTextIcon, CommandIcon, SparklesIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CommandIcon, FileTextIcon, SparklesIcon } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
@@ -11,7 +11,12 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { api } from "@/lib/api";
-import type { AgentCommandPayload, AgentConfig } from "@carmel-agent/shared";
+import type {
+  AgentCommandPayload,
+  AgentConfig,
+  AgentSlashCommand,
+  AgentSlashCommandSource,
+} from "@carmel-agent/shared";
 
 type AgentCommandPaletteProps = {
   agent: AgentConfig;
@@ -22,8 +27,7 @@ type AgentCommandPaletteProps = {
 export function AgentCommandPalette({ agent, onInsert, className }: AgentCommandPaletteProps) {
   const [open, setOpen] = useState(false);
   const [payload, setPayload] = useState<AgentCommandPayload>({
-    promptTemplates: [],
-    skills: [],
+    commands: [],
   });
   const [loading, setLoading] = useState(false);
   const requestSeq = useRef(0);
@@ -52,6 +56,12 @@ export function AgentCommandPalette({ agent, onInsert, className }: AgentCommand
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isSlashCommandTrigger(event)) {
+        event.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
+
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         if (open) {
@@ -65,18 +75,11 @@ export function AgentCommandPalette({ agent, onInsert, className }: AgentCommand
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, setPaletteOpen]);
 
-  const hasCommands = payload.promptTemplates.length > 0 || payload.skills.length > 0;
-  const skillPrompts = useMemo(
-    () =>
-      payload.skills.map((skill) => ({
-        ...skill,
-        prompt: `Use the ${skill.name} skill for this task.\n\n`,
-      })),
-    [payload.skills],
-  );
+  const groupedCommands = groupCommands(payload.commands);
+  const hasCommands = payload.commands.length > 0;
 
-  const insert = (text: string) => {
-    onInsert(text);
+  const insertCommand = (command: AgentSlashCommand) => {
+    onInsert(command.commandText);
     setOpen(false);
   };
 
@@ -90,53 +93,78 @@ export function AgentCommandPalette({ agent, onInsert, className }: AgentCommand
         open={open}
         onOpenChange={setPaletteOpen}
         title="Command Palette"
-        description="Insert a prompt template or skill instruction."
+        description="Insert a prompt template or skill command."
       >
         <CommandInput placeholder="Search templates and skills..." />
         <CommandList>
           <CommandEmpty>{loading ? "Loading..." : "No commands found."}</CommandEmpty>
-          {payload.promptTemplates.length > 0 ? (
-            <CommandGroup heading="Prompt Templates">
-              {payload.promptTemplates.map((template) => (
-                <CommandItem
-                  key={template.id}
-                  value={`template ${template.name} ${template.body}`}
-                  onSelect={() => insert(template.body)}
-                >
-                  <BookOpenTextIcon />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate">{template.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">{template.body}</span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          ) : null}
-          {payload.promptTemplates.length > 0 && payload.skills.length > 0 ? <CommandSeparator /> : null}
-          {payload.skills.length > 0 ? (
-            <CommandGroup heading="Skills">
-              {skillPrompts.map((skill) => (
-                <CommandItem
-                  key={skill.filePath}
-                  value={`skill ${skill.name} ${skill.description}`}
-                  onSelect={() => insert(skill.prompt)}
-                >
-                  <SparklesIcon />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate">{skill.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">{skill.description}</span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          ) : null}
+          <CommandSection
+            heading="Prompt Commands"
+            commands={groupedCommands.prompt}
+            icon={FileTextIcon}
+            onSelect={insertCommand}
+          />
+          {groupedCommands.prompt.length > 0 && groupedCommands.skill.length > 0 ? <CommandSeparator /> : null}
+          <CommandSection
+            heading="Skill Commands"
+            commands={groupedCommands.skill}
+            icon={SparklesIcon}
+            onSelect={insertCommand}
+          />
           {!loading && !hasCommands ? (
             <CommandGroup heading="Commands">
-              <CommandItem disabled>No prompt templates or skills configured.</CommandItem>
+              <CommandItem disabled>No slash commands are available for this agent.</CommandItem>
             </CommandGroup>
           ) : null}
         </CommandList>
       </CommandDialog>
     </>
   );
+}
+
+type CommandSectionProps = {
+  heading: string;
+  commands: AgentSlashCommand[];
+  icon: ComponentType;
+  onSelect: (command: AgentSlashCommand) => void;
+};
+
+function CommandSection({ heading, commands, icon: Icon, onSelect }: CommandSectionProps) {
+  if (commands.length === 0) return null;
+
+  return (
+    <CommandGroup heading={heading}>
+      {commands.map((command) => (
+        <CommandItem
+          key={`${command.source}:${command.name}:${command.sourcePath ?? ""}`}
+          value={`${command.source} ${command.name} ${command.description ?? ""} ${command.argumentHint ?? ""}`}
+          onSelect={() => onSelect(command)}
+        >
+          <Icon />
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate">{command.commandText.startsWith("/") ? `/${command.name}` : command.name}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {command.description || command.argumentHint || command.sourcePath || command.commandText}
+            </span>
+          </div>
+        </CommandItem>
+      ))}
+    </CommandGroup>
+  );
+}
+
+function groupCommands(commands: AgentSlashCommand[]) {
+  const grouped: Record<AgentSlashCommandSource, AgentSlashCommand[]> = {
+    prompt: [],
+    skill: [],
+  };
+  for (const command of commands) grouped[command.source].push(command);
+  return grouped;
+}
+
+function isSlashCommandTrigger(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return false;
+  if (!(event.target instanceof HTMLTextAreaElement)) return false;
+  if (!event.target.closest("agent-interface")) return false;
+  return event.target.value.trim().length === 0;
 }

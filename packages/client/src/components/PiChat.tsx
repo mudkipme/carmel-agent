@@ -139,6 +139,16 @@ export function PiChat({
     thinkingLevelSnapshotRef.current = session.thinkingLevel;
   }, [session]);
 
+  const insertCommandText = useCallback((text: string) => {
+    const panel = panelRef.current ?? (hostRef.current?.querySelector("pi-chat-panel") as ChatPanel | null);
+    panel?.agentInterface?.setInput(text);
+    requestAnimationFrame(() => {
+      const textarea = panel?.querySelector("message-editor textarea") as HTMLTextAreaElement | null;
+      textarea?.focus();
+      textarea?.setSelectionRange(text.length, text.length);
+    });
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const host = hostRef.current;
@@ -249,6 +259,7 @@ export function PiChat({
     saveUserMessage,
     session.id,
     updateSession,
+    insertCommandText,
   ]);
 
   useEffect(() => {
@@ -262,11 +273,6 @@ export function PiChat({
   const selectModel = async (nextModelRef: ModelRef) => {
     await updateSession(session.id, { modelRefId: nextModelRef.id });
     setModelDialogOpen(false);
-  };
-
-  const insertCommandText = (text: string) => {
-    const panel = panelRef.current ?? (hostRef.current?.querySelector("pi-chat-panel") as ChatPanel | null);
-    panel?.agentInterface?.setInput(text);
   };
 
   const saveEdit = async (submit: boolean) => {

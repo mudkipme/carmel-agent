@@ -7,7 +7,11 @@ import type {
   ThinkingLevel,
 } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import type { ClientToolCallEvent, ClientToolResultPayload, PromptInput } from "@carmel-agent/shared";
+import type {
+  ClientToolCallEvent,
+  ClientToolResultPayload,
+  PromptInput,
+} from "@carmel-agent/shared";
 
 type Listener = (event: AgentEvent, signal: AbortSignal) => Promise<void> | void;
 type MutableAgentState = Omit<
@@ -29,6 +33,7 @@ export class RemoteAgent {
   private resolveIdle?: () => void;
   private tools: AgentTool[] = [];
   private messages: AgentMessage[];
+  private sawAgentEnd = false;
 
   readonly state: MutableAgentState;
 
@@ -113,6 +118,7 @@ export class RemoteAgent {
     this.state.isStreaming = true;
     this.state.streamingMessage = undefined;
     this.state.errorMessage = undefined;
+    this.sawAgentEnd = false;
 
     try {
       const response = await fetch(`/api/agents/${this.config.agentId}/run`, {
@@ -130,6 +136,9 @@ export class RemoteAgent {
         throw new Error((await response.text()) || `Agent request failed with ${response.status}`);
       }
       await this.consumeEvents(response.body, this.abortController.signal);
+      if (!this.sawAgentEnd) {
+        await this.processEvent({ type: "agent_end", messages: this.messages }, this.abortController.signal);
+      }
       await this.config.onRunComplete?.();
     } catch (error) {
       await this.handleFailure(error, this.abortController.signal.aborted);
@@ -170,10 +179,14 @@ export class RemoteAgent {
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
       for (const line of lines) {
-        if (line.trim()) await this.processEvent(JSON.parse(line) as AgentEvent | ClientToolCallEvent, signal);
+        if (line.trim()) {
+          await this.processEvent(JSON.parse(line) as AgentEvent | ClientToolCallEvent, signal);
+        }
       }
     }
-    if (buffer.trim()) await this.processEvent(JSON.parse(buffer) as AgentEvent | ClientToolCallEvent, signal);
+    if (buffer.trim()) {
+      await this.processEvent(JSON.parse(buffer) as AgentEvent | ClientToolCallEvent, signal);
+    }
   }
 
   private async processEvent(event: AgentEvent | ClientToolCallEvent, signal: AbortSignal) {
@@ -209,6 +222,7 @@ export class RemoteAgent {
         }
         break;
       case "agent_end":
+        this.sawAgentEnd = true;
         this.state.isStreaming = false;
         this.state.streamingMessage = undefined;
         break;

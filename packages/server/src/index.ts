@@ -386,13 +386,32 @@ app.get("/api/agents/:id/commands", async (c) => {
   if (!agent) return c.json({ error: "Agent not found" }, 404);
   const resourceLoader = await createAgentResourceLoader(agent);
   const { skills } = resourceLoader.getSkills();
+  const { prompts } = resourceLoader.getPrompts();
+  const promptCommands = prompts.map((prompt) => ({
+    name: prompt.name,
+    description: prompt.description,
+    source: "prompt" as const,
+    commandText: `/${prompt.name} `,
+    sourcePath: prompt.filePath,
+    argumentHint: prompt.argumentHint,
+  }));
+  const skillCommands = skills.map((skill) => ({
+    name: `skill:${skill.name}`,
+    description: skill.description,
+    source: "skill" as const,
+    commandText: `/skill:${skill.name} `,
+    sourcePath: skill.filePath,
+  }));
+  const agentTemplateCommands = agent.promptTemplates.map((template) => ({
+    name: template.name,
+    description: template.body,
+    source: "prompt" as const,
+    commandText: template.body,
+  }));
   return c.json({
-    promptTemplates: agent.promptTemplates,
-    skills: skills.map((skill) => ({
-      name: skill.name,
-      description: skill.description,
-      filePath: skill.filePath,
-    })),
+    commands: [...promptCommands, ...agentTemplateCommands, ...skillCommands].sort((a, b) =>
+      a.name.localeCompare(b.name),
+    ),
   });
 });
 

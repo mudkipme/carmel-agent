@@ -28,21 +28,13 @@ export function ensureRetryUserMessageRenderer() {
 
 function renderEditableUserMessage(message: AgentMessage) {
   const copyText = getMessageMarkdownText(message);
+  const skillBlock = parseSkillInvocation(copyText);
 
   return html`
     <div class="group">
-      <user-message .message=${message}></user-message>
+      ${skillBlock ? renderSkillInvocationMessage(skillBlock) : html`<user-message .message=${message}></user-message>`}
       <div class="mx-4 mt-0.5 flex h-5 items-center gap-1">
-        <button
-          type="button"
-          class="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-30 group-hover:opacity-100"
-          title="Copy message"
-          aria-label="Copy message"
-          ?disabled=${!copyText}
-          @click=${(event: MouseEvent) => void copyMessage(event, message)}
-        >
-          ${icon(Copy, "xs")}
-        </button>
+        ${copyText ? renderCopyButton(message) : ""}
         <button
           type="button"
           class="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"
@@ -66,6 +58,27 @@ function renderEditableUserMessage(message: AgentMessage) {
   `;
 }
 
+function renderSkillInvocationMessage(skill: ParsedSkillInvocation) {
+  return html`
+    <div class="flex justify-start mx-4">
+      <div class="user-message-container py-2 px-4 rounded-xl">
+        <details>
+          <summary class="cursor-pointer text-sm font-medium">Using skill: ${skill.name}</summary>
+          <div class="mt-2 border-l pl-3 text-xs text-muted-foreground">
+            <div class="truncate">${skill.location}</div>
+            <markdown-block .content=${skill.body}></markdown-block>
+          </div>
+        </details>
+        ${
+          skill.prompt
+            ? html`<div class="mt-3"><markdown-block .content=${skill.prompt}></markdown-block></div>`
+            : ""
+        }
+      </div>
+    </div>
+  `;
+}
+
 function patchAssistantMessageRenderer() {
   if (assistantRendererPatched) return;
   assistantRendererPatched = true;
@@ -78,25 +91,31 @@ function patchAssistantMessageRenderer() {
   assistantMessagePrototype.render = function renderAssistantMessageWithCopyButton() {
     const message = this.message as AssistantMessage;
     const copyText = getMessageMarkdownText(message);
+    if (!copyText) return renderAssistantMessage.call(this);
 
     return html`
       <div class="group">
         ${renderAssistantMessage.call(this)}
         <div class="mx-4 mt-0.5 flex h-5 items-center gap-1">
-          <button
-            type="button"
-            class="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-30 group-hover:opacity-100"
-            title="Copy message"
-            aria-label="Copy message"
-            ?disabled=${!copyText}
-            @click=${(event: MouseEvent) => void copyMessage(event, message)}
-          >
-            ${icon(Copy, "xs")}
-          </button>
+          ${renderCopyButton(message)}
         </div>
       </div>
     `;
   };
+}
+
+function renderCopyButton(message: AgentMessage | AssistantMessage) {
+  return html`
+    <button
+      type="button"
+      class="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"
+      title="Copy message"
+      aria-label="Copy message"
+      @click=${(event: MouseEvent) => void copyMessage(event, message)}
+    >
+      ${icon(Copy, "xs")}
+    </button>
+  `;
 }
 
 function dispatchRetry(event: MouseEvent, message: AgentMessage) {
@@ -164,6 +183,24 @@ function getMessageMarkdownText(message: AgentMessage | AssistantMessage) {
 
 function isTextContent(content: TextContent | ImageContent | AssistantMessage["content"][number]): content is TextContent {
   return content.type === "text";
+}
+
+type ParsedSkillInvocation = {
+  name: string;
+  location: string;
+  body: string;
+  prompt?: string;
+};
+
+function parseSkillInvocation(text: string): ParsedSkillInvocation | undefined {
+  const match = text.match(/^<skill name="([^"]+)" location="([^"]+)">\n([\s\S]*?)\n<\/skill>(?:\n\n([\s\S]+))?$/);
+  if (!match) return undefined;
+  return {
+    name: match[1],
+    location: match[2],
+    body: match[3],
+    prompt: match[4],
+  };
 }
 
 function dispatchEdit(event: MouseEvent, message: AgentMessage) {

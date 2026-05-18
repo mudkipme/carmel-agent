@@ -38,9 +38,19 @@ export type AgentSkillCommand = {
   filePath: string;
 };
 
+export type AgentSlashCommandSource = "prompt" | "skill";
+
+export type AgentSlashCommand = {
+  name: string;
+  description?: string;
+  source: AgentSlashCommandSource;
+  commandText: string;
+  sourcePath?: string;
+  argumentHint?: string;
+};
+
 export type AgentCommandPayload = {
-  promptTemplates: PromptTemplate[];
-  skills: AgentSkillCommand[];
+  commands: AgentSlashCommand[];
 };
 
 export type ClientToolName = "javascript_repl" | "extract_document" | "artifacts";
