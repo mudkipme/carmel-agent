@@ -30,7 +30,7 @@ export function HarnessShell() {
   const store = useHarnessStore();
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("sessions");
-  const [selectedFilePath, setSelectedFilePath] = useState("");
+  const [selectedFile, setSelectedFile] = useState({ agentId: "", path: "" });
   const activeUser = store.users.find((user) => user.id === store.activeUserId);
   const selectedSession = store.sessions.find(
     (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
@@ -44,6 +44,7 @@ export function HarnessShell() {
       : undefined;
   const activeSession = activeSessionMetadata ? store.sessionDetails[activeSessionMetadata.id] : undefined;
   const activeModel = store.modelRefs.find((model) => model.id === activeSessionMetadata?.modelRefId);
+  const selectedFilePath = selectedFile.agentId === activeAgent?.id ? selectedFile.path : "";
   const visibleSessions = store.sessions
     .filter((session) => session.userId === store.activeUserId && session.agentId === activeAgent?.id)
     .slice()
@@ -57,12 +58,12 @@ export function HarnessShell() {
     return () => mediaQuery.removeEventListener("change", syncSidebarDefault);
   }, []);
 
-  useEffect(() => {
-    setSelectedFilePath("");
-  }, [activeAgent?.id]);
-
   const closeSidebarOnMobile = () => {
     if (!window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches) setSidebarOpen(false);
+  };
+
+  const setSelectedFilePath = (path: string) => {
+    setSelectedFile({ agentId: activeAgent?.id ?? "", path });
   };
 
   const createSidebarAgent = async () => {
@@ -162,7 +163,7 @@ export function HarnessShell() {
           <Tabs
             value={sidebarMode}
             onValueChange={(value) => setSidebarMode(value as SidebarMode)}
-            className="min-h-0 flex-1 gap-2"
+            className="flex min-h-0 flex-1 flex-col gap-2"
           >
             <div className="flex items-center gap-2 px-2">
               <TabsList className="grid h-8 flex-1 grid-cols-2">
@@ -191,8 +192,8 @@ export function HarnessShell() {
                 <MessageSquarePlusIcon />
               </Button>
             </div>
-            <TabsContent value="sessions" className="min-h-0">
-              <div className="flex min-h-0 flex-col gap-1 overflow-auto">
+            <TabsContent value="sessions" className="min-h-0 flex-1 overflow-hidden">
+              <div className="flex h-full min-h-0 flex-col gap-1 overflow-auto">
                 {visibleSessions.map((session) => (
                   <div
                     key={session.id}
@@ -244,8 +245,9 @@ export function HarnessShell() {
                 ))}
               </div>
             </TabsContent>
-            <TabsContent value="files" className="min-h-0">
+            <TabsContent value="files" className="min-h-0 flex-1 overflow-hidden">
               <FileExplorerPanel
+                key={activeAgent?.id ?? "no-agent"}
                 agent={activeAgent}
                 selectedFilePath={selectedFilePath}
                 onOpenFile={setSelectedFilePath}
@@ -282,7 +284,11 @@ export function HarnessShell() {
         </header>
         <div className="min-h-0 flex-1">
           {sidebarMode === "files" ? (
-            <FileEditorView agent={activeAgent} filePath={selectedFilePath} />
+            <FileEditorView
+              key={`${activeAgent?.id ?? "no-agent"}:${selectedFilePath}`}
+              agent={activeAgent}
+              filePath={selectedFilePath}
+            />
           ) : activeSession && activeAgent && activeModel ? (
             <PiChat
               key={activeSession.id}

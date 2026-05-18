@@ -26,7 +26,7 @@ export function FileEditorView({ agent, filePath }: FileEditorViewProps) {
   const themePreference = useThemePreference();
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(agent && filePath));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const isDirty = content !== savedContent;
@@ -34,8 +34,6 @@ export function FileEditorView({ agent, filePath }: FileEditorViewProps) {
 
   const loadFile = useCallback(async () => {
     if (!agent || !filePath) return;
-    setLoading(true);
-    setError("");
     try {
       const result = await api.readAgentFile(agent.id, filePath);
       setContent(result.content);
@@ -50,14 +48,11 @@ export function FileEditorView({ agent, filePath }: FileEditorViewProps) {
   }, [agent, filePath]);
 
   useEffect(() => {
-    if (!filePath) {
-      setContent("");
-      setSavedContent("");
-      setError("");
-      return;
-    }
-    void loadFile();
-  }, [filePath, loadFile]);
+    const timeout = window.setTimeout(() => {
+      void loadFile();
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [loadFile]);
 
   const saveFile = async () => {
     if (!agent || !filePath) return;

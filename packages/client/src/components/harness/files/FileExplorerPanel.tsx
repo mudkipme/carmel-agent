@@ -23,22 +23,24 @@ type FileExplorerPanelProps = {
 };
 
 export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfterOpen }: FileExplorerPanelProps) {
+  const agentId = agent?.id;
   const [currentPath, setCurrentPath] = useState("");
   const [showHidden, setShowHidden] = useState(false);
   const [entries, setEntries] = useState<AgentFileEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(agentId));
   const [error, setError] = useState("");
   const loadRequestIdRef = useRef(0);
   const currentPathRef = useRef("");
   const showHiddenRef = useRef(false);
-  const agentId = agent?.id;
 
-  const loadEntries = useCallback(async (path: string, hidden: boolean) => {
+  const loadEntries = useCallback(async (path: string, hidden: boolean, immediateLoading = true) => {
     if (!agentId) return;
     const requestId = loadRequestIdRef.current + 1;
     loadRequestIdRef.current = requestId;
-    setLoading(true);
-    setError("");
+    if (immediateLoading) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const result = await api.listAgentFiles(agentId, path, hidden);
       if (requestId !== loadRequestIdRef.current) return;
@@ -52,26 +54,20 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
   }, [agentId]);
 
   useEffect(() => {
-    loadRequestIdRef.current += 1;
-    currentPathRef.current = "";
-    setCurrentPath("");
-    setEntries([]);
-    setLoading(false);
-    setError("");
-    void loadEntries("", showHiddenRef.current);
-  }, [agentId, loadEntries]);
-
-  useEffect(() => {
-    showHiddenRef.current = showHidden;
-    void loadEntries(currentPathRef.current, showHidden);
-  }, [showHidden, loadEntries]);
-
-  useEffect(() => {
-    currentPathRef.current = currentPath;
-  }, [currentPath]);
+    const timeout = window.setTimeout(() => {
+      void loadEntries("", showHiddenRef.current, false);
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [loadEntries]);
 
   const refreshEntries = () => {
     void loadEntries(currentPathRef.current, showHiddenRef.current);
+  };
+
+  const toggleShowHidden = (hidden: boolean) => {
+    showHiddenRef.current = hidden;
+    setShowHidden(hidden);
+    void loadEntries(currentPathRef.current, hidden);
   };
 
   const openEntry = (entry: AgentFileEntry) => {
@@ -144,7 +140,7 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-2">
       <div className="flex items-center justify-between gap-2 px-2">
         <div className="flex min-w-0 items-center gap-1">
           <Button
@@ -172,10 +168,10 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
       </div>
       <label className="flex items-center justify-between px-2 text-xs text-muted-foreground">
         <span>Show hidden files</span>
-        <Switch size="sm" checked={showHidden} onCheckedChange={setShowHidden} />
+        <Switch size="sm" checked={showHidden} onCheckedChange={toggleShowHidden} />
       </label>
       {error ? <p className="px-2 text-xs text-destructive">{error}</p> : null}
-      <div className="flex min-h-0 flex-col gap-1 overflow-auto">
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto">
         {loading ? <p className="px-2 py-1.5 text-xs text-muted-foreground">Loading files...</p> : null}
         {!loading && entries.length === 0 ? (
           <p className="px-2 py-1.5 text-xs text-muted-foreground">No files</p>

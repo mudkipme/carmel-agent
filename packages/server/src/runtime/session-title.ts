@@ -1,4 +1,12 @@
-import { completeSimple, type Api, type Model } from "@earendil-works/pi-ai";
+import {
+  clampThinkingLevel,
+  completeSimple,
+  getSupportedThinkingLevels,
+  type Api,
+  type Model,
+  type ModelThinkingLevel,
+  type ThinkingLevel,
+} from "@earendil-works/pi-ai";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 export async function generateSessionTitle({
@@ -15,7 +23,10 @@ export async function generateSessionTitle({
   const transcript = buildTitleTranscript(messages);
   if (!transcript) return undefined;
 
-  const titleModel: Model<Api> = { ...model, reasoning: false };
+  const supportedThinkingLevels = getSupportedThinkingLevels(model);
+  const titleThinkingLevel = getTitleThinkingLevel(model, supportedThinkingLevels);
+  const titleModel: Model<Api> = titleThinkingLevel === "off" ? { ...model, reasoning: false } : model;
+  const maxTokens = titleThinkingLevel === "off" ? 64 : 1024;
   const response = await completeSimple(
     titleModel,
     {
@@ -32,7 +43,8 @@ export async function generateSessionTitle({
     {
       apiKey,
       headers,
-      maxTokens: 32,
+      maxTokens,
+      reasoning: titleThinkingLevel === "off" ? undefined : titleThinkingLevel,
     },
   );
   if (response.stopReason === "error") {
@@ -40,6 +52,14 @@ export async function generateSessionTitle({
   }
 
   return cleanSessionTitle(extractText(response));
+}
+
+function getTitleThinkingLevel(
+  model: Model<Api>,
+  supportedThinkingLevels: ModelThinkingLevel[],
+): "off" | ThinkingLevel {
+  if (supportedThinkingLevels.includes("off")) return "off";
+  return clampThinkingLevel(model, "low") as ThinkingLevel;
 }
 
 export function shouldGenerateSessionTitle(title: string, messages: AgentMessage[]) {
