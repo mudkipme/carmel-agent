@@ -83,6 +83,7 @@ export function migrate() {
       prompt_templates TEXT NOT NULL,
       permissions TEXT NOT NULL,
       default_model_ref_id TEXT NOT NULL REFERENCES model_refs(id),
+      default_thinking_level TEXT NOT NULL DEFAULT 'off',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -118,6 +119,7 @@ export function migrate() {
   addColumnIfMissing("provider_configs", "oauth_credential", "TEXT");
   addColumnIfMissing("agents", "working_dir_mode", "TEXT NOT NULL DEFAULT 'manual'");
   addColumnIfMissing("agents", "default_working_dir", "TEXT");
+  addColumnIfMissing("agents", "default_thinking_level", "TEXT NOT NULL DEFAULT 'off'");
   backfillModelOwners();
   normalizeDefaultAgentWorkingDirs();
   sqlite.exec(`

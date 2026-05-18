@@ -1,6 +1,12 @@
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { AuthCredential } from "@earendil-works/pi-coding-agent";
-import type { AgentPermissions, AgentWorkingDirMode, PromptTemplate, Session } from "@carmel-agent/shared";
+import type {
+  AgentPermissions,
+  AgentThinkingLevel,
+  AgentWorkingDirMode,
+  PromptTemplate,
+  Session,
+} from "@carmel-agent/shared";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -91,6 +97,7 @@ export const agents = sqliteTable("agents", {
   defaultModelRefId: text("default_model_ref_id")
     .notNull()
     .references(() => modelRefs.id),
+  defaultThinkingLevel: text("default_thinking_level").$type<AgentThinkingLevel>().notNull().default("off"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

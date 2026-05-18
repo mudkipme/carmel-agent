@@ -1,4 +1,4 @@
-import { getModel, getModels, type Api, type Model } from "@earendil-works/pi-ai";
+import { clampThinkingLevel, getModel, getModels, type Api, type Model } from "@earendil-works/pi-ai";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { ApiError, api, type BootstrapPayload } from "@/lib/api";
@@ -154,6 +154,10 @@ export const useHarnessStore = create<HarnessState>()(
     const timestamp = Date.now();
     const defaultModelRefId = draft?.defaultModelRefId ?? get().modelRefs[0]?.id;
     if (!defaultModelRefId) throw new Error("Create a model before creating an agent.");
+    const defaultModelRef = get().modelRefs.find((model) => model.id === defaultModelRefId);
+    const defaultThinkingLevel = defaultModelRef
+      ? clampThinkingLevel(resolveModelRef(defaultModelRef), draft?.defaultThinkingLevel ?? "off")
+      : "off";
     const agent: AgentConfig = {
       id: id("agent"),
       ownerUserId: draft?.ownerUserId ?? get().activeUserId,
@@ -177,6 +181,7 @@ export const useHarnessStore = create<HarnessState>()(
         documentExtract: true,
       },
       defaultModelRefId,
+      defaultThinkingLevel,
       createdAt: timestamp,
       updatedAt: timestamp,
     };

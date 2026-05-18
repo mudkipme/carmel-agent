@@ -10,9 +10,11 @@ import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { createAuthSession, clearAuthSession, hashPassword, requireAuth, verifyPassword, type AuthVariables } from "./auth.ts";
 import { createAgentRunResponse, normalizePromptInput } from "./runtime/agent-runtime.ts";
+import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import { AuthStorage } from "@earendil-works/pi-coding-agent";
 import { createProviderConfigAuthStorage } from "./runtime/auth-storage.ts";
 import { resolveClientToolResult } from "./runtime/client-tools.ts";
+import { resolveServerModelRef } from "./runtime/model.ts";
 import {
   listOAuthProviders,
   readOAuthLoginFlow,
@@ -20,6 +22,7 @@ import {
   submitOAuthLoginFlowInput,
 } from "./runtime/oauth-flows.ts";
 import { createAgentResourceLoader, listAvailableGlobalSkills } from "./runtime/resources.ts";
+import { createAgentFilesRoute } from "./routes/agent-files.ts";
 import { db, migrate, seed } from "./db/index.ts";
 import { agents, modelRefs, providerConfigs, providerKeys, sessions, users } from "./db/schema.ts";
 import { id, now } from "./db/seed.ts";
@@ -33,7 +36,16 @@ import {
   serializeSessionMetadata,
   serializeUser,
 } from "./serializers.ts";
-import type { AgentConfig, ModelRef, PromptInput, ProviderConfig, Session, SessionDraft, User } from "@carmel-agent/shared";
+import type {
+  AgentConfig,
+  AgentThinkingLevel,
+  ModelRef,
+  PromptInput,
+  ProviderConfig,
+  Session,
+  SessionDraft,
+  User,
+} from "@carmel-agent/shared";
 
 migrate();
 seed();
@@ -310,7 +322,9 @@ app.put("/api/agents/:id", async (c) => {
   const agentId = c.req.param("id");
   const current = db.select().from(agents).where(eq(agents.id, agentId)).get();
   if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
-  if (!canUseModel(currentUserId, agent.defaultModelRefId)) return c.json({ error: "Model not found." }, 404);
+  const defaultModelRef = db.select().from(modelRefs).where(eq(modelRefs.id, agent.defaultModelRefId)).get();
+  if (!defaultModelRef || !canUseModel(currentUserId, defaultModelRef)) return c.json({ error: "Model not found." }, 404);
+  const defaultThinkingLevel = resolveSupportedThinkingLevel(defaultModelRef, agent.defaultThinkingLevel ?? "off");
   const workingDir = resolveAgentWorkingDir(agent, agentId, current);
   if (!workingDir) return c.json({ error: "Manual working directory is required." }, 400);
   const timestamp = now();
@@ -322,6 +336,7 @@ app.put("/api/agents/:id", async (c) => {
       workingDirMode: agent.workingDirMode ?? "manual",
       workingDir: workingDir.workingDir,
       defaultWorkingDir: workingDir.defaultWorkingDir,
+      defaultThinkingLevel,
       createdAt: agent.createdAt ?? timestamp,
       updatedAt: timestamp,
     })
@@ -340,6 +355,7 @@ app.put("/api/agents/:id", async (c) => {
         promptTemplates: agent.promptTemplates,
         permissions: agent.permissions,
         defaultModelRefId: agent.defaultModelRefId,
+        defaultThinkingLevel,
         updatedAt: timestamp,
       },
     })
@@ -379,6 +395,8 @@ app.get("/api/agents/:id/commands", async (c) => {
     })),
   });
 });
+
+app.route("/api/agents", createAgentFilesRoute(readVisibleAgent));
 
 app.post("/api/agents/:id/run", async (c) => {
   const currentUserId = c.get("user").id;
@@ -450,7 +468,8 @@ app.post("/api/sessions", async (c) => {
   const draft = (await c.req.json()) as SessionDraft & { title?: string };
   const agent = readVisibleAgent(currentUserId, draft.agentId);
   if (!agent) return c.json({ error: "Agent not found." }, 404);
-  if (!canUseModel(currentUserId, draft.modelRefId)) return c.json({ error: "Model not found." }, 404);
+  const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, draft.modelRefId)).get();
+  if (!modelRef || !canUseModel(currentUserId, modelRef)) return c.json({ error: "Model not found." }, 404);
   const timestamp = now();
   const session: Session = {
     id: id("session"),
@@ -458,7 +477,7 @@ app.post("/api/sessions", async (c) => {
     userId: currentUserId,
     agentId: draft.agentId,
     modelRefId: draft.modelRefId,
-    thinkingLevel: draft.thinkingLevel,
+    thinkingLevel: resolveSupportedThinkingLevel(modelRef, draft.thinkingLevel ?? agent.defaultThinkingLevel ?? "off"),
     messages: [],
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -606,6 +625,16 @@ function canUseModel(userId: string, model: string | typeof modelRefs.$inferSele
     !modelRef.providerConfigId ||
     ownsProviderConfig(userId, modelRef.providerConfigId)
   );
+}
+
+function resolveSupportedThinkingLevel(modelRef: typeof modelRefs.$inferSelect, thinkingLevel: AgentThinkingLevel) {
+  const providerConfig = modelRef.providerConfigId
+    ? db.select().from(providerConfigs).where(eq(providerConfigs.id, modelRef.providerConfigId)).get()
+    : undefined;
+  return clampThinkingLevel(
+    resolveServerModelRef(serializeModelRef(modelRef), providerConfig),
+    thinkingLevel,
+  ) as AgentThinkingLevel;
 }
 
 function resolveAgentWorkingDir(

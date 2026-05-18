@@ -9,14 +9,18 @@ import {
 import { useEffect, useState } from "react";
 import { PiChat } from "@/components/PiChat";
 import { AgentSettingsDialog } from "@/components/harness/AgentSettingsDialog";
+import { FileEditorView } from "@/components/harness/files/FileEditorView";
+import { FileExplorerPanel } from "@/components/harness/files/FileExplorerPanel";
 import { SettingsDialog } from "@/components/harness/SettingsDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 
 const DESKTOP_SIDEBAR_QUERY = "(min-width: 1024px)";
+type SidebarMode = "sessions" | "files";
 
 function getDefaultSidebarOpen() {
   return typeof window === "undefined" ? true : window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches;
@@ -25,6 +29,8 @@ function getDefaultSidebarOpen() {
 export function HarnessShell() {
   const store = useHarnessStore();
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>("sessions");
+  const [selectedFilePath, setSelectedFilePath] = useState("");
   const activeUser = store.users.find((user) => user.id === store.activeUserId);
   const selectedSession = store.sessions.find(
     (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
@@ -50,6 +56,10 @@ export function HarnessShell() {
     mediaQuery.addEventListener("change", syncSidebarDefault);
     return () => mediaQuery.removeEventListener("change", syncSidebarDefault);
   }, []);
+
+  useEffect(() => {
+    setSelectedFilePath("");
+  }, [activeAgent?.id]);
 
   const closeSidebarOnMobile = () => {
     if (!window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches) setSidebarOpen(false);
@@ -149,76 +159,100 @@ export function HarnessShell() {
             </div>
           </section>
 
-          <section className="flex min-h-0 flex-1 flex-col gap-1">
-            <div className="flex items-center justify-between px-2">
-              <h2 className="text-xs font-normal text-muted-foreground">Sessions</h2>
+          <Tabs
+            value={sidebarMode}
+            onValueChange={(value) => setSidebarMode(value as SidebarMode)}
+            className="min-h-0 flex-1 gap-2"
+          >
+            <div className="flex items-center gap-2 px-2">
+              <TabsList className="grid h-8 flex-1 grid-cols-2">
+                <TabsTrigger value="sessions" className="text-xs">
+                  Sessions
+                </TabsTrigger>
+                <TabsTrigger value="files" className="text-xs">
+                  Files
+                </TabsTrigger>
+              </TabsList>
               <Button
                 size="icon-xs"
                 variant="ghost"
+                title="New session"
                 onClick={() => {
                   if (!activeAgent) return;
                   void store.createSession({
                     agentId: activeAgent.id,
                     modelRefId: activeAgent.defaultModelRefId,
-                    thinkingLevel: "off",
+                    thinkingLevel: activeAgent.defaultThinkingLevel ?? "off",
                   });
+                  setSidebarMode("sessions");
                   closeSidebarOnMobile();
                 }}
               >
                 <MessageSquarePlusIcon />
               </Button>
             </div>
-            <div className="flex min-h-0 flex-col gap-1 overflow-auto">
-              {visibleSessions.map((session) => (
-                <div
-                  key={session.id}
-                  className={cn(
-                    "group flex items-start gap-1 rounded-md px-2 py-1.5 transition-colors hover:bg-accent hover:text-accent-foreground",
-                    session.id === activeSessionMetadata?.id && "bg-accent text-accent-foreground",
-                  )}
-                >
-                  <button
-                    className="min-w-0 flex-1 text-left"
-                    onClick={() => {
-                      store.setActiveSession(session.id);
-                      closeSidebarOnMobile();
-                    }}
+            <TabsContent value="sessions" className="min-h-0">
+              <div className="flex min-h-0 flex-col gap-1 overflow-auto">
+                {visibleSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className={cn(
+                      "group flex items-start gap-1 rounded-md px-2 py-1.5 transition-colors hover:bg-accent hover:text-accent-foreground",
+                      session.id === activeSessionMetadata?.id && "bg-accent text-accent-foreground",
+                    )}
                   >
-                    <span className="sr-only">Open session</span>
-                    <span className="block truncate text-[13px]">{session.title}</span>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{formatRelativeTime(session.updatedAt)}</p>
-                  </button>
-                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      title="Rename session"
+                    <button
+                      className="min-w-0 flex-1 text-left"
                       onClick={() => {
-                        const nextTitle = window.prompt("Rename session", session.title);
-                        const title = nextTitle?.trim();
-                        if (!title || title === session.title) return;
-                        void store.updateSession(session.id, { title });
+                        store.setActiveSession(session.id);
+                        setSidebarMode("sessions");
+                        closeSidebarOnMobile();
                       }}
                     >
-                      <PencilIcon />
-                    </Button>
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      title="Delete session"
-                      onClick={() => {
-                        const confirmed = window.confirm(`Delete "${session.title}"?`);
-                        if (!confirmed) return;
-                        void store.deleteSession(session.id);
-                      }}
-                    >
-                      <Trash2Icon />
-                    </Button>
+                      <span className="sr-only">Open session</span>
+                      <span className="block truncate text-[13px]">{session.title}</span>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{formatRelativeTime(session.updatedAt)}</p>
+                    </button>
+                    <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        title="Rename session"
+                        onClick={() => {
+                          const nextTitle = window.prompt("Rename session", session.title);
+                          const title = nextTitle?.trim();
+                          if (!title || title === session.title) return;
+                          void store.updateSession(session.id, { title });
+                        }}
+                      >
+                        <PencilIcon />
+                      </Button>
+                      <Button
+                        size="icon-xs"
+                        variant="ghost"
+                        title="Delete session"
+                        onClick={() => {
+                          const confirmed = window.confirm(`Delete "${session.title}"?`);
+                          if (!confirmed) return;
+                          void store.deleteSession(session.id);
+                        }}
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
+            </TabsContent>
+            <TabsContent value="files" className="min-h-0">
+              <FileExplorerPanel
+                agent={activeAgent}
+                selectedFilePath={selectedFilePath}
+                onOpenFile={setSelectedFilePath}
+                onAfterOpen={closeSidebarOnMobile}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       </aside>
 
@@ -247,7 +281,9 @@ export function HarnessShell() {
           </div>
         </header>
         <div className="min-h-0 flex-1">
-          {activeSession && activeAgent && activeModel ? (
+          {sidebarMode === "files" ? (
+            <FileEditorView agent={activeAgent} filePath={selectedFilePath} />
+          ) : activeSession && activeAgent && activeModel ? (
             <PiChat
               key={activeSession.id}
               agentConfig={activeAgent}

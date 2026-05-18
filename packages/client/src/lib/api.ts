@@ -1,6 +1,9 @@
 import type {
   AgentCommandPayload,
   AgentConfig,
+  AgentFileContent,
+  AgentFileEntry,
+  AgentFileList,
   AgentSkillCommand,
   OAuthLoginFlowState,
   OAuthProviderSummary,
@@ -97,6 +100,29 @@ export const api = {
       body: JSON.stringify({ value }),
     }),
   getAgentCommands: (agentId: string) => request<AgentCommandPayload>(`/api/agents/${agentId}/commands`),
+  listAgentFiles: (agentId: string, path = "", showHidden = false) =>
+    request<AgentFileList>(
+      `/api/agents/${agentId}/files?${new URLSearchParams({ path, showHidden: String(showHidden) })}`,
+    ),
+  readAgentFile: (agentId: string, path: string) =>
+    request<AgentFileContent>(`/api/agents/${agentId}/files/content?${new URLSearchParams({ path })}`),
+  saveAgentFile: (agentId: string, path: string, content: string) =>
+    request<AgentFileContent>(`/api/agents/${agentId}/files/content`, {
+      method: "PUT",
+      body: JSON.stringify({ path, content }),
+    }),
+  createAgentFileEntry: (agentId: string, path: string, type: AgentFileEntry["type"]) =>
+    request<AgentFileEntry>(`/api/agents/${agentId}/files`, {
+      method: "POST",
+      body: JSON.stringify({ path, type }),
+    }),
+  renameAgentFileEntry: (agentId: string, path: string, newPath: string) =>
+    request<AgentFileEntry>(`/api/agents/${agentId}/files`, {
+      method: "PATCH",
+      body: JSON.stringify({ path, newPath }),
+    }),
+  deleteAgentFileEntry: (agentId: string, path: string) =>
+    request<{ ok: true }>(`/api/agents/${agentId}/files?${new URLSearchParams({ path })}`, { method: "DELETE" }),
   deleteAgent: (agentId: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}`, { method: "DELETE" }),
   createSession: (draft: SessionDraft & { title?: string }) =>

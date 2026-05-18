@@ -25,6 +25,7 @@ export function serializeAgentSettings(agent: typeof agents.$inferSelect): Agent
     ...agent,
     workingDirMode: agent.workingDirMode ?? "manual",
     defaultWorkingDir: agent.defaultWorkingDir ?? defaultAgentWorkingDir(agent.id),
+    defaultThinkingLevel: agent.defaultThinkingLevel ?? "off",
   };
 }
 

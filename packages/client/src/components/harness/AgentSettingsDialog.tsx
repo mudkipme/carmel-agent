@@ -1,5 +1,6 @@
 import { PlusIcon, SettingsIcon, Trash2Icon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,12 +20,27 @@ import { Field, SectionHeader, ToggleRow } from "@/components/harness/form-primi
 import { api } from "@/lib/api";
 import { createClientId } from "@/lib/id";
 import { cn } from "@/lib/utils";
-import { useHarnessStore } from "@/store/harness-store";
-import type { AgentConfig, AgentPermissions, AgentSkillCommand, ModelRef, ProviderConfig } from "@carmel-agent/shared";
+import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
+import type {
+  AgentConfig,
+  AgentPermissions,
+  AgentSkillCommand,
+  AgentThinkingLevel,
+  ModelRef,
+  ProviderConfig,
+} from "@carmel-agent/shared";
 
 const agentSettingsDialogContentClass =
   "top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-0 p-3 text-[13px] sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[calc(100vh-2rem)] sm:w-full sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6 sm:text-sm";
 const agentSettingsDialogBodyClass = "min-h-0 flex-1 overflow-y-auto pr-1";
+const thinkingLevelLabels: Record<AgentThinkingLevel, string> = {
+  off: "Off",
+  minimal: "Minimal",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  xhigh: "Max",
+};
 
 export function AgentSettingsDialog({
   agent,
@@ -128,6 +144,14 @@ function AgentSettings({
   const [skillsError, setSkillsError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const defaultModelRef = modelRefs.find((model) => model.id === draft.defaultModelRefId);
+  const supportedThinkingLevels = useMemo<AgentThinkingLevel[]>(() => {
+    if (!defaultModelRef) return ["off"];
+    return getSupportedThinkingLevels(resolveModelRef(defaultModelRef)) as AgentThinkingLevel[];
+  }, [defaultModelRef]);
+  const selectedThinkingLevel = supportedThinkingLevels.includes(draft.defaultThinkingLevel)
+    ? draft.defaultThinkingLevel
+    : (supportedThinkingLevels[0] ?? "off");
 
   useEffect(() => {
     let cancelled = false;
@@ -152,7 +176,7 @@ function AgentSettings({
     setSaving(true);
     setSaveError(null);
     try {
-      await upsertAgent({ ...draft, updatedAt: Date.now() });
+      await upsertAgent({ ...draft, defaultThinkingLevel: selectedThinkingLevel, updatedAt: Date.now() });
       onClose?.();
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Unable to save agent");
@@ -317,7 +341,18 @@ function AgentSettings({
               <Field label="Default model">
                 <Select
                   value={draft.defaultModelRefId}
-                  onValueChange={(defaultModelRefId) => updateDraft({ defaultModelRefId })}
+                  onValueChange={(defaultModelRefId) => {
+                    const nextModelRef = modelRefs.find((model) => model.id === defaultModelRefId);
+                    updateDraft({
+                      defaultModelRefId,
+                      defaultThinkingLevel: nextModelRef
+                        ? (clampThinkingLevel(
+                            resolveModelRef(nextModelRef),
+                            draft.defaultThinkingLevel,
+                          ) as AgentThinkingLevel)
+                        : "off",
+                    });
+                  }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue />
@@ -328,6 +363,27 @@ function AgentSettings({
                         <SelectItem key={model.id} value={model.id}>
                           {model.label} ·{" "}
                           {providerConfigs.find((item) => item.id === model.providerConfigId)?.label ?? model.provider}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Default thinking">
+                <Select
+                  value={selectedThinkingLevel}
+                  onValueChange={(defaultThinkingLevel) =>
+                    updateDraft({ defaultThinkingLevel: defaultThinkingLevel as AgentThinkingLevel })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {supportedThinkingLevels.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {thinkingLevelLabels[level]}
                         </SelectItem>
                       ))}
                     </SelectGroup>

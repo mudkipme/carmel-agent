@@ -30,6 +30,7 @@ export type PromptTemplate = {
 };
 
 export type AgentWorkingDirMode = "default" | "manual";
+export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
 export type AgentSkillCommand = {
   name: string;
@@ -139,6 +140,7 @@ export type AgentConfig = {
   promptTemplates: PromptTemplate[];
   permissions: AgentPermissions;
   defaultModelRefId: string;
+  defaultThinkingLevel: AgentThinkingLevel;
   createdAt: number;
   updatedAt: number;
 };
@@ -149,7 +151,7 @@ export type Session = {
   userId: string;
   agentId: string;
   modelRefId: string;
-  thinkingLevel: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+  thinkingLevel: AgentThinkingLevel;
   messages: AgentMessage[];
   forkedFrom?: {
     sessionId: string;
@@ -163,4 +165,24 @@ export type SessionMetadata = Omit<Session, "messages"> & {
   messageCount: number;
 };
 
-export type SessionDraft = Pick<Session, "agentId" | "modelRefId" | "thinkingLevel">;
+export type SessionDraft = Pick<Session, "agentId" | "modelRefId"> & Partial<Pick<Session, "thinkingLevel">>;
+
+export type AgentFileEntry = {
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  size?: number;
+  updatedAt: number;
+  hidden: boolean;
+};
+
+export type AgentFileList = {
+  path: string;
+  entries: AgentFileEntry[];
+};
+
+export type AgentFileContent = {
+  path: string;
+  content: string;
+  updatedAt: number;
+};
