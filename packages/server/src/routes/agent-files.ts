@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { constants } from "node:fs";
 import { access, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
-import { basename, isAbsolute, relative, resolve } from "node:path";
+import { basename, extname, isAbsolute, relative, resolve } from "node:path";
 import type { AgentFileContent, AgentFileEntry, AgentFileList } from "@carmel-agent/shared";
 import { agents } from "../db/schema.ts";
 import type { AuthVariables } from "../auth.ts";
@@ -12,6 +12,7 @@ type AgentRecord = typeof agents.$inferSelect;
 type ReadVisibleAgent = (userId: string, agentId: string) => AgentRecord | undefined;
 
 const MAX_TEXT_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_IMAGE_FILE_BYTES = 32 * 1024 * 1024;
 
 export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -53,6 +54,30 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
         content,
         updatedAt: fileStat.mtimeMs,
       } satisfies AgentFileContent);
+    } catch (error) {
+      return fileError(c, error);
+    }
+  });
+
+  route.get("/:id/files/raw", async (c) => {
+    const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
+    if (!agent) return c.json({ error: "Agent not found." }, 404);
+    if (!agent.permissions.read) return c.json({ error: "Read permission is disabled for this agent." }, 403);
+
+    try {
+      const root = ensureWorkingDir(agent);
+      const filePath = resolveAgentFilePath(root, c.req.query("path") ?? "");
+      const fileStat = await stat(filePath);
+      if (!fileStat.isFile()) return c.json({ error: "Path is not a file." }, 400);
+      if (fileStat.size > MAX_IMAGE_FILE_BYTES) return c.json({ error: "File is too large to preview." }, 413);
+
+      const contentType = imageContentType(filePath);
+      if (!contentType) return c.json({ error: "File is not a supported image." }, 415);
+
+      return c.body(new Uint8Array(await readFile(filePath)), 200, {
+        "content-type": contentType,
+        "cache-control": "no-store",
+      });
     } catch (error) {
       return fileError(c, error);
     }
@@ -198,6 +223,28 @@ async function readTextFile(filePath: string) {
   const buffer = await readFile(filePath);
   if (buffer.includes(0)) throw new Error("Binary files cannot be edited.");
   return buffer.toString("utf-8");
+}
+
+function imageContentType(filePath: string) {
+  switch (extname(filePath).toLowerCase()) {
+    case ".apng":
+      return "image/apng";
+    case ".avif":
+      return "image/avif";
+    case ".gif":
+      return "image/gif";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".svg":
+      return "image/svg+xml";
+    case ".webp":
+      return "image/webp";
+    default:
+      return "";
+  }
 }
 
 async function assertDoesNotExist(filePath: string) {

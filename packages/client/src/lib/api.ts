@@ -106,6 +106,8 @@ export const api = {
     ),
   readAgentFile: (agentId: string, path: string) =>
     request<AgentFileContent>(`/api/agents/${agentId}/files/content?${new URLSearchParams({ path })}`),
+  getAgentFileRawUrl: (agentId: string, path: string) =>
+    `/api/agents/${agentId}/files/raw?${new URLSearchParams({ path })}`,
   saveAgentFile: (agentId: string, path: string, content: string) =>
     request<AgentFileContent>(`/api/agents/${agentId}/files/content`, {
       method: "PUT",
