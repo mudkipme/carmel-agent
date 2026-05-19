@@ -31,9 +31,25 @@ ENV NODE_ENV="production"
 ENV HOST="0.0.0.0"
 ENV PORT="8797"
 ENV CARMEL_AGENT_DATA_DIR="/data"
+ENV AGENT_BROWSER_CONFIG="/etc/agent-browser/config.json"
 
-RUN apk add --no-cache curl podman py3-pip python3 wget && \
+RUN apk add --no-cache chromium curl font-noto font-noto-cjk font-noto-emoji podman py3-pip python3 ttf-freefont wget && \
     ln -sf /usr/bin/python3 /usr/local/bin/python
+
+RUN mkdir -p /etc/agent-browser /data/agent-browser/downloads /data/agent-browser/profile && \
+    printf '%s\n' \
+      '{' \
+      '  "$schema": "https://agent-browser.dev/schema.json",' \
+      '  "executablePath": "/usr/bin/chromium-browser",' \
+      '  "args": "--no-sandbox,--disable-dev-shm-usage,--disable-gpu",' \
+      '  "ignoreHttpsErrors": true,' \
+      '  "downloadPath": "/data/agent-browser/downloads",' \
+      '  "profile": "/data/agent-browser/profile"' \
+      '}' \
+      > /etc/agent-browser/config.json
+
+RUN npm install -g agent-browser@0.27.0 && \
+    agent-browser --version
 
 COPY --from=build /app /app
 
