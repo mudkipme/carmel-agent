@@ -3,7 +3,6 @@ dist
 .env
 .env.*
 !.env.example
-data/*.sqlite
-data/*.sqlite-*
 .DS_Store
 .agents
+/data

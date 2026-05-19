@@ -94,9 +94,7 @@ export function HarnessShell() {
         )}
       >
         <div className="flex h-11 items-center gap-2 border-b px-3">
-          <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <BotIcon className="size-4" />
-          </div>
+          <img src="/favicon.svg" alt="" className="size-7 rounded-md" draggable={false} />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[13px] font-medium">Carmel Agent</h1>
             <p className="truncate text-xs text-muted-foreground">{activeUser?.email}</p>

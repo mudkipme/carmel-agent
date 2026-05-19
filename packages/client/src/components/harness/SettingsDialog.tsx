@@ -1,10 +1,12 @@
 import { getProviders } from "@earendil-works/pi-ai";
 import {
+  CheckIcon,
   DatabaseIcon,
   ExternalLinkIcon,
   KeyRoundIcon,
   LogOutIcon,
   MonitorIcon,
+  SearchIcon,
   SettingsIcon,
   Trash2Icon,
   UserIcon,
@@ -350,25 +352,70 @@ function ModelSettings({
               </SelectGroup>
             </SelectContent>
           </Select>
-          <Select value={modelId} onValueChange={setModelId}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {models.slice(0, 80).map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <ModelPicker key={providerConfigId} models={models} value={modelId} onValueChange={setModelId} />
           <Button onClick={() => void addModel()} disabled={!modelId || !selectedProviderConfig}>
             {existingModel ? "Already configured" : "Add model"}
           </Button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function ModelPicker({
+  models,
+  value,
+  onValueChange,
+}: {
+  models: ReturnType<typeof modelsForProvider>;
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const selectedModel = models.find((model) => model.id === value);
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleModels = normalizedQuery
+    ? models.filter((model) => model.name.toLowerCase().includes(normalizedQuery) || model.id.toLowerCase().includes(normalizedQuery))
+    : models;
+
+  return (
+    <div className="grid gap-2">
+      <div className="rounded-md border bg-background">
+        <div className="flex h-9 items-center gap-2 border-b px-3">
+          <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={`Search ${models.length} models...`}
+            className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
+          />
+        </div>
+        <div className="max-h-56 overflow-y-auto p-1">
+          {visibleModels.length > 0 ? (
+            visibleModels.map((model) => (
+              <button
+                key={model.id}
+                type="button"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={() => onValueChange(model.id)}
+              >
+                <CheckIcon className={model.id === value ? "size-4 opacity-100" : "size-4 opacity-0"} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{model.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{model.id}</span>
+                </span>
+              </button>
+            ))
+          ) : (
+            <div className="px-2 py-6 text-center text-sm text-muted-foreground">No models found.</div>
+          )}
+        </div>
+      </div>
+      {selectedModel ? (
+        <p className="truncate text-xs text-muted-foreground">
+          Selected: {selectedModel.name} · {selectedModel.id}
+        </p>
+      ) : null}
     </div>
   );
 }

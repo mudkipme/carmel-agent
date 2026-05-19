@@ -6,9 +6,10 @@ import {
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import "@earendil-works/pi-web-ui/app.css";
+import { CheckIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -290,37 +291,14 @@ export function PiChat({
           <AgentCommandPalette agent={agentConfig} onInsert={insertCommandText} />
         </div>
       </div>
-      <Dialog open={modelDialogOpen} onOpenChange={setModelDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Select Model</DialogTitle>
-            <DialogDescription>Only models configured in settings are available here.</DialogDescription>
-          </DialogHeader>
-          <div className="flex max-h-[60vh] flex-col gap-1 overflow-auto p-4">
-            {modelRefs.map((configuredModel) => {
-              const configuredProvider = providerConfigs.find(
-                (item) => item.id === configuredModel.providerConfigId,
-              );
-              const selected = configuredModel.id === session.modelRefId;
-              return (
-                <button
-                  key={configuredModel.id}
-                  className="rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => void selectModel(configuredModel)}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="truncate text-sm font-medium">{configuredModel.label}</span>
-                    {selected ? <Badge variant="secondary">selected</Badge> : null}
-                  </div>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {configuredProvider?.label ?? configuredModel.provider} · {configuredModel.modelId}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ModelCommandDialog
+        open={modelDialogOpen}
+        onOpenChange={setModelDialogOpen}
+        modelRefs={modelRefs}
+        providerConfigs={providerConfigs}
+        selectedModelRefId={session.modelRefId}
+        onSelect={(nextModelRef) => void selectModel(nextModelRef)}
+      />
       <Dialog
         open={editingUserMessage !== null}
         onOpenChange={(open) => {
@@ -361,6 +339,58 @@ export function PiChat({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function ModelCommandDialog({
+  open,
+  onOpenChange,
+  modelRefs,
+  providerConfigs,
+  selectedModelRefId,
+  onSelect,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  modelRefs: ModelRef[];
+  providerConfigs: ProviderConfig[];
+  selectedModelRefId: string;
+  onSelect: (modelRef: ModelRef) => void;
+}) {
+  return (
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Select Model"
+      description="Select one of the models configured in settings."
+    >
+      <CommandInput placeholder="Search configured models..." />
+      <CommandList>
+        <CommandEmpty>No configured models found.</CommandEmpty>
+        <CommandGroup heading="Models">
+          {modelRefs.map((configuredModel) => {
+            const configuredProvider = providerConfigs.find((item) => item.id === configuredModel.providerConfigId);
+            const selected = configuredModel.id === selectedModelRefId;
+            const providerLabel = configuredProvider?.label ?? configuredModel.provider;
+            return (
+              <CommandItem
+                key={configuredModel.id}
+                value={`${configuredModel.label} ${providerLabel} ${configuredModel.modelId}`}
+                onSelect={() => onSelect(configuredModel)}
+              >
+                <CheckIcon className={selected ? "opacity-100" : "opacity-0"} />
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate">{configuredModel.label}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {providerLabel} · {configuredModel.modelId}
+                  </span>
+                </div>
+              </CommandItem>
+            );
+          })}
+        </CommandGroup>
+      </CommandList>
+    </CommandDialog>
   );
 }
 
