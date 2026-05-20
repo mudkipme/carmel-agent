@@ -7,6 +7,12 @@ import { agents } from "../db/schema.ts";
 import type { AuthVariables } from "../auth.ts";
 import { ensureDir } from "../paths.ts";
 import { resolveAgentWorkingDirPath } from "../runtime/resources.ts";
+import {
+  createFileEntryRequestSchema,
+  fileContentRequestSchema,
+  jsonValidator,
+  renameFileEntryRequestSchema,
+} from "../validation.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ReadVisibleAgent = (userId: string, agentId: string) => AgentRecord | undefined;
@@ -83,14 +89,14 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     }
   });
 
-  route.put("/:id/files/content", async (c) => {
+  route.put("/:id/files/content", jsonValidator(fileContentRequestSchema), async (c) => {
     const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
     if (!agent) return c.json({ error: "Agent not found." }, 404);
     if (!agent.permissions.write && !agent.permissions.edit) {
       return c.json({ error: "Write permission is disabled for this agent." }, 403);
     }
 
-    const body = (await c.req.json()) as { path?: string; content?: string };
+    const body = c.req.valid("json");
     if (!body.path || typeof body.content !== "string") return c.json({ error: "Path and content are required." }, 400);
 
     try {
@@ -108,12 +114,12 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     }
   });
 
-  route.post("/:id/files", async (c) => {
+  route.post("/:id/files", jsonValidator(createFileEntryRequestSchema), async (c) => {
     const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
     if (!agent) return c.json({ error: "Agent not found." }, 404);
     if (!agent.permissions.write) return c.json({ error: "Write permission is disabled for this agent." }, 403);
 
-    const body = (await c.req.json()) as { path?: string; type?: "file" | "directory" };
+    const body = c.req.valid("json");
     if (!body.path || (body.type !== "file" && body.type !== "directory")) {
       return c.json({ error: "Path and type are required." }, 400);
     }
@@ -133,14 +139,14 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     }
   });
 
-  route.patch("/:id/files", async (c) => {
+  route.patch("/:id/files", jsonValidator(renameFileEntryRequestSchema), async (c) => {
     const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
     if (!agent) return c.json({ error: "Agent not found." }, 404);
     if (!agent.permissions.write && !agent.permissions.edit) {
       return c.json({ error: "Write permission is disabled for this agent." }, 403);
     }
 
-    const body = (await c.req.json()) as { path?: string; newPath?: string };
+    const body = c.req.valid("json");
     if (!body.path || !body.newPath) return c.json({ error: "Path and newPath are required." }, 400);
 
     try {

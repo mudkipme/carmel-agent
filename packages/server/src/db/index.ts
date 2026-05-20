@@ -16,7 +16,55 @@ sqlite.pragma("foreign_keys = ON");
 
 export const db = drizzle(sqlite);
 
+type Migration = {
+  id: string;
+  description: string;
+  run: () => void;
+};
+
+const migrations: Migration[] = [
+  {
+    id: "001_initial_schema",
+    description: "Create base Carmel Agent tables",
+    run: createBaseSchema,
+  },
+  {
+    id: "002_current_schema_compat",
+    description: "Backfill legacy columns and current indexes",
+    run: applyCurrentSchemaCompatibility,
+  },
+];
+
 export function migrate() {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      id TEXT PRIMARY KEY NOT NULL,
+      description TEXT NOT NULL,
+      applied_at INTEGER NOT NULL
+    );
+  `);
+
+  const applied = new Set(
+    sqlite.prepare("SELECT id FROM schema_migrations").all().map((row) => (row as { id: string }).id),
+  );
+
+  for (const migration of migrations) {
+    if (applied.has(migration.id)) continue;
+    sqlite.exec("BEGIN");
+    try {
+      migration.run();
+      sqlite
+        .prepare("INSERT INTO schema_migrations (id, description, applied_at) VALUES (?, ?, ?)")
+        .run(migration.id, migration.description, now());
+      sqlite.exec("COMMIT");
+    } catch (error) {
+      sqlite.exec("ROLLBACK");
+      throw error;
+    }
+  }
+}
+
+function createBaseSchema() {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY NOT NULL,
@@ -111,6 +159,9 @@ export function migrate() {
       PRIMARY KEY (user_id, provider)
     );
   `);
+}
+
+function applyCurrentSchemaCompatibility() {
   addColumnIfMissing("users", "username", "TEXT");
   addColumnIfMissing("users", "password_hash", "TEXT");
   addColumnIfMissing("users", "fast_task_model_ref_id", "TEXT");

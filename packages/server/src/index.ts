@@ -36,14 +36,31 @@ import {
   serializeSessionMetadata,
   serializeUser,
 } from "./serializers.ts";
+import {
+  agentConfigRequestSchema,
+  agentRunRequestSchema,
+  clientToolResultRequestSchema,
+  forkSessionRequestSchema,
+  isValidationError,
+  jsonValidator,
+  loginRequestSchema,
+  modelRefRequestSchema,
+  oauthInputRequestSchema,
+  passwordRequestSchema,
+  providerConfigRequestSchema,
+  sessionDraftRequestSchema,
+  sessionPatchRequestSchema,
+  userRequestSchema,
+  validationErrorMessage,
+} from "./validation.ts";
 import type {
   AgentConfig,
   AgentThinkingLevel,
+  ClientToolResultPayload,
   ModelRef,
   PromptInput,
   ProviderConfig,
   Session,
-  SessionDraft,
   User,
 } from "@carmel-agent/shared";
 
@@ -51,6 +68,12 @@ migrate();
 seed();
 
 const app = new Hono<{ Variables: AuthVariables }>();
+
+app.onError((error, c) => {
+  if (isValidationError(error)) return c.json({ error: validationErrorMessage(error) }, 400);
+  console.error(error);
+  return c.json({ error: "Internal server error." }, 500);
+});
 
 app.use("*", compress({ encoding: "gzip", threshold: 1024 }));
 app.use(
@@ -65,8 +88,8 @@ app.use("/api/*", requireAuth);
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
-app.post("/api/auth/login", async (c) => {
-  const body = (await c.req.json()) as { username?: string; password?: string };
+app.post("/api/auth/login", jsonValidator(loginRequestSchema), async (c) => {
+  const body = c.req.valid("json");
   const username = body.username?.trim();
   if (!username || !body.password) return c.json({ error: "Username and password are required." }, 400);
 
@@ -84,9 +107,9 @@ app.post("/api/auth/logout", (c) => {
   return c.json({ ok: true });
 });
 
-app.post("/api/auth/password", async (c) => {
+app.post("/api/auth/password", jsonValidator(passwordRequestSchema), async (c) => {
   const user = c.get("user");
-  const body = (await c.req.json()) as { currentPassword?: string; newPassword?: string };
+  const body = c.req.valid("json");
   if (!body.currentPassword || !body.newPassword) {
     return c.json({ error: "Current and new password are required." }, 400);
   }
@@ -115,20 +138,21 @@ app.get("/api/skills/global", (c) => {
   );
 });
 
-app.post("/api/client-tool-results", async (c) => {
+app.post("/api/client-tool-results", jsonValidator(clientToolResultRequestSchema), async (c) => {
   const user = c.get("user");
   try {
-    resolveClientToolResult(user.id, await c.req.json());
+    resolveClientToolResult(user.id, c.req.valid("json") as ClientToolResultPayload);
     return c.json({ ok: true });
   } catch (error) {
+    if (isValidationError(error)) return c.json({ error: validationErrorMessage(error) }, 400);
     return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
   }
 });
 
-app.put("/api/users/:id", async (c) => {
+app.put("/api/users/:id", jsonValidator(userRequestSchema), async (c) => {
   const currentUser = c.get("user");
   if (c.req.param("id") !== currentUser.id) return c.json({ error: "You can only update your own profile." }, 403);
-  const user = (await c.req.json()) as User;
+  const user = c.req.valid("json") as User;
   const fastTaskModelRefId = user.fastTaskModelRefId?.trim() || null;
   if (fastTaskModelRefId && !canUseModel(currentUser.id, fastTaskModelRefId)) {
     return c.json({ error: "Fast task model not found." }, 404);
@@ -153,9 +177,9 @@ app.put("/api/users/:id", async (c) => {
   return c.json(serializeUser(db.select().from(users).where(eq(users.id, currentUser.id)).get()!));
 });
 
-app.put("/api/models/:id", async (c) => {
+app.put("/api/models/:id", jsonValidator(modelRefRequestSchema), async (c) => {
   const currentUserId = c.get("user").id;
-  const model = (await c.req.json()) as ModelRef;
+  const model = c.req.valid("json") as ModelRef;
   const current = db.select().from(modelRefs).where(eq(modelRefs.id, c.req.param("id"))).get();
   if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Model not found." }, 404);
   if (model.providerConfigId && !ownsProviderConfig(currentUserId, model.providerConfigId)) {
@@ -226,9 +250,9 @@ app.delete("/api/models/:id", (c) => {
   return c.json(readBootstrapPayload(currentUserId));
 });
 
-app.put("/api/provider-configs/:id", async (c) => {
+app.put("/api/provider-configs/:id", jsonValidator(providerConfigRequestSchema), async (c) => {
   const currentUserId = c.get("user").id;
-  const providerConfig = (await c.req.json()) as ProviderConfig;
+  const providerConfig = c.req.valid("json") as ProviderConfig;
   const timestamp = now();
   const current = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
   if (current && current.userId !== currentUserId) return c.json({ error: "Provider config not found." }, 404);
@@ -289,8 +313,8 @@ app.get("/api/oauth/flows/:id", (c) => {
   return c.json(flow);
 });
 
-app.post("/api/oauth/flows/:id/input", async (c) => {
-  const body = (await c.req.json()) as { value?: string };
+app.post("/api/oauth/flows/:id/input", jsonValidator(oauthInputRequestSchema), async (c) => {
+  const body = c.req.valid("json");
   try {
     const flow = submitOAuthLoginFlowInput(c.get("user").id, c.req.param("id"), body.value ?? "");
     if (!flow) return c.json({ error: "OAuth flow not found." }, 404);
@@ -321,9 +345,9 @@ app.delete("/api/provider-configs/:id", (c) => {
   return c.json(readBootstrapPayload(currentUserId));
 });
 
-app.put("/api/agents/:id", async (c) => {
+app.put("/api/agents/:id", jsonValidator(agentConfigRequestSchema), async (c) => {
   const currentUserId = c.get("user").id;
-  const agent = (await c.req.json()) as AgentConfig;
+  const agent = c.req.valid("json") as AgentConfig;
   const agentId = c.req.param("id");
   const current = db.select().from(agents).where(eq(agents.id, agentId)).get();
   if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
@@ -428,17 +452,12 @@ app.post("/api/agent-runs/:runId/abort", (c) => {
   return c.json({ ok: true });
 });
 
-app.post("/api/agents/:id/run", async (c) => {
+app.post("/api/agents/:id/run", jsonValidator(agentRunRequestSchema), async (c) => {
   const currentUserId = c.get("user").id;
   const agent = readVisibleAgent(currentUserId, c.req.param("id"));
   if (!agent) return c.json({ error: "Agent not found" }, 404);
 
-  const body = (await c.req.json()) as {
-    sessionId?: string;
-    modelRefId?: string;
-    thinkingLevel?: Session["thinkingLevel"];
-    promptInput?: PromptInput;
-  };
+  const body = c.req.valid("json");
   const session = body.sessionId
     ? db.select().from(sessions).where(eq(sessions.id, body.sessionId)).get()
     : undefined;
@@ -493,9 +512,9 @@ app.get("/api/sessions/:id", (c) => {
   return c.json(serializeSession(session));
 });
 
-app.post("/api/sessions", async (c) => {
+app.post("/api/sessions", jsonValidator(sessionDraftRequestSchema), async (c) => {
   const currentUserId = c.get("user").id;
-  const draft = (await c.req.json()) as SessionDraft & { title?: string };
+  const draft = c.req.valid("json");
   const agent = readVisibleAgent(currentUserId, draft.agentId);
   if (!agent) return c.json({ error: "Agent not found." }, 404);
   const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, draft.modelRefId)).get();
@@ -516,8 +535,8 @@ app.post("/api/sessions", async (c) => {
   return c.json(serializeSession(session), 201);
 });
 
-app.patch("/api/sessions/:id", async (c) => {
-  const patch = (await c.req.json()) as Partial<Session>;
+app.patch("/api/sessions/:id", jsonValidator(sessionPatchRequestSchema), async (c) => {
+  const patch = c.req.valid("json") as Partial<Session>;
   const sessionId = c.req.param("id");
   const current = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
@@ -548,9 +567,9 @@ app.patch("/api/sessions/:id", async (c) => {
   return c.json(serializeSession(updated));
 });
 
-app.post("/api/sessions/:id/fork", async (c) => {
+app.post("/api/sessions/:id/fork", jsonValidator(forkSessionRequestSchema), async (c) => {
   const sessionId = c.req.param("id");
-  const body = (await c.req.json()) as { messageIndex: number };
+  const body = c.req.valid("json");
   const source = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   if (!source || source.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
   const timestamp = now();
