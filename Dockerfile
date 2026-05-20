@@ -1,15 +1,20 @@
-FROM node:24-alpine AS base
+FROM node:24-trixie-slim AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR /app
 
-RUN apk add --no-cache bash ca-certificates git && corepack enable
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends bash ca-certificates git && \
+    rm -rf /var/lib/apt/lists/* && \
+    corepack enable
 
 FROM base AS deps
 
-RUN apk add --no-cache --virtual .build-deps g++ make python3
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends g++ make python3 && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json eslint.config.js ./
 COPY packages/client/package.json packages/client/package.json
@@ -33,14 +38,26 @@ ENV PORT="8797"
 ENV CARMEL_AGENT_DATA_DIR="/data"
 ENV AGENT_BROWSER_CONFIG="/etc/agent-browser/config.json"
 
-RUN apk add --no-cache chromium curl font-noto font-noto-cjk font-noto-emoji podman py3-pip python3 ttf-freefont wget && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      chromium \
+      curl \
+      fonts-freefont-ttf \
+      fonts-noto \
+      fonts-noto-cjk \
+      fonts-noto-color-emoji \
+      podman \
+      python3 \
+      python3-pip \
+      wget && \
+    rm -rf /var/lib/apt/lists/* && \
     ln -sf /usr/bin/python3 /usr/local/bin/python
 
 RUN mkdir -p /etc/agent-browser /data/agent-browser/downloads /data/agent-browser/profile && \
     printf '%s\n' \
       '{' \
       '  "$schema": "https://agent-browser.dev/schema.json",' \
-      '  "executablePath": "/usr/bin/chromium-browser",' \
+      '  "executablePath": "/usr/bin/chromium",' \
       '  "args": "--no-sandbox,--disable-dev-shm-usage,--disable-gpu",' \
       '  "ignoreHttpsErrors": true,' \
       '  "downloadPath": "/data/agent-browser/downloads",' \
