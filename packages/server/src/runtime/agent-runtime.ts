@@ -10,14 +10,16 @@ import {
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
-import { agents, modelRefs, providerConfigs, sessions } from "../db/schema.ts";
+import { agents, modelRefs, providerConfigs, providerKeys, sessions, users } from "../db/schema.ts";
 import { serializeModelRef } from "../serializers.ts";
+import { createProviderConfigAuthStorage } from "./auth-storage.ts";
 import { cleanupRunClientTools, createClientToolDefinitions } from "./client-tools.ts";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { createAgentResourceLoader, resolveAgentWorkingDirPath, serverAgentDir } from "./resources.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerToolDefinitions } from "./tools.ts";
 import type { PromptInput, Session } from "@carmel-agent/shared";
+import type { Api, Model } from "@earendil-works/pi-ai";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
@@ -177,11 +179,15 @@ async function persistSessionRun(
   if (!shouldGenerateSessionTitle(session.title, patch.messages)) return;
 
   try {
-    const modelRegistry = ModelRegistry.inMemory(patch.authStorage);
-    const auth = await modelRegistry.getApiKeyAndHeaders(patch.model);
+    const titleModelContext = resolveTitleModelContext(session.userId, {
+      model: patch.model,
+      authStorage: patch.authStorage,
+    });
+    const modelRegistry = ModelRegistry.inMemory(titleModelContext.authStorage);
+    const auth = await modelRegistry.getApiKeyAndHeaders(titleModelContext.model);
     if (!auth.ok || !auth.apiKey) return;
     const title = await generateSessionTitle({
-      model: patch.model,
+      model: titleModelContext.model,
       apiKey: auth.apiKey,
       headers: auth.headers,
       messages: patch.messages,
@@ -197,4 +203,50 @@ async function persistSessionRun(
       error instanceof Error ? error.message : String(error),
     );
   }
+}
+
+function resolveTitleModelContext(
+  userId: string,
+  fallback: { model: Model<Api>; authStorage: AuthStorage },
+) {
+  const user = db.select().from(users).where(eq(users.id, userId)).get();
+  const fastTaskModelRefId = user?.fastTaskModelRefId;
+  if (!fastTaskModelRefId) return fallback;
+
+  const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, fastTaskModelRefId)).get();
+  if (!modelRef || !canUserUseTitleModel(userId, modelRef)) return fallback;
+
+  const providerConfig = modelRef.providerConfigId
+    ? db.select().from(providerConfigs).where(eq(providerConfigs.id, modelRef.providerConfigId)).get()
+    : undefined;
+  const authStorage = providerConfig ? createProviderConfigAuthStorage(providerConfig, modelRef.provider) : AuthStorage.inMemory();
+  if (!providerConfig) {
+    const providerKey = db
+      .select()
+      .from(providerKeys)
+      .where(eq(providerKeys.userId, userId))
+      .all()
+      .find((item) => item.provider === modelRef.provider);
+    if (providerKey?.apiKey) authStorage.setRuntimeApiKey(modelRef.provider, providerKey.apiKey);
+  }
+  if (!authStorage.hasAuth(modelRef.provider)) return fallback;
+
+  return {
+    model: resolveServerModelRef(
+      { ...serializeModelRef(modelRef), customHeaders: modelRef.customHeaders ?? undefined },
+      providerConfig,
+    ),
+    authStorage,
+  };
+}
+
+function canUserUseTitleModel(userId: string, modelRef: ModelRefRecord) {
+  if (modelRef.ownerUserId === userId || modelRef.shared || !modelRef.providerConfigId) return true;
+  return Boolean(
+    db
+      .select()
+      .from(providerConfigs)
+      .where(eq(providerConfigs.id, modelRef.providerConfigId))
+      .get()?.userId === userId,
+  );
 }

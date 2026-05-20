@@ -1,12 +1,13 @@
 import {
   BotIcon,
+  EllipsisIcon,
   MessageSquarePlusIcon,
   PanelLeftCloseIcon,
   PanelLeftIcon,
   PencilIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { PiChat } from "@/components/PiChat";
 import { AgentSettingsDialog } from "@/components/harness/AgentSettingsDialog";
 import { FileEditorView } from "@/components/harness/files/FileEditorView";
@@ -14,23 +15,49 @@ import { FileExplorerPanel } from "@/components/harness/files/FileExplorerPanel"
 import { SettingsDialog } from "@/components/harness/SettingsDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 
 const DESKTOP_SIDEBAR_QUERY = "(min-width: 1024px)";
+const SIDEBAR_WIDTH_STORAGE_KEY = "carmel-sidebar-width";
+const DEFAULT_SIDEBAR_WIDTH = 298;
+const MIN_SIDEBAR_WIDTH = 240;
+const MAX_SIDEBAR_WIDTH = 520;
 type SidebarMode = "sessions" | "files";
 
 function getDefaultSidebarOpen() {
   return typeof window === "undefined" ? true : window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches;
 }
 
+function getDefaultSidebarWidth() {
+  if (typeof window === "undefined") return DEFAULT_SIDEBAR_WIDTH;
+  const storedWidth = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+  return storedWidth ? clampSidebarWidth(Number(storedWidth)) : DEFAULT_SIDEBAR_WIDTH;
+}
+
+function clampSidebarWidth(width: number) {
+  return Number.isFinite(width)
+    ? Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, Math.round(width)))
+    : DEFAULT_SIDEBAR_WIDTH;
+}
+
 export function HarnessShell() {
   const store = useHarnessStore();
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
+  const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("sessions");
   const [selectedFile, setSelectedFile] = useState({ agentId: "", path: "" });
+  const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
   const activeUser = store.users.find((user) => user.id === store.activeUserId);
   const selectedSession = store.sessions.find(
     (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
@@ -77,6 +104,34 @@ export function HarnessShell() {
     }
   };
 
+  const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = sidebarWidth;
+    const originalCursor = document.body.style.cursor;
+    const originalUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const finishResize = () => {
+      document.body.style.cursor = originalCursor;
+      document.body.style.userSelect = originalUserSelect;
+      window.removeEventListener("pointermove", resize);
+      window.removeEventListener("pointerup", finishResize);
+      window.removeEventListener("pointercancel", finishResize);
+    };
+    const resize = (moveEvent: PointerEvent) => {
+      const nextWidth = clampSidebarWidth(startWidth + moveEvent.clientX - startX);
+      setSidebarWidth(nextWidth);
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(nextWidth));
+    };
+
+    window.addEventListener("pointermove", resize);
+    window.addEventListener("pointerup", finishResize);
+    window.addEventListener("pointercancel", finishResize);
+  };
+
   return (
     <main className="relative flex h-screen min-h-0 overflow-hidden bg-background text-foreground">
       {sidebarOpen ? (
@@ -89,9 +144,10 @@ export function HarnessShell() {
       ) : null}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex w-[298px] min-h-0 flex-col border-r bg-muted/50 shadow-lg transition-transform duration-200 lg:static lg:z-auto lg:shrink-0 lg:shadow-none",
+          "fixed inset-y-0 left-0 z-30 flex min-h-0 flex-col border-r bg-muted/50 shadow-lg transition-transform duration-200 lg:static lg:z-auto lg:shrink-0 lg:shadow-none",
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:hidden",
         )}
+        style={{ width: sidebarWidth }}
       >
         <div className="flex h-11 items-center gap-2 border-b px-3">
           <img src="/favicon.svg" alt="" className="size-7 rounded-md" draggable={false} />
@@ -115,7 +171,6 @@ export function HarnessShell() {
                 disabled={!visibleAgents.length}
                 onValueChange={(agentId) => {
                   store.setActiveAgent(agentId);
-                  closeSidebarOnMobile();
                 }}
               >
                 <SelectTrigger className="h-8 min-w-0 flex-1 bg-background px-2 text-[13px]">
@@ -191,17 +246,17 @@ export function HarnessShell() {
               </Button>
             </div>
             <TabsContent value="sessions" className="min-h-0 flex-1 overflow-hidden">
-              <div className="flex h-full min-h-0 flex-col gap-1 overflow-auto">
+              <div className="flex h-full min-h-0 flex-col overflow-auto">
                 {visibleSessions.map((session) => (
                   <div
                     key={session.id}
                     className={cn(
-                      "group flex items-start gap-1 rounded-md px-2 py-1.5 transition-colors hover:bg-accent hover:text-accent-foreground",
+                      "group flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 transition-colors hover:bg-accent hover:text-accent-foreground",
                       session.id === activeSessionMetadata?.id && "bg-accent text-accent-foreground",
                     )}
                   >
                     <button
-                      className="min-w-0 flex-1 text-left"
+                      className="flex h-full min-w-0 flex-1 items-center text-left"
                       onClick={() => {
                         store.setActiveSession(session.id);
                         setSidebarMode("sessions");
@@ -209,35 +264,61 @@ export function HarnessShell() {
                       }}
                     >
                       <span className="sr-only">Open session</span>
-                      <span className="block truncate text-[13px]">{session.title}</span>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{formatRelativeTime(session.updatedAt)}</p>
+                      <span className="truncate text-[13px]">{session.title}</span>
                     </button>
-                    <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        title="Rename session"
-                        onClick={() => {
-                          const nextTitle = window.prompt("Rename session", session.title);
-                          const title = nextTitle?.trim();
-                          if (!title || title === session.title) return;
-                          void store.updateSession(session.id, { title });
-                        }}
+                    <div className="relative flex h-full w-8 shrink-0 items-center justify-end">
+                      <span
+                        className={cn(
+                          "text-xs text-muted-foreground transition-opacity group-hover:opacity-0 group-focus-within:opacity-0",
+                          openSessionMenuId === session.id && "opacity-0",
+                        )}
                       >
-                        <PencilIcon />
-                      </Button>
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        title="Delete session"
-                        onClick={() => {
-                          const confirmed = window.confirm(`Delete "${session.title}"?`);
-                          if (!confirmed) return;
-                          void store.deleteSession(session.id);
-                        }}
+                        {formatRelativeTime(session.updatedAt)}
+                      </span>
+                      <DropdownMenu
+                        open={openSessionMenuId === session.id}
+                        onOpenChange={(open) => setOpenSessionMenuId(open ? session.id : null)}
                       >
-                        <Trash2Icon />
-                      </Button>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="icon-xs"
+                            variant="ghost"
+                            title="Session actions"
+                            className="absolute right-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
+                          >
+                            <EllipsisIcon />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36">
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                const nextTitle = window.prompt("Rename session", session.title);
+                                const title = nextTitle?.trim();
+                                if (!title || title === session.title) return;
+                                void store.updateSession(session.id, { title });
+                              }}
+                            >
+                              <PencilIcon />
+                              Rename
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onSelect={() => {
+                                const confirmed = window.confirm(`Delete "${session.title}"?`);
+                                if (!confirmed) return;
+                                void store.deleteSession(session.id);
+                              }}
+                            >
+                              <Trash2Icon />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 ))}
@@ -254,6 +335,20 @@ export function HarnessShell() {
             </TabsContent>
           </Tabs>
         </div>
+        <button
+          type="button"
+          aria-label="Resize sidebar"
+          aria-orientation="vertical"
+          aria-valuemin={MIN_SIDEBAR_WIDTH}
+          aria-valuemax={MAX_SIDEBAR_WIDTH}
+          aria-valuenow={sidebarWidth}
+          className="absolute inset-y-0 right-[-3px] hidden w-2 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-border/80 focus-visible:bg-border/80 focus-visible:outline-none lg:block"
+          onPointerDown={startSidebarResize}
+          onDoubleClick={() => {
+            setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+            window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(DEFAULT_SIDEBAR_WIDTH));
+          }}
+        />
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">

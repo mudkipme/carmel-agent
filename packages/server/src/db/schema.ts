@@ -14,6 +14,7 @@ export const users = sqliteTable("users", {
   passwordHash: text("password_hash"),
   name: text("name").notNull(),
   email: text("email").notNull(),
+  fastTaskModelRefId: text("fast_task_model_ref_id"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

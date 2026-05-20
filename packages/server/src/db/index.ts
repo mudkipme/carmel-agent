@@ -24,6 +24,7 @@ export function migrate() {
       password_hash TEXT,
       name TEXT NOT NULL,
       email TEXT NOT NULL,
+      fast_task_model_ref_id TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -112,6 +113,7 @@ export function migrate() {
   `);
   addColumnIfMissing("users", "username", "TEXT");
   addColumnIfMissing("users", "password_hash", "TEXT");
+  addColumnIfMissing("users", "fast_task_model_ref_id", "TEXT");
   addColumnIfMissing("model_refs", "owner_user_id", "TEXT");
   addColumnIfMissing("model_refs", "shared", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing("model_refs", "provider_config_id", "TEXT");

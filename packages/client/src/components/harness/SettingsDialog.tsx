@@ -46,10 +46,13 @@ export function SettingsDialog({
   providerConfigs: ProviderConfig[];
 }) {
   const activeUserId = useHarnessStore((state) => state.activeUserId);
+  const activeUser = useHarnessStore((state) => state.users.find((item) => item.id === state.activeUserId));
+  const upsertUser = useHarnessStore((state) => state.upsertUser);
   const upsertModelRef = useHarnessStore((state) => state.upsertModelRef);
   const themePreference = useThemePreference();
   const [open, setOpen] = useState(false);
   const [modelShareDrafts, setModelShareDrafts] = useState<Record<string, boolean>>({});
+  const [draftFastTaskModelRefId, setDraftFastTaskModelRefId] = useState("");
   const [draftThemePreference, setDraftThemePreference] = useState<ThemePreference>(themePreference);
   const [oauthProviders, setOAuthProviders] = useState<OAuthProviderSummary[]>([]);
   const [saving, setSaving] = useState(false);
@@ -61,6 +64,7 @@ export function SettingsDialog({
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       setModelShareDrafts({});
+      setDraftFastTaskModelRefId(activeUser?.fastTaskModelRefId ?? "");
       setDraftThemePreference(themePreference);
       setSaveError(null);
     }
@@ -81,6 +85,12 @@ export function SettingsDialog({
         return original?.ownerUserId === activeUserId && original.shared !== draftModel.shared;
       });
       await Promise.all(changedModels.map((model) => upsertModelRef(model)));
+      if (activeUser && draftFastTaskModelRefId !== (activeUser.fastTaskModelRefId ?? "")) {
+        await upsertUser({
+          ...activeUser,
+          fastTaskModelRefId: draftFastTaskModelRefId || undefined,
+        });
+      }
       if (draftThemePreference !== themePreference) setThemePreference(draftThemePreference);
       setOpen(false);
     } catch (error) {
@@ -126,6 +136,8 @@ export function SettingsDialog({
               <ModelSettings
                 modelRefs={draftModelRefs}
                 providerConfigs={providerConfigs}
+                fastTaskModelRefId={draftFastTaskModelRefId}
+                onFastTaskModelChange={setDraftFastTaskModelRefId}
                 onModelChange={(model) =>
                   setModelShareDrafts((current) => ({ ...current, [model.id]: model.shared }))
                 }
@@ -247,10 +259,14 @@ function AppearanceSettings({
 function ModelSettings({
   modelRefs,
   providerConfigs,
+  fastTaskModelRefId,
+  onFastTaskModelChange,
   onModelChange,
 }: {
   modelRefs: ModelRef[];
   providerConfigs: ProviderConfig[];
+  fastTaskModelRefId: string;
+  onFastTaskModelChange: (modelRefId: string) => void;
   onModelChange: (model: ModelRef) => void;
 }) {
   const activeUserId = useHarnessStore((state) => state.activeUserId);
@@ -286,6 +302,34 @@ function ModelSettings({
   return (
     <div className="grid gap-6">
       <section className="grid gap-4">
+        <SectionHeader
+          title="Fast Task Model"
+          description="Used for lightweight background tasks such as session title generation."
+        />
+        <Field label="Model">
+          <Select
+            value={fastTaskModelRefId || "__session_model__"}
+            onValueChange={(value) => onFastTaskModelChange(value === "__session_model__" ? "" : value)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="__session_model__">Use current session model</SelectItem>
+                {modelRefs.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.label}
+                    {model.shared ? " · shared" : ""}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      </section>
+
+      <section className="grid gap-4 border-t pt-6">
         <SectionHeader title="Model Management" description="Each provider config can have one entry per model." />
         <div className="grid gap-2">
           {modelRefs.map((model) => {

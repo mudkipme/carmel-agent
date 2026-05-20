@@ -6,6 +6,7 @@ export type User = {
   username?: string;
   name: string;
   email: string;
+  fastTaskModelRefId?: string;
 };
 
 export type AuthUser = User & {

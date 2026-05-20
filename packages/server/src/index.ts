@@ -129,6 +129,10 @@ app.put("/api/users/:id", async (c) => {
   const currentUser = c.get("user");
   if (c.req.param("id") !== currentUser.id) return c.json({ error: "You can only update your own profile." }, 403);
   const user = (await c.req.json()) as User;
+  const fastTaskModelRefId = user.fastTaskModelRefId?.trim() || null;
+  if (fastTaskModelRefId && !canUseModel(currentUser.id, fastTaskModelRefId)) {
+    return c.json({ error: "Fast task model not found." }, 404);
+  }
   const timestamp = now();
   db.insert(users)
     .values({
@@ -137,12 +141,13 @@ app.put("/api/users/:id", async (c) => {
       passwordHash: currentUser.passwordHash,
       name: user.name,
       email: user.email,
+      fastTaskModelRefId,
       createdAt: currentUser.createdAt,
       updatedAt: timestamp,
     })
     .onConflictDoUpdate({
       target: users.id,
-      set: { name: user.name, email: user.email, updatedAt: timestamp },
+      set: { name: user.name, email: user.email, fastTaskModelRefId, updatedAt: timestamp },
     })
     .run();
   return c.json(serializeUser(db.select().from(users).where(eq(users.id, currentUser.id)).get()!));
@@ -684,6 +689,19 @@ function resolveAgentWorkingDir(
 
 function reassignModelReferences(deletedModelIds: Set<string>) {
   const timestamp = now();
+  const affectedUsers = db
+    .select()
+    .from(users)
+    .all()
+    .filter((user) => user.fastTaskModelRefId && deletedModelIds.has(user.fastTaskModelRefId));
+
+  for (const user of affectedUsers) {
+    db.update(users)
+      .set({ fastTaskModelRefId: null, updatedAt: timestamp })
+      .where(eq(users.id, user.id))
+      .run();
+  }
+
   const affectedAgents = db
     .select()
     .from(agents)
@@ -727,6 +745,9 @@ function readAffectedModelUserIds(deletedModelIds: Set<string>) {
   const userIds = new Set<string>();
   for (const agent of db.select().from(agents).all()) {
     if (deletedModelIds.has(agent.defaultModelRefId)) userIds.add(agent.ownerUserId);
+  }
+  for (const user of db.select().from(users).all()) {
+    if (user.fastTaskModelRefId && deletedModelIds.has(user.fastTaskModelRefId)) userIds.add(user.id);
   }
   for (const session of db.select().from(sessions).all()) {
     if (deletedModelIds.has(session.modelRefId)) userIds.add(session.userId);
