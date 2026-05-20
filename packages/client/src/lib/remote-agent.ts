@@ -34,6 +34,8 @@ export class RemoteAgent {
   private tools: AgentTool[] = [];
   private messages: AgentMessage[];
   private sawAgentEnd = false;
+  private runId?: string;
+  private detachRequested = false;
 
   readonly state: MutableAgentState;
 
@@ -93,6 +95,18 @@ export class RemoteAgent {
   }
 
   abort() {
+    const runId = this.runId;
+    if (runId) {
+      void fetch(`/api/agent-runs/${encodeURIComponent(runId)}/abort`, {
+        method: "POST",
+        credentials: "include",
+      }).catch(() => undefined);
+    }
+    this.abortController?.abort();
+  }
+
+  detach() {
+    this.detachRequested = true;
     this.abortController?.abort();
   }
 
@@ -119,6 +133,8 @@ export class RemoteAgent {
     this.state.streamingMessage = undefined;
     this.state.errorMessage = undefined;
     this.sawAgentEnd = false;
+    this.runId = undefined;
+    this.detachRequested = false;
 
     try {
       const response = await fetch(`/api/agents/${this.config.agentId}/run`, {
@@ -135,18 +151,23 @@ export class RemoteAgent {
       if (!response.ok || !response.body) {
         throw new Error((await response.text()) || `Agent request failed with ${response.status}`);
       }
+      this.runId = response.headers.get("x-agent-run-id") ?? undefined;
       await this.consumeEvents(response.body, this.abortController.signal);
       if (!this.sawAgentEnd) {
         await this.processEvent({ type: "agent_end", messages: this.messages }, this.abortController.signal);
       }
       await this.config.onRunComplete?.();
     } catch (error) {
-      await this.handleFailure(error, this.abortController.signal.aborted);
+      if (!(this.detachRequested && this.abortController.signal.aborted)) {
+        await this.handleFailure(error, this.abortController.signal.aborted);
+      }
     } finally {
       this.state.isStreaming = false;
       this.state.streamingMessage = undefined;
       this.state.pendingToolCalls = new Set();
       this.abortController = undefined;
+      this.runId = undefined;
+      this.detachRequested = false;
       this.resolveIdle?.();
     }
   }

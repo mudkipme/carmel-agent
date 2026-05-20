@@ -9,7 +9,7 @@ type ClientToolContext = {
   runId: string;
   userId: string;
   sessionId: string;
-  emit: (event: ClientToolCallEvent) => void;
+  emit: (event: ClientToolCallEvent) => boolean;
 };
 
 type PendingClientToolCall = {
@@ -59,11 +59,19 @@ export function resolveClientToolResult(userId: string, payload: ClientToolResul
 }
 
 export function cleanupRunClientTools(runId: string) {
+  rejectRunClientTools(runId, "Agent run ended before the client tool returned.");
+}
+
+export function disconnectRunClientTools(runId: string) {
+  rejectRunClientTools(runId, "Browser tool call was interrupted because the client disconnected.");
+}
+
+function rejectRunClientTools(runId: string, message: string) {
   for (const [key, pending] of pendingClientTools.entries()) {
     if (pending.runId !== runId) continue;
     pendingClientTools.delete(key);
     clearTimeout(pending.timeout);
-    pending.reject(new Error("Agent run ended before the client tool returned."));
+    pending.reject(new Error(message));
   }
 }
 
@@ -127,7 +135,7 @@ function requestClientTool(
     });
 
     signal?.addEventListener("abort", cleanupAbort, { once: true });
-    context.emit({
+    const delivered = context.emit({
       type: "client_tool_call",
       runId: context.runId,
       toolCallId,
@@ -135,6 +143,12 @@ function requestClientTool(
       args,
       nonce,
     });
+    if (!delivered) {
+      pendingClientTools.delete(key);
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", cleanupAbort);
+      reject(new Error(`Browser tool "${toolName}" is unavailable because the client disconnected.`));
+    }
   });
 }
 

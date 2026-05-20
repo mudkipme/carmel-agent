@@ -49,6 +49,7 @@ RUN apt-get update && \
       podman \
       python3 \
       python3-pip \
+      ripgrep \
       wget && \
     rm -rf /var/lib/apt/lists/* && \
     ln -sf /usr/bin/python3 /usr/local/bin/python

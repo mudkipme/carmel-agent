@@ -246,7 +246,7 @@ export function PiChat({
       host.removeEventListener(RETRY_USER_MESSAGE_EVENT, handleRetry);
       host.removeEventListener(EDIT_USER_MESSAGE_EVENT, handleEdit);
       unsubscribe?.();
-      agent?.abort();
+      agent?.detach();
       agentRef.current = null;
       panelRef.current = null;
       host.replaceChildren();

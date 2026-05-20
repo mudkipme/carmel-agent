@@ -13,7 +13,7 @@ import { now } from "../db/seed.ts";
 import { agents, modelRefs, providerConfigs, providerKeys, sessions, users } from "../db/schema.ts";
 import { serializeModelRef } from "../serializers.ts";
 import { createProviderConfigAuthStorage } from "./auth-storage.ts";
-import { cleanupRunClientTools, createClientToolDefinitions } from "./client-tools.ts";
+import { cleanupRunClientTools, createClientToolDefinitions, disconnectRunClientTools } from "./client-tools.ts";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { createAgentResourceLoader, resolveAgentWorkingDirPath, serverAgentDir } from "./resources.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
@@ -25,6 +25,20 @@ type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 type SessionRecord = typeof sessions.$inferSelect;
+type ActiveAgentRun = {
+  userId: string;
+  sessionId: string;
+  abort: () => void;
+};
+
+const activeAgentRuns = new Map<string, ActiveAgentRun>();
+
+export function abortAgentRun(userId: string, runId: string) {
+  const run = activeAgentRuns.get(runId);
+  if (!run || run.userId !== userId) return false;
+  run.abort();
+  return true;
+}
 
 export function normalizePromptInput(input?: PromptInput) {
   if (!input) return undefined;
@@ -70,6 +84,17 @@ export function createAgentRunResponse({
   );
   const encoder = new TextEncoder();
   let activeSession: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
+  let abortRequested = false;
+  let connected = true;
+  const abortRun = () => {
+    abortRequested = true;
+    void activeSession?.abort();
+  };
+  activeAgentRuns.set(runId, {
+    userId: session.userId,
+    sessionId: session.id,
+    abort: abortRun,
+  });
   return new Response(
     new ReadableStream({
       async start(controller) {
@@ -77,7 +102,14 @@ export function createAgentRunResponse({
         let unsubscribe: (() => void) | undefined;
         let messagesToPersist: AgentMessage[] | undefined;
         const emit = (event: unknown) => {
-          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+          if (!connected) return false;
+          try {
+            controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+            return true;
+          } catch {
+            connected = false;
+            return false;
+          }
         };
         try {
           const modelRegistry = ModelRegistry.inMemory(authStorage);
@@ -112,6 +144,10 @@ export function createAgentRunResponse({
           sdkSession = piSession;
           activeSession = sdkSession;
           sdkSession.agent.state.messages = session.messages;
+          if (abortRequested) {
+            await sdkSession.abort();
+            return;
+          }
           unsubscribe = sdkSession.subscribe((event) => {
             emit(event);
           });
@@ -129,6 +165,7 @@ export function createAgentRunResponse({
           messagesToPersist = [...(sdkSession?.agent.state.messages ?? session.messages), ...errorEvent.messages];
           emit(errorEvent);
         } finally {
+          activeAgentRuns.delete(runId);
           cleanupRunClientTools(runId);
           await persistSessionRun(session, {
             messages: messagesToPersist ?? sdkSession?.agent.state.messages ?? session.messages,
@@ -140,14 +177,26 @@ export function createAgentRunResponse({
           unsubscribe?.();
           sdkSession?.dispose();
           activeSession = undefined;
-          controller.close();
+          if (connected) {
+            try {
+              controller.close();
+            } catch {
+              connected = false;
+            }
+          }
         }
       },
       cancel() {
-        void activeSession?.abort();
+        connected = false;
+        disconnectRunClientTools(runId);
       },
     }),
-    { headers: { "content-type": "application/x-ndjson; charset=utf-8" } },
+    {
+      headers: {
+        "content-type": "application/x-ndjson; charset=utf-8",
+        "x-agent-run-id": runId,
+      },
+    },
   );
 }
 

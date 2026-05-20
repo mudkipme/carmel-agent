@@ -9,7 +9,7 @@ import { Hono } from "hono";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { createAuthSession, clearAuthSession, hashPassword, requireAuth, verifyPassword, type AuthVariables } from "./auth.ts";
-import { createAgentRunResponse, normalizePromptInput } from "./runtime/agent-runtime.ts";
+import { abortAgentRun, createAgentRunResponse, normalizePromptInput } from "./runtime/agent-runtime.ts";
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import { AuthStorage } from "@earendil-works/pi-coding-agent";
 import { createProviderConfigAuthStorage } from "./runtime/auth-storage.ts";
@@ -421,6 +421,12 @@ app.get("/api/agents/:id/commands", async (c) => {
 });
 
 app.route("/api/agents", createAgentFilesRoute(readVisibleAgent));
+
+app.post("/api/agent-runs/:runId/abort", (c) => {
+  const aborted = abortAgentRun(c.get("user").id, c.req.param("runId"));
+  if (!aborted) return c.json({ error: "Agent run not found" }, 404);
+  return c.json({ ok: true });
+});
 
 app.post("/api/agents/:id/run", async (c) => {
   const currentUserId = c.get("user").id;
