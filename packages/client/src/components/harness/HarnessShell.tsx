@@ -155,7 +155,7 @@ export function HarnessShell() {
             <h1 className="truncate text-[13px] font-medium">Carmel Agent</h1>
             <p className="truncate text-xs text-muted-foreground">{activeUser?.email}</p>
           </div>
-          <Button size="icon-xs" variant="ghost" title="Collapse sidebar" onClick={() => setSidebarOpen(false)}>
+          <Button size="icon-sm" variant="ghost" title="Collapse sidebar" onClick={() => setSidebarOpen(false)}>
             <PanelLeftCloseIcon />
           </Button>
         </div>
@@ -202,7 +202,7 @@ export function HarnessShell() {
                 />
               ) : null}
               <Button
-                size="icon-xs"
+                size="icon-sm"
                 variant="ghost"
                 disabled={!store.modelRefs.length}
                 onClick={() => void createSidebarAgent()}
@@ -228,7 +228,7 @@ export function HarnessShell() {
                 </TabsTrigger>
               </TabsList>
               <Button
-                size="icon-xs"
+                size="icon-sm"
                 variant="ghost"
                 title="New session"
                 onClick={() => {
@@ -355,7 +355,7 @@ export function HarnessShell() {
         <header className="flex h-11 items-center justify-between gap-3 border-b bg-background px-4">
           <div className="flex min-w-0 items-center gap-2">
             <Button
-              size="icon-xs"
+              size="icon-sm"
               variant="ghost"
               title={sidebarOpen ? "Collapse sidebar" : "Show sidebar"}
               onClick={() => setSidebarOpen((open) => !open)}

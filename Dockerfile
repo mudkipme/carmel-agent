@@ -48,8 +48,9 @@ RUN mkdir -p /etc/agent-browser /data/agent-browser/downloads /data/agent-browse
       '}' \
       > /etc/agent-browser/config.json
 
-RUN npm install -g agent-browser@0.27.0 && \
-    agent-browser --version
+RUN npm install -g agent-browser@0.27.0 @tobilu/qmd && \
+    agent-browser --version && \
+    qmd --version
 
 COPY --from=build /app /app
 
