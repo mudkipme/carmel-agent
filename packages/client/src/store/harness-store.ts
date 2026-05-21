@@ -1,17 +1,20 @@
-import { clampThinkingLevel, getModel, getModels, type Api, type Model } from "@earendil-works/pi-ai";
+import { clampThinkingLevel, getModel, getModels, getProviders, type Api, type Model } from "@earendil-works/pi-ai";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { ApiError, api, type BootstrapPayload } from "@/lib/api";
 import { createClientId } from "@/lib/id";
-import type {
-  AgentConfig,
-  ModelRef,
-  PromptTemplate,
-  ProviderConfig,
-  Session,
-  SessionDraft,
-  SessionMetadata,
-  User,
+import {
+  DEFAULT_OLLAMA_BASE_URL,
+  OLLAMA_PROVIDER,
+  type AgentConfig,
+  type ModelRef,
+  type PromptTemplate,
+  type ProviderConfig,
+  type ProviderModelSummary,
+  type Session,
+  type SessionDraft,
+  type SessionMetadata,
+  type User,
 } from "@carmel-agent/shared";
 
 const id = createClientId;
@@ -352,7 +355,7 @@ export function resolveModelRef(modelRef: ModelRef): Model<Api> {
     name: modelRef.label,
     api: modelRef.api ?? "openai-completions",
     provider: modelRef.provider,
-    baseUrl: "",
+    baseUrl: modelRef.provider === OLLAMA_PROVIDER ? DEFAULT_OLLAMA_BASE_URL : "",
     reasoning: modelRef.reasoning ?? false,
     input: modelRef.input ?? ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -361,26 +364,41 @@ export function resolveModelRef(modelRef: ModelRef): Model<Api> {
   } as Model<Api>;
 }
 
-export function makeModelRef(provider: string, modelId: string, providerConfigId?: string): ModelRef {
+export function makeModelRef(
+  provider: string,
+  modelId: string,
+  providerConfigId?: string,
+  modelSummary?: ProviderModelSummary,
+): ModelRef {
   const model = getModel(provider as never, modelId as never);
   return {
     id: id("model"),
     ownerUserId: "",
     shared: false,
-    label: model?.name ?? modelId,
+    label: modelSummary?.name ?? model?.name ?? modelId,
     provider,
     providerConfigId,
     modelId,
-    api: model?.api,
-    contextWindow: model?.contextWindow,
-    maxTokens: model?.maxTokens,
-    reasoning: model?.reasoning,
-    input: model?.input,
+    api: modelSummary?.api ?? model?.api ?? (provider === OLLAMA_PROVIDER ? "openai-completions" : undefined),
+    baseUrl: provider === OLLAMA_PROVIDER ? DEFAULT_OLLAMA_BASE_URL : model?.baseUrl,
+    contextWindow: modelSummary?.contextWindow ?? model?.contextWindow,
+    maxTokens: modelSummary?.maxTokens ?? model?.maxTokens,
+    reasoning: modelSummary?.reasoning ?? model?.reasoning,
+    input: modelSummary?.input ?? model?.input,
   };
 }
 
 export function modelsForProvider(provider: string) {
+  if (provider === OLLAMA_PROVIDER) return [];
   return getModels(provider as never);
+}
+
+export function getAppProviders() {
+  return Array.from(new Set([...getProviders(), OLLAMA_PROVIDER]));
+}
+
+export function defaultBaseUrlForProvider(provider: string) {
+  return provider === OLLAMA_PROVIDER ? DEFAULT_OLLAMA_BASE_URL : "";
 }
 
 function resolveBootstrapState(

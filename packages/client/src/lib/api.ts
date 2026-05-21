@@ -9,6 +9,7 @@ import type {
   OAuthProviderSummary,
   ModelRef,
   ProviderConfig,
+  ProviderModelSummary,
   Session,
   SessionDraft,
   SessionMetadata,
@@ -86,6 +87,8 @@ export const api = {
     }),
   deleteProviderConfig: (providerConfigId: string) =>
     request<BootstrapPayload>(`/api/provider-configs/${providerConfigId}`, { method: "DELETE" }),
+  listProviderModels: (providerConfigId: string) =>
+    request<ProviderModelSummary[]>(`/api/provider-configs/${providerConfigId}/models`),
   upsertAgent: (agent: AgentConfig) =>
     request<AgentConfig>(`/api/agents/${agent.id}`, { method: "PUT", body: JSON.stringify(agent) }),
   getAgentSettings: (agentId: string) => request<AgentConfig>(`/api/agents/${agentId}/settings`),

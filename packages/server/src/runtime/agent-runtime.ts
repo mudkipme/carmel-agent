@@ -18,7 +18,7 @@ import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { createAgentResourceLoader, resolveAgentWorkingDirPath, serverAgentDir } from "./resources.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerToolDefinitions } from "./tools.ts";
-import type { PromptInput, Session } from "@carmel-agent/shared";
+import { OLLAMA_PROVIDER, type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -278,7 +278,8 @@ function resolveTitleModelContext(
       .find((item) => item.provider === modelRef.provider);
     if (providerKey?.apiKey) authStorage.setRuntimeApiKey(modelRef.provider, providerKey.apiKey);
   }
-  if (!authStorage.hasAuth(modelRef.provider)) return fallback;
+  ensureOptionalProviderAuth(authStorage, modelRef.provider);
+  if (!hasProviderAuth(authStorage, modelRef.provider)) return fallback;
 
   return {
     model: resolveServerModelRef(
@@ -287,6 +288,16 @@ function resolveTitleModelContext(
     ),
     authStorage,
   };
+}
+
+function hasProviderAuth(authStorage: AuthStorage, provider: string) {
+  return provider === OLLAMA_PROVIDER || authStorage.hasAuth(provider);
+}
+
+function ensureOptionalProviderAuth(authStorage: AuthStorage, provider: string) {
+  if (provider === OLLAMA_PROVIDER && !authStorage.hasAuth(provider)) {
+    authStorage.setRuntimeApiKey(provider, "ollama");
+  }
 }
 
 function canUserUseTitleModel(userId: string, modelRef: ModelRefRecord) {

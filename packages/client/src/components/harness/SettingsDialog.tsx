@@ -1,4 +1,3 @@
-import { getProviders } from "@earendil-works/pi-ai";
 import {
   CheckIcon,
   DatabaseIcon,
@@ -30,10 +29,23 @@ import { Field, SectionHeader } from "@/components/harness/form-primitives";
 import { api } from "@/lib/api";
 import { createClientId } from "@/lib/id";
 import { setThemePreference, useThemePreference, type ThemePreference } from "@/lib/theme";
-import { makeModelRef, modelsForProvider, useHarnessStore } from "@/store/harness-store";
-import type { ModelRef, OAuthLoginFlowState, OAuthProviderSummary, ProviderConfig } from "@carmel-agent/shared";
+import {
+  defaultBaseUrlForProvider,
+  getAppProviders,
+  makeModelRef,
+  modelsForProvider,
+  useHarnessStore,
+} from "@/store/harness-store";
+import {
+  OLLAMA_PROVIDER,
+  type ModelRef,
+  type OAuthLoginFlowState,
+  type OAuthProviderSummary,
+  type ProviderConfig,
+  type ProviderModelSummary,
+} from "@carmel-agent/shared";
 
-const providers = getProviders();
+const providers = getAppProviders();
 const settingsDialogContentClass =
   "top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-0 p-3 text-[13px] sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[calc(100vh-2rem)] sm:w-full sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6 sm:text-sm";
 const settingsDialogBodyClass = "min-h-0 flex-1 overflow-y-auto pr-1";
@@ -274,17 +286,76 @@ function ModelSettings({
   const deleteModelRef = useHarnessStore((state) => state.deleteModelRef);
   const [providerConfigId, setProviderConfigId] = useState(providerConfigs[0]?.id ?? "");
   const selectedProviderConfig = providerConfigs.find((item) => item.id === providerConfigId);
+  const selectedProviderConfigRecordId = selectedProviderConfig?.id;
+  const selectedProviderConfigProvider = selectedProviderConfig?.provider;
   const provider = selectedProviderConfig?.provider ?? providers[0] ?? "openai";
-  const models = modelsForProvider(provider);
-  const [modelId, setModelId] = useState(models[0]?.id ?? "");
+  const [providerModels, setProviderModels] = useState<ProviderModelSummary[]>([]);
+  const [providerModelsError, setProviderModelsError] = useState("");
+  const [loadingProviderModels, setLoadingProviderModels] = useState(false);
+  const isOllamaProvider = selectedProviderConfig?.provider === OLLAMA_PROVIDER;
+  const models: ProviderModelSummary[] = isOllamaProvider ? providerModels : modelsForProvider(provider);
+  const [modelId, setModelId] = useState(modelsForProvider(provider)[0]?.id ?? "");
   const existingModel = modelRefs.find(
     (model) => model.providerConfigId === selectedProviderConfig?.id && model.modelId === modelId,
   );
 
+  const loadProviderModels = async (providerConfig = selectedProviderConfig) => {
+    if (!providerConfig || providerConfig.provider !== OLLAMA_PROVIDER) return;
+    setLoadingProviderModels(true);
+    setProviderModelsError("");
+    try {
+      const nextModels = await api.listProviderModels(providerConfig.id);
+      setProviderModels(nextModels);
+      setModelId((current) => current || (nextModels[0]?.id ?? ""));
+    } catch (error) {
+      setProviderModels([]);
+      setProviderModelsError(error instanceof Error ? error.message : "Unable to load provider models");
+    } finally {
+      setLoadingProviderModels(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedProviderConfigRecordId || selectedProviderConfigProvider !== OLLAMA_PROVIDER) return;
+    let cancelled = false;
+    void Promise.resolve().then(async () => {
+      setLoadingProviderModels(true);
+      setProviderModelsError("");
+      try {
+        const nextModels = await api.listProviderModels(selectedProviderConfigRecordId);
+        if (cancelled) return;
+        setProviderModels(nextModels);
+        setModelId((current) => current || (nextModels[0]?.id ?? ""));
+      } catch (error) {
+        if (cancelled) return;
+        setProviderModels([]);
+        setProviderModelsError(error instanceof Error ? error.message : "Unable to load provider models");
+      } finally {
+        if (!cancelled) setLoadingProviderModels(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProviderConfigRecordId, selectedProviderConfigProvider]);
+
   const addModel = async () => {
     if (existingModel) return;
+    const trimmedModelId = modelId.trim();
+    if (!trimmedModelId) return;
+    const selectedModel = models.find((model) => model.id === trimmedModelId);
+    const modelSummary =
+      selectedModel ??
+      (isOllamaProvider
+        ? ({
+            id: trimmedModelId,
+            name: trimmedModelId,
+            api: "openai-completions",
+            input: ["text"],
+          } satisfies ProviderModelSummary)
+        : undefined);
     await upsertModelRef({
-      ...makeModelRef(provider, modelId, selectedProviderConfig?.id),
+      ...makeModelRef(provider, trimmedModelId, selectedProviderConfig?.id, modelSummary),
       ownerUserId: activeUserId,
     });
   };
@@ -380,7 +451,9 @@ function ModelSettings({
             onValueChange={(value) => {
               setProviderConfigId(value);
               const nextProvider = providerConfigs.find((item) => item.id === value)?.provider ?? providers[0] ?? "openai";
-              setModelId(modelsForProvider(nextProvider)[0]?.id ?? "");
+              setProviderModels([]);
+              setProviderModelsError("");
+              setModelId(nextProvider === OLLAMA_PROVIDER ? "" : (modelsForProvider(nextProvider)[0]?.id ?? ""));
             }}
           >
             <SelectTrigger className="w-full">
@@ -397,7 +470,18 @@ function ModelSettings({
             </SelectContent>
           </Select>
           <ModelPicker key={providerConfigId} models={models} value={modelId} onValueChange={setModelId} />
-          <Button onClick={() => void addModel()} disabled={!modelId || !selectedProviderConfig}>
+          {isOllamaProvider ? (
+            <>
+              <Field label="Model ID">
+                <Input value={modelId} placeholder="llama3.2:latest" onChange={(event) => setModelId(event.target.value)} />
+              </Field>
+              <Button type="button" variant="outline" onClick={() => void loadProviderModels()} disabled={loadingProviderModels}>
+                {loadingProviderModels ? "Refreshing..." : "Refresh models"}
+              </Button>
+              {providerModelsError ? <p className="text-xs text-destructive">{providerModelsError}</p> : null}
+            </>
+          ) : null}
+          <Button onClick={() => void addModel()} disabled={!modelId.trim() || !selectedProviderConfig}>
             {existingModel ? "Already configured" : "Add model"}
           </Button>
         </div>
@@ -411,7 +495,7 @@ function ModelPicker({
   value,
   onValueChange,
 }: {
-  models: ReturnType<typeof modelsForProvider>;
+  models: ProviderModelSummary[];
   value: string;
   onValueChange: (value: string) => void;
 }) {
@@ -477,7 +561,7 @@ function ProviderSettings({
   const bootstrap = useHarnessStore((state) => state.bootstrap);
   const upsertProviderConfig = useHarnessStore((state) => state.upsertProviderConfig);
   const deleteProviderConfig = useHarnessStore((state) => state.deleteProviderConfig);
-  const [selectedConfigId, setSelectedConfigId] = useState(providerConfigs[0]?.id ?? "new");
+  const [selectedConfigId, setSelectedConfigId] = useState("new");
   const [provider, setProvider] = useState<string>(providers[0] ?? "openai");
   const [authType, setAuthType] = useState<"api_key" | "oauth">("api_key");
   const [label, setLabel] = useState("");
@@ -497,7 +581,7 @@ function ProviderSettings({
       provider,
       authType,
       apiKey: authType === "api_key" ? apiKey || selectedConfig?.apiKey : undefined,
-      baseUrl: baseUrl || undefined,
+      baseUrl: baseUrl.trim() || defaultBaseUrlForProvider(provider) || undefined,
       customHeaders: selectedConfig?.customHeaders,
       createdAt: selectedConfig?.createdAt ?? Date.now(),
       updatedAt: Date.now(),
@@ -607,10 +691,11 @@ function ProviderSettings({
             onValueChange={(value) => {
               setSelectedConfigId(value);
               const config = providerConfigs.find((item) => item.id === value);
-              setProvider(config?.provider ?? providers[0] ?? "openai");
+              const nextProvider = config?.provider ?? providers[0] ?? "openai";
+              setProvider(nextProvider);
               setAuthType(config?.authType ?? "api_key");
               setLabel(config?.label ?? "");
-              setBaseUrl(config?.baseUrl ?? "");
+              setBaseUrl(config?.baseUrl ?? defaultBaseUrlForProvider(nextProvider));
               setApiKey("");
               setOAuthFlow(null);
             }}
@@ -634,8 +719,12 @@ function ProviderSettings({
           <Select
             value={provider}
             onValueChange={(nextProvider) => {
+              const previousDefaultBaseUrl = defaultBaseUrlForProvider(provider);
               setProvider(nextProvider);
               if (!oauthProviders.some((item) => item.id === nextProvider)) setAuthType("api_key");
+              if (!selectedConfig && (!baseUrl || baseUrl === previousDefaultBaseUrl)) {
+                setBaseUrl(defaultBaseUrlForProvider(nextProvider));
+              }
               setOAuthFlow(null);
             }}
           >

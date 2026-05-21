@@ -1,6 +1,9 @@
 import type { AgentMessage, AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent } from "@earendil-works/pi-ai";
 
+export const OLLAMA_PROVIDER = "ollama";
+export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1";
+
 export type User = {
   id: string;
   username?: string;
@@ -93,6 +96,16 @@ export type ModelRef = {
   reasoning?: boolean;
   input?: Array<"text" | "image">;
   customHeaders?: string;
+};
+
+export type ProviderModelSummary = {
+  id: string;
+  name: string;
+  api?: Api;
+  contextWindow?: number;
+  maxTokens?: number;
+  reasoning?: boolean;
+  input?: Array<"text" | "image">;
 };
 
 export type ProviderConfig = {

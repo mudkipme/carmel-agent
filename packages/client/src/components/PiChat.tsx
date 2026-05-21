@@ -50,6 +50,7 @@ export function PiChat({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<ChatPanel | null>(null);
   const agentRef = useRef<RemoteAgent | null>(null);
+  const inputDraftRef = useRef("");
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [editingUserMessage, setEditingUserMessage] = useState<{
     message: AgentMessage;
@@ -143,6 +144,7 @@ export function PiChat({
   const insertCommandText = useCallback((text: string) => {
     const panel = panelRef.current ?? (hostRef.current?.querySelector("pi-chat-panel") as ChatPanel | null);
     panel?.agentInterface?.setInput(text);
+    inputDraftRef.current = text;
     requestAnimationFrame(() => {
       const textarea = panel?.querySelector("message-editor textarea") as HTMLTextAreaElement | null;
       textarea?.focus();
@@ -150,11 +152,18 @@ export function PiChat({
     });
   }, []);
 
+  const captureCurrentInputDraft = useCallback(() => {
+    const panel = panelRef.current ?? (hostRef.current?.querySelector("pi-chat-panel") as ChatPanel | null);
+    const textarea = panel?.querySelector("message-editor textarea") as HTMLTextAreaElement | null;
+    inputDraftRef.current = textarea?.value ?? inputDraftRef.current;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const host = hostRef.current;
     if (!host) return;
 
+    captureCurrentInputDraft();
     host.replaceChildren();
     setEditingUserMessage(null);
 
@@ -235,10 +244,12 @@ export function PiChat({
         },
       });
       hostRef.current.appendChild(panel);
+      if (inputDraftRef.current) panel.agentInterface?.setInput(inputDraftRef.current);
     });
 
     return () => {
       cancelled = true;
+      captureCurrentInputDraft();
       if (agent) {
         messagesSnapshotRef.current = agent.state.messages;
         thinkingLevelSnapshotRef.current = agent.state.thinkingLevel;
@@ -261,6 +272,7 @@ export function PiChat({
     session.id,
     updateSession,
     insertCommandText,
+    captureCurrentInputDraft,
   ]);
 
   useEffect(() => {
@@ -272,6 +284,7 @@ export function PiChat({
   }, [resolvedModel, session.id, session.thinkingLevel, updateSession]);
 
   const selectModel = async (nextModelRef: ModelRef) => {
+    captureCurrentInputDraft();
     await updateSession(session.id, { modelRefId: nextModelRef.id });
     setModelDialogOpen(false);
   };

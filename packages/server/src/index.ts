@@ -60,9 +60,11 @@ import type {
   ModelRef,
   PromptInput,
   ProviderConfig,
+  ProviderModelSummary,
   Session,
   User,
 } from "@carmel-agent/shared";
+import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER } from "@carmel-agent/shared";
 
 migrate();
 seed();
@@ -290,6 +292,21 @@ app.put("/api/provider-configs/:id", jsonValidator(providerConfigRequestSchema),
   );
 });
 
+app.get("/api/provider-configs/:id/models", async (c) => {
+  const currentUserId = c.get("user").id;
+  const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
+  if (!providerConfig || providerConfig.userId !== currentUserId) {
+    return c.json({ error: "Provider config not found." }, 404);
+  }
+  if (providerConfig.provider !== OLLAMA_PROVIDER) return c.json([] satisfies ProviderModelSummary[]);
+
+  try {
+    return c.json(await listOllamaModels(providerConfig.baseUrl ?? DEFAULT_OLLAMA_BASE_URL));
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : "Unable to discover provider models." }, 502);
+  }
+});
+
 app.get("/api/oauth/providers", (c) => {
   return c.json(listOAuthProviders());
 });
@@ -484,7 +501,8 @@ app.post("/api/agents/:id/run", jsonValidator(agentRunRequestSchema), async (c) 
     .find((item) => item.provider === modelRef.provider);
   const authStorage = providerConfig ? createProviderConfigAuthStorage(providerConfig, modelRef.provider) : AuthStorage.inMemory();
   if (!providerConfig && providerKey?.apiKey) authStorage.setRuntimeApiKey(modelRef.provider, providerKey.apiKey);
-  if (!authStorage.hasAuth(modelRef.provider)) {
+  ensureOptionalProviderAuth(authStorage, modelRef.provider);
+  if (!hasProviderAuth(authStorage, modelRef.provider)) {
     return c.json({ error: "No API key or OAuth login configured for this model provider." }, 400);
   }
 
@@ -782,6 +800,58 @@ function readAffectedModelUserIds(deletedModelIds: Set<string>) {
 
 function readFallbackModelForUser(userId: string, deletedModelIds: Set<string>) {
   return readVisibleModelRefs(userId).find((model) => !deletedModelIds.has(model.id));
+}
+
+function hasProviderAuth(authStorage: AuthStorage, provider: string) {
+  return isAuthOptionalProvider(provider) || authStorage.hasAuth(provider);
+}
+
+function ensureOptionalProviderAuth(authStorage: AuthStorage, provider: string) {
+  if (isAuthOptionalProvider(provider) && !authStorage.hasAuth(provider)) {
+    authStorage.setRuntimeApiKey(provider, "ollama");
+  }
+}
+
+function isAuthOptionalProvider(provider: string) {
+  return provider === OLLAMA_PROVIDER;
+}
+
+async function listOllamaModels(baseUrl: string): Promise<ProviderModelSummary[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(resolveOllamaTagsUrl(baseUrl), { signal: controller.signal });
+    if (!response.ok) throw new Error(`Ollama returned ${response.status}.`);
+    const payload = (await response.json()) as { models?: Array<{ name?: unknown; model?: unknown }> };
+    return (payload.models ?? [])
+      .map((model) => {
+        const modelId = typeof model.name === "string" ? model.name : typeof model.model === "string" ? model.model : "";
+        return modelId.trim();
+      })
+      .filter(Boolean)
+      .map((modelId) => ({
+        id: modelId,
+        name: modelId,
+        api: "openai-completions" as const,
+        input: ["text" as const],
+      }));
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Timed out connecting to Ollama.", { cause: error });
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function resolveOllamaTagsUrl(baseUrl: string) {
+  const url = new URL(baseUrl || DEFAULT_OLLAMA_BASE_URL);
+  const path = url.pathname.replace(/\/+$/, "").replace(/\/v1$/, "");
+  url.pathname = `${path}/api/tags`;
+  url.search = "";
+  url.hash = "";
+  return url;
 }
 
 const clientDistDir = process.env.CLIENT_DIST_DIR ?? fileURLToPath(new URL("../../client/dist/", import.meta.url));
