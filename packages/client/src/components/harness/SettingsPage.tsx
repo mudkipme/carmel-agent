@@ -1,4 +1,5 @@
 import {
+  ArrowLeftIcon,
   CheckIcon,
   DatabaseIcon,
   ExternalLinkIcon,
@@ -6,29 +7,20 @@ import {
   LogOutIcon,
   MonitorIcon,
   SearchIcon,
-  SettingsIcon,
   Trash2Icon,
   UserIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Field, SectionHeader } from "@/components/harness/form-primitives";
 import { api } from "@/lib/api";
 import { createClientId } from "@/lib/id";
 import { setThemePreference, useThemePreference, type ThemePreference } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 import {
   defaultBaseUrlForProvider,
   getAppProviders,
@@ -46,141 +38,157 @@ import {
 } from "@carmel-agent/shared";
 
 const providers = getAppProviders();
-const settingsDialogContentClass =
-  "top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-0 p-3 text-[13px] sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[calc(100vh-2rem)] sm:w-full sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6 sm:text-sm";
-const settingsDialogBodyClass = "min-h-0 flex-1 overflow-y-auto pr-1";
+const settingsSections = [
+  { id: "models", label: "Models", icon: DatabaseIcon },
+  { id: "providers", label: "Providers", icon: KeyRoundIcon },
+  { id: "appearance", label: "Appearance", icon: MonitorIcon },
+  { id: "account", label: "Account", icon: UserIcon },
+] as const;
+type SettingsSection = (typeof settingsSections)[number]["id"];
 
-export function SettingsDialog({
-  modelRefs,
-  providerConfigs,
-}: {
-  modelRefs: ModelRef[];
-  providerConfigs: ProviderConfig[];
-}) {
-  const activeUserId = useHarnessStore((state) => state.activeUserId);
+export function SettingsPage() {
+  const navigate = useNavigate();
+  const { section } = useParams();
+  const activeSection = settingsSections.some((item) => item.id === section)
+    ? (section as SettingsSection)
+    : "models";
+  const modelRefs = useHarnessStore((state) => state.modelRefs);
+  const providerConfigs = useHarnessStore((state) => state.providerConfigs);
   const activeUser = useHarnessStore((state) => state.users.find((item) => item.id === state.activeUserId));
   const upsertUser = useHarnessStore((state) => state.upsertUser);
   const upsertModelRef = useHarnessStore((state) => state.upsertModelRef);
   const themePreference = useThemePreference();
-  const [open, setOpen] = useState(false);
-  const [modelShareDrafts, setModelShareDrafts] = useState<Record<string, boolean>>({});
-  const [draftFastTaskModelRefId, setDraftFastTaskModelRefId] = useState("");
-  const [draftThemePreference, setDraftThemePreference] = useState<ThemePreference>(themePreference);
+  const [draftThemePreference, setDraftThemePreference] = useState<ThemePreference>(() => themePreference);
   const [oauthProviders, setOAuthProviders] = useState<OAuthProviderSummary[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const draftModelRefs = modelRefs.map((model) =>
-    Object.hasOwn(modelShareDrafts, model.id) ? { ...model, shared: modelShareDrafts[model.id] } : model,
-  );
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) {
-      setModelShareDrafts({});
-      setDraftFastTaskModelRefId(activeUser?.fastTaskModelRefId ?? "");
-      setDraftThemePreference(themePreference);
-      setSaveError(null);
-    }
-    setOpen(nextOpen);
-  };
+  const [modelStatus, setModelStatus] = useState<{ tone: "muted" | "destructive"; message: string } | null>(null);
+  const [updatingModelSettings, setUpdatingModelSettings] = useState(false);
+  const [appearanceSaveMessage, setAppearanceSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
-    void api.getOAuthProviders().then(setOAuthProviders).catch(() => setOAuthProviders([]));
-  }, [open]);
-
-  const saveSettings = async () => {
-    setSaving(true);
-    setSaveError(null);
-    try {
-      const changedModels = draftModelRefs.filter((draftModel) => {
-        const original = modelRefs.find((model) => model.id === draftModel.id);
-        return original?.ownerUserId === activeUserId && original.shared !== draftModel.shared;
-      });
-      await Promise.all(changedModels.map((model) => upsertModelRef(model)));
-      if (activeUser && draftFastTaskModelRefId !== (activeUser.fastTaskModelRefId ?? "")) {
-        await upsertUser({
-          ...activeUser,
-          fastTaskModelRefId: draftFastTaskModelRefId || undefined,
-        });
-      }
-      if (draftThemePreference !== themePreference) setThemePreference(draftThemePreference);
-      setOpen(false);
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Unable to save settings");
-    } finally {
-      setSaving(false);
+    if (section && !settingsSections.some((item) => item.id === section)) {
+      navigate("/settings/models", { replace: true });
     }
+  }, [navigate, section]);
+
+  useEffect(() => {
+    void api.getOAuthProviders().then(setOAuthProviders).catch(() => setOAuthProviders([]));
+  }, []);
+
+  const updateFastTaskModel = async (modelRefId: string) => {
+    if (!activeUser) return;
+    setUpdatingModelSettings(true);
+    setModelStatus({ tone: "muted", message: "Saving fast task model..." });
+    try {
+      await upsertUser({
+        ...activeUser,
+        fastTaskModelRefId: modelRefId || undefined,
+      });
+      setModelStatus({ tone: "muted", message: "Fast task model saved." });
+    } catch (error) {
+      setModelStatus({
+        tone: "destructive",
+        message: error instanceof Error ? error.message : "Unable to save fast task model",
+      });
+    } finally {
+      setUpdatingModelSettings(false);
+    }
+  };
+
+  const updateModelSharing = async (model: ModelRef) => {
+    setUpdatingModelSettings(true);
+    setModelStatus({ tone: "muted", message: "Saving model sharing..." });
+    try {
+      await upsertModelRef(model);
+      setModelStatus({ tone: "muted", message: "Model sharing saved." });
+    } catch (error) {
+      setModelStatus({
+        tone: "destructive",
+        message: error instanceof Error ? error.message : "Unable to save model sharing",
+      });
+    } finally {
+      setUpdatingModelSettings(false);
+    }
+  };
+
+  const saveAppearanceSettings = () => {
+    setThemePreference(draftThemePreference);
+    setAppearanceSaveMessage("Appearance saved.");
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon-sm">
-          <SettingsIcon />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className={settingsDialogContentClass}>
-        <DialogHeader className="shrink-0 pr-8 text-left">
-          <DialogTitle className="text-base sm:text-lg">Harness Settings</DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm">Manage global provider and model settings.</DialogDescription>
-        </DialogHeader>
-        <div className={settingsDialogBodyClass}>
-          <Tabs defaultValue="models" className="min-h-0">
-            <TabsList className="!grid !h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
-              <TabsTrigger value="models" className="h-8 text-xs sm:text-sm">
-                <DatabaseIcon data-icon="inline-start" />
-                Models
-              </TabsTrigger>
-              <TabsTrigger value="providers" className="h-8 text-xs sm:text-sm">
-                <KeyRoundIcon data-icon="inline-start" />
-                Providers
-              </TabsTrigger>
-              <TabsTrigger value="appearance" className="h-8 text-xs sm:text-sm">
-                <MonitorIcon data-icon="inline-start" />
-                Appearance
-              </TabsTrigger>
-              <TabsTrigger value="account" className="h-8 text-xs sm:text-sm">
-                <UserIcon data-icon="inline-start" />
-                Account
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="models" className="mt-2">
+    <main className="flex h-screen min-h-0 flex-col bg-background text-foreground">
+      <header className="flex h-12 shrink-0 items-center gap-3 border-b px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <Button variant="ghost" size="icon-sm" title="Back to harness" onClick={() => navigate("/")}>
+            <ArrowLeftIcon />
+          </Button>
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-medium">Harness Settings</h1>
+            <p className="truncate text-xs text-muted-foreground">Manage global provider and model settings.</p>
+          </div>
+        </div>
+      </header>
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <aside className="shrink-0 border-b bg-muted/35 p-2 md:w-56 md:border-r md:border-b-0">
+          <nav className="grid grid-cols-2 gap-1 md:grid-cols-1">
+            {settingsSections.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.id}
+                  to={`/settings/${item.id}`}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex h-9 items-center gap-2 rounded-md px-3 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                      isActive && "bg-accent text-accent-foreground",
+                    )
+                  }
+                >
+                  <Icon data-icon="inline-start" />
+                  <span className="truncate">{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
+        </aside>
+        <section className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 md:p-6">
+            {activeSection === "models" ? (
               <ModelSettings
-                modelRefs={draftModelRefs}
+                modelRefs={modelRefs}
                 providerConfigs={providerConfigs}
-                fastTaskModelRefId={draftFastTaskModelRefId}
-                onFastTaskModelChange={setDraftFastTaskModelRefId}
-                onModelChange={(model) =>
-                  setModelShareDrafts((current) => ({ ...current, [model.id]: model.shared }))
-                }
+                fastTaskModelRefId={activeUser?.fastTaskModelRefId ?? ""}
+                onFastTaskModelChange={(modelRefId) => void updateFastTaskModel(modelRefId)}
+                onModelChange={(model) => void updateModelSharing(model)}
+                updating={updatingModelSettings}
+                status={modelStatus}
               />
-            </TabsContent>
-            <TabsContent value="providers" className="mt-2">
+            ) : null}
+            {activeSection === "providers" ? (
               <ProviderSettings
                 providerConfigs={providerConfigs}
                 modelRefs={modelRefs}
                 oauthProviders={oauthProviders}
               />
-            </TabsContent>
-            <TabsContent value="appearance" className="mt-2">
-              <AppearanceSettings value={draftThemePreference} onChange={setDraftThemePreference} />
-            </TabsContent>
-            <TabsContent value="account" className="mt-2">
+            ) : null}
+            {activeSection === "appearance" ? (
+              <AppearanceSettings
+                value={draftThemePreference}
+                onChange={(nextValue) => {
+                  setDraftThemePreference(nextValue);
+                  setAppearanceSaveMessage(null);
+                }}
+                onSave={saveAppearanceSettings}
+                saveMessage={appearanceSaveMessage}
+              />
+            ) : null}
+            {activeSection === "account" ? (
               <AccountSettings />
-            </TabsContent>
-          </Tabs>
-          {saveError ? <p className="mt-3 text-xs text-destructive sm:text-sm">{saveError}</p> : null}
-        </div>
-        <DialogFooter className="shrink-0 border-t pt-3 sm:border-0 sm:pt-0">
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={() => void saveSettings()} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            ) : null}
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
 
@@ -243,9 +251,13 @@ function AccountSettings() {
 function AppearanceSettings({
   value,
   onChange,
+  onSave,
+  saveMessage,
 }: {
   value: ThemePreference;
   onChange: (themePreference: ThemePreference) => void;
+  onSave: () => void;
+  saveMessage: string | null;
 }) {
   return (
     <div className="grid gap-4">
@@ -264,6 +276,10 @@ function AppearanceSettings({
           </SelectContent>
         </Select>
       </Field>
+      {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
+      <Button type="button" onClick={onSave}>
+        Save appearance
+      </Button>
     </div>
   );
 }
@@ -274,12 +290,16 @@ function ModelSettings({
   fastTaskModelRefId,
   onFastTaskModelChange,
   onModelChange,
+  updating,
+  status,
 }: {
   modelRefs: ModelRef[];
   providerConfigs: ProviderConfig[];
   fastTaskModelRefId: string;
   onFastTaskModelChange: (modelRefId: string) => void;
   onModelChange: (model: ModelRef) => void;
+  updating: boolean;
+  status: { tone: "muted" | "destructive"; message: string } | null;
 }) {
   const activeUserId = useHarnessStore((state) => state.activeUserId);
   const upsertModelRef = useHarnessStore((state) => state.upsertModelRef);
@@ -380,6 +400,7 @@ function ModelSettings({
         <Field label="Model">
           <Select
             value={fastTaskModelRefId || "__session_model__"}
+            disabled={updating}
             onValueChange={(value) => onFastTaskModelChange(value === "__session_model__" ? "" : value)}
           >
             <SelectTrigger className="w-full">
@@ -423,6 +444,7 @@ function ModelSettings({
                       type="button"
                       variant={model.shared ? "secondary" : "outline"}
                       size="sm"
+                      disabled={updating}
                       onClick={() => onModelChange({ ...model, shared: !model.shared })}
                     >
                       {model.shared ? "Shared" : "Share"}
@@ -441,6 +463,11 @@ function ModelSettings({
             );
           })}
         </div>
+        {status ? (
+          <p className={cn("text-sm", status.tone === "destructive" ? "text-destructive" : "text-muted-foreground")}>
+            {status.message}
+          </p>
+        ) : null}
       </section>
 
       <section className="grid gap-4 border-t pt-6">

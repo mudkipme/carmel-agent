@@ -5,14 +5,15 @@ import {
   PanelLeftCloseIcon,
   PanelLeftIcon,
   PencilIcon,
+  SettingsIcon,
   Trash2Icon,
 } from "lucide-react";
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
 import { AgentSettingsDialog } from "@/components/harness/AgentSettingsDialog";
 import { FileEditorView } from "@/components/harness/files/FileEditorView";
 import { FileExplorerPanel } from "@/components/harness/files/FileExplorerPanel";
-import { SettingsDialog } from "@/components/harness/SettingsDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,7 +53,12 @@ function clampSidebarWidth(width: number) {
 }
 
 export function HarnessShell() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { agentId: routeAgentId, sessionId: routeSessionId } = useParams();
   const store = useHarnessStore();
+  const setActiveAgent = store.setActiveAgent;
+  const setActiveSession = store.setActiveSession;
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("sessions");
@@ -76,6 +82,47 @@ export function HarnessShell() {
     .filter((session) => session.userId === store.activeUserId && session.agentId === activeAgent?.id)
     .slice()
     .sort((a, b) => b.updatedAt - a.updatedAt);
+  const routeAgent = routeAgentId ? visibleAgents.find((agent) => agent.id === routeAgentId) : undefined;
+  const routeSession = routeSessionId
+    ? store.sessions.find((session) => session.id === routeSessionId && session.userId === store.activeUserId)
+    : undefined;
+
+  useEffect(() => {
+    if (routeSessionId) {
+      if (routeSession && store.activeSessionId !== routeSession.id) {
+        setActiveSession(routeSession.id);
+      }
+      return;
+    }
+    if (routeAgent && store.activeAgentId !== routeAgent.id) {
+      setActiveAgent(routeAgent.id);
+    }
+  }, [routeAgent, routeSession, routeSessionId, setActiveAgent, setActiveSession, store.activeAgentId, store.activeSessionId]);
+
+  useEffect(() => {
+    if (routeSessionId && routeSession && store.activeSessionId !== routeSession.id) return;
+    if (routeAgentId && routeAgent && !routeSessionId && store.activeAgentId !== routeAgent.id) return;
+
+    const targetPath = activeSessionMetadata
+      ? `/agents/${activeSessionMetadata.agentId}/sessions/${activeSessionMetadata.id}`
+      : activeAgent
+        ? `/agents/${activeAgent.id}`
+        : "/";
+    if (location.pathname !== targetPath) {
+      navigate(targetPath, { replace: true });
+    }
+  }, [
+    activeAgent,
+    activeSessionMetadata,
+    location.pathname,
+    navigate,
+    routeAgent,
+    routeAgentId,
+    routeSession,
+    routeSessionId,
+    store.activeAgentId,
+    store.activeSessionId,
+  ]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_SIDEBAR_QUERY);
@@ -171,6 +218,7 @@ export function HarnessShell() {
                 disabled={!visibleAgents.length}
                 onValueChange={(agentId) => {
                   store.setActiveAgent(agentId);
+                  navigate(`/agents/${agentId}`);
                 }}
               >
                 <SelectTrigger className="h-8 min-w-0 flex-1 bg-background px-2 text-[13px]">
@@ -237,6 +285,8 @@ export function HarnessShell() {
                     agentId: activeAgent.id,
                     modelRefId: activeAgent.defaultModelRefId,
                     thinkingLevel: activeAgent.defaultThinkingLevel ?? "off",
+                  }).then((session) => {
+                    navigate(`/agents/${session.agentId}/sessions/${session.id}`);
                   });
                   setSidebarMode("sessions");
                   closeSidebarOnMobile();
@@ -259,6 +309,7 @@ export function HarnessShell() {
                       className="flex h-full min-w-0 flex-1 items-center text-left"
                       onClick={() => {
                         store.setActiveSession(session.id);
+                        navigate(`/agents/${session.agentId}/sessions/${session.id}`);
                         setSidebarMode("sessions");
                         closeSidebarOnMobile();
                       }}
@@ -372,7 +423,9 @@ export function HarnessShell() {
           <div className="flex shrink-0 items-center gap-2">
             <Badge variant="secondary">{activeSessionMetadata?.thinkingLevel ?? "off"}</Badge>
             <Badge variant="secondary">{activeAgent?.permissions.bash ? "bash on" : "bash off"}</Badge>
-            <SettingsDialog modelRefs={store.modelRefs} providerConfigs={store.providerConfigs} />
+            <Button variant="outline" size="icon-sm" title="Settings" onClick={() => navigate("/settings/models")}>
+              <SettingsIcon />
+            </Button>
           </div>
         </header>
         <div className="min-h-0 flex-1">

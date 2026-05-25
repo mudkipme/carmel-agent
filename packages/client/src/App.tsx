@@ -1,6 +1,8 @@
 import { useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { HarnessShell } from "@/components/harness/HarnessShell";
 import { LoginScreen } from "@/components/harness/LoginScreen";
+import { SettingsPage } from "@/components/harness/SettingsPage";
 import { Splash } from "@/components/harness/Splash";
 import { useHarnessStore } from "@/store/harness-store";
 
@@ -25,5 +27,16 @@ export default function App() {
     return <LoginScreen />;
   }
 
-  return <HarnessShell />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HarnessShell />} />
+        <Route path="/agents/:agentId" element={<HarnessShell />} />
+        <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
+        <Route path="/settings" element={<Navigate to="/settings/models" replace />} />
+        <Route path="/settings/:section" element={<SettingsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
