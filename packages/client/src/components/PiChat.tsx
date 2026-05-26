@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
+import { api } from "@/lib/api";
 import { ensurePiWebUiStorage } from "@/lib/pi-web-ui-memory-storage";
 import { RemoteAgent } from "@/lib/remote-agent";
 import {
@@ -225,13 +226,16 @@ export function PiChat({
     void ensurePiWebUiStorage().then(async () => {
       if (cancelled || !hostRef.current) return;
 
+      const activeRun = await api.getActiveSessionRun(session.id).catch(() => null);
+      if (cancelled || !hostRef.current) return;
+
       agent = new RemoteAgent({
         agentId: agentConfig.id,
         sessionId: session.id,
         modelRefId: modelRef.id,
         model: resolvedModel,
         thinkingLevel: thinkingLevelForAgent,
-        messages: messagesForAgent,
+        messages: activeRun ? sessionRef.current.messages : messagesForAgent,
         onRunComplete: () => refreshSession(session.id),
       });
       agentRef.current = agent;
@@ -278,6 +282,7 @@ export function PiChat({
       });
       hostRef.current.appendChild(panel);
       if (inputDraftRef.current) panel.agentInterface?.setInput(inputDraftRef.current);
+      if (activeRun) void agent.attachToRun(activeRun.runId, sessionRef.current.messages);
     });
 
     return () => {

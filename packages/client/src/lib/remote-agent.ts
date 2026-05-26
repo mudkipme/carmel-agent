@@ -125,16 +125,7 @@ export class RemoteAgent {
   async prompt(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]) {
     if (this.abortController) throw new Error("Agent is already processing.");
     const promptInput = normalizePromptInput(input, images);
-    this.abortController = new AbortController();
-    this.idlePromise = new Promise((resolve) => {
-      this.resolveIdle = resolve;
-    });
-    this.state.isStreaming = true;
-    this.state.streamingMessage = undefined;
-    this.state.errorMessage = undefined;
-    this.sawAgentEnd = false;
-    this.runId = undefined;
-    this.detachRequested = false;
+    const controller = this.beginRun();
 
     try {
       const response = await fetch(`/api/agents/${this.config.agentId}/run`, {
@@ -146,20 +137,51 @@ export class RemoteAgent {
           thinkingLevel: this.state.thinkingLevel,
           promptInput,
         }),
-        signal: this.abortController.signal,
+        signal: controller.signal,
       });
       if (!response.ok || !response.body) {
+        const activeRunId = response.status === 409 ? response.headers.get("x-agent-run-id") : undefined;
+        if (activeRunId) {
+          this.runId = activeRunId;
+          await this.consumeActiveRun(activeRunId, controller.signal);
+          await this.config.onRunComplete?.();
+          return;
+        }
         throw new Error((await response.text()) || `Agent request failed with ${response.status}`);
       }
       this.runId = response.headers.get("x-agent-run-id") ?? undefined;
-      await this.consumeEvents(response.body, this.abortController.signal);
+      await this.consumeEvents(response.body, controller.signal);
       if (!this.sawAgentEnd) {
-        await this.processEvent({ type: "agent_end", messages: this.messages }, this.abortController.signal);
+        await this.processEvent({ type: "agent_end", messages: this.messages }, controller.signal);
       }
       await this.config.onRunComplete?.();
     } catch (error) {
-      if (!(this.detachRequested && this.abortController.signal.aborted)) {
-        await this.handleFailure(error, this.abortController.signal.aborted);
+      if (!(this.detachRequested && controller.signal.aborted)) {
+        await this.handleFailure(error, controller.signal.aborted);
+      }
+    } finally {
+      this.state.isStreaming = false;
+      this.state.streamingMessage = undefined;
+      this.state.pendingToolCalls = new Set();
+      this.abortController = undefined;
+      this.runId = undefined;
+      this.detachRequested = false;
+      this.resolveIdle?.();
+    }
+  }
+
+  async attachToRun(runId: string, baseMessages?: AgentMessage[]) {
+    if (this.abortController) throw new Error("Agent is already processing.");
+    if (baseMessages) this.messages = [...baseMessages];
+    const controller = this.beginRun();
+    this.runId = runId;
+
+    try {
+      await this.consumeActiveRun(runId, controller.signal);
+      await this.config.onRunComplete?.();
+    } catch (error) {
+      if (!(this.detachRequested && controller.signal.aborted)) {
+        this.state.errorMessage = error instanceof Error ? error.message : String(error);
       }
     } finally {
       this.state.isStreaming = false;
@@ -187,6 +209,38 @@ export class RemoteAgent {
   clearAllQueues() {}
   hasQueuedMessages() {
     return false;
+  }
+
+  private beginRun() {
+    const controller = new AbortController();
+    this.abortController = controller;
+    this.idlePromise = new Promise((resolve) => {
+      this.resolveIdle = resolve;
+    });
+    this.state.isStreaming = true;
+    this.state.streamingMessage = undefined;
+    this.state.errorMessage = undefined;
+    this.sawAgentEnd = false;
+    this.runId = undefined;
+    this.detachRequested = false;
+    return controller;
+  }
+
+  private async consumeActiveRun(runId: string, signal: AbortSignal) {
+    const response = await fetch(`/api/agent-runs/${encodeURIComponent(runId)}/events`, {
+      credentials: "include",
+      signal,
+    });
+    if (response.status === 404) {
+      return;
+    }
+    if (!response.ok || !response.body) {
+      throw new Error((await response.text()) || `Agent event stream failed with ${response.status}`);
+    }
+    await this.consumeEvents(response.body, signal);
+    if (!this.sawAgentEnd) {
+      await this.processEvent({ type: "agent_end", messages: this.messages }, signal);
+    }
   }
 
   private async consumeEvents(body: ReadableStream<Uint8Array>, signal: AbortSignal) {

@@ -1,4 +1,4 @@
-import { type AgentMessage } from "@earendil-works/pi-agent-core";
+import { type AgentEvent, type AgentMessage } from "@earendil-works/pi-agent-core";
 import {
   AuthStorage,
   createAgentSession,
@@ -18,7 +18,7 @@ import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { createAgentResourceLoader, resolveAgentWorkingDirPath, serverAgentDir } from "./resources.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerToolDefinitions } from "./tools.ts";
-import { OLLAMA_PROVIDER, type PromptInput, type Session } from "@carmel-agent/shared";
+import { OLLAMA_PROVIDER, type ClientToolCallEvent, type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -26,18 +26,43 @@ type ModelRefRecord = typeof modelRefs.$inferSelect;
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 type SessionRecord = typeof sessions.$inferSelect;
 type ActiveAgentRun = {
+  runId: string;
   userId: string;
   sessionId: string;
   abort: () => void;
+  events: RunEvent[];
+  subscribers: Set<RunSubscriber>;
+  finished: boolean;
+  started: boolean;
 };
+type RunSubscriber = {
+  enqueue: (event: RunEvent) => boolean;
+  close: () => void;
+};
+type RunEvent = AgentEvent | ClientToolCallEvent | { type: string; [key: string]: unknown };
 
 const activeAgentRuns = new Map<string, ActiveAgentRun>();
+const activeSessionRuns = new Map<string, string>();
 
 export function abortAgentRun(userId: string, runId: string) {
   const run = activeAgentRuns.get(runId);
   if (!run || run.userId !== userId) return false;
   run.abort();
   return true;
+}
+
+export function getActiveAgentRunForSession(userId: string, sessionId: string) {
+  const runId = activeSessionRuns.get(sessionId);
+  if (!runId) return undefined;
+  const run = activeAgentRuns.get(runId);
+  if (!run || run.userId !== userId || run.sessionId !== sessionId) return undefined;
+  return { runId: run.runId, sessionId: run.sessionId };
+}
+
+export function createAgentRunEventStream(userId: string, runId: string) {
+  const run = activeAgentRuns.get(runId);
+  if (!run || run.userId !== userId) return undefined;
+  return createRunStream(run);
 }
 
 export function normalizePromptInput(input?: PromptInput) {
@@ -85,119 +110,180 @@ export function createAgentRunResponse({
   const encoder = new TextEncoder();
   let activeSession: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
   let abortRequested = false;
-  let connected = true;
   const abortRun = () => {
     abortRequested = true;
     void activeSession?.abort();
   };
-  activeAgentRuns.set(runId, {
+  const run: ActiveAgentRun = {
+    runId,
     userId: session.userId,
     sessionId: session.id,
     abort: abortRun,
-  });
+    events: [],
+    subscribers: new Set(),
+    finished: false,
+    started: false,
+  };
+  activeAgentRuns.set(runId, run);
+  activeSessionRuns.set(session.id, runId);
+
+  const emit = (event: RunEvent) => emitRunEvent(run, event);
+  const startRun = async () => {
+    if (run.started) return;
+    run.started = true;
+
+    let sdkSession: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
+    let unsubscribe: (() => void) | undefined;
+    let messagesToPersist: AgentMessage[] | undefined;
+    try {
+      const modelRegistry = ModelRegistry.inMemory(authStorage);
+      const resourceLoader = await createAgentResourceLoader(agent);
+      const cwd = resolveAgentWorkingDirPath(agent);
+      const customTools = [
+        ...createServerToolDefinitions(agent),
+        ...createClientToolDefinitions(agent, {
+          runId,
+          userId: session.userId,
+          sessionId: session.id,
+          emit,
+        }),
+      ];
+      const allowedTools = customTools.map((tool) => tool.name);
+      const { session: piSession } = await createAgentSession({
+        cwd,
+        agentDir: serverAgentDir,
+        authStorage,
+        modelRegistry,
+        model,
+        thinkingLevel,
+        resourceLoader,
+        customTools: customTools as unknown as CreateAgentSessionOptions["customTools"],
+        tools: allowedTools,
+        sessionManager: SessionManager.inMemory(cwd),
+        settingsManager: SettingsManager.inMemory({
+          compaction: { enabled: false },
+          retry: { enabled: true, maxRetries: 2, provider: { maxRetryDelayMs: 60000 } },
+        }),
+      });
+      sdkSession = piSession;
+      activeSession = sdkSession;
+      sdkSession.agent.state.messages = session.messages;
+      if (abortRequested) {
+        await sdkSession.abort();
+        return;
+      }
+      unsubscribe = sdkSession.subscribe((event) => {
+        emit(event);
+      });
+
+      if (promptInput) {
+        await sdkSession.prompt(promptInput.text, {
+          images: promptInput.images,
+          expandPromptTemplates: true,
+        });
+      } else {
+        await sdkSession.agent.prompt([]);
+      }
+    } catch (error) {
+      const errorEvent = createAgentError(error, model);
+      messagesToPersist = [...(sdkSession?.agent.state.messages ?? session.messages), ...errorEvent.messages];
+      emit(errorEvent as AgentEvent);
+    } finally {
+      cleanupRunClientTools(runId);
+      try {
+        await persistSessionRun(session, {
+          messages: messagesToPersist ?? sdkSession?.agent.state.messages ?? session.messages,
+          modelRefId: modelRef.id,
+          thinkingLevel,
+          model,
+          authStorage,
+        });
+      } catch (error) {
+        console.warn("Session persistence failed:", error instanceof Error ? error.message : String(error));
+      }
+      run.finished = true;
+      activeAgentRuns.delete(runId);
+      activeSessionRuns.delete(session.id);
+      unsubscribe?.();
+      sdkSession?.dispose();
+      activeSession = undefined;
+      for (const subscriber of run.subscribers) subscriber.close();
+      run.subscribers.clear();
+    }
+  };
+
+  queueMicrotask(() => void startRun());
+  return createRunStream(run, encoder);
+}
+
+function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder()) {
+  let subscriber: RunSubscriber | undefined;
   return new Response(
     new ReadableStream({
-      async start(controller) {
-        let sdkSession: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
-        let unsubscribe: (() => void) | undefined;
-        let messagesToPersist: AgentMessage[] | undefined;
-        const emit = (event: unknown) => {
-          if (!connected) return false;
-          try {
-            controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-            return true;
-          } catch {
+      start(controller) {
+        let connected = true;
+        const nextSubscriber: RunSubscriber = {
+          enqueue: (event) => {
+            if (!connected) return false;
+            try {
+              controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+              return true;
+            } catch {
+              connected = false;
+              run.subscribers.delete(nextSubscriber);
+              return false;
+            }
+          },
+          close: () => {
+            if (!connected) return;
             connected = false;
-            return false;
-          }
-        };
-        try {
-          const modelRegistry = ModelRegistry.inMemory(authStorage);
-          const resourceLoader = await createAgentResourceLoader(agent);
-          const cwd = resolveAgentWorkingDirPath(agent);
-          const customTools = [
-            ...createServerToolDefinitions(agent),
-            ...createClientToolDefinitions(agent, {
-              runId,
-              userId: session.userId,
-              sessionId: session.id,
-              emit,
-            }),
-          ];
-          const allowedTools = customTools.map((tool) => tool.name);
-          const { session: piSession } = await createAgentSession({
-            cwd,
-            agentDir: serverAgentDir,
-            authStorage,
-            modelRegistry,
-            model,
-            thinkingLevel,
-            resourceLoader,
-            customTools: customTools as unknown as CreateAgentSessionOptions["customTools"],
-            tools: allowedTools,
-            sessionManager: SessionManager.inMemory(cwd),
-            settingsManager: SettingsManager.inMemory({
-              compaction: { enabled: false },
-              retry: { enabled: true, maxRetries: 2, provider: { maxRetryDelayMs: 60000 } },
-            }),
-          });
-          sdkSession = piSession;
-          activeSession = sdkSession;
-          sdkSession.agent.state.messages = session.messages;
-          if (abortRequested) {
-            await sdkSession.abort();
-            return;
-          }
-          unsubscribe = sdkSession.subscribe((event) => {
-            emit(event);
-          });
-
-          if (promptInput) {
-            await sdkSession.prompt(promptInput.text, {
-              images: promptInput.images,
-              expandPromptTemplates: true,
-            });
-          } else {
-            await sdkSession.agent.prompt([]);
-          }
-        } catch (error) {
-          const errorEvent = createAgentError(error, model);
-          messagesToPersist = [...(sdkSession?.agent.state.messages ?? session.messages), ...errorEvent.messages];
-          emit(errorEvent);
-        } finally {
-          activeAgentRuns.delete(runId);
-          cleanupRunClientTools(runId);
-          await persistSessionRun(session, {
-            messages: messagesToPersist ?? sdkSession?.agent.state.messages ?? session.messages,
-            modelRefId: modelRef.id,
-            thinkingLevel,
-            model,
-            authStorage,
-          });
-          unsubscribe?.();
-          sdkSession?.dispose();
-          activeSession = undefined;
-          if (connected) {
             try {
               controller.close();
             } catch {
-              connected = false;
+              // The browser can close first.
             }
-          }
+          },
+        };
+        subscriber = nextSubscriber;
+
+        for (const event of run.events) {
+          if (!nextSubscriber.enqueue(event)) return;
         }
+        if (run.finished) {
+          nextSubscriber.close();
+          return;
+        }
+        run.subscribers.add(nextSubscriber);
       },
       cancel() {
-        connected = false;
-        disconnectRunClientTools(runId);
+        if (subscriber) run.subscribers.delete(subscriber);
+        if (run.subscribers.size === 0) disconnectRunClientTools(run.runId);
       },
     }),
     {
       headers: {
         "content-type": "application/x-ndjson; charset=utf-8",
-        "x-agent-run-id": runId,
+        "x-agent-run-id": run.runId,
       },
     },
   );
+}
+
+function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
+  if (isClientToolCallEvent(event)) {
+    const subscriber = run.subscribers.values().next().value;
+    return subscriber ? subscriber.enqueue(event) : false;
+  }
+
+  run.events.push(event);
+  for (const subscriber of [...run.subscribers]) {
+    if (!subscriber.enqueue(event)) run.subscribers.delete(subscriber);
+  }
+  return run.subscribers.size > 0;
+}
+
+function isClientToolCallEvent(event: RunEvent): event is ClientToolCallEvent {
+  return event.type === "client_tool_call";
 }
 
 function randomId() {

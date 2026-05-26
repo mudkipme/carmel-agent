@@ -5,7 +5,13 @@ import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import { modelRefs, providerConfigs, providerKeys, sessions } from "../db/schema.ts";
-import { abortAgentRun, createAgentRunResponse, normalizePromptInput } from "../runtime/agent-runtime.ts";
+import {
+  abortAgentRun,
+  createAgentRunEventStream,
+  createAgentRunResponse,
+  getActiveAgentRunForSession,
+  normalizePromptInput,
+} from "../runtime/agent-runtime.ts";
 import { createProviderConfigAuthStorage } from "../runtime/auth-storage.ts";
 import { canUseModel, readVisibleAgent } from "../services/agent-access.ts";
 import { ensureOptionalProviderAuth, hasProviderAuth } from "../services/provider-auth.ts";
@@ -20,6 +26,18 @@ export function createAgentRunRoutes() {
     return c.json({ ok: true });
   });
 
+  route.get("/agent-runs/:runId/events", (c) => {
+    const response = createAgentRunEventStream(c.get("user").id, c.req.param("runId"));
+    if (!response) return c.json({ error: "Agent run not found" }, 404);
+    return response;
+  });
+
+  route.get("/sessions/:id/active-run", (c) => {
+    const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
+    if (!session || session.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+    return c.json(getActiveAgentRunForSession(c.get("user").id, session.id) ?? null);
+  });
+
   route.post("/agents/:id/run", jsonValidator(agentRunRequestSchema), async (c) => {
     const currentUserId = c.get("user").id;
     const agent = readVisibleAgent(currentUserId, c.req.param("id"));
@@ -31,6 +49,11 @@ export function createAgentRunRoutes() {
       : undefined;
     if (!session || session.userId !== currentUserId || session.agentId !== agent.id) {
       return c.json({ error: "Session not found" }, 404);
+    }
+    const activeRun = getActiveAgentRunForSession(currentUserId, session.id);
+    if (activeRun) {
+      c.header("x-agent-run-id", activeRun.runId);
+      return c.json({ error: "Session already has an active agent run.", ...activeRun }, 409);
     }
 
     const modelRef = db

@@ -76,6 +76,11 @@ export type ClientToolResultPayload = {
   error?: string;
 };
 
+export type ActiveAgentRunSummary = {
+  runId: string;
+  sessionId: string;
+};
+
 export type PromptInput = {
   text: string;
   images?: ImageContent[];
