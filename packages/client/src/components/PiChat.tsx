@@ -8,6 +8,7 @@ import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import "@earendil-works/pi-web-ui/app.css";
 import { CheckIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
@@ -25,6 +26,7 @@ import { RemoteAgent } from "@/lib/remote-agent";
 import {
   EDIT_USER_MESSAGE_EVENT,
   ensureRetryUserMessageRenderer,
+  FORK_MESSAGE_EVENT,
   RETRY_USER_MESSAGE_EVENT,
 } from "@/lib/retry-user-message-renderer";
 import { ensureToolSummaryRenderer } from "@/lib/tool-summary-renderer";
@@ -49,6 +51,7 @@ export function PiChat({
   modelRefs,
   providerConfigs,
 }: PiChatProps) {
+  const navigate = useNavigate();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<ChatPanel | null>(null);
   const agentRef = useRef<RemoteAgent | null>(null);
@@ -62,6 +65,7 @@ export function PiChat({
   const updateSession = useHarnessStore((state) => state.updateSession);
   const truncateSessionMessages = useHarnessStore((state) => state.truncateSessionMessages);
   const editSessionMessage = useHarnessStore((state) => state.editSessionMessage);
+  const forkSession = useHarnessStore((state) => state.forkSession);
   const resolvedModel = useMemo(() => resolveModelRef(modelRef), [modelRef]);
   const sessionRef = useRef(session);
   const messagesSnapshotRef = useRef(session.messages);
@@ -163,6 +167,25 @@ export function PiChat({
     inputDraftRef.current = textarea?.value ?? inputDraftRef.current;
   }, []);
 
+  const forkFromMessage = useCallback(
+    async (message: AgentMessage) => {
+      const agent = agentRef.current;
+      if (!agent || agent.state.isStreaming) return;
+
+      const index = findMessageIndex([...agent.state.messages], message);
+      if (index < 0) return;
+
+      try {
+        captureCurrentInputDraft();
+        const fork = await forkSession(sessionRef.current.id, index);
+        navigate(`/agents/${fork.agentId}/sessions/${fork.id}`);
+      } catch (error) {
+        console.error("Failed to fork session", error);
+      }
+    },
+    [captureCurrentInputDraft, forkSession, navigate],
+  );
+
   useEffect(() => {
     let cancelled = false;
     const host = hostRef.current;
@@ -191,8 +214,13 @@ export function PiChat({
         setEditingUserMessage({ message, draft: getUserMessageText(message) });
       }
     };
+    const handleFork = (event: Event) => {
+      const message = (event as CustomEvent<{ message?: AgentMessage }>).detail?.message;
+      if (message) void forkFromMessage(message);
+    };
     host.addEventListener(RETRY_USER_MESSAGE_EVENT, handleRetry);
     host.addEventListener(EDIT_USER_MESSAGE_EVENT, handleEdit);
+    host.addEventListener(FORK_MESSAGE_EVENT, handleFork);
 
     void ensurePiWebUiStorage().then(async () => {
       if (cancelled || !hostRef.current) return;
@@ -261,6 +289,7 @@ export function PiChat({
       }
       host.removeEventListener(RETRY_USER_MESSAGE_EVENT, handleRetry);
       host.removeEventListener(EDIT_USER_MESSAGE_EVENT, handleEdit);
+      host.removeEventListener(FORK_MESSAGE_EVENT, handleFork);
       unsubscribe?.();
       agent?.detach();
       agentRef.current = null;
@@ -274,6 +303,7 @@ export function PiChat({
     resolvedModel,
     retryFromMessage,
     saveUserMessage,
+    forkFromMessage,
     session.id,
     updateSession,
     insertCommandText,
@@ -443,9 +473,12 @@ function findMessageIndex(messages: AgentMessage[], target: AgentMessage) {
 
   return messages.findIndex(
     (message) =>
-      isRetryableUserMessage(message) &&
       message.role === target.role &&
       message.timestamp === target.timestamp &&
-      JSON.stringify(message.content) === JSON.stringify(target.content),
+      JSON.stringify(getComparableMessageContent(message)) === JSON.stringify(getComparableMessageContent(target)),
   );
+}
+
+function getComparableMessageContent(message: AgentMessage) {
+  return "content" in message ? message.content : undefined;
 }

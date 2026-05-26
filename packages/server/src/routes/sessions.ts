@@ -62,8 +62,8 @@ export function createSessionRoutes() {
       title: patch.title ?? current.title,
       modelRefId: patch.modelRefId ?? current.modelRefId,
       thinkingLevel: patch.thinkingLevel ?? current.thinkingLevel,
-      messages: patch.messages ?? current.messages,
-      forkedFrom: patch.forkedFrom ?? current.forkedFrom ?? undefined,
+      messages: current.messages,
+      forkedFrom: current.forkedFrom ?? undefined,
       id: sessionId,
       updatedAt: now(),
     };

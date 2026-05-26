@@ -6,10 +6,11 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, ImageContent, TextContent } from "@earendil-works/pi-ai";
 import { icon } from "@mariozechner/mini-lit";
 import { html } from "lit";
-import { Copy, Pencil, RotateCcw } from "lucide";
+import { Copy, GitFork, Pencil, RotateCcw } from "lucide";
 
 export const RETRY_USER_MESSAGE_EVENT = "carmel-retry-user-message";
 export const EDIT_USER_MESSAGE_EVENT = "carmel-edit-user-message";
+export const FORK_MESSAGE_EVENT = "carmel-fork-message";
 
 let registered = false;
 let assistantRendererPatched = false;
@@ -35,6 +36,7 @@ function renderEditableUserMessage(message: AgentMessage) {
       ${skillBlock ? renderSkillInvocationMessage(skillBlock) : html`<user-message .message=${message}></user-message>`}
       <div class="mx-4 mt-0.5 flex h-5 items-center gap-1">
         ${copyText ? renderCopyButton(message) : ""}
+        ${renderForkButton(message)}
         <button
           type="button"
           class="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"
@@ -91,13 +93,13 @@ function patchAssistantMessageRenderer() {
   assistantMessagePrototype.render = function renderAssistantMessageWithCopyButton() {
     const message = this.message as AssistantMessage;
     const copyText = getMessageMarkdownText(message);
-    if (!copyText) return renderAssistantMessage.call(this);
 
     return html`
       <div class="group">
         ${renderAssistantMessage.call(this)}
         <div class="mx-4 mt-0.5 flex h-5 items-center gap-1">
-          ${renderCopyButton(message)}
+          ${copyText ? renderCopyButton(message) : ""}
+          ${renderForkButton(message)}
         </div>
       </div>
     `;
@@ -118,6 +120,20 @@ function renderCopyButton(message: AgentMessage | AssistantMessage) {
   `;
 }
 
+function renderForkButton(message: AgentMessage | AssistantMessage) {
+  return html`
+    <button
+      type="button"
+      class="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"
+      title="Fork from this message"
+      aria-label="Fork from this message"
+      @click=${(event: MouseEvent) => dispatchFork(event, message)}
+    >
+      ${icon(GitFork, "xs")}
+    </button>
+  `;
+}
+
 function dispatchRetry(event: MouseEvent, message: AgentMessage) {
   event.preventDefault();
   event.stopPropagation();
@@ -125,6 +141,20 @@ function dispatchRetry(event: MouseEvent, message: AgentMessage) {
   if (!(target instanceof HTMLElement)) return;
   target.dispatchEvent(
     new CustomEvent(RETRY_USER_MESSAGE_EVENT, {
+      detail: { message },
+      bubbles: true,
+      composed: true,
+    }),
+  );
+}
+
+function dispatchFork(event: MouseEvent, message: AgentMessage | AssistantMessage) {
+  event.preventDefault();
+  event.stopPropagation();
+  const target = event.currentTarget;
+  if (!(target instanceof HTMLElement)) return;
+  target.dispatchEvent(
+    new CustomEvent(FORK_MESSAGE_EVENT, {
       detail: { message },
       bubbles: true,
       composed: true,

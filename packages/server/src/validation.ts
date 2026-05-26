@@ -124,13 +124,6 @@ export const sessionPatchRequestSchema = z
     title: z.string().optional(),
     modelRefId: z.string().optional(),
     thinkingLevel: thinkingLevel.optional(),
-    messages: z.array(z.unknown()).optional(),
-    forkedFrom: z
-      .object({
-        sessionId: z.string(),
-        messageIndex: z.number().int().nonnegative(),
-      })
-      .optional(),
   })
   .partial();
 
