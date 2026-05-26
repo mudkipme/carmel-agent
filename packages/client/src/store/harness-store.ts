@@ -50,6 +50,13 @@ type HarnessState = {
   deleteModelRef: (modelRefId: string) => Promise<void>;
   createSession: (draft: SessionDraft) => Promise<Session>;
   updateSession: (sessionId: string, patch: Partial<Session>) => Promise<void>;
+  truncateSessionMessages: (sessionId: string, messageIndex: number, thinkingLevel?: Session["thinkingLevel"]) => Promise<Session>;
+  editSessionMessage: (
+    sessionId: string,
+    messageIndex: number,
+    content: string,
+    options?: { truncate?: boolean; thinkingLevel?: Session["thinkingLevel"] },
+  ) => Promise<Session>;
   refreshSession: (sessionId: string) => Promise<void>;
   forkSession: (sessionId: string, messageIndex: number) => Promise<Session>;
   deleteSession: (sessionId: string) => Promise<void>;
@@ -259,6 +266,22 @@ export const useHarnessStore = create<HarnessState>()(
       sessions: state.sessions.map((item) => (item.id === sessionId ? toSessionMetadata(saved) : item)),
       sessionDetails: { ...state.sessionDetails, [sessionId]: saved },
     }));
+  },
+  truncateSessionMessages: async (sessionId, messageIndex, thinkingLevel) => {
+    const saved = await api.truncateSessionMessages(sessionId, messageIndex, thinkingLevel);
+    set((state) => ({
+      sessions: state.sessions.map((item) => (item.id === sessionId ? toSessionMetadata(saved) : item)),
+      sessionDetails: { ...state.sessionDetails, [sessionId]: saved },
+    }));
+    return saved;
+  },
+  editSessionMessage: async (sessionId, messageIndex, content, options) => {
+    const saved = await api.editSessionMessage(sessionId, messageIndex, content, options);
+    set((state) => ({
+      sessions: state.sessions.map((item) => (item.id === sessionId ? toSessionMetadata(saved) : item)),
+      sessionDetails: { ...state.sessionDetails, [sessionId]: saved },
+    }));
+    return saved;
   },
   refreshSession: async (sessionId) => {
     const saved = await api.getSession(sessionId);

@@ -135,6 +135,21 @@ export const api = {
   getSession: (sessionId: string) => request<Session>(`/api/sessions/${sessionId}`),
   updateSession: (sessionId: string, patch: Partial<Session>) =>
     request<Session>(`/api/sessions/${sessionId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  truncateSessionMessages: (sessionId: string, messageIndex: number, thinkingLevel?: Session["thinkingLevel"]) =>
+    request<Session>(`/api/sessions/${sessionId}/messages/truncate`, {
+      method: "POST",
+      body: JSON.stringify({ messageIndex, thinkingLevel }),
+    }),
+  editSessionMessage: (
+    sessionId: string,
+    messageIndex: number,
+    content: string,
+    options?: { truncate?: boolean; thinkingLevel?: Session["thinkingLevel"] },
+  ) =>
+    request<Session>(`/api/sessions/${sessionId}/messages/${messageIndex}`, {
+      method: "PATCH",
+      body: JSON.stringify({ content, ...options }),
+    }),
   forkSession: (sessionId: string, messageIndex: number) =>
     request<Session>(`/api/sessions/${sessionId}/fork`, {
       method: "POST",

@@ -138,6 +138,17 @@ export const forkSessionRequestSchema = z.object({
   messageIndex: z.number().int().nonnegative(),
 });
 
+export const sessionTruncateRequestSchema = z.object({
+  messageIndex: z.number().int().nonnegative(),
+  thinkingLevel: thinkingLevel.optional(),
+});
+
+export const sessionMessageEditRequestSchema = z.object({
+  content: z.string(),
+  truncate: z.boolean().optional(),
+  thinkingLevel: thinkingLevel.optional(),
+});
+
 export const clientToolResultRequestSchema = z.object({
   runId: z.string(),
   toolCallId: z.string(),

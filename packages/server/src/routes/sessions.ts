@@ -1,4 +1,5 @@
 import type { Session } from "@carmel-agent/shared";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -10,8 +11,10 @@ import { canUseModel, readVisibleAgent, resolveSupportedThinkingLevel } from "..
 import {
   forkSessionRequestSchema,
   jsonValidator,
+  sessionMessageEditRequestSchema,
   sessionDraftRequestSchema,
   sessionPatchRequestSchema,
+  sessionTruncateRequestSchema,
 } from "../validation.ts";
 
 export function createSessionRoutes() {
@@ -99,6 +102,66 @@ export function createSessionRoutes() {
     return c.json(serializeSession(fork), 201);
   });
 
+  route.post("/sessions/:id/messages/truncate", jsonValidator(sessionTruncateRequestSchema), async (c) => {
+    const sessionId = c.req.param("id");
+    const body = c.req.valid("json");
+    const current = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+    if (body.messageIndex >= current.messages.length) return c.json({ error: "Message not found" }, 404);
+
+    const updated: Session = {
+      ...current,
+      thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
+      messages: current.messages.slice(0, body.messageIndex + 1),
+      forkedFrom: current.forkedFrom ?? undefined,
+      updatedAt: now(),
+    };
+    db.update(sessions)
+      .set({
+        thinkingLevel: updated.thinkingLevel,
+        messages: updated.messages,
+        updatedAt: updated.updatedAt,
+      })
+      .where(eq(sessions.id, sessionId))
+      .run();
+    return c.json(serializeSession(updated));
+  });
+
+  route.patch("/sessions/:id/messages/:messageIndex", jsonValidator(sessionMessageEditRequestSchema), async (c) => {
+    const sessionId = c.req.param("id");
+    const messageIndex = Number(c.req.param("messageIndex"));
+    const body = c.req.valid("json");
+    const current = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+    if (!Number.isInteger(messageIndex) || messageIndex < 0 || messageIndex >= current.messages.length) {
+      return c.json({ error: "Message not found" }, 404);
+    }
+
+    const target = current.messages[messageIndex];
+    if (!isEditableUserMessage(target)) return c.json({ error: "Message is not editable" }, 400);
+    const editedMessage = updateUserMessageContent(target, body.content);
+    const messages = body.truncate
+      ? [...current.messages.slice(0, messageIndex), editedMessage]
+      : current.messages.map((message, index) => (index === messageIndex ? editedMessage : message));
+
+    const updated: Session = {
+      ...current,
+      thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
+      messages,
+      forkedFrom: current.forkedFrom ?? undefined,
+      updatedAt: now(),
+    };
+    db.update(sessions)
+      .set({
+        thinkingLevel: updated.thinkingLevel,
+        messages: updated.messages,
+        updatedAt: updated.updatedAt,
+      })
+      .where(eq(sessions.id, sessionId))
+      .run();
+    return c.json(serializeSession(updated));
+  });
+
   route.delete("/sessions/:id", (c) => {
     const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
     if (!session || session.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
@@ -107,4 +170,27 @@ export function createSessionRoutes() {
   });
 
   return route;
+}
+
+function isEditableUserMessage(message: AgentMessage) {
+  const role = (message as { role?: string }).role;
+  return role === "user" || role === "user-with-attachments";
+}
+
+function updateUserMessageContent(message: AgentMessage, content: string): AgentMessage {
+  if (!isEditableUserMessage(message)) return message;
+  const current = message as AgentMessage & { content?: unknown };
+  if (typeof current.content === "string") return { ...message, content } as AgentMessage;
+  if (!Array.isArray(current.content)) return message;
+
+  let replacedText = false;
+  const nextContent = current.content.map((part) => {
+    if (!part || typeof part !== "object" || !("type" in part)) return part;
+    if (part.type !== "text" || replacedText) return part;
+    replacedText = true;
+    return { ...part, text: content };
+  });
+
+  if (!replacedText) nextContent.unshift({ type: "text", text: content });
+  return { ...message, content: nextContent } as AgentMessage;
 }

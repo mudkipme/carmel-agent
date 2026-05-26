@@ -27,10 +27,12 @@ import {
   ensureRetryUserMessageRenderer,
   RETRY_USER_MESSAGE_EVENT,
 } from "@/lib/retry-user-message-renderer";
+import { ensureToolSummaryRenderer } from "@/lib/tool-summary-renderer";
 import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, ModelRef, ProviderConfig, Session } from "@carmel-agent/shared";
 
 ensureRetryUserMessageRenderer();
+ensureToolSummaryRenderer();
 
 type PiChatProps = {
   agentConfig: AgentConfig;
@@ -58,6 +60,8 @@ export function PiChat({
   } | null>(null);
   const refreshSession = useHarnessStore((state) => state.refreshSession);
   const updateSession = useHarnessStore((state) => state.updateSession);
+  const truncateSessionMessages = useHarnessStore((state) => state.truncateSessionMessages);
+  const editSessionMessage = useHarnessStore((state) => state.editSessionMessage);
   const resolvedModel = useMemo(() => resolveModelRef(modelRef), [modelRef]);
   const sessionRef = useRef(session);
   const messagesSnapshotRef = useRef(session.messages);
@@ -81,10 +85,9 @@ export function PiChat({
       panel?.requestUpdate();
 
       try {
-        await updateSession(sessionRef.current.id, {
-          messages: truncatedMessages,
-          thinkingLevel: agent.state.thinkingLevel,
-        });
+        const saved = await truncateSessionMessages(sessionRef.current.id, index, agent.state.thinkingLevel);
+        messagesSnapshotRef.current = saved.messages;
+        agent.state.messages = saved.messages;
         await agent.continue();
       } catch (error) {
         messagesSnapshotRef.current = previousMessages;
@@ -94,7 +97,7 @@ export function PiChat({
         console.error("Failed to retry message", error);
       }
     },
-    [updateSession],
+    [truncateSessionMessages],
   );
 
   const saveUserMessage = useCallback(
@@ -119,10 +122,12 @@ export function PiChat({
       panel?.requestUpdate();
 
       try {
-        await updateSession(sessionRef.current.id, {
-          messages: nextMessages,
+        const saved = await editSessionMessage(sessionRef.current.id, index, content, {
+          truncate: submit,
           thinkingLevel: agent.state.thinkingLevel,
         });
+        messagesSnapshotRef.current = saved.messages;
+        agent.state.messages = saved.messages;
         if (submit) await agent.continue();
       } catch (error) {
         messagesSnapshotRef.current = previousMessages;
@@ -132,7 +137,7 @@ export function PiChat({
         console.error("Failed to save message edit", error);
       }
     },
-    [updateSession],
+    [editSessionMessage],
   );
 
   useEffect(() => {
