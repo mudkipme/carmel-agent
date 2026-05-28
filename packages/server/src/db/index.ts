@@ -33,6 +33,11 @@ const migrations: Migration[] = [
     description: "Backfill legacy columns and current indexes",
     run: applyCurrentSchemaCompatibility,
   },
+  {
+    id: "003_session_pins",
+    description: "Add session pin metadata",
+    run: addSessionPins,
+  },
 ];
 
 export function migrate() {
@@ -146,6 +151,7 @@ function createBaseSchema() {
       thinking_level TEXT NOT NULL,
       messages TEXT NOT NULL,
       forked_from TEXT,
+      pinned_at INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -173,6 +179,7 @@ function applyCurrentSchemaCompatibility() {
   addColumnIfMissing("agents", "working_dir_mode", "TEXT NOT NULL DEFAULT 'manual'");
   addColumnIfMissing("agents", "default_working_dir", "TEXT");
   addColumnIfMissing("agents", "default_thinking_level", "TEXT NOT NULL DEFAULT 'off'");
+  addColumnIfMissing("sessions", "pinned_at", "INTEGER");
   backfillModelOwners();
   normalizeDefaultAgentWorkingDirs();
   sqlite.exec(`
@@ -180,6 +187,10 @@ function applyCurrentSchemaCompatibility() {
       ON users(username)
       WHERE username IS NOT NULL;
   `);
+}
+
+function addSessionPins() {
+  addColumnIfMissing("sessions", "pinned_at", "INTEGER");
 }
 
 function backfillModelOwners() {

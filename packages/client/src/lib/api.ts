@@ -13,6 +13,7 @@ import type {
   ProviderModelSummary,
   Session,
   SessionDraft,
+  SessionImportResult,
   SessionMetadata,
   User,
 } from "@carmel-agent/shared";
@@ -23,6 +24,10 @@ export type BootstrapPayload = {
   providerConfigs: ProviderConfig[];
   modelRefs: ModelRef[];
   sessions: SessionMetadata[];
+};
+
+export type SessionPatch = Omit<Partial<Session>, "pinnedAt"> & {
+  pinnedAt?: number | null;
 };
 
 export class ApiError extends Error {
@@ -133,10 +138,15 @@ export const api = {
     request<{ ok: true }>(`/api/agents/${agentId}`, { method: "DELETE" }),
   createSession: (draft: SessionDraft & { title?: string }) =>
     request<Session>("/api/sessions", { method: "POST", body: JSON.stringify(draft) }),
+  importOpenWebuiSessions: (draft: SessionDraft & { source: unknown }) =>
+    request<SessionImportResult>("/api/sessions/import/open-webui", {
+      method: "POST",
+      body: JSON.stringify(draft),
+    }),
   getSession: (sessionId: string) => request<Session>(`/api/sessions/${sessionId}`),
   getActiveSessionRun: (sessionId: string) =>
     request<ActiveAgentRunSummary | null>(`/api/sessions/${sessionId}/active-run`),
-  updateSession: (sessionId: string, patch: Partial<Session>) =>
+  updateSession: (sessionId: string, patch: SessionPatch) =>
     request<Session>(`/api/sessions/${sessionId}`, { method: "PATCH", body: JSON.stringify(patch) }),
   truncateSessionMessages: (sessionId: string, messageIndex: number, thinkingLevel?: Session["thinkingLevel"]) =>
     request<Session>(`/api/sessions/${sessionId}/messages/truncate`, {

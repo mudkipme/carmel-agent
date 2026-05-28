@@ -186,6 +186,7 @@ export type Session = {
     sessionId: string;
     messageIndex: number;
   };
+  pinnedAt?: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -195,6 +196,11 @@ export type SessionMetadata = Omit<Session, "messages"> & {
 };
 
 export type SessionDraft = Pick<Session, "agentId" | "modelRefId"> & Partial<Pick<Session, "thinkingLevel">>;
+
+export type SessionImportResult = {
+  sessions: Session[];
+  skipped: number;
+};
 
 export type AgentFileEntry = {
   name: string;

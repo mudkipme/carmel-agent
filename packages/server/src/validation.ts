@@ -124,6 +124,7 @@ export const sessionPatchRequestSchema = z
     title: z.string().optional(),
     modelRefId: z.string().optional(),
     thinkingLevel: thinkingLevel.optional(),
+    pinnedAt: z.number().finite().nullable().optional(),
   })
   .partial();
 
@@ -140,6 +141,13 @@ export const sessionMessageEditRequestSchema = z.object({
   content: z.string(),
   truncate: z.boolean().optional(),
   thinkingLevel: thinkingLevel.optional(),
+});
+
+export const openWebuiImportRequestSchema = z.object({
+  agentId: z.string(),
+  modelRefId: z.string(),
+  thinkingLevel: thinkingLevel.optional(),
+  source: z.unknown(),
 });
 
 export const clientToolResultRequestSchema = z.object({

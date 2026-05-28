@@ -34,7 +34,14 @@ export function readBootstrapPayload(userId: string) {
       .from(sessions)
       .where(eq(sessions.userId, userId))
       .all()
-      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .sort(sortSessions)
       .map(serializeSessionMetadata),
   };
+}
+
+function sortSessions(a: typeof sessions.$inferSelect, b: typeof sessions.$inferSelect) {
+  if (a.pinnedAt && b.pinnedAt) return b.pinnedAt - a.pinnedAt;
+  if (a.pinnedAt) return -1;
+  if (b.pinnedAt) return 1;
+  return b.updatedAt - a.updatedAt;
 }

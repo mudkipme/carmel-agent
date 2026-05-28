@@ -5,10 +5,13 @@ import {
   PanelLeftCloseIcon,
   PanelLeftIcon,
   PencilIcon,
+  Pin,
+  PinOff,
   SettingsIcon,
   Trash2Icon,
+  UploadIcon,
 } from "lucide-react";
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
 import { AgentSettingsDialog } from "@/components/harness/AgentSettingsDialog";
@@ -16,6 +19,14 @@ import { FileEditorView } from "@/components/harness/files/FileEditorView";
 import { FileExplorerPanel } from "@/components/harness/files/FileExplorerPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +63,13 @@ function clampSidebarWidth(width: number) {
     : DEFAULT_SIDEBAR_WIDTH;
 }
 
+function sortSessions<T extends { pinnedAt?: number; updatedAt: number }>(a: T, b: T) {
+  if (a.pinnedAt && b.pinnedAt) return b.pinnedAt - a.pinnedAt;
+  if (a.pinnedAt) return -1;
+  if (b.pinnedAt) return 1;
+  return b.updatedAt - a.updatedAt;
+}
+
 export function HarnessShell() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -64,6 +82,11 @@ export function HarnessShell() {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("sessions");
   const [selectedFile, setSelectedFile] = useState({ agentId: "", path: "" });
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importError, setImportError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const activeUser = store.users.find((user) => user.id === store.activeUserId);
   const selectedSession = store.sessions.find(
     (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
@@ -81,7 +104,7 @@ export function HarnessShell() {
   const visibleSessions = store.sessions
     .filter((session) => session.userId === store.activeUserId && session.agentId === activeAgent?.id)
     .slice()
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    .sort(sortSessions);
   const routeAgent = routeAgentId ? visibleAgents.find((agent) => agent.id === routeAgentId) : undefined;
   const routeSession = routeSessionId
     ? store.sessions.find((session) => session.id === routeSessionId && session.userId === store.activeUserId)
@@ -148,6 +171,39 @@ export function HarnessShell() {
       });
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Unable to create agent");
+    }
+  };
+
+  const selectImportFile = (event: ChangeEvent<HTMLInputElement>) => {
+    setImportError("");
+    setImportFile(event.target.files?.[0] ?? null);
+  };
+
+  const importOpenWebuiSessions = async () => {
+    if (!activeAgent || !importFile) return;
+    setImporting(true);
+    setImportError("");
+    try {
+      const source = JSON.parse(await importFile.text()) as unknown;
+      const importedSessions = await store.importOpenWebuiSessions({
+        agentId: activeAgent.id,
+        modelRefId: activeAgent.defaultModelRefId,
+        thinkingLevel: activeAgent.defaultThinkingLevel ?? "off",
+        source,
+      });
+      const firstSession = importedSessions[0];
+      if (firstSession) {
+        navigate(`/agents/${firstSession.agentId}/sessions/${firstSession.id}`);
+        setSidebarMode("sessions");
+        closeSidebarOnMobile();
+      }
+      setImportDialogOpen(false);
+      setImportFile(null);
+      if (importInputRef.current) importInputRef.current.value = "";
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Unable to import sessions");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -294,6 +350,18 @@ export function HarnessShell() {
               >
                 <MessageSquarePlusIcon />
               </Button>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                title="Import Open WebUI export"
+                disabled={!activeAgent}
+                onClick={() => {
+                  setImportError("");
+                  setImportDialogOpen(true);
+                }}
+              >
+                <UploadIcon />
+              </Button>
             </div>
             <TabsContent value="sessions" className="min-h-0 flex-1 overflow-hidden">
               <div className="flex h-full min-h-0 flex-col overflow-auto">
@@ -315,7 +383,10 @@ export function HarnessShell() {
                       }}
                     >
                       <span className="sr-only">Open session</span>
-                      <span className="truncate text-[13px]">{session.title}</span>
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {session.pinnedAt ? <Pin className="size-3 shrink-0 text-muted-foreground" /> : null}
+                        <span className="truncate text-[13px]">{session.title}</span>
+                      </span>
                     </button>
                     <div className="relative flex h-full w-8 shrink-0 items-center justify-end">
                       <span
@@ -342,6 +413,16 @@ export function HarnessShell() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-36">
                           <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                void store.updateSession(session.id, {
+                                  pinnedAt: session.pinnedAt ? null : Date.now(),
+                                });
+                              }}
+                            >
+                              {session.pinnedAt ? <PinOff /> : <Pin />}
+                              {session.pinnedAt ? "Unpin" : "Pin"}
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               onSelect={() => {
                                 const nextTitle = window.prompt("Rename session", session.title);
@@ -455,6 +536,47 @@ export function HarnessShell() {
           )}
         </div>
       </section>
+      <Dialog
+        open={importDialogOpen}
+        onOpenChange={(open) => {
+          setImportDialogOpen(open);
+          if (!open && !importing) {
+            setImportError("");
+            setImportFile(null);
+            if (importInputRef.current) importInputRef.current.value = "";
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Sessions</DialogTitle>
+            <DialogDescription>Import Open WebUI JSON exports into the selected agent.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              disabled={importing}
+              onChange={selectImportFile}
+              className="h-9 rounded-md border bg-background px-3 py-1.5 text-sm file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium"
+            />
+            <p className="text-xs text-muted-foreground">
+              Target: {activeAgent?.name ?? "No agent"} ·{" "}
+              {store.modelRefs.find((model) => model.id === activeAgent?.defaultModelRefId)?.label ?? "No model"}
+            </p>
+            {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={importing} onClick={() => setImportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={!importFile || importing} onClick={() => void importOpenWebuiSessions()}>
+              {importing ? "Importing..." : "Import"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

@@ -60,6 +60,7 @@ export function serializeSession(session: Session | typeof sessions.$inferSelect
     ...session,
     messages: session.messages.map(serializeMessageForDisplay),
     forkedFrom: session.forkedFrom ?? undefined,
+    pinnedAt: session.pinnedAt ?? undefined,
   };
 }
 
@@ -72,13 +73,13 @@ export function serializeSessionMetadata(session: Session | typeof sessions.$inf
     modelRefId: session.modelRefId,
     thinkingLevel: session.thinkingLevel,
     forkedFrom: session.forkedFrom ?? undefined,
+    pinnedAt: session.pinnedAt ?? undefined,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
     messageCount: session.messages.length,
   };
 }
 
-const MAX_THINKING_LENGTH = 2_000;
 const MAX_TOOL_RESULT_TEXT_LENGTH = 8_000;
 const MAX_STRING_VALUE_LENGTH = 1_000;
 const MAX_ARRAY_ITEMS = 20;
@@ -139,7 +140,7 @@ function serializeAssistantContentPart(part: unknown) {
   if (part.type === "thinking") {
     return {
       type: "thinking",
-      thinking: truncateText(String(part.thinking ?? ""), MAX_THINKING_LENGTH),
+      thinking: String(part.thinking ?? ""),
       redacted: part.redacted === true ? true : undefined,
     };
   }

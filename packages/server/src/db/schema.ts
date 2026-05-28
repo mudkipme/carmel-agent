@@ -118,6 +118,7 @@ export const sessions = sqliteTable("sessions", {
   thinkingLevel: text("thinking_level").$type<Session["thinkingLevel"]>().notNull(),
   messages: text("messages", { mode: "json" }).$type<Session["messages"]>().notNull(),
   forkedFrom: text("forked_from", { mode: "json" }).$type<Session["forkedFrom"]>(),
+  pinnedAt: integer("pinned_at"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

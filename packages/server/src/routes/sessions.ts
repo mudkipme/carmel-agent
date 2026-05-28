@@ -1,4 +1,4 @@
-import type { Session } from "@carmel-agent/shared";
+import type { Session, SessionImportResult } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
@@ -6,11 +6,13 @@ import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import { modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
+import { importOpenWebuiSessions } from "../import/open-webui.ts";
 import { serializeSession } from "../serializers.ts";
 import { canUseModel, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
 import {
   forkSessionRequestSchema,
   jsonValidator,
+  openWebuiImportRequestSchema,
   sessionMessageEditRequestSchema,
   sessionDraftRequestSchema,
   sessionPatchRequestSchema,
@@ -42,6 +44,7 @@ export function createSessionRoutes() {
       modelRefId: draft.modelRefId,
       thinkingLevel: resolveSupportedThinkingLevel(modelRef, draft.thinkingLevel ?? agent.defaultThinkingLevel ?? "off"),
       messages: [],
+      pinnedAt: undefined,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -49,8 +52,43 @@ export function createSessionRoutes() {
     return c.json(serializeSession(session), 201);
   });
 
+  route.post("/sessions/import/open-webui", jsonValidator(openWebuiImportRequestSchema), async (c) => {
+    const currentUserId = c.get("user").id;
+    const body = c.req.valid("json");
+    const agent = readVisibleAgent(currentUserId, body.agentId);
+    if (!agent) return c.json({ error: "Agent not found." }, 404);
+    const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, body.modelRefId)).get();
+    if (!modelRef || !canUseModel(currentUserId, modelRef)) return c.json({ error: "Model not found." }, 404);
+
+    const thinkingLevel = resolveSupportedThinkingLevel(
+      modelRef,
+      body.thinkingLevel ?? agent.defaultThinkingLevel ?? "off",
+    );
+    const imported = importOpenWebuiSessions(body.source, {
+      userId: currentUserId,
+      agentId: agent.id,
+      modelRefId: modelRef.id,
+      thinkingLevel,
+      modelRef: { provider: modelRef.provider, modelId: modelRef.modelId, api: modelRef.api ?? undefined },
+      now: now(),
+    });
+    if (imported.sessions.length === 0) {
+      return c.json({ error: "No importable Open WebUI conversations found." }, 400);
+    }
+
+    db.transaction((tx) => {
+      for (const session of imported.sessions) tx.insert(sessions).values(session).run();
+    });
+
+    const result: SessionImportResult = {
+      sessions: imported.sessions.map(serializeSession),
+      skipped: imported.skipped,
+    };
+    return c.json(result, 201);
+  });
+
   route.patch("/sessions/:id", jsonValidator(sessionPatchRequestSchema), async (c) => {
-    const patch = c.req.valid("json") as Partial<Session>;
+    const patch = c.req.valid("json") as Partial<Session> & { pinnedAt?: number | null };
     const sessionId = c.req.param("id");
     const current = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
@@ -64,6 +102,7 @@ export function createSessionRoutes() {
       thinkingLevel: patch.thinkingLevel ?? current.thinkingLevel,
       messages: current.messages,
       forkedFrom: current.forkedFrom ?? undefined,
+      pinnedAt: patch.pinnedAt === null ? undefined : (patch.pinnedAt ?? current.pinnedAt ?? undefined),
       id: sessionId,
       updatedAt: now(),
     };
@@ -76,6 +115,7 @@ export function createSessionRoutes() {
         thinkingLevel: updated.thinkingLevel,
         messages: updated.messages,
         forkedFrom: updated.forkedFrom,
+        pinnedAt: patch.pinnedAt === null ? null : updated.pinnedAt,
         updatedAt: updated.updatedAt,
       })
       .where(eq(sessions.id, sessionId))
@@ -95,6 +135,7 @@ export function createSessionRoutes() {
       title: `${source.title} fork`,
       messages: source.messages.slice(0, body.messageIndex + 1),
       forkedFrom: { sessionId, messageIndex: body.messageIndex },
+      pinnedAt: undefined,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -114,6 +155,7 @@ export function createSessionRoutes() {
       thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
       messages: current.messages.slice(0, body.messageIndex + 1),
       forkedFrom: current.forkedFrom ?? undefined,
+      pinnedAt: current.pinnedAt ?? undefined,
       updatedAt: now(),
     };
     db.update(sessions)
@@ -149,6 +191,7 @@ export function createSessionRoutes() {
       thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
       messages,
       forkedFrom: current.forkedFrom ?? undefined,
+      pinnedAt: current.pinnedAt ?? undefined,
       updatedAt: now(),
     };
     db.update(sessions)

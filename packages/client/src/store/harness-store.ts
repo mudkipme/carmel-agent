@@ -1,7 +1,7 @@
 import { clampThinkingLevel, getModel, getModels, getProviders, type Api, type Model } from "@earendil-works/pi-ai";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { ApiError, api, type BootstrapPayload } from "@/lib/api";
+import { ApiError, api, type BootstrapPayload, type SessionPatch } from "@/lib/api";
 import { createClientId } from "@/lib/id";
 import {
   DEFAULT_OLLAMA_BASE_URL,
@@ -49,7 +49,8 @@ type HarnessState = {
   upsertModelRef: (model: ModelRef) => Promise<ModelRef>;
   deleteModelRef: (modelRefId: string) => Promise<void>;
   createSession: (draft: SessionDraft) => Promise<Session>;
-  updateSession: (sessionId: string, patch: Partial<Session>) => Promise<void>;
+  importOpenWebuiSessions: (draft: SessionDraft & { source: unknown }) => Promise<Session[]>;
+  updateSession: (sessionId: string, patch: SessionPatch) => Promise<void>;
   truncateSessionMessages: (sessionId: string, messageIndex: number, thinkingLevel?: Session["thinkingLevel"]) => Promise<Session>;
   editSessionMessage: (
     sessionId: string,
@@ -259,6 +260,21 @@ export const useHarnessStore = create<HarnessState>()(
       activeAgentId: session.agentId,
     }));
     return session;
+  },
+  importOpenWebuiSessions: async (draft) => {
+    const result = await api.importOpenWebuiSessions(draft);
+    const importedSessions = result.sessions;
+    const firstSession = importedSessions[0];
+    set((state) => ({
+      sessions: [...importedSessions.map(toSessionMetadata), ...state.sessions],
+      sessionDetails: {
+        ...state.sessionDetails,
+        ...Object.fromEntries(importedSessions.map((session) => [session.id, session])),
+      },
+      activeSessionId: firstSession?.id ?? state.activeSessionId,
+      activeAgentId: firstSession?.agentId ?? state.activeAgentId,
+    }));
+    return importedSessions;
   },
   updateSession: async (sessionId, patch) => {
     const saved = await api.updateSession(sessionId, patch);
@@ -472,6 +488,7 @@ function toSessionMetadata(session: Session): SessionMetadata {
     modelRefId: session.modelRefId,
     thinkingLevel: session.thinkingLevel,
     forkedFrom: session.forkedFrom,
+    pinnedAt: session.pinnedAt,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
     messageCount: session.messages.length,
@@ -487,6 +504,7 @@ function mergeSessionMetadata(session: Session, metadata: SessionMetadata): Sess
     modelRefId: metadata.modelRefId,
     thinkingLevel: metadata.thinkingLevel,
     forkedFrom: metadata.forkedFrom,
+    pinnedAt: metadata.pinnedAt,
     createdAt: metadata.createdAt,
     updatedAt: metadata.updatedAt,
     messages: session.messages,

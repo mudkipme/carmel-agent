@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import "@/lib/markdown-soft-breaks";
 import App from "@/App";
 import "@/index.css";
 import { applyThemePreference } from "@/lib/theme";
