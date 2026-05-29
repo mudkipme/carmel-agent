@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Hono } from "hono";
@@ -75,6 +75,78 @@ test("file routes do not create files outside the working directory", async () =
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /outside the agent working directory/);
   assert.equal(existsSync(outside), false);
+});
+
+test("file routes reject reads through symlinks outside the working directory", async () => {
+  const root = mkdtempSync(join(tmpdir(), "carmel-agent-files-test-"));
+  const workspace = join(root, "workspace");
+  const outside = join(root, "outside.txt");
+  await mkdir(workspace);
+  await writeFile(outside, "outside");
+  await symlink(outside, join(workspace, "linked.txt"));
+
+  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), read: true } }));
+  const response = await app.request("/agent_1/files/content?path=linked.txt");
+
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /outside the agent working directory/);
+});
+
+test("file routes reject writes through symlinks outside the working directory", async () => {
+  const root = mkdtempSync(join(tmpdir(), "carmel-agent-files-test-"));
+  const workspace = join(root, "workspace");
+  const outside = join(root, "outside.txt");
+  await mkdir(workspace);
+  await writeFile(outside, "outside");
+  await symlink(outside, join(workspace, "linked.txt"));
+
+  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), edit: true } }));
+  const response = await app.request("/agent_1/files/content", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "linked.txt", content: "changed" }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /outside the agent working directory/);
+  assert.equal(await readFile(outside, "utf-8"), "outside");
+});
+
+test("file routes reject creating through broken symlinks", async () => {
+  const root = mkdtempSync(join(tmpdir(), "carmel-agent-files-test-"));
+  const workspace = join(root, "workspace");
+  const outside = join(root, "outside.txt");
+  await mkdir(workspace);
+  await symlink(outside, join(workspace, "linked.txt"));
+
+  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), write: true } }));
+  const response = await app.request("/agent_1/files/content", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "linked.txt", content: "changed" }),
+  });
+
+  assert.equal(response.status, 404);
+  assert.equal(existsSync(outside), false);
+});
+
+test("file routes omit symlinks outside the working directory from listings", async () => {
+  const root = mkdtempSync(join(tmpdir(), "carmel-agent-files-test-"));
+  const workspace = join(root, "workspace");
+  const outside = join(root, "outside.txt");
+  await mkdir(workspace);
+  await writeFile(join(workspace, "inside.txt"), "inside");
+  await writeFile(outside, "outside");
+  await symlink(outside, join(workspace, "linked.txt"));
+
+  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), read: true } }));
+  const response = await app.request("/agent_1/files");
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    (await response.json()).entries.map((entry: { name: string }) => entry.name),
+    ["inside.txt"],
+  );
 });
 
 test("file routes reject deleting the working directory root", async () => {

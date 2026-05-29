@@ -44,11 +44,13 @@ Useful environment variables:
 - `CARMEL_AGENT_DATA_DIR` - base data directory used for the database and default agent workspaces.
 - `CARMEL_AGENT_DIR` - agent runtime directory. Defaults to `data/pi-agent`.
 - `CARMEL_GLOBAL_SKILLS_DIR` - additional global skills directory.
+- `CARMEL_SECRET_KEY` - optional secret used to encrypt stored provider API keys, OAuth credentials, and custom headers at rest. Keep it stable once configured.
+- `CARMEL_ALLOWED_ORIGINS` - comma-separated additional browser origins allowed to make mutating API requests with cookies.
 - `EXA_API_KEY` - enables the `exa_search` server tool when an agent has network permission.
-- `HOST` - API bind host. Defaults to `0.0.0.0`.
+- `HOST` - API bind host. Defaults to `127.0.0.1`; Docker sets this to `0.0.0.0`.
 - `PORT` - API port. Defaults to `8797`.
 
-Provider API keys and OAuth credentials are stored in SQLite. Treat the data directory as sensitive.
+Provider API keys and OAuth credentials are stored in SQLite. Treat the data directory as sensitive. Set `CARMEL_SECRET_KEY` before adding provider credentials if you want those secrets encrypted at rest.
 
 ## Runtime Model
 

@@ -5,7 +5,7 @@ steps:
       - apk add --no-cache g++ make python3
       - corepack enable
       - pnpm install --frozen-lockfile
-      - pnpm build
+      - pnpm check
 
   docker:
     image: woodpeckerci/plugin-docker-buildx

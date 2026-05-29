@@ -12,6 +12,7 @@ import {
   submitOAuthLoginFlowInput,
 } from "../runtime/oauth-flows.ts";
 import { serializeProviderConfig } from "../serializers.ts";
+import { protectJsonSecret, protectSecret } from "../security.ts";
 import {
   ownsProviderConfig,
   readAffectedModelUserIds,
@@ -33,8 +34,8 @@ export function createProviderConfigRoutes() {
     if (current && current.userId !== currentUserId) return c.json({ error: "Provider config not found." }, 404);
 
     const authType = providerConfig.authType ?? current?.authType ?? "api_key";
-    const apiKey = authType === "api_key" ? (providerConfig.apiKey ?? current?.apiKey ?? null) : null;
-    const oauthCredential = authType === "oauth" ? (current?.oauthCredential ?? null) : null;
+    const apiKey = authType === "api_key" ? protectSecret(providerConfig.apiKey ?? current?.apiKey ?? null) : null;
+    const oauthCredential = authType === "oauth" ? protectJsonSecret(current?.oauthCredential ?? null) : null;
     db.insert(providerConfigs)
       .values({
         ...providerConfig,
@@ -43,6 +44,7 @@ export function createProviderConfigRoutes() {
         authType,
         apiKey,
         oauthCredential,
+        customHeaders: protectSecret(providerConfig.customHeaders),
         createdAt: providerConfig.createdAt ?? timestamp,
         updatedAt: timestamp,
       })
@@ -56,7 +58,7 @@ export function createProviderConfigRoutes() {
           apiKey,
           oauthCredential,
           baseUrl: providerConfig.baseUrl,
-          customHeaders: providerConfig.customHeaders,
+          customHeaders: protectSecret(providerConfig.customHeaders),
           updatedAt: timestamp,
         },
       })

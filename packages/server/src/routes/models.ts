@@ -6,6 +6,7 @@ import { db } from "../db/index.ts";
 import { modelRefs } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import { serializeModelRef } from "../serializers.ts";
+import { protectSecret } from "../security.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import {
   ownsProviderConfig,
@@ -48,6 +49,7 @@ export function createModelRoutes() {
         ownerUserId: currentUserId,
         shared: model.shared ?? false,
         input: model.input ?? ["text"],
+        customHeaders: protectSecret(model.customHeaders),
         createdAt: timestamp,
         updatedAt: timestamp,
       })
@@ -66,7 +68,7 @@ export function createModelRoutes() {
           maxTokens: model.maxTokens,
           reasoning: model.reasoning ?? false,
           input: model.input ?? ["text"],
-          customHeaders: model.customHeaders,
+          customHeaders: protectSecret(model.customHeaders),
           updatedAt: timestamp,
         },
       })

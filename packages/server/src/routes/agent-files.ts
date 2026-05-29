@@ -1,7 +1,6 @@
 import { Hono, type Context } from "hono";
-import { constants } from "node:fs";
-import { access, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
-import { basename, extname, isAbsolute, relative, resolve } from "node:path";
+import { lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import { basename, dirname, extname, isAbsolute, relative, resolve } from "node:path";
 import type { AgentFileContent, AgentFileEntry, AgentFileList } from "@carmel-agent/shared";
 import { agents } from "../db/schema.ts";
 import type { AuthVariables } from "../auth.ts";
@@ -29,13 +28,14 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     if (!agent.permissions.read) return c.json({ error: "Read permission is disabled for this agent." }, 403);
 
     try {
-      const root = ensureWorkingDir(agent);
+      const { root, realRoot } = await ensureWorkingDir(agent);
       const directoryPath = resolveAgentFilePath(root, c.req.query("path") ?? "");
+      await assertExistingPathInsideRoot(realRoot, directoryPath);
       const directoryStat = await stat(directoryPath);
       if (!directoryStat.isDirectory()) return c.json({ error: "Path is not a directory." }, 400);
 
       const showHidden = c.req.query("showHidden") === "true";
-      const entries = await readDirectoryEntries(root, directoryPath, showHidden);
+      const entries = await readDirectoryEntries(root, realRoot, directoryPath, showHidden);
       return c.json({ path: toRelativePath(root, directoryPath), entries } satisfies AgentFileList);
     } catch (error) {
       return fileError(c, error);
@@ -48,8 +48,9 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     if (!agent.permissions.read) return c.json({ error: "Read permission is disabled for this agent." }, 403);
 
     try {
-      const root = ensureWorkingDir(agent);
+      const { root, realRoot } = await ensureWorkingDir(agent);
       const filePath = resolveAgentFilePath(root, c.req.query("path") ?? "");
+      await assertExistingPathInsideRoot(realRoot, filePath);
       const fileStat = await stat(filePath);
       if (!fileStat.isFile()) return c.json({ error: "Path is not a file." }, 400);
       if (fileStat.size > MAX_TEXT_FILE_BYTES) return c.json({ error: "File is too large to edit." }, 413);
@@ -71,8 +72,9 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     if (!agent.permissions.read) return c.json({ error: "Read permission is disabled for this agent." }, 403);
 
     try {
-      const root = ensureWorkingDir(agent);
+      const { root, realRoot } = await ensureWorkingDir(agent);
       const filePath = resolveAgentFilePath(root, c.req.query("path") ?? "");
+      await assertExistingPathInsideRoot(realRoot, filePath);
       const fileStat = await stat(filePath);
       if (!fileStat.isFile()) return c.json({ error: "Path is not a file." }, 400);
       if (fileStat.size > MAX_IMAGE_FILE_BYTES) return c.json({ error: "File is too large to preview." }, 413);
@@ -100,8 +102,9 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     if (!body.path || typeof body.content !== "string") return c.json({ error: "Path and content are required." }, 400);
 
     try {
-      const root = ensureWorkingDir(agent);
+      const { root, realRoot } = await ensureWorkingDir(agent);
       const filePath = resolveAgentFilePath(root, body.path);
+      await assertWritablePathInsideRoot(realRoot, filePath, agent.permissions.write);
       await writeFile(filePath, body.content, "utf-8");
       const fileStat = await stat(filePath);
       return c.json({
@@ -125,9 +128,10 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     }
 
     try {
-      const root = ensureWorkingDir(agent);
+      const { root, realRoot } = await ensureWorkingDir(agent);
       const targetPath = resolveAgentFilePath(root, body.path);
       await assertDoesNotExist(targetPath);
+      await assertParentInsideRoot(realRoot, targetPath);
       if (body.type === "directory") {
         await mkdir(targetPath, { recursive: false });
       } else {
@@ -150,10 +154,12 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     if (!body.path || !body.newPath) return c.json({ error: "Path and newPath are required." }, 400);
 
     try {
-      const root = ensureWorkingDir(agent);
+      const { root, realRoot } = await ensureWorkingDir(agent);
       const currentPath = resolveAgentFilePath(root, body.path);
       const nextPath = resolveAgentFilePath(root, body.newPath);
+      await assertExistingPathInsideRoot(realRoot, currentPath);
       await assertDoesNotExist(nextPath);
+      await assertParentInsideRoot(realRoot, nextPath);
       await rename(currentPath, nextPath);
       return c.json(await toFileEntry(root, nextPath));
     } catch (error) {
@@ -167,9 +173,10 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     if (!agent.permissions.write) return c.json({ error: "Write permission is disabled for this agent." }, 403);
 
     try {
-      const root = ensureWorkingDir(agent);
+      const { root, realRoot } = await ensureWorkingDir(agent);
       const targetPath = resolveAgentFilePath(root, c.req.query("path") ?? "");
       if (targetPath === root) return c.json({ error: "The working directory cannot be deleted." }, 400);
+      await assertExistingPathInsideRoot(realRoot, targetPath);
       await rm(targetPath, { recursive: true });
       return c.json({ ok: true });
     } catch (error) {
@@ -180,10 +187,10 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
   return route;
 }
 
-function ensureWorkingDir(agent: AgentRecord) {
+async function ensureWorkingDir(agent: AgentRecord) {
   const root = resolve(resolveAgentWorkingDirPath(agent));
   ensureDir(root);
-  return root;
+  return { root, realRoot: await realpath(root) };
 }
 
 function resolveAgentFilePath(root: string, relativePath: string) {
@@ -197,13 +204,21 @@ function resolveAgentFilePath(root: string, relativePath: string) {
   return absolutePath;
 }
 
-async function readDirectoryEntries(root: string, directoryPath: string, showHidden: boolean) {
+async function readDirectoryEntries(root: string, realRoot: string, directoryPath: string, showHidden: boolean) {
   const entries = await readdir(directoryPath, { withFileTypes: true });
   const visibleEntries = showHidden ? entries : entries.filter((entry) => !entry.name.startsWith("."));
   const fileEntries = await Promise.all(
-    visibleEntries.map((entry) => toFileEntry(root, resolve(directoryPath, entry.name))),
+    visibleEntries.map(async (entry) => {
+      const filePath = resolve(directoryPath, entry.name);
+      try {
+        await assertExistingPathInsideRoot(realRoot, filePath);
+        return await toFileEntry(root, filePath);
+      } catch {
+        return undefined;
+      }
+    }),
   );
-  return fileEntries.sort((a, b) => {
+  return fileEntries.filter((entry): entry is AgentFileEntry => Boolean(entry)).sort((a, b) => {
     if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   });
@@ -255,11 +270,44 @@ function imageContentType(filePath: string) {
 
 async function assertDoesNotExist(filePath: string) {
   try {
-    await access(filePath, constants.F_OK);
-  } catch {
-    return;
+    await lstat(filePath);
+  } catch (error) {
+    if (isMissingPathError(error)) return;
+    throw error;
   }
   throw new Error("Path already exists.");
+}
+
+async function assertWritablePathInsideRoot(realRoot: string, filePath: string, canCreate: boolean) {
+  try {
+    await lstat(filePath);
+  } catch (error) {
+    if (isMissingPathError(error) && canCreate) {
+      await assertParentInsideRoot(realRoot, filePath);
+      return;
+    }
+    throw error;
+  }
+  await assertExistingPathInsideRoot(realRoot, filePath);
+}
+
+async function assertExistingPathInsideRoot(realRoot: string, filePath: string) {
+  assertInsideRoot(realRoot, await realpath(filePath));
+}
+
+async function assertParentInsideRoot(realRoot: string, filePath: string) {
+  assertInsideRoot(realRoot, await realpath(dirname(filePath)));
+}
+
+function assertInsideRoot(realRoot: string, realTarget: string) {
+  const relativeToRoot = relative(realRoot, realTarget);
+  if (relativeToRoot.startsWith("..") || isAbsolute(relativeToRoot)) {
+    throw new Error("Path is outside the agent working directory.");
+  }
+}
+
+function isMissingPathError(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
 function fileError(c: Context, error: unknown) {

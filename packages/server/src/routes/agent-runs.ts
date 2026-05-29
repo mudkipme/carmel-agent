@@ -13,6 +13,7 @@ import {
   normalizePromptInput,
 } from "../runtime/agent-runtime.ts";
 import { createProviderConfigAuthStorage } from "../runtime/auth-storage.ts";
+import { revealSecret } from "../security.ts";
 import { canUseModel, readVisibleAgent } from "../services/agent-access.ts";
 import { ensureOptionalProviderAuth, hasProviderAuth } from "../services/provider-auth.ts";
 import { agentRunRequestSchema, jsonValidator } from "../validation.ts";
@@ -76,7 +77,9 @@ export function createAgentRunRoutes() {
     const authStorage = providerConfig
       ? createProviderConfigAuthStorage(providerConfig, modelRef.provider)
       : AuthStorage.inMemory();
-    if (!providerConfig && providerKey?.apiKey) authStorage.setRuntimeApiKey(modelRef.provider, providerKey.apiKey);
+    if (!providerConfig && providerKey?.apiKey) {
+      authStorage.setRuntimeApiKey(modelRef.provider, revealSecret(providerKey.apiKey) ?? "");
+    }
     ensureOptionalProviderAuth(authStorage, modelRef.provider);
     if (!hasProviderAuth(authStorage, modelRef.provider)) {
       return c.json({ error: "No API key or OAuth login configured for this model provider." }, 400);

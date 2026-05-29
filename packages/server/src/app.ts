@@ -8,6 +8,7 @@ import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { requireAuth, type AuthVariables } from "./auth.ts";
 import { createApiRoutes } from "./routes/index.ts";
+import { rejectCrossOriginMutations } from "./security.ts";
 import { isValidationError, validationErrorMessage } from "./validation.ts";
 
 export function createApp() {
@@ -28,6 +29,7 @@ export function createApp() {
       credentials: true,
     }),
   );
+  app.use("/api/*", rejectCrossOriginMutations);
   app.use("/api/*", requireAuth);
   app.route("/api", createApiRoutes());
 

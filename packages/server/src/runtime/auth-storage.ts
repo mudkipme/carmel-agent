@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, sqlite } from "../db/index.ts";
 import { now } from "../db/seed.ts";
 import { providerConfigs } from "../db/schema.ts";
+import { protectJsonSecret, protectSecret, revealJsonSecret, revealSecret } from "../security.ts";
 
 type LockResult<T> = {
   result: T;
@@ -44,11 +45,13 @@ export class ProviderConfigAuthStorageBackend implements AuthStorageBackend {
 
   private read() {
     const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, this.providerConfigId)).get();
+    const oauthCredential = revealJsonSecret(providerConfig?.oauthCredential);
+    const apiKey = revealSecret(providerConfig?.apiKey);
     const credential: AuthCredential | undefined =
-      providerConfig?.authType === "oauth" && providerConfig.oauthCredential
-        ? providerConfig.oauthCredential
-        : providerConfig?.apiKey
-          ? { type: "api_key", key: providerConfig.apiKey }
+      providerConfig?.authType === "oauth" && oauthCredential
+        ? oauthCredential
+        : apiKey
+          ? { type: "api_key", key: apiKey }
           : undefined;
     return JSON.stringify(credential ? { [this.provider]: credential } : {});
   }
@@ -61,12 +64,12 @@ export class ProviderConfigAuthStorageBackend implements AuthStorageBackend {
         ? {
             authType: "oauth" as const,
             apiKey: null,
-            oauthCredential: credential,
+            oauthCredential: protectJsonSecret(credential),
           }
         : credential?.type === "api_key"
           ? {
               authType: "api_key" as const,
-              apiKey: credential.key,
+              apiKey: protectSecret(credential.key),
               oauthCredential: null,
             }
           : {

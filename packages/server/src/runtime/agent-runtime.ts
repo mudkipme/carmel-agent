@@ -11,59 +11,29 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
 import { agents, modelRefs, providerConfigs, providerKeys, sessions, users } from "../db/schema.ts";
+import { revealSecret } from "../security.ts";
 import { serializeModelRef } from "../serializers.ts";
 import { createProviderConfigAuthStorage } from "./auth-storage.ts";
-import { cleanupRunClientTools, createClientToolDefinitions, disconnectRunClientTools } from "./client-tools.ts";
+import { cleanupRunClientTools, createClientToolDefinitions } from "./client-tools.ts";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { createAgentResourceLoader, resolveAgentWorkingDirPath, serverAgentDir } from "./resources.ts";
+import {
+  createActiveAgentRun,
+  createRunStream,
+  emitRunEvent,
+  finishAgentRun,
+  type RunEvent,
+} from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerToolDefinitions } from "./tools.ts";
-import { OLLAMA_PROVIDER, type ClientToolCallEvent, type PromptInput, type Session } from "@carmel-agent/shared";
+import { OLLAMA_PROVIDER, type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 type SessionRecord = typeof sessions.$inferSelect;
-type ActiveAgentRun = {
-  runId: string;
-  userId: string;
-  sessionId: string;
-  abort: () => void;
-  events: RunEvent[];
-  subscribers: Set<RunSubscriber>;
-  finished: boolean;
-  started: boolean;
-};
-type RunSubscriber = {
-  enqueue: (event: RunEvent) => boolean;
-  close: () => void;
-};
-type RunEvent = AgentEvent | ClientToolCallEvent | { type: string; [key: string]: unknown };
-
-const activeAgentRuns = new Map<string, ActiveAgentRun>();
-const activeSessionRuns = new Map<string, string>();
-
-export function abortAgentRun(userId: string, runId: string) {
-  const run = activeAgentRuns.get(runId);
-  if (!run || run.userId !== userId) return false;
-  run.abort();
-  return true;
-}
-
-export function getActiveAgentRunForSession(userId: string, sessionId: string) {
-  const runId = activeSessionRuns.get(sessionId);
-  if (!runId) return undefined;
-  const run = activeAgentRuns.get(runId);
-  if (!run || run.userId !== userId || run.sessionId !== sessionId) return undefined;
-  return { runId: run.runId, sessionId: run.sessionId };
-}
-
-export function createAgentRunEventStream(userId: string, runId: string) {
-  const run = activeAgentRuns.get(runId);
-  if (!run || run.userId !== userId) return undefined;
-  return createRunStream(run);
-}
+export { abortAgentRun, createAgentRunEventStream, getActiveAgentRunForSession } from "./run-stream.ts";
 
 export function normalizePromptInput(input?: PromptInput) {
   if (!input) return undefined;
@@ -114,18 +84,12 @@ export function createAgentRunResponse({
     abortRequested = true;
     void activeSession?.abort();
   };
-  const run: ActiveAgentRun = {
+  const run = createActiveAgentRun({
     runId,
     userId: session.userId,
     sessionId: session.id,
     abort: abortRun,
-    events: [],
-    subscribers: new Set(),
-    finished: false,
-    started: false,
-  };
-  activeAgentRuns.set(runId, run);
-  activeSessionRuns.set(session.id, runId);
+  });
 
   const emit = (event: RunEvent) => emitRunEvent(run, event);
   const startRun = async () => {
@@ -201,89 +165,15 @@ export function createAgentRunResponse({
       } catch (error) {
         console.warn("Session persistence failed:", error instanceof Error ? error.message : String(error));
       }
-      run.finished = true;
-      activeAgentRuns.delete(runId);
-      activeSessionRuns.delete(session.id);
       unsubscribe?.();
       sdkSession?.dispose();
       activeSession = undefined;
-      for (const subscriber of run.subscribers) subscriber.close();
-      run.subscribers.clear();
+      finishAgentRun(run);
     }
   };
 
   queueMicrotask(() => void startRun());
   return createRunStream(run, encoder);
-}
-
-function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder()) {
-  let subscriber: RunSubscriber | undefined;
-  return new Response(
-    new ReadableStream({
-      start(controller) {
-        let connected = true;
-        const nextSubscriber: RunSubscriber = {
-          enqueue: (event) => {
-            if (!connected) return false;
-            try {
-              controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-              return true;
-            } catch {
-              connected = false;
-              run.subscribers.delete(nextSubscriber);
-              return false;
-            }
-          },
-          close: () => {
-            if (!connected) return;
-            connected = false;
-            try {
-              controller.close();
-            } catch {
-              // The browser can close first.
-            }
-          },
-        };
-        subscriber = nextSubscriber;
-
-        for (const event of run.events) {
-          if (!nextSubscriber.enqueue(event)) return;
-        }
-        if (run.finished) {
-          nextSubscriber.close();
-          return;
-        }
-        run.subscribers.add(nextSubscriber);
-      },
-      cancel() {
-        if (subscriber) run.subscribers.delete(subscriber);
-        if (run.subscribers.size === 0) disconnectRunClientTools(run.runId);
-      },
-    }),
-    {
-      headers: {
-        "content-type": "application/x-ndjson; charset=utf-8",
-        "x-agent-run-id": run.runId,
-      },
-    },
-  );
-}
-
-function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
-  if (isClientToolCallEvent(event)) {
-    const subscriber = run.subscribers.values().next().value;
-    return subscriber ? subscriber.enqueue(event) : false;
-  }
-
-  run.events.push(event);
-  for (const subscriber of [...run.subscribers]) {
-    if (!subscriber.enqueue(event)) run.subscribers.delete(subscriber);
-  }
-  return run.subscribers.size > 0;
-}
-
-function isClientToolCallEvent(event: RunEvent): event is ClientToolCallEvent {
-  return event.type === "client_tool_call";
 }
 
 function randomId() {
@@ -362,7 +252,7 @@ function resolveTitleModelContext(
       .where(eq(providerKeys.userId, userId))
       .all()
       .find((item) => item.provider === modelRef.provider);
-    if (providerKey?.apiKey) authStorage.setRuntimeApiKey(modelRef.provider, providerKey.apiKey);
+    if (providerKey?.apiKey) authStorage.setRuntimeApiKey(modelRef.provider, revealSecret(providerKey.apiKey) ?? "");
   }
   ensureOptionalProviderAuth(authStorage, modelRef.provider);
   if (!hasProviderAuth(authStorage, modelRef.provider)) return fallback;

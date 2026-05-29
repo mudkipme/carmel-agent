@@ -1,74 +1,21 @@
-import {
-  BotIcon,
-  EllipsisIcon,
-  MessageSquarePlusIcon,
-  PanelLeftCloseIcon,
-  PanelLeftIcon,
-  PencilIcon,
-  Pin,
-  PinOff,
-  SettingsIcon,
-  Trash2Icon,
-  UploadIcon,
-} from "lucide-react";
-import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
-import { AgentSettingsDialog } from "@/components/harness/AgentSettingsDialog";
 import { FileEditorView } from "@/components/harness/files/FileEditorView";
-import { FileExplorerPanel } from "@/components/harness/files/FileExplorerPanel";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { HarnessSidebar } from "@/components/harness/shell/HarnessSidebar";
+import { HarnessHeader } from "@/components/harness/shell/HarnessHeader";
+import { ImportSessionsDialog } from "@/components/harness/shell/ImportSessionsDialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn, formatRelativeTime } from "@/lib/utils";
+  clampSidebarWidth,
+  DESKTOP_SIDEBAR_QUERY,
+  getDefaultSidebarOpen,
+  getDefaultSidebarWidth,
+  resetSidebarWidth,
+  SIDEBAR_WIDTH_STORAGE_KEY,
+  sortSessions,
+  type SidebarMode,
+} from "@/components/harness/shell/sidebar-utils";
 import { useHarnessStore } from "@/store/harness-store";
-
-const DESKTOP_SIDEBAR_QUERY = "(min-width: 1024px)";
-const SIDEBAR_WIDTH_STORAGE_KEY = "carmel-sidebar-width";
-const DEFAULT_SIDEBAR_WIDTH = 298;
-const MIN_SIDEBAR_WIDTH = 240;
-const MAX_SIDEBAR_WIDTH = 520;
-type SidebarMode = "sessions" | "files";
-
-function getDefaultSidebarOpen() {
-  return typeof window === "undefined" ? true : window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches;
-}
-
-function getDefaultSidebarWidth() {
-  if (typeof window === "undefined") return DEFAULT_SIDEBAR_WIDTH;
-  const storedWidth = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
-  return storedWidth ? clampSidebarWidth(Number(storedWidth)) : DEFAULT_SIDEBAR_WIDTH;
-}
-
-function clampSidebarWidth(width: number) {
-  return Number.isFinite(width)
-    ? Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, Math.round(width)))
-    : DEFAULT_SIDEBAR_WIDTH;
-}
-
-function sortSessions<T extends { pinnedAt?: number; updatedAt: number }>(a: T, b: T) {
-  if (a.pinnedAt && b.pinnedAt) return b.pinnedAt - a.pinnedAt;
-  if (a.pinnedAt) return -1;
-  if (b.pinnedAt) return 1;
-  return b.updatedAt - a.updatedAt;
-}
 
 export function HarnessShell() {
   const navigate = useNavigate();
@@ -81,12 +28,7 @@ export function HarnessShell() {
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("sessions");
   const [selectedFile, setSelectedFile] = useState({ agentId: "", path: "" });
-  const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importError, setImportError] = useState("");
-  const [importing, setImporting] = useState(false);
-  const importInputRef = useRef<HTMLInputElement | null>(null);
   const activeUser = store.users.find((user) => user.id === store.activeUserId);
   const selectedSession = store.sessions.find(
     (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
@@ -163,50 +105,6 @@ export function HarnessShell() {
     setSelectedFile({ agentId: activeAgent?.id ?? "", path });
   };
 
-  const createSidebarAgent = async () => {
-    try {
-      await store.createAgent({
-        name: `Agent ${visibleAgents.length + 1}`,
-        defaultModelRefId: store.modelRefs[0]?.id,
-      });
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Unable to create agent");
-    }
-  };
-
-  const selectImportFile = (event: ChangeEvent<HTMLInputElement>) => {
-    setImportError("");
-    setImportFile(event.target.files?.[0] ?? null);
-  };
-
-  const importOpenWebuiSessions = async () => {
-    if (!activeAgent || !importFile) return;
-    setImporting(true);
-    setImportError("");
-    try {
-      const source = JSON.parse(await importFile.text()) as unknown;
-      const importedSessions = await store.importOpenWebuiSessions({
-        agentId: activeAgent.id,
-        modelRefId: activeAgent.defaultModelRefId,
-        thinkingLevel: activeAgent.defaultThinkingLevel ?? "off",
-        source,
-      });
-      const firstSession = importedSessions[0];
-      if (firstSession) {
-        navigate(`/agents/${firstSession.agentId}/sessions/${firstSession.id}`);
-        setSidebarMode("sessions");
-        closeSidebarOnMobile();
-      }
-      setImportDialogOpen(false);
-      setImportFile(null);
-      if (importInputRef.current) importInputRef.current.value = "";
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : "Unable to import sessions");
-    } finally {
-      setImporting(false);
-    }
-  };
-
   const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches) return;
     event.preventDefault();
@@ -245,270 +143,34 @@ export function HarnessShell() {
           onClick={() => setSidebarOpen(false)}
         />
       ) : null}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-30 flex min-h-0 flex-col border-r bg-muted/50 shadow-lg transition-transform duration-200 lg:static lg:z-auto lg:shrink-0 lg:shadow-none",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:hidden",
-        )}
-        style={{ width: sidebarWidth }}
-      >
-        <div className="flex h-11 items-center gap-2 border-b px-3">
-          <img src="/favicon.svg" alt="" className="size-7 rounded-md" draggable={false} />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[13px] font-medium">Carmel Agent</h1>
-            <p className="truncate text-xs text-muted-foreground">{activeUser?.email}</p>
-          </div>
-          <Button size="icon-sm" variant="ghost" title="Collapse sidebar" onClick={() => setSidebarOpen(false)}>
-            <PanelLeftCloseIcon />
-          </Button>
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
-          <section className="flex flex-col gap-1">
-            <div className="flex items-center justify-between px-2">
-              <h2 className="text-xs font-normal text-muted-foreground">Agent</h2>
-              <Badge variant="secondary">{visibleAgents.length}</Badge>
-            </div>
-            <div className="flex items-center gap-1">
-              <Select
-                value={activeAgent?.id}
-                disabled={!visibleAgents.length}
-                onValueChange={(agentId) => {
-                  store.setActiveAgent(agentId);
-                  navigate(`/agents/${agentId}`);
-                }}
-              >
-                <SelectTrigger className="h-8 min-w-0 flex-1 bg-background px-2 text-[13px]">
-                  <SelectValue placeholder="Select agent" />
-                </SelectTrigger>
-                <SelectContent className="max-w-[280px]">
-                  <SelectGroup>
-                    {visibleAgents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span className="truncate">{agent.name}</span>
-                          {agent.shared ? (
-                            <Badge variant="secondary" className="shrink-0">
-                              Shared
-                            </Badge>
-                          ) : null}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              {activeAgent?.ownerUserId === store.activeUserId ? (
-                <AgentSettingsDialog
-                  agent={activeAgent}
-                  modelRefs={store.modelRefs}
-                  providerConfigs={store.providerConfigs}
-                  triggerClassName="opacity-100"
-                />
-              ) : null}
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                disabled={!store.modelRefs.length}
-                onClick={() => void createSidebarAgent()}
-                title="New agent"
-              >
-                <BotIcon />
-              </Button>
-            </div>
-          </section>
-
-          <Tabs
-            value={sidebarMode}
-            onValueChange={(value) => setSidebarMode(value as SidebarMode)}
-            className="flex min-h-0 flex-1 flex-col gap-2"
-          >
-            <div className="flex items-center gap-2 px-2">
-              <TabsList className="grid h-8 flex-1 grid-cols-2">
-                <TabsTrigger value="sessions" className="text-xs">
-                  Sessions
-                </TabsTrigger>
-                <TabsTrigger value="files" className="text-xs">
-                  Files
-                </TabsTrigger>
-              </TabsList>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                title="New session"
-                onClick={() => {
-                  if (!activeAgent) return;
-                  void store.createSession({
-                    agentId: activeAgent.id,
-                    modelRefId: activeAgent.defaultModelRefId,
-                    thinkingLevel: activeAgent.defaultThinkingLevel ?? "off",
-                  }).then((session) => {
-                    navigate(`/agents/${session.agentId}/sessions/${session.id}`);
-                  });
-                  setSidebarMode("sessions");
-                  closeSidebarOnMobile();
-                }}
-              >
-                <MessageSquarePlusIcon />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                title="Import Open WebUI export"
-                disabled={!activeAgent}
-                onClick={() => {
-                  setImportError("");
-                  setImportDialogOpen(true);
-                }}
-              >
-                <UploadIcon />
-              </Button>
-            </div>
-            <TabsContent value="sessions" className="min-h-0 flex-1 overflow-hidden">
-              <div className="flex h-full min-h-0 flex-col overflow-auto">
-                {visibleSessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className={cn(
-                      "group flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 transition-colors hover:bg-accent hover:text-accent-foreground",
-                      session.id === activeSessionMetadata?.id && "bg-accent text-accent-foreground",
-                    )}
-                  >
-                    <button
-                      className="flex h-full min-w-0 flex-1 items-center text-left"
-                      onClick={() => {
-                        store.setActiveSession(session.id);
-                        navigate(`/agents/${session.agentId}/sessions/${session.id}`);
-                        setSidebarMode("sessions");
-                        closeSidebarOnMobile();
-                      }}
-                    >
-                      <span className="sr-only">Open session</span>
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        {session.pinnedAt ? <Pin className="size-3 shrink-0 text-muted-foreground" /> : null}
-                        <span className="truncate text-[13px]">{session.title}</span>
-                      </span>
-                    </button>
-                    <div className="relative flex h-full w-8 shrink-0 items-center justify-end">
-                      <span
-                        className={cn(
-                          "text-xs text-muted-foreground transition-opacity group-hover:opacity-0 group-focus-within:opacity-0",
-                          openSessionMenuId === session.id && "opacity-0",
-                        )}
-                      >
-                        {formatRelativeTime(session.updatedAt)}
-                      </span>
-                      <DropdownMenu
-                        open={openSessionMenuId === session.id}
-                        onOpenChange={(open) => setOpenSessionMenuId(open ? session.id : null)}
-                      >
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            size="icon-xs"
-                            variant="ghost"
-                            title="Session actions"
-                            className="absolute right-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
-                          >
-                            <EllipsisIcon />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-36">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                void store.updateSession(session.id, {
-                                  pinnedAt: session.pinnedAt ? null : Date.now(),
-                                });
-                              }}
-                            >
-                              {session.pinnedAt ? <PinOff /> : <Pin />}
-                              {session.pinnedAt ? "Unpin" : "Pin"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                const nextTitle = window.prompt("Rename session", session.title);
-                                const title = nextTitle?.trim();
-                                if (!title || title === session.title) return;
-                                void store.updateSession(session.id, { title });
-                              }}
-                            >
-                              <PencilIcon />
-                              Rename
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onSelect={() => {
-                                const confirmed = window.confirm(`Delete "${session.title}"?`);
-                                if (!confirmed) return;
-                                void store.deleteSession(session.id);
-                              }}
-                            >
-                              <Trash2Icon />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-            <TabsContent value="files" className="min-h-0 flex-1 overflow-hidden">
-              <FileExplorerPanel
-                key={activeAgent?.id ?? "no-agent"}
-                agent={activeAgent}
-                selectedFilePath={selectedFilePath}
-                onOpenFile={setSelectedFilePath}
-                onAfterOpen={closeSidebarOnMobile}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-        <button
-          type="button"
-          aria-label="Resize sidebar"
-          aria-orientation="vertical"
-          aria-valuemin={MIN_SIDEBAR_WIDTH}
-          aria-valuemax={MAX_SIDEBAR_WIDTH}
-          aria-valuenow={sidebarWidth}
-          className="absolute inset-y-0 right-[-3px] hidden w-2 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-border/80 focus-visible:bg-border/80 focus-visible:outline-none lg:block"
-          onPointerDown={startSidebarResize}
-          onDoubleClick={() => {
-            setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
-            window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(DEFAULT_SIDEBAR_WIDTH));
-          }}
-        />
-      </aside>
+      <HarnessSidebar
+        activeUser={activeUser}
+        activeAgent={activeAgent}
+        activeSession={activeSessionMetadata}
+        visibleAgents={visibleAgents}
+        visibleSessions={visibleSessions}
+        selectedFilePath={selectedFilePath}
+        sidebarMode={sidebarMode}
+        sidebarOpen={sidebarOpen}
+        sidebarWidth={sidebarWidth}
+        onClose={() => setSidebarOpen(false)}
+        onSidebarModeChange={setSidebarMode}
+        onOpenFile={setSelectedFilePath}
+        onAfterOpen={closeSidebarOnMobile}
+        onStartResize={startSidebarResize}
+        onResetWidth={() => resetSidebarWidth(setSidebarWidth)}
+        onOpenImport={() => setImportDialogOpen(true)}
+      />
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-11 items-center justify-between gap-3 border-b bg-background px-4">
-          <div className="flex min-w-0 items-center gap-2">
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              title={sidebarOpen ? "Collapse sidebar" : "Show sidebar"}
-              onClick={() => setSidebarOpen((open) => !open)}
-            >
-              <PanelLeftIcon />
-            </Button>
-            <div className="min-w-0">
-              <h2 className="truncate text-[13px] font-medium">{activeSessionMetadata?.title ?? "No session"}</h2>
-              <p className="truncate text-xs text-muted-foreground">
-                {activeAgent?.workingDir ?? "No working directory"} · {activeModel?.label ?? "No model"}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Badge variant="secondary">{activeSessionMetadata?.thinkingLevel ?? "off"}</Badge>
-            <Badge variant="secondary">{activeAgent?.permissions.bash ? "bash on" : "bash off"}</Badge>
-            <Button variant="outline" size="icon-sm" title="Settings" onClick={() => navigate("/settings/models")}>
-              <SettingsIcon />
-            </Button>
-          </div>
-        </header>
+        <HarnessHeader
+          sidebarOpen={sidebarOpen}
+          activeAgent={activeAgent}
+          activeModel={activeModel}
+          activeSession={activeSessionMetadata}
+          onToggleSidebar={() => setSidebarOpen((open) => !open)}
+          onOpenSettings={() => navigate("/settings/models")}
+        />
         <div className="min-h-0 flex-1">
           {sidebarMode === "files" ? (
             <FileEditorView
@@ -536,47 +198,14 @@ export function HarnessShell() {
           )}
         </div>
       </section>
-      <Dialog
+      <ImportSessionsDialog
         open={importDialogOpen}
-        onOpenChange={(open) => {
-          setImportDialogOpen(open);
-          if (!open && !importing) {
-            setImportError("");
-            setImportFile(null);
-            if (importInputRef.current) importInputRef.current.value = "";
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Import Sessions</DialogTitle>
-            <DialogDescription>Import Open WebUI JSON exports into the selected agent.</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <input
-              ref={importInputRef}
-              type="file"
-              accept="application/json,.json"
-              disabled={importing}
-              onChange={selectImportFile}
-              className="h-9 rounded-md border bg-background px-3 py-1.5 text-sm file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium"
-            />
-            <p className="text-xs text-muted-foreground">
-              Target: {activeAgent?.name ?? "No agent"} ·{" "}
-              {store.modelRefs.find((model) => model.id === activeAgent?.defaultModelRefId)?.label ?? "No model"}
-            </p>
-            {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" disabled={importing} onClick={() => setImportDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button disabled={!importFile || importing} onClick={() => void importOpenWebuiSessions()}>
-              {importing ? "Importing..." : "Import"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        activeAgent={activeAgent}
+        modelRefs={store.modelRefs}
+        onOpenChange={setImportDialogOpen}
+        onSidebarModeChange={setSidebarMode}
+        onAfterImport={closeSidebarOnMobile}
+      />
     </main>
   );
 }

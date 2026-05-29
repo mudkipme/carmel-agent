@@ -2,7 +2,7 @@ import { randomBytes, scrypt as scryptCallback, timingSafeEqual, createHash } fr
 import { promisify } from "node:util";
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, lte } from "drizzle-orm";
 import { db } from "./db/index.ts";
 import { authSessions, users } from "./db/schema.ts";
 import { id, now } from "./db/seed.ts";
@@ -30,6 +30,7 @@ export async function verifyPassword(password: string, storedHash: string) {
 }
 
 export async function createAuthSession(c: Context<{ Variables: AuthVariables }>, userId: string) {
+  pruneExpiredAuthSessions();
   const token = randomBytes(32).toString("base64url");
   const timestamp = now();
   const expiresAt = timestamp + sessionDurationMs;
@@ -55,6 +56,10 @@ export function clearAuthSession(c: Context) {
   const token = getCookie(c, cookieName);
   if (token) db.delete(authSessions).where(eq(authSessions.tokenHash, hashToken(token))).run();
   deleteCookie(c, cookieName, { path: "/" });
+}
+
+export function pruneExpiredAuthSessions(timestamp = now()) {
+  db.delete(authSessions).where(lte(authSessions.expiresAt, timestamp)).run();
 }
 
 export const requireAuth: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {

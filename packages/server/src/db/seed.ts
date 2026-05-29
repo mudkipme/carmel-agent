@@ -17,8 +17,8 @@ export const defaultPermissions: AgentPermissions = {
 
 export const defaultUser: User = {
   id: "user_self",
-  name: "Mudkip",
-  email: "mudkip@local",
+  name: "Local User",
+  email: "user@local",
 };
 
 const provider = getProviders()[0] ?? "anthropic";
@@ -53,13 +53,14 @@ export const defaultAgent: AgentConfig = {
   id: "agent_self",
   ownerUserId: defaultUser.id,
   shared: false,
-  name: "Carmel Self",
-  description: "Personal coding and research harness",
-  workingDirMode: "manual",
-  workingDir: "/var/home/mudkip/Projects",
-  skills: ["codebase", "browser", "obsidian", "shadcn"],
+  name: "Local Agent",
+  description: "Default local coding and research agent",
+  workingDirMode: "default",
+  workingDir: "agents/agent_self/workspace",
+  defaultWorkingDir: "agents/agent_self/workspace",
+  skills: [],
   systemPrompt:
-    "You are Carmel, a pragmatic personal agent harness. Work carefully, explain tradeoffs concisely, and preserve user intent.",
+    "You are Carmel, a pragmatic local agent harness. Work carefully, explain tradeoffs concisely, and preserve user intent.",
   promptTemplates: [
     {
       id: "template_review",
