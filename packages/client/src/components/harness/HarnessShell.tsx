@@ -134,7 +134,7 @@ export function HarnessShell() {
   };
 
   return (
-    <main className="relative flex h-screen min-h-0 overflow-hidden bg-background text-foreground">
+    <main className="relative flex h-[100dvh] min-h-0 overflow-hidden bg-background text-foreground">
       {sidebarOpen ? (
         <button
           type="button"

@@ -194,6 +194,7 @@ export function PiChat({
 
     captureCurrentInputDraft();
     host.replaceChildren();
+    const cleanupMobileChatInput = enhanceMobileChatInput(host);
     setEditingUserMessage(null);
 
     const messagesForAgent = messagesSnapshotRef.current;
@@ -297,6 +298,7 @@ export function PiChat({
       host.removeEventListener(FORK_MESSAGE_EVENT, handleFork);
       unsubscribe?.();
       agent?.detach();
+      cleanupMobileChatInput();
       agentRef.current = null;
       panelRef.current = null;
       host.replaceChildren();
@@ -393,6 +395,164 @@ export function PiChat({
       </Dialog>
     </>
   );
+}
+
+const CHAT_INPUT_MIN_ROWS = 2;
+const CHAT_INPUT_MAX_ROWS = 6;
+const MOBILE_CHAT_QUERY = "(max-width: 800px), (pointer: coarse)";
+
+function enhanceMobileChatInput(host: HTMLElement) {
+  const visualViewport = window.visualViewport;
+  const mobileQuery = window.matchMedia(MOBILE_CHAT_QUERY);
+  let focused = false;
+  let layoutFrame = 0;
+  let layoutPoll = 0;
+  let observedInputArea: HTMLElement | null = null;
+
+  const resizeObserver =
+    typeof ResizeObserver === "undefined"
+      ? undefined
+      : new ResizeObserver(() => {
+          scheduleLayout();
+        });
+
+  const getTextarea = () => host.querySelector("message-editor textarea") as HTMLTextAreaElement | null;
+
+  const getInputArea = () => {
+    const editor = host.querySelector("message-editor");
+    return (editor?.parentElement?.parentElement as HTMLElement | null) ?? null;
+  };
+
+  const syncViewportVars = () => {
+    const rect = host.getBoundingClientRect();
+    const viewportHeight = visualViewport?.height ?? window.innerHeight;
+    const viewportOffsetTop = visualViewport?.offsetTop ?? 0;
+    const keyboardInset = visualViewport
+      ? Math.max(0, window.innerHeight - viewportHeight - viewportOffsetTop)
+      : 0;
+
+    host.style.setProperty("--chat-keyboard-inset", `${Math.round(keyboardInset)}px`);
+    host.style.setProperty("--chat-input-left", `${Math.max(0, Math.round(rect.left))}px`);
+    host.style.setProperty("--chat-input-width", `${Math.round(rect.width)}px`);
+  };
+
+  const syncInputHeight = () => {
+    const inputArea = getInputArea();
+    if (!inputArea) return;
+    host.style.setProperty("--chat-input-height", `${Math.ceil(inputArea.getBoundingClientRect().height)}px`);
+
+    if (inputArea !== observedInputArea) {
+      if (observedInputArea) resizeObserver?.unobserve(observedInputArea);
+      observedInputArea = inputArea;
+      resizeObserver?.observe(inputArea);
+    }
+  };
+
+  const resizeTextarea = () => {
+    const textarea = getTextarea();
+    if (!textarea) return;
+
+    const styles = window.getComputedStyle(textarea);
+    const lineHeight = parseFloat(styles.lineHeight) || 22;
+    const verticalPadding = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+    const verticalBorder = parseFloat(styles.borderTopWidth) + parseFloat(styles.borderBottomWidth);
+    const minHeight = CHAT_INPUT_MIN_ROWS * lineHeight + verticalPadding + verticalBorder;
+    const maxHeight = CHAT_INPUT_MAX_ROWS * lineHeight + verticalPadding + verticalBorder;
+
+    textarea.rows = CHAT_INPUT_MIN_ROWS;
+    textarea.style.minHeight = `${Math.ceil(minHeight)}px`;
+    textarea.style.maxHeight = `${Math.ceil(maxHeight)}px`;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.ceil(Math.min(maxHeight, Math.max(minHeight, textarea.scrollHeight)))}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight + 1 ? "auto" : "hidden";
+  };
+
+  const applyLayout = () => {
+    layoutFrame = 0;
+    syncViewportVars();
+    resizeTextarea();
+    syncInputHeight();
+  };
+
+  const scheduleLayout = () => {
+    if (layoutFrame) return;
+    layoutFrame = window.requestAnimationFrame(applyLayout);
+  };
+
+  const startFocusedLayout = () => {
+    if (layoutPoll) return;
+    layoutPoll = window.setInterval(scheduleLayout, 150);
+  };
+
+  const stopFocusedLayout = () => {
+    if (!layoutPoll) return;
+    window.clearInterval(layoutPoll);
+    layoutPoll = 0;
+  };
+
+  const setFocused = (nextFocused: boolean) => {
+    focused = nextFocused && mobileQuery.matches;
+    host.classList.toggle("chat-input-focused", focused);
+    if (focused) startFocusedLayout();
+    else stopFocusedLayout();
+    scheduleLayout();
+  };
+
+  const handleFocusIn = (event: FocusEvent) => {
+    if (event.target instanceof HTMLTextAreaElement && event.target.closest("message-editor")) {
+      setFocused(true);
+    }
+  };
+
+  const handleFocusOut = () => {
+    window.setTimeout(() => {
+      const textarea = getTextarea();
+      setFocused(document.activeElement === textarea);
+    }, 0);
+  };
+
+  const handleInput = (event: Event) => {
+    if (event.target instanceof HTMLTextAreaElement && event.target.closest("message-editor")) {
+      scheduleLayout();
+    }
+  };
+
+  const handleMobileQueryChange = () => {
+    const textarea = getTextarea();
+    setFocused(document.activeElement === textarea);
+  };
+
+  const mutationObserver = new MutationObserver(scheduleLayout);
+  mutationObserver.observe(host, { childList: true, subtree: true });
+
+  host.addEventListener("focusin", handleFocusIn);
+  host.addEventListener("focusout", handleFocusOut);
+  host.addEventListener("input", handleInput, true);
+  window.addEventListener("resize", scheduleLayout);
+  mobileQuery.addEventListener("change", handleMobileQueryChange);
+  visualViewport?.addEventListener("resize", scheduleLayout);
+  visualViewport?.addEventListener("scroll", scheduleLayout);
+  resizeObserver?.observe(host);
+  scheduleLayout();
+
+  return () => {
+    host.classList.remove("chat-input-focused");
+    mutationObserver.disconnect();
+    resizeObserver?.disconnect();
+    stopFocusedLayout();
+    if (layoutFrame) window.cancelAnimationFrame(layoutFrame);
+    host.removeEventListener("focusin", handleFocusIn);
+    host.removeEventListener("focusout", handleFocusOut);
+    host.removeEventListener("input", handleInput, true);
+    window.removeEventListener("resize", scheduleLayout);
+    mobileQuery.removeEventListener("change", handleMobileQueryChange);
+    visualViewport?.removeEventListener("resize", scheduleLayout);
+    visualViewport?.removeEventListener("scroll", scheduleLayout);
+    host.style.removeProperty("--chat-keyboard-inset");
+    host.style.removeProperty("--chat-input-left");
+    host.style.removeProperty("--chat-input-width");
+    host.style.removeProperty("--chat-input-height");
+  };
 }
 
 function ModelCommandDialog({

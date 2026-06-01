@@ -118,13 +118,33 @@
     @apply border-border outline-ring/50;
   }
 
+  html,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
     margin: 0;
     min-width: 320px;
-    min-height: 100vh;
+    min-height: 100%;
+    overflow: hidden;
     font-family:
       Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  @media (pointer: coarse) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
   }
 }
 
@@ -134,6 +154,13 @@ agent-chat-host > * {
   min-height: 0;
   height: 100%;
   font-size: 14px;
+}
+
+.agent-chat-host {
+  --chat-input-height: 0px;
+  --chat-input-left: 0px;
+  --chat-input-width: 100vw;
+  --chat-keyboard-inset: 0px;
 }
 
 .agent-chat-host agent-interface .max-w-3xl {
@@ -169,6 +196,14 @@ agent-chat-host > * {
   font-size: 13px;
 }
 
+.agent-chat-host agent-interface message-editor textarea {
+  box-sizing: border-box;
+  line-height: 1.4;
+  min-height: calc(2lh + 2rem) !important;
+  max-height: calc(6lh + 2rem) !important;
+  overflow-y: hidden;
+}
+
 .agent-chat-host markdown-block {
   font-size: 14px;
   line-height: 1.45;
@@ -176,4 +211,26 @@ agent-chat-host > * {
 
 .agent-chat-host artifacts-panel > .hidden {
   display: none !important;
+}
+
+@media (max-width: 800px), (pointer: coarse) {
+  .agent-chat-host agent-interface textarea,
+  .agent-chat-host agent-interface input {
+    font-size: 16px;
+  }
+
+  .agent-chat-host.chat-input-focused agent-interface > div.flex.flex-col.h-full > div.flex-1.overflow-y-auto {
+    padding-bottom: calc(var(--chat-input-height) + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(var(--chat-input-height) + env(safe-area-inset-bottom));
+  }
+
+  .agent-chat-host.chat-input-focused agent-interface > div.flex.flex-col.h-full > div.shrink-0 {
+    position: fixed;
+    left: var(--chat-input-left);
+    bottom: max(var(--chat-keyboard-inset), env(safe-area-inset-bottom));
+    z-index: 40;
+    width: var(--chat-input-width);
+    background: var(--background);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

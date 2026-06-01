@@ -15,6 +15,32 @@ export default function App() {
     void bootstrap();
   }, [bootstrap]);
 
+  useEffect(() => {
+    const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+    const isStandalone = () =>
+      standaloneQuery.matches ||
+      ("standalone" in window.navigator &&
+        (window.navigator as Navigator & { standalone?: boolean }).standalone === true);
+    const preventStandaloneZoom = (event: Event) => {
+      if (isStandalone()) event.preventDefault();
+    };
+    const preventStandalonePinch = (event: TouchEvent) => {
+      if (isStandalone() && event.touches.length > 1) event.preventDefault();
+    };
+
+    document.addEventListener("gesturestart", preventStandaloneZoom, { passive: false });
+    document.addEventListener("gesturechange", preventStandaloneZoom, { passive: false });
+    document.addEventListener("gestureend", preventStandaloneZoom, { passive: false });
+    document.addEventListener("touchmove", preventStandalonePinch, { passive: false });
+
+    return () => {
+      document.removeEventListener("gesturestart", preventStandaloneZoom);
+      document.removeEventListener("gesturechange", preventStandaloneZoom);
+      document.removeEventListener("gestureend", preventStandaloneZoom);
+      document.removeEventListener("touchmove", preventStandalonePinch);
+    };
+  }, []);
+
   if (status === "loading" || status === "idle") {
     return <Splash title="Loading harness" detail="Connecting to the SQLite-backed API." />;
   }
