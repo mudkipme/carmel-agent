@@ -131,8 +131,8 @@ export function SettingsPage() {
             })}
           </nav>
         </aside>
-        <section className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 md:p-6">
+        <section className="min-w-0 min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-4 p-3 sm:p-4 md:p-6">
             {activeSection === "models" ? (
               <ModelSettings
                 modelRefs={modelRefs}

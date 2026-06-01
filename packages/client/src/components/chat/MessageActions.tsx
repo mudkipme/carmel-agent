@@ -15,7 +15,7 @@ export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActi
   const editable = isUserMessage(message);
 
   return (
-    <div className="flex h-6 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+    <div className="coarse-pointer-visible flex h-6 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
       {copyValue ? (
         <Button
           type="button"

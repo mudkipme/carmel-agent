@@ -22,5 +22,5 @@ export function MarkdownContent({ content, thinking = false }: MarkdownContentPr
     blockRef.current.requestUpdate();
   }, [content, thinking]);
 
-  return <span ref={containerRef} />;
+  return <span ref={containerRef} className="block min-w-0 max-w-full" />;
 }

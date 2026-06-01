@@ -148,6 +148,18 @@
   }
 }
 
+@layer utilities {
+  @media (hover: none), (pointer: coarse) {
+    .coarse-pointer-visible {
+      opacity: 1 !important;
+    }
+
+    .coarse-pointer-hidden {
+      opacity: 0 !important;
+    }
+  }
+}
+
 .agent-chat-host {
   font-size: 14px;
 }
@@ -155,6 +167,16 @@
 .agent-chat-host markdown-block {
   font-size: 14px;
   line-height: 1.45;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.agent-chat-host markdown-block > div,
+.agent-chat-host code-block {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .markdown-content h1 {
@@ -189,6 +211,8 @@
 .markdown-content p {
   margin-top: 1rem;
   line-height: 1.65;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-content p:first-child {
@@ -199,6 +223,8 @@
   color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-content strong {
@@ -226,6 +252,8 @@
 .markdown-content li {
   margin-top: 0.5rem;
   line-height: 1.65;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown-content li > ul,
@@ -250,6 +278,10 @@
 .markdown-content table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.markdown-content .overflow-x-auto {
+  max-width: 100%;
 }
 
 .markdown-content th,

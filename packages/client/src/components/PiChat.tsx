@@ -393,6 +393,7 @@ function ModelCommandDialog({
       onOpenChange={onOpenChange}
       title="Select Model"
       description="Select one of the models configured in settings."
+      className="w-[calc(100vw-1.5rem)] max-w-md sm:max-w-lg"
     >
       <CommandInput placeholder="Search configured models..." />
       <CommandList>
@@ -406,10 +407,11 @@ function ModelCommandDialog({
               <CommandItem
                 key={configuredModel.id}
                 value={`${configuredModel.label} ${providerLabel} ${configuredModel.modelId}`}
+                className="min-w-0"
                 onSelect={() => onSelect(configuredModel)}
               >
                 <CheckIcon className={selected ? "opacity-100" : "opacity-0"} />
-                <div className="flex min-w-0 flex-col">
+                <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate">{configuredModel.label}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {providerLabel} · {configuredModel.modelId}

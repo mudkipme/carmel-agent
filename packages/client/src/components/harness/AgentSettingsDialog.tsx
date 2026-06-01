@@ -91,7 +91,7 @@ export function AgentSettingsDialog({
         <Button
           size="icon-sm"
           variant="ghost"
-          className={cn("shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100", triggerClassName)}
+          className={cn("coarse-pointer-visible shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100", triggerClassName)}
           title="Agent settings"
         >
           <SettingsIcon />

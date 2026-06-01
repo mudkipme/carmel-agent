@@ -2,7 +2,7 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import { BrainIcon, Loader2Icon, PaperclipIcon, SendIcon, SparklesIcon, SquareIcon, XIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -161,6 +161,7 @@ export function ChatInput({
         ref={textareaRef}
         value={value}
         rows={2}
+        enterKeyHint="enter"
         placeholder="Type a message..."
         className="max-h-60 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
         onChange={(event) => onValueChange(event.target.value)}
@@ -173,7 +174,7 @@ export function ChatInput({
         }}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.key === "Process") return;
-          if (event.key === "Enter" && !event.shiftKey) {
+          if (event.key === "Enter" && shouldSubmitOnEnter(event)) {
             event.preventDefault();
             send();
           }
@@ -245,4 +246,14 @@ export function ChatInput({
       </div>
     </div>
   );
+}
+
+function shouldSubmitOnEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
+  if (event.shiftKey) return false;
+  if (event.metaKey || event.ctrlKey) return true;
+  return !isTouchPrimaryInput();
+}
+
+function isTouchPrimaryInput() {
+  return window.matchMedia("(pointer: coarse), (hover: none)").matches;
 }

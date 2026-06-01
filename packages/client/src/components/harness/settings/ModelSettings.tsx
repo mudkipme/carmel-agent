@@ -118,8 +118,8 @@ export function ModelSettings({
   };
 
   return (
-    <div className="grid gap-6">
-      <section className="grid gap-4">
+    <div className="flex min-w-0 flex-col gap-6">
+      <section className="grid min-w-0 gap-4">
         <SectionHeader
           title="Fast Task Model"
           description="Used for lightweight background tasks such as session title generation."
@@ -133,7 +133,7 @@ export function ModelSettings({
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-w-[calc(100vw-2rem)]">
               <SelectGroup>
                 <SelectItem value="__session_model__">Use current session model</SelectItem>
                 {modelRefs.map((model) => (
@@ -148,14 +148,14 @@ export function ModelSettings({
         </Field>
       </section>
 
-      <section className="grid gap-4 border-t pt-6">
+      <section className="grid min-w-0 gap-4 border-t pt-6">
         <SectionHeader title="Model Management" description="Each provider config can have one entry per model." />
         <div className="grid gap-2">
           {modelRefs.map((model) => {
             const providerConfig = providerConfigs.find((item) => item.id === model.providerConfigId);
             const owned = model.ownerUserId === activeUserId;
             return (
-              <div key={model.id} className="flex items-center justify-between gap-3 rounded-md border bg-card p-2">
+              <div key={model.id} className="flex min-w-0 flex-col gap-3 rounded-md border bg-card p-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 truncate">
                     <span className="truncate text-sm font-medium">{model.label}</span>
@@ -166,7 +166,7 @@ export function ModelSettings({
                   </p>
                 </div>
                 {owned ? (
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="flex shrink-0 items-center justify-end gap-1">
                     <Button
                       type="button"
                       variant={model.shared ? "secondary" : "outline"}
@@ -192,7 +192,7 @@ export function ModelSettings({
         ) : null}
       </section>
 
-      <section className="grid gap-4 border-t pt-6">
+      <section className="grid min-w-0 gap-4 border-t pt-6">
         <SectionHeader title="Add Model" description="Adding an existing provider/model pair will reuse the existing entry." />
         <div className="grid gap-3">
           <Select
@@ -208,7 +208,7 @@ export function ModelSettings({
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-w-[calc(100vw-2rem)]">
               <SelectGroup>
                 {providerConfigs.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
@@ -256,9 +256,9 @@ function ModelPicker({
     : models;
 
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <div className="rounded-md border bg-background">
-        <div className="flex h-9 items-center gap-2 border-b px-3">
+        <div className="flex h-9 min-w-0 items-center gap-2 border-b px-3">
           <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
           <Input
             value={query}
@@ -273,7 +273,7 @@ function ModelPicker({
               <button
                 key={model.id}
                 type="button"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                className="flex w-full min-w-0 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
                 onClick={() => onValueChange(model.id)}
               >
                 <CheckIcon className={model.id === value ? "size-4 opacity-100" : "size-4 opacity-0"} />

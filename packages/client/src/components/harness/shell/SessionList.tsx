@@ -82,7 +82,7 @@ function SessionActions({
     <div className="relative flex h-full w-8 shrink-0 items-center justify-end">
       <span
         className={cn(
-          "text-xs text-muted-foreground transition-opacity group-hover:opacity-0 group-focus-within:opacity-0",
+          "coarse-pointer-hidden text-xs text-muted-foreground transition-opacity group-hover:opacity-0 group-focus-within:opacity-0",
           open && "opacity-0",
         )}
       >
@@ -94,7 +94,7 @@ function SessionActions({
             size="icon-xs"
             variant="ghost"
             title="Session actions"
-            className="absolute right-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
+            className="coarse-pointer-visible absolute right-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
           >
             <EllipsisIcon />
           </Button>

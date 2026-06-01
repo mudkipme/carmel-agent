@@ -196,7 +196,7 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
               )}
               <span className="truncate text-[13px]">{entry.name}</span>
             </div>
-            <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+            <div className="coarse-pointer-visible flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
               <Button
                 size="icon-xs"
                 variant="ghost"

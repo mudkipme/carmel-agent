@@ -39,7 +39,7 @@ export function ChatMessages({
       : messages;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4">
       {renderMessages.map((message, index) => {
         if (message.role === "artifact" || message.role === "toolResult") return null;
         const streaming = isStreaming && message === streamingMessage;
@@ -82,7 +82,7 @@ function MessageItem({
 }) {
   if (message.role === "assistant") {
     return (
-      <div className="group flex flex-col gap-1">
+      <div className="group flex min-w-0 flex-col gap-1">
         <AssistantMessage
           messageForActions={message}
           message={message as AssistantMessageType}
@@ -98,7 +98,7 @@ function MessageItem({
 
   if (message.role === "user" || message.role === "user-with-attachments") {
     return (
-      <div className="group flex flex-col gap-1">
+      <div className="group flex min-w-0 flex-col gap-1">
         <UserMessage message={message} />
         <div className="px-4">
           <MessageActions
@@ -122,8 +122,8 @@ function UserMessage({ message }: { message: AgentMessage }) {
   const attachments = getMessageAttachments(message);
 
   return (
-    <div className="flex justify-start px-4">
-      <div className="max-w-full rounded-xl bg-muted px-4 py-2 text-sm">
+    <div className="flex min-w-0 justify-start px-4">
+      <div className="min-w-0 max-w-full rounded-xl bg-muted px-4 py-2 text-sm">
         {skill ? (
           <details>
             <summary className="cursor-pointer text-sm font-medium">Using skill: {skill.name}</summary>
@@ -192,11 +192,11 @@ function AssistantMessage({
   );
 
   return (
-    <div className="flex flex-col gap-3 px-4 text-sm">
+    <div className="flex min-w-0 flex-col gap-3 px-4 text-sm">
       {assistantContent.map((part, index) => {
         if (part.type === "text" && part.text.trim()) {
           return (
-            <div key={index} className="flex flex-col gap-1">
+            <div key={index} className="flex min-w-0 flex-col gap-1">
               <MarkdownContent content={part.text} />
               {index === lastTextIndex ? (
                 <div className="-mt-1">
@@ -208,7 +208,7 @@ function AssistantMessage({
         }
         if (part.type === "thinking" && part.thinking.trim()) {
           return (
-            <details key={index} className="rounded-md border bg-muted/50 px-3 py-2 text-muted-foreground" open={streaming}>
+            <details key={index} className="min-w-0 rounded-md border bg-muted/50 px-3 py-2 text-muted-foreground" open={streaming}>
               <summary className="cursor-pointer text-xs font-medium">Thinking</summary>
               <div className="mt-2">
                 <MarkdownContent content={part.thinking} thinking />
