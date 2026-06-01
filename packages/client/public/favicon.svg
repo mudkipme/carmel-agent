@@ -1,13 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Carmel Agent">
-  <rect x="64" y="64" width="896" height="896" rx="208" fill="#0a0a0a"/>
-  <rect x="128" y="128" width="768" height="768" rx="160" fill="none" stroke="#27272a" stroke-width="48"/>
-  <path d="M512 298 308 430v164l204 132 204-132V430L512 298Z" fill="none" stroke="#fafafa" stroke-width="56" stroke-linejoin="round"/>
-  <path d="M512 298v428M308 430l408 164M716 430 308 594" fill="none" stroke="#fafafa" stroke-opacity=".42" stroke-width="38" stroke-linecap="round"/>
-  <circle cx="512" cy="298" r="66" fill="#f59e0b"/>
-  <circle cx="308" cy="430" r="54" fill="#fafafa"/>
-  <circle cx="716" cy="430" r="54" fill="#fafafa"/>
-  <circle cx="308" cy="594" r="54" fill="#fafafa"/>
-  <circle cx="716" cy="594" r="54" fill="#fafafa"/>
-  <circle cx="512" cy="726" r="66" fill="#f59e0b"/>
-  <circle cx="512" cy="512" r="88" fill="#0a0a0a" stroke="#fafafa" stroke-width="48"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Carmel Agent</title>
+  <desc id="desc">A rounded navy app icon with a precise cyan connected orbit mark.</desc>
+  <defs>
+    <linearGradient id="bg" x1="96" y1="64" x2="928" y2="960" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#082a55"/>
+      <stop offset="0.55" stop-color="#061d42"/>
+      <stop offset="1" stop-color="#041432"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="260" y1="190" x2="764" y2="834" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#35e8ff"/>
+      <stop offset="1" stop-color="#1292b8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="206" fill="url(#bg)"/>
+
+  <g fill="none" stroke-linecap="butt" stroke-linejoin="round">
+    <circle cx="512" cy="512" r="280" stroke="#f8fbff" stroke-width="42"/>
+    <path d="M439.5 241.5A280 280 0 0 0 232 512" stroke="url(#cyan)" stroke-width="42"/>
+    <path d="M765.8 630.3A280 280 0 0 1 512 792" stroke="url(#cyan)" stroke-width="42"/>
+  </g>
+
+  <g fill="none" stroke="#f8fbff" stroke-width="42" stroke-linecap="butt" stroke-linejoin="round">
+    <path d="M512 315v87"/>
+    <path d="M330 590l83-48"/>
+    <path d="M694 590l-83-48"/>
+    <path d="M512 622v95"/>
+  </g>
+
+  <circle cx="512" cy="512" r="116" fill="#061d42" stroke="#f8fbff" stroke-width="50"/>
+  <circle cx="512" cy="512" r="70" fill="url(#cyan)"/>
+
+  <g stroke="#f8fbff" stroke-width="24">
+    <circle cx="512" cy="252" r="68" fill="url(#cyan)"/>
+    <circle cx="258" cy="612" r="68" fill="url(#cyan)"/>
+    <circle cx="766" cy="612" r="68" fill="url(#cyan)"/>
+    <circle cx="512" cy="772" r="68" fill="url(#cyan)"/>
+  </g>
 </svg>
