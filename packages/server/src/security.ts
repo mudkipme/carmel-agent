@@ -4,6 +4,7 @@ import type { MiddlewareHandler } from "hono";
 const encryptedPrefix = "enc:v1:";
 const encryptedJsonKey = "__carmel_encrypted_v1";
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
+const defaultAllowedBrowserOrigins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://porygon-z.lan:5173"];
 
 export function protectSecret(value: string | null | undefined) {
   if (!value) return value ?? null;
@@ -54,7 +55,7 @@ export const rejectCrossOriginMutations: MiddlewareHandler = async (c, next) => 
   }
 
   const origin = c.req.header("origin");
-  if (!origin || isAllowedOrigin(origin, c.req.header("x-forwarded-host") ?? c.req.header("host"))) {
+  if (!origin || isAllowedBrowserOrigin(origin, c.req.header("x-forwarded-host") ?? c.req.header("host"))) {
     await next();
     return;
   }
@@ -62,18 +63,33 @@ export const rejectCrossOriginMutations: MiddlewareHandler = async (c, next) => 
   return c.json({ error: "Cross-origin API requests are not allowed." }, 403);
 };
 
-function isAllowedOrigin(origin: string, requestHost?: string) {
-  try {
-    const originUrl = new URL(origin);
-    if (requestHost && originUrl.host === requestHost) return true;
+export function allowedCorsOrigin(origin: string, requestHost?: string) {
+  const originUrl = parseUrl(origin);
+  if (!originUrl) return undefined;
+  if (requestHost && originUrl.host === requestHost) return originUrl.origin;
+  return allowedBrowserOrigins().includes(originUrl.origin) ? originUrl.origin : undefined;
+}
 
-    const configured = (process.env.CARMEL_ALLOWED_ORIGINS ?? "")
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-    return new Set(["http://localhost:5173", "http://127.0.0.1:5173", "http://porygon-z.lan:5173", ...configured]).has(originUrl.origin);
+export function isAllowedBrowserOrigin(origin: string, requestHost?: string) {
+  return Boolean(allowedCorsOrigin(origin, requestHost));
+}
+
+function allowedBrowserOrigins() {
+  return [...defaultAllowedBrowserOrigins, ...configuredBrowserOrigins()];
+}
+
+function configuredBrowserOrigins() {
+  return (process.env.CARMEL_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((item) => parseUrl(item.trim())?.origin)
+    .filter((origin): origin is string => Boolean(origin));
+}
+
+function parseUrl(value: string) {
+  try {
+    return value ? new URL(value) : undefined;
   } catch {
-    return false;
+    return undefined;
   }
 }
 

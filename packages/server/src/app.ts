@@ -8,7 +8,7 @@ import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { requireAuth, type AuthVariables } from "./auth.ts";
 import { createApiRoutes } from "./routes/index.ts";
-import { rejectCrossOriginMutations } from "./security.ts";
+import { allowedCorsOrigin, rejectCrossOriginMutations } from "./security.ts";
 import { isValidationError, validationErrorMessage } from "./validation.ts";
 
 export function createApp() {
@@ -24,7 +24,7 @@ export function createApp() {
   app.use(
     "/api/*",
     cors({
-      origin: ["http://localhost:5173", "http://127.0.0.1:5173", "http://porygon-z.lan:5173"],
+      origin: (origin, c) => allowedCorsOrigin(origin, c.req.header("x-forwarded-host") ?? c.req.header("host")),
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       credentials: true,
     }),
