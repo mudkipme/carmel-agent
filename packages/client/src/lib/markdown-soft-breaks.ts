@@ -1,3 +1,4 @@
+import "@mariozechner/mini-lit/dist/CodeBlock.js";
 import { MarkdownBlock } from "@mariozechner/mini-lit/dist/MarkdownBlock.js";
 
 const patched = Symbol.for("carmel.markdownSoftBreaksPatched");

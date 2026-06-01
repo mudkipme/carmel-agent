@@ -270,11 +270,18 @@ function readRecordValue(record: Record<string, unknown>, key: string) {
 }
 
 function firstTimestamp(messages: AgentMessage[]) {
-  return messages.find((message) => Number.isFinite(message.timestamp))?.timestamp;
+  for (const message of messages) {
+    if (typeof message.timestamp === "number" && Number.isFinite(message.timestamp)) return message.timestamp;
+  }
+  return undefined;
 }
 
 function lastTimestamp(messages: AgentMessage[]) {
-  return messages.findLast((message) => Number.isFinite(message.timestamp))?.timestamp;
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const timestamp = messages[index].timestamp;
+    if (typeof timestamp === "number" && Number.isFinite(timestamp)) return timestamp;
+  }
+  return undefined;
 }
 
 function timestampFrom(value: unknown) {

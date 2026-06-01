@@ -77,6 +77,16 @@ async function runOAuthLoginFlow(flow: OAuthFlow, providerConfig: ProviderConfig
         flow.status = "auth";
         flow.auth = auth;
       },
+      onDeviceCode: (info) => {
+        flow.status = "auth";
+        flow.auth = {
+          url: info.verificationUri,
+          instructions: [
+            `Enter code: ${info.userCode}`,
+            info.expiresInSeconds ? `This code expires in ${info.expiresInSeconds} seconds.` : undefined,
+          ].filter(Boolean).join(" "),
+        };
+      },
       onProgress: (message) => {
         flow.progress = message;
       },

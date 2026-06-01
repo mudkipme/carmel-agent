@@ -1,14 +1,11 @@
-import {
-  ChatPanel,
-  createExtractDocumentTool,
-  createJavaScriptReplTool,
-} from "@earendil-works/pi-web-ui";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
-import "@earendil-works/pi-web-ui/app.css";
+import type { ImageContent } from "@earendil-works/pi-ai";
 import { CheckIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 import { Button } from "@/components/ui/button";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
@@ -20,22 +17,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import { api } from "@/lib/api";
-import { ensurePiWebUiStorage } from "@/lib/pi-web-ui-memory-storage";
 import { RemoteAgent } from "@/lib/remote-agent";
-import {
-  EDIT_USER_MESSAGE_EVENT,
-  ensureRetryUserMessageRenderer,
-  FORK_MESSAGE_EVENT,
-  RETRY_USER_MESSAGE_EVENT,
-} from "@/lib/retry-user-message-renderer";
-import { ensureToolSummaryRenderer } from "@/lib/tool-summary-renderer";
+import { findMessageIndex, getMessageText, isUserMessage, updateUserMessageContent } from "@/components/chat/chat-utils";
 import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, ModelRef, ProviderConfig, Session } from "@carmel-agent/shared";
-
-ensureRetryUserMessageRenderer();
-ensureToolSummaryRenderer();
 
 type PiChatProps = {
   agentConfig: AgentConfig;
@@ -53,10 +39,10 @@ export function PiChat({
   providerConfigs,
 }: PiChatProps) {
   const navigate = useNavigate();
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const panelRef = useRef<ChatPanel | null>(null);
   const agentRef = useRef<RemoteAgent | null>(null);
-  const inputDraftRef = useRef("");
+  const [agent, setAgent] = useState<RemoteAgent | null>(null);
+  const [input, setInput] = useState("");
+  const [, setRenderVersion] = useState(0);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [editingUserMessage, setEditingUserMessage] = useState<{
     message: AgentMessage;
@@ -71,79 +57,9 @@ export function PiChat({
   const sessionRef = useRef(session);
   const messagesSnapshotRef = useRef(session.messages);
   const thinkingLevelSnapshotRef = useRef(session.thinkingLevel);
-
-  const retryFromMessage = useCallback(
-    async (message: AgentMessage) => {
-      const agent = agentRef.current;
-      const panel = panelRef.current;
-      if (!agent || agent.state.isStreaming || !isRetryableUserMessage(message)) return;
-
-      const currentMessages = [...agent.state.messages];
-      const index = findMessageIndex(currentMessages, message);
-      if (index < 0) return;
-
-      const truncatedMessages = currentMessages.slice(0, index + 1);
-      const previousMessages = agent.state.messages;
-      messagesSnapshotRef.current = truncatedMessages;
-      agent.state.messages = truncatedMessages;
-      panel?.agentInterface?.requestUpdate();
-      panel?.requestUpdate();
-
-      try {
-        const saved = await truncateSessionMessages(sessionRef.current.id, index, agent.state.thinkingLevel);
-        messagesSnapshotRef.current = saved.messages;
-        agent.state.messages = saved.messages;
-        await agent.continue();
-      } catch (error) {
-        messagesSnapshotRef.current = previousMessages;
-        agent.state.messages = previousMessages;
-        panel?.agentInterface?.requestUpdate();
-        panel?.requestUpdate();
-        console.error("Failed to retry message", error);
-      }
-    },
-    [truncateSessionMessages],
-  );
-
-  const saveUserMessage = useCallback(
-    async (message: AgentMessage, content: string, submit: boolean) => {
-      const agent = agentRef.current;
-      const panel = panelRef.current;
-      if (!agent || agent.state.isStreaming || !isRetryableUserMessage(message)) return;
-
-      const currentMessages = [...agent.state.messages];
-      const index = findMessageIndex(currentMessages, message);
-      if (index < 0) return;
-
-      const editedMessage = updateUserMessageContent(currentMessages[index], content);
-      const nextMessages = submit
-        ? [...currentMessages.slice(0, index), editedMessage]
-        : currentMessages.map((item, itemIndex) => (itemIndex === index ? editedMessage : item));
-      const previousMessages = agent.state.messages;
-
-      messagesSnapshotRef.current = nextMessages;
-      agent.state.messages = nextMessages;
-      panel?.agentInterface?.requestUpdate();
-      panel?.requestUpdate();
-
-      try {
-        const saved = await editSessionMessage(sessionRef.current.id, index, content, {
-          truncate: submit,
-          thinkingLevel: agent.state.thinkingLevel,
-        });
-        messagesSnapshotRef.current = saved.messages;
-        agent.state.messages = saved.messages;
-        if (submit) await agent.continue();
-      } catch (error) {
-        messagesSnapshotRef.current = previousMessages;
-        agent.state.messages = previousMessages;
-        panel?.agentInterface?.requestUpdate();
-        panel?.requestUpdate();
-        console.error("Failed to save message edit", error);
-      }
-    },
-    [editSessionMessage],
-  );
+  const requestRender = useCallback(() => {
+    setRenderVersion((version) => version + 1);
+  }, []);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -151,184 +67,209 @@ export function PiChat({
     thinkingLevelSnapshotRef.current = session.thinkingLevel;
   }, [session]);
 
-  const insertCommandText = useCallback((text: string) => {
-    const panel = panelRef.current ?? (hostRef.current?.querySelector("pi-chat-panel") as ChatPanel | null);
-    panel?.agentInterface?.setInput(text);
-    inputDraftRef.current = text;
-    requestAnimationFrame(() => {
-      const textarea = panel?.querySelector("message-editor textarea") as HTMLTextAreaElement | null;
-      textarea?.focus();
-      textarea?.setSelectionRange(text.length, text.length);
-    });
-  }, []);
+  const retryFromMessage = useCallback(
+    async (message: AgentMessage) => {
+      const activeAgent = agentRef.current;
+      if (!activeAgent || activeAgent.state.isStreaming || !isUserMessage(message)) return;
 
-  const captureCurrentInputDraft = useCallback(() => {
-    const panel = panelRef.current ?? (hostRef.current?.querySelector("pi-chat-panel") as ChatPanel | null);
-    const textarea = panel?.querySelector("message-editor textarea") as HTMLTextAreaElement | null;
-    inputDraftRef.current = textarea?.value ?? inputDraftRef.current;
-  }, []);
+      const currentMessages = [...activeAgent.state.messages];
+      const index = findMessageIndex(currentMessages, message);
+      if (index < 0) return;
+
+      const truncatedMessages = currentMessages.slice(0, index + 1);
+      const previousMessages = activeAgent.state.messages;
+      messagesSnapshotRef.current = truncatedMessages;
+      activeAgent.state.messages = truncatedMessages;
+      requestRender();
+
+      try {
+        const saved = await truncateSessionMessages(sessionRef.current.id, index, activeAgent.state.thinkingLevel);
+        messagesSnapshotRef.current = saved.messages;
+        activeAgent.state.messages = saved.messages;
+        requestRender();
+        await activeAgent.continue();
+      } catch (error) {
+        messagesSnapshotRef.current = previousMessages;
+        activeAgent.state.messages = previousMessages;
+        requestRender();
+        console.error("Failed to retry message", error);
+      }
+    },
+    [requestRender, truncateSessionMessages],
+  );
+
+  const saveUserMessage = useCallback(
+    async (message: AgentMessage, content: string, submit: boolean) => {
+      const activeAgent = agentRef.current;
+      if (!activeAgent || activeAgent.state.isStreaming || !isUserMessage(message)) return;
+
+      const currentMessages = [...activeAgent.state.messages];
+      const index = findMessageIndex(currentMessages, message);
+      if (index < 0) return;
+
+      const editedMessage = updateUserMessageContent(currentMessages[index], content);
+      const nextMessages = submit
+        ? [...currentMessages.slice(0, index), editedMessage]
+        : currentMessages.map((item, itemIndex) => (itemIndex === index ? editedMessage : item));
+      const previousMessages = activeAgent.state.messages;
+
+      messagesSnapshotRef.current = nextMessages;
+      activeAgent.state.messages = nextMessages;
+      requestRender();
+
+      try {
+        const saved = await editSessionMessage(sessionRef.current.id, index, content, {
+          truncate: submit,
+          thinkingLevel: activeAgent.state.thinkingLevel,
+        });
+        messagesSnapshotRef.current = saved.messages;
+        activeAgent.state.messages = saved.messages;
+        requestRender();
+        if (submit) await activeAgent.continue();
+      } catch (error) {
+        messagesSnapshotRef.current = previousMessages;
+        activeAgent.state.messages = previousMessages;
+        requestRender();
+        console.error("Failed to save message edit", error);
+      }
+    },
+    [editSessionMessage, requestRender],
+  );
 
   const forkFromMessage = useCallback(
     async (message: AgentMessage) => {
-      const agent = agentRef.current;
-      if (!agent || agent.state.isStreaming) return;
+      const activeAgent = agentRef.current;
+      if (!activeAgent || activeAgent.state.isStreaming) return;
 
-      const index = findMessageIndex([...agent.state.messages], message);
+      const index = findMessageIndex([...activeAgent.state.messages], message);
       if (index < 0) return;
 
       try {
-        captureCurrentInputDraft();
         const fork = await forkSession(sessionRef.current.id, index);
         navigate(`/agents/${fork.agentId}/sessions/${fork.id}`);
       } catch (error) {
         console.error("Failed to fork session", error);
       }
     },
-    [captureCurrentInputDraft, forkSession, navigate],
+    [forkSession, navigate],
   );
 
   useEffect(() => {
     let cancelled = false;
-    const host = hostRef.current;
-    if (!host) return;
-
-    captureCurrentInputDraft();
-    host.replaceChildren();
-    const cleanupMobileChatInput = enhanceMobileChatInput(host);
-    setEditingUserMessage(null);
+    let activeAgent: RemoteAgent | undefined;
+    let unsubscribe: (() => void) | undefined;
 
     const messagesForAgent = messagesSnapshotRef.current;
-    const thinkingLevelForAgent = clampThinkingLevel(
-      resolvedModel,
-      thinkingLevelSnapshotRef.current,
-    );
+    const thinkingLevelForAgent = clampThinkingLevel(resolvedModel, thinkingLevelSnapshotRef.current);
 
-    let agent: RemoteAgent | undefined;
-    let panel: ChatPanel | undefined;
-    let unsubscribe: (() => void) | undefined;
-    const handleRetry = (event: Event) => {
-      const message = (event as CustomEvent<{ message?: AgentMessage }>).detail?.message;
-      if (message) void retryFromMessage(message);
-    };
-    const handleEdit = (event: Event) => {
-      const message = (event as CustomEvent<{ message?: AgentMessage }>).detail?.message;
-      if (message && isRetryableUserMessage(message)) {
-        setEditingUserMessage({ message, draft: getUserMessageText(message) });
-      }
-    };
-    const handleFork = (event: Event) => {
-      const message = (event as CustomEvent<{ message?: AgentMessage }>).detail?.message;
-      if (message) void forkFromMessage(message);
-    };
-    host.addEventListener(RETRY_USER_MESSAGE_EVENT, handleRetry);
-    host.addEventListener(EDIT_USER_MESSAGE_EVENT, handleEdit);
-    host.addEventListener(FORK_MESSAGE_EVENT, handleFork);
+    void api.getActiveSessionRun(session.id).then(
+      (activeRun) => {
+        if (cancelled) return;
+        activeAgent = new RemoteAgent({
+          agentId: agentConfig.id,
+          sessionId: session.id,
+          modelRefId: modelRef.id,
+          model: resolvedModel,
+          thinkingLevel: thinkingLevelForAgent,
+          messages: activeRun ? sessionRef.current.messages : messagesForAgent,
+          onRunComplete: () => refreshSession(session.id),
+        });
+        agentRef.current = activeAgent;
+        setAgent(activeAgent);
 
-    void ensurePiWebUiStorage().then(async () => {
-      if (cancelled || !hostRef.current) return;
-
-      const activeRun = await api.getActiveSessionRun(session.id).catch(() => null);
-      if (cancelled || !hostRef.current) return;
-
-      agent = new RemoteAgent({
-        agentId: agentConfig.id,
-        sessionId: session.id,
-        modelRefId: modelRef.id,
-        model: resolvedModel,
-        thinkingLevel: thinkingLevelForAgent,
-        messages: activeRun ? sessionRef.current.messages : messagesForAgent,
-        onRunComplete: () => refreshSession(session.id),
-      });
-      agentRef.current = agent;
-
-      unsubscribe = agent.subscribe(async (event) => {
-        if (!agent) return;
-        if (event.type === "message_end") {
-          agent.state.messages = [...agent.state.messages];
-          messagesSnapshotRef.current = agent.state.messages;
-        }
-        if (event.type === "agent_end") {
-          const messages = [...agent.state.messages];
-          agent.state.messages = messages;
-          messagesSnapshotRef.current = messages;
-          thinkingLevelSnapshotRef.current = agent.state.thinkingLevel;
-          window.setTimeout(() => {
-            panel?.agentInterface?.requestUpdate();
-            panel?.requestUpdate();
-          }, 0);
-        }
-      });
-
-      panel = new ChatPanel();
-      panelRef.current = panel;
-      await panel.setAgent(agent as never, {
-        onApiKeyRequired: async () => true,
-        onBeforeSend: async () => {
-          const nextThinkingLevel = agentRef.current?.state.thinkingLevel;
-          const currentSession = sessionRef.current;
-          if (!nextThinkingLevel || nextThinkingLevel === currentSession.thinkingLevel) return;
-          await updateSession(currentSession.id, { thinkingLevel: nextThinkingLevel });
-        },
-        onModelSelect: () => setModelDialogOpen(true),
-        toolsFactory: (_agent, _agentInterface, _artifactsPanel, runtimeProvidersFactory) => {
-          const tools = [];
-          if (agentConfig.permissions.javascript) {
-            const replTool = createJavaScriptReplTool();
-            replTool.runtimeProvidersFactory = runtimeProvidersFactory;
-            tools.push(replTool);
+        unsubscribe = activeAgent.subscribe(async (event) => {
+          if (!activeAgent) return;
+          if (event.type === "message_end") {
+            activeAgent.state.messages = [...activeAgent.state.messages];
+            messagesSnapshotRef.current = activeAgent.state.messages;
           }
-          if (agentConfig.permissions.documentExtract) tools.push(createExtractDocumentTool());
-          return tools;
-        },
-      });
-      hostRef.current.appendChild(panel);
-      if (inputDraftRef.current) panel.agentInterface?.setInput(inputDraftRef.current);
-      if (activeRun) void agent.attachToRun(activeRun.runId, sessionRef.current.messages);
-    });
+          if (event.type === "agent_end") {
+            const messages = [...activeAgent.state.messages];
+            activeAgent.state.messages = messages;
+            messagesSnapshotRef.current = messages;
+            thinkingLevelSnapshotRef.current = activeAgent.state.thinkingLevel;
+          }
+          requestRender();
+        });
+
+        requestRender();
+        if (activeRun) {
+          requestRender();
+          void activeAgent.attachToRun(activeRun.runId, sessionRef.current.messages);
+        }
+      },
+      () => {
+        if (cancelled) return;
+        activeAgent = new RemoteAgent({
+          agentId: agentConfig.id,
+          sessionId: session.id,
+          modelRefId: modelRef.id,
+          model: resolvedModel,
+          thinkingLevel: thinkingLevelForAgent,
+          messages: messagesForAgent,
+          onRunComplete: () => refreshSession(session.id),
+        });
+        agentRef.current = activeAgent;
+        setAgent(activeAgent);
+        unsubscribe = activeAgent.subscribe(() => {
+          requestRender();
+        });
+        requestRender();
+      },
+    );
 
     return () => {
       cancelled = true;
-      captureCurrentInputDraft();
-      if (agent) {
-        messagesSnapshotRef.current = agent.state.messages;
-        thinkingLevelSnapshotRef.current = agent.state.thinkingLevel;
+      if (activeAgent) {
+        messagesSnapshotRef.current = activeAgent.state.messages;
+        thinkingLevelSnapshotRef.current = activeAgent.state.thinkingLevel;
       }
-      host.removeEventListener(RETRY_USER_MESSAGE_EVENT, handleRetry);
-      host.removeEventListener(EDIT_USER_MESSAGE_EVENT, handleEdit);
-      host.removeEventListener(FORK_MESSAGE_EVENT, handleFork);
       unsubscribe?.();
-      agent?.detach();
-      cleanupMobileChatInput();
+      activeAgent?.detach();
       agentRef.current = null;
-      panelRef.current = null;
-      host.replaceChildren();
+      setAgent(null);
     };
-  }, [
-    agentConfig,
-    modelRef,
-    refreshSession,
-    resolvedModel,
-    retryFromMessage,
-    saveUserMessage,
-    forkFromMessage,
-    session.id,
-    updateSession,
-    insertCommandText,
-    captureCurrentInputDraft,
-  ]);
+  }, [agentConfig.id, modelRef.id, refreshSession, requestRender, resolvedModel, session.id]);
 
   useEffect(() => {
     const selectedThinkingLevel = clampThinkingLevel(resolvedModel, session.thinkingLevel);
     if (selectedThinkingLevel === session.thinkingLevel) return;
-    const agent = agentRef.current;
-    if (agent) agent.state.thinkingLevel = selectedThinkingLevel;
+    const activeAgent = agentRef.current;
+    if (activeAgent) activeAgent.state.thinkingLevel = selectedThinkingLevel;
     void updateSession(session.id, { thinkingLevel: selectedThinkingLevel });
   }, [resolvedModel, session.id, session.thinkingLevel, updateSession]);
 
+  const sendMessage = (text: string, images?: ImageContent[]) => {
+    const activeAgent = agentRef.current;
+    if (!activeAgent || activeAgent.state.isStreaming) return;
+    const nextThinkingLevel = activeAgent.state.thinkingLevel;
+    const currentSession = sessionRef.current;
+    const send = async () => {
+      if (nextThinkingLevel !== currentSession.thinkingLevel) {
+        await updateSession(currentSession.id, { thinkingLevel: nextThinkingLevel });
+      }
+      await activeAgent.prompt(text, images);
+    };
+    requestRender();
+    void send();
+  };
+
   const selectModel = async (nextModelRef: ModelRef) => {
-    captureCurrentInputDraft();
-    await updateSession(session.id, { modelRefId: nextModelRef.id });
     setModelDialogOpen(false);
+    const activeAgent = agentRef.current;
+    const nextModel = resolveModelRef(nextModelRef);
+    const nextThinkingLevel = clampThinkingLevel(nextModel, activeAgent?.state.thinkingLevel ?? session.thinkingLevel);
+    if (activeAgent) {
+      activeAgent.setModel(nextModelRef.id, nextModel, nextThinkingLevel);
+      thinkingLevelSnapshotRef.current = nextThinkingLevel;
+      requestRender();
+    }
+
+    try {
+      await updateSession(session.id, { modelRefId: nextModelRef.id, thinkingLevel: nextThinkingLevel });
+    } catch (error) {
+      console.error("Failed to update session model", error);
+    }
   };
 
   const saveEdit = async (submit: boolean) => {
@@ -338,11 +279,45 @@ export function PiChat({
     await saveUserMessage(message, draft, submit);
   };
 
+  const setThinkingLevel = (level: ThinkingLevel) => {
+    const activeAgent = agentRef.current;
+    if (!activeAgent) return;
+    activeAgent.state.thinkingLevel = level;
+    thinkingLevelSnapshotRef.current = level;
+    requestRender();
+  };
+
+  const insertCommandText = (text: string) => {
+    setInput(text);
+  };
+
   return (
     <>
       <div className="relative h-full min-h-0">
-        <div ref={hostRef} className="agent-chat-host h-full min-h-0" />
-        <div className="absolute right-3 top-3 z-10">
+        {agent ? (
+          <ChatPanel
+            messages={agent.state.messages}
+            streamingMessage={agent.state.streamingMessage}
+            pendingToolCalls={agent.state.pendingToolCalls}
+            isStreaming={agent.state.isStreaming}
+            currentModel={agent.state.model}
+            thinkingLevel={agent.state.thinkingLevel}
+            input={input}
+            onInputChange={setInput}
+            onThinkingLevelChange={setThinkingLevel}
+            onSend={sendMessage}
+            onAbort={() => agent.abort()}
+            onModelSelect={() => setModelDialogOpen(true)}
+            onEditMessage={(message) => setEditingUserMessage({ message, draft: getMessageText(message) })}
+            onRetryMessage={(message) => void retryFromMessage(message)}
+            onForkMessage={(message) => void forkFromMessage(message)}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+            Loading chat...
+          </div>
+        )}
+        <div className="absolute right-3 top-3">
           <AgentCommandPalette agent={agentConfig} onInsert={insertCommandText} />
         </div>
       </div>
@@ -397,164 +372,6 @@ export function PiChat({
   );
 }
 
-const CHAT_INPUT_MIN_ROWS = 2;
-const CHAT_INPUT_MAX_ROWS = 6;
-const MOBILE_CHAT_QUERY = "(max-width: 800px), (pointer: coarse)";
-
-function enhanceMobileChatInput(host: HTMLElement) {
-  const visualViewport = window.visualViewport;
-  const mobileQuery = window.matchMedia(MOBILE_CHAT_QUERY);
-  let focused = false;
-  let layoutFrame = 0;
-  let layoutPoll = 0;
-  let observedInputArea: HTMLElement | null = null;
-
-  const resizeObserver =
-    typeof ResizeObserver === "undefined"
-      ? undefined
-      : new ResizeObserver(() => {
-          scheduleLayout();
-        });
-
-  const getTextarea = () => host.querySelector("message-editor textarea") as HTMLTextAreaElement | null;
-
-  const getInputArea = () => {
-    const editor = host.querySelector("message-editor");
-    return (editor?.parentElement?.parentElement as HTMLElement | null) ?? null;
-  };
-
-  const syncViewportVars = () => {
-    const rect = host.getBoundingClientRect();
-    const viewportHeight = visualViewport?.height ?? window.innerHeight;
-    const viewportOffsetTop = visualViewport?.offsetTop ?? 0;
-    const keyboardInset = visualViewport
-      ? Math.max(0, window.innerHeight - viewportHeight - viewportOffsetTop)
-      : 0;
-
-    host.style.setProperty("--chat-keyboard-inset", `${Math.round(keyboardInset)}px`);
-    host.style.setProperty("--chat-input-left", `${Math.max(0, Math.round(rect.left))}px`);
-    host.style.setProperty("--chat-input-width", `${Math.round(rect.width)}px`);
-  };
-
-  const syncInputHeight = () => {
-    const inputArea = getInputArea();
-    if (!inputArea) return;
-    host.style.setProperty("--chat-input-height", `${Math.ceil(inputArea.getBoundingClientRect().height)}px`);
-
-    if (inputArea !== observedInputArea) {
-      if (observedInputArea) resizeObserver?.unobserve(observedInputArea);
-      observedInputArea = inputArea;
-      resizeObserver?.observe(inputArea);
-    }
-  };
-
-  const resizeTextarea = () => {
-    const textarea = getTextarea();
-    if (!textarea) return;
-
-    const styles = window.getComputedStyle(textarea);
-    const lineHeight = parseFloat(styles.lineHeight) || 22;
-    const verticalPadding = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
-    const verticalBorder = parseFloat(styles.borderTopWidth) + parseFloat(styles.borderBottomWidth);
-    const minHeight = CHAT_INPUT_MIN_ROWS * lineHeight + verticalPadding + verticalBorder;
-    const maxHeight = CHAT_INPUT_MAX_ROWS * lineHeight + verticalPadding + verticalBorder;
-
-    textarea.rows = CHAT_INPUT_MIN_ROWS;
-    textarea.style.minHeight = `${Math.ceil(minHeight)}px`;
-    textarea.style.maxHeight = `${Math.ceil(maxHeight)}px`;
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.ceil(Math.min(maxHeight, Math.max(minHeight, textarea.scrollHeight)))}px`;
-    textarea.style.overflowY = textarea.scrollHeight > maxHeight + 1 ? "auto" : "hidden";
-  };
-
-  const applyLayout = () => {
-    layoutFrame = 0;
-    syncViewportVars();
-    resizeTextarea();
-    syncInputHeight();
-  };
-
-  const scheduleLayout = () => {
-    if (layoutFrame) return;
-    layoutFrame = window.requestAnimationFrame(applyLayout);
-  };
-
-  const startFocusedLayout = () => {
-    if (layoutPoll) return;
-    layoutPoll = window.setInterval(scheduleLayout, 150);
-  };
-
-  const stopFocusedLayout = () => {
-    if (!layoutPoll) return;
-    window.clearInterval(layoutPoll);
-    layoutPoll = 0;
-  };
-
-  const setFocused = (nextFocused: boolean) => {
-    focused = nextFocused && mobileQuery.matches;
-    host.classList.toggle("chat-input-focused", focused);
-    if (focused) startFocusedLayout();
-    else stopFocusedLayout();
-    scheduleLayout();
-  };
-
-  const handleFocusIn = (event: FocusEvent) => {
-    if (event.target instanceof HTMLTextAreaElement && event.target.closest("message-editor")) {
-      setFocused(true);
-    }
-  };
-
-  const handleFocusOut = () => {
-    window.setTimeout(() => {
-      const textarea = getTextarea();
-      setFocused(document.activeElement === textarea);
-    }, 0);
-  };
-
-  const handleInput = (event: Event) => {
-    if (event.target instanceof HTMLTextAreaElement && event.target.closest("message-editor")) {
-      scheduleLayout();
-    }
-  };
-
-  const handleMobileQueryChange = () => {
-    const textarea = getTextarea();
-    setFocused(document.activeElement === textarea);
-  };
-
-  const mutationObserver = new MutationObserver(scheduleLayout);
-  mutationObserver.observe(host, { childList: true, subtree: true });
-
-  host.addEventListener("focusin", handleFocusIn);
-  host.addEventListener("focusout", handleFocusOut);
-  host.addEventListener("input", handleInput, true);
-  window.addEventListener("resize", scheduleLayout);
-  mobileQuery.addEventListener("change", handleMobileQueryChange);
-  visualViewport?.addEventListener("resize", scheduleLayout);
-  visualViewport?.addEventListener("scroll", scheduleLayout);
-  resizeObserver?.observe(host);
-  scheduleLayout();
-
-  return () => {
-    host.classList.remove("chat-input-focused");
-    mutationObserver.disconnect();
-    resizeObserver?.disconnect();
-    stopFocusedLayout();
-    if (layoutFrame) window.cancelAnimationFrame(layoutFrame);
-    host.removeEventListener("focusin", handleFocusIn);
-    host.removeEventListener("focusout", handleFocusOut);
-    host.removeEventListener("input", handleInput, true);
-    window.removeEventListener("resize", scheduleLayout);
-    mobileQuery.removeEventListener("change", handleMobileQueryChange);
-    visualViewport?.removeEventListener("resize", scheduleLayout);
-    visualViewport?.removeEventListener("scroll", scheduleLayout);
-    host.style.removeProperty("--chat-keyboard-inset");
-    host.style.removeProperty("--chat-input-left");
-    host.style.removeProperty("--chat-input-width");
-    host.style.removeProperty("--chat-input-height");
-  };
-}
-
 function ModelCommandDialog({
   open,
   onOpenChange,
@@ -605,45 +422,4 @@ function ModelCommandDialog({
       </CommandList>
     </CommandDialog>
   );
-}
-
-function isRetryableUserMessage(message: AgentMessage) {
-  return message.role === "user" || message.role === "user-with-attachments";
-}
-
-function updateUserMessageContent(message: AgentMessage, content: string): AgentMessage {
-  if (!isRetryableUserMessage(message)) return message;
-  if (typeof message.content === "string") return { ...message, content } as AgentMessage;
-
-  let replacedText = false;
-  const nextContent = message.content.map((part) => {
-    if (part.type !== "text" || replacedText) return part;
-    replacedText = true;
-    return { ...part, text: content };
-  });
-
-  if (!replacedText) nextContent.unshift({ type: "text", text: content });
-  return { ...message, content: nextContent } as AgentMessage;
-}
-
-function getUserMessageText(message: AgentMessage) {
-  if (!isRetryableUserMessage(message)) return "";
-  if (typeof message.content === "string") return message.content;
-  return message.content.find((part) => part.type === "text")?.text ?? "";
-}
-
-function findMessageIndex(messages: AgentMessage[], target: AgentMessage) {
-  const referenceIndex = messages.indexOf(target);
-  if (referenceIndex >= 0) return referenceIndex;
-
-  return messages.findIndex(
-    (message) =>
-      message.role === target.role &&
-      message.timestamp === target.timestamp &&
-      JSON.stringify(getComparableMessageContent(message)) === JSON.stringify(getComparableMessageContent(target)),
-  );
-}
-
-function getComparableMessageContent(message: AgentMessage) {
-  return "content" in message ? message.content : undefined;
 }

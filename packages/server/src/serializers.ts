@@ -88,14 +88,15 @@ const MAX_OBJECT_KEYS = 30;
 function serializeMessageForDisplay(message: AgentMessage): AgentMessage {
   if (!isRecord(message) || typeof message.role !== "string") return message;
   const role = (message as { role?: string }).role;
+  const record = message as Record<string, unknown>;
 
   if (role === "user" || role === "user-with-attachments") {
     return {
       ...message,
-      content: serializeUserContent(message.content),
-      attachments: Array.isArray(message.attachments)
-        ? message.attachments.map(serializeAttachmentForDisplay)
-        : message.attachments,
+      content: serializeUserContent(record.content),
+      attachments: Array.isArray(record.attachments)
+        ? record.attachments.map(serializeAttachmentForDisplay)
+        : record.attachments,
     } as unknown as AgentMessage;
   }
 
@@ -113,10 +114,10 @@ function serializeMessageForDisplay(message: AgentMessage): AgentMessage {
   if (role === "toolResult") {
     return {
       ...message,
-      content: Array.isArray(message.content)
-        ? message.content.map(serializeToolResultContentPart).filter(Boolean)
-        : message.content,
-      details: summarizeValue(message.details),
+      content: Array.isArray(record.content)
+        ? record.content.map(serializeToolResultContentPart).filter(Boolean)
+        : record.content,
+      details: summarizeValue(record.details),
     } as unknown as AgentMessage;
   }
 

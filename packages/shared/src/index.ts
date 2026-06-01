@@ -1,5 +1,39 @@
 import type { AgentMessage, AgentToolResult } from "@earendil-works/pi-agent-core";
-import type { Api, ImageContent } from "@earendil-works/pi-ai";
+import type { Api, ImageContent, TextContent } from "@earendil-works/pi-ai";
+
+export type ChatAttachment = {
+  id: string;
+  type: "image" | "document";
+  fileName: string;
+  mimeType: string;
+  size: number;
+  content: string;
+  extractedText?: string;
+  preview?: string;
+};
+
+export type UserMessageWithAttachments = {
+  role: "user-with-attachments";
+  content: string | (TextContent | ImageContent)[];
+  timestamp: number;
+  attachments?: ChatAttachment[];
+};
+
+export type ArtifactMessage = {
+  role: "artifact";
+  action: "create" | "update" | "delete";
+  filename: string;
+  content?: string;
+  title?: string;
+  timestamp: string;
+};
+
+declare module "@earendil-works/pi-agent-core" {
+  interface CustomAgentMessages {
+    "user-with-attachments": UserMessageWithAttachments;
+    artifact: ArtifactMessage;
+  }
+}
 
 export const OLLAMA_PROVIDER = "ollama";
 export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1";

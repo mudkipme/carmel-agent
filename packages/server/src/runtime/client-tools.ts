@@ -27,7 +27,13 @@ type PendingClientToolCall = {
 const pendingClientTools = new Map<string, PendingClientToolCall>();
 const CLIENT_TOOL_TIMEOUT_MS = 120_000;
 
-export function createClientToolDefinitions(agent: AgentRecord, context: ClientToolContext) {
+export function createClientToolDefinitions(agent: AgentRecord, context: ClientToolContext): AgentTool[] {
+  void agent;
+  void context;
+  return [];
+}
+
+export function createBrowserClientToolDefinitions(agent: AgentRecord, context: ClientToolContext) {
   const tools: AgentTool[] = [];
   if (agent.permissions.javascript) {
     tools.push(createProxyClientTool("javascript_repl", "JavaScript REPL", JAVASCRIPT_REPL_DESCRIPTION, javascriptReplSchema, context));

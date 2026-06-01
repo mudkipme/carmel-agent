@@ -165,6 +165,6 @@ function groupCommands(commands: AgentSlashCommand[]) {
 function isSlashCommandTrigger(event: KeyboardEvent) {
   if (event.defaultPrevented || event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return false;
   if (!(event.target instanceof HTMLTextAreaElement)) return false;
-  if (!event.target.closest("agent-interface")) return false;
-  return event.target.value.trim().length === 0;
+  if (!event.target.closest(".agent-chat-host")) return false;
+  return event.target.value.length === 0 && event.target.selectionStart === 0 && event.target.selectionEnd === 0;
 }

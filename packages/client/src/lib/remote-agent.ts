@@ -122,6 +122,14 @@ export class RemoteAgent {
     this.state.errorMessage = undefined;
   }
 
+  setModel(modelRefId: string, model: Model<Api>, thinkingLevel?: ThinkingLevel) {
+    if (this.state.isStreaming) return;
+    this.config.modelRefId = modelRefId;
+    this.config.model = model;
+    this.state.model = model;
+    if (thinkingLevel) this.state.thinkingLevel = thinkingLevel;
+  }
+
   async prompt(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]) {
     if (this.abortController) throw new Error("Agent is already processing.");
     const promptInput = normalizePromptInput(input, images);

@@ -40,7 +40,7 @@ test("createServerToolDefinitions maps server runtime permissions to their tool 
   );
 });
 
-test("createClientToolDefinitions maps browser runtime permissions to their tool surface", () => {
+test("createClientToolDefinitions does not expose deprecated browser runtime tools", () => {
   const tools = createClientToolDefinitions(
     makeAgent({
       permissions: {
@@ -64,7 +64,7 @@ test("createClientToolDefinitions maps browser runtime permissions to their tool
 
   assert.deepEqual(
     tools.map((tool) => tool.name).sort(),
-    ["artifacts", "extract_document", "javascript_repl"],
+    [],
   );
 });
 

@@ -71,7 +71,7 @@ function isAllowedOrigin(origin: string, requestHost?: string) {
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
-    return new Set(["http://localhost:5173", "http://127.0.0.1:5173", ...configured]).has(originUrl.origin);
+    return new Set(["http://localhost:5173", "http://127.0.0.1:5173", "http://porygon-z.lan:5173", ...configured]).has(originUrl.origin);
   } catch {
     return false;
   }
