@@ -10,9 +10,9 @@ export const defaultPermissions: AgentPermissions = {
   edit: true,
   bash: false,
   network: false,
-  javascript: true,
-  artifacts: true,
-  documentExtract: true,
+  javascript: false,
+  artifacts: false,
+  documentExtract: false,
 };
 
 export const defaultUser: User = {

@@ -41,6 +41,7 @@ const thinkingLevelLabels: Record<AgentThinkingLevel, string> = {
   high: "High",
   xhigh: "Max",
 };
+const configurablePermissions: Array<keyof AgentPermissions> = ["read", "write", "edit", "bash", "network"];
 
 export function AgentSettingsDialog({
   agent,
@@ -454,7 +455,7 @@ function AgentSettings({
               description="Read, write, and edit are enabled by default inside the working directory."
             />
             <div className="grid gap-2">
-              {(Object.keys(draft.permissions) as Array<keyof AgentPermissions>).map((permission) => (
+              {configurablePermissions.map((permission) => (
                 <ToggleRow
                   key={permission}
                   label={permission}

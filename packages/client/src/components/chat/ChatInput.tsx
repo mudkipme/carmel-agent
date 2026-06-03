@@ -195,7 +195,7 @@ export function ChatInput({
           event.currentTarget.value = "";
         }}
       />
-      <div className="flex items-center justify-between gap-2 px-2 pb-2">
+      <div className="flex items-center justify-between gap-2 px-2 pt-1 pb-2">
         <div className="flex min-w-0 items-center gap-2">
           {supportsImages ? (
             <Button
