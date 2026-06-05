@@ -134,7 +134,7 @@ export function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
   run.events.push(event);
   if (run.events.length > maxReplayEvents) run.events.splice(0, run.events.length - maxReplayEvents);
 
-  for (const subscriber of [...run.subscribers]) {
+  for (const subscriber of run.subscribers) {
     if (!subscriber.enqueue(event)) run.subscribers.delete(subscriber);
   }
   return run.subscribers.size > 0;

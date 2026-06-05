@@ -1,10 +1,11 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { ChatInput } from "./ChatInput";
 import { ChatMessages } from "./ChatMessages";
 
 type ChatPanelProps = {
+  scrollResetKey: string;
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
   pendingToolCalls: ReadonlySet<string>;
@@ -23,6 +24,7 @@ type ChatPanelProps = {
 };
 
 export function ChatPanel({
+  scrollResetKey,
   messages,
   streamingMessage,
   pendingToolCalls,
@@ -42,10 +44,22 @@ export function ChatPanel({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef(true);
+  const scrollToBottom = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    element.scrollTop = element.scrollHeight;
+  }, []);
   const renderKey = useMemo(
     () => `${messages.length}:${streamingMessage?.timestamp ?? ""}:${isStreaming ? "streaming" : "idle"}`,
     [isStreaming, messages.length, streamingMessage?.timestamp],
   );
+
+  useLayoutEffect(() => {
+    autoScrollRef.current = true;
+    scrollToBottom();
+    const frame = window.requestAnimationFrame(scrollToBottom);
+    return () => window.cancelAnimationFrame(frame);
+  }, [scrollResetKey, scrollToBottom]);
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
@@ -59,10 +73,9 @@ export function ChatPanel({
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!autoScrollRef.current || !scrollRef.current) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [renderKey]);
+  useLayoutEffect(() => {
+    if (autoScrollRef.current) scrollToBottom();
+  }, [renderKey, scrollToBottom]);
 
   return (
     <div className="agent-chat-host flex h-full min-h-0 flex-col bg-background text-foreground">

@@ -16,7 +16,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends g++ make python3 && \
     rm -rf /var/lib/apt/lists/*
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json eslint.config.js ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json .oxlintrc.json ./
 COPY packages/client/package.json packages/client/package.json
 COPY packages/server/package.json packages/server/package.json
 COPY packages/shared/package.json packages/shared/package.json

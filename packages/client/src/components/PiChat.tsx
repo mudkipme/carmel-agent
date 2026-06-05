@@ -296,6 +296,7 @@ export function PiChat({
       <div className="relative h-full min-h-0">
         {agent ? (
           <ChatPanel
+            scrollResetKey={session.id}
             messages={agent.state.messages}
             streamingMessage={agent.state.streamingMessage}
             pendingToolCalls={agent.state.pendingToolCalls}
