@@ -23,6 +23,13 @@ type ChatMessagesProps = {
   onForkMessage: (message: AgentMessage) => void;
 };
 
+type DisplayAssistantContentPart = AssistantMessageType["content"][number] | {
+  type: "image";
+  data?: string;
+  url?: string;
+  mimeType: string;
+};
+
 export function ChatMessages({
   messages,
   streamingMessage,
@@ -143,13 +150,20 @@ function UserMessage({ message }: { message: AgentMessage }) {
         {images.length > 0 || attachments.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {images.map((image, index) => (
-              <ImagePreview key={`${image.mimeType}:${index}`} data={image.data} mimeType={image.mimeType} label="Image" />
+              <ImagePreview
+                key={`${image.mimeType}:${image.url ?? index}`}
+                data={image.data}
+                url={image.url}
+                mimeType={image.mimeType}
+                label="Image"
+              />
             ))}
             {attachments.map((attachment) =>
               attachment.type === "image" ? (
                 <ImagePreview
                   key={attachment.id}
                   data={attachment.preview ?? attachment.content}
+                  url={attachment.url}
                   mimeType={attachment.mimeType}
                   label={attachment.fileName}
                 />
@@ -184,7 +198,7 @@ function AssistantMessage({
   onForkMessage: (message: AgentMessage) => void;
 }) {
   const usageText = !streaming ? formatUsage(message.usage) : "";
-  const assistantContent = message.content.filter((part) => part.type !== "toolCall");
+  const assistantContent = message.content.filter((part) => part.type !== "toolCall") as DisplayAssistantContentPart[];
   const toolCalls = message.content.filter((part) => part.type === "toolCall");
   const lastTextIndex = assistantContent.reduce(
     (lastIndex, part, index) => (part.type === "text" && part.text.trim() ? index : lastIndex),
@@ -216,6 +230,14 @@ function AssistantMessage({
             </details>
           );
         }
+        if (part.type === "image") {
+          const image = part as typeof part & { data?: string; url?: string };
+          return (
+            <div key={index}>
+              <ImagePreview data={image.data} url={image.url} mimeType={image.mimeType} label="Image" />
+            </div>
+          );
+        }
         return null;
       })}
       {toolCalls.map((part) => {
@@ -245,10 +267,13 @@ function AssistantMessage({
   );
 }
 
-function ImagePreview({ data, mimeType, label }: { data: string; mimeType: string; label: string }) {
+function ImagePreview({ data, url, mimeType, label }: { data?: string; url?: string; mimeType: string; label: string }) {
+  const src = url ?? (data ? `data:${mimeType};base64,${data}` : undefined);
+  if (!src) return null;
+
   return (
     <figure className="w-28 overflow-hidden rounded-md border bg-background">
-      <img className="aspect-square w-full object-cover" src={`data:${mimeType};base64,${data}`} alt={label} />
+      <img className="aspect-square w-full object-cover" src={src} alt={label} />
       <figcaption className="truncate px-2 py-1 text-xs text-muted-foreground">{label}</figcaption>
     </figure>
   );

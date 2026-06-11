@@ -58,7 +58,12 @@ export function serializeProviderConfig(providerConfig: typeof providerConfigs.$
 export function serializeSession(session: Session | typeof sessions.$inferSelect): Session {
   return {
     ...session,
-    messages: session.messages.map(serializeMessageForDisplay),
+    messages: session.messages.map((message, messageIndex) =>
+      serializeMessageForDisplay(message, {
+        sessionId: session.id,
+        messageIndex,
+      }),
+    ),
     forkedFrom: session.forkedFrom ?? undefined,
     pinnedAt: session.pinnedAt ?? undefined,
   };
@@ -85,7 +90,12 @@ const MAX_STRING_VALUE_LENGTH = 1_000;
 const MAX_ARRAY_ITEMS = 20;
 const MAX_OBJECT_KEYS = 30;
 
-function serializeMessageForDisplay(message: AgentMessage): AgentMessage {
+type MessageDisplayContext = {
+  sessionId: string;
+  messageIndex: number;
+};
+
+function serializeMessageForDisplay(message: AgentMessage, context: MessageDisplayContext): AgentMessage {
   if (!isRecord(message) || typeof message.role !== "string") return message;
   const role = (message as { role?: string }).role;
   const record = message as Record<string, unknown>;
@@ -93,9 +103,9 @@ function serializeMessageForDisplay(message: AgentMessage): AgentMessage {
   if (role === "user" || role === "user-with-attachments") {
     return {
       ...message,
-      content: serializeUserContent(record.content),
+      content: serializeUserContent(record.content, context),
       attachments: Array.isArray(record.attachments)
-        ? record.attachments.map(serializeAttachmentForDisplay)
+        ? record.attachments.map((attachment) => serializeAttachmentForDisplay(attachment, context))
         : record.attachments,
     } as unknown as AgentMessage;
   }
@@ -105,8 +115,8 @@ function serializeMessageForDisplay(message: AgentMessage): AgentMessage {
       ...message,
       responseId: undefined,
       diagnostics: undefined,
-      content: Array.isArray(message.content)
-        ? message.content.map(serializeAssistantContentPart).filter(Boolean)
+      content: Array.isArray(record.content)
+        ? serializeAssistantContent(record.content, context)
         : message.content,
     } as unknown as AgentMessage;
   }
@@ -115,7 +125,7 @@ function serializeMessageForDisplay(message: AgentMessage): AgentMessage {
     return {
       ...message,
       content: Array.isArray(record.content)
-        ? record.content.map(serializeToolResultContentPart).filter(Boolean)
+        ? record.content.map((part, partIndex) => serializeToolResultContentPart(part, context, partIndex)).filter(Boolean)
         : record.content,
       details: summarizeValue(record.details),
     } as unknown as AgentMessage;
@@ -124,14 +134,42 @@ function serializeMessageForDisplay(message: AgentMessage): AgentMessage {
   return message;
 }
 
-function serializeUserContent(content: unknown) {
+function serializeUserContent(content: unknown, context: MessageDisplayContext) {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return content;
+  let imageIndex = 0;
   return content.flatMap((part) => {
     if (!isRecord(part) || typeof part.type !== "string") return [];
     if (part.type === "text") return [{ ...part, text: String(part.text ?? "") }];
-    if (part.type === "image") return [{ type: "text", text: `[Image omitted from session payload: ${String(part.mimeType ?? "image")}]` }];
+    if (part.type === "image") {
+      const currentImageIndex = imageIndex++;
+      return [
+        {
+          type: "image",
+          mimeType: String(part.mimeType ?? "image/png"),
+          url: sessionImageUrl(context.sessionId, context.messageIndex, currentImageIndex),
+        },
+      ];
+    }
     return [part];
+  });
+}
+
+function serializeAssistantContent(content: unknown[], context: MessageDisplayContext) {
+  let imageIndex = 0;
+  return content.flatMap((part) => {
+    if (isRecord(part) && part.type === "image") {
+      const currentImageIndex = imageIndex++;
+      return [
+        {
+          type: "image",
+          mimeType: String(part.mimeType ?? "image/png"),
+          url: sessionImageUrl(context.sessionId, context.messageIndex, currentImageIndex),
+        },
+      ];
+    }
+    const serialized = serializeAssistantContentPart(part);
+    return serialized ? [serialized] : [];
   });
 }
 
@@ -157,22 +195,46 @@ function serializeAssistantContentPart(part: unknown) {
   return part;
 }
 
-function serializeToolResultContentPart(part: unknown) {
+function serializeToolResultContentPart(part: unknown, context: MessageDisplayContext, partIndex: number) {
   if (!isRecord(part) || typeof part.type !== "string") return undefined;
   if (part.type === "text") return { ...part, text: truncateText(String(part.text ?? ""), MAX_TOOL_RESULT_TEXT_LENGTH) };
-  if (part.type === "image") return { type: "text", text: `[Image output omitted from session payload: ${String(part.mimeType ?? "image")}]` };
+  if (part.type === "image") {
+    return {
+      type: "image",
+      mimeType: String(part.mimeType ?? "image/png"),
+      url: sessionToolResultImageUrl(context.sessionId, context.messageIndex, partIndex),
+    };
+  }
   return part;
 }
 
-function serializeAttachmentForDisplay(attachment: unknown) {
+function serializeAttachmentForDisplay(attachment: unknown, context: MessageDisplayContext) {
   if (!isRecord(attachment)) return attachment;
+  const id = typeof attachment.id === "string" ? attachment.id : "";
+  const type = typeof attachment.type === "string" ? attachment.type : undefined;
   return {
     id: attachment.id,
-    type: attachment.type,
+    type,
     fileName: attachment.fileName,
     mimeType: attachment.mimeType,
     size: attachment.size,
+    url:
+      type === "image" && id
+        ? sessionAttachmentUrl(context.sessionId, context.messageIndex, id)
+        : undefined,
   };
+}
+
+function sessionImageUrl(sessionId: string, messageIndex: number, imageIndex: number) {
+  return `/api/sessions/${encodeURIComponent(sessionId)}/images/${messageIndex}/${imageIndex}`;
+}
+
+function sessionToolResultImageUrl(sessionId: string, messageIndex: number, partIndex: number) {
+  return `/api/sessions/${encodeURIComponent(sessionId)}/tool-result-images/${messageIndex}/${partIndex}`;
+}
+
+function sessionAttachmentUrl(sessionId: string, messageIndex: number, attachmentId: string) {
+  return `/api/sessions/${encodeURIComponent(sessionId)}/attachments/${messageIndex}/${encodeURIComponent(attachmentId)}`;
 }
 
 function summarizeValue(value: unknown, depth = 0): unknown {

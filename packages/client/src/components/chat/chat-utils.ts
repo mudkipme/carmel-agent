@@ -3,6 +3,10 @@ import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage, Us
 import type { ChatAttachment } from "@carmel-agent/shared";
 
 export type LocalChatAttachment = ChatAttachment;
+export type DisplayImageContent = ImageContent & {
+  data?: string;
+  url?: string;
+};
 
 export function isUserMessage(message: AgentMessage) {
   return message.role === "user" || message.role === "user-with-attachments";
@@ -28,7 +32,7 @@ export function getMessageText(message: AgentMessage | AssistantMessage) {
     .trim();
 }
 
-export function getMessageImages(message: AgentMessage) {
+export function getMessageImages(message: AgentMessage): DisplayImageContent[] {
   const content = (message as AgentMessage & { content?: unknown }).content;
   if (!Array.isArray(content)) return [];
   return content.filter(isImageContent);
@@ -140,6 +144,7 @@ export async function fileToImageAttachment(file: File): Promise<LocalChatAttach
 }
 
 export function attachmentToImageContent(attachment: LocalChatAttachment): ImageContent {
+  if (!attachment.content) throw new Error(`${attachment.fileName} has no image content.`);
   return {
     type: "image",
     data: attachment.content,
@@ -162,7 +167,7 @@ function isTextContent(content: unknown): content is TextContent {
   return typeof content === "object" && content !== null && (content as TextContent).type === "text";
 }
 
-function isImageContent(content: unknown): content is ImageContent {
+function isImageContent(content: unknown): content is DisplayImageContent {
   return typeof content === "object" && content !== null && (content as ImageContent).type === "image";
 }
 

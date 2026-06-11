@@ -28,6 +28,44 @@ export function createSessionRoutes() {
     return c.json(serializeSession(session));
   });
 
+  route.get("/sessions/:id/images/:messageIndex/:imageIndex", (c) => {
+    const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
+    if (!session || session.userId !== c.get("user").id) return c.json({ error: "Image not found" }, 404);
+
+    const messageIndex = parseIndex(c.req.param("messageIndex"));
+    const imageIndex = parseIndex(c.req.param("imageIndex"));
+    if (messageIndex === undefined || imageIndex === undefined) return c.json({ error: "Image not found" }, 404);
+
+    const image = readMessageImage(session.messages[messageIndex], imageIndex);
+    if (!image) return c.json({ error: "Image not found" }, 404);
+    return imageResponse(image);
+  });
+
+  route.get("/sessions/:id/tool-result-images/:messageIndex/:partIndex", (c) => {
+    const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
+    if (!session || session.userId !== c.get("user").id) return c.json({ error: "Image not found" }, 404);
+
+    const messageIndex = parseIndex(c.req.param("messageIndex"));
+    const partIndex = parseIndex(c.req.param("partIndex"));
+    if (messageIndex === undefined || partIndex === undefined) return c.json({ error: "Image not found" }, 404);
+
+    const image = readToolResultImage(session.messages[messageIndex], partIndex);
+    if (!image) return c.json({ error: "Image not found" }, 404);
+    return imageResponse(image);
+  });
+
+  route.get("/sessions/:id/attachments/:messageIndex/:attachmentId", (c) => {
+    const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
+    if (!session || session.userId !== c.get("user").id) return c.json({ error: "Attachment not found" }, 404);
+
+    const messageIndex = parseIndex(c.req.param("messageIndex"));
+    if (messageIndex === undefined) return c.json({ error: "Attachment not found" }, 404);
+
+    const image = readImageAttachment(session.messages[messageIndex], c.req.param("attachmentId"));
+    if (!image) return c.json({ error: "Attachment not found" }, 404);
+    return imageResponse(image);
+  });
+
   route.post("/sessions", jsonValidator(sessionDraftRequestSchema), async (c) => {
     const currentUserId = c.get("user").id;
     const draft = c.req.valid("json");
@@ -236,4 +274,69 @@ function updateUserMessageContent(message: AgentMessage, content: string): Agent
 
   if (!replacedText) nextContent.unshift({ type: "text", text: content });
   return { ...message, content: nextContent } as AgentMessage;
+}
+
+function parseIndex(value: string) {
+  const index = Number(value);
+  return Number.isInteger(index) && index >= 0 ? index : undefined;
+}
+
+function readMessageImage(message: AgentMessage | undefined, imageIndex: number) {
+  const content = (message as { content?: unknown } | undefined)?.content;
+  if (!Array.isArray(content)) return undefined;
+
+  let currentImageIndex = 0;
+  for (const part of content) {
+    if (!isRecord(part) || part.type !== "image") continue;
+    if (currentImageIndex === imageIndex) return readImageContent(part);
+    currentImageIndex++;
+  }
+  return undefined;
+}
+
+function readToolResultImage(message: AgentMessage | undefined, partIndex: number) {
+  if ((message as { role?: string } | undefined)?.role !== "toolResult") return undefined;
+  const content = (message as { content?: unknown } | undefined)?.content;
+  if (!Array.isArray(content)) return undefined;
+  const part = content[partIndex];
+  if (!isRecord(part) || part.type !== "image") return undefined;
+  return readImageContent(part);
+}
+
+function readImageAttachment(message: AgentMessage | undefined, attachmentId: string) {
+  if ((message as { role?: string } | undefined)?.role !== "user-with-attachments") return undefined;
+  const attachments = (message as { attachments?: unknown } | undefined)?.attachments;
+  if (!Array.isArray(attachments)) return undefined;
+  const attachment = attachments.find((item) => isRecord(item) && item.id === attachmentId);
+  if (!isRecord(attachment) || attachment.type !== "image") return undefined;
+
+  const data = typeof attachment.content === "string" ? attachment.content : undefined;
+  const mimeType = typeof attachment.mimeType === "string" ? attachment.mimeType : "image/png";
+  return data ? { data, mimeType } : undefined;
+}
+
+function readImageContent(part: Record<string, unknown>) {
+  const data = typeof part.data === "string" ? part.data : undefined;
+  const mimeType = typeof part.mimeType === "string" ? part.mimeType : "image/png";
+  return data ? { data, mimeType } : undefined;
+}
+
+function imageResponse(image: { data: string; mimeType: string }) {
+  const data = image.data.includes(",") ? image.data.split(",", 2)[1] : image.data;
+  const body = Buffer.from(data, "base64");
+  return new Response(body, {
+    headers: {
+      "cache-control": "private, max-age=31536000, immutable",
+      "content-length": String(body.byteLength),
+      "content-type": safeImageMimeType(image.mimeType),
+    },
+  });
+}
+
+function safeImageMimeType(mimeType: string) {
+  return mimeType.startsWith("image/") ? mimeType : "image/png";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

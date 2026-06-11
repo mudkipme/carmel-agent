@@ -7,9 +7,10 @@ export type ChatAttachment = {
   fileName: string;
   mimeType: string;
   size: number;
-  content: string;
+  content?: string;
   extractedText?: string;
   preview?: string;
+  url?: string;
 };
 
 export type UserMessageWithAttachments = {

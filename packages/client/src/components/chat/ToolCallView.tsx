@@ -16,6 +16,7 @@ export function ToolCallView({ toolCall, result, pending = false, aborted = fals
   const [open, setOpen] = useState(false);
   const isError = aborted || result?.isError;
   const state = pending && !result && !aborted ? "Running" : isError ? "Error" : "Complete";
+  const images = getToolResultImages(result);
 
   return (
     <div className="rounded-md border bg-card text-card-foreground shadow-xs">
@@ -37,6 +38,18 @@ export function ToolCallView({ toolCall, result, pending = false, aborted = fals
         <div className="flex flex-col gap-3 border-t px-3 py-3">
           <CodePanel label="Input" value={formatJson(toolCall.arguments)} />
           <CodePanel label="Output" value={aborted ? "Tool call aborted." : formatToolResult(result)} />
+          {images.length > 0 ? (
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="text-xs font-medium text-muted-foreground">Images</div>
+              <div className="flex flex-wrap gap-2">
+                {images.map((image, index) => (
+                  <figure key={`${image.src}:${index}`} className="w-28 overflow-hidden rounded-md border bg-background">
+                    <img className="aspect-square w-full object-cover" src={image.src} alt="Tool result" />
+                  </figure>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -51,5 +64,17 @@ function CodePanel({ label, value }: { label: string; value: string }) {
         <code>{value}</code>
       </pre>
     </div>
+  );
+}
+
+function getToolResultImages(result?: ToolResultMessage) {
+  return (
+    result?.content
+      ?.flatMap((part) => {
+        if (part.type !== "image") return [];
+        const displayPart = part as typeof part & { data?: string; url?: string };
+        const src = displayPart.url ?? (displayPart.data ? `data:${part.mimeType};base64,${displayPart.data}` : undefined);
+        return src ? [{ src }] : [];
+      }) ?? []
   );
 }
