@@ -208,8 +208,5 @@ function allPermissions(value: boolean): AgentRecord["permissions"] {
     edit: value,
     bash: value,
     network: value,
-    javascript: value,
-    artifacts: value,
-    documentExtract: value,
   };
 }

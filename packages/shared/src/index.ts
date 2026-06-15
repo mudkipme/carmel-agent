@@ -1,4 +1,4 @@
-import type { AgentMessage, AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, TextContent } from "@earendil-works/pi-ai";
 
 export type ChatAttachment = {
@@ -57,9 +57,6 @@ export type AgentPermissions = {
   edit: boolean;
   bash: boolean;
   network: boolean;
-  javascript: boolean;
-  artifacts: boolean;
-  documentExtract: boolean;
 };
 
 export type PromptTemplate = {
@@ -90,25 +87,6 @@ export type AgentSlashCommand = {
 
 export type AgentCommandPayload = {
   commands: AgentSlashCommand[];
-};
-
-export type ClientToolName = "javascript_repl" | "extract_document" | "artifacts";
-
-export type ClientToolCallEvent = {
-  type: "client_tool_call";
-  runId: string;
-  toolCallId: string;
-  toolName: ClientToolName;
-  args: Record<string, unknown>;
-  nonce: string;
-};
-
-export type ClientToolResultPayload = {
-  runId: string;
-  toolCallId: string;
-  nonce: string;
-  result?: AgentToolResult<unknown>;
-  error?: string;
 };
 
 export type ActiveAgentRunSummary = {

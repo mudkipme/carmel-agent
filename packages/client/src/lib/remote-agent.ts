@@ -3,15 +3,10 @@ import type {
   AgentMessage,
   AgentState,
   AgentTool,
-  AgentToolResult,
   ThinkingLevel,
 } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import type {
-  ClientToolCallEvent,
-  ClientToolResultPayload,
-  PromptInput,
-} from "@carmel-agent/shared";
+import type { PromptInput } from "@carmel-agent/shared";
 
 type Listener = (event: AgentEvent, signal: AbortSignal) => Promise<void> | void;
 type MutableAgentState = Omit<
@@ -263,21 +258,16 @@ export class RemoteAgent {
       buffer = lines.pop() ?? "";
       for (const line of lines) {
         if (line.trim()) {
-          await this.processEvent(JSON.parse(line) as AgentEvent | ClientToolCallEvent, signal);
+          await this.processEvent(JSON.parse(line) as AgentEvent, signal);
         }
       }
     }
     if (buffer.trim()) {
-      await this.processEvent(JSON.parse(buffer) as AgentEvent | ClientToolCallEvent, signal);
+      await this.processEvent(JSON.parse(buffer) as AgentEvent, signal);
     }
   }
 
-  private async processEvent(event: AgentEvent | ClientToolCallEvent, signal: AbortSignal) {
-    if (isClientToolCallEvent(event)) {
-      await this.executeClientToolCall(event, signal);
-      return;
-    }
-
+  private async processEvent(event: AgentEvent, signal: AbortSignal) {
     switch (event.type) {
       case "message_start":
       case "message_update":
@@ -313,47 +303,6 @@ export class RemoteAgent {
     for (const listener of this.listeners) await listener(event, signal);
   }
 
-  private async executeClientToolCall(event: ClientToolCallEvent, signal: AbortSignal) {
-    const tool = this.tools.find((candidate) => candidate.name === event.toolName);
-    if (!tool) {
-      await this.postClientToolResult(event, { error: `Browser tool "${event.toolName}" is not available.` }, signal);
-      return;
-    }
-
-    try {
-      const result = await tool.execute(event.toolCallId, event.args as never, signal);
-      await this.postClientToolResult(event, { result: normalizeToolResult(result) }, signal);
-    } catch (error) {
-      await this.postClientToolResult(
-        event,
-        { error: error instanceof Error ? error.message : String(error) },
-        signal,
-      );
-    }
-  }
-
-  private async postClientToolResult(
-    event: ClientToolCallEvent,
-    payload: Pick<ClientToolResultPayload, "result" | "error">,
-    signal: AbortSignal,
-  ) {
-    const response = await fetch("/api/client-tool-results", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        runId: event.runId,
-        toolCallId: event.toolCallId,
-        nonce: event.nonce,
-        ...payload,
-      } satisfies ClientToolResultPayload),
-      signal,
-    });
-    if (!response.ok) {
-      throw new Error((await response.text()) || `Client tool result failed with ${response.status}`);
-    }
-  }
-
   private async handleFailure(error: unknown, aborted: boolean) {
     const message: AgentMessage = {
       role: "assistant",
@@ -377,18 +326,6 @@ export class RemoteAgent {
     this.state.errorMessage = message.errorMessage;
     await this.processEvent({ type: "agent_end", messages: [message] }, new AbortController().signal);
   }
-}
-
-function isClientToolCallEvent(event: AgentEvent | ClientToolCallEvent): event is ClientToolCallEvent {
-  return event.type === "client_tool_call";
-}
-
-function normalizeToolResult(result: AgentToolResult<unknown>): AgentToolResult<unknown> {
-  return {
-    content: result.content,
-    details: result.details,
-    terminate: result.terminate === true ? true : undefined,
-  };
 }
 
 function normalizePromptInput(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]): PromptInput | undefined {

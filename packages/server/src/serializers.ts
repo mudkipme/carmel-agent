@@ -189,7 +189,7 @@ function serializeAssistantContentPart(part: unknown) {
       type: "toolCall",
       id: typeof part.id === "string" ? part.id : "",
       name,
-      arguments: name === "artifacts" ? part.arguments : summarizeValue(part.arguments),
+      arguments: summarizeValue(part.arguments),
     };
   }
   return part;

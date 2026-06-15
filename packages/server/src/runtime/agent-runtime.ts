@@ -14,7 +14,6 @@ import { agents, modelRefs, providerConfigs, providerKeys, sessions, users } fro
 import { revealSecret } from "../security.ts";
 import { serializeModelRef } from "../serializers.ts";
 import { createProviderConfigAuthStorage } from "./auth-storage.ts";
-import { cleanupRunClientTools, createClientToolDefinitions } from "./client-tools.ts";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { createAgentResourceLoader, resolveAgentWorkingDirPath, serverAgentDir } from "./resources.ts";
 import {
@@ -103,15 +102,7 @@ export function createAgentRunResponse({
       const modelRegistry = ModelRegistry.inMemory(authStorage);
       const resourceLoader = await createAgentResourceLoader(agent);
       const cwd = resolveAgentWorkingDirPath(agent);
-      const customTools = [
-        ...createServerToolDefinitions(agent),
-        ...createClientToolDefinitions(agent, {
-          runId,
-          userId: session.userId,
-          sessionId: session.id,
-          emit,
-        }),
-      ];
+      const customTools = [...createServerToolDefinitions(agent)];
       const allowedTools = customTools.map((tool) => tool.name);
       const { session: piSession } = await createAgentSession({
         cwd,
@@ -153,7 +144,6 @@ export function createAgentRunResponse({
       messagesToPersist = [...(sdkSession?.agent.state.messages ?? session.messages), ...errorEvent.messages];
       emit(errorEvent as AgentEvent);
     } finally {
-      cleanupRunClientTools(runId);
       try {
         await persistSessionRun(session, {
           messages: messagesToPersist ?? sdkSession?.agent.state.messages ?? session.messages,

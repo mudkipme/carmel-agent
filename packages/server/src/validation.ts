@@ -17,9 +17,6 @@ const permissions = z.object({
   edit: z.boolean(),
   bash: z.boolean(),
   network: z.boolean(),
-  javascript: z.boolean(),
-  artifacts: z.boolean(),
-  documentExtract: z.boolean(),
 });
 const imageContent = z.object({
   type: z.literal("image"),
@@ -148,14 +145,6 @@ export const openWebuiImportRequestSchema = z.object({
   modelRefId: z.string(),
   thinkingLevel: thinkingLevel.optional(),
   source: z.unknown(),
-});
-
-export const clientToolResultRequestSchema = z.object({
-  runId: z.string(),
-  toolCallId: z.string(),
-  nonce: z.string(),
-  result: z.unknown().optional(),
-  error: optionalString,
 });
 
 export const fileContentRequestSchema = z.object({

@@ -62,9 +62,6 @@ Agent permissions control which tools are exposed:
 - file write/edit
 - bash
 - network search/fetch
-- browser JavaScript
-- browser artifacts
-- browser document extraction
 
 File API operations are constrained to the agent working directory. Agent read tools can also read selected skill directories so skills can be loaded and inspected.
 

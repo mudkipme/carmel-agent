@@ -1,10 +1,8 @@
 import type { AgentEvent } from "@earendil-works/pi-agent-core";
-import type { ClientToolCallEvent } from "@carmel-agent/shared";
-import { disconnectRunClientTools } from "./client-tools.ts";
 
 const maxReplayEvents = 1_000;
 
-export type RunEvent = AgentEvent | ClientToolCallEvent | { type: string; [key: string]: unknown };
+export type RunEvent = AgentEvent | { type: string; [key: string]: unknown };
 
 export type ActiveAgentRun = {
   runId: string;
@@ -113,7 +111,6 @@ export function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder()
       },
       cancel() {
         if (subscriber) run.subscribers.delete(subscriber);
-        if (run.subscribers.size === 0) disconnectRunClientTools(run.runId);
       },
     }),
     {
@@ -126,11 +123,6 @@ export function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder()
 }
 
 export function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
-  if (isClientToolCallEvent(event)) {
-    const subscriber = run.subscribers.values().next().value;
-    return subscriber ? subscriber.enqueue(event) : false;
-  }
-
   run.events.push(event);
   if (run.events.length > maxReplayEvents) run.events.splice(0, run.events.length - maxReplayEvents);
 
@@ -138,8 +130,4 @@ export function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
     if (!subscriber.enqueue(event)) run.subscribers.delete(subscriber);
   }
   return run.subscribers.size > 0;
-}
-
-function isClientToolCallEvent(event: RunEvent): event is ClientToolCallEvent {
-  return event.type === "client_tool_call";
 }

@@ -4,7 +4,6 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServerToolDefinitions } from "./tools.ts";
-import { createClientToolDefinitions } from "./client-tools.ts";
 import type { agents } from "../db/schema.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -27,9 +26,6 @@ test("createServerToolDefinitions maps server runtime permissions to their tool 
         edit: true,
         bash: true,
         network: true,
-        javascript: true,
-        artifacts: true,
-        documentExtract: true,
       },
     }),
   );
@@ -37,34 +33,6 @@ test("createServerToolDefinitions maps server runtime permissions to their tool 
   assert.deepEqual(
     tools.map((tool) => tool.name).sort(),
     ["bash", "edit", "exa_search", "fetch_url", "find", "grep", "ls", "read", "write"],
-  );
-});
-
-test("createClientToolDefinitions does not expose deprecated browser runtime tools", () => {
-  const tools = createClientToolDefinitions(
-    makeAgent({
-      permissions: {
-        read: false,
-        write: false,
-        edit: false,
-        bash: false,
-        network: false,
-        javascript: true,
-        artifacts: true,
-        documentExtract: true,
-      },
-    }),
-    {
-      runId: "run_1",
-      userId: "user_1",
-      sessionId: "session_1",
-      emit: () => true,
-    },
-  );
-
-  assert.deepEqual(
-    tools.map((tool) => tool.name).sort(),
-    [],
   );
 });
 
@@ -135,8 +103,5 @@ function allPermissions(value: boolean): AgentRecord["permissions"] {
     edit: value,
     bash: value,
     network: value,
-    javascript: value,
-    artifacts: value,
-    documentExtract: value,
   };
 }
