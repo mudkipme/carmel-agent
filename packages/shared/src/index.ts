@@ -39,16 +39,31 @@ declare module "@earendil-works/pi-agent-core" {
 export const OLLAMA_PROVIDER = "ollama";
 export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1";
 
+export type UserRole = "admin" | "user";
+
 export type User = {
   id: string;
   username?: string;
   name: string;
   email: string;
+  role: UserRole;
   fastTaskModelRefId?: string;
 };
 
 export type AuthUser = User & {
   username: string;
+};
+
+export type SetupStatus = {
+  needsSetup: boolean;
+};
+
+export type CreateUserRequest = {
+  username: string;
+  email: string;
+  password: string;
+  name?: string;
+  role?: UserRole;
 };
 
 export type AgentPermissions = {

@@ -16,6 +16,7 @@ export const defaultUser: User = {
   id: "user_self",
   name: "Local User",
   email: "user@local",
+  role: "user",
 };
 
 const provider = getProviders()[0] ?? "anthropic";

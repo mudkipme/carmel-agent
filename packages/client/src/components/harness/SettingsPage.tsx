@@ -4,6 +4,7 @@ import {
   KeyRoundIcon,
   MonitorIcon,
   UserIcon,
+  UsersIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
@@ -11,6 +12,7 @@ import { AccountSettings } from "@/components/harness/settings/AccountSettings";
 import { AppearanceSettings } from "@/components/harness/settings/AppearanceSettings";
 import { ModelSettings } from "@/components/harness/settings/ModelSettings";
 import { ProviderSettings } from "@/components/harness/settings/ProviderSettings";
+import { UserSettings } from "@/components/harness/settings/UserSettings";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { setThemePreference, useThemePreference, type ThemePreference } from "@/lib/theme";
@@ -18,23 +20,26 @@ import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 import { type ModelRef, type OAuthProviderSummary } from "@carmel-agent/shared";
 
-const settingsSections = [
-  { id: "models", label: "Models", icon: DatabaseIcon },
-  { id: "providers", label: "Providers", icon: KeyRoundIcon },
-  { id: "appearance", label: "Appearance", icon: MonitorIcon },
-  { id: "account", label: "Account", icon: UserIcon },
+const allSettingsSections = [
+  { id: "models", label: "Models", icon: DatabaseIcon, adminOnly: false },
+  { id: "providers", label: "Providers", icon: KeyRoundIcon, adminOnly: false },
+  { id: "appearance", label: "Appearance", icon: MonitorIcon, adminOnly: false },
+  { id: "users", label: "Users", icon: UsersIcon, adminOnly: true },
+  { id: "account", label: "Account", icon: UserIcon, adminOnly: false },
 ] as const;
-type SettingsSection = (typeof settingsSections)[number]["id"];
+type SettingsSection = (typeof allSettingsSections)[number]["id"];
 
 export function SettingsPage() {
   const navigate = useNavigate();
   const { section } = useParams();
-  const activeSection = settingsSections.some((item) => item.id === section)
-    ? (section as SettingsSection)
-    : "models";
   const modelRefs = useHarnessStore((state) => state.modelRefs);
   const providerConfigs = useHarnessStore((state) => state.providerConfigs);
   const activeUser = useHarnessStore((state) => state.users.find((item) => item.id === state.activeUserId));
+  const isAdmin = activeUser?.role === "admin";
+  const settingsSections = allSettingsSections.filter((item) => !item.adminOnly || isAdmin);
+  const activeSection = settingsSections.some((item) => item.id === section)
+    ? (section as SettingsSection)
+    : "models";
   const upsertUser = useHarnessStore((state) => state.upsertUser);
   const upsertModelRef = useHarnessStore((state) => state.upsertModelRef);
   const themePreference = useThemePreference();
@@ -45,10 +50,11 @@ export function SettingsPage() {
   const [appearanceSaveMessage, setAppearanceSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (section && !settingsSections.some((item) => item.id === section)) {
+    const valid = allSettingsSections.some((item) => item.id === section && (!item.adminOnly || isAdmin));
+    if (section && !valid) {
       navigate("/settings/models", { replace: true });
     }
-  }, [navigate, section]);
+  }, [navigate, section, isAdmin]);
 
   useEffect(() => {
     void api.getOAuthProviders().then(setOAuthProviders).catch(() => setOAuthProviders([]));
@@ -162,6 +168,7 @@ export function SettingsPage() {
                 saveMessage={appearanceSaveMessage}
               />
             ) : null}
+            {activeSection === "users" ? <UserSettings /> : null}
             {activeSection === "account" ? (
               <AccountSettings />
             ) : null}

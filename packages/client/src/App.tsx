@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { HarnessShell } from "@/components/harness/HarnessShell";
 import { LoginScreen } from "@/components/harness/LoginScreen";
+import { SetupScreen } from "@/components/harness/SetupScreen";
 import { SettingsPage } from "@/components/harness/SettingsPage";
 import { Splash } from "@/components/harness/Splash";
 import { useHarnessStore } from "@/store/harness-store";
@@ -47,6 +48,10 @@ export default function App() {
 
   if (status === "error") {
     return <Splash title="API unavailable" detail={error ?? "Start the server with pnpm dev:server."} />;
+  }
+
+  if (status === "setup") {
+    return <SetupScreen />;
   }
 
   if (status === "unauthenticated") {

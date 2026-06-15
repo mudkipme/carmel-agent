@@ -10,6 +10,7 @@ export function serializeUser(user: typeof users.$inferSelect): User {
     username: user.username ?? undefined,
     name: user.name,
     email: user.email,
+    role: user.role ?? "user",
     fastTaskModelRefId: user.fastTaskModelRefId ?? undefined,
   };
 }

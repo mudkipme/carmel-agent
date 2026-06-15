@@ -25,7 +25,7 @@ export {
 
 const id = createClientId;
 
-type HarnessStatus = "idle" | "loading" | "ready" | "unauthenticated" | "error";
+type HarnessStatus = "idle" | "loading" | "ready" | "unauthenticated" | "setup" | "error";
 
 type HarnessState = {
   status: HarnessStatus;
@@ -41,6 +41,7 @@ type HarnessState = {
   activeSessionId: string;
   bootstrap: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
+  setup: (input: { username: string; password: string; email?: string; name?: string }) => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   setActiveUser: (userId: string) => void;
@@ -95,10 +96,28 @@ export const useHarnessStore = create<HarnessState>()(
       if (nextState.activeSessionId) await get().refreshSession(nextState.activeSessionId);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        set((state) => resetState({ status: "unauthenticated" }, state));
+        const needsSetup = await api
+          .setupStatus()
+          .then((status) => status.needsSetup)
+          .catch(() => false);
+        set((state) => resetState({ status: needsSetup ? "setup" : "unauthenticated" }, state));
         return;
       }
       set({ status: "error", error: error instanceof Error ? error.message : "Failed to load harness" });
+    }
+  },
+  setup: async (input) => {
+    set({ status: "loading", error: undefined });
+    try {
+      const payload = await api.setup(input);
+      const nextState = resolveBootstrapState(payload, get());
+      set(nextState);
+      if (nextState.activeSessionId) await get().refreshSession(nextState.activeSessionId);
+    } catch (error) {
+      set((state) => ({
+        ...resetState({ status: "setup" }, state),
+        error: error instanceof Error ? error.message : "Setup failed",
+      }));
     }
   },
   login: async (username, password) => {

@@ -169,6 +169,7 @@ function createTestApp(agent: AgentRecord) {
       passwordHash: null,
       name: "User",
       email: "user@example.com",
+      role: "admin",
       fastTaskModelRefId: null,
       createdAt: 0,
       updatedAt: 0,

@@ -63,6 +63,11 @@ const migrations: Migration[] = [
     description: "Remove unused custom header columns from providers and models",
     run: dropCustomHeaders,
   },
+  {
+    id: "009_user_roles",
+    description: "Add user roles; existing accounts become admins",
+    run: addUserRoles,
+  },
 ];
 
 export function migrate() {
@@ -102,6 +107,7 @@ function createBaseSchema() {
       password_hash TEXT,
       name TEXT NOT NULL,
       email TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
       fast_task_model_ref_id TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
@@ -435,6 +441,14 @@ function dropModelRefIndexes() {
     DROP INDEX IF EXISTS model_refs_provider_config_model_unique;
     DROP INDEX IF EXISTS model_refs_provider_model_unique;
   `);
+}
+
+function addUserRoles() {
+  addColumnIfMissing("users", "role", "TEXT NOT NULL DEFAULT 'user'");
+  // Accounts that already existed were provisioned by the operator, so keep their
+  // access by promoting them to admin. Runs once; on a fresh database there are
+  // no users yet (seed runs after migrate), so this is a no-op.
+  sqlite.exec("UPDATE users SET role = 'admin'");
 }
 
 function addColumnIfMissing(table: string, column: string, type: string) {

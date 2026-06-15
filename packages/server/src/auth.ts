@@ -92,8 +92,19 @@ export const requireAuth: MiddlewareHandler<{ Variables: AuthVariables }> = asyn
   await next();
 };
 
+export const requireAdmin: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {
+  if (c.get("user").role !== "admin") return c.json({ error: "Administrator access required." }, 403);
+  await next();
+};
+
 function isPublicApiPath(path: string) {
-  return path === "/api/health" || path === "/api/auth/login" || path === "/api/auth/logout";
+  return (
+    path === "/api/health" ||
+    path === "/api/auth/login" ||
+    path === "/api/auth/logout" ||
+    path === "/api/auth/status" ||
+    path === "/api/auth/setup"
+  );
 }
 
 function hashToken(token: string) {

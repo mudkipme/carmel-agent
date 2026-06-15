@@ -38,6 +38,7 @@ async function main() {
       passwordHash,
       name: args.name ?? current?.name ?? username,
       email: args.email ?? current?.email ?? `${username}@local`,
+      role: "admin",
       createdAt: current?.createdAt ?? timestamp,
       updatedAt: timestamp,
     })
@@ -48,6 +49,7 @@ async function main() {
         passwordHash,
         name: args.name ?? current?.name ?? username,
         email: args.email ?? current?.email ?? `${username}@local`,
+        role: "admin",
         updatedAt: timestamp,
       },
     })

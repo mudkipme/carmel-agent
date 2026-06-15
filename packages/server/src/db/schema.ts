@@ -8,6 +8,7 @@ import type {
   AgentWorkingDirMode,
   PromptTemplate,
   Session,
+  UserRole,
 } from "@carmel-agent/shared";
 
 export const users = sqliteTable("users", {
@@ -16,6 +17,7 @@ export const users = sqliteTable("users", {
   passwordHash: text("password_hash"),
   name: text("name").notNull(),
   email: text("email").notNull(),
+  role: text("role").$type<UserRole>().notNull().default("user"),
   fastTaskModelRefId: text("fast_task_model_ref_id"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),

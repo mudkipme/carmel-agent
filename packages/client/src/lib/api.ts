@@ -5,6 +5,7 @@ import type {
   AgentFileContent,
   AgentFileEntry,
   AgentFileList,
+  CreateUserRequest,
   OAuthLoginFlowState,
   OAuthProviderSummary,
   ModelRef,
@@ -14,6 +15,7 @@ import type {
   SessionDraft,
   SessionImportResult,
   SessionMetadata,
+  SetupStatus,
   User,
 } from "@carmel-agent/shared";
 
@@ -74,6 +76,12 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }),
   logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
+  setupStatus: () => request<SetupStatus>("/api/auth/status"),
+  setup: (input: { username: string; password: string; email?: string; name?: string }) =>
+    request<BootstrapPayload>("/api/auth/setup", { method: "POST", body: JSON.stringify(input) }),
+  listUsers: () => request<User[]>("/api/users"),
+  createUser: (input: CreateUserRequest) =>
+    request<User>("/api/users", { method: "POST", body: JSON.stringify(input) }),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ ok: true }>("/api/auth/password", {
       method: "POST",

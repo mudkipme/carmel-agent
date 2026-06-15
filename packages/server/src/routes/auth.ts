@@ -1,5 +1,5 @@
 import { getConnInfo } from "@hono/node-server/conninfo";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import {
   clearAuthSession,
@@ -10,9 +10,16 @@ import {
 } from "../auth.ts";
 import { db } from "../db/index.ts";
 import { users } from "../db/schema.ts";
-import { now } from "../db/seed.ts";
+import { id, now } from "../db/seed.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
-import { jsonValidator, loginRequestSchema, passwordRequestSchema } from "../validation.ts";
+import { jsonValidator, loginRequestSchema, passwordRequestSchema, setupRequestSchema } from "../validation.ts";
+
+// "Needs setup" means no account can log in yet. A fresh database seeds a
+// passwordless placeholder user that owns the default agent/model, so we key off
+// the presence of a password rather than the presence of any row.
+function hasLoginCapableUser() {
+  return Boolean(db.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash)).get());
+}
 
 const maxLoginFailures = 5;
 const loginFailureWindowMs = 15 * 60 * 1000;
@@ -45,6 +52,53 @@ export function createAuthRoutes() {
   route.post("/logout", (c) => {
     clearAuthSession(c);
     return c.json({ ok: true });
+  });
+
+  route.get("/status", (c) => {
+    return c.json({ needsSetup: !hasLoginCapableUser() });
+  });
+
+  // First-run: create the initial administrator. Only allowed while no account can
+  // log in yet, so it cannot be used to mint admins after setup.
+  route.post("/setup", jsonValidator(setupRequestSchema), async (c) => {
+    if (hasLoginCapableUser()) return c.json({ error: "Setup has already been completed." }, 403);
+
+    const username = c.req.valid("json").username.trim();
+    const { password, email, name } = c.req.valid("json");
+    if (!username || !password) return c.json({ error: "Username and password are required." }, 400);
+    if (password.length < 8) return c.json({ error: "Password must be at least 8 characters." }, 400);
+
+    // Claim the seeded placeholder (so its default agent/model become the admin's)
+    // when present; otherwise create a fresh account.
+    const placeholder = db.select().from(users).all().find((user) => !user.passwordHash);
+    const userId = placeholder?.id ?? id("user");
+    const timestamp = now();
+    db.insert(users)
+      .values({
+        id: userId,
+        username,
+        passwordHash: await hashPassword(password),
+        name: name?.trim() || username,
+        email: email?.trim() || `${username}@local`,
+        role: "admin",
+        createdAt: placeholder?.createdAt ?? timestamp,
+        updatedAt: timestamp,
+      })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          username,
+          passwordHash: await hashPassword(password),
+          name: name?.trim() || username,
+          email: email?.trim() || `${username}@local`,
+          role: "admin",
+          updatedAt: timestamp,
+        },
+      })
+      .run();
+
+    await createAuthSession(c, userId);
+    return c.json(readBootstrapPayload(userId), 201);
   });
 
   route.post("/password", jsonValidator(passwordRequestSchema), async (c) => {
