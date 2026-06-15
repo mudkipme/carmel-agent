@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
+import { secureHeaders } from "hono/secure-headers";
 import { requireAuth, type AuthVariables } from "./auth.ts";
 import { createApiRoutes } from "./routes/index.ts";
 import { allowedCorsOrigin, rejectCrossOriginMutations } from "./security.ts";
@@ -21,6 +22,32 @@ export function createApp() {
   });
 
   app.use("*", compress({ encoding: "gzip", threshold: 1024 }));
+  app.use(
+    "*",
+    secureHeaders({
+      // TLS termination is deployment-specific (often a reverse proxy), and the
+      // app may be reached over plain HTTP; don't force HSTS from here.
+      strictTransportSecurity: false,
+      // The web client may call the API cross-origin (see CARMEL_ALLOWED_ORIGINS);
+      // CORS already governs that, and CORP: same-origin would block it.
+      crossOriginResourcePolicy: false,
+      contentSecurityPolicy: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'self'"],
+        scriptSrc: ["'self'"],
+        // Monaco and Radix inject <style>/style attributes at runtime.
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        // Same-origin assets, base64 attachments, and markdown-referenced images.
+        imgSrc: ["'self'", "data:", "blob:", "https:"],
+        fontSrc: ["'self'", "data:"],
+        // Monaco editor worker (same-origin; blob: covers Vite's worker fallback).
+        workerSrc: ["'self'", "blob:"],
+        connectSrc: ["'self'"],
+      },
+    }),
+  );
   app.use(
     "/api/*",
     cors({

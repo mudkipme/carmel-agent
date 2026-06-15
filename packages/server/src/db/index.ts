@@ -53,6 +53,11 @@ const migrations: Migration[] = [
     description: "Move session messages into their own table",
     run: moveSessionMessagesToTable,
   },
+  {
+    id: "007_access_indexes",
+    description: "Index the columns used by access-control and reassignment queries",
+    run: createAccessIndexes,
+  },
 ];
 
 export function migrate() {
@@ -255,6 +260,20 @@ function moveSessionMessagesToTable() {
     });
   }
   sqlite.exec("ALTER TABLE sessions DROP COLUMN messages");
+}
+
+function createAccessIndexes() {
+  sqlite.exec(`
+    CREATE INDEX IF NOT EXISTS agents_owner_user_id ON agents(owner_user_id);
+    CREATE INDEX IF NOT EXISTS agents_default_model_ref_id ON agents(default_model_ref_id);
+    CREATE INDEX IF NOT EXISTS model_refs_owner_user_id ON model_refs(owner_user_id);
+    CREATE INDEX IF NOT EXISTS model_refs_provider_config_id ON model_refs(provider_config_id);
+    CREATE INDEX IF NOT EXISTS provider_configs_user_id ON provider_configs(user_id);
+    CREATE INDEX IF NOT EXISTS sessions_user_id ON sessions(user_id);
+    CREATE INDEX IF NOT EXISTS sessions_agent_id ON sessions(agent_id);
+    CREATE INDEX IF NOT EXISTS sessions_model_ref_id ON sessions(model_ref_id);
+    CREATE INDEX IF NOT EXISTS users_fast_task_model_ref_id ON users(fast_task_model_ref_id);
+  `);
 }
 
 function parseMessagesBlob(value: string | null): unknown[] {

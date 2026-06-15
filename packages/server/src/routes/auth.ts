@@ -1,3 +1,4 @@
+import { getConnInfo } from "@hono/node-server/conninfo";
 import { eq } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import {
@@ -67,9 +68,42 @@ export function createAuthRoutes() {
 }
 
 function loginAttemptKey(c: Context, username: string) {
-  const forwardedFor = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
-  const remote = forwardedFor || c.req.header("x-real-ip") || "unknown";
-  return `${remote}:${username.toLowerCase()}`;
+  return `${clientIp(c)}:${username.toLowerCase()}`;
+}
+
+// Use the TCP source address (which the client cannot spoof). `X-Forwarded-For`
+// is only honoured when the connection actually comes from a proxy listed in
+// CARMEL_TRUSTED_PROXY, so a direct attacker setting the header is ignored.
+function clientIp(c: Context) {
+  const socketIp = socketAddress(c);
+  if (socketIp && isTrustedProxy(socketIp)) {
+    const forwarded = normalizeIp(c.req.header("x-forwarded-for")?.split(",")[0]);
+    if (forwarded) return forwarded;
+  }
+  return socketIp ?? "unknown";
+}
+
+function socketAddress(c: Context) {
+  try {
+    return normalizeIp(getConnInfo(c).remote.address);
+  } catch {
+    return undefined;
+  }
+}
+
+function isTrustedProxy(ip: string) {
+  return (process.env.CARMEL_TRUSTED_PROXY ?? "")
+    .split(",")
+    .map((value) => normalizeIp(value))
+    .some((value) => value === ip);
+}
+
+// Lower-cases and unwraps IPv4-mapped IPv6 addresses (::ffff:192.168.1.3) so
+// configured IPs match what the socket reports on dual-stack listeners.
+function normalizeIp(value: string | undefined | null) {
+  const trimmed = value?.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  return trimmed.startsWith("::ffff:") ? trimmed.slice("::ffff:".length) : trimmed;
 }
 
 function isLoginRateLimited(key: string, timestamp = Date.now()) {

@@ -1,6 +1,6 @@
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { AgentConfig, AgentThinkingLevel } from "@carmel-agent/shared";
-import { eq } from "drizzle-orm";
+import { eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
@@ -19,8 +19,8 @@ export function readVisibleAgents(userId: string) {
   return db
     .select()
     .from(agents)
-    .all()
-    .filter((agent) => agent.ownerUserId === userId || agent.shared);
+    .where(or(eq(agents.ownerUserId, userId), eq(agents.shared, true)))
+    .all();
 }
 
 export function readVisibleAgent(userId: string, agentId: string) {
@@ -30,18 +30,14 @@ export function readVisibleAgent(userId: string, agentId: string) {
 }
 
 export function readVisibleModelRefs(userId: string) {
-  const providerConfigIds = new Set(readUserProviderConfigs(userId).map((config) => config.id));
-  return db
-    .select()
-    .from(modelRefs)
-    .all()
-    .filter(
-      (model) =>
-        model.ownerUserId === userId ||
-        model.shared ||
-        !model.providerConfigId ||
-        providerConfigIds.has(model.providerConfigId),
-    );
+  const providerConfigIds = readUserProviderConfigs(userId).map((config) => config.id);
+  const conditions = [
+    eq(modelRefs.ownerUserId, userId),
+    eq(modelRefs.shared, true),
+    isNull(modelRefs.providerConfigId),
+  ];
+  if (providerConfigIds.length > 0) conditions.push(inArray(modelRefs.providerConfigId, providerConfigIds));
+  return db.select().from(modelRefs).where(or(...conditions)).all();
 }
 
 export function ownsProviderConfig(userId: string, providerConfigId: string) {
@@ -98,26 +94,16 @@ export function resolveAgentWorkingDir(agent: AgentConfig, agentId: string, curr
 }
 
 export function reassignModelReferences(deletedModelIds: Set<string>) {
+  const ids = [...deletedModelIds];
+  if (ids.length === 0) return;
   const timestamp = now();
-  const affectedUsers = db
-    .select()
-    .from(users)
-    .all()
-    .filter((user) => user.fastTaskModelRefId && deletedModelIds.has(user.fastTaskModelRefId));
 
-  for (const user of affectedUsers) {
-    db.update(users)
-      .set({ fastTaskModelRefId: null, updatedAt: timestamp })
-      .where(eq(users.id, user.id))
-      .run();
-  }
+  db.update(users)
+    .set({ fastTaskModelRefId: null, updatedAt: timestamp })
+    .where(inArray(users.fastTaskModelRefId, ids))
+    .run();
 
-  const affectedAgents = db
-    .select()
-    .from(agents)
-    .all()
-    .filter((agent) => deletedModelIds.has(agent.defaultModelRefId));
-
+  const affectedAgents = db.select().from(agents).where(inArray(agents.defaultModelRefId, ids)).all();
   for (const agent of affectedAgents) {
     const fallbackModel = readFallbackModelForUser(agent.ownerUserId, deletedModelIds);
     if (!fallbackModel) continue;
@@ -127,15 +113,21 @@ export function reassignModelReferences(deletedModelIds: Set<string>) {
       .run();
   }
 
-  const currentAgents = new Map(db.select().from(agents).all().map((agent) => [agent.id, agent]));
-  const affectedSessions = db
-    .select()
-    .from(sessions)
-    .all()
-    .filter((session) => deletedModelIds.has(session.modelRefId));
+  const affectedSessions = db.select().from(sessions).where(inArray(sessions.modelRefId, ids)).all();
+  const agentIds = [...new Set(affectedSessions.map((session) => session.agentId))];
+  const agentDefaultModelById = new Map(
+    agentIds.length === 0
+      ? []
+      : db
+          .select({ id: agents.id, defaultModelRefId: agents.defaultModelRefId })
+          .from(agents)
+          .where(inArray(agents.id, agentIds))
+          .all()
+          .map((agent) => [agent.id, agent.defaultModelRefId] as const),
+  );
 
   for (const session of affectedSessions) {
-    const agentDefaultModelId = currentAgents.get(session.agentId)?.defaultModelRefId;
+    const agentDefaultModelId = agentDefaultModelById.get(session.agentId);
     const fallbackModel = readFallbackModelForUser(session.userId, deletedModelIds);
     if (!fallbackModel) continue;
     db.update(sessions)
@@ -152,15 +144,17 @@ export function reassignModelReferences(deletedModelIds: Set<string>) {
 }
 
 export function readAffectedModelUserIds(deletedModelIds: Set<string>) {
+  const ids = [...deletedModelIds];
+  if (ids.length === 0) return [];
   const userIds = new Set<string>();
-  for (const agent of db.select().from(agents).all()) {
-    if (deletedModelIds.has(agent.defaultModelRefId)) userIds.add(agent.ownerUserId);
+  for (const agent of db.select({ ownerUserId: agents.ownerUserId }).from(agents).where(inArray(agents.defaultModelRefId, ids)).all()) {
+    userIds.add(agent.ownerUserId);
   }
-  for (const user of db.select().from(users).all()) {
-    if (user.fastTaskModelRefId && deletedModelIds.has(user.fastTaskModelRefId)) userIds.add(user.id);
+  for (const user of db.select({ id: users.id }).from(users).where(inArray(users.fastTaskModelRefId, ids)).all()) {
+    userIds.add(user.id);
   }
-  for (const session of db.select().from(sessions).all()) {
-    if (deletedModelIds.has(session.modelRefId)) userIds.add(session.userId);
+  for (const session of db.select({ userId: sessions.userId }).from(sessions).where(inArray(sessions.modelRefId, ids)).all()) {
+    userIds.add(session.userId);
   }
   return [...userIds];
 }

@@ -4,7 +4,7 @@ import type { MiddlewareHandler } from "hono";
 const encryptedPrefix = "enc:v1:";
 const encryptedJsonKey = "__carmel_encrypted_v1";
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
-const defaultAllowedBrowserOrigins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://porygon-z.lan:5173"];
+const defaultAllowedBrowserOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 export function protectSecret(value: string | null | undefined) {
   if (!value) return value ?? null;

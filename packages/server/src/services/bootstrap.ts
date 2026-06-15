@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
-import { modelRefs, sessions, users } from "../db/schema.ts";
+import { sessions, users } from "../db/schema.ts";
 import {
   serializeModelRef,
   serializeProviderConfig,
@@ -8,28 +8,15 @@ import {
   serializeSessionMetadata,
   serializeUser,
 } from "../serializers.ts";
-import { readUserProviderConfigs, readVisibleAgents } from "./agent-access.ts";
+import { readUserProviderConfigs, readVisibleAgents, readVisibleModelRefs } from "./agent-access.ts";
 import { readSessionMessageCountsForUser } from "./session-store.ts";
 
 export function readBootstrapPayload(userId: string) {
-  const visibleProviderConfigs = readUserProviderConfigs(userId);
-  const visibleProviderConfigIds = new Set(visibleProviderConfigs.map((config) => config.id));
   return {
     users: db.select().from(users).where(eq(users.id, userId)).all().map(serializeUser),
     agents: readVisibleAgents(userId).map(serializePublicAgent),
-    providerConfigs: visibleProviderConfigs.map(serializeProviderConfig),
-    modelRefs: db
-      .select()
-      .from(modelRefs)
-      .all()
-      .filter(
-        (model) =>
-          model.ownerUserId === userId ||
-          model.shared ||
-          !model.providerConfigId ||
-          visibleProviderConfigIds.has(model.providerConfigId),
-      )
-      .map(serializeModelRef),
+    providerConfigs: readUserProviderConfigs(userId).map(serializeProviderConfig),
+    modelRefs: readVisibleModelRefs(userId).map(serializeModelRef),
     sessions: readSessionMetadataForUser(userId),
   };
 }
