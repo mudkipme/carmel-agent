@@ -9,6 +9,7 @@ import {
   serializeUser,
 } from "../serializers.ts";
 import { readUserProviderConfigs, readVisibleAgents } from "./agent-access.ts";
+import { readSessionMessageCountsForUser } from "./session-store.ts";
 
 export function readBootstrapPayload(userId: string) {
   const visibleProviderConfigs = readUserProviderConfigs(userId);
@@ -29,14 +30,19 @@ export function readBootstrapPayload(userId: string) {
           visibleProviderConfigIds.has(model.providerConfigId),
       )
       .map(serializeModelRef),
-    sessions: db
-      .select()
-      .from(sessions)
-      .where(eq(sessions.userId, userId))
-      .all()
-      .sort(sortSessions)
-      .map(serializeSessionMetadata),
+    sessions: readSessionMetadataForUser(userId),
   };
+}
+
+function readSessionMetadataForUser(userId: string) {
+  const counts = readSessionMessageCountsForUser(userId);
+  return db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.userId, userId))
+    .all()
+    .sort(sortSessions)
+    .map((session) => serializeSessionMetadata(session, counts.get(session.id) ?? 0));
 }
 
 function sortSessions(a: typeof sessions.$inferSelect, b: typeof sessions.$inferSelect) {

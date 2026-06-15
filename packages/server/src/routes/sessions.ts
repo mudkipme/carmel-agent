@@ -4,11 +4,12 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
-import { modelRefs, sessions } from "../db/schema.ts";
+import { modelRefs, sessionMessages, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { importOpenWebuiSessions } from "../import/open-webui.ts";
 import { serializeSession } from "../serializers.ts";
 import { canUseModel, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
+import { loadSession, replaceSessionMessages } from "../services/session-store.ts";
 import {
   forkSessionRequestSchema,
   jsonValidator,
@@ -23,13 +24,13 @@ export function createSessionRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
 
   route.get("/sessions/:id", (c) => {
-    const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
+    const session = loadSession(c.req.param("id"));
     if (!session || session.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
     return c.json(serializeSession(session));
   });
 
   route.get("/sessions/:id/images/:messageIndex/:imageIndex", (c) => {
-    const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
+    const session = loadSession(c.req.param("id"));
     if (!session || session.userId !== c.get("user").id) return c.json({ error: "Image not found" }, 404);
 
     const messageIndex = parseIndex(c.req.param("messageIndex"));
@@ -42,7 +43,7 @@ export function createSessionRoutes() {
   });
 
   route.get("/sessions/:id/tool-result-images/:messageIndex/:partIndex", (c) => {
-    const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
+    const session = loadSession(c.req.param("id"));
     if (!session || session.userId !== c.get("user").id) return c.json({ error: "Image not found" }, 404);
 
     const messageIndex = parseIndex(c.req.param("messageIndex"));
@@ -55,7 +56,7 @@ export function createSessionRoutes() {
   });
 
   route.get("/sessions/:id/attachments/:messageIndex/:attachmentId", (c) => {
-    const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
+    const session = loadSession(c.req.param("id"));
     if (!session || session.userId !== c.get("user").id) return c.json({ error: "Attachment not found" }, 404);
 
     const messageIndex = parseIndex(c.req.param("messageIndex"));
@@ -86,7 +87,7 @@ export function createSessionRoutes() {
       createdAt: timestamp,
       updatedAt: timestamp,
     };
-    db.insert(sessions).values(session).run();
+    db.insert(sessions).values(toSessionRow(session)).run();
     return c.json(serializeSession(session), 201);
   });
 
@@ -114,8 +115,23 @@ export function createSessionRoutes() {
       return c.json({ error: "No importable Open WebUI conversations found." }, 400);
     }
 
+    const timestamp = now();
     db.transaction((tx) => {
-      for (const session of imported.sessions) tx.insert(sessions).values(session).run();
+      for (const session of imported.sessions) {
+        tx.insert(sessions).values(toSessionRow(session)).run();
+        if (session.messages.length === 0) continue;
+        tx.insert(sessionMessages)
+          .values(
+            session.messages.map((message, seq) => ({
+              id: id("session_message"),
+              sessionId: session.id,
+              seq,
+              message,
+              createdAt: timestamp,
+            })),
+          )
+          .run();
+      }
     });
 
     const result: SessionImportResult = {
@@ -133,38 +149,24 @@ export function createSessionRoutes() {
     if (patch.modelRefId && !canUseModel(c.get("user").id, patch.modelRefId)) {
       return c.json({ error: "Model not found." }, 404);
     }
-    const updated: Session = {
-      ...current,
-      title: patch.title ?? current.title,
-      modelRefId: patch.modelRefId ?? current.modelRefId,
-      thinkingLevel: patch.thinkingLevel ?? current.thinkingLevel,
-      messages: current.messages,
-      forkedFrom: current.forkedFrom ?? undefined,
-      pinnedAt: patch.pinnedAt === null ? undefined : (patch.pinnedAt ?? current.pinnedAt ?? undefined),
-      id: sessionId,
-      updatedAt: now(),
-    };
     db.update(sessions)
       .set({
-        title: updated.title,
-        userId: updated.userId,
-        agentId: updated.agentId,
-        modelRefId: updated.modelRefId,
-        thinkingLevel: updated.thinkingLevel,
-        messages: updated.messages,
-        forkedFrom: updated.forkedFrom,
-        pinnedAt: patch.pinnedAt === null ? null : updated.pinnedAt,
-        updatedAt: updated.updatedAt,
+        title: patch.title ?? current.title,
+        modelRefId: patch.modelRefId ?? current.modelRefId,
+        thinkingLevel: patch.thinkingLevel ?? current.thinkingLevel,
+        forkedFrom: current.forkedFrom,
+        pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
+        updatedAt: now(),
       })
       .where(eq(sessions.id, sessionId))
       .run();
-    return c.json(serializeSession(updated));
+    return c.json(serializeSession(loadSession(sessionId)!));
   });
 
   route.post("/sessions/:id/fork", jsonValidator(forkSessionRequestSchema), async (c) => {
     const sessionId = c.req.param("id");
     const body = c.req.valid("json");
-    const source = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    const source = loadSession(sessionId);
     if (!source || source.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
     const timestamp = now();
     const fork: Session = {
@@ -177,41 +179,34 @@ export function createSessionRoutes() {
       createdAt: timestamp,
       updatedAt: timestamp,
     };
-    db.insert(sessions).values(fork).run();
+    db.insert(sessions).values(toSessionRow(fork)).run();
+    replaceSessionMessages(fork.id, fork.messages);
     return c.json(serializeSession(fork), 201);
   });
 
   route.post("/sessions/:id/messages/truncate", jsonValidator(sessionTruncateRequestSchema), async (c) => {
     const sessionId = c.req.param("id");
     const body = c.req.valid("json");
-    const current = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    const current = loadSession(sessionId);
     if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
     if (body.messageIndex >= current.messages.length) return c.json({ error: "Message not found" }, 404);
 
-    const updated: Session = {
-      ...current,
-      thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
-      messages: current.messages.slice(0, body.messageIndex + 1),
-      forkedFrom: current.forkedFrom ?? undefined,
-      pinnedAt: current.pinnedAt ?? undefined,
-      updatedAt: now(),
-    };
+    replaceSessionMessages(sessionId, current.messages.slice(0, body.messageIndex + 1));
     db.update(sessions)
       .set({
-        thinkingLevel: updated.thinkingLevel,
-        messages: updated.messages,
-        updatedAt: updated.updatedAt,
+        thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
+        updatedAt: now(),
       })
       .where(eq(sessions.id, sessionId))
       .run();
-    return c.json(serializeSession(updated));
+    return c.json(serializeSession(loadSession(sessionId)!));
   });
 
   route.patch("/sessions/:id/messages/:messageIndex", jsonValidator(sessionMessageEditRequestSchema), async (c) => {
     const sessionId = c.req.param("id");
     const messageIndex = Number(c.req.param("messageIndex"));
     const body = c.req.valid("json");
-    const current = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    const current = loadSession(sessionId);
     if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
     if (!Number.isInteger(messageIndex) || messageIndex < 0 || messageIndex >= current.messages.length) {
       return c.json({ error: "Message not found" }, 404);
@@ -224,23 +219,15 @@ export function createSessionRoutes() {
       ? [...current.messages.slice(0, messageIndex), editedMessage]
       : current.messages.map((message, index) => (index === messageIndex ? editedMessage : message));
 
-    const updated: Session = {
-      ...current,
-      thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
-      messages,
-      forkedFrom: current.forkedFrom ?? undefined,
-      pinnedAt: current.pinnedAt ?? undefined,
-      updatedAt: now(),
-    };
+    replaceSessionMessages(sessionId, messages);
     db.update(sessions)
       .set({
-        thinkingLevel: updated.thinkingLevel,
-        messages: updated.messages,
-        updatedAt: updated.updatedAt,
+        thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
+        updatedAt: now(),
       })
       .where(eq(sessions.id, sessionId))
       .run();
-    return c.json(serializeSession(updated));
+    return c.json(serializeSession(loadSession(sessionId)!));
   });
 
   route.delete("/sessions/:id", (c) => {
@@ -251,6 +238,21 @@ export function createSessionRoutes() {
   });
 
   return route;
+}
+
+function toSessionRow(session: Session) {
+  return {
+    id: session.id,
+    title: session.title,
+    userId: session.userId,
+    agentId: session.agentId,
+    modelRefId: session.modelRefId,
+    thinkingLevel: session.thinkingLevel,
+    forkedFrom: session.forkedFrom ?? null,
+    pinnedAt: session.pinnedAt ?? null,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+  };
 }
 
 function isEditableUserMessage(message: AgentMessage) {

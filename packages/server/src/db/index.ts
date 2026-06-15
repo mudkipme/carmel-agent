@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { count, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { agents, modelRefs, providerConfigs, sessions, users } from "./schema.ts";
-import { defaultAgent, defaultModelRef, defaultProviderConfig, defaultSession, defaultUser, now } from "./seed.ts";
+import { defaultAgent, defaultModelRef, defaultProviderConfig, defaultSession, defaultUser, id, now } from "./seed.ts";
 import { dataDir, defaultAgentWorkingDir, ensureParentDir, normalizeDataRelativePath } from "../paths.ts";
 
 const databaseUrl = process.env.DATABASE_URL ?? `${dataDir}/carmel-agent.sqlite`;
@@ -47,6 +47,11 @@ const migrations: Migration[] = [
     id: "005_agent_mounts",
     description: "Add per-agent additional runner mounts",
     run: addAgentMounts,
+  },
+  {
+    id: "006_session_messages_table",
+    description: "Move session messages into their own table",
+    run: moveSessionMessagesToTable,
   },
 ];
 
@@ -159,12 +164,22 @@ function createBaseSchema() {
       agent_id TEXT NOT NULL REFERENCES agents(id),
       model_ref_id TEXT NOT NULL REFERENCES model_refs(id),
       thinking_level TEXT NOT NULL,
-      messages TEXT NOT NULL,
       forked_from TEXT,
       pinned_at INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS session_messages (
+      id TEXT PRIMARY KEY NOT NULL,
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      seq INTEGER NOT NULL,
+      message TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS session_messages_session_seq
+      ON session_messages(session_id, seq);
 
     CREATE TABLE IF NOT EXISTS provider_keys (
       user_id TEXT NOT NULL REFERENCES users(id),
@@ -209,6 +224,47 @@ function dropAgentSkills() {
 
 function addAgentMounts() {
   addColumnIfMissing("agents", "mounts", "TEXT NOT NULL DEFAULT '[]'");
+}
+
+function moveSessionMessagesToTable() {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS session_messages (
+      id TEXT PRIMARY KEY NOT NULL,
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      seq INTEGER NOT NULL,
+      message TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS session_messages_session_seq
+      ON session_messages(session_id, seq);
+  `);
+
+  const columns = sqlite.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
+  if (!columns.some((column) => column.name === "messages")) return;
+
+  const timestamp = now();
+  const rows = sqlite
+    .prepare("SELECT id, messages FROM sessions")
+    .all() as Array<{ id: string; messages: string | null }>;
+  const insert = sqlite.prepare(
+    "INSERT INTO session_messages (id, session_id, seq, message, created_at) VALUES (?, ?, ?, ?, ?)",
+  );
+  for (const row of rows) {
+    parseMessagesBlob(row.messages).forEach((message, seq) => {
+      insert.run(id("session_message"), row.id, seq, JSON.stringify(message), timestamp);
+    });
+  }
+  sqlite.exec("ALTER TABLE sessions DROP COLUMN messages");
+}
+
+function parseMessagesBlob(value: string | null): unknown[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function backfillModelOwners() {

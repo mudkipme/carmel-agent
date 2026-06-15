@@ -1,4 +1,5 @@
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AuthCredential } from "@earendil-works/pi-coding-agent";
 import type {
   AgentMount,
@@ -117,9 +118,22 @@ export const sessions = sqliteTable("sessions", {
     .notNull()
     .references(() => modelRefs.id),
   thinkingLevel: text("thinking_level").$type<Session["thinkingLevel"]>().notNull(),
-  messages: text("messages", { mode: "json" }).$type<Session["messages"]>().notNull(),
   forkedFrom: text("forked_from", { mode: "json" }).$type<Session["forkedFrom"]>(),
   pinnedAt: integer("pinned_at"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+export const sessionMessages = sqliteTable(
+  "session_messages",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    message: text("message", { mode: "json" }).$type<AgentMessage>().notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("session_messages_session_seq").on(table.sessionId, table.seq)],
+);

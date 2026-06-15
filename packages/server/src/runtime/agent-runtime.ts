@@ -25,6 +25,7 @@ import {
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerToolDefinitions } from "./tools.ts";
+import { appendSessionMessages, readSessionMessages } from "../services/session-store.ts";
 import { OLLAMA_PROVIDER, type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 
@@ -98,7 +99,13 @@ export function createAgentRunResponse({
     let sdkSession: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
     let unsubscribe: (() => void) | undefined;
     let messagesToPersist: AgentMessage[] | undefined;
+    let initialMessages: AgentMessage[] = [];
+    let persistedCount = 0;
     try {
+      // Load the transcript first so a setup failure still has the real history
+      // for the error-message append below (and never wipes it).
+      initialMessages = readSessionMessages(session.id);
+      persistedCount = initialMessages.length;
       const modelRegistry = ModelRegistry.inMemory(authStorage);
       const resourceLoader = await createAgentResourceLoader(agent);
       const cwd = resolveAgentWorkingDirPath(agent);
@@ -122,13 +129,28 @@ export function createAgentRunResponse({
       });
       sdkSession = piSession;
       activeSession = sdkSession;
-      sdkSession.agent.state.messages = session.messages;
+      sdkSession.agent.state.messages = initialMessages;
       if (abortRequested) {
         await sdkSession.abort();
         return;
       }
       unsubscribe = sdkSession.subscribe((event) => {
         emit(event);
+        // Append after every completed message so a crash or hard kill loses at
+        // most the in-flight streaming message, not the whole turn. agent.js
+        // pushes the message onto state before notifying listeners, so the list
+        // is already complete here. Only new messages are written (O(new), not
+        // O(history)); the run-end reconcile below is authoritative.
+        if (event.type === "message_end") {
+          try {
+            persistedCount = appendSessionMessages(session.id, piSession.agent.state.messages, persistedCount);
+          } catch (error) {
+            console.warn(
+              "Incremental session persistence failed:",
+              error instanceof Error ? error.message : String(error),
+            );
+          }
+        }
       });
 
       if (promptInput) {
@@ -141,12 +163,17 @@ export function createAgentRunResponse({
       }
     } catch (error) {
       const errorEvent = createAgentError(error, model);
-      messagesToPersist = [...(sdkSession?.agent.state.messages ?? session.messages), ...errorEvent.messages];
+      messagesToPersist = [...(sdkSession?.agent.state.messages ?? initialMessages), ...errorEvent.messages];
       emit(errorEvent as AgentEvent);
     } finally {
+      const finalMessages = messagesToPersist ?? sdkSession?.agent.state.messages ?? initialMessages;
       try {
+        // The transcript is append-only during a run, so incremental appends
+        // already wrote everything; this flushes only the tail not yet persisted
+        // (e.g. a synthesized error message), not the whole history.
+        appendSessionMessages(session.id, finalMessages, persistedCount);
         await persistSessionRun(session, {
-          messages: messagesToPersist ?? sdkSession?.agent.state.messages ?? session.messages,
+          messages: finalMessages,
           modelRefId: modelRef.id,
           thinkingLevel,
           model,
@@ -181,9 +208,10 @@ async function persistSessionRun(
   },
 ) {
   const timestamp = now();
+  // Messages are persisted incrementally during the run; here we only patch the
+  // session record and (below) generate a title.
   db.update(sessions)
     .set({
-      messages: patch.messages,
       modelRefId: patch.modelRefId,
       thinkingLevel: patch.thinkingLevel,
       updatedAt: timestamp,

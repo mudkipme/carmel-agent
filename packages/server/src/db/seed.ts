@@ -77,14 +77,14 @@ export const defaultAgent: AgentConfig = {
   updatedAt: now(),
 };
 
-export const defaultSession: Session = {
+// Messages live in the session_messages table; the seeded session starts empty.
+export const defaultSession: Omit<Session, "messages"> = {
   id: "session_initial",
   title: "Initial session",
   userId: defaultUser.id,
   agentId: defaultAgent.id,
   modelRefId: defaultModelRef.id,
   thinkingLevel: "off",
-  messages: [],
   createdAt: now(),
   updatedAt: now(),
 };

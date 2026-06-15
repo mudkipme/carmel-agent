@@ -2,6 +2,7 @@ import type { AgentConfig, ModelRef, ProviderConfig, Session, SessionMetadata, U
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { agents, modelRefs, providerConfigs, sessions, users } from "./db/schema.ts";
 import { defaultAgentWorkingDir } from "./paths.ts";
+import type { SessionWithMessages } from "./services/session-store.ts";
 
 export function serializeUser(user: typeof users.$inferSelect): User {
   return {
@@ -55,7 +56,7 @@ export function serializeProviderConfig(providerConfig: typeof providerConfigs.$
   };
 }
 
-export function serializeSession(session: Session | typeof sessions.$inferSelect): Session {
+export function serializeSession(session: Session | SessionWithMessages): Session {
   return {
     ...session,
     messages: session.messages.map((message, messageIndex) =>
@@ -69,7 +70,10 @@ export function serializeSession(session: Session | typeof sessions.$inferSelect
   };
 }
 
-export function serializeSessionMetadata(session: Session | typeof sessions.$inferSelect): SessionMetadata {
+export function serializeSessionMetadata(
+  session: typeof sessions.$inferSelect,
+  messageCount: number,
+): SessionMetadata {
   return {
     id: session.id,
     title: session.title,
@@ -81,7 +85,7 @@ export function serializeSessionMetadata(session: Session | typeof sessions.$inf
     pinnedAt: session.pinnedAt ?? undefined,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
-    messageCount: session.messages.length,
+    messageCount,
   };
 }
 
