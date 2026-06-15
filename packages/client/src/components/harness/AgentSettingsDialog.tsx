@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
 import type {
   AgentConfig,
+  AgentMount,
   AgentPermissions,
   AgentThinkingLevel,
   ModelRef,
@@ -202,6 +203,20 @@ function AgentSettings({
     });
   };
 
+  const addMount = () => {
+    updateDraft({ mounts: [...draft.mounts, { source: "", target: "", readOnly: false }] });
+  };
+
+  const updateMount = (index: number, patch: Partial<AgentMount>) => {
+    updateDraft({
+      mounts: draft.mounts.map((mount, mountIndex) => (mountIndex === index ? { ...mount, ...patch } : mount)),
+    });
+  };
+
+  const removeMount = (index: number) => {
+    updateDraft({ mounts: draft.mounts.filter((_, mountIndex) => mountIndex !== index) });
+  };
+
   return (
     <div className="grid gap-4 sm:gap-6">
       <Tabs defaultValue="agent" className="w-full">
@@ -260,6 +275,47 @@ function AgentSettings({
                       placeholder="/path/on/server"
                     />
                   ) : null}
+                </div>
+              </Field>
+              <Field label="Extra runner mounts">
+                <div className="grid gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the
+                    host.
+                  </p>
+                  {draft.mounts.map((mount, index) => (
+                    <div key={index} className="grid gap-2 rounded-md border p-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={mount.source}
+                          onChange={(event) => updateMount(index, { source: event.target.value })}
+                          placeholder="/host/path"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeMount(index)}
+                          title="Remove mount"
+                        >
+                          <Trash2Icon className="size-4" />
+                        </Button>
+                      </div>
+                      <Input
+                        value={mount.target ?? ""}
+                        onChange={(event) => updateMount(index, { target: event.target.value })}
+                        placeholder="Container path (defaults to source)"
+                      />
+                      <ToggleRow
+                        label="Read only"
+                        checked={mount.readOnly ?? false}
+                        onCheckedChange={(readOnly) => updateMount(index, { readOnly })}
+                      />
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" onClick={addMount} className="justify-self-start">
+                    <PlusIcon className="size-4" /> Add mount
+                  </Button>
                 </div>
               </Field>
               <Field label="Default model">

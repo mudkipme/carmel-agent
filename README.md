@@ -58,6 +58,7 @@ Bash sandbox (see [Bash Sandboxing](#bash-sandboxing)):
 - `CARMEL_BASH_PIDS_LIMIT` - per-container PID cap. Defaults to `512`.
 - `CARMEL_BASH_IDLE_MINUTES` - idle timeout before a sandbox container is reaped. Defaults to `15`.
 - `CARMEL_BASH_GPU` - comma-separated CDI device ids to attach to runner containers, e.g. `nvidia.com/gpu=all`. Requires CDI to be configured on the host (`/etc/cdi`). Unset means no GPU.
+- `CARMEL_BASH_SELINUX_RELABEL` - relabel runner bind mounts for SELinux (`:z`). Defaults to `true`; set to `false` on non-SELinux hosts if relabeling is unwanted.
 - `CARMEL_HOST_DATA_DIR` - host path backing `CARMEL_AGENT_DATA_DIR`, required only when carmel-agent itself runs in a container so workspace bind mounts resolve on the host daemon.
 - `CARMEL_BASH_ALLOW_INSECURE` - set to `true` to fall back to in-process host bash when no socket is reachable (development only; bypasses sandboxing).
 
@@ -81,7 +82,9 @@ File API operations are constrained to the agent working directory. Agents load 
 When an agent has the `bash` permission, commands run inside a per-agent container instead of the host shell. This is the recommended way to run untrusted agents: the host shell can read anything the server can (including the SQLite database with provider keys), whereas the sandbox confines bash to the agent's workspace.
 
 - One container per agent, started lazily on the first command and reused across runs and sessions. Idle containers are reaped after `CARMEL_BASH_IDLE_MINUTES`.
-- Only the agent's workspace is bind-mounted (at `/workspace`); the rest of the host filesystem and the server's environment (provider keys, `CARMEL_SECRET_KEY`) are not visible to bash.
+- The agent's workspace is bind-mounted into the runner. A default per-agent workspace mounts at `/workspace`; a **manual** workspace mounts at its own absolute path, so paths inside the sandbox match the host and the server-side file tools. The rest of the host filesystem and the server's environment (provider keys, `CARMEL_SECRET_KEY`) are not visible to bash.
+- An agent can declare **extra mounts** (in its settings) to bind additional host directories into the runner — e.g. shared reference folders or sibling projects. Each is a host `source`, an optional container `target` (defaults to the source path), and a read-only flag.
+- Bind mounts are relabeled for SELinux (`:z`) by default, which is required on enforcing hosts (Fedora, RHEL). Set `CARMEL_BASH_SELINUX_RELABEL=false` to disable on systems where relabeling is unwanted.
 - The container gets no network unless the agent has the `network` permission, and runs with dropped capabilities, `no-new-privileges`, and memory/CPU/PID limits.
 - The file read/write/edit/search tools continue to run on the host against the same workspace directory, so they share files with the sandboxed shell through the mount.
 - GPUs can be passed through with `CARMEL_BASH_GPU` (CDI), which injects the device nodes and driver libraries into every runner container. The driver libraries come from the host via CDI, but a CUDA toolchain (`nvcc`, etc.) must be present in the runner image itself — use a CUDA-based `CARMEL_BASH_IMAGE` if you need one.

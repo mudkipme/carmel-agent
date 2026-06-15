@@ -1,6 +1,11 @@
 import { type BashOperations, createLocalBashOperations } from "@earendil-works/pi-coding-agent";
 import type { agents } from "../../db/schema.ts";
-import { ensureAgentContainer, killAgentContainer, toContainerWorkdir } from "./container-manager.ts";
+import {
+  ensureAgentContainer,
+  killAgentContainer,
+  resolveContainerWorkspace,
+  toContainerWorkdir,
+} from "./container-manager.ts";
 import { execInContainer, isSandboxConfigured, sandboxUnavailableMessage } from "./podman.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -8,12 +13,14 @@ type AgentRecord = typeof agents.$inferSelect;
 // A deliberately minimal environment. We never forward the host process env
 // (which the SDK passes by default) into the container, so provider keys, the
 // secret key, and other server secrets cannot leak into agent bash sessions.
-const sandboxEnv = [
-  "HOME=/workspace",
-  "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-  "TERM=xterm-256color",
-  "LANG=C.UTF-8",
-];
+function sandboxEnv(agent: AgentRecord) {
+  return [
+    `HOME=${resolveContainerWorkspace(agent)}`,
+    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "TERM=xterm-256color",
+    "LANG=C.UTF-8",
+  ];
+}
 
 export function createSandboxBashOperations(agent: AgentRecord): BashOperations {
   return {
@@ -51,7 +58,7 @@ export function createSandboxBashOperations(agent: AgentRecord): BashOperations 
 
         const { exitCode } = await execInContainer(
           containerId,
-          { cmd, workingDir, env: sandboxEnv },
+          { cmd, workingDir, env: sandboxEnv(agent) },
           { onData, signal },
         );
 

@@ -43,6 +43,11 @@ const migrations: Migration[] = [
     description: "Remove the global skill selection column",
     run: dropAgentSkills,
   },
+  {
+    id: "005_agent_mounts",
+    description: "Add per-agent additional runner mounts",
+    run: addAgentMounts,
+  },
 ];
 
 export function migrate() {
@@ -137,6 +142,7 @@ function createBaseSchema() {
       working_dir_mode TEXT NOT NULL DEFAULT 'manual',
       working_dir TEXT NOT NULL,
       default_working_dir TEXT,
+      mounts TEXT NOT NULL DEFAULT '[]',
       system_prompt TEXT NOT NULL,
       prompt_templates TEXT NOT NULL,
       permissions TEXT NOT NULL,
@@ -199,6 +205,10 @@ function addSessionPins() {
 
 function dropAgentSkills() {
   dropColumnIfExists("agents", "skills");
+}
+
+function addAgentMounts() {
+  addColumnIfMissing("agents", "mounts", "TEXT NOT NULL DEFAULT '[]'");
 }
 
 function backfillModelOwners() {

@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import type { agents } from "../../db/schema.ts";
 import { createStreamDemuxer, parseImageRef } from "./podman.ts";
-import { containerWorkdir } from "./container-manager.ts";
+import { buildBinds, containerWorkdir, resolveContainerWorkspace } from "./container-manager.ts";
+
+type AgentRecord = typeof agents.$inferSelect;
 
 test("demuxer reassembles multiplexed docker frames split across chunks", () => {
   const chunks: Buffer[] = [];
@@ -46,11 +49,36 @@ test("parseImageRef splits tags but not registry ports", () => {
 });
 
 test("containerWorkdir maps host paths onto the workspace mount", () => {
-  assert.equal(containerWorkdir("/data/agents/a/workspace", "/data/agents/a/workspace"), "/workspace");
-  assert.equal(containerWorkdir("/data/agents/a/workspace", "/data/agents/a/workspace/src/lib"), "/workspace/src/lib");
+  assert.equal(containerWorkdir("/data/agents/a/workspace", "/data/agents/a/workspace", "/workspace"), "/workspace");
+  assert.equal(
+    containerWorkdir("/data/agents/a/workspace", "/data/agents/a/workspace/src/lib", "/workspace"),
+    "/workspace/src/lib",
+  );
 });
 
-test("containerWorkdir falls back to the workspace root for outside paths", () => {
-  assert.equal(containerWorkdir("/data/agents/a/workspace", "/etc"), "/workspace");
-  assert.equal(containerWorkdir("/data/agents/a/workspace", "/data/agents/b/workspace"), "/workspace");
+test("containerWorkdir falls back to the mount root for outside paths", () => {
+  assert.equal(containerWorkdir("/data/agents/a/workspace", "/etc", "/workspace"), "/workspace");
+  assert.equal(containerWorkdir("/data/agents/a/workspace", "/data/agents/b/workspace", "/workspace"), "/workspace");
+});
+
+test("containerWorkdir preserves an absolute mount path for manual workspaces", () => {
+  assert.equal(containerWorkdir("/srv/projects/app", "/srv/projects/app/src", "/srv/projects/app"), "/srv/projects/app/src");
+});
+
+test("resolveContainerWorkspace keeps the absolute path for manual workspaces", () => {
+  assert.equal(resolveContainerWorkspace({ workingDirMode: "manual", workingDir: "/srv/projects/app" } as AgentRecord), "/srv/projects/app");
+  assert.equal(resolveContainerWorkspace({ workingDirMode: "default", workingDir: "agents/a/workspace" } as AgentRecord), "/workspace");
+});
+
+test("buildBinds adds the workspace and extra mounts with SELinux relabel", () => {
+  const binds = buildBinds("/host/data/agents/a/workspace", "/workspace", [
+    { source: "/srv/shared", target: "/refs", readOnly: true },
+    { source: "/srv/cache" },
+    { source: "  " },
+  ]);
+  assert.deepEqual(binds, [
+    "/host/data/agents/a/workspace:/workspace:rw,z",
+    "/srv/shared:/refs:ro,z",
+    "/srv/cache:/srv/cache:rw,z",
+  ]);
 });

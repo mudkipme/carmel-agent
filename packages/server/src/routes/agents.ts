@@ -56,6 +56,7 @@ export function createAgentRoutes() {
           workingDirMode: agent.workingDirMode ?? "manual",
           workingDir: workingDir.workingDir,
           defaultWorkingDir: workingDir.defaultWorkingDir,
+          mounts: agent.mounts,
           systemPrompt: agent.systemPrompt,
           promptTemplates: agent.promptTemplates,
           permissions: agent.permissions,

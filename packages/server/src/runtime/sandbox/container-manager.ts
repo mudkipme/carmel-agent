@@ -1,4 +1,5 @@
 import { isAbsolute, posix, relative, resolve } from "node:path";
+import type { AgentMount } from "@carmel-agent/shared";
 import { agents } from "../../db/schema.ts";
 import { dataDir, ensureDir } from "../../paths.ts";
 import { resolveAgentWorkingDirPath } from "../resources.ts";
@@ -30,6 +31,8 @@ const config = {
   idleTtlMs: positiveInt(process.env.CARMEL_BASH_IDLE_MINUTES, 15) * 60_000,
   // CDI device ids to attach to runner containers, e.g. "nvidia.com/gpu=all".
   gpuDevices: parseCsv(process.env.CARMEL_BASH_GPU),
+  // SELinux relabeling (:z) is required for bind mounts on enforcing hosts.
+  selinuxRelabel: process.env.CARMEL_BASH_SELINUX_RELABEL !== "false",
 };
 
 type ContainerEntry = { containerId: string; lastUsedAt: number };
@@ -67,16 +70,39 @@ export async function killAgentContainer(agentId: string) {
   await removeContainer(entry.containerId);
 }
 
+// Where the workspace is mounted inside the runner. Manual workspaces keep their
+// absolute path so paths line up with the host and the server-side file tools;
+// default per-agent workspaces use a stable /workspace mount point.
+export function resolveContainerWorkspace(agent: AgentRecord) {
+  if (agent.workingDirMode === "manual") return resolveAgentWorkingDirPath(agent);
+  return containerWorkspace;
+}
+
 export function toContainerWorkdir(agent: AgentRecord, cwd: string) {
-  return containerWorkdir(resolveAgentWorkingDirPath(agent), cwd);
+  return containerWorkdir(resolveAgentWorkingDirPath(agent), cwd, resolveContainerWorkspace(agent));
 }
 
 // Maps a host-side absolute working directory onto the workspace mount point
 // inside the container. Anything outside the workspace falls back to its root.
-export function containerWorkdir(workspaceRoot: string, cwd: string) {
+export function containerWorkdir(workspaceRoot: string, cwd: string, mountPath: string) {
   const rel = relative(resolve(workspaceRoot), resolve(cwd));
-  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return containerWorkspace;
-  return posix.join(containerWorkspace, rel.split(/[\\/]/).join("/"));
+  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return mountPath;
+  return posix.join(mountPath, rel.split(/[\\/]/).join("/"));
+}
+
+// Builds the runner bind list: the workspace plus any per-agent extra mounts.
+// Extra mount sources are host paths as the Podman daemon sees them.
+export function buildBinds(workspaceHostPath: string, mountPath: string, mounts: AgentMount[]) {
+  const relabel = config.selinuxRelabel ? ",z" : "";
+  const binds = [`${workspaceHostPath}:${mountPath}:rw${relabel}`];
+  for (const mount of mounts) {
+    const source = mount.source?.trim();
+    if (!source) continue;
+    const target = mount.target?.trim() || source;
+    const mode = mount.readOnly ? "ro" : "rw";
+    binds.push(`${source}:${target}:${mode}${relabel}`);
+  }
+  return binds;
 }
 
 export async function reapManagedContainers() {
@@ -102,19 +128,21 @@ export async function shutdownContainerManager() {
 async function createAgentContainer(agent: AgentRecord, options: { network: boolean }) {
   await ensureImage();
 
-  const workspaceHostPath = toHostPath(resolveAgentWorkingDirPath(agent));
-  ensureDir(resolveAgentWorkingDirPath(agent));
+  const workspacePath = resolveAgentWorkingDirPath(agent);
+  ensureDir(workspacePath);
+  const mountPath = resolveContainerWorkspace(agent);
+  const workspaceHostPath = toHostPath(workspacePath);
 
   const name = `carmel-bash-${sanitizeName(agent.id)}-${Date.now().toString(36)}`;
   const containerId = await createContainer(name, {
     Image: config.image,
     Entrypoint: [],
     Cmd: ["sleep", "infinity"],
-    WorkingDir: containerWorkspace,
+    WorkingDir: mountPath,
     Labels: { [managedLabel]: managedLabelValue, [agentLabel]: agent.id },
-    Env: ["HOME=/workspace", "TERM=xterm-256color"],
+    Env: [`HOME=${mountPath}`, "TERM=xterm-256color"],
     HostConfig: {
-      Binds: [`${workspaceHostPath}:${containerWorkspace}:rw`],
+      Binds: buildBinds(workspaceHostPath, mountPath, agent.mounts),
       Memory: config.memoryBytes,
       NanoCpus: config.nanoCpus,
       PidsLimit: config.pidsLimit,

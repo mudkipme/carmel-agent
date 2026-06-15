@@ -11,6 +11,11 @@ const promptTemplate = z.object({
   name: z.string(),
   body: z.string(),
 });
+const agentMount = z.object({
+  source: z.string().min(1),
+  target: optionalString,
+  readOnly: z.boolean().optional(),
+});
 const permissions = z.object({
   read: z.boolean(),
   write: z.boolean(),
@@ -87,6 +92,7 @@ export const agentConfigRequestSchema = z.object({
   workingDirMode: z.enum(["default", "manual"]).default("manual"),
   workingDir: z.string(),
   defaultWorkingDir: optionalString,
+  mounts: z.array(agentMount).default([]),
   systemPrompt: z.string(),
   promptTemplates: z.array(promptTemplate),
   permissions,

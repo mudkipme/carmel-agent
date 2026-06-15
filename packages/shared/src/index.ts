@@ -65,6 +65,12 @@ export type PromptTemplate = {
   body: string;
 };
 
+export type AgentMount = {
+  source: string;
+  target?: string;
+  readOnly?: boolean;
+};
+
 export type AgentWorkingDirMode = "default" | "manual";
 export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
@@ -171,6 +177,7 @@ export type AgentConfig = {
   workingDirMode: AgentWorkingDirMode;
   workingDir: string;
   defaultWorkingDir?: string;
+  mounts: AgentMount[];
   systemPrompt: string;
   promptTemplates: PromptTemplate[];
   permissions: AgentPermissions;
