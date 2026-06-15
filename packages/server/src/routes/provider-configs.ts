@@ -44,7 +44,6 @@ export function createProviderConfigRoutes() {
         authType,
         apiKey,
         oauthCredential,
-        customHeaders: protectSecret(providerConfig.customHeaders),
         createdAt: providerConfig.createdAt ?? timestamp,
         updatedAt: timestamp,
       })
@@ -58,7 +57,6 @@ export function createProviderConfigRoutes() {
           apiKey,
           oauthCredential,
           baseUrl: providerConfig.baseUrl,
-          customHeaders: protectSecret(providerConfig.customHeaders),
           updatedAt: timestamp,
         },
       })

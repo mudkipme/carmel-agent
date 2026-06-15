@@ -45,7 +45,6 @@ export function ProviderSettings({
       authType,
       apiKey: authType === "api_key" ? apiKey || selectedConfig?.apiKey : undefined,
       baseUrl: baseUrl.trim() || defaultBaseUrlForProvider(provider) || undefined,
-      customHeaders: selectedConfig?.customHeaders,
       createdAt: selectedConfig?.createdAt ?? Date.now(),
       updatedAt: Date.now(),
     });

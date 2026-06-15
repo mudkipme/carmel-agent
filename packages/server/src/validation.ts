@@ -61,7 +61,6 @@ export const modelRefRequestSchema = z.object({
   maxTokens: z.number().finite().optional(),
   reasoning: z.boolean().optional(),
   input: modelInput.optional(),
-  customHeaders: optionalString,
 });
 
 export const providerConfigRequestSchema = z.object({
@@ -74,7 +73,6 @@ export const providerConfigRequestSchema = z.object({
   hasApiKey: z.boolean().optional(),
   hasOAuth: z.boolean().optional(),
   baseUrl: optionalString,
-  customHeaders: optionalString,
   createdAt: timestamp,
   updatedAt: timestamp,
 });

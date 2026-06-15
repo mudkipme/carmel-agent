@@ -73,10 +73,7 @@ export function createAgentRunResponse({
   promptInput?: PromptInput;
 }) {
   const runId = randomId();
-  const model = resolveServerModelRef(
-    { ...serializeModelRef(modelRef), customHeaders: modelRef.customHeaders ?? undefined },
-    providerConfig,
-  );
+  const model = resolveServerModelRef(serializeModelRef(modelRef), providerConfig);
   const encoder = new TextEncoder();
   let activeSession: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
   let abortRequested = false;
@@ -276,10 +273,7 @@ function resolveTitleModelContext(
   if (!hasProviderAuth(authStorage, modelRef.provider)) return fallback;
 
   return {
-    model: resolveServerModelRef(
-      { ...serializeModelRef(modelRef), customHeaders: modelRef.customHeaders ?? undefined },
-      providerConfig,
-    ),
+    model: resolveServerModelRef(serializeModelRef(modelRef), providerConfig),
     authStorage,
   };
 }

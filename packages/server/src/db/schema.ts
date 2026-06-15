@@ -47,7 +47,6 @@ export const modelRefs = sqliteTable("model_refs", {
   maxTokens: integer("max_tokens"),
   reasoning: integer("reasoning", { mode: "boolean" }).notNull().default(false),
   input: text("input", { mode: "json" }).$type<Array<"text" | "image">>().notNull(),
-  customHeaders: text("custom_headers"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
@@ -63,7 +62,6 @@ export const providerConfigs = sqliteTable("provider_configs", {
   apiKey: text("api_key"),
   oauthCredential: text("oauth_credential", { mode: "json" }).$type<AuthCredential>(),
   baseUrl: text("base_url"),
-  customHeaders: text("custom_headers"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

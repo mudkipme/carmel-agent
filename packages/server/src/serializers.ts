@@ -40,7 +40,6 @@ export function serializeModelRef(model: typeof modelRefs.$inferSelect): ModelRe
     baseUrl: model.baseUrl ?? undefined,
     contextWindow: model.contextWindow ?? undefined,
     maxTokens: model.maxTokens ?? undefined,
-    customHeaders: undefined,
   };
 }
 
@@ -52,7 +51,6 @@ export function serializeProviderConfig(providerConfig: typeof providerConfigs.$
     hasApiKey: Boolean(providerConfig.apiKey),
     hasOAuth: Boolean(providerConfig.oauthCredential),
     baseUrl: providerConfig.baseUrl ?? undefined,
-    customHeaders: undefined,
   };
 }
 

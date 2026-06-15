@@ -58,6 +58,11 @@ const migrations: Migration[] = [
     description: "Index the columns used by access-control and reassignment queries",
     run: createAccessIndexes,
   },
+  {
+    id: "008_drop_custom_headers",
+    description: "Remove unused custom header columns from providers and models",
+    run: dropCustomHeaders,
+  },
 ];
 
 export function migrate() {
@@ -124,7 +129,6 @@ function createBaseSchema() {
       max_tokens INTEGER,
       reasoning INTEGER NOT NULL DEFAULT 0,
       input TEXT NOT NULL,
-      custom_headers TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -138,7 +142,6 @@ function createBaseSchema() {
       api_key TEXT,
       oauth_credential TEXT,
       base_url TEXT,
-      custom_headers TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -274,6 +277,11 @@ function createAccessIndexes() {
     CREATE INDEX IF NOT EXISTS sessions_model_ref_id ON sessions(model_ref_id);
     CREATE INDEX IF NOT EXISTS users_fast_task_model_ref_id ON users(fast_task_model_ref_id);
   `);
+}
+
+function dropCustomHeaders() {
+  dropColumnIfExists("model_refs", "custom_headers");
+  dropColumnIfExists("provider_configs", "custom_headers");
 }
 
 function parseMessagesBlob(value: string | null): unknown[] {

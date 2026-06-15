@@ -113,7 +113,6 @@ export type ModelRef = {
   maxTokens?: number;
   reasoning?: boolean;
   input?: Array<"text" | "image">;
-  customHeaders?: string;
 };
 
 export type ProviderModelSummary = {
@@ -136,7 +135,6 @@ export type ProviderConfig = {
   hasApiKey?: boolean;
   hasOAuth?: boolean;
   baseUrl?: string;
-  customHeaders?: string;
   createdAt: number;
   updatedAt: number;
 };
