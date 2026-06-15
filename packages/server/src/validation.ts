@@ -87,7 +87,6 @@ export const agentConfigRequestSchema = z.object({
   workingDirMode: z.enum(["default", "manual"]).default("manual"),
   workingDir: z.string(),
   defaultWorkingDir: optionalString,
-  skills: z.array(z.string()),
   systemPrompt: z.string(),
   promptTemplates: z.array(promptTemplate),
   permissions,

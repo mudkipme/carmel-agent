@@ -54,7 +54,8 @@ jobs:
           username: ${{ secrets.NEXUS_USERNAME }}
           password: ${{ secrets.NEXUS_PASSWORD }}
 
-      - uses: docker/build-push-action@v7
+      - name: Build carmel-agent image
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
@@ -65,6 +66,19 @@ jobs:
             docker-registry.metagross.mudkip.me/${{ github.repository }}:${{ github.sha }}
           cache-from: type=registry,ref=docker-registry.metagross.mudkip.me/${{ github.repository }}:buildcache
           cache-to: type=registry,ref=docker-registry.metagross.mudkip.me/${{ github.repository }}:buildcache,mode=max
+
+      - name: Build sandbox runner image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.runner
+          platforms: linux/amd64
+          push: true
+          tags: |
+            docker-registry.metagross.mudkip.me/${{ github.repository }}-runner:latest
+            docker-registry.metagross.mudkip.me/${{ github.repository }}-runner:${{ github.sha }}
+          cache-from: type=registry,ref=docker-registry.metagross.mudkip.me/${{ github.repository }}-runner:buildcache
+          cache-to: type=registry,ref=docker-registry.metagross.mudkip.me/${{ github.repository }}-runner:buildcache,mode=max
 
   build-image-tag:
     needs: [check]
@@ -97,7 +111,8 @@ jobs:
           username: ${{ secrets.NEXUS_USERNAME }}
           password: ${{ secrets.NEXUS_PASSWORD }}
 
-      - uses: docker/build-push-action@v7
+      - name: Build carmel-agent image
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
@@ -107,3 +122,15 @@ jobs:
             docker-registry.metagross.mudkip.me/${{ github.repository }}:${{ github.ref_name }}
           cache-from: type=registry,ref=docker-registry.metagross.mudkip.me/${{ github.repository }}:buildcache
           cache-to: type=registry,ref=docker-registry.metagross.mudkip.me/${{ github.repository }}:buildcache,mode=max
+
+      - name: Build sandbox runner image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.runner
+          platforms: linux/amd64
+          push: true
+          tags: |
+            docker-registry.metagross.mudkip.me/${{ github.repository }}-runner:${{ github.ref_name }}
+          cache-from: type=registry,ref=docker-registry.metagross.mudkip.me/${{ github.repository }}-runner:buildcache
+          cache-to: type=registry,ref=docker-registry.metagross.mudkip.me/${{ github.repository }}-runner:buildcache,mode=max

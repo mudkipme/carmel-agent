@@ -91,7 +91,6 @@ export const agents = sqliteTable("agents", {
   workingDirMode: text("working_dir_mode").$type<AgentWorkingDirMode>().notNull().default("manual"),
   workingDir: text("working_dir").notNull(),
   defaultWorkingDir: text("default_working_dir"),
-  skills: text("skills", { mode: "json" }).$type<string[]>().notNull(),
   systemPrompt: text("system_prompt").notNull(),
   promptTemplates: text("prompt_templates", { mode: "json" }).$type<PromptTemplate[]>().notNull(),
   permissions: text("permissions", { mode: "json" }).$type<AgentPermissions>().notNull(),

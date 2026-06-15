@@ -5,7 +5,6 @@ import type {
   AgentFileContent,
   AgentFileEntry,
   AgentFileList,
-  AgentSkillCommand,
   OAuthLoginFlowState,
   OAuthProviderSummary,
   ModelRef,
@@ -98,7 +97,6 @@ export const api = {
   upsertAgent: (agent: AgentConfig) =>
     request<AgentConfig>(`/api/agents/${agent.id}`, { method: "PUT", body: JSON.stringify(agent) }),
   getAgentSettings: (agentId: string) => request<AgentConfig>(`/api/agents/${agentId}/settings`),
-  getGlobalSkills: () => request<AgentSkillCommand[]>("/api/skills/global"),
   getOAuthProviders: () => request<OAuthProviderSummary[]>("/api/oauth/providers"),
   startProviderOAuthLogin: (providerConfigId: string) =>
     request<OAuthLoginFlowState>(`/api/provider-configs/${providerConfigId}/oauth/login`, { method: "POST" }),

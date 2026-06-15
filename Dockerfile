@@ -1,3 +1,6 @@
+# carmel-agent server image: the API + built web client. Agent bash runs in a
+# separate per-agent sandbox container built from Dockerfile.runner, so this
+# image only needs the Node runtime and the host-side file/search tooling.
 FROM node:24-trixie-slim AS base
 
 ENV PNPM_HOME="/pnpm"
@@ -5,8 +8,10 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR /app
 
+# ripgrep backs the server-side grep tool; git/ca-certificates support skill
+# loading and outbound HTTPS to providers.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends bash ca-certificates git && \
+    apt-get install -y --no-install-recommends bash ca-certificates git ripgrep && \
     rm -rf /var/lib/apt/lists/* && \
     corepack enable
 
@@ -30,45 +35,12 @@ COPY skills-lock.json skills-lock.json
 
 RUN pnpm build
 
-FROM base AS runner
+FROM base AS app
 
 ENV NODE_ENV="production"
 ENV HOST="0.0.0.0"
 ENV PORT="8797"
 ENV CARMEL_AGENT_DATA_DIR="/data"
-ENV AGENT_BROWSER_CONFIG="/etc/agent-browser/config.json"
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      chromium \
-      curl \
-      fonts-freefont-ttf \
-      fonts-noto \
-      fonts-noto-cjk \
-      fonts-noto-color-emoji \
-      podman \
-      python3 \
-      python3-pip \
-      ripgrep \
-      wget && \
-    rm -rf /var/lib/apt/lists/* && \
-    ln -sf /usr/bin/python3 /usr/local/bin/python
-
-RUN mkdir -p /etc/agent-browser /data/agent-browser/downloads /data/agent-browser/profile && \
-    printf '%s\n' \
-      '{' \
-      '  "$schema": "https://agent-browser.dev/schema.json",' \
-      '  "executablePath": "/usr/bin/chromium",' \
-      '  "args": "--no-sandbox,--disable-dev-shm-usage,--disable-gpu",' \
-      '  "ignoreHttpsErrors": true,' \
-      '  "downloadPath": "/data/agent-browser/downloads",' \
-      '  "profile": "/data/agent-browser/profile"' \
-      '}' \
-      > /etc/agent-browser/config.json
-
-RUN npm install -g agent-browser@0.27.0 @tobilu/qmd && \
-    agent-browser --version && \
-    qmd --version
 
 COPY --from=build /app /app
 

@@ -189,7 +189,6 @@ function makeAgent(overrides: Partial<AgentRecord> & { permissions?: AgentRecord
     workingDirMode: "manual",
     workingDir: mkdtempSync(join(tmpdir(), "carmel-agent-files-test-")),
     defaultWorkingDir: null,
-    skills: [],
     systemPrompt: "",
     promptTemplates: [],
     permissions: allPermissions(false),

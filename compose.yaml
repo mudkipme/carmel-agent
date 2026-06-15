@@ -1,0 +1,44 @@
+# Run carmel-agent with rootless Podman and the bash sandbox.
+#
+#   # 1. Build the sandbox runner image referenced by CARMEL_BASH_IMAGE:
+#   podman compose --profile build build
+#   # 2. Start the server:
+#   podman compose up -d
+#
+# Requires the rootless Podman socket (systemctl --user enable --now podman.socket).
+services:
+  carmel-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: carmel-agent:latest
+    ports:
+      - "8797:8797"
+    environment:
+      CARMEL_PODMAN_SOCKET: /run/podman/podman.sock
+      CARMEL_BASH_IMAGE: localhost/carmel-agent-runner:latest
+      # The server runs in a container, so runner workspace bind mounts are
+      # resolved by the host daemon: point this at the host path backing /data.
+      CARMEL_HOST_DATA_DIR: ${PWD}/data
+      # Pass a CDI GPU into runner containers (requires CDI configured on the host):
+      # CARMEL_BASH_GPU: nvidia.com/gpu=all
+      # Set a stable secret to encrypt provider credentials at rest:
+      # CARMEL_SECRET_KEY: change-me
+    volumes:
+      - ./data:/data
+      # Mount the host's rootless Podman socket so the server can create per-agent
+      # runner containers. $XDG_RUNTIME_DIR is typically /run/user/<uid>.
+      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/run/podman/podman.sock
+    restart: unless-stopped
+
+  # Build-only service: produces the sandbox runner image (CARMEL_BASH_IMAGE).
+  # It is not a long-running service; it is built under the "build" profile and
+  # then used by the host daemon to start ephemeral per-agent containers.
+  runner:
+    profiles: ["build"]
+    build:
+      context: .
+      dockerfile: Dockerfile.runner
+    image: localhost/carmel-agent-runner:latest
+    command: ["true"]
+    restart: "no"

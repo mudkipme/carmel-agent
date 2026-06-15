@@ -62,6 +62,25 @@ export function createAgentRunEventStream(userId: string, runId: string) {
   return createRunStream(run);
 }
 
+// Abort every in-flight run and wait for their finally blocks to persist
+// messages, so a restart does not lose an active turn. Resolves once all runs
+// have drained or the timeout elapses.
+export async function shutdownActiveRuns(timeoutMs = 10_000) {
+  const runs = [...activeAgentRuns.values()];
+  if (runs.length === 0) return;
+  for (const run of runs) {
+    try {
+      run.abort();
+    } catch {
+      // Best effort: a failing abort should not block the others.
+    }
+  }
+  const deadline = Date.now() + timeoutMs;
+  while (activeAgentRuns.size > 0 && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
 export function finishAgentRun(run: ActiveAgentRun) {
   run.finished = true;
   activeAgentRuns.delete(run.runId);

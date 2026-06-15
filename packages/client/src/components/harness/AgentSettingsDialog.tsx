@@ -1,7 +1,6 @@
 import { PlusIcon, SettingsIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,7 +23,6 @@ import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
 import type {
   AgentConfig,
   AgentPermissions,
-  AgentSkillCommand,
   AgentThinkingLevel,
   ModelRef,
   ProviderConfig,
@@ -141,8 +139,6 @@ function AgentSettings({
   const [draft, setDraft] = useState(agent);
   const [templateName, setTemplateName] = useState("");
   const [templateBody, setTemplateBody] = useState("");
-  const [availableSkills, setAvailableSkills] = useState<AgentSkillCommand[]>([]);
-  const [skillsError, setSkillsError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const defaultModelRef = modelRefs.find((model) => model.id === draft.defaultModelRefId);
@@ -153,21 +149,6 @@ function AgentSettings({
   const selectedThinkingLevel = supportedThinkingLevels.includes(draft.defaultThinkingLevel)
     ? draft.defaultThinkingLevel
     : (supportedThinkingLevels[0] ?? "off");
-
-  useEffect(() => {
-    let cancelled = false;
-    void api
-      .getGlobalSkills()
-      .then((skills) => {
-        if (!cancelled) setAvailableSkills(skills);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) setSkillsError(error instanceof Error ? error.message : "Unable to load global skills");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const updateDraft = (patch: Partial<AgentConfig>) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -221,18 +202,6 @@ function AgentSettings({
     });
   };
 
-  const toggleSkill = (skillName: string) => {
-    updateDraft({
-      skills: draft.skills.includes(skillName)
-        ? draft.skills.filter((selectedSkill) => selectedSkill !== skillName)
-        : [...draft.skills, skillName],
-    });
-  };
-
-  const unavailableSelectedSkills = draft.skills.filter(
-    (skillName) => !availableSkills.some((skill) => skill.name === skillName),
-  );
-
   return (
     <div className="grid gap-4 sm:gap-6">
       <Tabs defaultValue="agent" className="w-full">
@@ -244,7 +213,7 @@ function AgentSettings({
 
         <TabsContent value="agent" className="mt-2">
           <section className="grid gap-4">
-            <SectionHeader title="Agent" description="Working directory, sharing, global skills, and system prompt." />
+            <SectionHeader title="Agent" description="Working directory, sharing, and system prompt." />
             <div className="grid gap-3">
               <Field label="Name">
                 <Input
@@ -290,52 +259,6 @@ function AgentSettings({
                       onChange={(event) => setDraft((current) => ({ ...current, workingDir: event.target.value }))}
                       placeholder="/path/on/server"
                     />
-                  ) : null}
-                </div>
-              </Field>
-              <Field label="Global skills">
-                <div className="grid gap-2">
-                  <div className="grid max-h-56 gap-2 overflow-y-auto rounded-md border p-2">
-                    {availableSkills.map((skill) => {
-                      const selected = draft.skills.includes(skill.name);
-                      return (
-                        <button
-                          key={skill.filePath}
-                          type="button"
-                          className="flex min-w-0 items-start justify-between gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                          onClick={() => toggleSkill(skill.name)}
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate font-medium">{skill.name}</span>
-                            <span className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                              {skill.description}
-                            </span>
-                          </span>
-                          {selected ? <Badge variant="secondary">Selected</Badge> : null}
-                        </button>
-                      );
-                    })}
-                    {availableSkills.length === 0 ? (
-                      <p className="px-2 py-1 text-sm text-muted-foreground">
-                        {skillsError ?? "No global skills found."}
-                      </p>
-                    ) : null}
-                  </div>
-                  {unavailableSelectedSkills.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {unavailableSelectedSkills.map((skillName) => (
-                        <Button
-                          key={skillName}
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          onClick={() => toggleSkill(skillName)}
-                          title="Remove unavailable skill"
-                        >
-                          {skillName}
-                        </Button>
-                      ))}
-                    </div>
                   ) : null}
                 </div>
               </Field>

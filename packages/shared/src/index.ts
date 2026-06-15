@@ -68,12 +68,6 @@ export type PromptTemplate = {
 export type AgentWorkingDirMode = "default" | "manual";
 export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
-export type AgentSkillCommand = {
-  name: string;
-  description: string;
-  filePath: string;
-};
-
 export type AgentSlashCommandSource = "prompt" | "skill";
 
 export type AgentSlashCommand = {
@@ -177,7 +171,6 @@ export type AgentConfig = {
   workingDirMode: AgentWorkingDirMode;
   workingDir: string;
   defaultWorkingDir?: string;
-  skills: string[];
   systemPrompt: string;
   promptTemplates: PromptTemplate[];
   permissions: AgentPermissions;

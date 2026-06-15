@@ -184,7 +184,6 @@ export const useHarnessStore = create<HarnessState>()(
       workingDirMode: draft?.workingDirMode ?? "default",
       workingDir: draft?.workingDir ?? "",
       defaultWorkingDir: draft?.defaultWorkingDir,
-      skills: draft?.skills ?? [],
       systemPrompt: draft?.systemPrompt ?? "You are a helpful agent.",
       promptTemplates: draft?.promptTemplates ?? [],
       permissions: draft?.permissions ?? {

@@ -12,6 +12,7 @@ import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import { agents } from "../db/schema.ts";
 import { resolveAgentReadableRoots, resolveAgentWorkingDirPath } from "./resources.ts";
+import { createSandboxBashOperations } from "./sandbox/bash-operations.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ToolArgs = Record<string, unknown> | undefined;
@@ -44,7 +45,11 @@ export function createServerToolDefinitions(agent: AgentRecord) {
   if (agent.permissions.edit) {
     tools.push(guardToolPath(createEditToolDefinition(cwd), { readRoots: readableRoots, writeRoots: [cwd] }));
   }
-  if (agent.permissions.bash) tools.push(createBashToolDefinition(cwd));
+  if (agent.permissions.bash) {
+    // Bash runs in a per-agent sandbox container instead of the host shell, so
+    // it cannot escape the workspace or read server secrets. See ./sandbox.
+    tools.push(createBashToolDefinition(cwd, { operations: createSandboxBashOperations(agent) }));
+  }
   if (agent.permissions.network) tools.push(...createNetworkToolDefinitions());
 
   return tools;

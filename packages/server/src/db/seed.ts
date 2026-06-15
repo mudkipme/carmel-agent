@@ -55,7 +55,6 @@ export const defaultAgent: AgentConfig = {
   workingDirMode: "default",
   workingDir: "agents/agent_self/workspace",
   defaultWorkingDir: "agents/agent_self/workspace",
-  skills: [],
   systemPrompt:
     "You are Carmel, a pragmatic local agent harness. Work carefully, explain tradeoffs concisely, and preserve user intent.",
   promptTemplates: [

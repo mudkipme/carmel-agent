@@ -38,6 +38,11 @@ const migrations: Migration[] = [
     description: "Add session pin metadata",
     run: addSessionPins,
   },
+  {
+    id: "004_drop_agent_skills",
+    description: "Remove the global skill selection column",
+    run: dropAgentSkills,
+  },
 ];
 
 export function migrate() {
@@ -132,7 +137,6 @@ function createBaseSchema() {
       working_dir_mode TEXT NOT NULL DEFAULT 'manual',
       working_dir TEXT NOT NULL,
       default_working_dir TEXT,
-      skills TEXT NOT NULL,
       system_prompt TEXT NOT NULL,
       prompt_templates TEXT NOT NULL,
       permissions TEXT NOT NULL,
@@ -191,6 +195,10 @@ function applyCurrentSchemaCompatibility() {
 
 function addSessionPins() {
   addColumnIfMissing("sessions", "pinned_at", "INTEGER");
+}
+
+function dropAgentSkills() {
+  dropColumnIfExists("agents", "skills");
 }
 
 function backfillModelOwners() {
@@ -340,6 +348,12 @@ function addColumnIfMissing(table: string, column: string, type: string) {
   const columns = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   if (columns.some((item) => item.name === column)) return;
   sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+}
+
+function dropColumnIfExists(table: string, column: string) {
+  const columns = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!columns.some((item) => item.name === column)) return;
+  sqlite.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
 }
 
 export function touchSession(sessionId: string) {
