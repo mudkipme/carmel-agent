@@ -1,7 +1,8 @@
+import { rmSync } from "node:fs";
 import { isAbsolute, posix, relative, resolve } from "node:path";
 import type { AgentMount } from "@carmel-agent/shared";
 import { agents } from "../../db/schema.ts";
-import { dataDir, ensureDir } from "../../paths.ts";
+import { agentTmpDir, dataDir, ensureDir, resolveDataPath } from "../../paths.ts";
 import { resolveAgentWorkingDirPath } from "../resources.ts";
 import {
   createContainer,
@@ -74,18 +75,35 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
 // container is torn down and recreated on the next command.
 export function containerSignature(agent: AgentRecord, options: { network: boolean }) {
   const workspaceHostPath = toHostPath(resolveAgentWorkingDirPath(agent));
+  const tmpHostPath = toHostPath(resolveAgentTmpDirPath(agent));
   const mountPath = resolveContainerWorkspace(agent);
   return JSON.stringify({
-    binds: buildBinds(workspaceHostPath, mountPath, agent.mounts),
+    binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, agent.mounts),
     network: options.network,
   });
 }
 
+// Transient teardown (abort, command timeout, config-change recreate). The
+// scratch /tmp is kept so a recreated container re-mounts the same files.
 export async function killAgentContainer(agentId: string) {
   const entry = containers.get(agentId);
   if (!entry) return;
   containers.delete(agentId);
   await removeContainer(entry.containerId);
+}
+
+// Permanent teardown (agent deletion): also wipe the scratch /tmp directory.
+export async function discardAgentContainer(agentId: string) {
+  await killAgentContainer(agentId);
+  clearAgentTmp(agentId);
+}
+
+function clearAgentTmp(agentId: string) {
+  try {
+    rmSync(agentTmpDirPath(agentId), { recursive: true, force: true });
+  } catch (error) {
+    console.warn("Failed to clear agent tmp dir:", error instanceof Error ? error.message : String(error));
+  }
 }
 
 // Where the workspace is mounted inside the runner. Manual workspaces keep their
@@ -94,6 +112,18 @@ export async function killAgentContainer(agentId: string) {
 export function resolveContainerWorkspace(agent: AgentRecord) {
   if (agent.workingDirMode === "manual") return resolveAgentWorkingDirPath(agent);
   return containerWorkspace;
+}
+
+// Per-agent host directory bind-mounted at /tmp in the runner. Backing it on the
+// host (rather than the container's ephemeral layer) lets the host-side file
+// tools see the same /tmp the sandboxed shell writes to, while keeping it
+// isolated from the host's real /tmp.
+export function resolveAgentTmpDirPath(agent: AgentRecord) {
+  return agentTmpDirPath(agent.id);
+}
+
+function agentTmpDirPath(agentId: string) {
+  return resolveDataPath(agentTmpDir(agentId));
 }
 
 export function toContainerWorkdir(agent: AgentRecord, cwd: string) {
@@ -108,11 +138,16 @@ export function containerWorkdir(workspaceRoot: string, cwd: string, mountPath: 
   return posix.join(mountPath, rel.split(/[\\/]/).join("/"));
 }
 
-// Builds the runner bind list: the workspace plus any per-agent extra mounts.
-// Extra mount sources are host paths as the Podman daemon sees them.
-export function buildBinds(workspaceHostPath: string, mountPath: string, mounts: AgentMount[]) {
+// Builds the runner bind list: the workspace, a private /tmp, plus any per-agent
+// extra mounts. Extra mount sources are host paths as the Podman daemon sees them.
+export function buildBinds(
+  workspaceHostPath: string,
+  mountPath: string,
+  tmpHostPath: string,
+  mounts: AgentMount[],
+) {
   const relabel = config.selinuxRelabel ? ",z" : "";
-  const binds = [`${workspaceHostPath}:${mountPath}:rw${relabel}`];
+  const binds = [`${workspaceHostPath}:${mountPath}:rw${relabel}`, `${tmpHostPath}:/tmp:rw${relabel}`];
   for (const mount of mounts) {
     const source = mount.source?.trim();
     if (!source) continue;
@@ -147,9 +182,12 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
   await ensureImage();
 
   const workspacePath = resolveAgentWorkingDirPath(agent);
+  const tmpPath = resolveAgentTmpDirPath(agent);
   ensureDir(workspacePath);
+  ensureDir(tmpPath);
   const mountPath = resolveContainerWorkspace(agent);
   const workspaceHostPath = toHostPath(workspacePath);
+  const tmpHostPath = toHostPath(tmpPath);
 
   const name = `carmel-bash-${sanitizeName(agent.id)}-${Date.now().toString(36)}`;
   const containerId = await createContainer(name, {
@@ -160,7 +198,7 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
     Labels: { [managedLabel]: managedLabelValue, [agentLabel]: agent.id },
     Env: [`HOME=${mountPath}`, "TERM=xterm-256color"],
     HostConfig: {
-      Binds: buildBinds(workspaceHostPath, mountPath, agent.mounts),
+      Binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, agent.mounts),
       Memory: config.memoryBytes,
       NanoCpus: config.nanoCpus,
       PidsLimit: config.pidsLimit,
@@ -209,13 +247,19 @@ function startReaper() {
 
 async function reapIdleContainers() {
   const now = Date.now();
-  const stale: ContainerEntry[] = [];
+  const stale: Array<[string, ContainerEntry]> = [];
   for (const [agentId, entry] of containers) {
     if (now - entry.lastUsedAt < config.idleTtlMs) continue;
-    stale.push(entry);
+    stale.push([agentId, entry]);
     containers.delete(agentId);
   }
-  await Promise.all(stale.map((entry) => removeContainer(entry.containerId)));
+  await Promise.all(
+    stale.map(async ([agentId, entry]) => {
+      await removeContainer(entry.containerId);
+      // An idle sandbox is done with its scratch; reclaim the /tmp directory.
+      clearAgentTmp(agentId);
+    }),
+  );
 }
 
 // When carmel-agent itself runs inside a container, a bind mount source is

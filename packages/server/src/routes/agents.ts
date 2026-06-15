@@ -6,7 +6,7 @@ import { db } from "../db/index.ts";
 import { agents, modelRefs, sessions } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import { createAgentResourceLoader } from "../runtime/resources.ts";
-import { killAgentContainer } from "../runtime/sandbox/container-manager.ts";
+import { discardAgentContainer } from "../runtime/sandbox/container-manager.ts";
 import { serializeAgentSettings, serializePublicAgent } from "../serializers.ts";
 import {
   canUseModel,
@@ -76,7 +76,7 @@ export function createAgentRoutes() {
     if (!agent || agent.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
     db.delete(sessions).where(eq(sessions.agentId, agentId)).run();
     db.delete(agents).where(eq(agents.id, agentId)).run();
-    void killAgentContainer(agentId);
+    void discardAgentContainer(agentId);
     return c.json({ ok: true });
   });
 

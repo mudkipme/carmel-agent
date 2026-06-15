@@ -3,10 +3,25 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createServerToolDefinitions } from "./tools.ts";
+import { createServerToolDefinitions, remapContainerPath } from "./tools.ts";
 import type { agents } from "../db/schema.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
+
+test("remapContainerPath translates container paths to host paths", () => {
+  const mappings = [
+    { containerPath: "/workspace", hostPath: "/data/agents/a/workspace" },
+    { containerPath: "/tmp", hostPath: "/data/agents/a/tmp" },
+    { containerPath: "/refs", hostPath: "/srv/shared" },
+  ];
+  // workspace + /tmp + an extra mount whose target differs from its host source
+  assert.equal(remapContainerPath("/workspace/src/x.ts", mappings), "/data/agents/a/workspace/src/x.ts");
+  assert.equal(remapContainerPath("/tmp/out.txt", mappings), "/data/agents/a/tmp/out.txt");
+  assert.equal(remapContainerPath("/refs/readme.md", mappings), "/srv/shared/readme.md");
+  // relative paths and unmapped absolute paths pass through unchanged
+  assert.equal(remapContainerPath("notes/todo.md", mappings), "notes/todo.md");
+  assert.equal(remapContainerPath("/etc/passwd", mappings), "/etc/passwd");
+});
 
 test("createServerToolDefinitions exposes no tools when every runtime permission is disabled", () => {
   const tools = createServerToolDefinitions(makeAgent({}));

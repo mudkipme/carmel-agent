@@ -10,9 +10,11 @@ import {
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
+import type { AgentMount } from "@carmel-agent/shared";
 import { agents } from "../db/schema.ts";
 import { resolveAgentReadableRoots, resolveAgentWorkingDirPath } from "./resources.ts";
 import { createSandboxBashOperations } from "./sandbox/bash-operations.ts";
+import { resolveAgentTmpDirPath, resolveContainerWorkspace } from "./sandbox/container-manager.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ToolArgs = Record<string, unknown> | undefined;
@@ -28,22 +30,22 @@ type ServerToolDefinition =
 
 export function createServerToolDefinitions(agent: AgentRecord) {
   const cwd = resolveWorkingDir(agent);
-  const readableRoots = resolveAgentReadableRoots(agent, cwd);
+  const guard = resolveToolPathGuard(agent, cwd);
   const tools: ServerToolDefinition[] = [];
 
   if (agent.permissions.read) {
     tools.push(
-      guardToolPath(createReadToolDefinition(cwd), { readRoots: readableRoots, writeRoots: [cwd] }),
-      guardToolPath(createGrepToolDefinition(cwd), { readRoots: readableRoots, writeRoots: [cwd] }),
-      guardToolPath(createFindToolDefinition(cwd), { readRoots: readableRoots, writeRoots: [cwd] }),
-      guardToolPath(createLsToolDefinition(cwd), { readRoots: readableRoots, writeRoots: [cwd] }),
+      guardToolPath(createReadToolDefinition(cwd), guard),
+      guardToolPath(createGrepToolDefinition(cwd), guard),
+      guardToolPath(createFindToolDefinition(cwd), guard),
+      guardToolPath(createLsToolDefinition(cwd), guard),
     );
   }
   if (agent.permissions.write) {
-    tools.push(guardToolPath(createWriteToolDefinition(cwd), { readRoots: readableRoots, writeRoots: [cwd] }));
+    tools.push(guardToolPath(createWriteToolDefinition(cwd), guard));
   }
   if (agent.permissions.edit) {
-    tools.push(guardToolPath(createEditToolDefinition(cwd), { readRoots: readableRoots, writeRoots: [cwd] }));
+    tools.push(guardToolPath(createEditToolDefinition(cwd), guard));
   }
   if (agent.permissions.bash) {
     // Bash runs in a per-agent sandbox container instead of the host shell, so
@@ -139,44 +141,97 @@ function resolveWorkingDir(agent: AgentRecord) {
   return resolve(cwd);
 }
 
-function guardToolPath<TTool extends ServerToolDefinition>(
-  tool: TTool,
-  roots: { readRoots: string[]; writeRoots: string[] },
-): TTool {
+// Builds the host-path roots and the container→host path mappings used to guard
+// the file tools. The tools run on the host, but the agent refers to paths as it
+// sees them in the sandbox (/workspace, /tmp, mount targets), so those are
+// translated to the corresponding host paths before access.
+type ToolPathGuard = { readRoots: string[]; writeRoots: string[]; mappings: PathMapping[] };
+type PathMapping = { containerPath: string; hostPath: string };
+
+function resolveToolPathGuard(agent: AgentRecord, cwd: string): ToolPathGuard {
+  const tmpDir = resolveAgentTmpDirPath(agent);
+  const mountSources = agent.mounts
+    .map((mount) => mount.source?.trim())
+    .filter((source): source is string => Boolean(source))
+    .map((source) => resolve(source));
+  const writableMountSources = agent.mounts
+    .filter((mount): mount is AgentMount & { source: string } => Boolean(!mount.readOnly && mount.source?.trim()))
+    .map((mount) => resolve(mount.source.trim()));
+  return {
+    readRoots: [...resolveAgentReadableRoots(agent, cwd), tmpDir, ...mountSources],
+    writeRoots: [cwd, tmpDir, ...writableMountSources],
+    mappings: resolveAgentPathMappings(agent, cwd, tmpDir),
+  };
+}
+
+function resolveAgentPathMappings(agent: AgentRecord, cwd: string, tmpDir: string): PathMapping[] {
+  const mappings: PathMapping[] = [
+    { containerPath: resolveContainerWorkspace(agent), hostPath: cwd },
+    { containerPath: "/tmp", hostPath: tmpDir },
+  ];
+  for (const mount of agent.mounts) {
+    const source = mount.source?.trim();
+    if (!source) continue;
+    mappings.push({ containerPath: mount.target?.trim() || source, hostPath: resolve(source) });
+  }
+  return mappings;
+}
+
+function guardToolPath<TTool extends ServerToolDefinition>(tool: TTool, guard: ToolPathGuard): TTool {
   const execute = tool.execute.bind(tool) as unknown as (...args: unknown[]) => unknown;
   return {
     ...tool,
     execute: ((toolCallId: unknown, params: unknown, signal: unknown, onUpdate: unknown, context: unknown) => {
-      validateToolArgsPaths(tool.name, params as ToolArgs, roots);
-      return execute(toolCallId, params, signal, onUpdate, context);
+      const guarded = guardToolArgs(tool.name, params as ToolArgs, guard);
+      return execute(toolCallId, guarded, signal, onUpdate, context);
     }) as TTool["execute"],
   } as TTool;
 }
 
-function validateToolArgsPaths(toolName: string, args: ToolArgs, roots: { readRoots: string[]; writeRoots: string[] }) {
-  if (!args) return;
+function guardToolArgs(toolName: string, args: ToolArgs, guard: ToolPathGuard): ToolArgs {
+  if (!args) return args;
   const normalized = toolName.toLowerCase();
-  if (normalized === "read") {
-    const filePath = args.path;
-    if (typeof filePath === "string") resolveAllowedPath(filePath, roots.readRoots);
-    return;
+  if (!["read", "write", "edit", "grep", "find", "ls"].includes(normalized)) return args;
+
+  const roots = normalized === "write" || normalized === "edit" ? guard.writeRoots : guard.readRoots;
+  const isSearch = normalized === "grep" || normalized === "find" || normalized === "ls";
+  const rawPath = args.path;
+
+  if (typeof rawPath !== "string" || rawPath.length === 0) {
+    if (isSearch) guardAndRemapPath(".", roots, guard.mappings);
+    return args;
   }
-  if (normalized === "write" || normalized === "edit") {
-    const filePath = args.path;
-    if (typeof filePath === "string") resolveAllowedPath(filePath, roots.writeRoots);
-    return;
-  }
-  if (normalized === "grep" || normalized === "find" || normalized === "ls") {
-    const searchPath = args.path;
-    resolveAllowedPath(typeof searchPath === "string" && searchPath.length > 0 ? searchPath : ".", roots.readRoots);
-  }
+
+  const rewritten = guardAndRemapPath(rawPath, roots, guard.mappings);
+  return rewritten === rawPath ? args : { ...args, path: rewritten };
 }
 
-function resolveAllowedPath(filePath: string, roots: string[]) {
-  const cleanPath = filePath.startsWith("@") ? filePath.slice(1) : filePath;
+// Translates a container path the agent supplied to its host equivalent, asserts
+// it lands inside an allowed host root, and returns the path the tool should use
+// (the original when no translation was needed, so unrelated behaviour is intact).
+function guardAndRemapPath(filePath: string, roots: string[], mappings: PathMapping[]) {
+  const hasAt = filePath.startsWith("@");
+  const cleanPath = hasAt ? filePath.slice(1) : filePath;
+  const remapped = remapContainerPath(cleanPath, mappings);
   const primaryRoot = roots[0] ?? process.cwd();
-  const absolutePath = isAbsolute(cleanPath) ? resolve(cleanPath) : resolve(primaryRoot, cleanPath);
-  return assertInsideAllowedRoots(absolutePath, roots, filePath);
+  const absolutePath = isAbsolute(remapped) ? resolve(remapped) : resolve(primaryRoot, remapped);
+  assertInsideAllowedRoots(absolutePath, roots, filePath);
+  if (remapped === cleanPath) return filePath;
+  return hasAt ? `@${remapped}` : remapped;
+}
+
+export function remapContainerPath(filePath: string, mappings: PathMapping[]) {
+  if (!isAbsolute(filePath)) return filePath;
+  const normalized = resolve(filePath);
+  for (const { containerPath, hostPath } of mappings) {
+    const root = resolve(containerPath);
+    if (normalized === root) return resolve(hostPath);
+    const relativePath = relative(root, normalized);
+    if (relativePath && !relativePath.startsWith("..") && !isAbsolute(relativePath)) {
+      return resolve(hostPath, relativePath);
+    }
+  }
+  return filePath;
 }
 
 function assertInsideAllowedRoots(absolutePath: string, roots: string[], displayPath = absolutePath) {

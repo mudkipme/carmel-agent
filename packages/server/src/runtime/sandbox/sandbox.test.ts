@@ -7,7 +7,7 @@ import { buildBinds, containerSignature, containerWorkdir, resolveContainerWorks
 type AgentRecord = typeof agents.$inferSelect;
 
 function manualAgent(overrides: Partial<AgentRecord> = {}): AgentRecord {
-  return { workingDirMode: "manual", workingDir: "/srv/projects/app", mounts: [], ...overrides } as AgentRecord;
+  return { id: "agent_test", workingDirMode: "manual", workingDir: "/srv/projects/app", mounts: [], ...overrides } as AgentRecord;
 }
 
 test("demuxer reassembles multiplexed docker frames split across chunks", () => {
@@ -82,14 +82,15 @@ test("containerSignature changes when the workspace dir, mounts, or network chan
   assert.notEqual(base, containerSignature(manualAgent(), { network: true }));
 });
 
-test("buildBinds adds the workspace and extra mounts with SELinux relabel", () => {
-  const binds = buildBinds("/host/data/agents/a/workspace", "/workspace", [
+test("buildBinds adds the workspace, /tmp, and extra mounts with SELinux relabel", () => {
+  const binds = buildBinds("/host/data/agents/a/workspace", "/workspace", "/host/data/agents/a/tmp", [
     { source: "/srv/shared", target: "/refs", readOnly: true },
     { source: "/srv/cache" },
     { source: "  " },
   ]);
   assert.deepEqual(binds, [
     "/host/data/agents/a/workspace:/workspace:rw,z",
+    "/host/data/agents/a/tmp:/tmp:rw,z",
     "/srv/shared:/refs:ro,z",
     "/srv/cache:/srv/cache:rw,z",
   ]);

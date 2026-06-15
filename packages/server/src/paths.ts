@@ -11,6 +11,10 @@ export function defaultAgentWorkingDir(agentId: string) {
   return `agents/${safePathSegment(agentId)}/workspace`;
 }
 
+export function agentTmpDir(agentId: string) {
+  return `agents/${safePathSegment(agentId)}/tmp`;
+}
+
 export function resolveDataPath(path: string) {
   return isAbsolute(path) ? resolve(path) : resolve(dataDir, path);
 }
