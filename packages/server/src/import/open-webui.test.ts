@@ -144,6 +144,55 @@ test("prefers structured Open WebUI output reasoning over HTML content", () => {
   ]);
 });
 
+test("imports user image attachments as image content", () => {
+  const result = importOpenWebuiSessions(
+    {
+      chat: {
+        title: "Image chat",
+        messages: [
+          {
+            role: "user",
+            content: "What's on this picture",
+            files: [
+              { type: "image", url: "data:image/jpeg;base64,AAAA" },
+              { type: "image", url: "https://example.com/skip.png" },
+            ],
+          },
+          { role: "assistant", content: "A drawing." },
+        ],
+      },
+    },
+    options(),
+  );
+
+  const user = result.sessions[0]?.messages[0];
+  assert.equal(user?.role, "user");
+  assert.deepEqual(user?.role === "user" ? user.content : undefined, [
+    { type: "text", text: "What's on this picture" },
+    { type: "image", data: "AAAA", mimeType: "image/jpeg" },
+  ]);
+});
+
+test("imports an image-only user message with no text", () => {
+  const result = importOpenWebuiSessions(
+    {
+      chat: {
+        title: "Image only",
+        messages: [
+          { role: "user", content: "", files: [{ type: "image", url: "data:image/png;base64,BBBB" }] },
+          { role: "assistant", content: "ok" },
+        ],
+      },
+    },
+    options(),
+  );
+
+  const user = result.sessions[0]?.messages[0];
+  assert.deepEqual(user?.role === "user" ? user.content : undefined, [
+    { type: "image", data: "BBBB", mimeType: "image/png" },
+  ]);
+});
+
 function options() {
   return {
     userId: "user_1",

@@ -1,6 +1,6 @@
 import type { ModelRef, Session } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { Api, AssistantMessage, Provider, Usage } from "@earendil-works/pi-ai";
+import type { Api, AssistantMessage, ImageContent, Provider, TextContent, Usage } from "@earendil-works/pi-ai";
 import { id } from "../db/seed.ts";
 
 type OpenWebuiImportOptions = Pick<Session, "userId" | "agentId" | "modelRefId" | "thinkingLevel"> & {
@@ -23,6 +23,7 @@ type OpenWebuiMessage = {
   model?: unknown;
   modelName?: unknown;
   output?: unknown;
+  files?: unknown;
 };
 
 export function importOpenWebuiSessions(source: unknown, options: OpenWebuiImportOptions): OpenWebuiImportResult {
@@ -103,8 +104,13 @@ function convertMessages(messages: OpenWebuiMessage[], options: OpenWebuiImportO
     const timestamp = timestampFrom(message.timestamp) ?? options.now + index;
 
     if (role === "user") {
-      const content = contentToText(message.content);
-      if (!content.trim()) return;
+      const text = contentToText(message.content);
+      const images = extractImages(message.files);
+      if (!text.trim() && images.length === 0) return;
+      const content =
+        images.length > 0
+          ? [...(text.trim() ? [{ type: "text", text } satisfies TextContent] : []), ...images]
+          : text;
       converted.push({ role: "user", content, timestamp });
       return;
     }
@@ -155,6 +161,26 @@ function contentToText(content: unknown): string {
     if (typeof content.content === "string") return content.content;
   }
   return "";
+}
+
+function extractImages(files: unknown): ImageContent[] {
+  if (!Array.isArray(files)) return [];
+  const images: ImageContent[] = [];
+  for (const file of files) {
+    if (!isRecord(file) || file.type !== "image") continue;
+    const url = readString(file.url) ?? readString(file.data);
+    const image = url ? dataUrlToImageContent(url) : undefined;
+    if (image) images.push(image);
+  }
+  return images;
+}
+
+function dataUrlToImageContent(url: string): ImageContent | undefined {
+  const match = /^data:([^;,]*);base64,(.*)$/s.exec(url.trim());
+  if (!match) return undefined;
+  const data = match[2];
+  if (!data) return undefined;
+  return { type: "image", data, mimeType: match[1] || "image/png" };
 }
 
 function outputToAssistantContent(output: unknown): { text: string; thinking?: string } {
