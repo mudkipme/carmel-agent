@@ -35,7 +35,7 @@ const config = {
   selinuxRelabel: process.env.CARMEL_BASH_SELINUX_RELABEL !== "false",
 };
 
-type ContainerEntry = { containerId: string; lastUsedAt: number };
+type ContainerEntry = { containerId: string; lastUsedAt: number; signature: string };
 
 const containers = new Map<string, ContainerEntry>();
 const pendingStarts = new Map<string, Promise<string>>();
@@ -45,12 +45,18 @@ let reaper: ReturnType<typeof setInterval> | undefined;
 export async function ensureAgentContainer(agent: AgentRecord, options: { network: boolean }): Promise<string> {
   if (!isSandboxConfigured()) throw new Error(sandboxUnavailableMessage());
 
+  const signature = containerSignature(agent, options);
   const existing = containers.get(agent.id);
-  if (existing && (await isContainerRunning(existing.containerId))) {
-    existing.lastUsedAt = Date.now();
-    return existing.containerId;
+  if (existing) {
+    // Reuse only if the bind configuration still matches; recreate when the
+    // workspace dir or extra mounts changed so stale binds are not kept.
+    if (existing.signature === signature && (await isContainerRunning(existing.containerId))) {
+      existing.lastUsedAt = Date.now();
+      return existing.containerId;
+    }
+    containers.delete(agent.id);
+    await removeContainer(existing.containerId);
   }
-  if (existing) containers.delete(agent.id);
 
   let pending = pendingStarts.get(agent.id);
   if (!pending) {
@@ -58,9 +64,21 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
     pendingStarts.set(agent.id, pending);
   }
   const containerId = await pending;
-  containers.set(agent.id, { containerId, lastUsedAt: Date.now() });
+  containers.set(agent.id, { containerId, lastUsedAt: Date.now(), signature });
   startReaper();
   return containerId;
+}
+
+// Identifies the bind-relevant inputs of a runner container. When this changes
+// for an agent (workspace dir, mount path, extra mounts, network), the existing
+// container is torn down and recreated on the next command.
+export function containerSignature(agent: AgentRecord, options: { network: boolean }) {
+  const workspaceHostPath = toHostPath(resolveAgentWorkingDirPath(agent));
+  const mountPath = resolveContainerWorkspace(agent);
+  return JSON.stringify({
+    binds: buildBinds(workspaceHostPath, mountPath, agent.mounts),
+    network: options.network,
+  });
 }
 
 export async function killAgentContainer(agentId: string) {

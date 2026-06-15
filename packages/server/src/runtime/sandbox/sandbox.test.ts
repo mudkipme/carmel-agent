@@ -2,9 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { agents } from "../../db/schema.ts";
 import { createStreamDemuxer, parseImageRef } from "./podman.ts";
-import { buildBinds, containerWorkdir, resolveContainerWorkspace } from "./container-manager.ts";
+import { buildBinds, containerSignature, containerWorkdir, resolveContainerWorkspace } from "./container-manager.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
+
+function manualAgent(overrides: Partial<AgentRecord> = {}): AgentRecord {
+  return { workingDirMode: "manual", workingDir: "/srv/projects/app", mounts: [], ...overrides } as AgentRecord;
+}
 
 test("demuxer reassembles multiplexed docker frames split across chunks", () => {
   const chunks: Buffer[] = [];
@@ -68,6 +72,14 @@ test("containerWorkdir preserves an absolute mount path for manual workspaces", 
 test("resolveContainerWorkspace keeps the absolute path for manual workspaces", () => {
   assert.equal(resolveContainerWorkspace({ workingDirMode: "manual", workingDir: "/srv/projects/app" } as AgentRecord), "/srv/projects/app");
   assert.equal(resolveContainerWorkspace({ workingDirMode: "default", workingDir: "agents/a/workspace" } as AgentRecord), "/workspace");
+});
+
+test("containerSignature changes when the workspace dir, mounts, or network change", () => {
+  const base = containerSignature(manualAgent(), { network: false });
+  assert.equal(base, containerSignature(manualAgent(), { network: false }), "stable for identical config");
+  assert.notEqual(base, containerSignature(manualAgent({ workingDir: "/srv/projects/other" }), { network: false }));
+  assert.notEqual(base, containerSignature(manualAgent({ mounts: [{ source: "/srv/shared" }] }), { network: false }));
+  assert.notEqual(base, containerSignature(manualAgent(), { network: true }));
 });
 
 test("buildBinds adds the workspace and extra mounts with SELinux relabel", () => {
