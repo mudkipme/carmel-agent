@@ -43,7 +43,7 @@ type HarnessState = {
   login: (username: string, password: string) => Promise<void>;
   setup: (input: { username: string; password: string; email?: string; name?: string }) => Promise<void>;
   logout: () => Promise<void>;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateAccount: (currentPassword: string, email: string, newPassword?: string) => Promise<void>;
   setActiveUser: (userId: string) => void;
   setActiveAgent: (agentId: string) => void;
   setActiveSession: (sessionId: string) => void;
@@ -138,7 +138,10 @@ export const useHarnessStore = create<HarnessState>()(
     await api.logout();
     set(resetState({ status: "unauthenticated" }));
   },
-  changePassword: (currentPassword, newPassword) => api.changePassword(currentPassword, newPassword).then(() => undefined),
+  updateAccount: async (currentPassword, email, newPassword) => {
+    const saved = await api.updateAccount(currentPassword, email, newPassword);
+    set((state) => ({ users: state.users.map((item) => (item.id === saved.id ? saved : item)) }));
+  },
   setActiveUser: (userId) => {
     const session = get().sessions.find((item) => item.userId === userId);
     const agent =

@@ -34,8 +34,9 @@ export const loginRequestSchema = z.object({
   password: optionalString,
 });
 
-export const passwordRequestSchema = z.object({
+export const accountUpdateRequestSchema = z.object({
   currentPassword: optionalString,
+  email: z.string(),
   newPassword: optionalString,
 });
 
@@ -52,6 +53,14 @@ export const createUserRequestSchema = z.object({
   password: z.string(),
   name: optionalString,
   role: z.enum(["admin", "user"]).optional(),
+});
+
+export const updateUserRoleRequestSchema = z.object({
+  role: z.enum(["admin", "user"]),
+});
+
+export const adminPasswordResetRequestSchema = z.object({
+  password: z.string(),
 });
 
 export const userRequestSchema = z.object({

@@ -8,14 +8,14 @@ import {
   serializeSessionMetadata,
   serializeUser,
 } from "../serializers.ts";
-import { readUserProviderConfigs, readVisibleAgents, readVisibleModelRefs } from "./agent-access.ts";
+import { readProviderConfigs, readVisibleAgents, readVisibleModelRefs } from "./agent-access.ts";
 import { readSessionMessageCountsForUser } from "./session-store.ts";
 
 export function readBootstrapPayload(userId: string) {
   return {
     users: db.select().from(users).where(eq(users.id, userId)).all().map(serializeUser),
     agents: readVisibleAgents(userId).map(serializePublicAgent),
-    providerConfigs: readUserProviderConfigs(userId).map(serializeProviderConfig),
+    providerConfigs: readProviderConfigs().map(serializeProviderConfig),
     modelRefs: readVisibleModelRefs(userId).map(serializeModelRef),
     sessions: readSessionMetadataForUser(userId),
   };

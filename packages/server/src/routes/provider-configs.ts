@@ -1,7 +1,7 @@
 import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER, type ProviderConfig, type ProviderModelSummary } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import type { AuthVariables } from "../auth.ts";
+import { requireAdmin, type AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import { modelRefs, providerConfigs } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
@@ -14,7 +14,6 @@ import {
 import { serializeProviderConfig } from "../serializers.ts";
 import { protectJsonSecret, protectSecret } from "../security.ts";
 import {
-  ownsProviderConfig,
   readAffectedModelUserIds,
   readFallbackModelForUser,
   reassignModelReferences,
@@ -26,12 +25,11 @@ import { jsonValidator, oauthInputRequestSchema, providerConfigRequestSchema } f
 export function createProviderConfigRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
 
-  route.put("/provider-configs/:id", jsonValidator(providerConfigRequestSchema), async (c) => {
+  route.put("/provider-configs/:id", requireAdmin, jsonValidator(providerConfigRequestSchema), async (c) => {
     const currentUserId = c.get("user").id;
     const providerConfig = c.req.valid("json") as ProviderConfig;
     const timestamp = now();
     const current = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
-    if (current && current.userId !== currentUserId) return c.json({ error: "Provider config not found." }, 404);
 
     const authType = providerConfig.authType ?? current?.authType ?? "api_key";
     const apiKey = authType === "api_key" ? protectSecret(providerConfig.apiKey ?? current?.apiKey ?? null) : null;
@@ -66,10 +64,9 @@ export function createProviderConfigRoutes() {
     );
   });
 
-  route.get("/provider-configs/:id/models", async (c) => {
-    const currentUserId = c.get("user").id;
+  route.get("/provider-configs/:id/models", requireAdmin, async (c) => {
     const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
-    if (!providerConfig || providerConfig.userId !== currentUserId) {
+    if (!providerConfig) {
       return c.json({ error: "Provider config not found." }, 404);
     }
     if (providerConfig.provider !== OLLAMA_PROVIDER) return c.json([] satisfies ProviderModelSummary[]);
@@ -85,10 +82,10 @@ export function createProviderConfigRoutes() {
     return c.json(listOAuthProviders());
   });
 
-  route.post("/provider-configs/:id/oauth/login", async (c) => {
+  route.post("/provider-configs/:id/oauth/login", requireAdmin, async (c) => {
     const currentUserId = c.get("user").id;
     const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
-    if (!providerConfig || providerConfig.userId !== currentUserId) {
+    if (!providerConfig) {
       return c.json({ error: "Provider config not found." }, 404);
     }
     try {
@@ -98,13 +95,13 @@ export function createProviderConfigRoutes() {
     }
   });
 
-  route.get("/oauth/flows/:id", (c) => {
+  route.get("/oauth/flows/:id", requireAdmin, (c) => {
     const flow = readOAuthLoginFlow(c.get("user").id, c.req.param("id"));
     if (!flow) return c.json({ error: "OAuth flow not found." }, 404);
     return c.json(flow);
   });
 
-  route.post("/oauth/flows/:id/input", jsonValidator(oauthInputRequestSchema), async (c) => {
+  route.post("/oauth/flows/:id/input", requireAdmin, jsonValidator(oauthInputRequestSchema), async (c) => {
     const body = c.req.valid("json");
     try {
       const flow = submitOAuthLoginFlowInput(c.get("user").id, c.req.param("id"), body.value ?? "");
@@ -115,10 +112,10 @@ export function createProviderConfigRoutes() {
     }
   });
 
-  route.delete("/provider-configs/:id", (c) => {
+  route.delete("/provider-configs/:id", requireAdmin, (c) => {
     const currentUserId = c.get("user").id;
     const providerConfigId = c.req.param("id");
-    if (!ownsProviderConfig(currentUserId, providerConfigId)) {
+    if (!db.select({ id: providerConfigs.id }).from(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).get()) {
       return c.json({ error: "Provider config not found." }, 404);
     }
     const relatedModels = db.select().from(modelRefs).where(eq(modelRefs.providerConfigId, providerConfigId)).all();

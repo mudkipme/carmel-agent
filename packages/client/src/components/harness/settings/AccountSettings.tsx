@@ -7,41 +7,30 @@ import { useHarnessStore } from "@/store/harness-store";
 
 export function AccountSettings() {
   const user = useHarnessStore((state) => state.users.find((item) => item.id === state.activeUserId));
-  const changePassword = useHarnessStore((state) => state.changePassword);
-  const upsertUser = useHarnessStore((state) => state.upsertUser);
+  const updateAccount = useHarnessStore((state) => state.updateAccount);
   const logout = useHarnessStore((state) => state.logout);
   const [email, setEmail] = useState(user?.email ?? "");
-  const [profileStatus, setProfileStatus] = useState<string | null>(null);
-  const [savingProfile, setSavingProfile] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [status, setStatus] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const saveEmail = async () => {
-    if (!user) return;
-    setSavingProfile(true);
-    setProfileStatus(null);
-    try {
-      await upsertUser({ ...user, email: email.trim() });
-      setProfileStatus("Email updated.");
-    } catch (error) {
-      setProfileStatus(error instanceof Error ? error.message : "Unable to update email.");
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  const savePassword = async () => {
+  const save = async () => {
     setStatus(null);
+    setSaving(true);
     try {
-      await changePassword(currentPassword, newPassword);
+      await updateAccount(currentPassword, email.trim(), newPassword || undefined);
       setCurrentPassword("");
       setNewPassword("");
-      setStatus("Password updated.");
+      setStatus(newPassword ? "Email and password updated." : "Email updated.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to update password.");
+      setStatus(error instanceof Error ? error.message : "Unable to update account.");
+    } finally {
+      setSaving(false);
     }
   };
+
+  const newPasswordTooShort = newPassword.length > 0 && newPassword.length < 8;
 
   return (
     <div className="grid gap-6">
@@ -53,20 +42,13 @@ export function AccountSettings() {
         </Button>
       </section>
       <section className="grid gap-3 border-t pt-6">
-        <SectionHeader title="Profile" description="Update the email address for this account." />
+        <SectionHeader
+          title="Email & Password"
+          description="Confirm your current password to change your email. Leave the new password blank to keep it."
+        />
         <Field label="Email">
           <Input value={email} type="email" autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
         </Field>
-        {profileStatus ? <p className="text-sm text-muted-foreground">{profileStatus}</p> : null}
-        <Button
-          onClick={() => void saveEmail()}
-          disabled={savingProfile || !email.trim() || email.trim() === user?.email}
-        >
-          Save email
-        </Button>
-      </section>
-      <section className="grid gap-3 border-t pt-6">
-        <SectionHeader title="Change Password" description="Update the password for this account." />
         <Field label="Current password">
           <Input
             value={currentPassword}
@@ -75,17 +57,24 @@ export function AccountSettings() {
             onChange={(event) => setCurrentPassword(event.target.value)}
           />
         </Field>
-        <Field label="New password">
+        <Field label="New password (optional)">
           <Input
             value={newPassword}
             type="password"
             autoComplete="new-password"
+            placeholder="Leave blank to keep current password"
             onChange={(event) => setNewPassword(event.target.value)}
           />
         </Field>
+        {newPasswordTooShort ? (
+          <p className="text-sm text-destructive">New password must be at least 8 characters.</p>
+        ) : null}
         {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
-        <Button onClick={() => void savePassword()} disabled={!currentPassword || newPassword.length < 8}>
-          Update password
+        <Button
+          onClick={() => void save()}
+          disabled={saving || !currentPassword || !email.trim() || newPasswordTooShort}
+        >
+          Save changes
         </Button>
       </section>
     </div>

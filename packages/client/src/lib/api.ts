@@ -17,6 +17,7 @@ import type {
   SessionMetadata,
   SetupStatus,
   User,
+  UserRole,
 } from "@carmel-agent/shared";
 
 export type BootstrapPayload = {
@@ -82,10 +83,15 @@ export const api = {
   listUsers: () => request<User[]>("/api/users"),
   createUser: (input: CreateUserRequest) =>
     request<User>("/api/users", { method: "POST", body: JSON.stringify(input) }),
-  changePassword: (currentPassword: string, newPassword: string) =>
-    request<{ ok: true }>("/api/auth/password", {
+  updateUserRole: (userId: string, role: UserRole) =>
+    request<User>(`/api/users/${userId}`, { method: "PATCH", body: JSON.stringify({ role }) }),
+  resetUserPassword: (userId: string, password: string) =>
+    request<{ ok: true }>(`/api/users/${userId}/password`, { method: "POST", body: JSON.stringify({ password }) }),
+  deleteUser: (userId: string) => request<{ ok: true }>(`/api/users/${userId}`, { method: "DELETE" }),
+  updateAccount: (currentPassword: string, email: string, newPassword?: string) =>
+    request<User>("/api/auth/account", {
       method: "POST",
-      body: JSON.stringify({ currentPassword, newPassword }),
+      body: JSON.stringify({ currentPassword, email, newPassword }),
     }),
   upsertUser: (user: User) =>
     request<User>(`/api/users/${user.id}`, { method: "PUT", body: JSON.stringify(user) }),

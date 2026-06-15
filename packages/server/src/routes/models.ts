@@ -3,12 +3,11 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
-import { modelRefs } from "../db/schema.ts";
+import { modelRefs, providerConfigs } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import { serializeModelRef } from "../serializers.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import {
-  ownsProviderConfig,
   readAffectedModelUserIds,
   readFallbackModelForUser,
   reassignModelReferences,
@@ -23,7 +22,10 @@ export function createModelRoutes() {
     const model = c.req.valid("json") as ModelRef;
     const current = db.select().from(modelRefs).where(eq(modelRefs.id, c.req.param("id"))).get();
     if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Model not found." }, 404);
-    if (model.providerConfigId && !ownsProviderConfig(currentUserId, model.providerConfigId)) {
+    if (
+      model.providerConfigId &&
+      !db.select({ id: providerConfigs.id }).from(providerConfigs).where(eq(providerConfigs.id, model.providerConfigId)).get()
+    ) {
       return c.json({ error: "Provider config not found." }, 404);
     }
     const timestamp = now();

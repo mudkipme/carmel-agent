@@ -11,8 +11,9 @@ import {
 import { db } from "../db/index.ts";
 import { users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
+import { serializeUser } from "../serializers.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
-import { jsonValidator, loginRequestSchema, passwordRequestSchema, setupRequestSchema } from "../validation.ts";
+import { accountUpdateRequestSchema, jsonValidator, loginRequestSchema, setupRequestSchema } from "../validation.ts";
 
 // "Needs setup" means no account can log in yet. A fresh database seeds a
 // passwordless placeholder user that owns the default agent/model, so we key off
@@ -101,21 +102,30 @@ export function createAuthRoutes() {
     return c.json(readBootstrapPayload(userId), 201);
   });
 
-  route.post("/password", jsonValidator(passwordRequestSchema), async (c) => {
+  // Update the signed-in account's email, and optionally the password, after
+  // confirming the current password. A blank new password leaves it unchanged.
+  route.post("/account", jsonValidator(accountUpdateRequestSchema), async (c) => {
     const user = c.get("user");
     const body = c.req.valid("json");
-    if (!body.currentPassword || !body.newPassword) {
-      return c.json({ error: "Current and new password are required." }, 400);
-    }
-    if (body.newPassword.length < 8) return c.json({ error: "New password must be at least 8 characters." }, 400);
+    const email = body.email.trim();
+    if (!body.currentPassword) return c.json({ error: "Current password is required." }, 400);
+    if (!email) return c.json({ error: "Email is required." }, 400);
     if (!user.passwordHash || !(await verifyPassword(body.currentPassword, user.passwordHash))) {
       return c.json({ error: "Current password is incorrect." }, 400);
     }
+    const newPassword = body.newPassword?.trim();
+    if (newPassword && newPassword.length < 8) {
+      return c.json({ error: "New password must be at least 8 characters." }, 400);
+    }
     db.update(users)
-      .set({ passwordHash: await hashPassword(body.newPassword), updatedAt: now() })
+      .set({
+        email,
+        ...(newPassword ? { passwordHash: await hashPassword(newPassword) } : {}),
+        updatedAt: now(),
+      })
       .where(eq(users.id, user.id))
       .run();
-    return c.json({ ok: true });
+    return c.json(serializeUser(db.select().from(users).where(eq(users.id, user.id)).get()!));
   });
 
   return route;

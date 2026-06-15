@@ -1,5 +1,4 @@
 import { PanelLeftIcon, SettingsIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { AgentConfig, ModelRef, SessionMetadata } from "@carmel-agent/shared";
 
@@ -37,8 +36,6 @@ export function HarnessHeader({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Badge variant="secondary">{activeSession?.thinkingLevel ?? "off"}</Badge>
-        <Badge variant="secondary">{activeAgent?.permissions.bash ? "bash on" : "bash off"}</Badge>
         <Button variant="outline" size="icon-sm" title="Settings" onClick={onOpenSettings}>
           <SettingsIcon />
         </Button>

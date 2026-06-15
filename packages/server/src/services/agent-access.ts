@@ -1,6 +1,6 @@
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { AgentConfig, AgentThinkingLevel } from "@carmel-agent/shared";
-import { eq, inArray, isNull, or } from "drizzle-orm";
+import { asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
@@ -11,8 +11,10 @@ import { serializeModelRef } from "../serializers.ts";
 export type AgentRecord = typeof agents.$inferSelect;
 export type ModelRefRecord = typeof modelRefs.$inferSelect;
 
-export function readUserProviderConfigs(userId: string) {
-  return db.select().from(providerConfigs).where(eq(providerConfigs.userId, userId)).all();
+// Provider configs are global infrastructure (managed by admins), so they are
+// not scoped to a user.
+export function readProviderConfigs() {
+  return db.select().from(providerConfigs).orderBy(asc(providerConfigs.createdAt)).all();
 }
 
 export function readVisibleAgents(userId: string) {
@@ -30,35 +32,17 @@ export function readVisibleAgent(userId: string, agentId: string) {
 }
 
 export function readVisibleModelRefs(userId: string) {
-  const providerConfigIds = readUserProviderConfigs(userId).map((config) => config.id);
-  const conditions = [
-    eq(modelRefs.ownerUserId, userId),
-    eq(modelRefs.shared, true),
-    isNull(modelRefs.providerConfigId),
-  ];
-  if (providerConfigIds.length > 0) conditions.push(inArray(modelRefs.providerConfigId, providerConfigIds));
-  return db.select().from(modelRefs).where(or(...conditions)).all();
-}
-
-export function ownsProviderConfig(userId: string, providerConfigId: string) {
-  return Boolean(
-    db
-      .select()
-      .from(providerConfigs)
-      .where(eq(providerConfigs.id, providerConfigId))
-      .get()?.userId === userId,
-  );
+  return db
+    .select()
+    .from(modelRefs)
+    .where(or(eq(modelRefs.ownerUserId, userId), eq(modelRefs.shared, true), isNull(modelRefs.providerConfigId)))
+    .all();
 }
 
 export function canUseModel(userId: string, model: string | ModelRefRecord) {
   const modelRef = typeof model === "string" ? db.select().from(modelRefs).where(eq(modelRefs.id, model)).get() : model;
   if (!modelRef) return false;
-  return (
-    modelRef.ownerUserId === userId ||
-    modelRef.shared ||
-    !modelRef.providerConfigId ||
-    ownsProviderConfig(userId, modelRef.providerConfigId)
-  );
+  return modelRef.ownerUserId === userId || modelRef.shared || !modelRef.providerConfigId;
 }
 
 export function resolveSupportedThinkingLevel(modelRef: ModelRefRecord, thinkingLevel: AgentThinkingLevel) {

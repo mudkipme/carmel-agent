@@ -22,7 +22,7 @@ import { type ModelRef, type OAuthProviderSummary } from "@carmel-agent/shared";
 
 const allSettingsSections = [
   { id: "models", label: "Models", icon: DatabaseIcon, adminOnly: false },
-  { id: "providers", label: "Providers", icon: KeyRoundIcon, adminOnly: false },
+  { id: "providers", label: "Providers", icon: KeyRoundIcon, adminOnly: true },
   { id: "appearance", label: "Appearance", icon: MonitorIcon, adminOnly: false },
   { id: "users", label: "Users", icon: UsersIcon, adminOnly: true },
   { id: "account", label: "Account", icon: UserIcon, adminOnly: false },
