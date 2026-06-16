@@ -140,3 +140,7 @@ pnpm serve        # run the built server entrypoint
 - `Dockerfile.runner` - per-agent bash sandbox image.
 - `compose.yaml` - rootless Podman Compose deployment.
 - `data/` - default runtime state for SQLite, agent workspaces, and sandbox scratch data.
+
+## License
+
+Released under the [MIT License](LICENSE).
