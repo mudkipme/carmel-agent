@@ -251,14 +251,47 @@ async function reapIdleContainers() {
   for (const [agentId, entry] of containers) {
     if (now - entry.lastUsedAt < config.idleTtlMs) continue;
     stale.push([agentId, entry]);
+    // Drop the entry up front so it cannot be reused while removal is in flight.
     containers.delete(agentId);
   }
   await Promise.all(
     stale.map(async ([agentId, entry]) => {
-      await removeContainer(entry.containerId);
+      if (!(await removeContainer(entry.containerId))) {
+        // Removal was not confirmed (e.g. a transient podman failure). Keep
+        // tracking so the next tick retries instead of leaking an orphan —
+        // unless a fresh container was started for this agent in the meantime.
+        if (!containers.has(agentId)) containers.set(agentId, entry);
+        return;
+      }
       // An idle sandbox is done with its scratch; reclaim the /tmp directory.
       clearAgentTmp(agentId);
     }),
+  );
+  await reapUntrackedContainers();
+}
+
+// Safety net for orphaned runners. A teardown that lost its tracking entry
+// without actually removing the container (a swallowed/transient podman failure)
+// would otherwise leak the container until the next restart, since the idle
+// reaper only ever inspects the in-memory map. Periodically reconcile against
+// real podman state and remove any managed runner no live entry points at.
+// A grace period keeps us from killing a container that is still being created
+// (tracked only in pendingStarts, not yet in the map).
+async function reapUntrackedContainers() {
+  let managed: Awaited<ReturnType<typeof listManagedContainers>>;
+  try {
+    managed = await listManagedContainers(`${managedLabel}=${managedLabelValue}`);
+  } catch (error) {
+    console.warn("Failed to list sandbox containers:", error instanceof Error ? error.message : String(error));
+    return;
+  }
+  const tracked = new Set<string>();
+  for (const entry of containers.values()) tracked.add(entry.containerId);
+  const minAgeSeconds = (Date.now() - config.idleTtlMs) / 1000;
+  await Promise.all(
+    managed
+      .filter((container) => !tracked.has(container.Id) && container.Created < minAgeSeconds)
+      .map((container) => removeContainer(container.Id)),
   );
 }
 

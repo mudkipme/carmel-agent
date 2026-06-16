@@ -159,7 +159,10 @@ export async function isContainerRunning(containerId: string) {
   return Boolean(data?.State?.Running);
 }
 
-export async function removeContainer(containerId: string) {
+// Returns true only when the container is confirmed gone (deleted, or already
+// absent). A transient failure (socket error, 409/500) returns false so callers
+// can keep tracking it and retry instead of silently leaking an orphan.
+export async function removeContainer(containerId: string): Promise<boolean> {
   try {
     const stopRes = await podmanRequest({ method: "POST", path: `/containers/${containerId}/stop`, query: { t: 2 } });
     await drain(stopRes);
@@ -172,13 +175,21 @@ export async function removeContainer(containerId: string) {
       path: `/containers/${containerId}`,
       query: { force: true, v: true },
     });
+    const status = rmRes.statusCode ?? 0;
     await drain(rmRes);
+    // 204 = removed, 404 = already gone. Anything else (e.g. 409 conflict, 500)
+    // means the container may still be running, so removal is not confirmed.
+    return status === 204 || status === 404;
   } catch {
-    // Already removed.
+    // Socket/network error — removal could not be confirmed.
+    return false;
   }
 }
 
-export async function listManagedContainers(label: string) {
+// `Created` is a unix timestamp in seconds (Docker/Podman compatible).
+export type ManagedContainer = { Id: string; Created: number };
+
+export async function listManagedContainers(label: string): Promise<ManagedContainer[]> {
   const res = await podmanRequest({
     method: "GET",
     path: "/containers/json",
@@ -188,7 +199,7 @@ export async function listManagedContainers(label: string) {
     await drain(res);
     return [];
   }
-  return (await readJson<Array<{ Id: string }>>(res)) ?? [];
+  return (await readJson<ManagedContainer[]>(res)) ?? [];
 }
 
 export type ContainerExecResult = { exitCode: number | null };
