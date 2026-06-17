@@ -462,7 +462,3 @@ function dropColumnIfExists(table: string, column: string) {
   if (!columns.some((item) => item.name === column)) return;
   sqlite.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
 }
-
-export function touchSession(sessionId: string) {
-  db.update(sessions).set({ updatedAt: now() }).where(eq(sessions.id, sessionId)).run();
-}

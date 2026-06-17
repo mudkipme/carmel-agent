@@ -17,7 +17,7 @@ export function readSessionMessages(sessionId: string): AgentMessage[] {
     .map((row) => row.message);
 }
 
-export function attachMessages(record: SessionRecord): SessionWithMessages {
+function attachMessages(record: SessionRecord): SessionWithMessages {
   return { ...record, messages: readSessionMessages(record.id) };
 }
 

@@ -7,7 +7,7 @@ import { join } from "node:path";
 // being present inside the carmel-agent container.
 const apiVersion = "v1.41";
 
-export function resolvePodmanSocketPath(): string | undefined {
+function resolvePodmanSocketPath(): string | undefined {
   const explicit = process.env.CARMEL_PODMAN_SOCKET?.trim();
   if (explicit) return explicit;
 
@@ -43,7 +43,7 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
-export function podmanRequest(options: RequestOptions): Promise<IncomingMessage> {
+function podmanRequest(options: RequestOptions): Promise<IncomingMessage> {
   const socketPath = resolvePodmanSocketPath();
   if (!socketPath) return Promise.reject(new Error(sandboxUnavailableMessage()));
 
@@ -70,18 +70,18 @@ export function podmanRequest(options: RequestOptions): Promise<IncomingMessage>
   });
 }
 
-export async function readBody(res: IncomingMessage) {
+async function readBody(res: IncomingMessage) {
   const chunks: Buffer[] = [];
   for await (const chunk of res) chunks.push(chunk as Buffer);
   return Buffer.concat(chunks).toString("utf-8");
 }
 
-export async function readJson<T = unknown>(res: IncomingMessage): Promise<T | undefined> {
+async function readJson<T = unknown>(res: IncomingMessage): Promise<T | undefined> {
   const text = await readBody(res);
   return text ? (JSON.parse(text) as T) : undefined;
 }
 
-export async function drain(res: IncomingMessage) {
+async function drain(res: IncomingMessage) {
   for await (const _chunk of res) void _chunk;
 }
 

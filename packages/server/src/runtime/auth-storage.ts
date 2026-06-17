@@ -16,7 +16,7 @@ export function createProviderConfigAuthStorage(providerConfig: ProviderConfigRe
   return AuthStorage.fromStorage(new ProviderConfigAuthStorageBackend(providerConfig.id, provider));
 }
 
-export class ProviderConfigAuthStorageBackend implements AuthStorageBackend {
+class ProviderConfigAuthStorageBackend implements AuthStorageBackend {
   constructor(
     private readonly providerConfigId: string,
     private readonly provider: string,

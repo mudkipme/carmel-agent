@@ -149,6 +149,10 @@ export function createSessionRoutes() {
     if (patch.modelRefId && !canUseModel(c.get("user").id, patch.modelRefId)) {
       return c.json({ error: "Model not found." }, 404);
     }
+    // Switching model, thinking level, or pin state are preferences and must not
+    // affect the session's update time or its sort order. Only a rename counts as
+    // a meaningful edit here; conversation activity touches updatedAt elsewhere.
+    const titleChanged = patch.title !== undefined && patch.title !== current.title;
     db.update(sessions)
       .set({
         title: patch.title ?? current.title,
@@ -156,7 +160,7 @@ export function createSessionRoutes() {
         thinkingLevel: patch.thinkingLevel ?? current.thinkingLevel,
         forkedFrom: current.forkedFrom,
         pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
-        updatedAt: now(),
+        updatedAt: titleChanged ? now() : current.updatedAt,
       })
       .where(eq(sessions.id, sessionId))
       .run();

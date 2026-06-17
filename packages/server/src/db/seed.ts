@@ -4,7 +4,7 @@ import type { AgentConfig, AgentPermissions, ModelRef, ProviderConfig, Session, 
 export const now = () => Date.now();
 export const id = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 
-export const defaultPermissions: AgentPermissions = {
+const defaultPermissions: AgentPermissions = {
   read: true,
   write: true,
   edit: true,

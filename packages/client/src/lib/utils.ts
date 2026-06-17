@@ -18,7 +18,3 @@ export function formatRelativeTime(value: number) {
   if (weeks < 52) return `${weeks}w`;
   return `${Math.floor(weeks / 52)}y`;
 }
-
-export function shortId(id: string) {
-  return id.slice(0, 8);
-}
