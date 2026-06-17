@@ -295,8 +295,14 @@ export class RemoteAgent {
         }
         break;
       case "agent_end":
+        // A single run can emit multiple agent_end events: pi auto-retries
+        // retryable failures (e.g. a 429) by ending the agent loop and starting
+        // a new one, so an agent_end here may be followed by auto_retry_start and
+        // another loop. The run is only truly finished when the event stream
+        // closes, so isStreaming is cleared in the stream-consumer finally blocks
+        // (prompt/attachToRun), not here — otherwise the send button would flip
+        // back from "stop" to "send" while a retry is still in flight.
         this.sawAgentEnd = true;
-        this.state.isStreaming = false;
         this.state.streamingMessage = undefined;
         break;
     }
