@@ -68,7 +68,7 @@ export function HarnessSidebar({
       style={{ width: sidebarWidth }}
     >
       <div className="flex h-11 items-center gap-2 border-b px-3">
-        <img src="/favicon.svg" alt="" className="size-7 rounded-md" draggable={false} />
+        <img src="/apple-touch-icon.png" alt="" className="size-7 rounded-md" draggable={false} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[13px] font-medium">Carmel Agent</h1>
           <p className="truncate text-xs text-muted-foreground">{activeUser?.email}</p>
