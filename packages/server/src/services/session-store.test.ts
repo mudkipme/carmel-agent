@@ -7,6 +7,7 @@ import { createSession, userMessage } from "../test-support.ts";
 import {
   appendSessionMessages,
   loadSession,
+  readSessionMessageAt,
   readSessionMessageCountsForUser,
   readSessionMessages,
   replaceSessionMessages,
@@ -51,6 +52,14 @@ test("loadSession returns the record with its messages attached", () => {
   assert.equal(session.userId, userId);
   assert.equal(session.messages.length, 1);
   assert.equal(loadSession("missing"), undefined);
+});
+
+test("readSessionMessageAt returns one message by index without loading the rest", () => {
+  const { sessionId } = createSession();
+  replaceSessionMessages(sessionId, [userMessage("a"), userMessage("b"), userMessage("c")]);
+  assert.equal((readSessionMessageAt(sessionId, 1) as { content: string }).content, "b");
+  assert.equal(readSessionMessageAt(sessionId, 3), undefined);
+  assert.equal(readSessionMessageAt(sessionId, -1), undefined);
 });
 
 test("message counts are reported per user", () => {

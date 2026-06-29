@@ -127,11 +127,15 @@ export function createProviderConfigRoutes() {
       if (missingFallbackUserIds.length > 0) {
         return c.json({ error: "Every affected user needs another visible model before deleting this provider." }, 409);
       }
-      reassignModelReferences(deletedModelIds);
     }
 
-    db.delete(modelRefs).where(eq(modelRefs.providerConfigId, providerConfigId)).run();
-    db.delete(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).run();
+    // Reassign references then delete the provider's models and the provider
+    // itself atomically, so a failure can't leave dangling references.
+    db.transaction(() => {
+      if (deletedModelIds.size > 0) reassignModelReferences(deletedModelIds);
+      db.delete(modelRefs).where(eq(modelRefs.providerConfigId, providerConfigId)).run();
+      db.delete(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).run();
+    });
     return c.json(readBootstrapPayload(currentUserId));
   });
 

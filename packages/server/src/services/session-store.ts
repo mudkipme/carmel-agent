@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { sessionMessages, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
@@ -19,6 +19,18 @@ export function readSessionMessages(sessionId: string): AgentMessage[] {
 
 function attachMessages(record: SessionRecord): SessionWithMessages {
   return { ...record, messages: readSessionMessages(record.id) };
+}
+
+// Fetch a single message by its position without materializing the whole
+// transcript. `seq` equals the message's array index (see replaceSessionMessages).
+export function readSessionMessageAt(sessionId: string, seq: number): AgentMessage | undefined {
+  if (!Number.isInteger(seq) || seq < 0) return undefined;
+  const row = db
+    .select({ message: sessionMessages.message })
+    .from(sessionMessages)
+    .where(and(eq(sessionMessages.sessionId, sessionId), eq(sessionMessages.seq, seq)))
+    .get();
+  return row?.message;
 }
 
 export function loadSession(sessionId: string): SessionWithMessages | undefined {

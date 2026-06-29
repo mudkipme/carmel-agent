@@ -87,8 +87,13 @@ export function createModelRoutes() {
     if (missingFallbackUserIds.length > 0) {
       return c.json({ error: "Every affected user needs another visible model before deleting this model." }, 409);
     }
-    reassignModelReferences(deletedModelIds);
-    db.delete(modelRefs).where(eq(modelRefs.id, modelId)).run();
+    // Reassign references and delete the model atomically so a mid-way failure
+    // can't leave some agents/sessions pointing at a model row that's gone (or
+    // partially reassigned).
+    db.transaction(() => {
+      reassignModelReferences(deletedModelIds);
+      db.delete(modelRefs).where(eq(modelRefs.id, modelId)).run();
+    });
     return c.json(readBootstrapPayload(currentUserId));
   });
 

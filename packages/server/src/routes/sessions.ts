@@ -16,7 +16,7 @@ import { id, now } from "../db/seed.ts";
 import { importOpenWebuiSessions } from "../import/open-webui.ts";
 import { serializeSession } from "../serializers.ts";
 import { canUseModel, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
-import { loadSession, replaceSessionMessages } from "../services/session-store.ts";
+import { loadSession, readSessionMessageAt, replaceSessionMessages } from "../services/session-store.ts";
 import {
   forkSessionRequestSchema,
   jsonValidator,
@@ -37,39 +37,39 @@ export function createSessionRoutes() {
   });
 
   route.get("/sessions/:id/images/:messageIndex/:imageIndex", (c) => {
-    const session = ownedSession(c);
+    const session = ownedSessionRecord(c);
     if (!session) return c.json({ error: "Image not found" }, 404);
 
     const messageIndex = parseIndex(c.req.param("messageIndex"));
     const imageIndex = parseIndex(c.req.param("imageIndex"));
     if (messageIndex === undefined || imageIndex === undefined) return c.json({ error: "Image not found" }, 404);
 
-    const image = readMessageImage(session.messages[messageIndex], imageIndex);
+    const image = readMessageImage(readSessionMessageAt(session.id, messageIndex), imageIndex);
     if (!image) return c.json({ error: "Image not found" }, 404);
     return imageResponse(image);
   });
 
   route.get("/sessions/:id/tool-result-images/:messageIndex/:partIndex", (c) => {
-    const session = ownedSession(c);
+    const session = ownedSessionRecord(c);
     if (!session) return c.json({ error: "Image not found" }, 404);
 
     const messageIndex = parseIndex(c.req.param("messageIndex"));
     const partIndex = parseIndex(c.req.param("partIndex"));
     if (messageIndex === undefined || partIndex === undefined) return c.json({ error: "Image not found" }, 404);
 
-    const image = readToolResultImage(session.messages[messageIndex], partIndex);
+    const image = readToolResultImage(readSessionMessageAt(session.id, messageIndex), partIndex);
     if (!image) return c.json({ error: "Image not found" }, 404);
     return imageResponse(image);
   });
 
   route.get("/sessions/:id/attachments/:messageIndex/:attachmentId", (c) => {
-    const session = ownedSession(c);
+    const session = ownedSessionRecord(c);
     if (!session) return c.json({ error: "Attachment not found" }, 404);
 
     const messageIndex = parseIndex(c.req.param("messageIndex"));
     if (messageIndex === undefined) return c.json({ error: "Attachment not found" }, 404);
 
-    const image = readImageAttachment(session.messages[messageIndex], c.req.param("attachmentId"));
+    const image = readImageAttachment(readSessionMessageAt(session.id, messageIndex), c.req.param("attachmentId"));
     if (!image) return c.json({ error: "Attachment not found" }, 404);
     return imageResponse(image);
   });
@@ -288,6 +288,15 @@ function ownedSession(c: Context<{ Variables: AuthVariables }>) {
   const sessionId = c.req.param("id");
   const session = sessionId ? loadSession(sessionId) : undefined;
   return session && session.userId === c.get("user").id ? session : undefined;
+}
+
+// Ownership check that loads only the session row, not its messages. Use for
+// per-message endpoints (images/attachments) that read one message by index and
+// would otherwise deserialize the whole transcript on every request.
+function ownedSessionRecord(c: Context<{ Variables: AuthVariables }>) {
+  const sessionId = c.req.param("id");
+  const record = sessionId ? db.select().from(sessions).where(eq(sessions.id, sessionId)).get() : undefined;
+  return record && record.userId === c.get("user").id ? record : undefined;
 }
 
 function parseIndex(value: string) {
