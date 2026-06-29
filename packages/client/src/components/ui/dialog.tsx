@@ -81,6 +81,17 @@ function DialogContent({
   )
 }
 
+// Full-screen on mobile, centered + bordered on `sm`+. Shared by dialogs that
+// need to behave like a page on phones (agent settings, message editing). Pass
+// the desktop max-width (e.g. "sm:max-w-lg") via `maxWidthClass`.
+function fullscreenDialogContentClass(maxWidthClass: string) {
+  return cn(
+    "top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-0 p-4 text-[13px]",
+    "sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[calc(100vh-2rem)] sm:w-full sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6 sm:text-sm",
+    maxWidthClass,
+  )
+}
+
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -155,4 +166,5 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  fullscreenDialogContentClass,
 }

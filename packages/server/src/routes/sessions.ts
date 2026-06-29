@@ -1,7 +1,14 @@
 import type { Session, SessionImportResult } from "@carmel-agent/shared";
+import {
+  isEditableAssistantMessage,
+  isUserMessage,
+  updateAssistantMessageContent,
+  updateUserMessageContent,
+} from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import { modelRefs, sessionMessages, sessions } from "../db/schema.ts";
@@ -24,14 +31,14 @@ export function createSessionRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
 
   route.get("/sessions/:id", (c) => {
-    const session = loadSession(c.req.param("id"));
-    if (!session || session.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+    const session = ownedSession(c);
+    if (!session) return c.json({ error: "Session not found" }, 404);
     return c.json(serializeSession(session));
   });
 
   route.get("/sessions/:id/images/:messageIndex/:imageIndex", (c) => {
-    const session = loadSession(c.req.param("id"));
-    if (!session || session.userId !== c.get("user").id) return c.json({ error: "Image not found" }, 404);
+    const session = ownedSession(c);
+    if (!session) return c.json({ error: "Image not found" }, 404);
 
     const messageIndex = parseIndex(c.req.param("messageIndex"));
     const imageIndex = parseIndex(c.req.param("imageIndex"));
@@ -43,8 +50,8 @@ export function createSessionRoutes() {
   });
 
   route.get("/sessions/:id/tool-result-images/:messageIndex/:partIndex", (c) => {
-    const session = loadSession(c.req.param("id"));
-    if (!session || session.userId !== c.get("user").id) return c.json({ error: "Image not found" }, 404);
+    const session = ownedSession(c);
+    if (!session) return c.json({ error: "Image not found" }, 404);
 
     const messageIndex = parseIndex(c.req.param("messageIndex"));
     const partIndex = parseIndex(c.req.param("partIndex"));
@@ -56,8 +63,8 @@ export function createSessionRoutes() {
   });
 
   route.get("/sessions/:id/attachments/:messageIndex/:attachmentId", (c) => {
-    const session = loadSession(c.req.param("id"));
-    if (!session || session.userId !== c.get("user").id) return c.json({ error: "Attachment not found" }, 404);
+    const session = ownedSession(c);
+    if (!session) return c.json({ error: "Attachment not found" }, 404);
 
     const messageIndex = parseIndex(c.req.param("messageIndex"));
     if (messageIndex === undefined) return c.json({ error: "Attachment not found" }, 404);
@@ -149,6 +156,13 @@ export function createSessionRoutes() {
     if (patch.modelRefId && !canUseModel(c.get("user").id, patch.modelRefId)) {
       return c.json({ error: "Model not found." }, 404);
     }
+    // Clamp the thinking level to what the (possibly newly selected) model supports,
+    // matching the create/import write paths so PATCH can't persist an unsupported level.
+    let thinkingLevel = patch.thinkingLevel ?? current.thinkingLevel;
+    if (patch.thinkingLevel !== undefined || patch.modelRefId !== undefined) {
+      const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, patch.modelRefId ?? current.modelRefId)).get();
+      if (modelRef) thinkingLevel = resolveSupportedThinkingLevel(modelRef, thinkingLevel);
+    }
     // Switching model, thinking level, or pin state are preferences and must not
     // affect the session's update time or its sort order. Only a rename counts as
     // a meaningful edit here; conversation activity touches updatedAt elsewhere.
@@ -157,7 +171,7 @@ export function createSessionRoutes() {
       .set({
         title: patch.title ?? current.title,
         modelRefId: patch.modelRefId ?? current.modelRefId,
-        thinkingLevel: patch.thinkingLevel ?? current.thinkingLevel,
+        thinkingLevel,
         forkedFrom: current.forkedFrom,
         pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
         updatedAt: titleChanged ? now() : current.updatedAt,
@@ -170,8 +184,9 @@ export function createSessionRoutes() {
   route.post("/sessions/:id/fork", jsonValidator(forkSessionRequestSchema), async (c) => {
     const sessionId = c.req.param("id");
     const body = c.req.valid("json");
-    const source = loadSession(sessionId);
-    if (!source || source.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+    const source = ownedSession(c);
+    if (!source) return c.json({ error: "Session not found" }, 404);
+    if (body.messageIndex >= source.messages.length) return c.json({ error: "Message not found" }, 404);
     const timestamp = now();
     const fork: Session = {
       ...source,
@@ -191,8 +206,8 @@ export function createSessionRoutes() {
   route.post("/sessions/:id/messages/truncate", jsonValidator(sessionTruncateRequestSchema), async (c) => {
     const sessionId = c.req.param("id");
     const body = c.req.valid("json");
-    const current = loadSession(sessionId);
-    if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+    const current = ownedSession(c);
+    if (!current) return c.json({ error: "Session not found" }, 404);
     if (body.messageIndex >= current.messages.length) return c.json({ error: "Message not found" }, 404);
 
     replaceSessionMessages(sessionId, current.messages.slice(0, body.messageIndex + 1));
@@ -208,16 +223,16 @@ export function createSessionRoutes() {
 
   route.patch("/sessions/:id/messages/:messageIndex", jsonValidator(sessionMessageEditRequestSchema), async (c) => {
     const sessionId = c.req.param("id");
-    const messageIndex = Number(c.req.param("messageIndex"));
+    const messageIndex = parseIndex(c.req.param("messageIndex"));
     const body = c.req.valid("json");
-    const current = loadSession(sessionId);
-    if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
-    if (!Number.isInteger(messageIndex) || messageIndex < 0 || messageIndex >= current.messages.length) {
+    const current = ownedSession(c);
+    if (!current) return c.json({ error: "Session not found" }, 404);
+    if (messageIndex === undefined || messageIndex >= current.messages.length) {
       return c.json({ error: "Message not found" }, 404);
     }
 
     const target = current.messages[messageIndex];
-    const editableUser = isEditableUserMessage(target);
+    const editableUser = isUserMessage(target);
     const editableAssistant = isEditableAssistantMessage(target);
     if (!editableUser && !editableAssistant) return c.json({ error: "Message is not editable" }, 400);
 
@@ -267,59 +282,12 @@ function toSessionRow(session: Session) {
   };
 }
 
-function isEditableUserMessage(message: AgentMessage) {
-  const role = (message as { role?: string }).role;
-  return role === "user" || role === "user-with-attachments";
-}
-
-function isEditableAssistantMessage(message: AgentMessage) {
-  const current = message as { role?: string; content?: unknown };
-  if (current.role !== "assistant" || !Array.isArray(current.content)) return false;
-  let hasText = false;
-  for (const part of current.content) {
-    if (!isRecord(part)) continue;
-    if (part.type === "toolCall") return false;
-    if (part.type === "text" && typeof part.text === "string" && part.text.trim()) hasText = true;
-  }
-  return hasText;
-}
-
-function updateAssistantMessageContent(message: AgentMessage, content: string): AgentMessage {
-  const current = message as AgentMessage & { content?: unknown };
-  if (!Array.isArray(current.content)) return message;
-
-  let textSeen = false;
-  const nextContent: unknown[] = [];
-  for (const part of current.content) {
-    if (isRecord(part) && part.type === "text") {
-      // Collapse the new text into the first text part; drop later text parts.
-      if (textSeen) continue;
-      textSeen = true;
-      nextContent.push({ ...part, text: content });
-    } else {
-      nextContent.push(part);
-    }
-  }
-  if (!textSeen) nextContent.push({ type: "text", text: content });
-  return { ...message, content: nextContent } as AgentMessage;
-}
-
-function updateUserMessageContent(message: AgentMessage, content: string): AgentMessage {
-  if (!isEditableUserMessage(message)) return message;
-  const current = message as AgentMessage & { content?: unknown };
-  if (typeof current.content === "string") return { ...message, content } as AgentMessage;
-  if (!Array.isArray(current.content)) return message;
-
-  let replacedText = false;
-  const nextContent = current.content.map((part) => {
-    if (!part || typeof part !== "object" || !("type" in part)) return part;
-    if (part.type !== "text" || replacedText) return part;
-    replacedText = true;
-    return { ...part, text: content };
-  });
-
-  if (!replacedText) nextContent.unshift({ type: "text", text: content });
-  return { ...message, content: nextContent } as AgentMessage;
+// Load the `:id` session and confirm the caller owns it; returns undefined
+// otherwise so handlers can answer 404 with their own resource-specific message.
+function ownedSession(c: Context<{ Variables: AuthVariables }>) {
+  const sessionId = c.req.param("id");
+  const session = sessionId ? loadSession(sessionId) : undefined;
+  return session && session.userId === c.get("user").id ? session : undefined;
 }
 
 function parseIndex(value: string) {

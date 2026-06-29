@@ -11,6 +11,7 @@ import {
   getMessageAttachments,
   getMessageImages,
   getMessageText,
+  imageSrc,
   parseSkillInvocation,
 } from "./chat-utils";
 
@@ -276,7 +277,7 @@ function AssistantMessage({
 }
 
 function ImagePreview({ data, url, mimeType, label }: { data?: string; url?: string; mimeType: string; label: string }) {
-  const src = url ?? (data ? `data:${mimeType};base64,${data}` : undefined);
+  const src = imageSrc({ url, data, mimeType });
   if (!src) return null;
 
   return <ZoomableImage src={src} alt={label} caption={label} />;

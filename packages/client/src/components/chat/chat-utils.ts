@@ -1,6 +1,10 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage, Usage } from "@earendil-works/pi-ai";
-import type { ChatAttachment } from "@carmel-agent/shared";
+import { type ChatAttachment, isUserMessage } from "@carmel-agent/shared";
+
+// Message inspection/editing helpers live in @carmel-agent/shared so the client
+// and server stay in lock-step; re-export them here for existing call sites.
+export { isEditableAssistantMessage, isUserMessage, updateAssistantMessageContent, updateUserMessageContent } from "@carmel-agent/shared";
 
 export type LocalChatAttachment = ChatAttachment;
 export type DisplayImageContent = ImageContent & {
@@ -8,20 +12,12 @@ export type DisplayImageContent = ImageContent & {
   url?: string;
 };
 
-export function isUserMessage(message: AgentMessage) {
-  return message.role === "user" || message.role === "user-with-attachments";
-}
-
-export function isEditableAssistantMessage(message: AgentMessage): message is AgentMessage & AssistantMessage {
-  if (message.role !== "assistant") return false;
-  const content = (message as AssistantMessage).content;
-  if (!Array.isArray(content)) return false;
-  let hasText = false;
-  for (const part of content) {
-    if (part.type === "toolCall") return false;
-    if (part.type === "text" && part.text.trim()) hasText = true;
-  }
-  return hasText;
+// Build a displayable image source from a stored image part: an explicit URL
+// wins, otherwise fall back to an inline base64 data URL.
+export function imageSrc(image: { url?: string; data?: string; mimeType?: string }): string | undefined {
+  if (image.url) return image.url;
+  if (image.data) return `data:${image.mimeType ?? "image/png"};base64,${image.data}`;
+  return undefined;
 }
 
 export function getMessageText(message: AgentMessage | AssistantMessage) {
@@ -53,42 +49,6 @@ export function getMessageImages(message: AgentMessage): DisplayImageContent[] {
 export function getMessageAttachments(message: AgentMessage) {
   if (message.role !== "user-with-attachments") return [];
   return message.attachments ?? [];
-}
-
-export function updateUserMessageContent(message: AgentMessage, content: string): AgentMessage {
-  if (!isUserMessage(message)) return message;
-  if (typeof message.content === "string") return { ...message, content } as AgentMessage;
-
-  let replacedText = false;
-  const nextContent = message.content.map((part) => {
-    if (part.type !== "text" || replacedText) return part;
-    replacedText = true;
-    return { ...part, text: content };
-  });
-
-  if (!replacedText) nextContent.unshift({ type: "text", text: content });
-  return { ...message, content: nextContent } as AgentMessage;
-}
-
-export function updateAssistantMessageContent(message: AgentMessage, content: string): AgentMessage {
-  const current = message as AssistantMessage;
-  if (!Array.isArray(current.content)) return message;
-
-  let textSeen = false;
-  const nextContent = [] as AssistantMessage["content"];
-  for (const part of current.content) {
-    if (part.type === "text") {
-      // Collapse the edited text into the first text part and drop any trailing
-      // text parts so the displayed (joined) text stays consistent after editing.
-      if (textSeen) continue;
-      textSeen = true;
-      nextContent.push({ ...part, text: content });
-    } else {
-      nextContent.push(part);
-    }
-  }
-  if (!textSeen) nextContent.push({ type: "text", text: content });
-  return { ...message, content: nextContent } as AgentMessage;
 }
 
 export function findMessageIndex(messages: AgentMessage[], target: AgentMessage) {

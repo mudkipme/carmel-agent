@@ -8,7 +8,6 @@ import type {
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import type { PromptInput } from "@carmel-agent/shared";
 
-type Listener = (event: AgentEvent, signal: AbortSignal) => Promise<void> | void;
 type MutableAgentState = Omit<
   AgentState,
   "tools" | "messages" | "isStreaming" | "streamingMessage" | "pendingToolCalls" | "errorMessage"
@@ -21,11 +20,22 @@ type MutableAgentState = Omit<
   errorMessage?: string;
 };
 
+// Immutable view of the agent's observable state. Its identity changes only when
+// `notify()` runs, so React's useSyncExternalStore can compare references cheaply.
+export type AgentSnapshot = {
+  messages: AgentMessage[];
+  streamingMessage?: AgentMessage;
+  pendingToolCalls: Set<string>;
+  isStreaming: boolean;
+  model: Model<Api>;
+  thinkingLevel: ThinkingLevel;
+  errorMessage?: string;
+};
+
 export class RemoteAgent {
-  private listeners = new Set<Listener>();
+  private storeListeners = new Set<() => void>();
+  private snapshotValue: AgentSnapshot;
   private abortController?: AbortController;
-  private idlePromise: Promise<void> = Promise.resolve();
-  private resolveIdle?: () => void;
   private tools: AgentTool[] = [];
   private messages: AgentMessage[];
   private sawAgentEnd = false;
@@ -76,13 +86,50 @@ export class RemoteAgent {
       get: () => this.messages,
       set: (messages: AgentMessage[]) => {
         this.messages = [...messages];
+        this.notify();
       },
     });
+
+    this.snapshotValue = this.buildSnapshot();
   }
 
-  subscribe(listener: Listener) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+  /** Subscribe to any observable state change (for React's useSyncExternalStore). */
+  subscribeStore(onChange: () => void) {
+    this.storeListeners.add(onChange);
+    return () => this.storeListeners.delete(onChange);
+  }
+
+  /** Current immutable snapshot; its identity changes only when state changes. */
+  getSnapshot(): AgentSnapshot {
+    return this.snapshotValue;
+  }
+
+  /** Replace the message list (e.g. an optimistic edit/retry) and notify subscribers. */
+  setMessages(messages: AgentMessage[]) {
+    this.messages = [...messages];
+    this.notify();
+  }
+
+  setThinkingLevel(thinkingLevel: ThinkingLevel) {
+    this.state.thinkingLevel = thinkingLevel;
+    this.notify();
+  }
+
+  private buildSnapshot(): AgentSnapshot {
+    return {
+      messages: this.messages,
+      streamingMessage: this.state.streamingMessage,
+      pendingToolCalls: this.state.pendingToolCalls,
+      isStreaming: this.state.isStreaming,
+      model: this.state.model,
+      thinkingLevel: this.state.thinkingLevel,
+      errorMessage: this.state.errorMessage,
+    };
+  }
+
+  private notify() {
+    this.snapshotValue = this.buildSnapshot();
+    for (const onChange of this.storeListeners) onChange();
   }
 
   get signal() {
@@ -105,24 +152,13 @@ export class RemoteAgent {
     this.abortController?.abort();
   }
 
-  waitForIdle() {
-    return this.idlePromise;
-  }
-
-  reset() {
-    this.messages = [];
-    this.state.isStreaming = false;
-    this.state.streamingMessage = undefined;
-    this.state.pendingToolCalls = new Set();
-    this.state.errorMessage = undefined;
-  }
-
   setModel(modelRefId: string, model: Model<Api>, thinkingLevel?: ThinkingLevel) {
     if (this.state.isStreaming) return;
     this.config.modelRefId = modelRefId;
     this.config.model = model;
     this.state.model = model;
     if (thinkingLevel) this.state.thinkingLevel = thinkingLevel;
+    this.notify();
   }
 
   async prompt(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]) {
@@ -153,14 +189,14 @@ export class RemoteAgent {
         throw new Error((await response.text()) || `Agent request failed with ${response.status}`);
       }
       this.runId = response.headers.get("x-agent-run-id") ?? undefined;
-      await this.consumeEvents(response.body, controller.signal);
+      await this.consumeEvents(response.body);
       if (!this.sawAgentEnd) {
-        await this.processEvent({ type: "agent_end", messages: this.messages }, controller.signal);
+        this.processEvent({ type: "agent_end", messages: this.messages });
       }
       await this.config.onRunComplete?.();
     } catch (error) {
       if (!(this.detachRequested && controller.signal.aborted)) {
-        await this.handleFailure(error, controller.signal.aborted);
+        this.handleFailure(error, controller.signal.aborted);
       }
     } finally {
       this.state.isStreaming = false;
@@ -169,7 +205,7 @@ export class RemoteAgent {
       this.abortController = undefined;
       this.runId = undefined;
       this.detachRequested = false;
-      this.resolveIdle?.();
+      this.notify();
     }
   }
 
@@ -193,7 +229,7 @@ export class RemoteAgent {
       this.abortController = undefined;
       this.runId = undefined;
       this.detachRequested = false;
-      this.resolveIdle?.();
+      this.notify();
     }
   }
 
@@ -205,27 +241,16 @@ export class RemoteAgent {
     await this.prompt([]);
   }
 
-  steer() {}
-  followUp() {}
-  clearSteeringQueue() {}
-  clearFollowUpQueue() {}
-  clearAllQueues() {}
-  hasQueuedMessages() {
-    return false;
-  }
-
   private beginRun() {
     const controller = new AbortController();
     this.abortController = controller;
-    this.idlePromise = new Promise((resolve) => {
-      this.resolveIdle = resolve;
-    });
     this.state.isStreaming = true;
     this.state.streamingMessage = undefined;
     this.state.errorMessage = undefined;
     this.sawAgentEnd = false;
     this.runId = undefined;
     this.detachRequested = false;
+    this.notify();
     return controller;
   }
 
@@ -240,13 +265,13 @@ export class RemoteAgent {
     if (!response.ok || !response.body) {
       throw new Error((await response.text()) || `Agent event stream failed with ${response.status}`);
     }
-    await this.consumeEvents(response.body, signal);
+    await this.consumeEvents(response.body);
     if (!this.sawAgentEnd) {
-      await this.processEvent({ type: "agent_end", messages: this.messages }, signal);
+      this.processEvent({ type: "agent_end", messages: this.messages });
     }
   }
 
-  private async consumeEvents(body: ReadableStream<Uint8Array>, signal: AbortSignal) {
+  private async consumeEvents(body: ReadableStream<Uint8Array>) {
     const reader = body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -258,16 +283,16 @@ export class RemoteAgent {
       buffer = lines.pop() ?? "";
       for (const line of lines) {
         if (line.trim()) {
-          await this.processEvent(JSON.parse(line) as AgentEvent, signal);
+          this.processEvent(JSON.parse(line) as AgentEvent);
         }
       }
     }
     if (buffer.trim()) {
-      await this.processEvent(JSON.parse(buffer) as AgentEvent, signal);
+      this.processEvent(JSON.parse(buffer) as AgentEvent);
     }
   }
 
-  private async processEvent(event: AgentEvent, signal: AbortSignal) {
+  private processEvent(event: AgentEvent) {
     switch (event.type) {
       case "message_start":
       case "message_update":
@@ -306,10 +331,10 @@ export class RemoteAgent {
         this.state.streamingMessage = undefined;
         break;
     }
-    for (const listener of this.listeners) await listener(event, signal);
+    this.notify();
   }
 
-  private async handleFailure(error: unknown, aborted: boolean) {
+  private handleFailure(error: unknown, aborted: boolean) {
     const message: AgentMessage = {
       role: "assistant",
       content: [{ type: "text", text: "" }],
@@ -330,7 +355,7 @@ export class RemoteAgent {
     };
     this.messages = [...this.messages, message];
     this.state.errorMessage = message.errorMessage;
-    await this.processEvent({ type: "agent_end", messages: [message] }, new AbortController().signal);
+    this.processEvent({ type: "agent_end", messages: [message] });
   }
 }
 

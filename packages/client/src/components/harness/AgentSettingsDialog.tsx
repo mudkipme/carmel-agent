@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  fullscreenDialogContentClass,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,8 +30,7 @@ import type {
   ProviderConfig,
 } from "@carmel-agent/shared";
 
-const agentSettingsDialogContentClass =
-  "top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-0 p-3 text-[13px] sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[calc(100vh-2rem)] sm:w-full sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6 sm:text-sm";
+const agentSettingsDialogContentClass = fullscreenDialogContentClass("sm:max-w-lg");
 const agentSettingsDialogBodyClass = "min-h-0 flex-1 overflow-y-auto pr-1";
 const thinkingLevelLabels: Record<AgentThinkingLevel, string> = {
   off: "Off",

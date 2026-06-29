@@ -3,7 +3,7 @@ import { ChevronDownIcon, CodeIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { formatJson, formatToolResult } from "./chat-utils";
+import { formatJson, formatToolResult, imageSrc } from "./chat-utils";
 import { ZoomableImage } from "./ZoomableImage";
 
 type ToolCallViewProps = {
@@ -72,7 +72,7 @@ function getToolResultImages(result?: ToolResultMessage) {
       ?.flatMap((part) => {
         if (part.type !== "image") return [];
         const displayPart = part as typeof part & { data?: string; url?: string };
-        const src = displayPart.url ?? (displayPart.data ? `data:${part.mimeType};base64,${displayPart.data}` : undefined);
+        const src = imageSrc({ url: displayPart.url, data: displayPart.data, mimeType: part.mimeType });
         return src ? [{ src }] : [];
       }) ?? []
   );

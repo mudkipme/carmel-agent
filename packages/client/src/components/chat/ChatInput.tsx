@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { attachmentToImageContent, fileToImageAttachment, type LocalChatAttachment } from "./chat-utils";
+import { attachmentToImageContent, fileToImageAttachment, imageSrc, type LocalChatAttachment } from "./chat-utils";
 
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -140,7 +140,7 @@ export function ChatInput({
             <div key={attachment.id} className="flex items-center gap-2 rounded-md border bg-background p-1 pr-2">
               <img
                 className="size-8 rounded object-cover"
-                src={`data:${attachment.mimeType};base64,${attachment.preview ?? attachment.content}`}
+                src={imageSrc({ url: attachment.url, data: attachment.preview ?? attachment.content, mimeType: attachment.mimeType })}
                 alt={attachment.fileName}
               />
               <span className="max-w-36 truncate text-xs text-muted-foreground">{attachment.fileName}</span>

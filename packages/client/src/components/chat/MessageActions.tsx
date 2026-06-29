@@ -29,16 +29,18 @@ export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActi
           <CopyIcon />
         </Button>
       ) : null}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-xs"
-        title="Fork from this message"
-        aria-label="Fork from this message"
-        onClick={() => onFork?.(message)}
-      >
-        <GitForkIcon />
-      </Button>
+      {onFork ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          title="Fork from this message"
+          aria-label="Fork from this message"
+          onClick={() => onFork(message)}
+        >
+          <GitForkIcon />
+        </Button>
+      ) : null}
       {onEdit && canEdit ? (
         <Button
           type="button"

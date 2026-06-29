@@ -1,8 +1,8 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
-import type { ImageContent } from "@earendil-works/pi-ai";
+import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import { CheckIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import { ChatPanel } from "@/components/chat/ChatPanel";
@@ -15,10 +15,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  fullscreenDialogContentClass,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
-import { RemoteAgent } from "@/lib/remote-agent";
+import { type AgentSnapshot, RemoteAgent } from "@/lib/remote-agent";
 import {
   findMessageIndex,
   getMessageText,
@@ -29,6 +30,19 @@ import {
 } from "@/components/chat/chat-utils";
 import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, ModelRef, ProviderConfig, Session } from "@carmel-agent/shared";
+
+// Stable snapshot used while no agent exists yet (useSyncExternalStore requires a
+// referentially stable value). Its `model` is never read — the chat UI only renders
+// once `agent` is set, at which point the agent supplies a real snapshot.
+const EMPTY_SNAPSHOT: AgentSnapshot = {
+  messages: [],
+  streamingMessage: undefined,
+  pendingToolCalls: new Set(),
+  isStreaming: false,
+  model: undefined as unknown as Model<Api>,
+  thinkingLevel: "off",
+  errorMessage: undefined,
+};
 
 type PiChatProps = {
   agentConfig: AgentConfig;
@@ -49,7 +63,6 @@ export function PiChat({
   const agentRef = useRef<RemoteAgent | null>(null);
   const [agent, setAgent] = useState<RemoteAgent | null>(null);
   const [input, setInput] = useState("");
-  const [, setRenderVersion] = useState(0);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [editingMessage, setEditingMessage] = useState<{
     message: AgentMessage;
@@ -63,17 +76,51 @@ export function PiChat({
   const forkSession = useHarnessStore((state) => state.forkSession);
   const resolvedModel = useMemo(() => resolveModelRef(modelRef), [modelRef]);
   const sessionRef = useRef(session);
-  const messagesSnapshotRef = useRef(session.messages);
-  const thinkingLevelSnapshotRef = useRef(session.thinkingLevel);
-  const requestRender = useCallback(() => {
-    setRenderVersion((version) => version + 1);
-  }, []);
+  // Seeds carried into a freshly recreated agent (e.g. on model switch). Only read
+  // at agent creation; kept current at the session boundary and on teardown.
+  const seedMessagesRef = useRef(session.messages);
+  const seedThinkingRef = useRef(session.thinkingLevel);
+
+  // Render directly from the agent's store rather than a manual render counter:
+  // every observable change emits, React reads getSnapshot, and re-renders if the
+  // snapshot identity changed.
+  const subscribeStore = useCallback(
+    (onChange: () => void) => agent?.subscribeStore(onChange) ?? (() => {}),
+    [agent],
+  );
+  const getSnapshot = useCallback(() => agent?.getSnapshot() ?? EMPTY_SNAPSHOT, [agent]);
+  const snapshot = useSyncExternalStore(subscribeStore, getSnapshot);
 
   useEffect(() => {
     sessionRef.current = session;
-    messagesSnapshotRef.current = session.messages;
-    thinkingLevelSnapshotRef.current = session.thinkingLevel;
+    seedMessagesRef.current = session.messages;
+    seedThinkingRef.current = session.thinkingLevel;
   }, [session]);
+
+  // Optimistically swap the agent's messages, persist via `commit`, then either
+  // apply the server's authoritative result or roll back on failure. Shared by
+  // retry/edit so the snapshot + rollback bookkeeping lives in exactly one place.
+  const applyOptimisticMessages = useCallback(
+    async (
+      activeAgent: RemoteAgent,
+      nextMessages: AgentMessage[],
+      commit: () => Promise<Session>,
+      options?: { afterCommit?: () => Promise<void>; errorMessage?: string },
+    ) => {
+      const previousMessages = activeAgent.state.messages;
+      activeAgent.setMessages(nextMessages);
+
+      try {
+        const saved = await commit();
+        activeAgent.setMessages(saved.messages);
+        await options?.afterCommit?.();
+      } catch (error) {
+        activeAgent.setMessages(previousMessages);
+        console.error(options?.errorMessage ?? "Failed to update messages", error);
+      }
+    },
+    [],
+  );
 
   const retryFromMessage = useCallback(
     async (message: AgentMessage) => {
@@ -84,26 +131,14 @@ export function PiChat({
       const index = findMessageIndex(currentMessages, message);
       if (index < 0) return;
 
-      const truncatedMessages = currentMessages.slice(0, index + 1);
-      const previousMessages = activeAgent.state.messages;
-      messagesSnapshotRef.current = truncatedMessages;
-      activeAgent.state.messages = truncatedMessages;
-      requestRender();
-
-      try {
-        const saved = await truncateSessionMessages(sessionRef.current.id, index, activeAgent.state.thinkingLevel);
-        messagesSnapshotRef.current = saved.messages;
-        activeAgent.state.messages = saved.messages;
-        requestRender();
-        await activeAgent.continue();
-      } catch (error) {
-        messagesSnapshotRef.current = previousMessages;
-        activeAgent.state.messages = previousMessages;
-        requestRender();
-        console.error("Failed to retry message", error);
-      }
+      await applyOptimisticMessages(
+        activeAgent,
+        currentMessages.slice(0, index + 1),
+        () => truncateSessionMessages(sessionRef.current.id, index, activeAgent.state.thinkingLevel),
+        { afterCommit: () => activeAgent.continue(), errorMessage: "Failed to retry message" },
+      );
     },
-    [requestRender, truncateSessionMessages],
+    [applyOptimisticMessages, truncateSessionMessages],
   );
 
   const saveUserMessage = useCallback(
@@ -119,29 +154,22 @@ export function PiChat({
       const nextMessages = submit
         ? [...currentMessages.slice(0, index), editedMessage]
         : currentMessages.map((item, itemIndex) => (itemIndex === index ? editedMessage : item));
-      const previousMessages = activeAgent.state.messages;
 
-      messagesSnapshotRef.current = nextMessages;
-      activeAgent.state.messages = nextMessages;
-      requestRender();
-
-      try {
-        const saved = await editSessionMessage(sessionRef.current.id, index, content, {
-          truncate: submit,
-          thinkingLevel: activeAgent.state.thinkingLevel,
-        });
-        messagesSnapshotRef.current = saved.messages;
-        activeAgent.state.messages = saved.messages;
-        requestRender();
-        if (submit) await activeAgent.continue();
-      } catch (error) {
-        messagesSnapshotRef.current = previousMessages;
-        activeAgent.state.messages = previousMessages;
-        requestRender();
-        console.error("Failed to save message edit", error);
-      }
+      await applyOptimisticMessages(
+        activeAgent,
+        nextMessages,
+        () =>
+          editSessionMessage(sessionRef.current.id, index, content, {
+            truncate: submit,
+            thinkingLevel: activeAgent.state.thinkingLevel,
+          }),
+        {
+          afterCommit: submit ? () => activeAgent.continue() : undefined,
+          errorMessage: "Failed to save message edit",
+        },
+      );
     },
-    [editSessionMessage, requestRender],
+    [applyOptimisticMessages, editSessionMessage],
   );
 
   const saveAssistantMessage = useCallback(
@@ -157,25 +185,15 @@ export function PiChat({
       // the stored message so it carries forward into the next turn.
       const editedMessage = updateAssistantMessageContent(currentMessages[index], content);
       const nextMessages = currentMessages.map((item, itemIndex) => (itemIndex === index ? editedMessage : item));
-      const previousMessages = activeAgent.state.messages;
 
-      messagesSnapshotRef.current = nextMessages;
-      activeAgent.state.messages = nextMessages;
-      requestRender();
-
-      try {
-        const saved = await editSessionMessage(sessionRef.current.id, index, content, { truncate: false });
-        messagesSnapshotRef.current = saved.messages;
-        activeAgent.state.messages = saved.messages;
-        requestRender();
-      } catch (error) {
-        messagesSnapshotRef.current = previousMessages;
-        activeAgent.state.messages = previousMessages;
-        requestRender();
-        console.error("Failed to save assistant message edit", error);
-      }
+      await applyOptimisticMessages(
+        activeAgent,
+        nextMessages,
+        () => editSessionMessage(sessionRef.current.id, index, content, { truncate: false }),
+        { errorMessage: "Failed to save assistant message edit" },
+      );
     },
-    [editSessionMessage, requestRender],
+    [applyOptimisticMessages, editSessionMessage],
   );
 
   const forkFromMessage = useCallback(
@@ -199,85 +217,54 @@ export function PiChat({
   useEffect(() => {
     let cancelled = false;
     let activeAgent: RemoteAgent | undefined;
-    let unsubscribe: (() => void) | undefined;
 
-    const messagesForAgent = messagesSnapshotRef.current;
-    const thinkingLevelForAgent = clampThinkingLevel(resolvedModel, thinkingLevelSnapshotRef.current);
+    const messagesForAgent = seedMessagesRef.current;
+    const thinkingLevelForAgent = clampThinkingLevel(resolvedModel, seedThinkingRef.current);
+
+    const createAgent = (messages: AgentMessage[]) =>
+      new RemoteAgent({
+        agentId: agentConfig.id,
+        sessionId: session.id,
+        modelRefId: modelRef.id,
+        model: resolvedModel,
+        thinkingLevel: thinkingLevelForAgent,
+        messages,
+        onRunComplete: () => refreshSession(session.id),
+      });
 
     void api.getActiveSessionRun(session.id).then(
       (activeRun) => {
         if (cancelled) return;
-        activeAgent = new RemoteAgent({
-          agentId: agentConfig.id,
-          sessionId: session.id,
-          modelRefId: modelRef.id,
-          model: resolvedModel,
-          thinkingLevel: thinkingLevelForAgent,
-          messages: activeRun ? sessionRef.current.messages : messagesForAgent,
-          onRunComplete: () => refreshSession(session.id),
-        });
+        activeAgent = createAgent(activeRun ? sessionRef.current.messages : messagesForAgent);
         agentRef.current = activeAgent;
         setAgent(activeAgent);
-
-        unsubscribe = activeAgent.subscribe(async (event) => {
-          if (!activeAgent) return;
-          if (event.type === "message_end") {
-            activeAgent.state.messages = [...activeAgent.state.messages];
-            messagesSnapshotRef.current = activeAgent.state.messages;
-          }
-          if (event.type === "agent_end") {
-            const messages = [...activeAgent.state.messages];
-            activeAgent.state.messages = messages;
-            messagesSnapshotRef.current = messages;
-            thinkingLevelSnapshotRef.current = activeAgent.state.thinkingLevel;
-          }
-          requestRender();
-        });
-
-        requestRender();
-        if (activeRun) {
-          requestRender();
-          void activeAgent.attachToRun(activeRun.runId, sessionRef.current.messages);
-        }
+        if (activeRun) void activeAgent.attachToRun(activeRun.runId, sessionRef.current.messages);
       },
       () => {
         if (cancelled) return;
-        activeAgent = new RemoteAgent({
-          agentId: agentConfig.id,
-          sessionId: session.id,
-          modelRefId: modelRef.id,
-          model: resolvedModel,
-          thinkingLevel: thinkingLevelForAgent,
-          messages: messagesForAgent,
-          onRunComplete: () => refreshSession(session.id),
-        });
+        activeAgent = createAgent(messagesForAgent);
         agentRef.current = activeAgent;
         setAgent(activeAgent);
-        unsubscribe = activeAgent.subscribe(() => {
-          requestRender();
-        });
-        requestRender();
       },
     );
 
     return () => {
       cancelled = true;
       if (activeAgent) {
-        messagesSnapshotRef.current = activeAgent.state.messages;
-        thinkingLevelSnapshotRef.current = activeAgent.state.thinkingLevel;
+        // Carry the live messages/thinking level into the next agent instance.
+        seedMessagesRef.current = activeAgent.state.messages;
+        seedThinkingRef.current = activeAgent.state.thinkingLevel;
       }
-      unsubscribe?.();
       activeAgent?.detach();
       agentRef.current = null;
       setAgent(null);
     };
-  }, [agentConfig.id, modelRef.id, refreshSession, requestRender, resolvedModel, session.id]);
+  }, [agentConfig.id, modelRef.id, refreshSession, resolvedModel, session.id]);
 
   useEffect(() => {
     const selectedThinkingLevel = clampThinkingLevel(resolvedModel, session.thinkingLevel);
     if (selectedThinkingLevel === session.thinkingLevel) return;
-    const activeAgent = agentRef.current;
-    if (activeAgent) activeAgent.state.thinkingLevel = selectedThinkingLevel;
+    agentRef.current?.setThinkingLevel(selectedThinkingLevel);
     void updateSession(session.id, { thinkingLevel: selectedThinkingLevel });
   }, [resolvedModel, session.id, session.thinkingLevel, updateSession]);
 
@@ -292,7 +279,6 @@ export function PiChat({
       }
       await activeAgent.prompt(text, images);
     };
-    requestRender();
     void send();
   };
 
@@ -301,11 +287,7 @@ export function PiChat({
     const activeAgent = agentRef.current;
     const nextModel = resolveModelRef(nextModelRef);
     const nextThinkingLevel = clampThinkingLevel(nextModel, activeAgent?.state.thinkingLevel ?? session.thinkingLevel);
-    if (activeAgent) {
-      activeAgent.setModel(nextModelRef.id, nextModel, nextThinkingLevel);
-      thinkingLevelSnapshotRef.current = nextThinkingLevel;
-      requestRender();
-    }
+    activeAgent?.setModel(nextModelRef.id, nextModel, nextThinkingLevel);
 
     try {
       await updateSession(session.id, { modelRefId: nextModelRef.id, thinkingLevel: nextThinkingLevel });
@@ -328,9 +310,8 @@ export function PiChat({
   const setThinkingLevel = (level: ThinkingLevel) => {
     const activeAgent = agentRef.current;
     if (!activeAgent) return;
-    activeAgent.state.thinkingLevel = level;
-    thinkingLevelSnapshotRef.current = level;
-    requestRender();
+    activeAgent.setThinkingLevel(level);
+    seedThinkingRef.current = level;
   };
 
   const insertCommandText = (text: string) => {
@@ -343,12 +324,12 @@ export function PiChat({
         {agent ? (
           <ChatPanel
             scrollResetKey={session.id}
-            messages={agent.state.messages}
-            streamingMessage={agent.state.streamingMessage}
-            pendingToolCalls={agent.state.pendingToolCalls}
-            isStreaming={agent.state.isStreaming}
-            currentModel={agent.state.model}
-            thinkingLevel={agent.state.thinkingLevel}
+            messages={snapshot.messages}
+            streamingMessage={snapshot.streamingMessage}
+            pendingToolCalls={snapshot.pendingToolCalls}
+            isStreaming={snapshot.isStreaming}
+            currentModel={snapshot.model}
+            thinkingLevel={snapshot.thinkingLevel}
             input={input}
             onInputChange={setInput}
             onThinkingLevelChange={setThinkingLevel}
@@ -388,25 +369,37 @@ export function PiChat({
           if (!open) setEditingMessage(null);
         }}
       >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{editingMessage?.kind === "assistant" ? "Edit Assistant Message" : "Edit Message"}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className={fullscreenDialogContentClass("sm:max-w-4xl")}>
+          <DialogHeader className="shrink-0 pr-8 text-left">
+            <DialogTitle className="text-base sm:text-lg">
+              {editingMessage?.kind === "assistant" ? "Edit Assistant Message" : "Edit Message"}
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
               {editingMessage?.kind === "assistant"
                 ? "Rewrites this assistant message in place. It won't rerun anything and only affects the next turn."
                 : "Save updates the message only. Submit saves it and reruns from this point."}
             </DialogDescription>
           </DialogHeader>
           <Textarea
-            className="max-h-[60vh] min-h-36 resize-y overflow-y-auto"
+            autoFocus
+            className="min-h-0 flex-1 resize-none overflow-y-auto text-base sm:max-h-[60vh] sm:min-h-36 sm:flex-none sm:resize-y"
             value={editingMessage?.draft ?? ""}
             onChange={(event) =>
               setEditingMessage((current) =>
                 current ? { ...current, draft: event.target.value } : current,
               )
             }
+            onKeyDown={(event) => {
+              // Plain Enter inserts a newline (multi-line edit); only the keyboard
+              // shortcut commits. It triggers the dialog's primary action: rerun
+              // (Submit) for user messages, in-place Save for assistant messages.
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && editingMessage?.draft.trim()) {
+                event.preventDefault();
+                void saveEdit(editingMessage.kind === "user");
+              }
+            }}
           />
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button variant="outline" onClick={() => setEditingMessage(null)}>
               Cancel
             </Button>
