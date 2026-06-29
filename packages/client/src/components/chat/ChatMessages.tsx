@@ -97,6 +97,7 @@ function MessageItem({
           pendingToolCalls={pendingToolCalls}
           streaming={streaming}
           hidePendingToolCalls={hidePendingToolCalls}
+          onEditMessage={onEditMessage}
           onForkMessage={onForkMessage}
         />
       </div>
@@ -187,6 +188,7 @@ function AssistantMessage({
   pendingToolCalls,
   streaming,
   hidePendingToolCalls,
+  onEditMessage,
   onForkMessage,
 }: {
   messageForActions: AgentMessage;
@@ -195,6 +197,7 @@ function AssistantMessage({
   pendingToolCalls: ReadonlySet<string>;
   streaming: boolean;
   hidePendingToolCalls: boolean;
+  onEditMessage: (message: AgentMessage) => void;
   onForkMessage: (message: AgentMessage) => void;
 }) {
   const usageText = !streaming ? formatUsage(message.usage) : "";
@@ -214,7 +217,11 @@ function AssistantMessage({
               <MarkdownContent content={part.text} />
               {index === lastTextIndex ? (
                 <div className="-mt-1">
-                  <MessageActions message={messageForActions} onFork={onForkMessage} />
+                  <MessageActions
+                    message={messageForActions}
+                    onEdit={streaming ? undefined : onEditMessage}
+                    onFork={onForkMessage}
+                  />
                 </div>
               ) : null}
             </div>

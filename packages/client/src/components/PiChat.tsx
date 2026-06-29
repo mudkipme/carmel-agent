@@ -19,7 +19,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { RemoteAgent } from "@/lib/remote-agent";
-import { findMessageIndex, getMessageText, isUserMessage, updateUserMessageContent } from "@/components/chat/chat-utils";
+import {
+  findMessageIndex,
+  getMessageText,
+  isEditableAssistantMessage,
+  isUserMessage,
+  updateAssistantMessageContent,
+  updateUserMessageContent,
+} from "@/components/chat/chat-utils";
 import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, ModelRef, ProviderConfig, Session } from "@carmel-agent/shared";
 
@@ -44,9 +51,10 @@ export function PiChat({
   const [input, setInput] = useState("");
   const [, setRenderVersion] = useState(0);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
-  const [editingUserMessage, setEditingUserMessage] = useState<{
+  const [editingMessage, setEditingMessage] = useState<{
     message: AgentMessage;
     draft: string;
+    kind: "user" | "assistant";
   } | null>(null);
   const refreshSession = useHarnessStore((state) => state.refreshSession);
   const updateSession = useHarnessStore((state) => state.updateSession);
@@ -131,6 +139,40 @@ export function PiChat({
         activeAgent.state.messages = previousMessages;
         requestRender();
         console.error("Failed to save message edit", error);
+      }
+    },
+    [editSessionMessage, requestRender],
+  );
+
+  const saveAssistantMessage = useCallback(
+    async (message: AgentMessage, content: string) => {
+      const activeAgent = agentRef.current;
+      if (!activeAgent || activeAgent.state.isStreaming || !isEditableAssistantMessage(message)) return;
+
+      const currentMessages = [...activeAgent.state.messages];
+      const index = findMessageIndex(currentMessages, message);
+      if (index < 0) return;
+
+      // Editing an assistant message never truncates or reruns; it only rewrites
+      // the stored message so it carries forward into the next turn.
+      const editedMessage = updateAssistantMessageContent(currentMessages[index], content);
+      const nextMessages = currentMessages.map((item, itemIndex) => (itemIndex === index ? editedMessage : item));
+      const previousMessages = activeAgent.state.messages;
+
+      messagesSnapshotRef.current = nextMessages;
+      activeAgent.state.messages = nextMessages;
+      requestRender();
+
+      try {
+        const saved = await editSessionMessage(sessionRef.current.id, index, content, { truncate: false });
+        messagesSnapshotRef.current = saved.messages;
+        activeAgent.state.messages = saved.messages;
+        requestRender();
+      } catch (error) {
+        messagesSnapshotRef.current = previousMessages;
+        activeAgent.state.messages = previousMessages;
+        requestRender();
+        console.error("Failed to save assistant message edit", error);
       }
     },
     [editSessionMessage, requestRender],
@@ -273,10 +315,14 @@ export function PiChat({
   };
 
   const saveEdit = async (submit: boolean) => {
-    if (!editingUserMessage) return;
-    const { message, draft } = editingUserMessage;
-    setEditingUserMessage(null);
-    await saveUserMessage(message, draft, submit);
+    if (!editingMessage) return;
+    const { message, draft, kind } = editingMessage;
+    setEditingMessage(null);
+    if (kind === "assistant") {
+      await saveAssistantMessage(message, draft);
+    } else {
+      await saveUserMessage(message, draft, submit);
+    }
   };
 
   const setThinkingLevel = (level: ThinkingLevel) => {
@@ -309,7 +355,13 @@ export function PiChat({
             onSend={sendMessage}
             onAbort={() => agent.abort()}
             onModelSelect={() => setModelDialogOpen(true)}
-            onEditMessage={(message) => setEditingUserMessage({ message, draft: getMessageText(message) })}
+            onEditMessage={(message) =>
+              setEditingMessage({
+                message,
+                draft: getMessageText(message),
+                kind: message.role === "assistant" ? "assistant" : "user",
+              })
+            }
             onRetryMessage={(message) => void retryFromMessage(message)}
             onForkMessage={(message) => void forkFromMessage(message)}
           />
@@ -331,41 +383,45 @@ export function PiChat({
         onSelect={(nextModelRef) => void selectModel(nextModelRef)}
       />
       <Dialog
-        open={editingUserMessage !== null}
+        open={editingMessage !== null}
         onOpenChange={(open) => {
-          if (!open) setEditingUserMessage(null);
+          if (!open) setEditingMessage(null);
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Edit Message</DialogTitle>
+            <DialogTitle>{editingMessage?.kind === "assistant" ? "Edit Assistant Message" : "Edit Message"}</DialogTitle>
             <DialogDescription>
-              Save updates the message only. Submit saves it and reruns from this point.
+              {editingMessage?.kind === "assistant"
+                ? "Rewrites this assistant message in place. It won't rerun anything and only affects the next turn."
+                : "Save updates the message only. Submit saves it and reruns from this point."}
             </DialogDescription>
           </DialogHeader>
           <Textarea
-            className="min-h-36 resize-y"
-            value={editingUserMessage?.draft ?? ""}
+            className="max-h-[60vh] min-h-36 resize-y overflow-y-auto"
+            value={editingMessage?.draft ?? ""}
             onChange={(event) =>
-              setEditingUserMessage((current) =>
+              setEditingMessage((current) =>
                 current ? { ...current, draft: event.target.value } : current,
               )
             }
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingUserMessage(null)}>
+            <Button variant="outline" onClick={() => setEditingMessage(null)}>
               Cancel
             </Button>
             <Button
-              variant="outline"
-              disabled={!editingUserMessage?.draft.trim()}
+              variant={editingMessage?.kind === "assistant" ? undefined : "outline"}
+              disabled={!editingMessage?.draft.trim()}
               onClick={() => void saveEdit(false)}
             >
               Save
             </Button>
-            <Button disabled={!editingUserMessage?.draft.trim()} onClick={() => void saveEdit(true)}>
-              Submit
-            </Button>
+            {editingMessage?.kind === "assistant" ? null : (
+              <Button disabled={!editingMessage?.draft.trim()} onClick={() => void saveEdit(true)}>
+                Submit
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

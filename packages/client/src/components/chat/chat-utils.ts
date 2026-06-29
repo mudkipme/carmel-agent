@@ -12,6 +12,18 @@ export function isUserMessage(message: AgentMessage) {
   return message.role === "user" || message.role === "user-with-attachments";
 }
 
+export function isEditableAssistantMessage(message: AgentMessage): message is AgentMessage & AssistantMessage {
+  if (message.role !== "assistant") return false;
+  const content = (message as AssistantMessage).content;
+  if (!Array.isArray(content)) return false;
+  let hasText = false;
+  for (const part of content) {
+    if (part.type === "toolCall") return false;
+    if (part.type === "text" && part.text.trim()) hasText = true;
+  }
+  return hasText;
+}
+
 export function getMessageText(message: AgentMessage | AssistantMessage) {
   if (message.role === "assistant") {
     return message.content
@@ -55,6 +67,27 @@ export function updateUserMessageContent(message: AgentMessage, content: string)
   });
 
   if (!replacedText) nextContent.unshift({ type: "text", text: content });
+  return { ...message, content: nextContent } as AgentMessage;
+}
+
+export function updateAssistantMessageContent(message: AgentMessage, content: string): AgentMessage {
+  const current = message as AssistantMessage;
+  if (!Array.isArray(current.content)) return message;
+
+  let textSeen = false;
+  const nextContent = [] as AssistantMessage["content"];
+  for (const part of current.content) {
+    if (part.type === "text") {
+      // Collapse the edited text into the first text part and drop any trailing
+      // text parts so the displayed (joined) text stays consistent after editing.
+      if (textSeen) continue;
+      textSeen = true;
+      nextContent.push({ ...part, text: content });
+    } else {
+      nextContent.push(part);
+    }
+  }
+  if (!textSeen) nextContent.push({ type: "text", text: content });
   return { ...message, content: nextContent } as AgentMessage;
 }
 

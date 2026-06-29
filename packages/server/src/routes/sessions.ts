@@ -217,11 +217,19 @@ export function createSessionRoutes() {
     }
 
     const target = current.messages[messageIndex];
-    if (!isEditableUserMessage(target)) return c.json({ error: "Message is not editable" }, 400);
-    const editedMessage = updateUserMessageContent(target, body.content);
-    const messages = body.truncate
-      ? [...current.messages.slice(0, messageIndex), editedMessage]
-      : current.messages.map((message, index) => (index === messageIndex ? editedMessage : message));
+    const editableUser = isEditableUserMessage(target);
+    const editableAssistant = isEditableAssistantMessage(target);
+    if (!editableUser && !editableAssistant) return c.json({ error: "Message is not editable" }, 400);
+
+    const editedMessage = editableUser
+      ? updateUserMessageContent(target, body.content)
+      : updateAssistantMessageContent(target, body.content);
+    // Only user-message edits may truncate and rerun the conversation. Editing an
+    // assistant message rewrites it in place and never drops later messages.
+    const messages =
+      editableUser && body.truncate
+        ? [...current.messages.slice(0, messageIndex), editedMessage]
+        : current.messages.map((message, index) => (index === messageIndex ? editedMessage : message));
 
     replaceSessionMessages(sessionId, messages);
     db.update(sessions)
@@ -262,6 +270,38 @@ function toSessionRow(session: Session) {
 function isEditableUserMessage(message: AgentMessage) {
   const role = (message as { role?: string }).role;
   return role === "user" || role === "user-with-attachments";
+}
+
+function isEditableAssistantMessage(message: AgentMessage) {
+  const current = message as { role?: string; content?: unknown };
+  if (current.role !== "assistant" || !Array.isArray(current.content)) return false;
+  let hasText = false;
+  for (const part of current.content) {
+    if (!isRecord(part)) continue;
+    if (part.type === "toolCall") return false;
+    if (part.type === "text" && typeof part.text === "string" && part.text.trim()) hasText = true;
+  }
+  return hasText;
+}
+
+function updateAssistantMessageContent(message: AgentMessage, content: string): AgentMessage {
+  const current = message as AgentMessage & { content?: unknown };
+  if (!Array.isArray(current.content)) return message;
+
+  let textSeen = false;
+  const nextContent: unknown[] = [];
+  for (const part of current.content) {
+    if (isRecord(part) && part.type === "text") {
+      // Collapse the new text into the first text part; drop later text parts.
+      if (textSeen) continue;
+      textSeen = true;
+      nextContent.push({ ...part, text: content });
+    } else {
+      nextContent.push(part);
+    }
+  }
+  if (!textSeen) nextContent.push({ type: "text", text: content });
+  return { ...message, content: nextContent } as AgentMessage;
 }
 
 function updateUserMessageContent(message: AgentMessage, content: string): AgentMessage {

@@ -1,7 +1,7 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { CopyIcon, GitForkIcon, PencilIcon, RotateCcwIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { copyText, getMessageText, isUserMessage } from "./chat-utils";
+import { copyText, getMessageText, isEditableAssistantMessage, isUserMessage } from "./chat-utils";
 
 type MessageActionsProps = {
   message: AgentMessage;
@@ -12,7 +12,8 @@ type MessageActionsProps = {
 
 export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActionsProps) {
   const copyValue = getMessageText(message);
-  const editable = isUserMessage(message);
+  const isUser = isUserMessage(message);
+  const canEdit = isUser || isEditableAssistantMessage(message);
 
   return (
     <div className="coarse-pointer-visible flex h-6 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
@@ -38,29 +39,29 @@ export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActi
       >
         <GitForkIcon />
       </Button>
-      {editable ? (
-        <>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            title="Edit message"
-            aria-label="Edit message"
-            onClick={() => onEdit?.(message)}
-          >
-            <PencilIcon />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            title="Retry from this message"
-            aria-label="Retry from this message"
-            onClick={() => onRetry?.(message)}
-          >
-            <RotateCcwIcon />
-          </Button>
-        </>
+      {onEdit && canEdit ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          title="Edit message"
+          aria-label="Edit message"
+          onClick={() => onEdit(message)}
+        >
+          <PencilIcon />
+        </Button>
+      ) : null}
+      {onRetry && isUser ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          title="Retry from this message"
+          aria-label="Retry from this message"
+          onClick={() => onRetry(message)}
+        >
+          <RotateCcwIcon />
+        </Button>
       ) : null}
     </div>
   );
