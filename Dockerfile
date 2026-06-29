@@ -13,7 +13,8 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends bash ca-certificates git ripgrep && \
     rm -rf /var/lib/apt/lists/* && \
-    corepack enable
+    corepack enable && \
+    corepack prepare pnpm@11.1.2 --activate
 
 FROM base AS deps
 

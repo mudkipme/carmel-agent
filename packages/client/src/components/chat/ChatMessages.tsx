@@ -4,6 +4,7 @@ import { AlertCircleIcon } from "lucide-react";
 import { MessageActions } from "./MessageActions";
 import { MarkdownContent } from "./MarkdownContent";
 import { ToolCallView } from "./ToolCallView";
+import { ZoomableImage } from "./ZoomableImage";
 import {
   buildToolResultsById,
   formatUsage,
@@ -278,10 +279,5 @@ function ImagePreview({ data, url, mimeType, label }: { data?: string; url?: str
   const src = url ?? (data ? `data:${mimeType};base64,${data}` : undefined);
   if (!src) return null;
 
-  return (
-    <figure className="w-28 overflow-hidden rounded-md border bg-background">
-      <img className="aspect-square w-full object-cover" src={src} alt={label} />
-      <figcaption className="truncate px-2 py-1 text-xs text-muted-foreground">{label}</figcaption>
-    </figure>
-  );
+  return <ZoomableImage src={src} alt={label} caption={label} />;
 }

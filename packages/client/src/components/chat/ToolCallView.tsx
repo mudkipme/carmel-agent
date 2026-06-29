@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatJson, formatToolResult } from "./chat-utils";
+import { ZoomableImage } from "./ZoomableImage";
 
 type ToolCallViewProps = {
   toolCall: ToolCall;
@@ -43,9 +44,7 @@ export function ToolCallView({ toolCall, result, pending = false, aborted = fals
               <div className="text-xs font-medium text-muted-foreground">Images</div>
               <div className="flex flex-wrap gap-2">
                 {images.map((image, index) => (
-                  <figure key={`${image.src}:${index}`} className="w-28 overflow-hidden rounded-md border bg-background">
-                    <img className="aspect-square w-full object-cover" src={image.src} alt="Tool result" />
-                  </figure>
+                  <ZoomableImage key={`${image.src}:${index}`} src={image.src} alt="Tool result" />
                 ))}
               </div>
             </div>
