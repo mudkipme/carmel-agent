@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { db, migrate } from "../db/index.ts";
-import { sessions } from "../db/schema.ts";
+import { sessionMessages, sessions } from "../db/schema.ts";
+import { id, now } from "../db/seed.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import {
   appendSessionMessages,
@@ -60,6 +61,30 @@ test("readSessionMessageAt returns one message by index without loading the rest
   assert.equal((readSessionMessageAt(sessionId, 1) as { content: string }).content, "b");
   assert.equal(readSessionMessageAt(sessionId, 3), undefined);
   assert.equal(readSessionMessageAt(sessionId, -1), undefined);
+});
+
+test("readSessionMessageAt addresses by array position even when seqs have gaps", () => {
+  // A missing seq (e.g. a message lost to a persistence race) must not shift a
+  // message off the index the serializer bakes into its image URLs. Index N must
+  // always resolve to the Nth message readSessionMessages returns, gap or not.
+  const { sessionId } = createSession();
+  const timestamp = now();
+  const rows = [
+    { seq: 0, content: "a" },
+    { seq: 1, content: "b" },
+    // seq 2 intentionally absent.
+    { seq: 3, content: "c" },
+    { seq: 4, content: "d" },
+  ];
+  db.insert(sessionMessages)
+    .values(rows.map((row) => ({ id: id("session_message"), sessionId, seq: row.seq, message: userMessage(row.content), createdAt: timestamp })))
+    .run();
+
+  assert.deepEqual(contents(sessionId), ["a", "b", "c", "d"]);
+  // Positions stay aligned with readSessionMessages across the gap.
+  assert.equal((readSessionMessageAt(sessionId, 2) as { content: string }).content, "c");
+  assert.equal((readSessionMessageAt(sessionId, 3) as { content: string }).content, "d");
+  assert.equal(readSessionMessageAt(sessionId, 4), undefined);
 });
 
 test("message counts are reported per user", () => {

@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { sessionMessages, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
@@ -22,13 +22,21 @@ function attachMessages(record: SessionRecord): SessionWithMessages {
 }
 
 // Fetch a single message by its position without materializing the whole
-// transcript. `seq` equals the message's array index (see replaceSessionMessages).
-export function readSessionMessageAt(sessionId: string, seq: number): AgentMessage | undefined {
-  if (!Number.isInteger(seq) || seq < 0) return undefined;
+// transcript. `index` is the message's array position, matching the order
+// readSessionMessages returns (asc by seq) and the messageIndex the serializer
+// bakes into image/attachment URLs. Address by position rather than `seq ==
+// index`: the two coincide only while seqs stay a dense 0..N-1 run, and a single
+// gap (e.g. a message lost to a persistence race) would otherwise shift every
+// later message's seq off its URL index and 404 its images.
+export function readSessionMessageAt(sessionId: string, index: number): AgentMessage | undefined {
+  if (!Number.isInteger(index) || index < 0) return undefined;
   const row = db
     .select({ message: sessionMessages.message })
     .from(sessionMessages)
-    .where(and(eq(sessionMessages.sessionId, sessionId), eq(sessionMessages.seq, seq)))
+    .where(eq(sessionMessages.sessionId, sessionId))
+    .orderBy(asc(sessionMessages.seq))
+    .limit(1)
+    .offset(index)
     .get();
   return row?.message;
 }
