@@ -1,12 +1,13 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { getModel, type Api, type Model } from "@earendil-works/pi-ai";
+import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import { providerConfigs } from "../db/schema.ts";
 import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER, type ModelRef } from "@carmel-agent/shared";
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 
 export function resolveServerModelRef(modelRef: ModelRef, providerConfig?: ProviderConfigRecord): Model<Api> {
-  const builtIn = getModel(modelRef.provider as never, modelRef.modelId as never);
+  const builtIn = getBuiltinModel(modelRef.provider as never, modelRef.modelId as never);
   const baseUrl =
     providerConfig?.baseUrl ??
     modelRef.baseUrl ??

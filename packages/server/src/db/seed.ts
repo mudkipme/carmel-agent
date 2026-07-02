@@ -1,4 +1,4 @@
-import { getModel, getModels, getProviders } from "@earendil-works/pi-ai";
+import { getBuiltinModel, getBuiltinModels, getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
 import type { AgentConfig, AgentPermissions, ModelRef, ProviderConfig, Session, User } from "@carmel-agent/shared";
 
 export const now = () => Date.now();
@@ -19,9 +19,9 @@ export const defaultUser: User = {
   role: "user",
 };
 
-const provider = getProviders()[0] ?? "anthropic";
-const providerModels = getModels(provider as never);
-const model = providerModels[0] ?? getModel("anthropic" as never, "claude-sonnet-4-20250514" as never);
+const provider = getBuiltinProviders()[0] ?? "anthropic";
+const providerModels = getBuiltinModels(provider as never);
+const model = providerModels[0] ?? getBuiltinModel("anthropic" as never, "claude-sonnet-4-20250514" as never);
 
 export const defaultModelRef: ModelRef = {
   id: "model_default",

@@ -1,12 +1,12 @@
 import {
   clampThinkingLevel,
-  completeSimple,
   getSupportedThinkingLevels,
   type Api,
   type Model,
   type ModelThinkingLevel,
   type ThinkingLevel,
 } from "@earendil-works/pi-ai";
+import { completeSimple } from "@earendil-works/pi-ai/compat";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 export async function generateSessionTitle({

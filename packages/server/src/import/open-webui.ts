@@ -1,6 +1,6 @@
 import type { ModelRef, Session } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { Api, AssistantMessage, ImageContent, Provider, TextContent, Usage } from "@earendil-works/pi-ai";
+import type { Api, AssistantMessage, ImageContent, TextContent, Usage } from "@earendil-works/pi-ai";
 import { id } from "../db/seed.ts";
 
 type OpenWebuiImportOptions = Pick<Session, "userId" | "agentId" | "modelRefId" | "thinkingLevel"> & {
@@ -124,7 +124,7 @@ function convertMessages(messages: OpenWebuiMessage[], options: OpenWebuiImportO
         role: "assistant",
         content: contentParts,
         api: (options.modelRef.api ?? "openai-completions") as Api,
-        provider: options.modelRef.provider as Provider,
+        provider: options.modelRef.provider,
         model: readModelName(message) ?? options.modelRef.modelId,
         usage: convertUsage(message.usage),
         stopReason: "stop",

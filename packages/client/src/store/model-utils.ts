@@ -1,4 +1,5 @@
-import { getModel, getModels, getProviders, type Api, type Model } from "@earendil-works/pi-ai";
+import { getBuiltinModel, getBuiltinModels, getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import { createClientId } from "@/lib/id";
 import {
   DEFAULT_OLLAMA_BASE_URL,
@@ -10,7 +11,7 @@ import {
 const id = createClientId;
 
 export function resolveModelRef(modelRef: ModelRef): Model<Api> {
-  const builtIn = getModel(modelRef.provider as never, modelRef.modelId as never);
+  const builtIn = getBuiltinModel(modelRef.provider as never, modelRef.modelId as never);
   if (builtIn) {
     return {
       ...builtIn,
@@ -36,7 +37,7 @@ export function makeModelRef(
   providerConfigId?: string,
   modelSummary?: ProviderModelSummary,
 ): ModelRef {
-  const model = getModel(provider as never, modelId as never);
+  const model = getBuiltinModel(provider as never, modelId as never);
   return {
     id: id("model"),
     ownerUserId: "",
@@ -56,11 +57,11 @@ export function makeModelRef(
 
 export function modelsForProvider(provider: string) {
   if (provider === OLLAMA_PROVIDER) return [];
-  return getModels(provider as never);
+  return getBuiltinModels(provider as never);
 }
 
 export function getAppProviders() {
-  return Array.from(new Set([...getProviders(), OLLAMA_PROVIDER]));
+  return Array.from(new Set([...getBuiltinProviders(), OLLAMA_PROVIDER]));
 }
 
 export function defaultBaseUrlForProvider(provider: string) {
