@@ -165,6 +165,8 @@ export const sessionMessageEditRequestSchema = z.object({
   content: z.string(),
   truncate: z.boolean().optional(),
   thinkingLevel: thinkingLevel.optional(),
+  removedImageIndexes: z.array(z.number().int().nonnegative()).optional(),
+  removedAttachmentIds: z.array(z.string()).optional(),
 });
 
 export const openWebuiImportRequestSchema = z.object({

@@ -1,7 +1,7 @@
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { ApiError, api, type BootstrapPayload, type SessionPatch } from "@/lib/api";
+import { ApiError, api, type BootstrapPayload, type EditSessionMessageOptions, type SessionPatch } from "@/lib/api";
 import { createClientId } from "@/lib/id";
 import { resolveModelRef } from "@/store/model-utils";
 import {
@@ -63,7 +63,7 @@ type HarnessState = {
     sessionId: string,
     messageIndex: number,
     content: string,
-    options?: { truncate?: boolean; thinkingLevel?: Session["thinkingLevel"] },
+    options?: EditSessionMessageOptions,
   ) => Promise<Session>;
   refreshSession: (sessionId: string) => Promise<void>;
   forkSession: (sessionId: string, messageIndex: number) => Promise<Session>;

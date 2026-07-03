@@ -51,6 +51,39 @@ export function getMessageAttachments(message: AgentMessage) {
   return message.attachments ?? [];
 }
 
+// A removable image on a user message, flattening the two sources (inline image
+// content parts and legacy `attachments`) into one list the edit UI can render.
+// `removal` carries the identity the server needs to drop it: `index` is the
+// position among inline image parts, `id` an attachment id.
+export type EditableUserImage = {
+  key: string;
+  src?: string;
+  label: string;
+  removal: { kind: "content"; index: number } | { kind: "attachment"; id: string };
+};
+
+export function getEditableUserImages(message: AgentMessage): EditableUserImage[] {
+  if (!isUserMessage(message)) return [];
+  const images: EditableUserImage[] = getMessageImages(message).map((image, index) => ({
+    key: `content:${index}`,
+    src: imageSrc(image),
+    label: "Image",
+    removal: { kind: "content", index },
+  }));
+
+  for (const attachment of getMessageAttachments(message)) {
+    if (attachment.type !== "image") continue;
+    images.push({
+      key: `attachment:${attachment.id}`,
+      src: imageSrc({ url: attachment.url, data: attachment.preview ?? attachment.content, mimeType: attachment.mimeType }),
+      label: attachment.fileName,
+      removal: { kind: "attachment", id: attachment.id },
+    });
+  }
+
+  return images;
+}
+
 export function findMessageIndex(messages: AgentMessage[], target: AgentMessage) {
   const referenceIndex = messages.indexOf(target);
   if (referenceIndex >= 0) return referenceIndex;

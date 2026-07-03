@@ -42,6 +42,7 @@ export {
   updateAssistantMessageContent,
   updateUserMessageContent,
 } from "./messages.ts";
+export type { UserMessageEditOptions } from "./messages.ts";
 
 export const OLLAMA_PROVIDER = "ollama";
 export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1";

@@ -18,7 +18,13 @@ import type {
   SetupStatus,
   User,
   UserRole,
+  UserMessageEditOptions,
 } from "@carmel-agent/shared";
+
+export type EditSessionMessageOptions = UserMessageEditOptions & {
+  truncate?: boolean;
+  thinkingLevel?: Session["thinkingLevel"];
+};
 
 export type BootstrapPayload = {
   users: User[];
@@ -169,7 +175,7 @@ export const api = {
     sessionId: string,
     messageIndex: number,
     content: string,
-    options?: { truncate?: boolean; thinkingLevel?: Session["thinkingLevel"] },
+    options?: EditSessionMessageOptions,
   ) =>
     request<Session>(`/api/sessions/${sessionId}/messages/${messageIndex}`, {
       method: "PATCH",

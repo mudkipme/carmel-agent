@@ -1,7 +1,7 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
@@ -21,7 +21,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { type AgentSnapshot, RemoteAgent } from "@/lib/remote-agent";
 import {
+  type EditableUserImage,
   findMessageIndex,
+  getEditableUserImages,
   getMessageText,
   isEditableAssistantMessage,
   isUserMessage,
@@ -29,7 +31,7 @@ import {
   updateUserMessageContent,
 } from "@/components/chat/chat-utils";
 import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
-import type { AgentConfig, ModelRef, ProviderConfig, Session } from "@carmel-agent/shared";
+import type { AgentConfig, ModelRef, ProviderConfig, Session, UserMessageEditOptions } from "@carmel-agent/shared";
 
 // Stable snapshot used while no agent exists yet (useSyncExternalStore requires a
 // referentially stable value). Its `model` is never read — the chat UI only renders
@@ -68,6 +70,8 @@ export function PiChat({
     message: AgentMessage;
     draft: string;
     kind: "user" | "assistant";
+    images: EditableUserImage[];
+    removedKeys: Set<string>;
   } | null>(null);
   const refreshSession = useHarnessStore((state) => state.refreshSession);
   const updateSession = useHarnessStore((state) => state.updateSession);
@@ -142,7 +146,7 @@ export function PiChat({
   );
 
   const saveUserMessage = useCallback(
-    async (message: AgentMessage, content: string, submit: boolean) => {
+    async (message: AgentMessage, content: string, submit: boolean, removals?: UserMessageEditOptions) => {
       const activeAgent = agentRef.current;
       if (!activeAgent || activeAgent.state.isStreaming || !isUserMessage(message)) return;
 
@@ -150,7 +154,7 @@ export function PiChat({
       const index = findMessageIndex(currentMessages, message);
       if (index < 0) return;
 
-      const editedMessage = updateUserMessageContent(currentMessages[index], content);
+      const editedMessage = updateUserMessageContent(currentMessages[index], content, removals);
       const nextMessages = submit
         ? [...currentMessages.slice(0, index), editedMessage]
         : currentMessages.map((item, itemIndex) => (itemIndex === index ? editedMessage : item));
@@ -162,6 +166,7 @@ export function PiChat({
           editSessionMessage(sessionRef.current.id, index, content, {
             truncate: submit,
             thinkingLevel: activeAgent.state.thinkingLevel,
+            ...removals,
           }),
         {
           afterCommit: submit ? () => activeAgent.continue() : undefined,
@@ -298,12 +303,12 @@ export function PiChat({
 
   const saveEdit = async (submit: boolean) => {
     if (!editingMessage) return;
-    const { message, draft, kind } = editingMessage;
+    const { message, draft, kind, images, removedKeys } = editingMessage;
     setEditingMessage(null);
     if (kind === "assistant") {
       await saveAssistantMessage(message, draft);
     } else {
-      await saveUserMessage(message, draft, submit);
+      await saveUserMessage(message, draft, submit, computeImageRemovals(images, removedKeys));
     }
   };
 
@@ -317,6 +322,26 @@ export function PiChat({
   const insertCommandText = (text: string) => {
     setInput(text);
   };
+
+  const removeEditingImage = (key: string) => {
+    setEditingMessage((current) => {
+      if (!current) return current;
+      const removedKeys = new Set(current.removedKeys);
+      removedKeys.add(key);
+      return { ...current, removedKeys };
+    });
+  };
+
+  // Images the user hasn't removed yet — an edit stays committable while any of
+  // them remain, so an image-only message can be edited without adding text.
+  const survivingImages = editingMessage
+    ? editingMessage.images.filter((image) => !editingMessage.removedKeys.has(image.key))
+    : [];
+  const canCommitEdit = editingMessage
+    ? editingMessage.kind === "assistant"
+      ? Boolean(editingMessage.draft.trim())
+      : Boolean(editingMessage.draft.trim()) || survivingImages.length > 0
+    : false;
 
   return (
     <>
@@ -336,13 +361,16 @@ export function PiChat({
             onSend={sendMessage}
             onAbort={() => agent.abort()}
             onModelSelect={() => setModelDialogOpen(true)}
-            onEditMessage={(message) =>
+            onEditMessage={(message) => {
+              const isAssistant = message.role === "assistant";
               setEditingMessage({
                 message,
                 draft: getMessageText(message),
-                kind: message.role === "assistant" ? "assistant" : "user",
-              })
-            }
+                kind: isAssistant ? "assistant" : "user",
+                images: isAssistant ? [] : getEditableUserImages(message),
+                removedKeys: new Set(),
+              });
+            }}
             onRetryMessage={(message) => void retryFromMessage(message)}
             onForkMessage={(message) => void forkFromMessage(message)}
           />
@@ -393,25 +421,48 @@ export function PiChat({
               // Plain Enter inserts a newline (multi-line edit); only the keyboard
               // shortcut commits. It triggers the dialog's primary action: rerun
               // (Submit) for user messages, in-place Save for assistant messages.
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && editingMessage?.draft.trim()) {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && canCommitEdit) {
                 event.preventDefault();
-                void saveEdit(editingMessage.kind === "user");
+                void saveEdit(editingMessage?.kind === "user");
               }
             }}
           />
+          {editingMessage?.kind === "user" && survivingImages.length > 0 ? (
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {survivingImages.map((image) => (
+                <div key={image.key} className="relative">
+                  <img
+                    className="size-20 rounded-md border object-cover"
+                    src={image.src}
+                    alt={image.label}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-xs"
+                    className="absolute -right-2 -top-2 rounded-full border shadow-xs"
+                    aria-label={`Remove ${image.label}`}
+                    onClick={() => removeEditingImage(image.key)}
+                  >
+                    <XIcon />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <DialogFooter className="shrink-0">
             <Button variant="outline" onClick={() => setEditingMessage(null)}>
               Cancel
             </Button>
             <Button
               variant={editingMessage?.kind === "assistant" ? undefined : "outline"}
-              disabled={!editingMessage?.draft.trim()}
+              disabled={!canCommitEdit}
               onClick={() => void saveEdit(false)}
             >
               Save
             </Button>
             {editingMessage?.kind === "assistant" ? null : (
-              <Button disabled={!editingMessage?.draft.trim()} onClick={() => void saveEdit(true)}>
+              <Button disabled={!canCommitEdit} onClick={() => void saveEdit(true)}>
                 Submit
               </Button>
             )}
@@ -420,6 +471,17 @@ export function PiChat({
       </Dialog>
     </>
   );
+}
+
+function computeImageRemovals(images: EditableUserImage[], removedKeys: Set<string>): UserMessageEditOptions {
+  const removedImageIndexes: number[] = [];
+  const removedAttachmentIds: string[] = [];
+  for (const image of images) {
+    if (!removedKeys.has(image.key)) continue;
+    if (image.removal.kind === "content") removedImageIndexes.push(image.removal.index);
+    else removedAttachmentIds.push(image.removal.id);
+  }
+  return { removedImageIndexes, removedAttachmentIds };
 }
 
 function ModelCommandDialog({

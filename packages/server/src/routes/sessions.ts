@@ -237,7 +237,10 @@ export function createSessionRoutes() {
     if (!editableUser && !editableAssistant) return c.json({ error: "Message is not editable" }, 400);
 
     const editedMessage = editableUser
-      ? updateUserMessageContent(target, body.content)
+      ? updateUserMessageContent(target, body.content, {
+          removedImageIndexes: body.removedImageIndexes,
+          removedAttachmentIds: body.removedAttachmentIds,
+        })
       : updateAssistantMessageContent(target, body.content);
     // Only user-message edits may truncate and rerun the conversation. Editing an
     // assistant message rewrites it in place and never drops later messages.

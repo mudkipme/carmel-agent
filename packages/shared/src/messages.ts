@@ -26,21 +26,62 @@ export function isEditableAssistantMessage(message: AgentMessage): message is Ag
   return hasText;
 }
 
-export function updateUserMessageContent(message: AgentMessage, content: string): AgentMessage {
+// Editing a user message can also drop images: `removedImageIndexes` refers to
+// the position of an image among the inline image parts of `content` (in order),
+// and `removedAttachmentIds` to ids in the legacy `attachments` array. Both the
+// client (optimistic) and server recompute from the same stored message, so
+// index-based removal stays in sync.
+export type UserMessageEditOptions = {
+  removedImageIndexes?: number[];
+  removedAttachmentIds?: string[];
+};
+
+export function updateUserMessageContent(
+  message: AgentMessage,
+  content: string,
+  options?: UserMessageEditOptions,
+): AgentMessage {
   if (!isUserMessage(message)) return message;
   const current = message as AgentMessage & { content?: unknown };
-  if (typeof current.content === "string") return { ...message, content } as AgentMessage;
+  const removedImages = new Set(options?.removedImageIndexes ?? []);
+
+  if (typeof current.content === "string") {
+    return pruneAttachments({ ...message, content } as AgentMessage, options);
+  }
   if (!Array.isArray(current.content)) return message;
 
   let replacedText = false;
-  const nextContent = current.content.map((part) => {
-    if (!isRecord(part) || part.type !== "text" || replacedText) return part;
-    replacedText = true;
-    return { ...part, text: content };
-  });
+  let imageIndex = 0;
+  const nextContent: unknown[] = [];
+  for (const part of current.content) {
+    if (isRecord(part) && part.type === "image") {
+      const drop = removedImages.has(imageIndex);
+      imageIndex += 1;
+      if (drop) continue;
+      nextContent.push(part);
+      continue;
+    }
+    if (isRecord(part) && part.type === "text" && !replacedText) {
+      replacedText = true;
+      nextContent.push({ ...part, text: content });
+      continue;
+    }
+    nextContent.push(part);
+  }
 
   if (!replacedText) nextContent.unshift({ type: "text", text: content });
-  return { ...message, content: nextContent } as AgentMessage;
+  return pruneAttachments({ ...message, content: nextContent } as AgentMessage, options);
+}
+
+function pruneAttachments(message: AgentMessage, options?: UserMessageEditOptions): AgentMessage {
+  const removedAttachments = new Set(options?.removedAttachmentIds ?? []);
+  if (removedAttachments.size === 0) return message;
+  const attachments = (message as { attachments?: unknown }).attachments;
+  if (!Array.isArray(attachments)) return message;
+  const nextAttachments = attachments.filter(
+    (attachment) => !(isRecord(attachment) && typeof attachment.id === "string" && removedAttachments.has(attachment.id)),
+  );
+  return { ...message, attachments: nextAttachments } as AgentMessage;
 }
 
 export function updateAssistantMessageContent(message: AgentMessage, content: string): AgentMessage {
