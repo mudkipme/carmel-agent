@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServerToolDefinitions, remapContainerPath } from "./tools.ts";
@@ -81,6 +81,44 @@ test("write tools reject paths outside the writable runtime root", () => {
         { path: "../outside.txt", content: "should not be written" },
         new AbortController().signal,
       ),
+    /outside the agent working directory/,
+  );
+});
+
+test("read tools reject a symlink inside the workspace that points outside it", () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-"));
+  const secretDir = mkdtempSync(join(tmpdir(), "carmel-agent-secret-"));
+  writeFileSync(join(secretDir, "secret.txt"), "top secret");
+  // Simulate `ln -s <secret> escape` created from inside the sandbox: the link
+  // lives in the workspace but resolves to a host path outside every root.
+  symlinkSync(join(secretDir, "secret.txt"), join(workingDir, "escape"));
+
+  const tools = createServerToolDefinitions(
+    makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }),
+  );
+  const readTool = tools.find((tool) => tool.name === "read");
+
+  assert.ok(readTool);
+  assert.throws(
+    () => executeTool(readTool, "call_1", { path: "escape" }, new AbortController().signal),
+    /outside the agent working directory/,
+  );
+});
+
+test("write tools reject writing through a symlink that points outside the workspace", () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-"));
+  const outsideDir = mkdtempSync(join(tmpdir(), "carmel-agent-outside-"));
+  writeFileSync(join(outsideDir, "target.txt"), "original");
+  symlinkSync(join(outsideDir, "target.txt"), join(workingDir, "escape"));
+
+  const tools = createServerToolDefinitions(
+    makeAgent({ workingDir, permissions: { ...allPermissions(false), write: true } }),
+  );
+  const writeTool = tools.find((tool) => tool.name === "write");
+
+  assert.ok(writeTool);
+  assert.throws(
+    () => executeTool(writeTool, "call_1", { path: "escape", content: "overwritten" }, new AbortController().signal),
     /outside the agent working directory/,
   );
 });

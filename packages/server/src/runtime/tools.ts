@@ -8,8 +8,8 @@ import {
   createWriteToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { existsSync } from "node:fs";
-import { isAbsolute, relative, resolve } from "node:path";
+import { existsSync, lstatSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import type { AgentMount } from "@carmel-agent/shared";
 import { agents } from "../db/schema.ts";
 import { resolveAgentReadableRoots, resolveAgentWorkingDirPath } from "./resources.ts";
@@ -236,14 +236,54 @@ export function remapContainerPath(filePath: string, mappings: PathMapping[]) {
 
 function assertInsideAllowedRoots(absolutePath: string, roots: string[], displayPath = absolutePath) {
   const normalizedPath = resolve(absolutePath);
+  // The lexical relative() check gives a fast, clear error for ../ escapes, but
+  // it trusts the path string. Bash can create a symlink inside the workspace
+  // that points outside it (e.g. ln -s /etc/passwd ws/x); the link's stored path
+  // stays lexically inside a root, yet the host fs call would follow it out. So
+  // we also resolve symlinks and require the real target to stay inside a root,
+  // matching the browser file API guard in routes/agent-files.ts.
+  const realPath = resolveRealPath(normalizedPath);
   for (const root of roots) {
     const normalizedRoot = resolve(root);
-    const relativePath = relative(normalizedRoot, normalizedPath);
-    if (relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath))) {
+    if (isInsideRoot(normalizedRoot, normalizedPath) && isInsideRoot(resolveRealPath(normalizedRoot), realPath)) {
       return normalizedPath;
     }
   }
   throw new Error(`Path is outside the agent working directory: ${displayPath}`);
+}
+
+function isInsideRoot(root: string, target: string) {
+  const relativePath = relative(root, target);
+  return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
+}
+
+// Resolves symlinks so containment checks cannot be fooled by a symlink placed
+// inside the workspace. The leaf may not exist yet (write/edit creating a new
+// file), so we resolve the deepest existing ancestor and re-append the segments
+// below it — those cannot be symlinks because they do not exist on disk. lstat
+// (not existsSync) is used so a dangling symlink counts as existing and is handed
+// to realpathSync, which throws rather than being treated as a new writable file.
+function resolveRealPath(absolutePath: string): string {
+  let current = resolve(absolutePath);
+  const trailing: string[] = [];
+  for (;;) {
+    try {
+      lstatSync(current);
+      break;
+    } catch (error) {
+      if (!isMissingPathError(error)) throw error;
+      const parent = dirname(current);
+      if (parent === current) return current;
+      trailing.unshift(basename(current));
+      current = parent;
+    }
+  }
+  const realBase = realpathSync(current);
+  return trailing.length > 0 ? resolve(realBase, ...trailing) : realBase;
+}
+
+function isMissingPathError(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
 async function fetchUrlWithExa(url: string, maxCharacters: number, signal?: AbortSignal) {
