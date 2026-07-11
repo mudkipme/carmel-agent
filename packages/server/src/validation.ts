@@ -4,7 +4,7 @@ import { z, ZodError } from "zod";
 const emptyStringToUndefined = (value: unknown) => (value === "" ? undefined : value);
 const optionalString = z.preprocess(emptyStringToUndefined, z.string().optional());
 const timestamp = z.number().finite().default(() => Date.now());
-const thinkingLevel = z.enum(["off", "minimal", "low", "medium", "high", "xhigh"]);
+const thinkingLevel = z.enum(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 const modelInput = z.array(z.enum(["text", "image"]));
 const promptTemplate = z.object({
   id: z.string(),

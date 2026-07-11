@@ -38,7 +38,8 @@ const thinkingLevelLabels: Record<AgentThinkingLevel, string> = {
   low: "Low",
   medium: "Medium",
   high: "High",
-  xhigh: "Max",
+  xhigh: "X-High",
+  max: "Max",
 };
 const configurablePermissions: Array<keyof AgentPermissions> = ["read", "write", "edit", "bash", "network"];
 

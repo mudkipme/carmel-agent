@@ -95,7 +95,7 @@ export type AgentMount = {
 };
 
 export type AgentWorkingDirMode = "default" | "manual";
-export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export type AgentSlashCommandSource = "prompt" | "skill";
 
