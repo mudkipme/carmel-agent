@@ -1,7 +1,12 @@
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { lazy, Suspense, useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
-import { FileEditorView } from "@/components/harness/files/FileEditorView";
+
+const FileEditorView = lazy(() =>
+  import("@/components/harness/files/FileEditorView").then((module) => ({
+    default: module.FileEditorView,
+  })),
+);
 import { HarnessSidebar } from "@/components/harness/shell/HarnessSidebar";
 import { HarnessHeader } from "@/components/harness/shell/HarnessHeader";
 import { ImportSessionsDialog } from "@/components/harness/shell/ImportSessionsDialog";
@@ -173,11 +178,19 @@ export function HarnessShell() {
         />
         <div className="min-h-0 flex-1">
           {sidebarMode === "files" ? (
-            <FileEditorView
-              key={`${activeAgent?.id ?? "no-agent"}:${selectedFilePath}`}
-              agent={activeAgent}
-              filePath={selectedFilePath}
-            />
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+                  Loading editor...
+                </div>
+              }
+            >
+              <FileEditorView
+                key={`${activeAgent?.id ?? "no-agent"}:${selectedFilePath}`}
+                agent={activeAgent}
+                filePath={selectedFilePath}
+              />
+            </Suspense>
           ) : activeSession && activeAgent && activeModel ? (
             <PiChat
               key={activeSession.id}

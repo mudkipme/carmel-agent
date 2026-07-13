@@ -1,26 +1,59 @@
-import { useEffect, useRef } from "react";
-import type { MarkdownBlock } from "@mariozechner/mini-lit/dist/MarkdownBlock.js";
+import { isValidElement, useMemo, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import Markdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { cn } from "@/lib/utils";
+import { preserveSoftLineBreaks } from "@/lib/markdown";
+import { CodeBlock } from "./CodeBlock";
 
 type MarkdownContentProps = {
   content: string;
   thinking?: boolean;
 };
 
+const components: Components = {
+  a: ({ children, ...props }) => (
+    <a {...props} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  ),
+  table: ({ children, ...props }) => (
+    <div className="my-2 overflow-x-auto rounded border border-border">
+      <table {...props}>{children}</table>
+    </div>
+  ),
+  pre: ({ children }) => {
+    const code = isValidElement<ComponentPropsWithoutRef<"code">>(children) ? children : null;
+    const language = languageFromClassName(code?.props.className);
+    return <div className="mt-2"><CodeBlock code={childrenToText(code?.props.children)} language={language} /></div>;
+  },
+};
+
 export function MarkdownContent({ content, thinking = false }: MarkdownContentProps) {
-  const containerRef = useRef<HTMLSpanElement | null>(null);
-  const blockRef = useRef<MarkdownBlock | null>(null);
+  const source = useMemo(() => preserveSoftLineBreaks(content), [content]);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    if (!blockRef.current) {
-      blockRef.current = document.createElement("markdown-block") as MarkdownBlock;
-      container.appendChild(blockRef.current);
-    }
-    blockRef.current.content = content;
-    blockRef.current.isThinking = thinking;
-    blockRef.current.requestUpdate();
-  }, [content, thinking]);
+  return (
+    <div
+      className={cn(
+        "markdown-content max-w-none break-words [overflow-wrap:anywhere] [&>*:last-child]:mb-0",
+        thinking ? "text-sm italic text-muted-foreground" : "text-foreground",
+      )}
+    >
+      <Markdown remarkPlugins={[remarkGfm]} components={components}>
+        {source}
+      </Markdown>
+    </div>
+  );
+}
 
-  return <span ref={containerRef} className="block min-w-0 max-w-full" />;
+function languageFromClassName(className?: string) {
+  const match = /language-(\w+)/.exec(className ?? "");
+  return match?.[1] ?? "text";
+}
+
+function childrenToText(children: ReactNode): string {
+  if (typeof children === "string") return children.replace(/\n$/, "");
+  if (Array.isArray(children)) return children.map(childrenToText).join("");
+  if (isValidElement<{ children?: ReactNode }>(children)) return childrenToText(children.props.children);
+  if (children == null || children === false) return "";
+  return String(children);
 }

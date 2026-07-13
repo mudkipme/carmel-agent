@@ -164,19 +164,13 @@
   font-size: 14px;
 }
 
-.agent-chat-host markdown-block {
+.agent-chat-host .markdown-content {
   font-size: 14px;
   line-height: 1.45;
   max-width: 100%;
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-
-.agent-chat-host markdown-block > div,
-.agent-chat-host code-block {
-  max-width: 100%;
-  min-width: 0;
 }
 
 .markdown-content h1 {

@@ -1,7 +1,6 @@
-import { useState } from "react";
-import Lightbox from "yet-another-react-lightbox";
-import Zoom from "yet-another-react-lightbox/plugins/zoom";
-import "yet-another-react-lightbox/styles.css";
+import { lazy, Suspense, useState } from "react";
+
+const ZoomableLightbox = lazy(() => import("./ZoomableLightbox"));
 
 type ZoomableImageProps = {
   src: string;
@@ -25,15 +24,11 @@ export function ZoomableImage({ src, alt, caption }: ZoomableImageProps) {
         </button>
         {caption ? <figcaption className="truncate px-2 py-1 text-xs text-muted-foreground">{caption}</figcaption> : null}
       </figure>
-      <Lightbox
-        open={open}
-        close={() => setOpen(false)}
-        slides={[{ src, alt }]}
-        plugins={[Zoom]}
-        carousel={{ finite: true }}
-        controller={{ closeOnBackdropClick: true }}
-        render={{ buttonPrev: () => null, buttonNext: () => null }}
-      />
+      {open ? (
+        <Suspense fallback={null}>
+          <ZoomableLightbox src={src} alt={alt} onClose={() => setOpen(false)} />
+        </Suspense>
+      ) : null}
     </>
   );
 }
