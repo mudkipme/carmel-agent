@@ -1,13 +1,13 @@
-import { AuthStorage } from "@earendil-works/pi-coding-agent";
+import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER, type ProviderModelSummary } from "@carmel-agent/shared";
 
-export function hasProviderAuth(authStorage: AuthStorage, provider: string) {
-  return isAuthOptionalProvider(provider) || authStorage.hasAuth(provider);
+export async function hasProviderAuth(modelRuntime: ModelRuntime, provider: string) {
+  return isAuthOptionalProvider(provider) || Boolean(await modelRuntime.checkAuth(provider));
 }
 
-export function ensureOptionalProviderAuth(authStorage: AuthStorage, provider: string) {
-  if (isAuthOptionalProvider(provider) && !authStorage.hasAuth(provider)) {
-    authStorage.setRuntimeApiKey(provider, "ollama");
+export async function ensureOptionalProviderAuth(modelRuntime: ModelRuntime, provider: string) {
+  if (isAuthOptionalProvider(provider) && !(await modelRuntime.checkAuth(provider))) {
+    await modelRuntime.setRuntimeApiKey(provider, "ollama");
   }
 }
 

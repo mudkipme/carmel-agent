@@ -1,4 +1,3 @@
-import { AuthStorage } from "@earendil-works/pi-coding-agent";
 import type { PromptInput } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
@@ -12,7 +11,8 @@ import {
   getActiveAgentRunForSession,
   normalizePromptInput,
 } from "../runtime/agent-runtime.ts";
-import { createProviderConfigAuthStorage } from "../runtime/auth-storage.ts";
+import { createProviderConfigCredentialStore } from "../runtime/auth-storage.ts";
+import { createCarmelModelRuntime } from "../runtime/model-runtime.ts";
 import { revealSecret } from "../security.ts";
 import { canUseModel, readVisibleAgent } from "../services/agent-access.ts";
 import { ensureOptionalProviderAuth, hasProviderAuth } from "../services/provider-auth.ts";
@@ -74,14 +74,14 @@ export function createAgentRunRoutes() {
       .where(eq(providerKeys.userId, session.userId))
       .all()
       .find((item) => item.provider === modelRef.provider);
-    const authStorage = providerConfig
-      ? createProviderConfigAuthStorage(providerConfig, modelRef.provider)
-      : AuthStorage.inMemory();
+    const modelRuntime = await createCarmelModelRuntime(
+      providerConfig ? createProviderConfigCredentialStore(providerConfig, modelRef.provider) : undefined,
+    );
     if (!providerConfig && providerKey?.apiKey) {
-      authStorage.setRuntimeApiKey(modelRef.provider, revealSecret(providerKey.apiKey) ?? "");
+      await modelRuntime.setRuntimeApiKey(modelRef.provider, revealSecret(providerKey.apiKey) ?? "");
     }
-    ensureOptionalProviderAuth(authStorage, modelRef.provider);
-    if (!hasProviderAuth(authStorage, modelRef.provider)) {
+    await ensureOptionalProviderAuth(modelRuntime, modelRef.provider);
+    if (!(await hasProviderAuth(modelRuntime, modelRef.provider))) {
       return c.json({ error: "No API key or OAuth login configured for this model provider." }, 400);
     }
 
@@ -97,7 +97,7 @@ export function createAgentRunRoutes() {
       session,
       modelRef,
       providerConfig,
-      authStorage,
+      modelRuntime,
       thinkingLevel: body.thinkingLevel ?? session.thinkingLevel,
       promptInput,
     });

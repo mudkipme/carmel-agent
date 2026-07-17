@@ -4,6 +4,7 @@ import {
   type Api,
   type Model,
   type ModelThinkingLevel,
+  type ProviderHeaders,
   type ThinkingLevel,
 } from "@earendil-works/pi-ai";
 import { completeSimple } from "@earendil-works/pi-ai/compat";
@@ -17,7 +18,7 @@ export async function generateSessionTitle({
 }: {
   model: Model<Api>;
   apiKey: string;
-  headers?: Record<string, string>;
+  headers?: ProviderHeaders;
   messages: AgentMessage[];
 }) {
   const transcript = buildTitleTranscript(messages);

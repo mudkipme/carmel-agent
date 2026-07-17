@@ -1,9 +1,8 @@
 import { type AgentEvent, type AgentMessage } from "@earendil-works/pi-agent-core";
 import {
-  AuthStorage,
   createAgentSession,
   type CreateAgentSessionOptions,
-  ModelRegistry,
+  type ModelRuntime,
   SessionManager,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
@@ -13,8 +12,9 @@ import { now } from "../db/seed.ts";
 import { agents, modelRefs, providerConfigs, providerKeys, sessions, users } from "../db/schema.ts";
 import { revealSecret } from "../security.ts";
 import { serializeModelRef } from "../serializers.ts";
-import { createProviderConfigAuthStorage } from "./auth-storage.ts";
+import { createProviderConfigCredentialStore } from "./auth-storage.ts";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
+import { createCarmelModelRuntime } from "./model-runtime.ts";
 import { createAgentResourceLoader, resolveAgentWorkingDirPath, serverAgentDir } from "./resources.ts";
 import {
   createActiveAgentRun,
@@ -25,8 +25,9 @@ import {
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerToolDefinitions } from "./tools.ts";
+import { ensureOptionalProviderAuth, hasProviderAuth } from "../services/provider-auth.ts";
 import { appendSessionMessages, readSessionMessages } from "../services/session-store.ts";
-import { OLLAMA_PROVIDER, type PromptInput, type Session } from "@carmel-agent/shared";
+import { type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -60,7 +61,7 @@ export function createAgentRunResponse({
   session,
   modelRef,
   providerConfig,
-  authStorage,
+  modelRuntime,
   thinkingLevel,
   promptInput,
 }: {
@@ -68,7 +69,7 @@ export function createAgentRunResponse({
   session: SessionRecord;
   modelRef: ModelRefRecord;
   providerConfig?: ProviderConfigRecord;
-  authStorage: AuthStorage;
+  modelRuntime: ModelRuntime;
   thinkingLevel: Session["thinkingLevel"];
   promptInput?: PromptInput;
 }) {
@@ -103,7 +104,6 @@ export function createAgentRunResponse({
       // for the error-message append below (and never wipes it).
       initialMessages = readSessionMessages(session.id);
       persistedCount = initialMessages.length;
-      const modelRegistry = ModelRegistry.inMemory(authStorage);
       const resourceLoader = await createAgentResourceLoader(agent);
       const cwd = resolveAgentWorkingDirPath(agent);
       const customTools = [...createServerToolDefinitions(agent)];
@@ -111,8 +111,7 @@ export function createAgentRunResponse({
       const { session: piSession } = await createAgentSession({
         cwd,
         agentDir: serverAgentDir,
-        authStorage,
-        modelRegistry,
+        modelRuntime,
         model,
         thinkingLevel,
         resourceLoader,
@@ -174,7 +173,7 @@ export function createAgentRunResponse({
           modelRefId: modelRef.id,
           thinkingLevel,
           model,
-          authStorage,
+          modelRuntime,
         });
       } catch (error) {
         console.warn("Session persistence failed:", error instanceof Error ? error.message : String(error));
@@ -201,7 +200,7 @@ async function persistSessionRun(
     modelRefId: string;
     thinkingLevel: Session["thinkingLevel"];
     model: ReturnType<typeof resolveServerModelRef>;
-    authStorage: AuthStorage;
+    modelRuntime: ModelRuntime;
   },
 ) {
   const timestamp = now();
@@ -219,17 +218,16 @@ async function persistSessionRun(
   if (!shouldGenerateSessionTitle(session.title, patch.messages)) return;
 
   try {
-    const titleModelContext = resolveTitleModelContext(session.userId, {
+    const titleModelContext = await resolveTitleModelContext(session.userId, {
       model: patch.model,
-      authStorage: patch.authStorage,
+      modelRuntime: patch.modelRuntime,
     });
-    const modelRegistry = ModelRegistry.inMemory(titleModelContext.authStorage);
-    const auth = await modelRegistry.getApiKeyAndHeaders(titleModelContext.model);
-    if (!auth.ok || !auth.apiKey) return;
+    const auth = await titleModelContext.modelRuntime.getAuth(titleModelContext.model);
+    if (!auth?.auth.apiKey) return;
     const title = await generateSessionTitle({
       model: titleModelContext.model,
-      apiKey: auth.apiKey,
-      headers: auth.headers,
+      apiKey: auth.auth.apiKey,
+      headers: auth.auth.headers,
       messages: patch.messages,
     });
     if (!title) return;
@@ -245,9 +243,9 @@ async function persistSessionRun(
   }
 }
 
-function resolveTitleModelContext(
+async function resolveTitleModelContext(
   userId: string,
-  fallback: { model: Model<Api>; authStorage: AuthStorage },
+  fallback: { model: Model<Api>; modelRuntime: ModelRuntime },
 ) {
   const user = db.select().from(users).where(eq(users.id, userId)).get();
   const fastTaskModelRefId = user?.fastTaskModelRefId;
@@ -259,7 +257,9 @@ function resolveTitleModelContext(
   const providerConfig = modelRef.providerConfigId
     ? db.select().from(providerConfigs).where(eq(providerConfigs.id, modelRef.providerConfigId)).get()
     : undefined;
-  const authStorage = providerConfig ? createProviderConfigAuthStorage(providerConfig, modelRef.provider) : AuthStorage.inMemory();
+  const modelRuntime = await createCarmelModelRuntime(
+    providerConfig ? createProviderConfigCredentialStore(providerConfig, modelRef.provider) : undefined,
+  );
   if (!providerConfig) {
     const providerKey = db
       .select()
@@ -267,25 +267,17 @@ function resolveTitleModelContext(
       .where(eq(providerKeys.userId, userId))
       .all()
       .find((item) => item.provider === modelRef.provider);
-    if (providerKey?.apiKey) authStorage.setRuntimeApiKey(modelRef.provider, revealSecret(providerKey.apiKey) ?? "");
+    if (providerKey?.apiKey) {
+      await modelRuntime.setRuntimeApiKey(modelRef.provider, revealSecret(providerKey.apiKey) ?? "");
+    }
   }
-  ensureOptionalProviderAuth(authStorage, modelRef.provider);
-  if (!hasProviderAuth(authStorage, modelRef.provider)) return fallback;
+  await ensureOptionalProviderAuth(modelRuntime, modelRef.provider);
+  if (!(await hasProviderAuth(modelRuntime, modelRef.provider))) return fallback;
 
   return {
     model: resolveServerModelRef(serializeModelRef(modelRef), providerConfig),
-    authStorage,
+    modelRuntime,
   };
-}
-
-function hasProviderAuth(authStorage: AuthStorage, provider: string) {
-  return provider === OLLAMA_PROVIDER || authStorage.hasAuth(provider);
-}
-
-function ensureOptionalProviderAuth(authStorage: AuthStorage, provider: string) {
-  if (provider === OLLAMA_PROVIDER && !authStorage.hasAuth(provider)) {
-    authStorage.setRuntimeApiKey(provider, "ollama");
-  }
 }
 
 function canUserUseTitleModel(userId: string, modelRef: ModelRefRecord) {

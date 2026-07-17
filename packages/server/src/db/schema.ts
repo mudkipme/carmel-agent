@@ -1,6 +1,6 @@
 import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AuthCredential } from "@earendil-works/pi-coding-agent";
+import type { Credential } from "@earendil-works/pi-ai";
 import type {
   AgentMount,
   AgentPermissions,
@@ -62,7 +62,7 @@ export const providerConfigs = sqliteTable("provider_configs", {
   provider: text("provider").notNull(),
   authType: text("auth_type").$type<"api_key" | "oauth">().notNull().default("api_key"),
   apiKey: text("api_key"),
-  oauthCredential: text("oauth_credential", { mode: "json" }).$type<AuthCredential>(),
+  oauthCredential: text("oauth_credential", { mode: "json" }).$type<Credential>(),
   baseUrl: text("base_url"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),

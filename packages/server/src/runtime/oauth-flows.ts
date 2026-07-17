@@ -1,6 +1,7 @@
-import { getOAuthProvider, getOAuthProviders } from "@earendil-works/pi-ai/oauth";
+import type { AuthEvent, AuthPrompt } from "@earendil-works/pi-ai";
+import { builtinModels, builtinProviders } from "@earendil-works/pi-ai/providers/all";
 import type { OAuthLoginFlowState, OAuthProviderSummary } from "@carmel-agent/shared";
-import { createProviderConfigAuthStorage } from "./auth-storage.ts";
+import { createProviderConfigCredentialStore } from "./auth-storage.ts";
 import type { providerConfigs } from "../db/schema.ts";
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
@@ -19,23 +20,26 @@ const flows = new Map<string, OAuthFlow>();
 const flowTtlMs = 15 * 60 * 1000;
 
 export function listOAuthProviders(): OAuthProviderSummary[] {
-  return getOAuthProviders().map((provider) => ({
-    id: provider.id,
-    name: provider.name,
-    usesCallbackServer: provider.usesCallbackServer,
-  }));
+  return builtinProviders().flatMap((provider) =>
+    provider.auth.oauth
+      ? [{
+          id: provider.id,
+          name: provider.auth.oauth.name,
+        }]
+      : [],
+  );
 }
 
 export async function startOAuthLoginFlow(userId: string, providerConfig: ProviderConfigRecord) {
-  const provider = getOAuthProvider(providerConfig.provider);
-  if (!provider) throw new Error(`Provider ${providerConfig.provider} does not support OAuth login.`);
+  const provider = builtinProviders().find((candidate) => candidate.id === providerConfig.provider);
+  if (!provider?.auth.oauth) throw new Error(`Provider ${providerConfig.provider} does not support OAuth login.`);
 
   const flow: OAuthFlow = {
     id: randomId("oauth_flow"),
     userId,
     providerConfigId: providerConfig.id,
     provider: provider.id,
-    providerName: provider.name,
+    providerName: provider.auth.oauth.name,
     status: "pending",
   };
   flows.set(flow.id, flow);
@@ -71,44 +75,11 @@ export function submitOAuthLoginFlowInput(userId: string, flowId: string, value:
 
 async function runOAuthLoginFlow(flow: OAuthFlow, providerConfig: ProviderConfigRecord) {
   try {
-    const authStorage = createProviderConfigAuthStorage(providerConfig, providerConfig.provider);
-    await authStorage.login(providerConfig.provider, {
-      onAuth: (auth) => {
-        flow.status = "auth";
-        flow.auth = auth;
-      },
-      onDeviceCode: (info) => {
-        flow.status = "auth";
-        flow.auth = {
-          url: info.verificationUri,
-          instructions: [
-            `Enter code: ${info.userCode}`,
-            info.expiresInSeconds ? `This code expires in ${info.expiresInSeconds} seconds.` : undefined,
-          ].filter(Boolean).join(" "),
-        };
-      },
-      onProgress: (message) => {
-        flow.progress = message;
-      },
-      onPrompt: (prompt) =>
-        waitForInput(flow, {
-          kind: "prompt",
-          message: prompt.message,
-          placeholder: prompt.placeholder,
-          allowEmpty: prompt.allowEmpty,
-        }),
-      onManualCodeInput: () =>
-        waitForInput(flow, {
-          kind: "manual_code",
-          message: "Paste the authorization code or full redirect URL.",
-          allowEmpty: false,
-        }),
-      onSelect: (prompt) =>
-        waitForInput(flow, {
-          kind: "select",
-          message: prompt.message,
-          options: prompt.options,
-        }).then((value) => value || undefined),
+    const credentials = createProviderConfigCredentialStore(providerConfig, providerConfig.provider);
+    const models = builtinModels({ credentials });
+    await models.login(providerConfig.provider, "oauth", {
+      notify: (event) => notifyOAuthFlow(flow, event),
+      prompt: (prompt) => promptOAuthFlow(flow, prompt),
     });
     flow.status = "success";
     flow.prompt = undefined;
@@ -121,14 +92,89 @@ async function runOAuthLoginFlow(flow: OAuthFlow, providerConfig: ProviderConfig
   }
 }
 
+function notifyOAuthFlow(flow: OAuthFlow, event: AuthEvent) {
+  switch (event.type) {
+    case "auth_url":
+      flow.status = "auth";
+      flow.auth = { url: event.url, instructions: event.instructions };
+      break;
+    case "device_code":
+      flow.status = "auth";
+      flow.auth = {
+        url: event.verificationUri,
+        instructions: [
+          `Enter code: ${event.userCode}`,
+          event.expiresInSeconds ? `This code expires in ${event.expiresInSeconds} seconds.` : undefined,
+        ].filter(Boolean).join(" "),
+      };
+      break;
+    case "progress":
+      flow.progress = event.message;
+      break;
+    case "info": {
+      flow.progress = event.message;
+      const link = event.links?.[0];
+      if (link) {
+        flow.status = "auth";
+        flow.auth = { url: link.url, instructions: event.message };
+      }
+      break;
+    }
+  }
+}
+
+function promptOAuthFlow(flow: OAuthFlow, prompt: AuthPrompt) {
+  if (prompt.type === "select") {
+    return waitForInput(
+      flow,
+      {
+        kind: "select",
+        message: prompt.message,
+        options: [...prompt.options],
+      },
+      prompt.signal,
+    );
+  }
+  return waitForInput(
+    flow,
+    {
+      kind: prompt.type === "manual_code" ? "manual_code" : "prompt",
+      message: prompt.message,
+      placeholder: prompt.placeholder,
+      allowEmpty: false,
+    },
+    prompt.signal,
+  );
+}
+
 function waitForInput(
   flow: OAuthFlow,
   prompt: NonNullable<OAuthLoginFlowState["prompt"]>,
+  signal?: AbortSignal,
 ) {
   flow.status = "input";
   flow.prompt = prompt;
   return new Promise<string>((resolve, reject) => {
-    flow.pendingInput = { resolve, reject };
+    const onAbort = () => {
+      if (flow.pendingInput === pendingInput) {
+        flow.pendingInput = undefined;
+        flow.prompt = undefined;
+      }
+      reject(signal?.reason instanceof Error ? signal.reason : new Error("OAuth prompt cancelled."));
+    };
+    const pendingInput: PendingInput = {
+      resolve: (value) => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      reject: (error) => {
+        signal?.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    };
+    flow.pendingInput = pendingInput;
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 

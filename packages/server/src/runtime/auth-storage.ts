@@ -1,64 +1,75 @@
-import { AuthStorage, type AuthCredential, type AuthStorageBackend } from "@earendil-works/pi-coding-agent";
+import type { Credential, CredentialInfo, CredentialStore } from "@earendil-works/pi-ai";
 import { eq } from "drizzle-orm";
 import { db, sqlite } from "../db/index.ts";
 import { now } from "../db/seed.ts";
 import { providerConfigs } from "../db/schema.ts";
 import { protectJsonSecret, protectSecret, revealJsonSecret, revealSecret } from "../security.ts";
 
-type LockResult<T> = {
-  result: T;
-  next?: string;
-};
-
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 
-export function createProviderConfigAuthStorage(providerConfig: ProviderConfigRecord, provider: string) {
-  return AuthStorage.fromStorage(new ProviderConfigAuthStorageBackend(providerConfig.id, provider));
+export function createProviderConfigCredentialStore(providerConfig: ProviderConfigRecord, provider: string) {
+  return new ProviderConfigCredentialStore(providerConfig.id, provider);
 }
 
-class ProviderConfigAuthStorageBackend implements AuthStorageBackend {
+class ProviderConfigCredentialStore implements CredentialStore {
   constructor(
     private readonly providerConfigId: string,
     private readonly provider: string,
   ) {}
 
-  withLock<T>(fn: (current: string | undefined) => LockResult<T>): T {
-    const current = this.read();
-    const { result, next } = fn(current);
-    if (next !== undefined) this.write(next);
-    return result;
+  async read(providerId: string) {
+    return providerId === this.provider ? this.readCredential() : undefined;
   }
 
-  async withLockAsync<T>(fn: (current: string | undefined) => Promise<LockResult<T>>): Promise<T> {
+  async list(): Promise<readonly CredentialInfo[]> {
+    const credential = this.readCredential();
+    return credential ? [{ providerId: this.provider, type: credential.type }] : [];
+  }
+
+  async modify(
+    providerId: string,
+    fn: (current: Credential | undefined) => Promise<Credential | undefined>,
+  ) {
+    if (providerId !== this.provider) return undefined;
     sqlite.prepare("BEGIN IMMEDIATE").run();
     try {
-      const current = this.read();
-      const { result, next } = await fn(current);
-      if (next !== undefined) this.write(next);
+      const current = this.readCredential();
+      const next = await fn(current);
+      if (next !== undefined) this.writeCredential(next);
       sqlite.prepare("COMMIT").run();
-      return result;
+      return next ?? current;
     } catch (error) {
       sqlite.prepare("ROLLBACK").run();
       throw error;
     }
   }
 
-  private read() {
+  async delete(providerId: string) {
+    if (providerId !== this.provider) return;
+    sqlite.prepare("BEGIN IMMEDIATE").run();
+    try {
+      this.writeCredential(undefined);
+      sqlite.prepare("COMMIT").run();
+    } catch (error) {
+      sqlite.prepare("ROLLBACK").run();
+      throw error;
+    }
+  }
+
+  private readCredential(): Credential | undefined {
     const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, this.providerConfigId)).get();
     const oauthCredential = revealJsonSecret(providerConfig?.oauthCredential);
     const apiKey = revealSecret(providerConfig?.apiKey);
-    const credential: AuthCredential | undefined =
+    return (
       providerConfig?.authType === "oauth" && oauthCredential
         ? oauthCredential
         : apiKey
           ? { type: "api_key", key: apiKey }
-          : undefined;
-    return JSON.stringify(credential ? { [this.provider]: credential } : {});
+          : undefined
+    );
   }
 
-  private write(next: string) {
-    const parsed = JSON.parse(next) as Record<string, AuthCredential | undefined>;
-    const credential = parsed[this.provider];
+  private writeCredential(credential: Credential | undefined) {
     const patch =
       credential?.type === "oauth"
         ? {
