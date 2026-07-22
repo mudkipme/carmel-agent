@@ -5,6 +5,7 @@ import { CheckIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
+import { type ChatInputHandle } from "@/components/chat/ChatInput";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { Button } from "@/components/ui/button";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -63,8 +64,8 @@ export function PiChat({
 }: PiChatProps) {
   const navigate = useNavigate();
   const agentRef = useRef<RemoteAgent | null>(null);
+  const chatInputRef = useRef<ChatInputHandle | null>(null);
   const [agent, setAgent] = useState<RemoteAgent | null>(null);
-  const [input, setInput] = useState("");
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [editingMessage, setEditingMessage] = useState<{
     message: AgentMessage;
@@ -273,19 +274,22 @@ export function PiChat({
     void updateSession(session.id, { thinkingLevel: selectedThinkingLevel });
   }, [resolvedModel, session.id, session.thinkingLevel, updateSession]);
 
-  const sendMessage = (text: string, images?: ImageContent[]) => {
-    const activeAgent = agentRef.current;
-    if (!activeAgent || activeAgent.state.isStreaming) return;
-    const nextThinkingLevel = activeAgent.state.thinkingLevel;
-    const currentSession = sessionRef.current;
-    const send = async () => {
-      if (nextThinkingLevel !== currentSession.thinkingLevel) {
-        await updateSession(currentSession.id, { thinkingLevel: nextThinkingLevel });
-      }
-      await activeAgent.prompt(text, images);
-    };
-    void send();
-  };
+  const sendMessage = useCallback(
+    (text: string, images?: ImageContent[]) => {
+      const activeAgent = agentRef.current;
+      if (!activeAgent || activeAgent.state.isStreaming) return;
+      const nextThinkingLevel = activeAgent.state.thinkingLevel;
+      const currentSession = sessionRef.current;
+      const send = async () => {
+        if (nextThinkingLevel !== currentSession.thinkingLevel) {
+          await updateSession(currentSession.id, { thinkingLevel: nextThinkingLevel });
+        }
+        await activeAgent.prompt(text, images);
+      };
+      void send();
+    },
+    [updateSession],
+  );
 
   const selectModel = async (nextModelRef: ModelRef) => {
     setModelDialogOpen(false);
@@ -320,8 +324,19 @@ export function PiChat({
   };
 
   const insertCommandText = (text: string) => {
-    setInput(text);
+    chatInputRef.current?.insertText(text);
   };
+
+  const editMessage = useCallback((message: AgentMessage) => {
+    const isAssistant = message.role === "assistant";
+    setEditingMessage({
+      message,
+      draft: getMessageText(message),
+      kind: isAssistant ? "assistant" : "user",
+      images: isAssistant ? [] : getEditableUserImages(message),
+      removedKeys: new Set(),
+    });
+  }, []);
 
   const removeEditingImage = (key: string) => {
     setEditingMessage((current) => {
@@ -355,24 +370,14 @@ export function PiChat({
             isStreaming={snapshot.isStreaming}
             currentModel={snapshot.model}
             thinkingLevel={snapshot.thinkingLevel}
-            input={input}
-            onInputChange={setInput}
+            inputRef={chatInputRef}
             onThinkingLevelChange={setThinkingLevel}
             onSend={sendMessage}
             onAbort={() => agent.abort()}
             onModelSelect={() => setModelDialogOpen(true)}
-            onEditMessage={(message) => {
-              const isAssistant = message.role === "assistant";
-              setEditingMessage({
-                message,
-                draft: getMessageText(message),
-                kind: isAssistant ? "assistant" : "user",
-                images: isAssistant ? [] : getEditableUserImages(message),
-                removedKeys: new Set(),
-              });
-            }}
-            onRetryMessage={(message) => void retryFromMessage(message)}
-            onForkMessage={(message) => void forkFromMessage(message)}
+            onEditMessage={editMessage}
+            onRetryMessage={retryFromMessage}
+            onForkMessage={forkFromMessage}
           />
         ) : (
           <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">

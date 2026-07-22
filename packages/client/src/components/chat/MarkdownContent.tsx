@@ -1,4 +1,4 @@
-import { isValidElement, useMemo, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { isValidElement, memo, useMemo, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,9 @@ const components: Components = {
   },
 };
 
-export function MarkdownContent({ content, thinking = false }: MarkdownContentProps) {
+// Memoized because each render re-runs the full remark parse; unchanged content
+// (everything but the actively streaming part) must skip it.
+export const MarkdownContent = memo(function MarkdownContent({ content, thinking = false }: MarkdownContentProps) {
   const source = useMemo(() => preserveSoftLineBreaks(content), [content]);
 
   return (
@@ -43,7 +45,7 @@ export function MarkdownContent({ content, thinking = false }: MarkdownContentPr
       </Markdown>
     </div>
   );
-}
+});
 
 function languageFromClassName(className?: string) {
   const match = /language-(\w+)/.exec(className ?? "");

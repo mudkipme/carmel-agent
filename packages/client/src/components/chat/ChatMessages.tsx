@@ -1,6 +1,7 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage as AssistantMessageType, ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
 import { AlertCircleIcon } from "lucide-react";
+import { memo, useMemo } from "react";
 import { MessageActions } from "./MessageActions";
 import { MarkdownContent } from "./MarkdownContent";
 import { ToolCallView } from "./ToolCallView";
@@ -32,7 +33,10 @@ type DisplayAssistantContentPart = AssistantMessageType["content"][number] | {
   mimeType: string;
 };
 
-export function ChatMessages({
+// Memoized (along with MessageItem below) so re-renders above the chat panel —
+// and streaming deltas, which only touch the streaming message — don't re-render
+// and re-parse the entire history. Handler props must stay referentially stable.
+export const ChatMessages = memo(function ChatMessages({
   messages,
   streamingMessage,
   pendingToolCalls,
@@ -41,7 +45,7 @@ export function ChatMessages({
   onRetryMessage,
   onForkMessage,
 }: ChatMessagesProps) {
-  const toolResultsById = buildToolResultsById(messages);
+  const toolResultsById = useMemo(() => buildToolResultsById(messages), [messages]);
   const renderMessages =
     streamingMessage && streamingMessage.role !== "toolResult"
       ? [...messages, streamingMessage]
@@ -68,9 +72,9 @@ export function ChatMessages({
       })}
     </div>
   );
-}
+});
 
-function MessageItem({
+const MessageItem = memo(function MessageItem({
   message,
   toolResultsById,
   pendingToolCalls,
@@ -123,7 +127,7 @@ function MessageItem({
   }
 
   return null;
-}
+});
 
 function UserMessage({ message }: { message: AgentMessage }) {
   const text = getMessageText(message);

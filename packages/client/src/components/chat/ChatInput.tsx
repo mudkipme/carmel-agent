@@ -2,7 +2,7 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import { BrainIcon, Loader2Icon, PaperclipIcon, SendIcon, SparklesIcon, SquareIcon, XIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type KeyboardEvent, type Ref } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -19,24 +19,28 @@ import { attachmentToImageContent, fileToImageAttachment, imageSrc, type LocalCh
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
+export type ChatInputHandle = {
+  insertText: (text: string) => void;
+};
+
 type ChatInputProps = {
-  value: string;
+  ref?: Ref<ChatInputHandle>;
   currentModel: Model<Api>;
   thinkingLevel: ThinkingLevel;
   isStreaming: boolean;
-  onValueChange: (value: string) => void;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
   onSend: (text: string, images?: ImageContent[]) => void;
   onAbort: () => void;
   onModelSelect: () => void;
 };
 
+// The draft is deliberately local state: lifting it above the chat panel makes
+// every keystroke re-render the full message history.
 export function ChatInput({
-  value,
+  ref,
   currentModel,
   thinkingLevel,
   isStreaming,
-  onValueChange,
   onThinkingLevelChange,
   onSend,
   onAbort,
@@ -44,6 +48,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [value, setValue] = useState("");
   const [attachments, setAttachments] = useState<LocalChatAttachment[]>([]);
   const [processingFiles, setProcessingFiles] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -65,11 +70,22 @@ export function ChatInput({
     textarea.style.height = `${Math.min(textarea.scrollHeight, 240)}px`;
   }, [value]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertText: (text: string) => {
+        setValue(text);
+        textareaRef.current?.focus();
+      },
+    }),
+    [],
+  );
+
   const send = () => {
     if (!canSend) return;
     const images = attachments.map(attachmentToImageContent);
     onSend(value, images.length > 0 ? images : undefined);
-    onValueChange("");
+    setValue("");
     setAttachments([]);
   };
 
@@ -164,7 +180,7 @@ export function ChatInput({
         enterKeyHint="enter"
         placeholder="Type a message..."
         className="max-h-60 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
-        onChange={(event) => onValueChange(event.target.value)}
+        onChange={(event) => setValue(event.target.value)}
         onPaste={(event) => {
           if (!supportsImages) return;
           const files = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
