@@ -13,6 +13,8 @@ type ChatPanelProps = {
   currentModel: Model<Api>;
   thinkingLevel: ThinkingLevel;
   inputRef?: Ref<ChatInputHandle>;
+  initialInput?: string;
+  onInputDraftChange?: (value: string) => void;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
   onSend: (text: string, images?: ImageContent[]) => void;
   onAbort: () => void;
@@ -31,6 +33,8 @@ export function ChatPanel({
   currentModel,
   thinkingLevel,
   inputRef,
+  initialInput,
+  onInputDraftChange,
   onThinkingLevelChange,
   onSend,
   onAbort,
@@ -105,6 +109,8 @@ export function ChatPanel({
             currentModel={currentModel}
             thinkingLevel={thinkingLevel}
             isStreaming={isStreaming}
+            initialValue={initialInput}
+            onDraftChange={onInputDraftChange}
             onThinkingLevelChange={onThinkingLevelChange}
             onSend={onSend}
             onAbort={onAbort}

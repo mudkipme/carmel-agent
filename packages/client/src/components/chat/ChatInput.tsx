@@ -28,6 +28,8 @@ type ChatInputProps = {
   currentModel: Model<Api>;
   thinkingLevel: ThinkingLevel;
   isStreaming: boolean;
+  initialValue?: string;
+  onDraftChange?: (value: string) => void;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
   onSend: (text: string, images?: ImageContent[]) => void;
   onAbort: () => void;
@@ -35,12 +37,16 @@ type ChatInputProps = {
 };
 
 // The draft is deliberately local state: lifting it above the chat panel makes
-// every keystroke re-render the full message history.
+// every keystroke re-render the full message history. `initialValue`/`onDraftChange`
+// let the parent keep the draft in a ref (no re-renders) so it survives remounts,
+// e.g. the agent teardown on model switch.
 export function ChatInput({
   ref,
   currentModel,
   thinkingLevel,
   isStreaming,
+  initialValue,
+  onDraftChange,
   onThinkingLevelChange,
   onSend,
   onAbort,
@@ -48,7 +54,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue ?? "");
   const [attachments, setAttachments] = useState<LocalChatAttachment[]>([]);
   const [processingFiles, setProcessingFiles] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -70,22 +76,23 @@ export function ChatInput({
     textarea.style.height = `${Math.min(textarea.scrollHeight, 240)}px`;
   }, [value]);
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      insertText: (text: string) => {
-        setValue(text);
-        textareaRef.current?.focus();
-      },
-    }),
-    [],
-  );
+  const updateValue = (next: string) => {
+    setValue(next);
+    onDraftChange?.(next);
+  };
+
+  useImperativeHandle(ref, () => ({
+    insertText: (text: string) => {
+      updateValue(text);
+      textareaRef.current?.focus();
+    },
+  }));
 
   const send = () => {
     if (!canSend) return;
     const images = attachments.map(attachmentToImageContent);
     onSend(value, images.length > 0 ? images : undefined);
-    setValue("");
+    updateValue("");
     setAttachments([]);
   };
 
@@ -180,7 +187,7 @@ export function ChatInput({
         enterKeyHint="enter"
         placeholder="Type a message..."
         className="max-h-60 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => updateValue(event.target.value)}
         onPaste={(event) => {
           if (!supportsImages) return;
           const files = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));

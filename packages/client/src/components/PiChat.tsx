@@ -65,6 +65,10 @@ export function PiChat({
   const navigate = useNavigate();
   const agentRef = useRef<RemoteAgent | null>(null);
   const chatInputRef = useRef<ChatInputHandle | null>(null);
+  // Draft text mirror kept in a ref (writes don't re-render): the input's local
+  // state dies when the agent is recreated (e.g. model switch unmounts ChatPanel),
+  // so ChatInput is re-seeded from here on mount.
+  const inputDraftRef = useRef("");
   const [agent, setAgent] = useState<RemoteAgent | null>(null);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [editingMessage, setEditingMessage] = useState<{
@@ -81,10 +85,14 @@ export function PiChat({
   const forkSession = useHarnessStore((state) => state.forkSession);
   const resolvedModel = useMemo(() => resolveModelRef(modelRef), [modelRef]);
   const sessionRef = useRef(session);
-  // Seeds carried into a freshly recreated agent (e.g. on model switch). Only read
-  // at agent creation; kept current at the session boundary and on teardown.
+  // Seeds carried into a freshly recreated agent. Only read at agent creation;
+  // kept current at the session boundary and on teardown.
   const seedMessagesRef = useRef(session.messages);
   const seedThinkingRef = useRef(session.thinkingLevel);
+  // Read at agent creation instead of depending on the model in the creation
+  // effect: model changes must not recreate the agent (that unmounts the chat
+  // and drops any attached run) — they're applied in place via setModel below.
+  const modelSeedRef = useRef({ modelRefId: modelRef.id, model: resolvedModel });
 
   // Render directly from the agent's store rather than a manual render counter:
   // every observable change emits, React reads getSnapshot, and re-renders if the
@@ -101,6 +109,10 @@ export function PiChat({
     seedMessagesRef.current = session.messages;
     seedThinkingRef.current = session.thinkingLevel;
   }, [session]);
+
+  useEffect(() => {
+    modelSeedRef.current = { modelRefId: modelRef.id, model: resolvedModel };
+  }, [modelRef.id, resolvedModel]);
 
   // Optimistically swap the agent's messages, persist via `commit`, then either
   // apply the server's authoritative result or roll back on failure. Shared by
@@ -225,18 +237,21 @@ export function PiChat({
     let activeAgent: RemoteAgent | undefined;
 
     const messagesForAgent = seedMessagesRef.current;
-    const thinkingLevelForAgent = clampThinkingLevel(resolvedModel, seedThinkingRef.current);
 
-    const createAgent = (messages: AgentMessage[]) =>
-      new RemoteAgent({
+    const createAgent = (messages: AgentMessage[]) => {
+      // Read the model seed at creation time (not effect start): getActiveSessionRun
+      // is async and the selected model may have changed while it was in flight.
+      const { modelRefId, model } = modelSeedRef.current;
+      return new RemoteAgent({
         agentId: agentConfig.id,
         sessionId: session.id,
-        modelRefId: modelRef.id,
-        model: resolvedModel,
-        thinkingLevel: thinkingLevelForAgent,
+        modelRefId,
+        model,
+        thinkingLevel: clampThinkingLevel(model, seedThinkingRef.current),
         messages,
         onRunComplete: () => refreshSession(session.id),
       });
+    };
 
     void api.getActiveSessionRun(session.id).then(
       (activeRun) => {
@@ -265,7 +280,16 @@ export function PiChat({
       agentRef.current = null;
       setAgent(null);
     };
-  }, [agentConfig.id, modelRef.id, refreshSession, resolvedModel, session.id]);
+  }, [agentConfig.id, refreshSession, session.id]);
+
+  // Apply model changes to the live agent in place. setModel no-ops while a
+  // response is streaming, so this also re-runs when streaming ends to pick up
+  // a model switched mid-stream.
+  useEffect(() => {
+    if (!agent || snapshot.isStreaming) return;
+    if (snapshot.model === resolvedModel) return;
+    agent.setModel(modelRef.id, resolvedModel, clampThinkingLevel(resolvedModel, agent.state.thinkingLevel));
+  }, [agent, modelRef.id, resolvedModel, snapshot.isStreaming, snapshot.model]);
 
   useEffect(() => {
     const selectedThinkingLevel = clampThinkingLevel(resolvedModel, session.thinkingLevel);
@@ -324,6 +348,8 @@ export function PiChat({
   };
 
   const insertCommandText = (text: string) => {
+    // Also mirror directly in case the input is unmounted (agent recreating).
+    inputDraftRef.current = text;
     chatInputRef.current?.insertText(text);
   };
 
@@ -371,6 +397,10 @@ export function PiChat({
             currentModel={snapshot.model}
             thinkingLevel={snapshot.thinkingLevel}
             inputRef={chatInputRef}
+            initialInput={inputDraftRef.current}
+            onInputDraftChange={(value) => {
+              inputDraftRef.current = value;
+            }}
             onThinkingLevelChange={setThinkingLevel}
             onSend={sendMessage}
             onAbort={() => agent.abort()}
