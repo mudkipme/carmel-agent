@@ -1,21 +1,10 @@
-import Editor, { loader } from "@monaco-editor/react";
 import { RotateCcwIcon, SaveIcon } from "lucide-react";
-import * as monaco from "monaco-editor";
-import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentConfig } from "@carmel-agent/shared";
+import { CodeEditor, type EditorLanguage } from "@/components/harness/files/CodeEditor";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { useThemePreference } from "@/lib/theme";
-
-const monacoGlobal = globalThis as typeof globalThis & {
-  MonacoEnvironment?: { getWorker: () => Worker };
-};
-
-monacoGlobal.MonacoEnvironment ??= {
-  getWorker: () => new editorWorker(),
-};
-loader.config({ monaco });
 
 type FileEditorViewProps = {
   agent?: AgentConfig;
@@ -31,7 +20,7 @@ export function FileEditorView({ agent, filePath }: FileEditorViewProps) {
   const [error, setError] = useState("");
   const isImage = isImageFile(filePath ?? "");
   const isDirty = content !== savedContent;
-  const editorTheme = resolveEditorTheme(themePreference);
+  const darkEditor = isDarkTheme(themePreference);
 
   const loadFile = useCallback(async () => {
     if (!agent || !filePath) return;
@@ -125,21 +114,7 @@ export function FileEditorView({ agent, filePath }: FileEditorViewProps) {
         {isImage ? (
           <ImagePreview agentId={agent.id} filePath={filePath} />
         ) : (
-          <Editor
-            path={filePath}
-            language={language}
-            theme={editorTheme}
-            value={content}
-            loading={<div className="p-4 text-sm text-muted-foreground">Loading editor...</div>}
-            options={{
-              automaticLayout: true,
-              fontSize: 13,
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              wordWrap: "on",
-            }}
-            onChange={(value) => setContent(value ?? "")}
-          />
+          <CodeEditor language={language} dark={darkEditor} value={content} onChange={setContent} />
         )}
       </div>
     </div>
@@ -171,13 +146,13 @@ function ImagePreview({ agentId, filePath }: { agentId: string; filePath: string
   );
 }
 
-function resolveEditorTheme(themePreference: string) {
-  if (themePreference === "dark") return "vs-dark";
-  if (themePreference === "light") return "vs";
-  return document.documentElement.dataset.theme === "dark" ? "vs-dark" : "vs";
+function isDarkTheme(themePreference: string) {
+  if (themePreference === "dark") return true;
+  if (themePreference === "light") return false;
+  return document.documentElement.dataset.theme === "dark";
 }
 
-function inferLanguage(filePath: string) {
+function inferLanguage(filePath: string): EditorLanguage {
   const extension = filePath.split(".").pop()?.toLowerCase();
   switch (extension) {
     case "css":
@@ -188,6 +163,8 @@ function inferLanguage(filePath: string) {
     case "mjs":
     case "cjs":
       return "javascript";
+    case "jsx":
+      return "jsx";
     case "json":
       return "json";
     case "md":
@@ -200,7 +177,7 @@ function inferLanguage(filePath: string) {
     case "cts":
       return "typescript";
     case "tsx":
-      return "typescript";
+      return "tsx";
     case "xml":
       return "xml";
     case "yaml":

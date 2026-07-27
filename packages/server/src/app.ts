@@ -37,13 +37,13 @@ export function createApp() {
         objectSrc: ["'none'"],
         frameAncestors: ["'self'"],
         scriptSrc: ["'self'"],
-        // Monaco and Radix inject <style>/style attributes at runtime.
+        // CodeMirror and Radix inject <style>/style attributes at runtime.
         styleSrc: ["'self'", "'unsafe-inline'"],
         // Same-origin assets, base64 attachments, and markdown-referenced images.
         imgSrc: ["'self'", "data:", "blob:", "https:"],
         fontSrc: ["'self'", "data:"],
-        // Monaco editor worker (same-origin; blob: covers Vite's worker fallback).
-        workerSrc: ["'self'", "blob:"],
+        // Nothing spawns workers today; keep same-origin only.
+        workerSrc: ["'self'"],
         connectSrc: ["'self'"],
       },
     }),
