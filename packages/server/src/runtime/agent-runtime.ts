@@ -1,21 +1,34 @@
-import { type AgentEvent, type AgentMessage } from "@earendil-works/pi-agent-core";
 import {
-  createAgentSession,
-  type CreateAgentSessionOptions,
-  type ModelRuntime,
-  SessionManager,
-  SettingsManager,
-} from "@earendil-works/pi-coding-agent";
+  AgentHarness,
+  DEFAULT_COMPACTION_SETTINGS,
+  estimateContextTokens,
+  shouldCompact,
+  formatPromptTemplateInvocation,
+  formatSkillInvocation,
+  parseCommandArgs,
+  formatSkillsForSystemPrompt,
+  type AgentEvent,
+  type AgentHarnessEvent,
+  type AgentHarnessTool,
+  type AgentMessage,
+} from "@earendil-works/pi-agent-core";
+import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { readFile } from "node:fs/promises";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
 import { agents, modelRefs, providerConfigs, providerKeys, sessions, users } from "../db/schema.ts";
 import { revealSecret } from "../security.ts";
 import { serializeModelRef } from "../serializers.ts";
+import { ensureOptionalProviderAuth, hasProviderAuth } from "../services/provider-auth.ts";
+import { openPiSession } from "../services/pi-session-storage.ts";
+import { readSessionMessages } from "../services/session-store.ts";
+import { type PromptInput, type Session } from "@carmel-agent/shared";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import { createProviderConfigCredentialStore } from "./auth-storage.ts";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { createCarmelModelRuntime } from "./model-runtime.ts";
-import { createAgentResourceLoader, resolveAgentWorkingDirPath, serverAgentDir } from "./resources.ts";
+import { createAgentResourceLoader, resolveAgentWorkingDirPath } from "./resources.ts";
 import {
   createActiveAgentRun,
   createRunStream,
@@ -25,10 +38,6 @@ import {
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerToolDefinitions } from "./tools.ts";
-import { ensureOptionalProviderAuth, hasProviderAuth } from "../services/provider-auth.ts";
-import { appendSessionMessages, readSessionMessages } from "../services/session-store.ts";
-import { type PromptInput, type Session } from "@carmel-agent/shared";
-import type { Api, Model } from "@earendil-works/pi-ai";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
@@ -76,11 +85,11 @@ export function createAgentRunResponse({
   const runId = randomId();
   const model = resolveServerModelRef(serializeModelRef(modelRef), providerConfig);
   const encoder = new TextEncoder();
-  let activeSession: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
+  let activeHarness: AgentHarness | undefined;
   let abortRequested = false;
   const abortRun = () => {
     abortRequested = true;
-    void activeSession?.abort();
+    void activeHarness?.abort();
   };
   const run = createActiveAgentRun({
     runId,
@@ -94,80 +103,78 @@ export function createAgentRunResponse({
     if (run.started) return;
     run.started = true;
 
-    let sdkSession: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
+    const piSession = openPiSession(session.id);
+    let harness: AgentHarness | undefined;
     let unsubscribe: (() => void) | undefined;
-    let messagesToPersist: AgentMessage[] | undefined;
-    let initialMessages: AgentMessage[] = [];
-    let persistedCount = 0;
     try {
-      // Load the transcript first so a setup failure still has the real history
-      // for the error-message append below (and never wipes it).
-      initialMessages = readSessionMessages(session.id);
-      persistedCount = initialMessages.length;
       const resourceLoader = await createAgentResourceLoader(agent);
-      const cwd = resolveAgentWorkingDirPath(agent);
-      const customTools = [...createServerToolDefinitions(agent)];
-      const allowedTools = customTools.map((tool) => tool.name);
-      const { session: piSession } = await createAgentSession({
-        cwd,
-        agentDir: serverAgentDir,
-        modelRuntime,
+      const skills = await Promise.all(
+        resourceLoader.getSkills().skills.map(async (skill) => ({
+          name: skill.name,
+          description: skill.description,
+          content: stripSkillFrontmatter(await readFile(skill.filePath, "utf8")),
+          filePath: skill.filePath,
+          disableModelInvocation: skill.disableModelInvocation,
+        })),
+      );
+      const promptTemplates = [
+        ...resourceLoader.getPrompts().prompts.map((template) => ({
+          name: template.name,
+          description: template.description,
+          content: template.content,
+        })),
+        ...agent.promptTemplates.map((template) => ({ name: template.name, content: template.body })),
+      ];
+      const tools = createServerToolDefinitions(agent) as unknown as AgentHarnessTool<undefined>[];
+      const activeToolNames = tools.map((tool) => tool.name);
+      const systemPrompt = buildHarnessSystemPrompt({
+        base: resourceLoader.getSystemPrompt()?.trim() || "You are a helpful assistant.",
+        cwd: resolveAgentWorkingDirPath(agent),
+        skills,
+        contextFiles: resourceLoader.getAgentsFiles().agentsFiles,
+        includeSkills: activeToolNames.includes("read"),
+      });
+      await recordRunConfiguration(piSession, model, thinkingLevel, activeToolNames);
+
+      harness = new AgentHarness({
+        session: piSession,
+        models: modelRuntime,
         model,
         thinkingLevel,
-        resourceLoader,
-        customTools: customTools as unknown as CreateAgentSessionOptions["customTools"],
-        tools: allowedTools,
-        sessionManager: SessionManager.inMemory(cwd),
-        settingsManager: SettingsManager.inMemory({
-          compaction: { enabled: false },
-          retry: { enabled: true, maxRetries: 2, provider: { maxRetryDelayMs: 60000 } },
-        }),
+        systemPrompt,
+        resources: {
+          skills,
+          promptTemplates,
+        },
+        tools,
+        activeToolNames,
+        streamOptions: { maxRetries: 2, maxRetryDelayMs: 60_000 },
       });
-      sdkSession = piSession;
-      activeSession = sdkSession;
-      sdkSession.agent.state.messages = initialMessages;
-      if (abortRequested) {
-        await sdkSession.abort();
-        return;
-      }
-      unsubscribe = sdkSession.subscribe((event) => {
-        emit(event);
-        // Append after every completed message so a crash or hard kill loses at
-        // most the in-flight streaming message, not the whole turn. agent.js
-        // pushes the message onto state before notifying listeners, so the list
-        // is already complete here. Only new messages are written (O(new), not
-        // O(history)); the run-end reconcile below is authoritative.
-        if (event.type === "message_end") {
-          try {
-            persistedCount = appendSessionMessages(session.id, piSession.agent.state.messages, persistedCount);
-          } catch (error) {
-            console.warn(
-              "Incremental session persistence failed:",
-              error instanceof Error ? error.message : String(error),
-            );
-          }
-        }
+      activeHarness = harness;
+      unsubscribe = harness.subscribe((event: AgentHarnessEvent) => {
+        emit(event as RunEvent);
       });
 
-      if (promptInput) {
-        await sdkSession.prompt(promptInput.text, {
-          images: promptInput.images,
-          expandPromptTemplates: true,
-        });
-      } else {
-        await sdkSession.agent.prompt([]);
+      if (abortRequested) {
+        await harness.abort();
+        return;
       }
+      await runHarnessPrompt(harness, promptInput?.text ?? "", promptInput?.images);
+      await compactIfNeeded(harness, piSession, model);
     } catch (error) {
       const errorEvent = createAgentError(error, model);
-      messagesToPersist = [...(sdkSession?.agent.state.messages ?? initialMessages), ...errorEvent.messages];
+      try {
+        for (const message of errorEvent.messages) await piSession.appendMessage(message);
+      } catch (persistenceError) {
+        console.warn(
+          "Session error persistence failed:",
+          persistenceError instanceof Error ? persistenceError.message : String(persistenceError),
+        );
+      }
       emit(errorEvent as AgentEvent);
     } finally {
-      const finalMessages = messagesToPersist ?? sdkSession?.agent.state.messages ?? initialMessages;
+      const finalMessages = readSessionMessages(session.id);
       try {
-        // The transcript is append-only during a run, so incremental appends
-        // already wrote everything; this flushes only the tail not yet persisted
-        // (e.g. a synthesized error message), not the whole history.
-        appendSessionMessages(session.id, finalMessages, persistedCount);
         await persistSessionRun(session, {
           messages: finalMessages,
           modelRefId: modelRef.id,
@@ -179,14 +186,106 @@ export function createAgentRunResponse({
         console.warn("Session persistence failed:", error instanceof Error ? error.message : String(error));
       }
       unsubscribe?.();
-      sdkSession?.dispose();
-      activeSession = undefined;
+      activeHarness = undefined;
       finishAgentRun(run);
     }
   };
 
   queueMicrotask(() => void startRun());
   return createRunStream(run, encoder);
+}
+
+export async function runHarnessPrompt(
+  harness: AgentHarness,
+  text: string,
+  images?: PromptInput["images"],
+) {
+  const resources = harness.getResources();
+  const skillMatch = text.match(/^\/skill:([^\s]+)(?:\s+([\s\S]*))?$/);
+  if (skillMatch) {
+    const skill = resources.skills?.find((candidate) => candidate.name === skillMatch[1]);
+    if (skill) {
+      const additionalInstructions = skillMatch[2]?.trim() || undefined;
+      if (images?.length) {
+        return harness.prompt(formatSkillInvocation(skill, additionalInstructions), { images });
+      }
+      return harness.skill(skill.name, additionalInstructions);
+    }
+  }
+
+  const templateMatch = text.match(/^\/([^\s]+)(?:\s+([\s\S]*))?$/);
+  if (templateMatch) {
+    const template = resources.promptTemplates?.find((candidate) => candidate.name === templateMatch[1]);
+    if (template) {
+      const args = parseCommandArgs(templateMatch[2] ?? "");
+      if (images?.length) {
+        return harness.prompt(formatPromptTemplateInvocation(template, args), { images });
+      }
+      return harness.promptFromTemplate(template.name, args);
+    }
+  }
+  return harness.prompt(text, { images });
+}
+
+async function recordRunConfiguration(
+  piSession: ReturnType<typeof openPiSession>,
+  model: Model<Api>,
+  thinkingLevel: Session["thinkingLevel"],
+  activeToolNames: string[],
+) {
+  const context = await piSession.buildContext();
+  if (context.model?.provider !== model.provider || context.model.modelId !== model.id) {
+    await piSession.appendModelChange(model.provider, model.id);
+  }
+  if (context.thinkingLevel !== thinkingLevel) await piSession.appendThinkingLevelChange(thinkingLevel);
+  if (!sameStrings(context.activeToolNames, activeToolNames)) {
+    await piSession.appendActiveToolsChange(activeToolNames);
+  }
+}
+
+async function compactIfNeeded(
+  harness: AgentHarness,
+  piSession: ReturnType<typeof openPiSession>,
+  model: Model<Api>,
+) {
+  const context = await piSession.buildContext();
+  const contextTokens = estimateContextTokens(context.messages).tokens;
+  if (!shouldCompact(contextTokens, model.contextWindow, DEFAULT_COMPACTION_SETTINGS)) return;
+  try {
+    await harness.compact();
+  } catch (error) {
+    console.warn("Session compaction failed:", error instanceof Error ? error.message : String(error));
+  }
+}
+
+function sameStrings(left: string[] | null, right: string[]) {
+  return Boolean(left && left.length === right.length && left.every((value, index) => value === right[index]));
+}
+
+function buildHarnessSystemPrompt(options: {
+  base: string;
+  cwd: string;
+  skills: Parameters<typeof formatSkillsForSystemPrompt>[0];
+  contextFiles: Array<{ path: string; content: string }>;
+  includeSkills: boolean;
+}) {
+  let prompt = options.base;
+  if (options.contextFiles.length > 0) {
+    prompt += "\n\n<project_context>\n\nProject-specific instructions and guidelines:\n\n";
+    for (const file of options.contextFiles) {
+      prompt += `<project_instructions path="${file.path}">\n${file.content}\n</project_instructions>\n\n`;
+    }
+    prompt += "</project_context>\n";
+  }
+  if (options.includeSkills && options.skills.length > 0) {
+    prompt += `\n\n${formatSkillsForSystemPrompt(options.skills)}`;
+  }
+  return `${prompt}\nCurrent working directory: ${options.cwd.replaceAll("\\", "/")}`;
+}
+
+function stripSkillFrontmatter(content: string) {
+  const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  return normalized.replace(/^---\n[\s\S]*?\n---(?:\n|$)/, "");
 }
 
 function randomId() {

@@ -68,6 +68,11 @@ const migrations: Migration[] = [
     description: "Add user roles; existing accounts become admins",
     run: addUserRoles,
   },
+  {
+    id: "010_pi_session_entries",
+    description: "Create native Pi session trees and migrate flat transcripts",
+    run: migrateFlatTranscriptsToPiSessionEntries,
+  },
 ];
 
 export function migrate() {
@@ -195,6 +200,20 @@ function createBaseSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS session_messages_session_seq
       ON session_messages(session_id, seq);
 
+    CREATE TABLE IF NOT EXISTS pi_session_entries (
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      entry_id TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      parent_id TEXT,
+      entry_type TEXT NOT NULL,
+      entry TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (session_id, entry_id)
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS pi_session_entries_session_seq
+      ON pi_session_entries(session_id, seq);
+
     CREATE TABLE IF NOT EXISTS provider_keys (
       user_id TEXT NOT NULL REFERENCES users(id),
       provider TEXT NOT NULL,
@@ -283,6 +302,55 @@ function createAccessIndexes() {
     CREATE INDEX IF NOT EXISTS sessions_model_ref_id ON sessions(model_ref_id);
     CREATE INDEX IF NOT EXISTS users_fast_task_model_ref_id ON users(fast_task_model_ref_id);
   `);
+}
+
+export function migrateFlatTranscriptsToPiSessionEntries() {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS pi_session_entries (
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      entry_id TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      parent_id TEXT,
+      entry_type TEXT NOT NULL,
+      entry TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (session_id, entry_id)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS pi_session_entries_session_seq
+      ON pi_session_entries(session_id, seq);
+  `);
+
+  const sessionRows = sqlite.prepare("SELECT id FROM sessions ORDER BY created_at, id").all() as Array<{ id: string }>;
+  const hasEntries = sqlite.prepare("SELECT 1 FROM pi_session_entries WHERE session_id = ? LIMIT 1");
+  const readMessages = sqlite.prepare(
+    "SELECT message, created_at FROM session_messages WHERE session_id = ? ORDER BY seq",
+  );
+  const insertEntry = sqlite.prepare(`
+    INSERT INTO pi_session_entries
+      (session_id, entry_id, seq, parent_id, entry_type, entry, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  for (const session of sessionRows) {
+    // A pre-existing Pi tree is authoritative. Never splice legacy rows into
+    // a session that has already started using the native entry format.
+    if (hasEntries.get(session.id)) continue;
+    const messages = readMessages.all(session.id) as Array<{ message: string; created_at: number }>;
+    let parentId: string | null = null;
+    messages.forEach((row, seq) => {
+      const entryId = id("pi_entry");
+      const createdAt = Number.isFinite(row.created_at) ? row.created_at : now();
+      const entry = {
+        type: "message",
+        id: entryId,
+        parentId,
+        timestamp: new Date(createdAt).toISOString(),
+        message: JSON.parse(row.message) as unknown,
+      };
+      insertEntry.run(session.id, entryId, seq, parentId, entry.type, JSON.stringify(entry), createdAt);
+      parentId = entryId;
+    });
+  }
 }
 
 function dropCustomHeaders() {

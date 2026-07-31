@@ -1,5 +1,5 @@
 import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage, SessionTreeEntry } from "@earendil-works/pi-agent-core";
 import type { Credential } from "@earendil-works/pi-ai";
 import type {
   AgentMount,
@@ -136,4 +136,28 @@ export const sessionMessages = sqliteTable(
     createdAt: integer("created_at").notNull(),
   },
   (table) => [uniqueIndex("session_messages_session_seq").on(table.sessionId, table.seq)],
+);
+
+/**
+ * Native Pi session-tree entries. `session_messages` is intentionally retained
+ * as a rollback copy for databases migrated from Carmel's former flat
+ * transcript format.
+ */
+export const piSessionEntries = sqliteTable(
+  "pi_session_entries",
+  {
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    entryId: text("entry_id").notNull(),
+    seq: integer("seq").notNull(),
+    parentId: text("parent_id"),
+    entryType: text("entry_type").$type<SessionTreeEntry["type"]>().notNull(),
+    entry: text("entry", { mode: "json" }).$type<SessionTreeEntry>().notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.sessionId, table.entryId] }),
+    uniqueIndex("pi_session_entries_session_seq").on(table.sessionId, table.seq),
+  ],
 );

@@ -11,7 +11,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
-import { modelRefs, sessionMessages, sessions } from "../db/schema.ts";
+import { modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { importOpenWebuiSessions } from "../import/open-webui.ts";
 import { serializeSession } from "../serializers.ts";
@@ -122,22 +122,10 @@ export function createSessionRoutes() {
       return c.json({ error: "No importable Open WebUI conversations found." }, 400);
     }
 
-    const timestamp = now();
     db.transaction((tx) => {
       for (const session of imported.sessions) {
         tx.insert(sessions).values(toSessionRow(session)).run();
-        if (session.messages.length === 0) continue;
-        tx.insert(sessionMessages)
-          .values(
-            session.messages.map((message, seq) => ({
-              id: id("session_message"),
-              sessionId: session.id,
-              seq,
-              message,
-              createdAt: timestamp,
-            })),
-          )
-          .run();
+        if (session.messages.length > 0) replaceSessionMessages(session.id, session.messages);
       }
     });
 
