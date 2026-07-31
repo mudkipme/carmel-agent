@@ -1,6 +1,6 @@
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { AgentConfig, AgentThinkingLevel, UserRole } from "@carmel-agent/shared";
-import { asc, eq, inArray, isNull, or } from "drizzle-orm";
+import { asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
@@ -135,6 +135,7 @@ export function reassignModelReferences(deletedModelIds: Set<string>) {
           agentDefaultModelId && !deletedModelIds.has(agentDefaultModelId)
             ? agentDefaultModelId
             : fallbackModel.id,
+        revision: sql`${sessions.revision} + 1`,
         updatedAt: session.updatedAt,
       })
       .where(eq(sessions.id, session.id))

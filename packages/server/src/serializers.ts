@@ -80,6 +80,7 @@ export function serializeSessionMetadata(
     agentId: session.agentId,
     modelRefId: session.modelRefId,
     thinkingLevel: session.thinkingLevel,
+    revision: session.revision,
     forkedFrom: session.forkedFrom ?? undefined,
     pinnedAt: session.pinnedAt ?? undefined,
     createdAt: session.createdAt,

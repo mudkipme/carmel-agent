@@ -73,6 +73,7 @@ export function toSessionMetadata(session: Session): SessionMetadata {
     agentId: session.agentId,
     modelRefId: session.modelRefId,
     thinkingLevel: session.thinkingLevel,
+    revision: session.revision,
     forkedFrom: session.forkedFrom,
     pinnedAt: session.pinnedAt,
     createdAt: session.createdAt,

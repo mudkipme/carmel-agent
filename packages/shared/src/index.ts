@@ -230,6 +230,7 @@ export type Session = {
   agentId: string;
   modelRefId: string;
   thinkingLevel: AgentThinkingLevel;
+  revision: number;
   messages: AgentMessage[];
   forkedFrom?: {
     sessionId: string;

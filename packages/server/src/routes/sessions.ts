@@ -6,7 +6,7 @@ import {
   updateUserMessageContent,
 } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -16,7 +16,9 @@ import { id, now } from "../db/seed.ts";
 import { importOpenWebuiSessions } from "../import/open-webui.ts";
 import { serializeSession } from "../serializers.ts";
 import { canUseModel, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
+import { readActiveRunLeaseForSession } from "../services/active-run-lease.ts";
 import { loadSession, readSessionMessageAt, replaceSessionMessages } from "../services/session-store.ts";
+import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import {
   forkSessionRequestSchema,
   jsonValidator,
@@ -89,6 +91,7 @@ export function createSessionRoutes() {
       agentId: draft.agentId,
       modelRefId: draft.modelRefId,
       thinkingLevel: resolveSupportedThinkingLevel(modelRef, draft.thinkingLevel ?? agent.defaultThinkingLevel ?? "off"),
+      revision: 0,
       messages: [],
       pinnedAt: undefined,
       createdAt: timestamp,
@@ -141,6 +144,8 @@ export function createSessionRoutes() {
     const sessionId = c.req.param("id");
     const current = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+    const leaseConflict = rejectActiveRunMutation(c, current.id);
+    if (leaseConflict) return leaseConflict;
     if (patch.modelRefId && !canUseModel(c.get("user").id, patch.modelRefId)) {
       return c.json({ error: "Model not found." }, 404);
     }
@@ -162,6 +167,7 @@ export function createSessionRoutes() {
         thinkingLevel,
         forkedFrom: current.forkedFrom,
         pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
+        revision: sql`${sessions.revision} + 1`,
         updatedAt: titleChanged ? now() : current.updatedAt,
       })
       .where(eq(sessions.id, sessionId))
@@ -174,6 +180,8 @@ export function createSessionRoutes() {
     const body = c.req.valid("json");
     const source = ownedSession(c);
     if (!source) return c.json({ error: "Session not found" }, 404);
+    const leaseConflict = rejectActiveRunMutation(c, source.id);
+    if (leaseConflict) return leaseConflict;
     if (body.messageIndex >= source.messages.length) return c.json({ error: "Message not found" }, 404);
     const timestamp = now();
     const fork: Session = {
@@ -183,6 +191,7 @@ export function createSessionRoutes() {
       messages: source.messages.slice(0, body.messageIndex + 1),
       forkedFrom: { sessionId, messageIndex: body.messageIndex },
       pinnedAt: undefined,
+      revision: 0,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -196,12 +205,15 @@ export function createSessionRoutes() {
     const body = c.req.valid("json");
     const current = ownedSession(c);
     if (!current) return c.json({ error: "Session not found" }, 404);
+    const leaseConflict = rejectActiveRunMutation(c, current.id);
+    if (leaseConflict) return leaseConflict;
     if (body.messageIndex >= current.messages.length) return c.json({ error: "Message not found" }, 404);
 
     replaceSessionMessages(sessionId, current.messages.slice(0, body.messageIndex + 1));
     db.update(sessions)
       .set({
         thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
+        revision: sql`${sessions.revision} + 1`,
         updatedAt: now(),
       })
       .where(eq(sessions.id, sessionId))
@@ -215,6 +227,8 @@ export function createSessionRoutes() {
     const body = c.req.valid("json");
     const current = ownedSession(c);
     if (!current) return c.json({ error: "Session not found" }, 404);
+    const leaseConflict = rejectActiveRunMutation(c, current.id);
+    if (leaseConflict) return leaseConflict;
     if (messageIndex === undefined || messageIndex >= current.messages.length) {
       return c.json({ error: "Message not found" }, 404);
     }
@@ -241,6 +255,7 @@ export function createSessionRoutes() {
     db.update(sessions)
       .set({
         thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
+        revision: sql`${sessions.revision} + 1`,
         updatedAt: now(),
       })
       .where(eq(sessions.id, sessionId))
@@ -251,11 +266,18 @@ export function createSessionRoutes() {
   route.delete("/sessions/:id", (c) => {
     const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
     if (!session || session.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+    const leaseConflict = rejectActiveRunMutation(c, session.id);
+    if (leaseConflict) return leaseConflict;
     db.delete(sessions).where(eq(sessions.id, session.id)).run();
     return c.json({ ok: true });
   });
 
   return route;
+}
+
+function rejectActiveRunMutation(c: Context<{ Variables: AuthVariables }>, sessionId: string) {
+  const run = readActiveRunLeaseForSession(sessionId);
+  return run ? activeRunConflictResponse(c, run) : undefined;
 }
 
 function toSessionRow(session: Session) {
@@ -266,6 +288,7 @@ function toSessionRow(session: Session) {
     agentId: session.agentId,
     modelRefId: session.modelRefId,
     thinkingLevel: session.thinkingLevel,
+    revision: session.revision,
     forkedFrom: session.forkedFrom ?? null,
     pinnedAt: session.pinnedAt ?? null,
     createdAt: session.createdAt,

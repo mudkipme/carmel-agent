@@ -86,6 +86,7 @@ export const defaultSession: Omit<Session, "messages"> = {
   agentId: defaultAgent.id,
   modelRefId: defaultModelRef.id,
   thinkingLevel: "off",
+  revision: 0,
   createdAt: now(),
   updatedAt: now(),
 };

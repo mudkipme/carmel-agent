@@ -20,7 +20,9 @@ import {
 } from "../services/agent-access.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import { listOllamaModels } from "../services/provider-auth.ts";
+import { readActiveRunLeaseForProviderConfig } from "../services/active-run-lease.ts";
 import { jsonValidator, oauthInputRequestSchema, providerConfigRequestSchema } from "../validation.ts";
+import { activeRunConflictResponse } from "./active-run-conflict.ts";
 
 export function createProviderConfigRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -30,6 +32,8 @@ export function createProviderConfigRoutes() {
     const providerConfig = c.req.valid("json") as ProviderConfig;
     const timestamp = now();
     const current = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
+    const activeRun = current ? readActiveRunLeaseForProviderConfig(current.id) : undefined;
+    if (activeRun) return activeRunConflictResponse(c, activeRun);
 
     const authType = providerConfig.authType ?? current?.authType ?? "api_key";
     const apiKey = authType === "api_key" ? protectSecret(providerConfig.apiKey ?? current?.apiKey ?? null) : null;
@@ -118,6 +122,8 @@ export function createProviderConfigRoutes() {
     if (!db.select({ id: providerConfigs.id }).from(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).get()) {
       return c.json({ error: "Provider config not found." }, 404);
     }
+    const activeRun = readActiveRunLeaseForProviderConfig(providerConfigId);
+    if (activeRun) return activeRunConflictResponse(c, activeRun);
     const relatedModels = db.select().from(modelRefs).where(eq(modelRefs.providerConfigId, providerConfigId)).all();
     const deletedModelIds = new Set(relatedModels.map((model) => model.id));
     if (deletedModelIds.size > 0) {

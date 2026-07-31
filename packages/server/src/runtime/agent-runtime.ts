@@ -15,7 +15,7 @@ import {
 } from "@earendil-works/pi-agent-core";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { readFile } from "node:fs/promises";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
 import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
@@ -372,17 +372,18 @@ async function persistSessionRun(
     modelRuntime: ModelRuntime;
   },
 ) {
-  const timestamp = now();
-  // Messages are persisted incrementally during the run; here we only patch the
-  // session record and (below) generate a title.
-  db.update(sessions)
-    .set({
-      modelRefId: patch.modelRefId,
-      thinkingLevel: patch.thinkingLevel,
-      updatedAt: timestamp,
-    })
-    .where(eq(sessions.id, session.id))
-    .run();
+  // Messages are persisted incrementally during the run. Commit the session
+  // record only if it still has the revision leased at run startup, so a stale
+  // run can never overwrite a newer mutation that bypassed the HTTP lease.
+  const committedRevision = commitSessionRunState(session.id, session.revision, {
+    modelRefId: patch.modelRefId,
+    thinkingLevel: patch.thinkingLevel,
+    updatedAt: now(),
+  });
+  if (committedRevision === undefined) {
+    console.warn(`Skipped stale agent-run finalization for session ${session.id}.`);
+    return;
+  }
 
   if (!shouldGenerateSessionTitle(session.title, patch.messages)) return;
 
@@ -400,16 +401,43 @@ async function persistSessionRun(
       messages: patch.messages,
     });
     if (!title) return;
-    db.update(sessions)
-      .set({ title, updatedAt: now() })
-      .where(eq(sessions.id, session.id))
-      .run();
+    if (commitSessionRunTitle(session.id, committedRevision, title) === undefined) {
+      console.warn(`Skipped stale title update for session ${session.id}.`);
+    }
   } catch (error) {
     console.warn(
       "Session title generation failed:",
       error instanceof Error ? error.message : String(error),
     );
   }
+}
+
+export function commitSessionRunState(
+  sessionId: string,
+  expectedRevision: number,
+  patch: {
+    modelRefId: string;
+    thinkingLevel: Session["thinkingLevel"];
+    updatedAt: number;
+  },
+) {
+  const revision = expectedRevision + 1;
+  const result = db
+    .update(sessions)
+    .set({ ...patch, revision })
+    .where(and(eq(sessions.id, sessionId), eq(sessions.revision, expectedRevision)))
+    .run();
+  return result.changes === 1 ? revision : undefined;
+}
+
+export function commitSessionRunTitle(sessionId: string, expectedRevision: number, title: string) {
+  const revision = expectedRevision + 1;
+  const result = db
+    .update(sessions)
+    .set({ title, revision, updatedAt: now() })
+    .where(and(eq(sessions.id, sessionId), eq(sessions.revision, expectedRevision)))
+    .run();
+  return result.changes === 1 ? revision : undefined;
 }
 
 async function resolveTitleModelContext(

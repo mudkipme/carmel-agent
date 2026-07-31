@@ -78,6 +78,11 @@ const migrations: Migration[] = [
     description: "Move non-admin agents off privileged host paths and mounts",
     run: restrictNonAdminAgentHostPaths,
   },
+  {
+    id: "012_session_revisions",
+    description: "Add optimistic revisions for active-run lease protection",
+    run: addSessionRevisions,
+  },
 ];
 
 export function migrate() {
@@ -188,6 +193,7 @@ function createBaseSchema() {
       agent_id TEXT NOT NULL REFERENCES agents(id),
       model_ref_id TEXT NOT NULL REFERENCES model_refs(id),
       thinking_level TEXT NOT NULL,
+      revision INTEGER NOT NULL DEFAULT 0,
       forked_from TEXT,
       pinned_at INTEGER,
       created_at INTEGER NOT NULL,
@@ -254,6 +260,10 @@ function applyCurrentSchemaCompatibility() {
 
 function addSessionPins() {
   addColumnIfMissing("sessions", "pinned_at", "INTEGER");
+}
+
+function addSessionRevisions() {
+  addColumnIfMissing("sessions", "revision", "INTEGER NOT NULL DEFAULT 0");
 }
 
 function dropAgentSkills() {

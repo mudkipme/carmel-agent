@@ -287,6 +287,7 @@ function connection(
       agentId: "agent_1",
       modelRefId: "model_1",
       thinkingLevel: "off",
+      revision: 0,
       messages,
       createdAt: 1,
       updatedAt: 1,

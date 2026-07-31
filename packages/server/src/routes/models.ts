@@ -12,7 +12,9 @@ import {
   readFallbackModelForUser,
   reassignModelReferences,
 } from "../services/agent-access.ts";
+import { readActiveRunLeaseForModels } from "../services/active-run-lease.ts";
 import { jsonValidator, modelRefRequestSchema } from "../validation.ts";
+import { activeRunConflictResponse } from "./active-run-conflict.ts";
 
 export function createModelRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -22,6 +24,8 @@ export function createModelRoutes() {
     const model = c.req.valid("json") as ModelRef;
     const current = db.select().from(modelRefs).where(eq(modelRefs.id, c.req.param("id"))).get();
     if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Model not found." }, 404);
+    const activeRun = current ? readActiveRunLeaseForModels([current.id]) : undefined;
+    if (activeRun) return activeRunConflictResponse(c, activeRun);
     if (
       model.providerConfigId &&
       !db.select({ id: providerConfigs.id }).from(providerConfigs).where(eq(providerConfigs.id, model.providerConfigId)).get()
@@ -80,6 +84,8 @@ export function createModelRoutes() {
     const modelId = c.req.param("id");
     const model = db.select().from(modelRefs).where(eq(modelRefs.id, modelId)).get();
     if (!model || model.ownerUserId !== currentUserId) return c.json({ error: "Model not found." }, 404);
+    const activeRun = readActiveRunLeaseForModels([modelId]);
+    if (activeRun) return activeRunConflictResponse(c, activeRun);
     const deletedModelIds = new Set([modelId]);
     const missingFallbackUserIds = readAffectedModelUserIds(deletedModelIds).filter(
       (userId) => !readFallbackModelForUser(userId, deletedModelIds),

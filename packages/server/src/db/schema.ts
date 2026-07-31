@@ -118,6 +118,7 @@ export const sessions = sqliteTable("sessions", {
     .notNull()
     .references(() => modelRefs.id),
   thinkingLevel: text("thinking_level").$type<Session["thinkingLevel"]>().notNull(),
+  revision: integer("revision").notNull().default(0),
   forkedFrom: text("forked_from", { mode: "json" }).$type<Session["forkedFrom"]>(),
   pinnedAt: integer("pinned_at"),
   createdAt: integer("created_at").notNull(),

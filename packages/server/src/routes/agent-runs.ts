@@ -94,13 +94,28 @@ export function createAgentRunRoutes() {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
 
+    // Model/auth resolution can yield to other requests. Revalidate the session
+    // lease immediately before synchronously registering the active run.
+    const currentSession = db.select().from(sessions).where(eq(sessions.id, session.id)).get();
+    if (!currentSession || currentSession.userId !== currentUserId || currentSession.agentId !== agent.id) {
+      return c.json({ error: "Session not found" }, 404);
+    }
+    const currentActiveRun = getActiveAgentRunForSession(currentUserId, currentSession.id);
+    if (currentActiveRun) {
+      c.header("x-agent-run-id", currentActiveRun.runId);
+      return c.json({ error: "Session already has an active agent run.", ...currentActiveRun }, 409);
+    }
+    if (currentSession.revision !== session.revision) {
+      return c.json({ error: "Session changed while preparing the agent run. Retry the request." }, 409);
+    }
+
     return createAgentRunResponse({
       agent,
-      session,
+      session: currentSession,
       modelRef,
       providerConfig,
       modelRuntime,
-      thinkingLevel: body.thinkingLevel ?? session.thinkingLevel,
+      thinkingLevel: body.thinkingLevel ?? currentSession.thinkingLevel,
       promptInput,
     });
   });

@@ -234,7 +234,11 @@ export function ChatInput({
             </Button>
           ) : null}
           {supportsThinking ? (
-            <Select value={selectedThinkingLevel} onValueChange={(level) => onThinkingLevelChange(level as ThinkingLevel)}>
+            <Select
+              value={selectedThinkingLevel}
+              disabled={isStreaming}
+              onValueChange={(level) => onThinkingLevelChange(level as ThinkingLevel)}
+            >
               <SelectTrigger size="sm" className="max-w-32 border-0 shadow-none">
                 <BrainIcon />
                 <SelectValue />
@@ -252,7 +256,7 @@ export function ChatInput({
           ) : null}
         </div>
         <div className="flex min-w-0 items-center gap-2">
-          <Button type="button" variant="ghost" size="sm" className="min-w-0" onClick={onModelSelect}>
+          <Button type="button" variant="ghost" size="sm" className="min-w-0" disabled={isStreaming} onClick={onModelSelect}>
             <SparklesIcon data-icon="inline-start" />
             <span className="truncate">{currentModel.id}</span>
           </Button>

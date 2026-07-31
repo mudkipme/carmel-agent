@@ -45,6 +45,7 @@ export function importOpenWebuiSessions(source: unknown, options: OpenWebuiImpor
         agentId: options.agentId,
         modelRefId: options.modelRefId,
         thinkingLevel: options.thinkingLevel,
+        revision: 0,
         messages: convertedMessages,
         createdAt,
         updatedAt,

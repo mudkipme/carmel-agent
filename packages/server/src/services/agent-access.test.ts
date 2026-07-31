@@ -101,4 +101,5 @@ test("reassignModelReferences swaps a session's model without touching its updat
   // The sidebar sorts by updatedAt, so deleting a model must not float every
   // session that used it to the top of the list.
   assert.equal(session?.updatedAt, updatedAt);
+  assert.equal(session?.revision, 1);
 });

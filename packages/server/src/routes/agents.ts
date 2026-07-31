@@ -16,7 +16,9 @@ import {
   resolveAgentWorkingDir,
   resolveSupportedThinkingLevel,
 } from "../services/agent-access.ts";
+import { readActiveRunLeaseForAgent } from "../services/active-run-lease.ts";
 import { agentConfigRequestSchema, jsonValidator } from "../validation.ts";
+import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import { createAgentFilesRoute } from "./agent-files.ts";
 
 export function createAgentRoutes() {
@@ -29,6 +31,8 @@ export function createAgentRoutes() {
     const agentId = c.req.param("id");
     const current = db.select().from(agents).where(eq(agents.id, agentId)).get();
     if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
+    const activeRun = current ? readActiveRunLeaseForAgent(agentId) : undefined;
+    if (activeRun) return activeRunConflictResponse(c, activeRun);
     try {
       assertAgentHostPathAccess(currentUser.role, agent);
     } catch (error) {
@@ -83,6 +87,8 @@ export function createAgentRoutes() {
     const agentId = c.req.param("id");
     const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
     if (!agent || agent.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
+    const activeRun = readActiveRunLeaseForAgent(agentId);
+    if (activeRun) return activeRunConflictResponse(c, activeRun);
     db.delete(sessions).where(eq(sessions.agentId, agentId)).run();
     db.delete(agents).where(eq(agents.id, agentId)).run();
     void discardAgentContainer(agentId);

@@ -7,6 +7,7 @@ import { agents, authSessions, modelRefs, providerConfigs, sessions, users } fro
 import { id, now } from "../db/seed.ts";
 import { serializeUser } from "../serializers.ts";
 import { canUseModel } from "../services/agent-access.ts";
+import { readActiveRunLeaseForUser } from "../services/active-run-lease.ts";
 import {
   adminPasswordResetRequestSchema,
   createUserRequestSchema,
@@ -14,6 +15,7 @@ import {
   updateUserRoleRequestSchema,
   userRequestSchema,
 } from "../validation.ts";
+import { activeRunConflictResponse } from "./active-run-conflict.ts";
 
 export function createUserRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -81,6 +83,8 @@ export function createUserRoutes() {
     if (targetId === adminId) return c.json({ error: "You cannot delete your own account." }, 400);
     const target = db.select().from(users).where(eq(users.id, targetId)).get();
     if (!target) return c.json({ error: "User not found." }, 404);
+    const activeRun = readActiveRunLeaseForUser(targetId);
+    if (activeRun) return activeRunConflictResponse(c, activeRun);
 
     const timestamp = now();
     // Transfer the user's owned resources to the acting admin (so shared agents/

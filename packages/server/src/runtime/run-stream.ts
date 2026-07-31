@@ -51,10 +51,17 @@ export function abortAgentRun(userId: string, runId: string) {
 }
 
 export function getActiveAgentRunForSession(userId: string, sessionId: string) {
+  const summary = getActiveAgentRunForSessionId(sessionId);
+  if (!summary) return undefined;
+  const run = activeAgentRuns.get(summary.runId);
+  return run?.userId === userId ? summary : undefined;
+}
+
+export function getActiveAgentRunForSessionId(sessionId: string) {
   const runId = activeSessionRuns.get(sessionId);
   if (!runId) return undefined;
   const run = activeAgentRuns.get(runId);
-  if (!run || run.userId !== userId || run.sessionId !== sessionId) return undefined;
+  if (!run || run.sessionId !== sessionId) return undefined;
   return {
     runId: run.runId,
     sessionId: run.sessionId,
