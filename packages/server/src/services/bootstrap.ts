@@ -9,6 +9,7 @@ import {
   serializeUser,
 } from "../serializers.ts";
 import { readProviderConfigs, readVisibleAgents, readVisibleModelRefs } from "./agent-access.ts";
+import { readModelCatalog } from "./model-catalog.ts";
 import { readSessionMessageCountsForUser } from "./session-store.ts";
 
 export async function readBootstrapPayload(userId: string) {
@@ -17,6 +18,7 @@ export async function readBootstrapPayload(userId: string) {
     agents: readVisibleAgents(userId).map(serializePublicAgent),
     providerConfigs: readProviderConfigs().map(serializeProviderConfig),
     modelRefs: readVisibleModelRefs(userId).map(serializeModelRef),
+    modelCatalog: readModelCatalog(),
     sessions: await readSessionMetadataForUser(userId),
   };
 }

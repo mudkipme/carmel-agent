@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { confirmAction, promptText } from "@/lib/action-dialogs";
+import { showError } from "@/lib/errors";
 import { useHarnessStore } from "@/store/harness-store";
 import type { SessionMetadata } from "@carmel-agent/shared";
 import type { SidebarMode } from "./sidebar-utils";
@@ -111,10 +113,11 @@ function SessionActions({
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
-                const nextTitle = window.prompt("Rename session", session.title);
-                const title = nextTitle?.trim();
-                if (!title || title === session.title) return;
-                void updateSession(session.id, { title });
+                void promptText({ title: "Rename session", initialValue: session.title }).then((nextTitle) => {
+                  const title = nextTitle?.trim();
+                  if (!title || title === session.title) return;
+                  void updateSession(session.id, { title }).catch((error) => showError("Unable to rename session", error));
+                });
               }}
             >
               <PencilIcon />
@@ -126,9 +129,13 @@ function SessionActions({
             <DropdownMenuItem
               variant="destructive"
               onSelect={() => {
-                const confirmed = window.confirm(`Delete "${session.title}"?`);
-                if (!confirmed) return;
-                void deleteSession(session.id);
+                void confirmAction({
+                  title: `Delete “${session.title}”?`,
+                  description: "This session and its message history will be permanently deleted.",
+                  actionLabel: "Delete session",
+                }).then((confirmed) => {
+                  if (confirmed) void deleteSession(session.id).catch((error) => showError("Unable to delete session", error));
+                });
               }}
             >
               <Trash2Icon />

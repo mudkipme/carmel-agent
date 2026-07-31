@@ -78,7 +78,7 @@ Key properties:
 
 The intended container runtime is rootless Podman. Docker can work through its socket, but the Docker socket grants broad host control and is not recommended for untrusted workloads.
 
-If no socket is reachable, bash commands fail with a sandbox unavailable error. Other tools are unaffected. `CARMEL_BASH_ALLOW_INSECURE=true` enables an in-process host bash fallback for local development only.
+If no socket is reachable, bash commands fail with a sandbox unavailable error. Other tools are unaffected.
 
 ## Extra Mounts
 

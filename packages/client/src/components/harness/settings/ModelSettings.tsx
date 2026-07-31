@@ -1,15 +1,15 @@
 import { CheckIcon, SearchIcon, Trash2Icon } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Field, SectionHeader } from "@/components/harness/form-primitives";
+import { useState } from "react";
+import { SectionHeader } from "@/components/harness/form-primitives";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api } from "@/lib/api";
+import { useModelManagement } from "@/hooks/use-model-management";
 import { cn } from "@/lib/utils";
-import { makeModelRef, modelsForProvider, useHarnessStore } from "@/store/harness-store";
-import { OLLAMA_PROVIDER, type ModelRef, type ProviderConfig, type ProviderModelSummary } from "@carmel-agent/shared";
-import { providers } from "./options";
+import { useHarnessStore } from "@/store/harness-store";
+import type { ModelRef, ProviderConfig, ProviderModelSummary } from "@carmel-agent/shared";
 
 export function ModelSettings({
   modelRefs,
@@ -29,93 +29,7 @@ export function ModelSettings({
   status: { tone: "muted" | "destructive"; message: string } | null;
 }) {
   const activeUserId = useHarnessStore((state) => state.activeUserId);
-  const upsertModelRef = useHarnessStore((state) => state.upsertModelRef);
-  const deleteModelRef = useHarnessStore((state) => state.deleteModelRef);
-  const [providerConfigId, setProviderConfigId] = useState(providerConfigs[0]?.id ?? "");
-  const selectedProviderConfig = providerConfigs.find((item) => item.id === providerConfigId);
-  const selectedProviderConfigRecordId = selectedProviderConfig?.id;
-  const selectedProviderConfigProvider = selectedProviderConfig?.provider;
-  const provider = selectedProviderConfig?.provider ?? providers[0] ?? "openai";
-  const [providerModels, setProviderModels] = useState<ProviderModelSummary[]>([]);
-  const [providerModelsError, setProviderModelsError] = useState("");
-  const [loadingProviderModels, setLoadingProviderModels] = useState(false);
-  const isOllamaProvider = selectedProviderConfig?.provider === OLLAMA_PROVIDER;
-  const models: ProviderModelSummary[] = isOllamaProvider ? providerModels : modelsForProvider(provider);
-  const [modelId, setModelId] = useState(modelsForProvider(provider)[0]?.id ?? "");
-  const existingModel = modelRefs.find(
-    (model) => model.providerConfigId === selectedProviderConfig?.id && model.modelId === modelId,
-  );
-
-  const loadProviderModels = async (providerConfig = selectedProviderConfig) => {
-    if (!providerConfig || providerConfig.provider !== OLLAMA_PROVIDER) return;
-    setLoadingProviderModels(true);
-    setProviderModelsError("");
-    try {
-      const nextModels = await api.listProviderModels(providerConfig.id);
-      setProviderModels(nextModels);
-      setModelId((current) => current || (nextModels[0]?.id ?? ""));
-    } catch (error) {
-      setProviderModels([]);
-      setProviderModelsError(error instanceof Error ? error.message : "Unable to load provider models");
-    } finally {
-      setLoadingProviderModels(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!selectedProviderConfigRecordId || selectedProviderConfigProvider !== OLLAMA_PROVIDER) return;
-    let cancelled = false;
-    void Promise.resolve().then(async () => {
-      setLoadingProviderModels(true);
-      setProviderModelsError("");
-      try {
-        const nextModels = await api.listProviderModels(selectedProviderConfigRecordId);
-        if (cancelled) return;
-        setProviderModels(nextModels);
-        setModelId((current) => current || (nextModels[0]?.id ?? ""));
-      } catch (error) {
-        if (cancelled) return;
-        setProviderModels([]);
-        setProviderModelsError(error instanceof Error ? error.message : "Unable to load provider models");
-      } finally {
-        if (!cancelled) setLoadingProviderModels(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedProviderConfigRecordId, selectedProviderConfigProvider]);
-
-  const addModel = async () => {
-    if (existingModel) return;
-    const trimmedModelId = modelId.trim();
-    if (!trimmedModelId) return;
-    const selectedModel = models.find((model) => model.id === trimmedModelId);
-    const modelSummary =
-      selectedModel ??
-      (isOllamaProvider
-        ? ({
-            id: trimmedModelId,
-            name: trimmedModelId,
-            api: "openai-completions",
-            input: ["text"],
-          } satisfies ProviderModelSummary)
-        : undefined);
-    await upsertModelRef({
-      ...makeModelRef(provider, trimmedModelId, selectedProviderConfig?.id, modelSummary),
-      ownerUserId: activeUserId,
-    });
-  };
-
-  const removeModel = async (model: ModelRef) => {
-    const confirmed = window.confirm(`Delete ${model.label}? Agents and sessions using it will fall back automatically.`);
-    if (!confirmed) return;
-    try {
-      await deleteModelRef(model.id);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Unable to delete model");
-    }
-  };
+  const management = useModelManagement(modelRefs, providerConfigs);
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -124,7 +38,8 @@ export function ModelSettings({
           title="Fast Task Model"
           description="Used for lightweight background tasks such as session title generation."
         />
-        <Field label="Model">
+        <Field>
+          <FieldLabel>Model</FieldLabel>
           <Select
             value={fastTaskModelRefId || "__session_model__"}
             disabled={updating}
@@ -176,7 +91,12 @@ export function ModelSettings({
                     >
                       {model.shared ? "Shared" : "Share"}
                     </Button>
-                    <Button variant="ghost" size="icon-sm" onClick={() => void removeModel(model)} title="Delete model">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => void management.removeModel(model)}
+                      title="Delete model"
+                    >
                       <Trash2Icon />
                     </Button>
                   </div>
@@ -196,14 +116,8 @@ export function ModelSettings({
         <SectionHeader title="Add Model" description="Adding an existing provider/model pair will reuse the existing entry." />
         <div className="grid gap-3">
           <Select
-            value={providerConfigId}
-            onValueChange={(value) => {
-              setProviderConfigId(value);
-              const nextProvider = providerConfigs.find((item) => item.id === value)?.provider ?? providers[0] ?? "openai";
-              setProviderModels([]);
-              setProviderModelsError("");
-              setModelId(nextProvider === OLLAMA_PROVIDER ? "" : (modelsForProvider(nextProvider)[0]?.id ?? ""));
-            }}
+            value={management.providerConfigId}
+            onValueChange={management.selectProviderConfig}
           >
             <SelectTrigger className="w-full">
               <SelectValue />
@@ -218,20 +132,40 @@ export function ModelSettings({
               </SelectGroup>
             </SelectContent>
           </Select>
-          <ModelPicker key={providerConfigId} models={models} value={modelId} onValueChange={setModelId} />
-          {isOllamaProvider ? (
+          <ModelPicker
+            key={management.providerConfigId}
+            models={management.providerModels}
+            value={management.modelId}
+            onValueChange={management.setModelId}
+          />
+          {management.isOllamaProvider ? (
             <>
-              <Field label="Model ID">
-                <Input value={modelId} placeholder="llama3.2:latest" onChange={(event) => setModelId(event.target.value)} />
+              <Field>
+                <FieldLabel>Model ID</FieldLabel>
+                <Input
+                  value={management.modelId}
+                  placeholder="llama3.2:latest"
+                  onChange={(event) => management.setModelId(event.target.value)}
+                />
               </Field>
-              <Button type="button" variant="outline" onClick={() => void loadProviderModels()} disabled={loadingProviderModels}>
-                {loadingProviderModels ? "Refreshing..." : "Refresh models"}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void management.loadProviderModels()}
+                disabled={management.loadingProviderModels}
+              >
+                {management.loadingProviderModels ? "Refreshing..." : "Refresh models"}
               </Button>
-              {providerModelsError ? <p className="text-xs text-destructive">{providerModelsError}</p> : null}
+              {management.providerModelsError ? (
+                <p className="text-xs text-destructive">{management.providerModelsError}</p>
+              ) : null}
             </>
           ) : null}
-          <Button onClick={() => void addModel()} disabled={!modelId.trim() || !selectedProviderConfig}>
-            {existingModel ? "Already configured" : "Add model"}
+          <Button
+            onClick={() => void management.addModel()}
+            disabled={!management.modelId.trim() || !management.selectedProviderConfig}
+          >
+            {management.existingModel ? "Already configured" : "Add model"}
           </Button>
         </div>
       </section>

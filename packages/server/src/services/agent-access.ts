@@ -55,7 +55,11 @@ export function resolveSupportedThinkingLevel(modelRef: ModelRefRecord, thinking
   ) as AgentThinkingLevel;
 }
 
-export function resolveAgentWorkingDir(agent: AgentConfig, agentId: string, current?: AgentRecord) {
+export function resolveAgentWorkingDir(
+  agent: Pick<AgentConfig, "workingDirMode" | "workingDir" | "defaultWorkingDir">,
+  agentId: string,
+  current?: AgentRecord,
+) {
   const defaultWorkingDir = normalizeDataRelativePath(
     current?.defaultWorkingDir ?? agent.defaultWorkingDir ?? defaultAgentWorkingDir(agentId),
   );

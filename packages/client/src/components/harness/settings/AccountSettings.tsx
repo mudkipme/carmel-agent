@@ -1,6 +1,7 @@
 import { LogOutIcon } from "lucide-react";
 import { useState } from "react";
-import { Field, SectionHeader } from "@/components/harness/form-primitives";
+import { SectionHeader } from "@/components/harness/form-primitives";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useHarnessStore } from "@/store/harness-store";
@@ -46,26 +47,33 @@ export function AccountSettings() {
           title="Email & Password"
           description="Confirm your current password to change your email. Leave the new password blank to keep it."
         />
-        <Field label="Email">
-          <Input value={email} type="email" autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
-        </Field>
-        <Field label="Current password">
-          <Input
-            value={currentPassword}
-            type="password"
-            autoComplete="current-password"
-            onChange={(event) => setCurrentPassword(event.target.value)}
-          />
-        </Field>
-        <Field label="New password (optional)">
-          <Input
-            value={newPassword}
-            type="password"
-            autoComplete="new-password"
-            placeholder="Leave blank to keep current password"
-            onChange={(event) => setNewPassword(event.target.value)}
-          />
-        </Field>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="account-email">Email</FieldLabel>
+            <Input id="account-email" value={email} type="email" autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="account-current-password">Current password</FieldLabel>
+            <Input
+              id="account-current-password"
+              value={currentPassword}
+              type="password"
+              autoComplete="current-password"
+              onChange={(event) => setCurrentPassword(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="account-new-password">New password (optional)</FieldLabel>
+            <Input
+              id="account-new-password"
+              value={newPassword}
+              type="password"
+              autoComplete="new-password"
+              placeholder="Leave blank to keep current password"
+              onChange={(event) => setNewPassword(event.target.value)}
+            />
+          </Field>
+        </FieldGroup>
         {newPasswordTooShort ? (
           <p className="text-sm text-destructive">New password must be at least 8 characters.</p>
         ) : null}

@@ -52,7 +52,6 @@ It also sets `CARMEL_HOST_DATA_DIR=${PWD}/data`, which is required when the serv
 - Back up `data/`; it contains the database, sessions, provider metadata, agent workspaces, and default per-agent scratch paths.
 - Keep the rootless Podman socket available to the service user.
 - Use rootless Podman where possible. Docker's socket works, but access to it is host-root-equivalent.
-- Keep `CARMEL_BASH_ALLOW_INSECURE` unset in production.
 - Configure `CARMEL_ALLOWED_ORIGINS` if the browser UI is served from a different origin than the API.
 - Configure `CARMEL_TRUSTED_PROXY` when a reverse proxy should be trusted for login rate-limit IP detection.
 
@@ -121,8 +120,6 @@ pnpm dev
 The API listens on `http://localhost:8797`; the Vite client listens on `http://localhost:5173`.
 
 For local sandboxed bash, build the runner image and expose rootless Podman's socket. Without a configured socket, bash commands fail with a sandbox unavailable error while other tools continue to work.
-
-For development only, `CARMEL_BASH_ALLOW_INSECURE=true` falls back to in-process host bash. This bypasses sandboxing and must not be used for production.
 
 ## Creating Users
 

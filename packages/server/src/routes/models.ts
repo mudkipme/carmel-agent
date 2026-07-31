@@ -1,4 +1,3 @@
-import type { ModelRef } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -21,7 +20,7 @@ export function createModelRoutes() {
 
   route.put("/models/:id", jsonValidator(modelRefRequestSchema), async (c) => {
     const currentUserId = c.get("user").id;
-    const model = c.req.valid("json") as ModelRef;
+    const model = c.req.valid("json");
     const current = db.select().from(modelRefs).where(eq(modelRefs.id, c.req.param("id"))).get();
     if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Model not found." }, 404);
     const activeRun = current ? readActiveRunLeaseForModels([current.id]) : undefined;

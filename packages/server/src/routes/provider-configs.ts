@@ -1,4 +1,4 @@
-import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER, type ProviderConfig, type ProviderModelSummary } from "@carmel-agent/shared";
+import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { requireAdmin, type AuthVariables } from "../auth.ts";
@@ -20,6 +20,7 @@ import {
 } from "../services/agent-access.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import { listOllamaModels } from "../services/provider-auth.ts";
+import { readBuiltinProviderModels } from "../services/model-catalog.ts";
 import { readActiveRunLeaseForProviderConfig } from "../services/active-run-lease.ts";
 import { jsonValidator, oauthInputRequestSchema, providerConfigRequestSchema } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
@@ -29,7 +30,7 @@ export function createProviderConfigRoutes() {
 
   route.put("/provider-configs/:id", requireAdmin, jsonValidator(providerConfigRequestSchema), async (c) => {
     const currentUserId = c.get("user").id;
-    const providerConfig = c.req.valid("json") as ProviderConfig;
+    const providerConfig = c.req.valid("json");
     const timestamp = now();
     const current = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
     const activeRun = current ? readActiveRunLeaseForProviderConfig(current.id) : undefined;
@@ -46,7 +47,7 @@ export function createProviderConfigRoutes() {
         authType,
         apiKey,
         oauthCredential,
-        createdAt: providerConfig.createdAt ?? timestamp,
+        createdAt: current?.createdAt ?? timestamp,
         updatedAt: timestamp,
       })
       .onConflictDoUpdate({
@@ -73,7 +74,9 @@ export function createProviderConfigRoutes() {
     if (!providerConfig) {
       return c.json({ error: "Provider config not found." }, 404);
     }
-    if (providerConfig.provider !== OLLAMA_PROVIDER) return c.json([] satisfies ProviderModelSummary[]);
+    if (providerConfig.provider !== OLLAMA_PROVIDER) {
+      return c.json(readBuiltinProviderModels(providerConfig.provider));
+    }
 
     try {
       return c.json(await listOllamaModels(providerConfig.baseUrl ?? DEFAULT_OLLAMA_BASE_URL));

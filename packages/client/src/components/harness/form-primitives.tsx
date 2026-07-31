@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
@@ -7,15 +6,6 @@ export function SectionHeader({ title, description }: { title: string; descripti
     <div className="grid gap-1">
       <h3 className="text-sm leading-none font-medium">{title}</h3>
       <p className="text-sm text-muted-foreground">{description}</p>
-    </div>
-  );
-}
-
-export function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid gap-2">
-      <Label>{label}</Label>
-      {children}
     </div>
   );
 }

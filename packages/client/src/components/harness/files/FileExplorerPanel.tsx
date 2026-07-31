@@ -13,6 +13,8 @@ import type { AgentConfig, AgentFileEntry } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
+import { confirmAction, promptText } from "@/lib/action-dialogs";
+import { showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
 type FileExplorerPanelProps = {
@@ -88,14 +90,17 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
   const createEntry = async (type: AgentFileEntry["type"]) => {
     if (!agent) return;
     const label = type === "directory" ? "Folder name" : "File name";
-    const name = window.prompt(label);
+    const name = await promptText({
+      title: label,
+      actionLabel: type === "directory" ? "Create folder" : "Create file",
+    });
     const cleanName = name?.trim();
     if (!cleanName) return;
     try {
       await api.createAgentFileEntry(agent.id, joinPath(currentPath, cleanName), type);
       await loadEntries(currentPathRef.current, showHiddenRef.current);
     } catch (createError) {
-      window.alert(createError instanceof Error ? createError.message : "Unable to create entry");
+      showError("Unable to create entry", createError);
     }
   };
 
@@ -111,27 +116,31 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
 
   const renameEntry = async (entry: AgentFileEntry) => {
     if (!agent) return;
-    const nextName = window.prompt("Rename", entry.name);
+    const nextName = await promptText({ title: `Rename ${entry.name}`, initialValue: entry.name });
     const cleanName = nextName?.trim();
     if (!cleanName || cleanName === entry.name) return;
     try {
       await api.renameAgentFileEntry(agent.id, entry.path, joinPath(parentPath(entry.path), cleanName));
       await loadEntries(currentPathRef.current, showHiddenRef.current);
     } catch (renameError) {
-      window.alert(renameError instanceof Error ? renameError.message : "Unable to rename entry");
+      showError("Unable to rename entry", renameError);
     }
   };
 
   const deleteEntry = async (entry: AgentFileEntry) => {
     if (!agent) return;
-    const confirmed = window.confirm(`Delete "${entry.name}"?`);
+    const confirmed = await confirmAction({
+      title: `Delete “${entry.name}”?`,
+      description: "This filesystem entry will be permanently deleted.",
+      actionLabel: "Delete",
+    });
     if (!confirmed) return;
     try {
       await api.deleteAgentFileEntry(agent.id, entry.path);
       if (entry.path === selectedFilePath) onOpenFile("");
       await loadEntries(currentPathRef.current, showHiddenRef.current);
     } catch (deleteError) {
-      window.alert(deleteError instanceof Error ? deleteError.message : "Unable to delete entry");
+      showError("Unable to delete entry", deleteError);
     }
   };
 

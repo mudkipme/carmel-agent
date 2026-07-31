@@ -16,8 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Field, SectionHeader, ToggleRow } from "@/components/harness/form-primitives";
+import { SectionHeader, ToggleRow } from "@/components/harness/form-primitives";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { api } from "@/lib/api";
+import { confirmAction } from "@/lib/action-dialogs";
+import { showError } from "@/lib/errors";
 import { createClientId } from "@/lib/id";
 import { cn } from "@/lib/utils";
 import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
@@ -176,13 +179,17 @@ function AgentSettings({
   };
 
   const removeAgent = async () => {
-    const confirmed = window.confirm(`Delete ${agent.name} and all of its sessions?`);
+    const confirmed = await confirmAction({
+      title: `Delete ${agent.name}?`,
+      description: "This permanently deletes the agent and all of its sessions.",
+      actionLabel: "Delete agent",
+    });
     if (!confirmed) return;
     try {
       await deleteAgent(agent.id);
       onClose?.();
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Unable to delete agent");
+      showError("Unable to delete agent", error);
     }
   };
 
@@ -237,19 +244,22 @@ function AgentSettings({
           <section className="grid gap-4">
             <SectionHeader title="Agent" description="Working directory, sharing, and system prompt." />
             <div className="grid gap-3">
-              <Field label="Name">
+              <Field>
+                <FieldLabel>Name</FieldLabel>
                 <Input
                   value={draft.name}
                   onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
                 />
               </Field>
-              <Field label="Description">
+              <Field>
+                <FieldLabel>Description</FieldLabel>
                 <Input
                   value={draft.description}
                   onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
                 />
               </Field>
-              <Field label="Working dir">
+              <Field>
+                <FieldLabel>Working dir</FieldLabel>
                 <div className="grid gap-2">
                   <Select
                     value={draft.workingDirMode}
@@ -285,7 +295,8 @@ function AgentSettings({
                 </div>
               </Field>
               {canConfigureHostPaths ? (
-                <Field label="Extra runner mounts">
+                <Field>
+                  <FieldLabel>Extra runner mounts</FieldLabel>
                 <div className="grid gap-2">
                   <p className="text-xs text-muted-foreground">
                     Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the
@@ -327,7 +338,8 @@ function AgentSettings({
                 </div>
               </Field>
               ) : null}
-              <Field label="Default model">
+              <Field>
+                <FieldLabel>Default model</FieldLabel>
                 <Select
                   value={draft.defaultModelRefId}
                   onValueChange={(defaultModelRefId) => {
@@ -358,7 +370,8 @@ function AgentSettings({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Default thinking">
+              <Field>
+                <FieldLabel>Default thinking</FieldLabel>
                 <Select
                   value={selectedThinkingLevel}
                   onValueChange={(defaultThinkingLevel) =>
@@ -379,7 +392,8 @@ function AgentSettings({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="System prompt">
+              <Field>
+                <FieldLabel>System prompt</FieldLabel>
                 <Textarea
                   value={draft.systemPrompt}
                   onChange={(event) => setDraft((current) => ({ ...current, systemPrompt: event.target.value }))}
@@ -419,10 +433,12 @@ function AgentSettings({
                 </div>
               ) : null}
               <div className="grid gap-3 rounded-md border p-3">
-                <Field label="Template name">
+                <Field>
+                  <FieldLabel>Template name</FieldLabel>
                   <Input value={templateName} onChange={(event) => setTemplateName(event.target.value)} />
                 </Field>
-                <Field label="Template text">
+                <Field>
+                  <FieldLabel>Template text</FieldLabel>
                   <Textarea value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} />
                 </Field>
                 <div>

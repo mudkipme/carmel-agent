@@ -1,48 +1,53 @@
-import { getBuiltinModel, getBuiltinModels, getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import { createClientId } from "@/lib/id";
 import {
   DEFAULT_OLLAMA_BASE_URL,
   OLLAMA_PROVIDER,
+  type ModelCatalog,
   type ModelRef,
   type ProviderModelSummary,
-  resolveModelRef,
 } from "@carmel-agent/shared";
 
-const id = createClientId;
-
-export { resolveModelRef };
+export function resolveModelRef(modelRef: ModelRef): Model<Api> {
+  return {
+    id: modelRef.modelId,
+    name: modelRef.label,
+    api: modelRef.api ?? "openai-completions",
+    provider: modelRef.provider,
+    baseUrl: modelRef.baseUrl ?? defaultBaseUrlForProvider(modelRef.provider),
+    reasoning: modelRef.reasoning ?? false,
+    input: modelRef.input ?? ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: modelRef.contextWindow ?? 128000,
+    maxTokens: modelRef.maxTokens ?? 8192,
+  } as Model<Api>;
+}
 
 export function makeModelRef(
   provider: string,
   modelId: string,
-  providerConfigId?: string,
-  modelSummary?: ProviderModelSummary,
+  providerConfigId: string | undefined,
+  modelSummary: ProviderModelSummary,
 ): ModelRef {
-  const model = getBuiltinModel(provider as never, modelId as never);
   return {
-    id: id("model"),
+    id: createClientId("model"),
     ownerUserId: "",
     shared: false,
-    label: modelSummary?.name ?? model?.name ?? modelId,
+    label: modelSummary.name || modelId,
     provider,
     providerConfigId,
     modelId,
-    api: modelSummary?.api ?? model?.api ?? (provider === OLLAMA_PROVIDER ? "openai-completions" : undefined),
-    baseUrl: provider === OLLAMA_PROVIDER ? DEFAULT_OLLAMA_BASE_URL : model?.baseUrl,
-    contextWindow: modelSummary?.contextWindow ?? model?.contextWindow,
-    maxTokens: modelSummary?.maxTokens ?? model?.maxTokens,
-    reasoning: modelSummary?.reasoning ?? model?.reasoning,
-    input: modelSummary?.input ?? model?.input,
+    api: modelSummary.api ?? (provider === OLLAMA_PROVIDER ? "openai-completions" : undefined),
+    baseUrl: provider === OLLAMA_PROVIDER ? DEFAULT_OLLAMA_BASE_URL : undefined,
+    contextWindow: modelSummary.contextWindow,
+    maxTokens: modelSummary.maxTokens,
+    reasoning: modelSummary.reasoning,
+    input: modelSummary.input,
   };
 }
 
-export function modelsForProvider(provider: string) {
-  if (provider === OLLAMA_PROVIDER) return [];
-  return getBuiltinModels(provider as never);
-}
-
-export function getAppProviders() {
-  return Array.from(new Set([...getBuiltinProviders(), OLLAMA_PROVIDER]));
+export function getAppProviders(catalog: ModelCatalog) {
+  return catalog.providers.map((provider) => provider.id);
 }
 
 export function defaultBaseUrlForProvider(provider: string) {

@@ -1,13 +1,15 @@
-import type { EditSessionMessageOptions, SessionPatch } from "@/lib/api";
+import type { EditSessionMessageOptions } from "@/lib/api";
 import type {
   AgentConfig,
   ModelRef,
+  ModelCatalog,
   PromptTemplate,
   ProviderConfig,
   Session,
   SessionConnection,
   SessionDraft,
   SessionMetadata,
+  SessionPatch,
   User,
 } from "@carmel-agent/shared";
 
@@ -22,6 +24,7 @@ export type HarnessState = {
   activeAgentId: string;
   providerConfigs: ProviderConfig[];
   modelRefs: ModelRef[];
+  modelCatalog: ModelCatalog;
   sessions: SessionMetadata[];
   sessionDetails: Record<string, Session>;
   activeSessionId: string;

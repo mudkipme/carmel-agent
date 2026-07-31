@@ -1,12 +1,13 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { providerConfigs } from "../db/schema.ts";
-import { resolveModelRef, type ModelRef } from "@carmel-agent/shared";
+import type { ModelRef } from "@carmel-agent/shared";
+import { resolveServerModelDefinition } from "../services/model-catalog.ts";
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 
 export function resolveServerModelRef(modelRef: ModelRef, providerConfig?: ProviderConfigRecord): Model<Api> {
-  return resolveModelRef(modelRef, { baseUrl: providerConfig?.baseUrl ?? modelRef.baseUrl });
+  return resolveServerModelDefinition(modelRef, { baseUrl: providerConfig?.baseUrl ?? modelRef.baseUrl });
 }
 
 export function createAgentError(error: unknown, model: Model<Api>) {

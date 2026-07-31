@@ -1,4 +1,3 @@
-import type { AgentConfig } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -29,7 +28,7 @@ export function createAgentRoutes() {
   route.put("/agents/:id", jsonValidator(agentConfigRequestSchema), async (c) => {
     const currentUser = c.get("user");
     const currentUserId = currentUser.id;
-    const agent = c.req.valid("json") as AgentConfig;
+    const agent = c.req.valid("json");
     const agentId = c.req.param("id");
     const current = db.select().from(agents).where(eq(agents.id, agentId)).get();
     if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
@@ -58,7 +57,7 @@ export function createAgentRoutes() {
         workingDir: workingDir.workingDir,
         defaultWorkingDir: workingDir.defaultWorkingDir,
         defaultThinkingLevel,
-        createdAt: agent.createdAt ?? timestamp,
+        createdAt: current?.createdAt ?? timestamp,
         updatedAt: timestamp,
       })
       .onConflictDoUpdate({

@@ -111,15 +111,22 @@ test("admin can list and create users; non-admins are forbidden", async () => {
   );
 });
 
-test("self profile update ignores email and role (those go through the account endpoint)", async () => {
+test("self profile update rejects server-owned fields and accepts its narrow command DTO", async () => {
   const app = buildApp();
   const bobCookie = await loginCookie(app, "bob", "bobpassword");
   const me = await (await app.request("/api/me", { headers: { cookie: bobCookie } })).json();
 
-  const updated = await app.request(`/api/users/${me.id}`, {
+  const invalid = await app.request(`/api/users/${me.id}`, {
     method: "PUT",
     headers: { ...json, cookie: bobCookie },
     body: JSON.stringify({ id: me.id, name: "Bob", email: "bob-via-put@example.test", role: "admin" }),
+  });
+  assert.equal(invalid.status, 400);
+
+  const updated = await app.request(`/api/users/${me.id}`, {
+    method: "PUT",
+    headers: { ...json, cookie: bobCookie },
+    body: JSON.stringify({ name: "Bob" }),
   });
   assert.equal(updated.status, 200);
   const body = await updated.json();
@@ -226,11 +233,7 @@ test("provider configs are admin-managed: non-admins cannot create or delete the
   const app = buildApp();
   const adminCookie = await loginCookie(app, "admin", "adminpass1");
   const bobCookie = await loginCookie(app, "bob", "bobpassword");
-  // id/userId are required by the schema but overridden server-side (id from the
-  // path, userId from the acting admin).
   const providerBody = JSON.stringify({
-    id: "ignored",
-    userId: "ignored",
     label: "OpenAI",
     provider: "openai",
     authType: "api_key",

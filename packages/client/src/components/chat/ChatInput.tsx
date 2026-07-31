@@ -13,7 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { attachmentToImageContent, fileToImageAttachment, imageSrc, type LocalChatAttachment } from "./chat-utils";
 
 const MAX_FILES = 10;
@@ -100,7 +102,7 @@ export function ChatInput({
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
     if (imageFiles.length === 0) return;
     if (attachments.length + imageFiles.length > MAX_FILES) {
-      window.alert(`Maximum ${MAX_FILES} images allowed.`);
+      toast.error(`Maximum ${MAX_FILES} images allowed.`);
       return;
     }
 
@@ -109,15 +111,14 @@ export function ChatInput({
       const nextAttachments: LocalChatAttachment[] = [];
       for (const file of imageFiles) {
         if (file.size > MAX_FILE_SIZE) {
-          window.alert(`${file.name} exceeds the ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB limit.`);
+          toast.error(`${file.name} exceeds the ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB limit.`);
           continue;
         }
         nextAttachments.push(await fileToImageAttachment(file));
       }
       setAttachments((current) => [...current, ...nextAttachments]);
     } catch (error) {
-      console.error("Failed to attach image", error);
-      window.alert(error instanceof Error ? error.message : String(error));
+      showError("Unable to attach image", error);
     } finally {
       setProcessingFiles(false);
     }

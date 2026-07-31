@@ -1,6 +1,41 @@
 import type { BootstrapPayload } from "@/lib/api";
 import type { HarnessPersistedState, HarnessState } from "@/store/harness-types";
-import type { AgentConfig, Session, SessionMetadata } from "@carmel-agent/shared";
+import type {
+  AgentConfig,
+  AgentConfigCommand,
+  ModelRef,
+  ModelRefCommand,
+  ProviderConfig,
+  ProviderConfigCommand,
+  Session,
+  SessionMetadata,
+} from "@carmel-agent/shared";
+
+export function upsertById<T extends { id: string }>(items: T[], saved: T) {
+  return items.some((item) => item.id === saved.id)
+    ? items.map((item) => (item.id === saved.id ? saved : item))
+    : [...items, saved];
+}
+
+export function toAgentCommand(agent: AgentConfig): AgentConfigCommand {
+  const { id: _id, ownerUserId: _ownerUserId, createdAt: _createdAt, updatedAt: _updatedAt, ...command } = agent;
+  return command;
+}
+
+export function toModelRefCommand(model: ModelRef): ModelRefCommand {
+  const { id: _id, ownerUserId: _ownerUserId, ...command } = model;
+  return command;
+}
+
+export function toProviderConfigCommand(providerConfig: ProviderConfig): ProviderConfigCommand {
+  return {
+    label: providerConfig.label,
+    provider: providerConfig.provider,
+    authType: providerConfig.authType,
+    apiKey: providerConfig.apiKey,
+    baseUrl: providerConfig.baseUrl,
+  };
+}
 
 export function cacheSession(state: HarnessState, session: Session) {
   return {
@@ -21,6 +56,7 @@ export function resetState(
     activeAgentId: preserveSelection?.activeAgentId ?? "",
     providerConfigs: [],
     modelRefs: [],
+    modelCatalog: { providers: [] },
     sessions: [],
     sessionDetails: {},
     activeSessionId: preserveSelection?.activeSessionId ?? "",

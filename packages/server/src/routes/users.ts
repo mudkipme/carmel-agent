@@ -1,4 +1,3 @@
-import type { User } from "@carmel-agent/shared";
 import { asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { hashPassword, requireAdmin, type AuthVariables } from "../auth.ts";
@@ -111,7 +110,7 @@ export function createUserRoutes() {
   route.put("/users/:id", jsonValidator(userRequestSchema), async (c) => {
     const currentUser = c.get("user");
     if (c.req.param("id") !== currentUser.id) return c.json({ error: "You can only update your own profile." }, 403);
-    const user = c.req.valid("json") as User;
+    const user = c.req.valid("json");
     const fastTaskModelRefId = user.fastTaskModelRefId?.trim() || null;
     if (fastTaskModelRefId && !canUseModel(currentUser.id, fastTaskModelRefId)) {
       return c.json({ error: "Fast task model not found." }, 404);

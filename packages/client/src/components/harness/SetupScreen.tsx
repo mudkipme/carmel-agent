@@ -3,7 +3,7 @@ import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Field } from "@/components/harness/form-primitives";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { useHarnessStore } from "@/store/harness-store";
 
 export function SetupScreen() {
@@ -33,25 +33,32 @@ export function SetupScreen() {
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-4" onSubmit={submit}>
-            <Field label="Username">
-              <Input value={username} autoComplete="username" onChange={(event) => setUsername(event.target.value)} />
+            <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="setup-username">Username</FieldLabel>
+              <Input id="setup-username" value={username} autoComplete="username" onChange={(event) => setUsername(event.target.value)} />
             </Field>
-            <Field label="Email">
+            <Field>
+              <FieldLabel htmlFor="setup-email">Email</FieldLabel>
               <Input
+                id="setup-email"
                 value={email}
                 type="email"
                 autoComplete="email"
                 onChange={(event) => setEmail(event.target.value)}
               />
             </Field>
-            <Field label="Password">
+            <Field>
+              <FieldLabel htmlFor="setup-password">Password</FieldLabel>
               <Input
+                id="setup-password"
                 value={password}
                 type="password"
                 autoComplete="new-password"
                 onChange={(event) => setPassword(event.target.value)}
               />
             </Field>
+            </FieldGroup>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <Button type="submit" disabled={!username || password.length < 8 || submitting}>
               <ShieldCheckIcon data-icon="inline-start" />

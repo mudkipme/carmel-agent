@@ -1,22 +1,28 @@
 import type {
   AgentCommandPayload,
   AgentConfig,
+  AgentConfigCommand,
   AgentFileContent,
   AgentFileEntry,
   AgentFileList,
   CreateUserRequest,
+  ModelCatalog,
+  ModelRefCommand,
   OAuthLoginFlowState,
   OAuthProviderSummary,
   ModelRef,
   ProviderConfig,
+  ProviderConfigCommand,
   ProviderModelSummary,
   Session,
   SessionConnection,
   SessionDraft,
+  SessionPatch,
   SessionImportResult,
   SessionMetadata,
   SetupStatus,
   User,
+  UserUpdateRequest,
   UserRole,
   UserMessageEditOptions,
 } from "@carmel-agent/shared";
@@ -31,11 +37,8 @@ export type BootstrapPayload = {
   agents: AgentConfig[];
   providerConfigs: ProviderConfig[];
   modelRefs: ModelRef[];
+  modelCatalog: ModelCatalog;
   sessions: SessionMetadata[];
-};
-
-export type SessionPatch = Omit<Partial<Session>, "pinnedAt"> & {
-  pinnedAt?: number | null;
 };
 
 export class ApiError extends Error {
@@ -99,23 +102,23 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ currentPassword, email, newPassword }),
     }),
-  upsertUser: (user: User) =>
-    request<User>(`/api/users/${user.id}`, { method: "PUT", body: JSON.stringify(user) }),
-  upsertModelRef: (model: ModelRef) =>
-    request<ModelRef>(`/api/models/${model.id}`, { method: "PUT", body: JSON.stringify(model) }),
+  upsertUser: (userId: string, input: UserUpdateRequest) =>
+    request<User>(`/api/users/${userId}`, { method: "PUT", body: JSON.stringify(input) }),
+  upsertModelRef: (modelId: string, input: ModelRefCommand) =>
+    request<ModelRef>(`/api/models/${modelId}`, { method: "PUT", body: JSON.stringify(input) }),
   deleteModelRef: (modelRefId: string) =>
     request<BootstrapPayload>(`/api/models/${modelRefId}`, { method: "DELETE" }),
-  upsertProviderConfig: (providerConfig: ProviderConfig) =>
-    request<ProviderConfig>(`/api/provider-configs/${providerConfig.id}`, {
+  upsertProviderConfig: (providerConfigId: string, input: ProviderConfigCommand) =>
+    request<ProviderConfig>(`/api/provider-configs/${providerConfigId}`, {
       method: "PUT",
-      body: JSON.stringify(providerConfig),
+      body: JSON.stringify(input),
     }),
   deleteProviderConfig: (providerConfigId: string) =>
     request<BootstrapPayload>(`/api/provider-configs/${providerConfigId}`, { method: "DELETE" }),
   listProviderModels: (providerConfigId: string) =>
     request<ProviderModelSummary[]>(`/api/provider-configs/${providerConfigId}/models`),
-  upsertAgent: (agent: AgentConfig) =>
-    request<AgentConfig>(`/api/agents/${agent.id}`, { method: "PUT", body: JSON.stringify(agent) }),
+  upsertAgent: (agentId: string, input: AgentConfigCommand) =>
+    request<AgentConfig>(`/api/agents/${agentId}`, { method: "PUT", body: JSON.stringify(input) }),
   getAgentSettings: (agentId: string) => request<AgentConfig>(`/api/agents/${agentId}/settings`),
   getOAuthProviders: () => request<OAuthProviderSummary[]>("/api/oauth/providers"),
   startProviderOAuthLogin: (providerConfigId: string) =>

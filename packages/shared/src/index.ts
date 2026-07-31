@@ -1,5 +1,6 @@
 import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, TextContent } from "@earendil-works/pi-ai";
+import type { AgentMount, AgentPermissions, AgentThinkingLevel, PromptTemplate } from "./schemas.ts";
 
 export type ChatAttachment = {
   id: string;
@@ -44,7 +45,6 @@ export {
 } from "./messages.ts";
 export type { UserMessageEditOptions } from "./messages.ts";
 export * from "./schemas.ts";
-export { resolveModelRef } from "./model.ts";
 
 export const OLLAMA_PROVIDER = "ollama";
 export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1";
@@ -68,36 +68,7 @@ export type SetupStatus = {
   needsSetup: boolean;
 };
 
-export type CreateUserRequest = {
-  username: string;
-  email: string;
-  password: string;
-  name?: string;
-  role?: UserRole;
-};
-
-export type AgentPermissions = {
-  read: boolean;
-  write: boolean;
-  edit: boolean;
-  bash: boolean;
-  network: boolean;
-};
-
-export type PromptTemplate = {
-  id: string;
-  name: string;
-  body: string;
-};
-
-export type AgentMount = {
-  source: string;
-  target?: string;
-  readOnly?: boolean;
-};
-
 export type AgentWorkingDirMode = "default" | "manual";
-export type AgentThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export type AgentSlashCommandSource = "prompt" | "skill";
 
@@ -137,11 +108,6 @@ export type SessionConnection = {
 };
 
 
-export type PromptInput = {
-  text: string;
-  images?: ImageContent[];
-};
-
 export type ModelRef = {
   id: string;
   ownerUserId: string;
@@ -166,6 +132,15 @@ export type ProviderModelSummary = {
   maxTokens?: number;
   reasoning?: boolean;
   input?: Array<"text" | "image">;
+};
+
+export type ModelProviderSummary = {
+  id: string;
+  name: string;
+};
+
+export type ModelCatalog = {
+  providers: ModelProviderSummary[];
 };
 
 export type ProviderConfig = {
@@ -250,8 +225,6 @@ export type Session = {
 export type SessionMetadata = Omit<Session, "messages" | "messageEntryIds"> & {
   messageCount: number;
 };
-
-export type SessionDraft = Pick<Session, "agentId" | "modelRefId"> & Partial<Pick<Session, "thinkingLevel">>;
 
 export type SessionImportResult = {
   sessions: Session[];

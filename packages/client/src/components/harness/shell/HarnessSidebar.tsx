@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { FileExplorerPanel } from "@/components/harness/files/FileExplorerPanel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, SessionMetadata, User } from "@carmel-agent/shared";
@@ -55,7 +56,7 @@ export function HarnessSidebar({
         defaultModelRefId: store.modelRefs[0]?.id,
       });
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Unable to create agent");
+      showError("Unable to create agent", error);
     }
   };
 

@@ -3,6 +3,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { agents, modelRefs, providerConfigs, sessions, users } from "./db/schema.ts";
 import { defaultAgentWorkingDir } from "./paths.ts";
 import type { SessionWithMessages } from "./services/session-store.ts";
+import { resolveServerModelDefinition } from "./services/model-catalog.ts";
 
 export function serializeUser(user: typeof users.$inferSelect): User {
   return {
@@ -34,13 +35,22 @@ export function serializeAgentSettings(agent: typeof agents.$inferSelect): Agent
 }
 
 export function serializeModelRef(model: typeof modelRefs.$inferSelect): ModelRef {
-  return {
+  const serialized: ModelRef = {
     ...model,
     providerConfigId: model.providerConfigId ?? undefined,
     api: model.api ?? undefined,
     baseUrl: model.baseUrl ?? undefined,
     contextWindow: model.contextWindow ?? undefined,
     maxTokens: model.maxTokens ?? undefined,
+  };
+  const definition = resolveServerModelDefinition(serialized);
+  return {
+    ...serialized,
+    api: serialized.api ?? definition.api,
+    contextWindow: serialized.contextWindow ?? definition.contextWindow,
+    maxTokens: serialized.maxTokens ?? definition.maxTokens,
+    reasoning: serialized.reasoning ?? definition.reasoning,
+    input: serialized.input ?? definition.input,
   };
 }
 

@@ -58,6 +58,5 @@ Network tools are only added to an agent run when that agent has the network per
 - `CARMEL_BASH_GPU` - comma-separated CDI device ids to attach to runner containers, for example `nvidia.com/gpu=all`.
 - `CARMEL_BASH_SELINUX_RELABEL` - relabel runner bind mounts for SELinux with `:z`. Defaults to `true`; set to `false` if relabeling is unwanted.
 - `CARMEL_HOST_DATA_DIR` - host path backing `CARMEL_AGENT_DATA_DIR`, required only when Carmel Agent runs in a container.
-- `CARMEL_BASH_ALLOW_INSECURE` - set to `true` to fall back to in-process host bash when no socket is reachable. Development only.
 
 The runner image contains the tools available to bash agents. The default `Dockerfile.runner` includes bash, git, curl, wget, Python, ripgrep, Chromium, `agent-browser`, and `qmd`.

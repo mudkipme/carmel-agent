@@ -153,7 +153,7 @@ export function createSessionRoutes() {
   });
 
   route.patch("/sessions/:id", jsonValidator(sessionPatchRequestSchema), async (c) => {
-    const patch = c.req.valid("json") as Partial<Session> & { pinnedAt?: number | null };
+    const patch = c.req.valid("json");
     const sessionId = c.req.param("id");
     const current = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
