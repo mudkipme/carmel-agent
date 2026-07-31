@@ -233,6 +233,9 @@ export function createAgentRunResponse({
         console.warn("Execution environment cleanup failed:", error instanceof Error ? error.message : String(error));
       } finally {
         activeHarness = undefined;
+        // This is the sequenced terminal authority for observers. It follows all
+        // persistence/title finalization attempts and execution cleanup.
+        emitRunEvent(run, { type: "run_finished" });
         finishAgentRun(run);
       }
     }

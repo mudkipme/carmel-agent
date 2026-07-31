@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { ApiError, api } from "@/lib/api";
 import { createClientId } from "@/lib/id";
+import { readSessionConnection } from "@/lib/session-connection";
 import { resolveModelRef } from "@/store/model-utils";
 import type { AgentConfig } from "@carmel-agent/shared";
 import { cacheSession, canUserSeeAgent, resetState, resolveBootstrapState, toSessionMetadata } from "@/store/harness-state";
@@ -263,12 +264,12 @@ export const useHarnessStore = create<HarnessState>()(
     return saved;
   },
   connectSession: async (sessionId) => {
-    const connection = await api.getSessionConnection(sessionId);
+    const connection = await readSessionConnection(sessionId);
     set((state) => cacheSession(state, connection.session));
     return connection;
   },
   refreshSession: async (sessionId) => {
-    const saved = (await api.getSessionConnection(sessionId)).session;
+    const saved = (await readSessionConnection(sessionId)).session;
     set((state) => ({
       sessions: state.sessions.map((item) => (item.id === sessionId ? toSessionMetadata(saved) : item)),
       sessionDetails: { ...state.sessionDetails, [sessionId]: saved },

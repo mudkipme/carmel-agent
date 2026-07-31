@@ -114,7 +114,12 @@ export type AgentCommandPayload = {
   commands: AgentSlashCommand[];
 };
 
-export type AgentRunEvent = AgentEvent | { type: string; [key: string]: unknown };
+/** Emitted after server-side run finalization, including persistence and title work, has completed. */
+export type AgentRunFinishedEvent = {
+  type: "run_finished";
+};
+
+export type AgentRunEvent = AgentEvent | AgentRunFinishedEvent;
 
 export type AgentRunEventEnvelope = {
   sequence: number;

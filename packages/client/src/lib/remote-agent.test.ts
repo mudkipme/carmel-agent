@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import type { AgentRunEventEnvelope, SessionConnection } from "@carmel-agent/shared";
+import type { AgentRunEvent, AgentRunEventEnvelope, SessionConnection } from "@carmel-agent/shared";
 import { RemoteAgent } from "./remote-agent.ts";
 
 const model = {
@@ -30,7 +30,11 @@ test("reconnect starts after the snapshot cursor and does not duplicate persiste
     const url = String(input);
     requests.push(url);
     if (url.endsWith("/events?after=7")) {
-      return eventResponse([envelope(8, { type: "message_end", message: streamed }), envelope(9, agentEnd(streamed))]);
+      return eventResponse([
+        envelope(8, { type: "message_end", message: streamed }),
+        envelope(9, agentEnd(streamed)),
+        envelope(10, runFinished()),
+      ]);
     }
     return new Response(null, { status: 404 });
   };
@@ -38,10 +42,7 @@ test("reconnect starts after the snapshot cursor and does not duplicate persiste
     agent = createAgent([question, persisted], async () => agent.setMessages(final));
     await agent.attachToRun("run_cursor", [question, persisted], 7);
 
-    assert.deepEqual(requests, [
-      "/api/agent-runs/run_cursor/events?after=7",
-      "/api/agent-runs/run_cursor/events?after=9",
-    ]);
+    assert.deepEqual(requests, ["/api/agent-runs/run_cursor/events?after=7"]);
     assert.deepEqual(agent.state.messages, final);
   } finally {
     globalThis.fetch = originalFetch;
@@ -62,7 +63,11 @@ test("a broken observer stream reconnects after the last received sequence witho
       return failingEventResponse(envelope(2, { type: "message_start", message: streamed }));
     }
     if (url.endsWith("/events?after=2")) {
-      return eventResponse([envelope(3, { type: "message_end", message: streamed }), envelope(4, agentEnd(streamed))]);
+      return eventResponse([
+        envelope(3, { type: "message_end", message: streamed }),
+        envelope(4, agentEnd(streamed)),
+        envelope(5, runFinished()),
+      ]);
     }
     return new Response(null, { status: 404 });
   };
@@ -73,7 +78,6 @@ test("a broken observer stream reconnects after the last received sequence witho
     assert.deepEqual(requests, [
       { url: "/api/agent-runs/run_reconnect/events?after=1", method: "GET" },
       { url: "/api/agent-runs/run_reconnect/events?after=2", method: "GET" },
-      { url: "/api/agent-runs/run_reconnect/events?after=4", method: "GET" },
     ]);
     assert.equal(requests.some((request) => request.url.includes("/abort")), false);
     assert.deepEqual(agent.state.messages, final);
@@ -98,7 +102,11 @@ test("an uncertain submit response recovers the server-owned run through session
       return Response.json(connection([question], { runId: "run_recovered", sessionId: "session_1", eventCursor: 1 }));
     }
     if (url.endsWith("/events?after=1")) {
-      return eventResponse([envelope(2, { type: "message_end", message: answer }), envelope(3, agentEnd(answer))]);
+      return eventResponse([
+        envelope(2, { type: "message_end", message: answer }),
+        envelope(3, agentEnd(answer)),
+        envelope(4, runFinished()),
+      ]);
     }
     return new Response(null, { status: 404 });
   };
@@ -110,7 +118,6 @@ test("an uncertain submit response recovers the server-owned run through session
       { url: "/api/agents/agent_1/run", method: "POST" },
       { url: "/api/sessions/session_1/connection", method: "GET" },
       { url: "/api/agent-runs/run_recovered/events?after=1", method: "GET" },
-      { url: "/api/agent-runs/run_recovered/events?after=3", method: "GET" },
     ]);
     assert.equal(requests.some((request) => request.url.includes("/abort")), false);
     assert.deepEqual(agent.state.messages, final);
@@ -217,6 +224,7 @@ test("manual stop uses the abort API but keeps watching the server-persisted abo
       envelope(1, { type: "message_end", message: aborted }),
       envelope(2, { type: "turn_end", message: aborted, toolResults: [] }),
       envelope(3, agentEnd(aborted)),
+      envelope(4, runFinished()),
     ]));
     streamController.close();
     await observing;
@@ -245,6 +253,7 @@ test("a server-persisted model failure is authoritative and is not duplicated sy
           envelope(1, { type: "message_end", message: failure }),
           envelope(2, { type: "turn_end", message: failure, toolResults: [] }),
           envelope(3, agentEnd(failure)),
+          envelope(4, runFinished()),
         ]);
       }
       return new Response(null, { status: 404 });
@@ -297,12 +306,16 @@ function connection(
   };
 }
 
-function envelope(sequence: number, event: AgentEvent): AgentRunEventEnvelope {
+function envelope(sequence: number, event: AgentRunEvent): AgentRunEventEnvelope {
   return { sequence, event };
 }
 
 function agentEnd(message: AgentMessage): AgentEvent {
   return { type: "agent_end", messages: [message] };
+}
+
+function runFinished(): AgentRunEvent {
+  return { type: "run_finished" };
 }
 
 function eventResponse(envelopes: AgentRunEventEnvelope[]) {

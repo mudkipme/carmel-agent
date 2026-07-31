@@ -27,7 +27,6 @@ export function SessionList({
   onAfterOpen: () => void;
 }) {
   const navigate = useNavigate();
-  const store = useHarnessStore();
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
 
   return (
@@ -43,7 +42,6 @@ export function SessionList({
           <button
             className="flex h-full min-w-0 flex-1 items-center text-left"
             onClick={() => {
-              store.setActiveSession(session.id);
               navigate(`/agents/${session.agentId}/sessions/${session.id}`);
               onSidebarModeChange("sessions");
               onAfterOpen();

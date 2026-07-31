@@ -6,7 +6,13 @@ import type {
   ThinkingLevel,
 } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import type { ActiveAgentRunSummary, AgentRunEventEnvelope, PromptInput, SessionConnection } from "@carmel-agent/shared";
+import type {
+  ActiveAgentRunSummary,
+  AgentRunEvent,
+  AgentRunEventEnvelope,
+  PromptInput,
+  SessionConnection,
+} from "@carmel-agent/shared";
 
 type MutableAgentState = Omit<
   AgentState,
@@ -40,6 +46,7 @@ export class RemoteAgent {
   private messages: AgentMessage[];
   private runId?: string;
   private lastSequence = 0;
+  private runFinished = false;
   private detachRequested = false;
   private replaceNextUserMessage = false;
 
@@ -277,6 +284,7 @@ export class RemoteAgent {
     this.state.errorMessage = undefined;
     this.runId = undefined;
     this.lastSequence = afterSequence;
+    this.runFinished = false;
     this.detachRequested = false;
     this.notify();
     return controller;
@@ -305,6 +313,7 @@ export class RemoteAgent {
   private async watchRun(runId: string, signal: AbortSignal) {
     let retryDelayMs = 0;
     while (true) {
+      if (this.runFinished) return;
       if (signal.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
       if (retryDelayMs > 0) await waitForReconnect(retryDelayMs, signal);
 
@@ -349,14 +358,15 @@ export class RemoteAgent {
       this.clearReconnectError();
       try {
         await this.consumeEvents(response.body);
+        if (this.runFinished) return;
         retryDelayMs = 0;
       } catch (error) {
         if (signal.aborted) throw error;
         this.markReconnecting(error);
         retryDelayMs = nextReconnectDelay(retryDelayMs);
       }
-      // A clean EOF is not run authority. Reconnect and let the server's 404
-      // confirm that the run finished; otherwise keep watching the same run.
+      // A clean EOF without run_finished is not terminal authority. Reconnect;
+      // a replayed terminal event or a 404 confirms that the server finalized it.
     }
   }
 
@@ -439,7 +449,7 @@ export class RemoteAgent {
     this.notify();
   }
 
-  private processEvent(event: AgentEvent) {
+  private processEvent(event: AgentRunEvent) {
     switch (event.type) {
       case "message_start":
       case "message_update":
@@ -472,9 +482,14 @@ export class RemoteAgent {
         }
         break;
       case "agent_end":
-        // The server-owned stream lifecycle is authoritative. An agent_end event
-        // updates message state, but only a subsequent 404 ends observation.
+        // AgentHarness has stopped producing messages, but server persistence and
+        // title generation still follow, so this is not terminal authority.
         this.state.streamingMessage = undefined;
+        break;
+      case "run_finished":
+        this.runFinished = true;
+        this.state.streamingMessage = undefined;
+        this.state.pendingToolCalls = new Set();
         break;
     }
     this.notify();
