@@ -10,9 +10,9 @@
     "rewriteRelativeImportExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
+    "types": ["node"],
     "noEmit": true,
-    "strict": true,
-    "ignoreDeprecations": "6.0"
+    "strict": true
   },
   "include": ["src"]
 }
