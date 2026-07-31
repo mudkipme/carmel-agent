@@ -3,7 +3,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { agents, modelRefs, providerConfigs, sessions, users } from "./db/schema.ts";
 import { defaultAgentWorkingDir } from "./paths.ts";
 import type { SessionWithMessages } from "./services/session-store.ts";
-import { resolveServerModelDefinition } from "./services/model-catalog.ts";
+import { resolveServerModelRef } from "./runtime/model.ts";
 
 export function serializeUser(user: typeof users.$inferSelect): User {
   return {
@@ -43,7 +43,7 @@ export function serializeModelRef(model: typeof modelRefs.$inferSelect): ModelRe
     contextWindow: model.contextWindow ?? undefined,
     maxTokens: model.maxTokens ?? undefined,
   };
-  const definition = resolveServerModelDefinition(serialized);
+  const definition = resolveServerModelRef(serialized);
   return {
     ...serialized,
     api: serialized.api ?? definition.api,

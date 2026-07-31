@@ -1,5 +1,5 @@
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import type { Credential } from "@earendil-works/pi-ai";
+import type { Api, Credential, Model } from "@earendil-works/pi-ai";
 import type {
   AgentMount,
   AgentPermissions,
@@ -80,6 +80,14 @@ export const providerKeys = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.userId, table.provider] })],
 );
+
+export const modelCatalogs = sqliteTable("model_catalogs", {
+  providerId: text("provider_id").primaryKey(),
+  models: text("models", { mode: "json" }).$type<Array<Model<Api>>>().notNull(),
+  checkedAt: integer("checked_at"),
+  lastModified: integer("last_modified"),
+  etag: text("etag"),
+});
 
 export const agents = sqliteTable("agents", {
   id: text("id").primaryKey(),

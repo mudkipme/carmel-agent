@@ -1,13 +1,36 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
+import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { providerConfigs } from "../db/schema.ts";
-import type { ModelRef } from "@carmel-agent/shared";
-import { resolveServerModelDefinition } from "../services/model-catalog.ts";
+import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER, type ModelRef } from "@carmel-agent/shared";
+import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 
-export function resolveServerModelRef(modelRef: ModelRef, providerConfig?: ProviderConfigRecord): Model<Api> {
-  return resolveServerModelDefinition(modelRef, { baseUrl: providerConfig?.baseUrl ?? modelRef.baseUrl });
+export function resolveServerModelRef(
+  modelRef: ModelRef,
+  providerConfig?: ProviderConfigRecord,
+  modelRuntime?: Pick<ModelRuntime, "getModel">,
+): Model<Api> {
+  const catalogModel = modelRuntime?.getModel(modelRef.provider, modelRef.modelId)
+    ?? getBuiltinModel(modelRef.provider as never, modelRef.modelId as never);
+  const baseUrl = providerConfig?.baseUrl
+    ?? modelRef.baseUrl
+    ?? (modelRef.provider === OLLAMA_PROVIDER ? DEFAULT_OLLAMA_BASE_URL : "");
+  if (catalogModel) return { ...catalogModel, baseUrl: baseUrl || catalogModel.baseUrl };
+  return {
+    id: modelRef.modelId,
+    name: modelRef.label,
+    api: modelRef.api ?? "openai-completions",
+    provider: modelRef.provider,
+    baseUrl,
+    reasoning: modelRef.reasoning ?? false,
+    input: modelRef.input ?? ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: modelRef.contextWindow ?? 128000,
+    maxTokens: modelRef.maxTokens ?? 8192,
+    compat: modelRef.provider === OLLAMA_PROVIDER ? ollamaCompat : undefined,
+  } as Model<Api>;
 }
 
 export function createAgentError(error: unknown, model: Model<Api>) {
@@ -31,3 +54,12 @@ export function createAgentError(error: unknown, model: Model<Api>) {
   };
   return { type: "agent_end", messages: [message] };
 }
+
+const ollamaCompat = {
+  supportsStore: false,
+  supportsDeveloperRole: false,
+  supportsReasoningEffort: false,
+  supportsUsageInStreaming: false,
+  maxTokensField: "max_tokens" as const,
+  supportsStrictMode: false,
+};

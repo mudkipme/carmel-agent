@@ -20,7 +20,7 @@ import {
 } from "../services/agent-access.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import { listOllamaModels } from "../services/provider-auth.ts";
-import { readBuiltinProviderModels } from "../services/model-catalog.ts";
+import { readProviderModels } from "../services/model-catalog.ts";
 import { readActiveRunLeaseForProviderConfig } from "../services/active-run-lease.ts";
 import { jsonValidator, oauthInputRequestSchema, providerConfigRequestSchema } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
@@ -75,7 +75,7 @@ export function createProviderConfigRoutes() {
       return c.json({ error: "Provider config not found." }, 404);
     }
     if (providerConfig.provider !== OLLAMA_PROVIDER) {
-      return c.json(readBuiltinProviderModels(providerConfig.provider));
+      return c.json(await readProviderModels(providerConfig));
     }
 
     try {

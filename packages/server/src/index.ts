@@ -4,12 +4,25 @@ import { pruneExpiredAuthSessions } from "./auth.ts";
 import { migrate, seed, sqlite } from "./db/index.ts";
 import { shutdownActiveRuns } from "./runtime/run-stream.ts";
 import { reapManagedContainers, shutdownContainerManager } from "./runtime/sandbox/container-manager.ts";
+import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
 
 migrate();
 seed();
 pruneExpiredAuthSessions();
 // Remove any sandbox containers left behind by a previous process.
 void reapManagedContainers();
+void refreshConfiguredModelCatalogs()
+  .then((errors) => {
+    for (const [provider, error] of errors) {
+      console.warn(`Failed to refresh ${provider} model catalog:`, error.message);
+    }
+  })
+  .catch((error: unknown) => {
+    console.warn(
+      "Failed to refresh configured model catalogs:",
+      error instanceof Error ? error.message : String(error),
+    );
+  });
 
 const app = createApp();
 const port = Number(process.env.PORT ?? 8797);

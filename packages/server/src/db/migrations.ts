@@ -51,6 +51,11 @@ const migrations: Migration[] = [
     description: "Backfill provider links, deduplicate models, and create uniqueness indexes",
     run: repairModelRefIntegrity,
   },
+  {
+    id: "015_model_catalog_cache",
+    description: "Create the persistent Pi model catalog cache",
+    run: createModelCatalogCache,
+  },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -318,6 +323,18 @@ function repairModelRefIntegrity(sqlite: Sqlite) {
       ON model_refs(provider_config_id, model_id) WHERE provider_config_id IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS model_refs_provider_model_unique
       ON model_refs(provider, model_id) WHERE provider_config_id IS NULL;
+  `);
+}
+
+function createModelCatalogCache(sqlite: Sqlite) {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS model_catalogs (
+      provider_id TEXT PRIMARY KEY NOT NULL,
+      models TEXT NOT NULL,
+      checked_at INTEGER,
+      last_modified INTEGER,
+      etag TEXT
+    );
   `);
 }
 

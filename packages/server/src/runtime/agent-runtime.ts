@@ -79,7 +79,7 @@ export function createAgentRunResponse({
   promptInput?: PromptInput;
 }) {
   const runId = randomId();
-  const model = resolveServerModelRef(serializeModelRef(modelRef), providerConfig);
+  const model = resolveServerModelRef(serializeModelRef(modelRef), providerConfig, modelRuntime);
   const encoder = new TextEncoder();
   let activeHarness: AgentHarness<ExecutionToolContext> | undefined;
   let abortRequested = false;

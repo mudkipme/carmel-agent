@@ -58,7 +58,7 @@ export async function resolveModelContext(
       modelRef,
       providerConfig,
       modelRuntime,
-      model: resolveServerModelRef(serializeModelRef(modelRef), providerConfig),
+      model: resolveServerModelRef(serializeModelRef(modelRef), providerConfig, modelRuntime),
     },
   };
 }
