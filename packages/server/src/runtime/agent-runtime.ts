@@ -9,12 +9,10 @@ import {
   formatSkillsForSystemPrompt,
   type AgentEvent,
   type AgentHarnessEvent,
-  type AgentHarnessTool,
   type ExecutionToolContext,
   type AgentMessage,
 } from "@earendil-works/pi-agent-core";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { readFile } from "node:fs/promises";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
@@ -26,7 +24,7 @@ import { resolveModelContext } from "../services/model-context.ts";
 import { type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
-import { createAgentResourceLoader, resolveAgentWorkingDirPath } from "./resources.ts";
+import { loadAgentResources, resolveAgentWorkingDirPath } from "./resources.ts";
 import {
   createActiveAgentRun,
   createRunStream,
@@ -109,32 +107,20 @@ export function createAgentRunResponse({
     let retryMessagePersisted = false;
     try {
       piSession = await openPiSession(session.id);
-      const resourceLoader = await createAgentResourceLoader(agent);
-      const skills = await Promise.all(
-        resourceLoader.getSkills().skills.map(async (skill) => ({
-          name: skill.name,
-          description: skill.description,
-          content: stripSkillFrontmatter(await readFile(skill.filePath, "utf8")),
-          filePath: skill.filePath,
-          disableModelInvocation: skill.disableModelInvocation,
-        })),
-      );
+      execution = createServerExecution(agent);
+      const resources = await loadAgentResources(agent, execution.env);
+      const skills = resources.skills;
       const promptTemplates = [
-        ...resourceLoader.getPrompts().prompts.map((template) => ({
-          name: template.name,
-          description: template.description,
-          content: template.content,
-        })),
+        ...resources.promptTemplates,
         ...agent.promptTemplates.map((template) => ({ name: template.name, content: template.body })),
       ];
-      execution = createServerExecution(agent);
-      const tools = execution.tools as unknown as AgentHarnessTool<ExecutionToolContext>[];
+      const tools = execution.tools;
       const activeToolNames = tools.map((tool) => tool.name);
       const systemPrompt = buildHarnessSystemPrompt({
-        base: resourceLoader.getSystemPrompt()?.trim() || "You are a helpful assistant.",
+        base: agent.systemPrompt.trim() || "You are a helpful assistant.",
         cwd: resolveAgentWorkingDirPath(agent),
         skills,
-        contextFiles: resourceLoader.getAgentsFiles().agentsFiles,
+        contextFiles: resources.contextFiles,
         includeSkills: activeToolNames.includes("read"),
       });
       harness = new AgentHarness({
@@ -375,11 +361,6 @@ function buildHarnessSystemPrompt(options: {
     prompt += `\n\n${formatSkillsForSystemPrompt(options.skills)}`;
   }
   return `${prompt}\nCurrent working directory: ${options.cwd.replaceAll("\\", "/")}`;
-}
-
-function stripSkillFrontmatter(content: string) {
-  const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  return normalized.replace(/^---\n[\s\S]*?\n---(?:\n|$)/, "");
 }
 
 function randomId() {

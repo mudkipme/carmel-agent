@@ -1,7 +1,9 @@
 import {
-  createFindToolDefinition,
-  createGrepToolDefinition,
-  createLsToolDefinition,
+  createFindTool as createPiFindTool,
+  createGrepTool as createPiGrepTool,
+  createLsTool as createPiLsTool,
+  type FindToolInput,
+  type GrepToolInput,
 } from "@earendil-works/pi-coding-agent";
 import {
   createBashTool,
@@ -9,21 +11,15 @@ import {
   createReadTool,
   createWriteTool,
   type AgentHarnessTool,
-  type AgentTool,
   type ExecutionToolContext,
 } from "@earendil-works/pi-agent-core";
 import { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
+import { createGrepOperations, createLsOperations } from "./search-operations.ts";
 export { remapContainerPath } from "./execution-env.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
-type ToolArgs = Record<string, unknown> | undefined;
-type ServerToolDefinition =
-  | ReturnType<typeof createGrepToolDefinition>
-  | ReturnType<typeof createFindToolDefinition>
-  | ReturnType<typeof createLsToolDefinition>
-  | AgentHarnessTool<ExecutionToolContext>
-  | AgentTool;
+type ServerToolDefinition = AgentHarnessTool<ExecutionToolContext>;
 
 export function createServerExecution(agent: AgentRecord) {
   const env = new AgentExecutionEnv(agent);
@@ -39,21 +35,48 @@ export function createServerToolDefinitions(agent: AgentRecord, env = new AgentE
 
   if (agent.permissions.read) {
     tools.push(
-      guardExecutionTool(createReadTool<ExecutionToolContext>(), env, "read"),
-      guardSearchTool(createGrepToolDefinition(env.cwd), env),
-      guardSearchTool(createFindToolDefinition(env.cwd), env),
-      guardSearchTool(createLsToolDefinition(env.cwd), env),
+      createReadTool<ExecutionToolContext>(),
+      createAuthorizedGrepTool(env),
+      createAuthorizedFindTool(env),
+      createPiLsTool(env.cwd, { operations: createLsOperations(env) }),
     );
   }
-  if (agent.permissions.write) tools.push(guardExecutionTool(createWriteTool<ExecutionToolContext>(), env, "write"));
-  if (agent.permissions.edit) tools.push(guardExecutionTool(createEditTool<ExecutionToolContext>(), env, "write"));
+  if (agent.permissions.write) tools.push(createWriteTool<ExecutionToolContext>());
+  if (agent.permissions.edit) tools.push(createEditTool<ExecutionToolContext>());
   if (agent.permissions.bash) tools.push(createBashTool<ExecutionToolContext>());
   if (agent.permissions.network) tools.push(...createNetworkToolDefinitions());
 
   return tools;
 }
 
-function createNetworkToolDefinitions(): AgentTool[] {
+function createAuthorizedFindTool(env: AgentExecutionEnv): ServerToolDefinition {
+  const tool = createPiFindTool(env.cwd);
+  return {
+    ...tool,
+    async execute(toolCallId, params, signal, onUpdate) {
+      const args = params as FindToolInput;
+      const path = env.resolveAuthorizedPath(args.path || ".", "read");
+      return tool.execute(toolCallId, { ...args, path }, signal, onUpdate);
+    },
+  };
+}
+
+// GrepOperations protects metadata and context reads, but Pi still passes the
+// original search path to its host rg process. Resolve it first so container
+// mount aliases are remapped and rg never receives an unauthorized host path.
+function createAuthorizedGrepTool(env: AgentExecutionEnv): ServerToolDefinition {
+  const tool = createPiGrepTool(env.cwd, { operations: createGrepOperations(env) });
+  return {
+    ...tool,
+    async execute(toolCallId, params, signal, onUpdate) {
+      const args = params as GrepToolInput;
+      const path = env.resolveAuthorizedPath(args.path || ".", "read");
+      return tool.execute(toolCallId, { ...args, path }, signal, onUpdate);
+    },
+  };
+}
+
+function createNetworkToolDefinitions(): ServerToolDefinition[] {
   return [
     {
       name: "exa_search",
@@ -129,36 +152,6 @@ function createNetworkToolDefinitions(): AgentTool[] {
       },
     },
   ];
-}
-
-function guardExecutionTool<TTool extends AgentHarnessTool<ExecutionToolContext>>(tool: TTool, env: AgentExecutionEnv, mode: "read" | "write"): TTool {
-  const execute = tool.execute.bind(tool);
-  return {
-    ...tool,
-    execute: ((toolCallId, params, signal, onUpdate, context) => {
-      const path = typeof (params as ToolArgs)?.path === "string" ? (params as ToolArgs)?.path as string : ".";
-      env.resolveAuthorizedPath(path, mode);
-      return execute(toolCallId, params, signal, onUpdate, context);
-    }) as TTool["execute"],
-  };
-}
-
-function guardSearchTool<TTool extends ServerToolDefinition>(tool: TTool, env: AgentExecutionEnv): TTool {
-  const execute = tool.execute.bind(tool) as unknown as (...args: unknown[]) => unknown;
-  return {
-    ...tool,
-    execute: ((toolCallId: unknown, params: unknown, signal: unknown, onUpdate: unknown, context: unknown) => {
-      const guarded = authorizeSearchArgs(params as ToolArgs, env);
-      return execute(toolCallId, guarded, signal, onUpdate, context);
-    }) as TTool["execute"],
-  } as TTool;
-}
-
-function authorizeSearchArgs(args: ToolArgs, env: AgentExecutionEnv): ToolArgs {
-  if (!args) return args;
-  const rawPath = args.path;
-  const resolved = env.resolveAuthorizedPath(typeof rawPath === "string" && rawPath ? rawPath : ".", "read");
-  return { ...args, path: resolved };
 }
 
 async function fetchUrlWithExa(url: string, maxCharacters: number, signal?: AbortSignal) {

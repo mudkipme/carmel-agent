@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createServerToolDefinitions, remapContainerPath } from "./tools.ts";
+import { createGrepOperations } from "./search-operations.ts";
+import { createServerExecution, createServerToolDefinitions, remapContainerPath } from "./tools.ts";
 import type { agents } from "../db/schema.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -51,41 +52,47 @@ test("createServerToolDefinitions maps server runtime permissions to their tool 
   );
 });
 
-test("read tools reject paths outside the readable runtime roots", () => {
-  const tools = createServerToolDefinitions(makeAgent({ permissions: { ...allPermissions(false), read: true } }));
+test("read tools reject paths outside the readable runtime roots", async () => {
+  const { tools, toolContext } = createServerExecution(
+    makeAgent({ permissions: { ...allPermissions(false), read: true } }),
+  );
   const readTool = tools.find((tool) => tool.name === "read");
 
   assert.ok(readTool);
-  assert.throws(
+  await assert.rejects(
     () =>
       executeTool(
         readTool,
         "call_1",
         { path: "../outside.txt" },
         new AbortController().signal,
+        toolContext,
       ),
     /outside the agent working directory/,
   );
 });
 
-test("write tools reject paths outside the writable runtime root", () => {
-  const tools = createServerToolDefinitions(makeAgent({ permissions: { ...allPermissions(false), write: true } }));
+test("write tools reject paths outside the writable runtime root", async () => {
+  const { tools, toolContext } = createServerExecution(
+    makeAgent({ permissions: { ...allPermissions(false), write: true } }),
+  );
   const writeTool = tools.find((tool) => tool.name === "write");
 
   assert.ok(writeTool);
-  assert.throws(
+  await assert.rejects(
     () =>
       executeTool(
         writeTool,
         "call_1",
         { path: "../outside.txt", content: "should not be written" },
         new AbortController().signal,
+        toolContext,
       ),
     /outside the agent working directory/,
   );
 });
 
-test("read tools reject a symlink inside the workspace that points outside it", () => {
+test("read tools reject a symlink inside the workspace that points outside it", async () => {
   const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-"));
   const secretDir = mkdtempSync(join(tmpdir(), "carmel-agent-secret-"));
   writeFileSync(join(secretDir, "secret.txt"), "top secret");
@@ -93,38 +100,155 @@ test("read tools reject a symlink inside the workspace that points outside it", 
   // lives in the workspace but resolves to a host path outside every root.
   symlinkSync(join(secretDir, "secret.txt"), join(workingDir, "escape"));
 
-  const tools = createServerToolDefinitions(
+  const { tools, toolContext } = createServerExecution(
     makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }),
   );
   const readTool = tools.find((tool) => tool.name === "read");
 
   assert.ok(readTool);
-  assert.throws(
-    () => executeTool(readTool, "call_1", { path: "escape" }, new AbortController().signal),
+  await assert.rejects(
+    () => executeTool(readTool, "call_1", { path: "escape" }, new AbortController().signal, toolContext),
     /outside the agent working directory/,
   );
 });
 
-test("write tools reject writing through a symlink that points outside the workspace", () => {
+test("write tools reject writing through a symlink that points outside the workspace", async () => {
   const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-"));
   const outsideDir = mkdtempSync(join(tmpdir(), "carmel-agent-outside-"));
   writeFileSync(join(outsideDir, "target.txt"), "original");
   symlinkSync(join(outsideDir, "target.txt"), join(workingDir, "escape"));
 
-  const tools = createServerToolDefinitions(
+  const { tools, toolContext } = createServerExecution(
     makeAgent({ workingDir, permissions: { ...allPermissions(false), write: true } }),
   );
   const writeTool = tools.find((tool) => tool.name === "write");
 
   assert.ok(writeTool);
-  assert.throws(
-    () => executeTool(writeTool, "call_1", { path: "escape", content: "overwritten" }, new AbortController().signal),
+  await assert.rejects(
+    () => executeTool(
+      writeTool,
+      "call_1",
+      { path: "escape", content: "overwritten" },
+      new AbortController().signal,
+      toolContext,
+    ),
     /outside the agent working directory/,
   );
 });
 
-function executeTool(tool: { execute: unknown }, toolCallId: string, params: Record<string, unknown>, signal: AbortSignal) {
-  return (tool.execute as (...args: unknown[]) => unknown)(toolCallId, params, signal, undefined, undefined);
+test("grep rejects an explicit symlink outside AgentExecutionEnv roots", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-"));
+  const outsideDir = mkdtempSync(join(tmpdir(), "carmel-agent-outside-"));
+  writeFileSync(join(outsideDir, "secret.txt"), "top secret");
+  symlinkSync(join(outsideDir, "secret.txt"), join(workingDir, "escape"));
+  const { tools, toolContext } = createServerExecution(
+    makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }),
+  );
+  const grepTool = tools.find((tool) => tool.name === "grep");
+
+  assert.ok(grepTool);
+  await assert.rejects(
+    () => executeTool(
+      grepTool,
+      "call_1",
+      { pattern: "secret", path: "escape" },
+      new AbortController().signal,
+      toolContext,
+    ),
+    /outside the agent working directory/,
+  );
+  await assert.rejects(
+    async () => createGrepOperations(toolContext.env).readFile(join(workingDir, "escape")),
+    /outside the agent working directory/,
+  );
+});
+
+test("ls omits external symlinks while preserving safe directory symlinks", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-"));
+  const outsideDir = mkdtempSync(join(tmpdir(), "carmel-agent-outside-"));
+  mkdirSync(join(workingDir, "inside"));
+  symlinkSync(join(workingDir, "inside"), join(workingDir, "inside-link"));
+  symlinkSync(outsideDir, join(workingDir, "escape"));
+  const { tools, toolContext } = createServerExecution(
+    makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }),
+  );
+  const lsTool = tools.find((tool) => tool.name === "ls");
+
+  assert.ok(lsTool);
+  const result = await executeTool(lsTool, "call_1", { path: "." }, new AbortController().signal, toolContext);
+  const output = readToolText(result);
+  assert.match(output, /^inside\/$/m);
+  assert.match(output, /^inside-link\/$/m);
+  assert.doesNotMatch(output, /^escape\/?$/m);
+});
+
+test("Pi find rejects an explicit symlink outside AgentExecutionEnv roots", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-"));
+  const outsideDir = mkdtempSync(join(tmpdir(), "carmel-agent-outside-"));
+  writeFileSync(join(outsideDir, "secret.txt"), "top secret");
+  symlinkSync(outsideDir, join(workingDir, "escape"));
+  const { tools, toolContext } = createServerExecution(
+    makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }),
+  );
+  const findTool = tools.find((tool) => tool.name === "find");
+
+  assert.ok(findTool);
+  await assert.rejects(
+    () => executeTool(
+      findTool,
+      "call_find",
+      { pattern: "**/*.txt", path: "escape" },
+      new AbortController().signal,
+      toolContext,
+    ),
+    /outside the agent working directory/,
+  );
+});
+
+test("bash stays unavailable when no container socket exists", async () => {
+  const originalSocket = process.env.CARMEL_PODMAN_SOCKET;
+  process.env.CARMEL_PODMAN_SOCKET = join(tmpdir(), "carmel-agent-missing-podman.sock");
+  const { env } = createServerExecution(
+    makeAgent({ permissions: { ...allPermissions(false), bash: true } }),
+  );
+
+  try {
+    const result = await env.exec("printf should-not-run");
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.code, "shell_unavailable");
+  } finally {
+    await env.cleanup();
+    restoreEnv("CARMEL_PODMAN_SOCKET", originalSocket);
+  }
+});
+
+function executeTool(
+  tool: { execute: unknown },
+  toolCallId: string,
+  params: Record<string, unknown>,
+  signal: AbortSignal,
+  context?: unknown,
+): Promise<unknown> {
+  return Promise.resolve(
+    (tool.execute as (...args: unknown[]) => unknown)(toolCallId, params, signal, undefined, context),
+  );
+}
+
+function readToolText(result: unknown) {
+  if (!result || typeof result !== "object" || !("content" in result) || !Array.isArray(result.content)) return "";
+  return result.content
+    .flatMap((part) =>
+      part && typeof part === "object" && "type" in part && part.type === "text" && "text" in part
+        ? [String(part.text)]
+        : [],
+    )
+    .join("\n");
+}
+
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
 }
 
 function makeAgent(overrides: Partial<AgentRecord> & { permissions?: AgentRecord["permissions"] }): AgentRecord {

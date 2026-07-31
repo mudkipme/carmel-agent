@@ -11,8 +11,8 @@ function manualAgent(overrides: Partial<AgentRecord> = {}): AgentRecord {
 }
 
 test("demuxer reassembles multiplexed docker frames split across chunks", () => {
-  const chunks: Buffer[] = [];
-  const demux = createStreamDemuxer((payload) => chunks.push(Buffer.from(payload)));
+  const chunks: Array<{ stream: number; payload: Buffer }> = [];
+  const demux = createStreamDemuxer((stream, payload) => chunks.push({ stream, payload: Buffer.from(payload) }));
 
   const frame = (stream: number, text: string) => {
     const payload = Buffer.from(text, "utf-8");
@@ -26,12 +26,19 @@ test("demuxer reassembles multiplexed docker frames split across chunks", () => 
   // Feed one byte at a time to exercise frames spanning chunk boundaries.
   for (const byte of stream) demux(Buffer.from([byte]));
 
-  assert.equal(Buffer.concat(chunks).toString("utf-8"), "hello world!");
+  assert.deepEqual(
+    chunks.map(({ stream, payload }) => ({ stream, text: payload.toString("utf8") })),
+    [
+      { stream: 1, text: "hello " },
+      { stream: 2, text: "world" },
+      { stream: 1, text: "!" },
+    ],
+  );
 });
 
 test("demuxer leaves an incomplete trailing frame buffered", () => {
   const chunks: Buffer[] = [];
-  const demux = createStreamDemuxer((payload) => chunks.push(Buffer.from(payload)));
+  const demux = createStreamDemuxer((_stream, payload) => chunks.push(Buffer.from(payload)));
   const header = Buffer.alloc(8);
   header[0] = 1;
   header.writeUInt32BE(5, 4);

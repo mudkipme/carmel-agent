@@ -94,14 +94,14 @@ async function expectStatus(res: IncomingMessage, allowed: number[], context: st
 // Docker/Podman multiplexes stdout and stderr into a single stream when no TTY
 // is attached. Each frame is an 8-byte header [stream, 0, 0, 0, size(uint32 BE)]
 // followed by `size` payload bytes. Frames can span chunk boundaries.
-export function createStreamDemuxer(onPayload: (chunk: Buffer) => void) {
+export function createStreamDemuxer(onPayload: (stream: number, chunk: Buffer) => void) {
   let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
   return (chunk: Buffer) => {
     buffer = buffer.length === 0 ? chunk : Buffer.concat([buffer, chunk]);
     while (buffer.length >= 8) {
       const payloadLength = buffer.readUInt32BE(4);
       if (buffer.length < 8 + payloadLength) break;
-      onPayload(buffer.subarray(8, 8 + payloadLength));
+      onPayload(buffer[0] ?? 0, buffer.subarray(8, 8 + payloadLength));
       buffer = buffer.subarray(8 + payloadLength);
     }
   };
@@ -207,7 +207,11 @@ export type ContainerExecResult = { exitCode: number | null };
 export async function execInContainer(
   containerId: string,
   spec: { cmd: string[]; workingDir: string; env: string[] },
-  options: { onData: (chunk: Buffer) => void; signal?: AbortSignal },
+  options: {
+    onStdout: (chunk: Buffer) => void;
+    onStderr: (chunk: Buffer) => void;
+    signal?: AbortSignal;
+  },
 ): Promise<ContainerExecResult> {
   const createRes = await podmanRequest({
     method: "POST",
@@ -233,10 +237,19 @@ export async function execInContainer(
   });
   await expectStatus(startRes, [200], "Starting exec");
 
-  const demux = createStreamDemuxer(options.onData);
+  const demux = createStreamDemuxer((stream, chunk) => {
+    if (stream === 2) options.onStderr(chunk);
+    else if (stream === 1) options.onStdout(chunk);
+  });
   try {
     await new Promise<void>((resolve, reject) => {
-      startRes.on("data", (chunk: Buffer) => demux(chunk));
+      startRes.on("data", (chunk: Buffer) => {
+        try {
+          demux(chunk);
+        } catch (error) {
+          reject(error);
+        }
+      });
       startRes.on("end", resolve);
       startRes.on("error", reject);
     });

@@ -16,8 +16,9 @@ import type { AgentMount } from "@carmel-agent/shared";
 import type { agents } from "../db/schema.ts";
 import { ensureDir } from "../paths.ts";
 import { resolveAgentWorkingDirPath } from "./resources.ts";
-import { createSandboxBashOperations } from "./sandbox/bash-operations.ts";
+import { execSandboxCommand } from "./sandbox/bash-operations.ts";
 import { resolveAgentTmpDirPath, resolveContainerWorkspace } from "./sandbox/container-manager.ts";
+import { isSandboxConfigured, sandboxUnavailableMessage } from "./sandbox/podman.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type AccessMode = "address" | "read" | "write";
@@ -177,22 +178,36 @@ export class AgentExecutionEnv implements ExecutionEnv {
   async exec(command: string, options?: ShellExecOptions): Promise<Result<{ stdout: string; stderr: string; exitCode: number }, ExecutionError>> {
     if (!this.agent.permissions.bash) return err(new ExecutionError("shell_unavailable", "Bash permission is disabled for this agent."));
     if (options?.abortSignal?.aborted) return err(new ExecutionError("aborted", "Operation aborted."));
+    let callbackFailed = false;
     try {
       const cwd = this.resolveAuthorizedPath(options?.cwd ?? this.cwd, "address");
-      let stdout = "";
-      const result = await createSandboxBashOperations(this.agent).exec(command, cwd, {
-        onData: (chunk) => {
-          const text = chunk.toString("utf8");
-          stdout += text;
-          options?.onStdout?.(text);
-        },
+      if (!isSandboxConfigured()) return err(new ExecutionError("shell_unavailable", sandboxUnavailableMessage()));
+      const callOutput = (callback: ((chunk: string) => void) | undefined, chunk: string) => {
+        try {
+          callback?.(chunk);
+        } catch (error) {
+          callbackFailed = true;
+          throw error;
+        }
+      };
+      const execOptions = {
+        onStdout: (chunk: string) => callOutput(options?.onStdout, chunk),
+        onStderr: (chunk: string) => callOutput(options?.onStderr, chunk),
         signal: options?.abortSignal,
         timeout: options?.timeout,
-      });
-      return ok({ stdout, stderr: "", exitCode: result.exitCode ?? 1 });
+        env: options?.env,
+      };
+      const result = await execSandboxCommand(this.agent, command, cwd, execOptions);
+      return ok({ stdout: "", stderr: "", exitCode: result.exitCode ?? 1 });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const code = options?.abortSignal?.aborted ? "aborted" : message.startsWith("timeout:") ? "timeout" : "spawn_error";
+      const code = options?.abortSignal?.aborted
+        ? "aborted"
+        : message.startsWith("timeout:")
+          ? "timeout"
+          : callbackFailed
+            ? "callback_error"
+            : "spawn_error";
       return err(new ExecutionError(code, message, error instanceof Error ? error : undefined));
     }
   }

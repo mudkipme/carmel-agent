@@ -5,7 +5,8 @@ import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import { agents, modelRefs, sessions } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
-import { createAgentResourceLoader } from "../runtime/resources.ts";
+import { AgentExecutionEnv } from "../runtime/execution-env.ts";
+import { loadAgentResources } from "../runtime/resources.ts";
 import { discardAgentContainer } from "../runtime/sandbox/container-manager.ts";
 import { serializeAgentSettings, serializePublicAgent } from "../serializers.ts";
 import { deletePiSessions } from "../services/pi-session-storage.ts";
@@ -109,18 +110,20 @@ export function createAgentRoutes() {
     const userId = c.get("user").id;
     const agent = readVisibleAgent(userId, c.req.param("id"));
     if (!agent) return c.json({ error: "Agent not found" }, 404);
-    const resourceLoader = await createAgentResourceLoader(agent);
-    const { skills } = resourceLoader.getSkills();
-    const { prompts } = resourceLoader.getPrompts();
-    const promptCommands = prompts.map((prompt) => ({
+    const env = new AgentExecutionEnv(agent);
+    let resources: Awaited<ReturnType<typeof loadAgentResources>>;
+    try {
+      resources = await loadAgentResources(agent, env);
+    } finally {
+      await env.cleanup();
+    }
+    const promptCommands = resources.promptTemplates.map((prompt) => ({
       name: prompt.name,
       description: prompt.description,
       source: "prompt" as const,
       commandText: `/${prompt.name} `,
-      sourcePath: prompt.filePath,
-      argumentHint: prompt.argumentHint,
     }));
-    const skillCommands = skills.map((skill) => ({
+    const skillCommands = resources.skills.map((skill) => ({
       name: `skill:${skill.name}`,
       description: skill.description,
       source: "skill" as const,
