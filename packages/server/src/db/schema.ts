@@ -1,5 +1,4 @@
-import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import type { AgentMessage, SessionTreeEntry } from "@earendil-works/pi-agent-core";
+import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { Credential } from "@earendil-works/pi-ai";
 import type {
   AgentMount,
@@ -124,41 +123,3 @@ export const sessions = sqliteTable("sessions", {
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
-
-export const sessionMessages = sqliteTable(
-  "session_messages",
-  {
-    id: text("id").primaryKey(),
-    sessionId: text("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
-    seq: integer("seq").notNull(),
-    message: text("message", { mode: "json" }).$type<AgentMessage>().notNull(),
-    createdAt: integer("created_at").notNull(),
-  },
-  (table) => [uniqueIndex("session_messages_session_seq").on(table.sessionId, table.seq)],
-);
-
-/**
- * Legacy Carmel-owned Pi entry snapshot used only as the source for the native
- * Pi SQLite migration. Both this table and `session_messages` remain available
- * as rollback data; new runtime writes go exclusively to Pi's database.
- */
-export const piSessionEntries = sqliteTable(
-  "pi_session_entries",
-  {
-    sessionId: text("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
-    entryId: text("entry_id").notNull(),
-    seq: integer("seq").notNull(),
-    parentId: text("parent_id"),
-    entryType: text("entry_type").$type<SessionTreeEntry["type"]>().notNull(),
-    entry: text("entry", { mode: "json" }).$type<SessionTreeEntry>().notNull(),
-    createdAt: integer("created_at").notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.sessionId, table.entryId] }),
-    uniqueIndex("pi_session_entries_session_seq").on(table.sessionId, table.seq),
-  ],
-);

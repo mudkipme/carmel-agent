@@ -14,13 +14,12 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { eq } from "drizzle-orm";
-import { db, sqlite } from "../db/index.ts";
+import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import { dataDir } from "../paths.ts";
 
 type SessionRecord = typeof sessions.$inferSelect;
 type ClosableStorage = { cleanup?: () => Promise<void> };
-type LegacyEntryRow = { seq: number; entry: string };
 
 const piDatabasePath = resolvePiDatabasePath();
 const piSessionRepo = new SqliteSessionRepo({
@@ -28,21 +27,9 @@ const piSessionRepo = new SqliteSessionRepo({
   sqlite: createNodeSqliteFactory(),
   databasePath: piDatabasePath,
 });
-const migrationPromises = new Map<string, Promise<void>>();
+const creationPromises = new Map<string, Promise<void>>();
 
-/** Proactively import every legacy session before the HTTP server starts. */
-export async function migrateAllPiSessions() {
-  const existingIds = new Set((await piSessionRepo.list()).map((metadata) => metadata.id));
-  const records = db.select().from(sessions).all().sort((left, right) => left.createdAt - right.createdAt);
-  for (const record of records) {
-    if (!existingIds.has(record.id)) await migrateLegacySession(record);
-  }
-}
-
-/**
- * Open Carmel's session through Pi's native SQLite repository. The first open
- * is also an idempotent migration safety net for sessions created after startup.
- */
+/** Open an existing Pi-native session, provisioning new Carmel sessions on first use. */
 export async function openPiSession(sessionId: string) {
   const record = readSessionRecord(sessionId);
   const metadata = nativeMetadata(record);
@@ -52,7 +39,7 @@ export async function openPiSession(sessionId: string) {
     if (!isNotFound(error)) throw error;
   }
 
-  await migrateLegacySession(record);
+  await createNativeSession(record);
   return piSessionRepo.open(metadata);
 }
 
@@ -168,38 +155,21 @@ function cloneEntry(
   return clone;
 }
 
-async function migrateLegacySession(record: SessionRecord) {
-  const existing = migrationPromises.get(record.id);
+async function createNativeSession(record: SessionRecord) {
+  const existing = creationPromises.get(record.id);
   if (existing) return existing;
-  const migration = migrateLegacySessionOnce(record).finally(() => migrationPromises.delete(record.id));
-  migrationPromises.set(record.id, migration);
-  return migration;
+  const creation = createNativeSessionOnce(record).finally(() => creationPromises.delete(record.id));
+  creationPromises.set(record.id, creation);
+  return creation;
 }
 
-async function migrateLegacySessionOnce(record: SessionRecord) {
-  try {
-    const existing = await piSessionRepo.open(nativeMetadata(record));
-    await closePiSession(existing);
-    return;
-  } catch (error) {
-    if (!isNotFound(error)) throw error;
-  }
-
+async function createNativeSessionOnce(record: SessionRecord) {
   const created = await piSessionRepo.create({
     id: record.id,
     cwd: dataDir,
     parentSessionId: record.forkedFrom?.sessionId,
     metadata: nativeApplicationMetadata(record),
   });
-  try {
-    for (const entry of readLegacyEntries(record.id)) {
-      await created.getStorage().appendEntry(entry);
-    }
-  } catch (error) {
-    await closePiSession(created);
-    await piSessionRepo.delete(nativeMetadata(record)).catch(() => undefined);
-    throw error;
-  }
   await closePiSession(created);
 }
 
@@ -209,28 +179,8 @@ async function ensureNativeSession(record: SessionRecord) {
     await closePiSession(existing);
   } catch (error) {
     if (!isNotFound(error)) throw error;
-    await migrateLegacySession(record);
+    await createNativeSession(record);
   }
-}
-
-function readLegacyEntries(sessionId: string): SessionTreeEntry[] {
-  const rows = sqlite
-    .prepare("SELECT seq, entry FROM pi_session_entries WHERE session_id = ? ORDER BY seq")
-    .all(sessionId) as LegacyEntryRow[];
-  return rows.map((row) => {
-    try {
-      const entry = JSON.parse(row.entry) as SessionTreeEntry;
-      if (!entry || typeof entry !== "object" || typeof entry.id !== "string" || typeof entry.type !== "string") {
-        throw new Error("entry is not an object with an id and type");
-      }
-      return entry;
-    } catch (error) {
-      throw new SessionError(
-        "invalid_entry",
-        `Invalid legacy session entry at sequence ${row.seq}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  });
 }
 
 function readSessionRecord(sessionId: string) {

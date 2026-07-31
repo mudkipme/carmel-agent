@@ -117,13 +117,13 @@ When a shared model ref points at a provider config, Carmel uses that provider c
 
 ## Database And Migrations
 
-The server uses SQLite with Drizzle. Migrations run on startup and record applied migrations in `schema_migrations`.
+The server uses separate SQLite databases for Carmel metadata/auth and Pi-native session trees. Drizzle manages only the Carmel database; its migrations run on startup and record applied migrations in `schema_migrations`.
 
-New databases are created with the current schema. Existing databases are upgraded through compatibility migrations.
+New Carmel databases are created with the current metadata schema. Existing databases are upgraded through compatibility migrations. Session content is owned exclusively by Pi native storage.
 
 Runtime state is stored under `data/` by default, including:
 
-- SQLite database
+- SQLite databases (Carmel metadata/auth and Pi-native session trees)
 - default agent workspaces
 - Pi agent runtime directory
 - per-agent sandbox `/tmp` directories

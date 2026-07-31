@@ -3,12 +3,10 @@ import { createApp } from "./app.ts";
 import { pruneExpiredAuthSessions } from "./auth.ts";
 import { migrate, seed, sqlite } from "./db/index.ts";
 import { shutdownActiveRuns } from "./runtime/run-stream.ts";
-import { migrateAllPiSessions } from "./services/pi-session-storage.ts";
 import { reapManagedContainers, shutdownContainerManager } from "./runtime/sandbox/container-manager.ts";
 
 migrate();
 seed();
-await migrateAllPiSessions();
 pruneExpiredAuthSessions();
 // Remove any sandbox containers left behind by a previous process.
 void reapManagedContainers();

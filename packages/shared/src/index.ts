@@ -235,9 +235,7 @@ export type Session = {
   messageEntryIds: string[];
   forkedFrom?: {
     sessionId: string;
-    entryId?: string;
-    /** Legacy metadata retained for sessions forked before entry-ID operations. */
-    messageIndex?: number;
+    entryId: string;
   };
   pinnedAt?: number;
   createdAt: number;

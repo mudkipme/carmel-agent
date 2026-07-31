@@ -133,13 +133,13 @@ pnpm serve        # run the built server entrypoint
 
 ## Project Layout
 
-- `packages/server` - Hono API, SQLite/Drizzle persistence, auth, runtime wiring, file APIs, provider/model/agent/session routes.
+- `packages/server` - Hono API, SQLite/Drizzle metadata, Pi-native SQLite sessions, auth, runtime wiring, file APIs, provider/model/agent/session routes.
 - `packages/client` - Vite + React UI for chat, settings, files, sessions, imports, and agent management.
 - `packages/shared` - shared TypeScript types used by the client and server.
 - `Dockerfile` - web/API server image.
 - `Dockerfile.runner` - per-agent bash sandbox image.
 - `compose.yaml` - rootless Podman Compose deployment.
-- `data/` - default runtime state for SQLite, agent workspaces, and sandbox scratch data.
+- `data/` - default runtime state for SQLite databases, agent workspaces, and sandbox scratch data.
 
 ## License
 

@@ -78,7 +78,7 @@ export const defaultAgent: AgentConfig = {
   updatedAt: now(),
 };
 
-// Messages live in the session_messages table; the seeded session starts empty.
+// The seeded session starts with an empty Pi-native tree.
 export const defaultSession: Omit<Session, "messages" | "messageEntryIds"> = {
   id: "session_initial",
   title: "Initial session",

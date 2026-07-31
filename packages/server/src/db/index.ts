@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { count, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { agents, modelRefs, providerConfigs, sessions, users } from "./schema.ts";
-import { defaultAgent, defaultModelRef, defaultProviderConfig, defaultSession, defaultUser, id, now } from "./seed.ts";
+import { defaultAgent, defaultModelRef, defaultProviderConfig, defaultSession, defaultUser, now } from "./seed.ts";
 import { dataDir, defaultAgentWorkingDir, ensureParentDir, normalizeDataRelativePath } from "../paths.ts";
 
 const databaseUrl = process.env.DATABASE_URL ?? `${dataDir}/carmel-agent.sqlite`;
@@ -49,11 +49,6 @@ const migrations: Migration[] = [
     run: addAgentMounts,
   },
   {
-    id: "006_session_messages_table",
-    description: "Move session messages into their own table",
-    run: moveSessionMessagesToTable,
-  },
-  {
     id: "007_access_indexes",
     description: "Index the columns used by access-control and reassignment queries",
     run: createAccessIndexes,
@@ -69,11 +64,6 @@ const migrations: Migration[] = [
     run: addUserRoles,
   },
   {
-    id: "010_pi_session_entries",
-    description: "Create native Pi session trees and migrate flat transcripts",
-    run: migrateFlatTranscriptsToPiSessionEntries,
-  },
-  {
     id: "011_restrict_host_paths",
     description: "Move non-admin agents off privileged host paths and mounts",
     run: restrictNonAdminAgentHostPaths,
@@ -82,6 +72,11 @@ const migrations: Migration[] = [
     id: "012_session_revisions",
     description: "Add optimistic revisions for active-run lease protection",
     run: addSessionRevisions,
+  },
+  {
+    id: "013_drop_legacy_session_storage",
+    description: "Drop obsolete Carmel-owned session storage tables",
+    run: dropLegacySessionStorage,
   },
 ];
 
@@ -200,31 +195,6 @@ function createBaseSchema() {
       updated_at INTEGER NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS session_messages (
-      id TEXT PRIMARY KEY NOT NULL,
-      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-      seq INTEGER NOT NULL,
-      message TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS session_messages_session_seq
-      ON session_messages(session_id, seq);
-
-    CREATE TABLE IF NOT EXISTS pi_session_entries (
-      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-      entry_id TEXT NOT NULL,
-      seq INTEGER NOT NULL,
-      parent_id TEXT,
-      entry_type TEXT NOT NULL,
-      entry TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      PRIMARY KEY (session_id, entry_id)
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS pi_session_entries_session_seq
-      ON pi_session_entries(session_id, seq);
-
     CREATE TABLE IF NOT EXISTS provider_keys (
       user_id TEXT NOT NULL REFERENCES users(id),
       provider TEXT NOT NULL,
@@ -274,37 +244,6 @@ function addAgentMounts() {
   addColumnIfMissing("agents", "mounts", "TEXT NOT NULL DEFAULT '[]'");
 }
 
-function moveSessionMessagesToTable() {
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS session_messages (
-      id TEXT PRIMARY KEY NOT NULL,
-      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-      seq INTEGER NOT NULL,
-      message TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS session_messages_session_seq
-      ON session_messages(session_id, seq);
-  `);
-
-  const columns = sqlite.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
-  if (!columns.some((column) => column.name === "messages")) return;
-
-  const timestamp = now();
-  const rows = sqlite
-    .prepare("SELECT id, messages FROM sessions")
-    .all() as Array<{ id: string; messages: string | null }>;
-  const insert = sqlite.prepare(
-    "INSERT INTO session_messages (id, session_id, seq, message, created_at) VALUES (?, ?, ?, ?, ?)",
-  );
-  for (const row of rows) {
-    parseMessagesBlob(row.messages).forEach((message, seq) => {
-      insert.run(id("session_message"), row.id, seq, JSON.stringify(message), timestamp);
-    });
-  }
-  sqlite.exec("ALTER TABLE sessions DROP COLUMN messages");
-}
-
 function createAccessIndexes() {
   sqlite.exec(`
     CREATE INDEX IF NOT EXISTS agents_owner_user_id ON agents(owner_user_id);
@@ -317,55 +256,6 @@ function createAccessIndexes() {
     CREATE INDEX IF NOT EXISTS sessions_model_ref_id ON sessions(model_ref_id);
     CREATE INDEX IF NOT EXISTS users_fast_task_model_ref_id ON users(fast_task_model_ref_id);
   `);
-}
-
-export function migrateFlatTranscriptsToPiSessionEntries() {
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS pi_session_entries (
-      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-      entry_id TEXT NOT NULL,
-      seq INTEGER NOT NULL,
-      parent_id TEXT,
-      entry_type TEXT NOT NULL,
-      entry TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      PRIMARY KEY (session_id, entry_id)
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS pi_session_entries_session_seq
-      ON pi_session_entries(session_id, seq);
-  `);
-
-  const sessionRows = sqlite.prepare("SELECT id FROM sessions ORDER BY created_at, id").all() as Array<{ id: string }>;
-  const hasEntries = sqlite.prepare("SELECT 1 FROM pi_session_entries WHERE session_id = ? LIMIT 1");
-  const readMessages = sqlite.prepare(
-    "SELECT message, created_at FROM session_messages WHERE session_id = ? ORDER BY seq",
-  );
-  const insertEntry = sqlite.prepare(`
-    INSERT INTO pi_session_entries
-      (session_id, entry_id, seq, parent_id, entry_type, entry, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  for (const session of sessionRows) {
-    // A pre-existing Carmel entry snapshot is authoritative. Never splice flat
-    // rows into a session already prepared for migration to Pi's database.
-    if (hasEntries.get(session.id)) continue;
-    const messages = readMessages.all(session.id) as Array<{ message: string; created_at: number }>;
-    let parentId: string | null = null;
-    messages.forEach((row, seq) => {
-      const entryId = id("pi_entry");
-      const createdAt = Number.isFinite(row.created_at) ? row.created_at : now();
-      const entry = {
-        type: "message",
-        id: entryId,
-        parentId,
-        timestamp: new Date(createdAt).toISOString(),
-        message: JSON.parse(row.message) as unknown,
-      };
-      insertEntry.run(session.id, entryId, seq, parentId, entry.type, JSON.stringify(entry), createdAt);
-      parentId = entryId;
-    });
-  }
 }
 
 // Manual host paths and mounts are privileged infrastructure configuration.
@@ -399,14 +289,11 @@ function dropCustomHeaders() {
   dropColumnIfExists("provider_configs", "custom_headers");
 }
 
-function parseMessagesBlob(value: string | null): unknown[] {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function dropLegacySessionStorage() {
+  sqlite.exec(`
+    DROP TABLE IF EXISTS pi_session_entries;
+    DROP TABLE IF EXISTS session_messages;
+  `);
 }
 
 function backfillModelOwners() {

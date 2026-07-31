@@ -40,7 +40,7 @@ Open `http://localhost:8797`.
 
 The Compose file mounts:
 
-- `./data:/data` for the SQLite database, agent workspaces, and runtime state.
+- `./data:/data` for the SQLite databases, agent workspaces, and runtime state.
 - `${XDG_RUNTIME_DIR}/podman/podman.sock:/run/podman/podman.sock` so the server can create runner containers.
 
 It also sets `CARMEL_HOST_DATA_DIR=${PWD}/data`, which is required when the server itself runs in a container. Runner bind mounts are resolved by the host Podman daemon, so Carmel needs the host path backing `/data`.

@@ -3,13 +3,12 @@ import assert from "node:assert/strict";
 import { AgentHarness } from "@earendil-works/pi-agent-core";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
-import { asc, eq } from "drizzle-orm";
-import { db, migrate, migrateFlatTranscriptsToPiSessionEntries } from "../db/index.ts";
-import { piSessionEntries, sessionMessages, sessions } from "../db/schema.ts";
-import { id, now } from "../db/seed.ts";
+import { eq } from "drizzle-orm";
+import { db, migrate, sqlite } from "../db/index.ts";
+import { sessions } from "../db/schema.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { prepareAgentRunPrompt, runHarnessPrompt } from "../runtime/agent-runtime.ts";
-import { closePiSession, deletePiSession, migrateAllPiSessions, openPiSession } from "./pi-session-storage.ts";
+import { closePiSession, deletePiSession, openPiSession } from "./pi-session-storage.ts";
 import {
   editSessionMessageEntry,
   loadSession,
@@ -24,6 +23,14 @@ migrate();
 
 const contents = async (sessionId: string) =>
   (await readSessionMessages(sessionId)).map((message) => (message as { content: string }).content);
+
+test("Carmel metadata database has no session-content tables", () => {
+  const tables = sqlite
+    .prepare("SELECT name FROM sqlite_master WHERE type = ? AND name IN (?, ?) ORDER BY name")
+    .all("table", "pi_session_entries", "session_messages");
+  assert.deepEqual(tables, []);
+});
+
 
 test("replace then read preserves message order and exposes native entry IDs", async () => {
   const { sessionId } = createSession();
@@ -185,36 +192,6 @@ test("non-truncating entry edit preserves native configuration entries in the su
   }
 });
 
-test("legacy Carmel entries import into Pi SQLite losslessly and idempotently", async () => {
-  const { sessionId } = createSession();
-  const timestamp = now();
-  db.insert(sessionMessages)
-    .values([
-      { id: id("legacy_message"), sessionId, seq: 0, message: userMessage("a"), createdAt: timestamp },
-      { id: id("legacy_message"), sessionId, seq: 2, message: userMessage("b"), createdAt: timestamp + 1 },
-    ])
-    .run();
-
-  migrateFlatTranscriptsToPiSessionEntries();
-  await migrateAllPiSessions();
-  const legacyIds = db
-    .select({ entryId: piSessionEntries.entryId })
-    .from(piSessionEntries)
-    .where(eq(piSessionEntries.sessionId, sessionId))
-    .orderBy(asc(piSessionEntries.seq))
-    .all()
-    .map((row) => row.entryId);
-  assert.deepEqual(await contents(sessionId), ["a", "b"]);
-  assert.deepEqual((await loadSession(sessionId))?.messageEntryIds, legacyIds);
-  assert.deepEqual(await contents(sessionId), ["a", "b"]);
-
-  const native = await openPiSession(sessionId);
-  try {
-    assert.equal((await native.getStorage().findEntries("message")).length, 2);
-  } finally {
-    await closePiSession(native);
-  }
-});
 
 test("loadSession and display-index reads expose the active native branch", async () => {
   const { sessionId, userId } = createSession();
@@ -235,20 +212,15 @@ test("message counts are reported from each active Pi branch", async () => {
   assert.equal(counts.get(sessionId), 2);
 });
 
-test("deleting a session removes native and legacy storage", async () => {
+test("deleting a session removes native storage", async () => {
   const { sessionId } = createSession();
   await replaceSessionMessages(sessionId, [userMessage("a"), userMessage("b")]);
-  db.insert(sessionMessages)
-    .values({ id: id("legacy_message"), sessionId, seq: 0, message: userMessage("old"), createdAt: now() })
-    .run();
   const record = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   assert.ok(record);
   await deletePiSession(record);
   db.delete(sessions).where(eq(sessions.id, sessionId)).run();
 
   await assert.rejects(() => openPiSession(sessionId), /not found/i);
-  assert.equal(db.select().from(piSessionEntries).where(eq(piSessionEntries.sessionId, sessionId)).all().length, 0);
-  assert.equal(db.select().from(sessionMessages).where(eq(sessionMessages.sessionId, sessionId)).all().length, 0);
 });
 
 function userMessageText(message: { content?: unknown } | undefined) {
