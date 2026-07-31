@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, TextContent } from "@earendil-works/pi-ai";
 
 export type ChatAttachment = {
@@ -114,9 +114,17 @@ export type AgentCommandPayload = {
   commands: AgentSlashCommand[];
 };
 
+export type AgentRunEvent = AgentEvent | { type: string; [key: string]: unknown };
+
+export type AgentRunEventEnvelope = {
+  sequence: number;
+  event: AgentRunEvent;
+};
+
 export type ActiveAgentRunSummary = {
   runId: string;
   sessionId: string;
+  eventCursor: number;
 };
 export type SessionConnection = {
   session: Session;

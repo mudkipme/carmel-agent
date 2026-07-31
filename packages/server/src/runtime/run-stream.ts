@@ -1,22 +1,23 @@
-import type { AgentEvent } from "@earendil-works/pi-agent-core";
+import type { AgentRunEvent, AgentRunEventEnvelope } from "@carmel-agent/shared";
 
 const maxReplayEvents = 1_000;
 
-export type RunEvent = AgentEvent | { type: string; [key: string]: unknown };
+export type RunEvent = AgentRunEvent;
 
 export type ActiveAgentRun = {
   runId: string;
   userId: string;
   sessionId: string;
   abort: () => void;
-  events: RunEvent[];
+  events: AgentRunEventEnvelope[];
   subscribers: Set<RunSubscriber>;
+  nextSequence: number;
   finished: boolean;
   started: boolean;
 };
 
 type RunSubscriber = {
-  enqueue: (event: RunEvent) => boolean;
+  enqueue: (envelope: AgentRunEventEnvelope) => boolean;
   close: () => void;
 };
 
@@ -33,6 +34,7 @@ export function createActiveAgentRun(input: {
     ...input,
     events: [],
     subscribers: new Set(),
+    nextSequence: 1,
     finished: false,
     started: false,
   };
@@ -53,18 +55,32 @@ export function getActiveAgentRunForSession(userId: string, sessionId: string) {
   if (!runId) return undefined;
   const run = activeAgentRuns.get(runId);
   if (!run || run.userId !== userId || run.sessionId !== sessionId) return undefined;
-  return { runId: run.runId, sessionId: run.sessionId };
+  return {
+    runId: run.runId,
+    sessionId: run.sessionId,
+    eventCursor: run.nextSequence - 1,
+  };
 }
 
-export function createAgentRunEventStream(userId: string, runId: string) {
+export function createAgentRunEventStream(userId: string, runId: string, afterSequence = 0) {
   const run = activeAgentRuns.get(runId);
   if (!run || run.userId !== userId) return undefined;
-  return createRunStream(run);
+
+  const currentCursor = run.nextSequence - 1;
+  const firstAvailableSequence = run.events[0]?.sequence ?? run.nextSequence;
+  if (afterSequence > currentCursor) {
+    return jsonError("Event cursor is ahead of the active run.", 400, currentCursor);
+  }
+  if (afterSequence < firstAvailableSequence - 1) {
+    return jsonError("Event replay gap; refresh the session connection.", 409, currentCursor);
+  }
+  return createRunStream(run, new TextEncoder(), afterSequence);
 }
 
 // Abort every in-flight run and wait for their finally blocks to persist
 // messages, so a restart does not lose an active turn. Resolves once all runs
-// have drained or the timeout elapses.
+// have drained or the timeout elapses. This lifecycle abort is server-owned;
+// disconnecting an event-stream subscriber never calls it.
 export async function shutdownActiveRuns(timeoutMs = 10_000) {
   const runs = [...activeAgentRuns.values()];
   if (runs.length === 0) return;
@@ -89,17 +105,17 @@ export function finishAgentRun(run: ActiveAgentRun) {
   run.subscribers.clear();
 }
 
-export function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder()) {
+export function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder(), afterSequence = 0) {
   let subscriber: RunSubscriber | undefined;
   return new Response(
     new ReadableStream({
       start(controller) {
         let connected = true;
         const nextSubscriber: RunSubscriber = {
-          enqueue: (event) => {
+          enqueue: (envelope) => {
             if (!connected) return false;
             try {
-              controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+              controller.enqueue(encoder.encode(JSON.stringify(envelope) + "\n"));
               return true;
             } catch {
               connected = false;
@@ -113,14 +129,15 @@ export function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder()
             try {
               controller.close();
             } catch {
-              // The browser can close first.
+              // The observer can close first. The server-owned run continues.
             }
           },
         };
         subscriber = nextSubscriber;
 
-        for (const event of run.events) {
-          if (!nextSubscriber.enqueue(event)) return;
+        for (const envelope of run.events) {
+          if (envelope.sequence <= afterSequence) continue;
+          if (!nextSubscriber.enqueue(envelope)) return;
         }
         if (run.finished) {
           nextSubscriber.close();
@@ -136,17 +153,29 @@ export function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder()
       headers: {
         "content-type": "application/x-ndjson; charset=utf-8",
         "x-agent-run-id": run.runId,
+        "x-agent-event-cursor": String(run.nextSequence - 1),
       },
     },
   );
 }
 
 export function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
-  run.events.push(event);
+  const envelope: AgentRunEventEnvelope = { sequence: run.nextSequence++, event };
+  run.events.push(envelope);
   if (run.events.length > maxReplayEvents) run.events.splice(0, run.events.length - maxReplayEvents);
 
   for (const subscriber of run.subscribers) {
-    if (!subscriber.enqueue(event)) run.subscribers.delete(subscriber);
+    if (!subscriber.enqueue(envelope)) run.subscribers.delete(subscriber);
   }
   return run.subscribers.size > 0;
+}
+
+function jsonError(message: string, status: 400 | 409, eventCursor: number) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "x-agent-event-cursor": String(eventCursor),
+    },
+  });
 }

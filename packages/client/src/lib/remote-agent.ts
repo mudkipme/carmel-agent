@@ -6,7 +6,7 @@ import type {
   ThinkingLevel,
 } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import type { PromptInput } from "@carmel-agent/shared";
+import type { ActiveAgentRunSummary, AgentRunEventEnvelope, PromptInput, SessionConnection } from "@carmel-agent/shared";
 
 type MutableAgentState = Omit<
   AgentState,
@@ -38,9 +38,10 @@ export class RemoteAgent {
   private abortController?: AbortController;
   private tools: AgentTool[] = [];
   private messages: AgentMessage[];
-  private sawAgentEnd = false;
   private runId?: string;
+  private lastSequence = 0;
   private detachRequested = false;
+  private replaceNextUserMessage = false;
 
   readonly state: MutableAgentState;
 
@@ -136,15 +137,21 @@ export class RemoteAgent {
     return this.abortController?.signal;
   }
 
-  abort() {
+  async abort() {
     const runId = this.runId;
-    if (runId) {
-      void fetch(`/api/agent-runs/${encodeURIComponent(runId)}/abort`, {
+    if (!runId) return;
+    try {
+      const response = await fetch(`/api/agent-runs/${encodeURIComponent(runId)}/abort`, {
         method: "POST",
         credentials: "include",
-      }).catch(() => undefined);
+      });
+      if (!response.ok && response.status !== 404) {
+        throw new Error((await response.text()) || `Unable to stop agent run (${response.status})`);
+      }
+    } catch (error) {
+      this.state.errorMessage = error instanceof Error ? error.message : String(error);
+      this.notify();
     }
-    this.abortController?.abort();
   }
 
   detach() {
@@ -167,77 +174,89 @@ export class RemoteAgent {
     const controller = this.beginRun();
 
     try {
-      const response = await fetch(`/api/agents/${this.config.agentId}/run`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          sessionId: this.config.sessionId,
-          modelRefId: this.config.modelRefId,
-          thinkingLevel: this.state.thinkingLevel,
-          promptInput,
-        }),
-        signal: controller.signal,
-      });
-      if (!response.ok || !response.body) {
-        const activeRunId = response.status === 409 ? response.headers.get("x-agent-run-id") : undefined;
-        if (activeRunId) {
-          this.runId = activeRunId;
-          await this.consumeActiveRun(activeRunId, controller.signal);
+      let response: Response;
+      try {
+        response = await fetch(`/api/agents/${this.config.agentId}/run`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            sessionId: this.config.sessionId,
+            modelRefId: this.config.modelRefId,
+            thinkingLevel: this.state.thinkingLevel,
+            promptInput,
+          }),
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (controller.signal.aborted) throw error;
+        this.markReconnecting(error);
+        if (await this.recoverSubmittedRun(controller.signal)) {
           await this.notifyRunComplete();
           return;
         }
+        throw error;
+      }
+      if (response.status === 409) {
+        const summary = (await response.json().catch(() => undefined)) as Partial<ActiveAgentRunSummary> | undefined;
+        const activeRunId = response.headers.get("x-agent-run-id") ?? summary?.runId;
+        if (!activeRunId) throw new Error("Session already has an active agent run.");
+        const connection = await this.readConnection(controller.signal);
+        this.applyConnectionSnapshot(connection);
+        if (!connection.activeRun || connection.activeRun.runId !== activeRunId) {
+          await this.notifyRunComplete();
+          return;
+        }
+        this.runId = activeRunId;
+        this.lastSequence = connection.activeRun.eventCursor;
+        await this.watchRun(activeRunId, controller.signal);
+        await this.notifyRunComplete();
+        return;
+      }
+      if (!response.ok || !response.body) {
         throw new Error((await response.text()) || `Agent request failed with ${response.status}`);
       }
-      this.runId = response.headers.get("x-agent-run-id") ?? undefined;
-      await this.consumeEvents(response.body);
-      if (!this.sawAgentEnd) {
-        this.processEvent({ type: "agent_end", messages: this.messages });
-      }
-      await this.notifyRunComplete();
-    } catch (error) {
-      if (!(this.detachRequested && controller.signal.aborted)) {
-        this.handleFailure(error, controller.signal.aborted);
-      }
-    } finally {
-      this.state.isStreaming = false;
-      this.state.streamingMessage = undefined;
-      this.state.pendingToolCalls = new Set();
-      this.abortController = undefined;
-      this.runId = undefined;
-      this.detachRequested = false;
-      this.notify();
-    }
-  }
 
-  async attachToRun(runId: string, baseMessages?: AgentMessage[]) {
-    if (this.abortController) throw new Error("Agent is already processing.");
-    if (baseMessages) this.messages = [...baseMessages];
-    const controller = this.beginRun();
-    this.runId = runId;
-
-    try {
-      await this.consumeActiveRun(runId, controller.signal);
+      const runId = response.headers.get("x-agent-run-id");
+      if (!runId) throw new Error("Agent response did not identify its server run.");
+      this.runId = runId;
+      await this.consumeAcceptedResponse(response.body, controller.signal);
+      await this.watchRun(runId, controller.signal);
       await this.notifyRunComplete();
     } catch (error) {
       if (!(this.detachRequested && controller.signal.aborted)) {
         this.state.errorMessage = error instanceof Error ? error.message : String(error);
+        await this.notifyRunComplete();
       }
     } finally {
-      this.state.isStreaming = false;
-      this.state.streamingMessage = undefined;
-      this.state.pendingToolCalls = new Set();
-      this.abortController = undefined;
-      this.runId = undefined;
-      this.detachRequested = false;
-      this.notify();
+      this.finishObservation();
+    }
+  }
+
+  async attachToRun(runId: string, baseMessages?: AgentMessage[], afterSequence = 0) {
+    if (this.abortController) throw new Error("Agent is already processing.");
+    if (baseMessages) this.messages = [...baseMessages];
+    const controller = this.beginRun(afterSequence);
+    this.runId = runId;
+
+    try {
+      await this.watchRun(runId, controller.signal);
+      await this.notifyRunComplete();
+    } catch (error) {
+      if (!(this.detachRequested && controller.signal.aborted)) {
+        this.state.errorMessage = error instanceof Error ? error.message : String(error);
+        await this.notifyRunComplete();
+      }
+    } finally {
+      this.finishObservation();
     }
   }
 
   async continue() {
     const lastMessage = this.messages[this.messages.length - 1];
-    if (!lastMessage || lastMessage.role === "assistant") {
+    if (!lastMessage || lastMessage.role !== "user") {
       throw new Error("Cannot continue from current message state.");
     }
+    this.replaceNextUserMessage = true;
     await this.prompt([]);
   }
 
@@ -250,34 +269,133 @@ export class RemoteAgent {
     }
   }
 
-  private beginRun() {
+  private beginRun(afterSequence = 0) {
     const controller = new AbortController();
     this.abortController = controller;
     this.state.isStreaming = true;
     this.state.streamingMessage = undefined;
     this.state.errorMessage = undefined;
-    this.sawAgentEnd = false;
     this.runId = undefined;
+    this.lastSequence = afterSequence;
     this.detachRequested = false;
     this.notify();
     return controller;
   }
 
-  private async consumeActiveRun(runId: string, signal: AbortSignal) {
-    const response = await fetch(`/api/agent-runs/${encodeURIComponent(runId)}/events`, {
+  private finishObservation() {
+    this.state.isStreaming = false;
+    this.state.streamingMessage = undefined;
+    this.state.pendingToolCalls = new Set();
+    this.abortController = undefined;
+    this.runId = undefined;
+    this.detachRequested = false;
+    this.replaceNextUserMessage = false;
+    this.notify();
+  }
+
+  private async consumeAcceptedResponse(body: ReadableStream<Uint8Array>, signal: AbortSignal) {
+    try {
+      await this.consumeEvents(body);
+    } catch (error) {
+      if (signal.aborted) throw error;
+      this.markReconnecting(error);
+    }
+  }
+
+  private async watchRun(runId: string, signal: AbortSignal) {
+    let retryDelayMs = 0;
+    while (true) {
+      if (signal.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
+      if (retryDelayMs > 0) await waitForReconnect(retryDelayMs, signal);
+
+      let response: Response;
+      try {
+        const query = new URLSearchParams({ after: String(this.lastSequence) });
+        response = await fetch(`/api/agent-runs/${encodeURIComponent(runId)}/events?${query}`, {
+          credentials: "include",
+          signal,
+        });
+      } catch (error) {
+        if (signal.aborted) throw error;
+        this.markReconnecting(error);
+        retryDelayMs = nextReconnectDelay(retryDelayMs);
+        continue;
+      }
+
+      if (response.status === 404) return;
+      if (response.status === 409) {
+        try {
+          const connection = await this.readConnection(signal);
+          this.applyConnectionSnapshot(connection);
+          if (!connection.activeRun || connection.activeRun.runId !== runId) return;
+          this.lastSequence = connection.activeRun.eventCursor;
+          retryDelayMs = 0;
+        } catch (error) {
+          if (signal.aborted) throw error;
+          this.markReconnecting(error);
+          retryDelayMs = nextReconnectDelay(retryDelayMs);
+        }
+        continue;
+      }
+      if (!response.ok || !response.body) {
+        if (response.status === 400) {
+          throw new Error((await response.text()) || "Invalid agent event cursor.");
+        }
+        this.markReconnecting(new Error((await response.text()) || `Agent event stream failed with ${response.status}`));
+        retryDelayMs = nextReconnectDelay(retryDelayMs);
+        continue;
+      }
+
+      this.clearReconnectError();
+      try {
+        await this.consumeEvents(response.body);
+        retryDelayMs = 0;
+      } catch (error) {
+        if (signal.aborted) throw error;
+        this.markReconnecting(error);
+        retryDelayMs = nextReconnectDelay(retryDelayMs);
+      }
+      // A clean EOF is not run authority. Reconnect and let the server's 404
+      // confirm that the run finished; otherwise keep watching the same run.
+    }
+  }
+
+  private async recoverSubmittedRun(signal: AbortSignal) {
+    let retryDelayMs = 0;
+    while (true) {
+      if (signal.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
+      if (retryDelayMs > 0) await waitForReconnect(retryDelayMs, signal);
+      try {
+        const connection = await this.readConnection(signal);
+        this.applyConnectionSnapshot(connection);
+        if (!connection.activeRun) return false;
+        this.runId = connection.activeRun.runId;
+        this.lastSequence = connection.activeRun.eventCursor;
+        await this.watchRun(connection.activeRun.runId, signal);
+        return true;
+      } catch (error) {
+        if (signal.aborted) throw error;
+        this.markReconnecting(error);
+        retryDelayMs = nextReconnectDelay(retryDelayMs);
+      }
+    }
+  }
+
+  private async readConnection(signal: AbortSignal): Promise<SessionConnection> {
+    const response = await fetch(`/api/sessions/${encodeURIComponent(this.config.sessionId)}/connection`, {
       credentials: "include",
       signal,
     });
-    if (response.status === 404) {
-      return;
-    }
-    if (!response.ok || !response.body) {
-      throw new Error((await response.text()) || `Agent event stream failed with ${response.status}`);
-    }
-    await this.consumeEvents(response.body);
-    if (!this.sawAgentEnd) {
-      this.processEvent({ type: "agent_end", messages: this.messages });
-    }
+    if (!response.ok) throw new Error((await response.text()) || `Session connection failed with ${response.status}`);
+    return (await response.json()) as SessionConnection;
+  }
+
+  private applyConnectionSnapshot(connection: SessionConnection) {
+    this.messages = [...connection.session.messages];
+    this.state.thinkingLevel = connection.session.thinkingLevel;
+    this.state.streamingMessage = undefined;
+    this.state.pendingToolCalls = new Set();
+    this.notify();
   }
 
   private async consumeEvents(body: ReadableStream<Uint8Array>) {
@@ -291,14 +409,34 @@ export class RemoteAgent {
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
       for (const line of lines) {
-        if (line.trim()) {
-          this.processEvent(JSON.parse(line) as AgentEvent);
-        }
+        if (line.trim()) this.processEnvelope(JSON.parse(line) as AgentRunEventEnvelope);
       }
     }
-    if (buffer.trim()) {
-      this.processEvent(JSON.parse(buffer) as AgentEvent);
+    if (buffer.trim()) this.processEnvelope(JSON.parse(buffer) as AgentRunEventEnvelope);
+  }
+
+  private processEnvelope(envelope: AgentRunEventEnvelope) {
+    if (!Number.isSafeInteger(envelope.sequence) || envelope.sequence < 1 || !envelope.event) {
+      throw new Error("Invalid agent event envelope.");
     }
+    if (envelope.sequence <= this.lastSequence) return;
+    if (envelope.sequence !== this.lastSequence + 1) {
+      throw new Error(`Agent event sequence gap: expected ${this.lastSequence + 1}, received ${envelope.sequence}.`);
+    }
+    this.lastSequence = envelope.sequence;
+    this.processEvent(envelope.event as AgentEvent);
+  }
+
+  private markReconnecting(error: unknown) {
+    const detail = error instanceof Error ? error.message : String(error);
+    this.state.errorMessage = `Connection lost; reconnecting… ${detail}`;
+    this.notify();
+  }
+
+  private clearReconnectError() {
+    if (!this.state.errorMessage?.startsWith("Connection lost; reconnecting…")) return;
+    this.state.errorMessage = undefined;
+    this.notify();
   }
 
   private processEvent(event: AgentEvent) {
@@ -309,7 +447,12 @@ export class RemoteAgent {
         break;
       case "message_end":
         this.state.streamingMessage = undefined;
-        this.messages = [...this.messages, event.message];
+        if (this.replaceNextUserMessage && event.message.role === "user") {
+          this.messages = [...this.messages.slice(0, -1), event.message];
+          this.replaceNextUserMessage = false;
+        } else {
+          this.messages = [...this.messages, event.message];
+        }
         break;
       case "tool_execution_start": {
         const pendingToolCalls = new Set(this.state.pendingToolCalls);
@@ -329,42 +472,12 @@ export class RemoteAgent {
         }
         break;
       case "agent_end":
-        // A single run can emit multiple agent_end events: pi auto-retries
-        // retryable failures (e.g. a 429) by ending the agent loop and starting
-        // a new one, so an agent_end here may be followed by auto_retry_start and
-        // another loop. The run is only truly finished when the event stream
-        // closes, so isStreaming is cleared in the stream-consumer finally blocks
-        // (prompt/attachToRun), not here — otherwise the send button would flip
-        // back from "stop" to "send" while a retry is still in flight.
-        this.sawAgentEnd = true;
+        // The server-owned stream lifecycle is authoritative. An agent_end event
+        // updates message state, but only a subsequent 404 ends observation.
         this.state.streamingMessage = undefined;
         break;
     }
     this.notify();
-  }
-
-  private handleFailure(error: unknown, aborted: boolean) {
-    const message: AgentMessage = {
-      role: "assistant",
-      content: [{ type: "text", text: "" }],
-      api: this.state.model.api,
-      provider: this.state.model.provider,
-      model: this.state.model.id,
-      usage: {
-        input: 0,
-        output: 0,
-        cacheRead: 0,
-        cacheWrite: 0,
-        totalTokens: 0,
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-      },
-      stopReason: aborted ? "aborted" : "error",
-      errorMessage: error instanceof Error ? error.message : String(error),
-      timestamp: Date.now(),
-    };
-    this.messages = [...this.messages, message];
-    this.state.errorMessage = message.errorMessage;
-    this.processEvent({ type: "agent_end", messages: [message] });
   }
 }
 
@@ -387,4 +500,26 @@ function normalizePromptInput(input: string | AgentMessage | AgentMessage[], ima
     text: textParts.join("\n\n"),
     images: imageParts.length > 0 ? imageParts : undefined,
   };
+}
+
+function nextReconnectDelay(currentMs: number) {
+  return currentMs === 0 ? 100 : Math.min(currentMs * 2, 2_000);
+}
+
+function waitForReconnect(delayMs: number, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timeout);
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+    };
+    const timeout = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, delayMs);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
 }

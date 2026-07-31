@@ -37,7 +37,12 @@ export function createAgentRunRoutes() {
   });
 
   route.get("/agent-runs/:runId/events", (c) => {
-    const response = createAgentRunEventStream(c.get("user").id, c.req.param("runId"));
+    const rawCursor = c.req.query("after");
+    const afterSequence = rawCursor === undefined ? 0 : Number(rawCursor);
+    if (!Number.isSafeInteger(afterSequence) || afterSequence < 0) {
+      return c.json({ error: "Invalid event cursor" }, 400);
+    }
+    const response = createAgentRunEventStream(c.get("user").id, c.req.param("runId"), afterSequence);
     if (!response) return c.json({ error: "Agent run not found" }, 404);
     return response;
   });

@@ -249,7 +249,11 @@ export function PiChat({
         agentRef.current = activeAgent;
         setAgent(activeAgent);
         if (connection.activeRun) {
-          void activeAgent.attachToRun(connection.activeRun.runId, connection.session.messages);
+          void activeAgent.attachToRun(
+            connection.activeRun.runId,
+            connection.session.messages,
+            connection.activeRun.eventCursor,
+          );
         }
       },
       () => {
@@ -364,7 +368,7 @@ export function PiChat({
             }}
             onThinkingLevelChange={setThinkingLevel}
             onSend={sendMessage}
-            onAbort={() => agent.abort()}
+            onAbort={() => void agent.abort()}
             onModelSelect={() => setModelDialogOpen(true)}
             onEditMessage={editMessage}
             onRetryMessage={retryFromMessage}

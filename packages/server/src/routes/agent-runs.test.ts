@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { migrate } from "../db/index.ts";
-import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
+import { createActiveAgentRun, emitRunEvent, finishAgentRun } from "../runtime/run-stream.ts";
 import { replaceSessionMessages } from "../services/session-store.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { readSessionConnection } from "./agent-runs.ts";
@@ -17,10 +17,12 @@ test("session connection snapshot is user-scoped and carries the active run", ()
     sessionId: fixture.sessionId,
     abort: () => {},
   });
+  emitRunEvent(run, { type: "message_end", message: userMessage("persisted before reconnect") });
 
   assert.equal(readSessionConnection("another_user", fixture.sessionId), undefined);
   const connection = readSessionConnection(fixture.userId, fixture.sessionId);
   assert.equal(connection?.activeRun?.runId, run.runId);
+  assert.equal(connection?.activeRun?.eventCursor, 1);
   assert.equal(connection?.session.messages.length, 1);
 
   finishAgentRun(run);
