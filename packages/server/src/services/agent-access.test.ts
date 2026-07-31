@@ -1,8 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { migrate } from "../db/index.ts";
-import { createAgent, createModelRef, createProviderConfig, createUser } from "../test-support.ts";
-import { canUseModel, readVisibleAgent, readVisibleAgents, readVisibleModelRefs } from "./agent-access.ts";
+import { eq } from "drizzle-orm";
+import { db, migrate } from "../db/index.ts";
+import { sessions } from "../db/schema.ts";
+import { createAgent, createModelRef, createProviderConfig, createSession, createUser } from "../test-support.ts";
+import {
+  canUseModel,
+  reassignModelReferences,
+  readVisibleAgent,
+  readVisibleAgents,
+  readVisibleModelRefs,
+} from "./agent-access.ts";
 
 migrate();
 
@@ -61,4 +69,20 @@ test("canUseModel enforces ownership/sharing", () => {
   assert.equal(canUseModel(alice, bobPrivateModel), false);
   assert.equal(canUseModel(alice, sharedModel), true);
   assert.equal(canUseModel(bob, bobPrivateModel), true);
+});
+
+test("reassignModelReferences swaps a session's model without touching its update time", () => {
+  const { sessionId, userId, modelRefId } = createSession();
+  createModelRef({ ownerUserId: userId }); // guarantees a fallback exists
+  // Backdate the session so a bumped updatedAt would be unmistakable.
+  const updatedAt = 1_000;
+  db.update(sessions).set({ updatedAt }).where(eq(sessions.id, sessionId)).run();
+
+  reassignModelReferences(new Set([modelRefId]));
+
+  const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+  assert.notEqual(session?.modelRefId, modelRefId);
+  // The sidebar sorts by updatedAt, so deleting a model must not float every
+  // session that used it to the top of the list.
+  assert.equal(session?.updatedAt, updatedAt);
 });

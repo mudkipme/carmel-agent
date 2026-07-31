@@ -114,13 +114,16 @@ export function reassignModelReferences(deletedModelIds: Set<string>) {
     const agentDefaultModelId = agentDefaultModelById.get(session.agentId);
     const fallbackModel = readFallbackModelForUser(session.userId, deletedModelIds);
     if (!fallbackModel) continue;
+    // Keep updatedAt untouched: swapping in a fallback model is bookkeeping, not
+    // a user edit, and bumping it would float every affected session to the top
+    // of the sidebar. Matches the session PATCH route's model-switch behavior.
     db.update(sessions)
       .set({
         modelRefId:
           agentDefaultModelId && !deletedModelIds.has(agentDefaultModelId)
             ? agentDefaultModelId
             : fallbackModel.id,
-        updatedAt: timestamp,
+        updatedAt: session.updatedAt,
       })
       .where(eq(sessions.id, session.id))
       .run();
