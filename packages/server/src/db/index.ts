@@ -347,8 +347,8 @@ export function migrateFlatTranscriptsToPiSessionEntries() {
   `);
 
   for (const session of sessionRows) {
-    // A pre-existing Pi tree is authoritative. Never splice legacy rows into
-    // a session that has already started using the native entry format.
+    // A pre-existing Carmel entry snapshot is authoritative. Never splice flat
+    // rows into a session already prepared for migration to Pi's database.
     if (hasEntries.get(session.id)) continue;
     const messages = readMessages.all(session.id) as Array<{ message: string; created_at: number }>;
     let parentId: string | null = null;

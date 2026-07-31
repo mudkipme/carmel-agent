@@ -252,16 +252,16 @@ export const useHarnessStore = create<HarnessState>()(
       sessionDetails: { ...state.sessionDetails, [sessionId]: saved },
     }));
   },
-  truncateSessionMessages: async (sessionId, messageIndex, thinkingLevel) => {
-    const saved = await api.truncateSessionMessages(sessionId, messageIndex, thinkingLevel);
+  truncateSessionMessages: async (sessionId, entryId, thinkingLevel) => {
+    const saved = await api.truncateSessionMessages(sessionId, entryId, thinkingLevel);
     set((state) => ({
       sessions: state.sessions.map((item) => (item.id === sessionId ? toSessionMetadata(saved) : item)),
       sessionDetails: { ...state.sessionDetails, [sessionId]: saved },
     }));
     return saved;
   },
-  editSessionMessage: async (sessionId, messageIndex, content, options) => {
-    const saved = await api.editSessionMessage(sessionId, messageIndex, content, options);
+  editSessionMessage: async (sessionId, entryId, content, options) => {
+    const saved = await api.editSessionMessage(sessionId, entryId, content, options);
     set((state) => ({
       sessions: state.sessions.map((item) => (item.id === sessionId ? toSessionMetadata(saved) : item)),
       sessionDetails: { ...state.sessionDetails, [sessionId]: saved },
@@ -281,8 +281,8 @@ export const useHarnessStore = create<HarnessState>()(
     }));
     return saved;
   },
-  forkSession: async (sessionId, messageIndex) => {
-    const session = await api.forkSession(sessionId, messageIndex);
+  forkSession: async (sessionId, entryId) => {
+    const session = await api.forkSession(sessionId, entryId);
     set((state) => ({
       sessions: [toSessionMetadata(session), ...state.sessions],
       sessionDetails: { ...state.sessionDetails, [session.id]: session },

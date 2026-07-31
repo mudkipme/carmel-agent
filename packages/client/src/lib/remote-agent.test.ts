@@ -289,6 +289,7 @@ function connection(
       thinkingLevel: "off",
       revision: 0,
       messages,
+      messageEntryIds: messages.map((_, index) => `entry_${index}`),
       createdAt: 1,
       updatedAt: 1,
     },

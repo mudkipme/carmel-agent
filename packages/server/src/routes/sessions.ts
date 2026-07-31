@@ -17,7 +17,14 @@ import { importOpenWebuiSessions } from "../import/open-webui.ts";
 import { serializeSession } from "../serializers.ts";
 import { canUseModel, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
 import { readActiveRunLeaseForSession } from "../services/active-run-lease.ts";
-import { loadSession, readSessionMessageAt, replaceSessionMessages } from "../services/session-store.ts";
+import { deletePiSession, forkPiSession } from "../services/pi-session-storage.ts";
+import {
+  editSessionMessageEntry,
+  loadSession,
+  readSessionMessageAt,
+  replaceSessionMessages,
+  truncateSessionAtEntry,
+} from "../services/session-store.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import {
   forkSessionRequestSchema,
@@ -32,13 +39,13 @@ import {
 export function createSessionRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
 
-  route.get("/sessions/:id", (c) => {
-    const session = ownedSession(c);
+  route.get("/sessions/:id", async (c) => {
+    const session = await ownedSession(c);
     if (!session) return c.json({ error: "Session not found" }, 404);
     return c.json(serializeSession(session));
   });
 
-  route.get("/sessions/:id/images/:messageIndex/:imageIndex", (c) => {
+  route.get("/sessions/:id/images/:messageIndex/:imageIndex", async (c) => {
     const session = ownedSessionRecord(c);
     if (!session) return c.json({ error: "Image not found" }, 404);
 
@@ -46,12 +53,12 @@ export function createSessionRoutes() {
     const imageIndex = parseIndex(c.req.param("imageIndex"));
     if (messageIndex === undefined || imageIndex === undefined) return c.json({ error: "Image not found" }, 404);
 
-    const image = readMessageImage(readSessionMessageAt(session.id, messageIndex), imageIndex);
+    const image = readMessageImage(await readSessionMessageAt(session.id, messageIndex), imageIndex);
     if (!image) return c.json({ error: "Image not found" }, 404);
     return imageResponse(image);
   });
 
-  route.get("/sessions/:id/tool-result-images/:messageIndex/:partIndex", (c) => {
+  route.get("/sessions/:id/tool-result-images/:messageIndex/:partIndex", async (c) => {
     const session = ownedSessionRecord(c);
     if (!session) return c.json({ error: "Image not found" }, 404);
 
@@ -59,19 +66,19 @@ export function createSessionRoutes() {
     const partIndex = parseIndex(c.req.param("partIndex"));
     if (messageIndex === undefined || partIndex === undefined) return c.json({ error: "Image not found" }, 404);
 
-    const image = readToolResultImage(readSessionMessageAt(session.id, messageIndex), partIndex);
+    const image = readToolResultImage(await readSessionMessageAt(session.id, messageIndex), partIndex);
     if (!image) return c.json({ error: "Image not found" }, 404);
     return imageResponse(image);
   });
 
-  route.get("/sessions/:id/attachments/:messageIndex/:attachmentId", (c) => {
+  route.get("/sessions/:id/attachments/:messageIndex/:attachmentId", async (c) => {
     const session = ownedSessionRecord(c);
     if (!session) return c.json({ error: "Attachment not found" }, 404);
 
     const messageIndex = parseIndex(c.req.param("messageIndex"));
     if (messageIndex === undefined) return c.json({ error: "Attachment not found" }, 404);
 
-    const image = readImageAttachment(readSessionMessageAt(session.id, messageIndex), c.req.param("attachmentId"));
+    const image = readImageAttachment(await readSessionMessageAt(session.id, messageIndex), c.req.param("attachmentId"));
     if (!image) return c.json({ error: "Attachment not found" }, 404);
     return imageResponse(image);
   });
@@ -93,6 +100,7 @@ export function createSessionRoutes() {
       thinkingLevel: resolveSupportedThinkingLevel(modelRef, draft.thinkingLevel ?? agent.defaultThinkingLevel ?? "off"),
       revision: 0,
       messages: [],
+      messageEntryIds: [],
       pinnedAt: undefined,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -126,14 +134,23 @@ export function createSessionRoutes() {
     }
 
     db.transaction((tx) => {
-      for (const session of imported.sessions) {
-        tx.insert(sessions).values(toSessionRow(session)).run();
-        if (session.messages.length > 0) replaceSessionMessages(session.id, session.messages);
-      }
+      for (const session of imported.sessions) tx.insert(sessions).values(toSessionRow(session)).run();
     });
+    try {
+      for (const session of imported.sessions) {
+        if (session.messages.length > 0) await replaceSessionMessages(session.id, session.messages);
+      }
+    } catch (error) {
+      for (const session of imported.sessions) {
+        await deletePiSession(toSessionRecord(session)).catch(() => undefined);
+        db.delete(sessions).where(eq(sessions.id, session.id)).run();
+      }
+      throw error;
+    }
 
+    const persisted = await Promise.all(imported.sessions.map((session) => loadSession(session.id)));
     const result: SessionImportResult = {
-      sessions: imported.sessions.map(serializeSession),
+      sessions: persisted.filter((session): session is NonNullable<typeof session> => Boolean(session)).map(serializeSession),
       skipped: imported.skipped,
     };
     return c.json(result, 201);
@@ -172,44 +189,52 @@ export function createSessionRoutes() {
       })
       .where(eq(sessions.id, sessionId))
       .run();
-    return c.json(serializeSession(loadSession(sessionId)!));
+    return c.json(serializeSession((await loadSession(sessionId))!));
   });
 
   route.post("/sessions/:id/fork", jsonValidator(forkSessionRequestSchema), async (c) => {
     const sessionId = c.req.param("id");
     const body = c.req.valid("json");
-    const source = ownedSession(c);
+    const source = await ownedSession(c);
     if (!source) return c.json({ error: "Session not found" }, 404);
     const leaseConflict = rejectActiveRunMutation(c, source.id);
     if (leaseConflict) return leaseConflict;
-    if (body.messageIndex >= source.messages.length) return c.json({ error: "Message not found" }, 404);
+    const messageIndex = source.messageEntryIds.indexOf(body.entryId);
+    if (messageIndex < 0) return c.json({ error: "Message not found" }, 404);
     const timestamp = now();
     const fork: Session = {
       ...source,
       id: id("session"),
       title: `${source.title} fork`,
-      messages: source.messages.slice(0, body.messageIndex + 1),
-      forkedFrom: { sessionId, messageIndex: body.messageIndex },
+      messages: source.messages.slice(0, messageIndex + 1),
+      messageEntryIds: source.messageEntryIds.slice(0, messageIndex + 1),
+      forkedFrom: { sessionId, entryId: body.entryId },
       pinnedAt: undefined,
       revision: 0,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
     db.insert(sessions).values(toSessionRow(fork)).run();
-    replaceSessionMessages(fork.id, fork.messages);
-    return c.json(serializeSession(fork), 201);
+    try {
+      await forkPiSession(source.id, fork.id, body.entryId);
+    } catch (error) {
+      await deletePiSession(toSessionRecord(fork)).catch(() => undefined);
+      db.delete(sessions).where(eq(sessions.id, fork.id)).run();
+      throw error;
+    }
+    return c.json(serializeSession((await loadSession(fork.id))!), 201);
   });
 
   route.post("/sessions/:id/messages/truncate", jsonValidator(sessionTruncateRequestSchema), async (c) => {
     const sessionId = c.req.param("id");
     const body = c.req.valid("json");
-    const current = ownedSession(c);
+    const current = await ownedSession(c);
     if (!current) return c.json({ error: "Session not found" }, 404);
     const leaseConflict = rejectActiveRunMutation(c, current.id);
     if (leaseConflict) return leaseConflict;
-    if (body.messageIndex >= current.messages.length) return c.json({ error: "Message not found" }, 404);
+    if (!current.messageEntryIds.includes(body.entryId)) return c.json({ error: "Message not found" }, 404);
 
-    replaceSessionMessages(sessionId, current.messages.slice(0, body.messageIndex + 1));
+    await truncateSessionAtEntry(sessionId, body.entryId);
     db.update(sessions)
       .set({
         thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
@@ -218,20 +243,19 @@ export function createSessionRoutes() {
       })
       .where(eq(sessions.id, sessionId))
       .run();
-    return c.json(serializeSession(loadSession(sessionId)!));
+    return c.json(serializeSession((await loadSession(sessionId))!));
   });
 
-  route.patch("/sessions/:id/messages/:messageIndex", jsonValidator(sessionMessageEditRequestSchema), async (c) => {
+  route.patch("/sessions/:id/messages/:entryId", jsonValidator(sessionMessageEditRequestSchema), async (c) => {
     const sessionId = c.req.param("id");
-    const messageIndex = parseIndex(c.req.param("messageIndex"));
+    const entryId = c.req.param("entryId");
     const body = c.req.valid("json");
-    const current = ownedSession(c);
+    const current = await ownedSession(c);
     if (!current) return c.json({ error: "Session not found" }, 404);
     const leaseConflict = rejectActiveRunMutation(c, current.id);
     if (leaseConflict) return leaseConflict;
-    if (messageIndex === undefined || messageIndex >= current.messages.length) {
-      return c.json({ error: "Message not found" }, 404);
-    }
+    const messageIndex = current.messageEntryIds.indexOf(entryId);
+    if (messageIndex < 0) return c.json({ error: "Message not found" }, 404);
 
     const target = current.messages[messageIndex];
     const editableUser = isUserMessage(target);
@@ -244,14 +268,9 @@ export function createSessionRoutes() {
           removedAttachmentIds: body.removedAttachmentIds,
         })
       : updateAssistantMessageContent(target, body.content);
-    // Only user-message edits may truncate and rerun the conversation. Editing an
-    // assistant message rewrites it in place and never drops later messages.
-    const messages =
-      editableUser && body.truncate
-        ? [...current.messages.slice(0, messageIndex), editedMessage]
-        : current.messages.map((message, index) => (index === messageIndex ? editedMessage : message));
-
-    replaceSessionMessages(sessionId, messages);
+    // Pi entries are immutable: create a sibling branch at this entry ID and
+    // preserve the native suffix unless this is an explicit edit-and-rerun.
+    await editSessionMessageEntry(sessionId, entryId, editedMessage, editableUser && Boolean(body.truncate));
     db.update(sessions)
       .set({
         thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
@@ -260,14 +279,15 @@ export function createSessionRoutes() {
       })
       .where(eq(sessions.id, sessionId))
       .run();
-    return c.json(serializeSession(loadSession(sessionId)!));
+    return c.json(serializeSession((await loadSession(sessionId))!));
   });
 
-  route.delete("/sessions/:id", (c) => {
+  route.delete("/sessions/:id", async (c) => {
     const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
     if (!session || session.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
     const leaseConflict = rejectActiveRunMutation(c, session.id);
     if (leaseConflict) return leaseConflict;
+    await deletePiSession(session);
     db.delete(sessions).where(eq(sessions.id, session.id)).run();
     return c.json({ ok: true });
   });
@@ -278,6 +298,10 @@ export function createSessionRoutes() {
 function rejectActiveRunMutation(c: Context<{ Variables: AuthVariables }>, sessionId: string) {
   const run = readActiveRunLeaseForSession(sessionId);
   return run ? activeRunConflictResponse(c, run) : undefined;
+}
+
+function toSessionRecord(session: Session): typeof sessions.$inferSelect {
+  return { ...toSessionRow(session), forkedFrom: session.forkedFrom ?? null, pinnedAt: session.pinnedAt ?? null };
 }
 
 function toSessionRow(session: Session) {
@@ -298,9 +322,9 @@ function toSessionRow(session: Session) {
 
 // Load the `:id` session and confirm the caller owns it; returns undefined
 // otherwise so handlers can answer 404 with their own resource-specific message.
-function ownedSession(c: Context<{ Variables: AuthVariables }>) {
+async function ownedSession(c: Context<{ Variables: AuthVariables }>) {
   const sessionId = c.req.param("id");
-  const session = sessionId ? loadSession(sessionId) : undefined;
+  const session = sessionId ? await loadSession(sessionId) : undefined;
   return session && session.userId === c.get("user").id ? session : undefined;
 }
 

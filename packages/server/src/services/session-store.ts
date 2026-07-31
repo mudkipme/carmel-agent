@@ -2,44 +2,77 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
-import { readActivePiSessionBranch, replacePiSessionMessages } from "./pi-session-storage.ts";
+import {
+  movePiSessionToEntry,
+  replacePiSessionMessages,
+  rewritePiSessionMessage,
+  withPiSession,
+} from "./pi-session-storage.ts";
 
 type SessionRecord = typeof sessions.$inferSelect;
-export type SessionWithMessages = SessionRecord & { messages: AgentMessage[] };
+export type SessionMessageEntry = { entryId: string; message: AgentMessage };
+export type SessionWithMessages = SessionRecord & {
+  messages: AgentMessage[];
+  messageEntryIds: string[];
+};
 
-export function readSessionMessages(sessionId: string): AgentMessage[] {
-  return readActivePiSessionBranch(sessionId).flatMap((entry) =>
-    entry.type === "message" ? [entry.message] : [],
+export async function readSessionMessageEntries(sessionId: string): Promise<SessionMessageEntry[]> {
+  return withPiSession(sessionId, async (session) =>
+    (await session.getBranch()).flatMap((entry) =>
+      entry.type === "message" ? [{ entryId: entry.id, message: entry.message }] : [],
+    ),
   );
 }
 
-function attachMessages(record: SessionRecord): SessionWithMessages {
-  return { ...record, messages: readSessionMessages(record.id) };
+export async function readSessionMessages(sessionId: string): Promise<AgentMessage[]> {
+  return (await readSessionMessageEntries(sessionId)).map((entry) => entry.message);
 }
 
-export function readSessionMessageAt(sessionId: string, index: number): AgentMessage | undefined {
+async function attachMessages(record: SessionRecord): Promise<SessionWithMessages> {
+  const entries = await readSessionMessageEntries(record.id);
+  return {
+    ...record,
+    messages: entries.map((entry) => entry.message),
+    messageEntryIds: entries.map((entry) => entry.entryId),
+  };
+}
+
+export async function readSessionMessageAt(sessionId: string, index: number): Promise<AgentMessage | undefined> {
   if (!Number.isInteger(index) || index < 0) return undefined;
-  return readSessionMessages(sessionId)[index];
+  return (await readSessionMessageEntries(sessionId))[index]?.message;
 }
 
-export function loadSession(sessionId: string): SessionWithMessages | undefined {
+export async function loadSession(sessionId: string): Promise<SessionWithMessages | undefined> {
   const record = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   return record ? attachMessages(record) : undefined;
 }
 
-/**
- * Move the active conversation to a new linear branch containing `messages`.
- * Existing Pi entries are immutable and retained for rollback/tree navigation.
- */
-export function replaceSessionMessages(sessionId: string, messages: AgentMessage[]) {
-  replacePiSessionMessages(sessionId, messages);
+/** Import/setup helper. Runtime mutations should navigate by immutable entry ID. */
+export async function replaceSessionMessages(sessionId: string, messages: AgentMessage[]) {
+  await replacePiSessionMessages(sessionId, messages);
 }
 
-export function readSessionMessageCountsForUser(userId: string): Map<string, number> {
+export async function truncateSessionAtEntry(sessionId: string, entryId: string) {
+  await movePiSessionToEntry(sessionId, entryId);
+}
+
+export async function editSessionMessageEntry(
+  sessionId: string,
+  entryId: string,
+  message: AgentMessage,
+  truncate: boolean,
+) {
+  return rewritePiSessionMessage(sessionId, entryId, message, truncate);
+}
+
+export async function readSessionMessageCountsForUser(userId: string): Promise<Map<string, number>> {
   const records = db
     .select({ id: sessions.id })
     .from(sessions)
     .where(eq(sessions.userId, userId))
     .all();
-  return new Map(records.map((record) => [record.id, readSessionMessages(record.id).length]));
+  const counts = await Promise.all(
+    records.map(async (record) => [record.id, (await readSessionMessageEntries(record.id)).length] as const),
+  );
+  return new Map(counts);
 }

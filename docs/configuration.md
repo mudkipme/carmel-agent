@@ -6,7 +6,8 @@ Carmel Agent reads `.env`, `.env.local`, `packages/server/.env`, and `packages/s
 
 - `HOST` - API bind host. Defaults to `127.0.0.1`; the Docker image sets `0.0.0.0`.
 - `PORT` - API port. Defaults to `8797`.
-- `DATABASE_URL` - SQLite path. Defaults to `data/carmel-agent.sqlite`.
+- `DATABASE_URL` - Carmel metadata/auth SQLite path. Defaults to `data/carmel-agent.sqlite`.
+- `CARMEL_PI_SESSION_DATABASE_URL` - optional path for Pi's native session-tree SQLite database. Defaults to `data/pi-sessions.sqlite`.
 - `CARMEL_AGENT_DATA_DIR` - base data directory used for the database and default agent workspaces. The Docker image sets `/data`.
 - `CARMEL_AGENT_DIR` - Pi agent runtime directory. Defaults to `data/pi-agent`.
 - `CLIENT_DIST_DIR` - optional override for the built web client directory.

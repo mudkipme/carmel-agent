@@ -11,18 +11,18 @@ import {
 import { readProviderConfigs, readVisibleAgents, readVisibleModelRefs } from "./agent-access.ts";
 import { readSessionMessageCountsForUser } from "./session-store.ts";
 
-export function readBootstrapPayload(userId: string) {
+export async function readBootstrapPayload(userId: string) {
   return {
     users: db.select().from(users).where(eq(users.id, userId)).all().map(serializeUser),
     agents: readVisibleAgents(userId).map(serializePublicAgent),
     providerConfigs: readProviderConfigs().map(serializeProviderConfig),
     modelRefs: readVisibleModelRefs(userId).map(serializeModelRef),
-    sessions: readSessionMetadataForUser(userId),
+    sessions: await readSessionMetadataForUser(userId),
   };
 }
 
-function readSessionMetadataForUser(userId: string) {
-  const counts = readSessionMessageCountsForUser(userId);
+async function readSessionMetadataForUser(userId: string) {
+  const counts = await readSessionMessageCountsForUser(userId);
   return db
     .select()
     .from(sessions)

@@ -8,6 +8,7 @@ import { now } from "../db/seed.ts";
 import { createAgentResourceLoader } from "../runtime/resources.ts";
 import { discardAgentContainer } from "../runtime/sandbox/container-manager.ts";
 import { serializeAgentSettings, serializePublicAgent } from "../serializers.ts";
+import { deletePiSessions } from "../services/pi-session-storage.ts";
 import {
   AgentHostPathAccessError,
   assertAgentHostPathAccess,
@@ -82,13 +83,15 @@ export function createAgentRoutes() {
     return c.json(serializePublicAgent(db.select().from(agents).where(eq(agents.id, agentId)).get()!));
   });
 
-  route.delete("/agents/:id", (c) => {
+  route.delete("/agents/:id", async (c) => {
     const currentUserId = c.get("user").id;
     const agentId = c.req.param("id");
     const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
     if (!agent || agent.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
     const activeRun = readActiveRunLeaseForAgent(agentId);
     if (activeRun) return activeRunConflictResponse(c, activeRun);
+    const deletedSessions = db.select().from(sessions).where(eq(sessions.agentId, agentId)).all();
+    await deletePiSessions(deletedSessions);
     db.delete(sessions).where(eq(sessions.agentId, agentId)).run();
     db.delete(agents).where(eq(agents.id, agentId)).run();
     void discardAgentContainer(agentId);

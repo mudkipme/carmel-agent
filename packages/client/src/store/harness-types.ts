@@ -44,16 +44,16 @@ export type HarnessState = {
   createSession: (draft: SessionDraft) => Promise<Session>;
   importOpenWebuiSessions: (draft: SessionDraft & { source: unknown }) => Promise<Session[]>;
   updateSession: (sessionId: string, patch: SessionPatch) => Promise<void>;
-  truncateSessionMessages: (sessionId: string, messageIndex: number, thinkingLevel?: Session["thinkingLevel"]) => Promise<Session>;
+  truncateSessionMessages: (sessionId: string, entryId: string, thinkingLevel?: Session["thinkingLevel"]) => Promise<Session>;
   editSessionMessage: (
     sessionId: string,
-    messageIndex: number,
+    entryId: string,
     content: string,
     options?: EditSessionMessageOptions,
   ) => Promise<Session>;
   connectSession: (sessionId: string) => Promise<SessionConnection>;
   refreshSession: (sessionId: string) => Promise<Session>;
-  forkSession: (sessionId: string, messageIndex: number) => Promise<Session>;
+  forkSession: (sessionId: string, entryId: string) => Promise<Session>;
   deleteSession: (sessionId: string) => Promise<void>;
   addPromptTemplate: (agentId: string, template: Omit<PromptTemplate, "id">) => Promise<void>;
   deletePromptTemplate: (agentId: string, templateId: string) => Promise<void>;

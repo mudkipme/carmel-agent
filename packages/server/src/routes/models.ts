@@ -79,7 +79,7 @@ export function createModelRoutes() {
     return c.json(serializeModelRef(db.select().from(modelRefs).where(eq(modelRefs.id, c.req.param("id"))).get()!));
   });
 
-  route.delete("/models/:id", (c) => {
+  route.delete("/models/:id", async (c) => {
     const currentUserId = c.get("user").id;
     const modelId = c.req.param("id");
     const model = db.select().from(modelRefs).where(eq(modelRefs.id, modelId)).get();
@@ -100,7 +100,7 @@ export function createModelRoutes() {
       reassignModelReferences(deletedModelIds);
       db.delete(modelRefs).where(eq(modelRefs.id, modelId)).run();
     });
-    return c.json(readBootstrapPayload(currentUserId));
+    return c.json(await readBootstrapPayload(currentUserId));
   });
 
   return route;

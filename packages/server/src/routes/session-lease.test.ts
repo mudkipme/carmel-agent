@@ -6,7 +6,7 @@ import type { AuthVariables } from "../auth.ts";
 import { db, migrate } from "../db/index.ts";
 import { sessions, users } from "../db/schema.ts";
 import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
-import { replaceSessionMessages } from "../services/session-store.ts";
+import { loadSession, replaceSessionMessages } from "../services/session-store.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { createSessionRoutes } from "./sessions.ts";
 
@@ -16,7 +16,10 @@ const jsonHeaders = { "content-type": "application/json" };
 
 test("active-run lease rejects every session mutation and exposes run authority", async () => {
   const fixture = createSession();
-  replaceSessionMessages(fixture.sessionId, [userMessage("original")]);
+  await replaceSessionMessages(fixture.sessionId, [userMessage("original")]);
+  const storedSession = await loadSession(fixture.sessionId);
+  const entryId = storedSession?.messageEntryIds[0];
+  assert.ok(entryId);
   const app = createTestApp(fixture.userId);
   const run = createActiveAgentRun({
     runId: `run_lease_${fixture.sessionId}`,
@@ -27,15 +30,15 @@ test("active-run lease rejects every session mutation and exposes run authority"
 
   const mutations = [
     { method: "PATCH", path: `/sessions/${fixture.sessionId}`, body: { title: "blocked" } },
-    { method: "POST", path: `/sessions/${fixture.sessionId}/fork`, body: { messageIndex: 0 } },
+    { method: "POST", path: `/sessions/${fixture.sessionId}/fork`, body: { entryId } },
     {
       method: "POST",
       path: `/sessions/${fixture.sessionId}/messages/truncate`,
-      body: { messageIndex: 0 },
+      body: { entryId },
     },
     {
       method: "PATCH",
-      path: `/sessions/${fixture.sessionId}/messages/0`,
+      path: `/sessions/${fixture.sessionId}/messages/${encodeURIComponent(entryId)}`,
       body: { content: "blocked edit" },
     },
     { method: "DELETE", path: `/sessions/${fixture.sessionId}` },

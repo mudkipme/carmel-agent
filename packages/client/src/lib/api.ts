@@ -169,25 +169,25 @@ export const api = {
     request<ActiveAgentRunSummary | null>(`/api/sessions/${sessionId}/active-run`),
   updateSession: (sessionId: string, patch: SessionPatch) =>
     request<Session>(`/api/sessions/${sessionId}`, { method: "PATCH", body: JSON.stringify(patch) }),
-  truncateSessionMessages: (sessionId: string, messageIndex: number, thinkingLevel?: Session["thinkingLevel"]) =>
+  truncateSessionMessages: (sessionId: string, entryId: string, thinkingLevel?: Session["thinkingLevel"]) =>
     request<Session>(`/api/sessions/${sessionId}/messages/truncate`, {
       method: "POST",
-      body: JSON.stringify({ messageIndex, thinkingLevel }),
+      body: JSON.stringify({ entryId, thinkingLevel }),
     }),
   editSessionMessage: (
     sessionId: string,
-    messageIndex: number,
+    entryId: string,
     content: string,
     options?: EditSessionMessageOptions,
   ) =>
-    request<Session>(`/api/sessions/${sessionId}/messages/${messageIndex}`, {
+    request<Session>(`/api/sessions/${sessionId}/messages/${encodeURIComponent(entryId)}`, {
       method: "PATCH",
       body: JSON.stringify({ content, ...options }),
     }),
-  forkSession: (sessionId: string, messageIndex: number) =>
+  forkSession: (sessionId: string, entryId: string) =>
     request<Session>(`/api/sessions/${sessionId}/fork`, {
       method: "POST",
-      body: JSON.stringify({ messageIndex }),
+      body: JSON.stringify({ entryId }),
     }),
   deleteSession: (sessionId: string) =>
     request<{ ok: true }>(`/api/sessions/${sessionId}`, { method: "DELETE" }),

@@ -116,7 +116,7 @@ export function createProviderConfigRoutes() {
     }
   });
 
-  route.delete("/provider-configs/:id", requireAdmin, (c) => {
+  route.delete("/provider-configs/:id", requireAdmin, async (c) => {
     const currentUserId = c.get("user").id;
     const providerConfigId = c.req.param("id");
     if (!db.select({ id: providerConfigs.id }).from(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).get()) {
@@ -142,7 +142,7 @@ export function createProviderConfigRoutes() {
       db.delete(modelRefs).where(eq(modelRefs.providerConfigId, providerConfigId)).run();
       db.delete(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).run();
     });
-    return c.json(readBootstrapPayload(currentUserId));
+    return c.json(await readBootstrapPayload(currentUserId));
   });
 
   return route;

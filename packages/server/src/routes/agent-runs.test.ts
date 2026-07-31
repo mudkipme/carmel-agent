@@ -8,9 +8,9 @@ import { readSessionConnection } from "./agent-runs.ts";
 
 migrate();
 
-test("session connection snapshot is user-scoped and carries the active run", () => {
+test("session connection snapshot is user-scoped and carries the active run", async () => {
   const fixture = createSession();
-  replaceSessionMessages(fixture.sessionId, [userMessage("persisted before reconnect")]);
+  await replaceSessionMessages(fixture.sessionId, [userMessage("persisted before reconnect")]);
   const run = createActiveAgentRun({
     runId: "run_connection_active",
     userId: fixture.userId,
@@ -19,8 +19,8 @@ test("session connection snapshot is user-scoped and carries the active run", ()
   });
   emitRunEvent(run, { type: "message_end", message: userMessage("persisted before reconnect") });
 
-  assert.equal(readSessionConnection("another_user", fixture.sessionId), undefined);
-  const connection = readSessionConnection(fixture.userId, fixture.sessionId);
+  assert.equal(await readSessionConnection("another_user", fixture.sessionId), undefined);
+  const connection = await readSessionConnection(fixture.userId, fixture.sessionId);
   assert.equal(connection?.activeRun?.runId, run.runId);
   assert.equal(connection?.activeRun?.eventCursor, 1);
   assert.equal(connection?.session.messages.length, 1);
@@ -28,7 +28,7 @@ test("session connection snapshot is user-scoped and carries the active run", ()
   finishAgentRun(run);
 });
 
-test("finished run snapshot returns the final persisted transcript with no stale run authority", () => {
+test("finished run snapshot returns the final persisted transcript with no stale run authority", async () => {
   const fixture = createSession();
   const run = createActiveAgentRun({
     runId: "run_connection_finished",
@@ -37,10 +37,10 @@ test("finished run snapshot returns the final persisted transcript with no stale
     abort: () => {},
   });
 
-  replaceSessionMessages(fixture.sessionId, [userMessage("final authoritative message")]);
+  await replaceSessionMessages(fixture.sessionId, [userMessage("final authoritative message")]);
   finishAgentRun(run);
 
-  const connection = readSessionConnection(fixture.userId, fixture.sessionId);
+  const connection = await readSessionConnection(fixture.userId, fixture.sessionId);
   assert.equal(connection?.activeRun, null);
   assert.deepEqual(connection?.session.messages, [userMessage("final authoritative message")]);
 });

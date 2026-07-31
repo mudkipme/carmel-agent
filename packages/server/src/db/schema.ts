@@ -140,9 +140,9 @@ export const sessionMessages = sqliteTable(
 );
 
 /**
- * Native Pi session-tree entries. `session_messages` is intentionally retained
- * as a rollback copy for databases migrated from Carmel's former flat
- * transcript format.
+ * Legacy Carmel-owned Pi entry snapshot used only as the source for the native
+ * Pi SQLite migration. Both this table and `session_messages` remain available
+ * as rollback data; new runtime writes go exclusively to Pi's database.
  */
 export const piSessionEntries = sqliteTable(
   "pi_session_entries",

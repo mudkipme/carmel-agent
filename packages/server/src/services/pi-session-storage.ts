@@ -1,291 +1,268 @@
 import {
-  Session,
   SessionError,
-  uuidv7,
   type AgentMessage,
-  type SessionEntryCursorOptions,
-  type SessionMetadata,
-  type SessionStats,
-  type SessionStorage,
+  type Session,
   type SessionTreeEntry,
 } from "@earendil-works/pi-agent-core";
+import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
+import {
+  createNodeSqliteFactory,
+  SqliteSessionRepo,
+  type SqliteSessionMetadata,
+} from "@earendil-works/pi-storage-sqlite-node";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { eq } from "drizzle-orm";
 import { db, sqlite } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
-import { now } from "../db/seed.ts";
+import { dataDir } from "../paths.ts";
 
-export type CarmelPiSessionMetadata = SessionMetadata & {
-  userId: string;
-  agentId: string;
-};
+type SessionRecord = typeof sessions.$inferSelect;
+type ClosableStorage = { cleanup?: () => Promise<void> };
+type LegacyEntryRow = { seq: number; entry: string };
 
-type StoredEntryRow = {
-  seq: number;
-  entry: string;
-};
+const piDatabasePath = resolvePiDatabasePath();
+const piSessionRepo = new SqliteSessionRepo({
+  env: new NodeExecutionEnv({ cwd: dataDir }),
+  sqlite: createNodeSqliteFactory(),
+  databasePath: piDatabasePath,
+});
+const migrationPromises = new Map<string, Promise<void>>();
 
-function parseEntry(row: StoredEntryRow): SessionTreeEntry {
-  try {
-    const entry = JSON.parse(row.entry) as SessionTreeEntry;
-    if (!entry || typeof entry !== "object" || typeof entry.id !== "string" || typeof entry.type !== "string") {
-      throw new Error("entry is not an object with an id and type");
-    }
-    return entry;
-  } catch (error) {
-    throw new SessionError(
-      "invalid_entry",
-      `Invalid SQLite session entry at sequence ${row.seq}: ${error instanceof Error ? error.message : String(error)}`,
-    );
+/** Proactively import every legacy session before the HTTP server starts. */
+export async function migrateAllPiSessions() {
+  const existingIds = new Set((await piSessionRepo.list()).map((metadata) => metadata.id));
+  const records = db.select().from(sessions).all().sort((left, right) => left.createdAt - right.createdAt);
+  for (const record of records) {
+    if (!existingIds.has(record.id)) await migrateLegacySession(record);
   }
 }
 
-function readStoredEntries(sessionId: string): SessionTreeEntry[] {
-  return (sqlite
+/**
+ * Open Carmel's session through Pi's native SQLite repository. The first open
+ * is also an idempotent migration safety net for sessions created after startup.
+ */
+export async function openPiSession(sessionId: string) {
+  const record = readSessionRecord(sessionId);
+  const metadata = nativeMetadata(record);
+  try {
+    return await piSessionRepo.open(metadata);
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+  }
+
+  await migrateLegacySession(record);
+  return piSessionRepo.open(metadata);
+}
+
+export async function closePiSession(session: Session) {
+  await (session.getStorage() as ClosableStorage).cleanup?.();
+}
+
+export async function withPiSession<T>(sessionId: string, operation: (session: Session<SqliteSessionMetadata>) => Promise<T>) {
+  const session = await openPiSession(sessionId);
+  try {
+    return await operation(session);
+  } finally {
+    await closePiSession(session);
+  }
+}
+
+export async function forkPiSession(sourceSessionId: string, targetSessionId: string, entryId: string) {
+  const source = readSessionRecord(sourceSessionId);
+  const target = readSessionRecord(targetSessionId);
+  await ensureNativeSession(source);
+  const fork = await piSessionRepo.fork(nativeMetadata(source), {
+    id: targetSessionId,
+    cwd: dataDir,
+    parentSessionId: sourceSessionId,
+    metadata: nativeApplicationMetadata(target),
+    entryId,
+    position: "at",
+  });
+  await closePiSession(fork);
+}
+
+export async function deletePiSession(session: SessionRecord) {
+  try {
+    await piSessionRepo.delete(nativeMetadata(session));
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+  }
+}
+
+export async function deletePiSessions(records: SessionRecord[]) {
+  for (const record of records) await deletePiSession(record);
+}
+
+export async function replacePiSessionMessages(sessionId: string, messages: AgentMessage[]) {
+  await withPiSession(sessionId, async (session) => {
+    await session.moveTo(null);
+    for (const message of messages) await session.appendMessage(message);
+  });
+}
+
+export async function movePiSessionToEntry(sessionId: string, entryId: string) {
+  await withPiSession(sessionId, async (session) => {
+    const entry = await session.getEntry(entryId);
+    if (!entry || entry.type !== "message") {
+      throw new SessionError("not_found", `Message entry ${entryId} not found`);
+    }
+    await session.moveTo(entryId);
+  });
+}
+
+/**
+ * Replace one immutable message entry by creating a sibling branch. When the
+ * edit is non-truncating, clone the remaining native entries onto that branch,
+ * remapping all entry-ID references instead of flattening them to messages.
+ */
+export async function rewritePiSessionMessage(
+  sessionId: string,
+  entryId: string,
+  message: AgentMessage,
+  truncate: boolean,
+) {
+  return withPiSession(sessionId, async (session) => {
+    const branch = await session.getBranch();
+    const targetIndex = branch.findIndex((entry) => entry.id === entryId);
+    const target = branch[targetIndex];
+    if (!target || target.type !== "message") {
+      throw new SessionError("not_found", `Message entry ${entryId} not found`);
+    }
+
+    await session.moveTo(target.parentId);
+    const replacementId = await session.appendMessage(message);
+    if (truncate) return replacementId;
+
+    const remappedIds = new Map([[target.id, replacementId]]);
+    let parentId = replacementId;
+    for (const entry of branch.slice(targetIndex + 1)) {
+      if (entry.type === "leaf") continue;
+      const clone = cloneEntry(entry, await session.getStorage().createEntryId(), parentId, remappedIds);
+      await session.getStorage().appendEntry(clone);
+      remappedIds.set(entry.id, clone.id);
+      parentId = clone.id;
+    }
+    return replacementId;
+  });
+}
+
+function cloneEntry(
+  entry: SessionTreeEntry,
+  id: string,
+  parentId: string,
+  remappedIds: Map<string, string>,
+): SessionTreeEntry {
+  const clone = structuredClone(entry) as SessionTreeEntry;
+  clone.id = id;
+  clone.parentId = parentId;
+  const remap = (targetId: string | null | undefined) =>
+    targetId === null || targetId === undefined ? targetId : (remappedIds.get(targetId) ?? targetId);
+
+  if (clone.type === "compaction") clone.firstKeptEntryId = remap(clone.firstKeptEntryId) ?? undefined;
+  if (clone.type === "branch_summary") clone.fromId = remap(clone.fromId) ?? "root";
+  if (clone.type === "label") clone.targetId = remap(clone.targetId) ?? clone.targetId;
+  if (clone.type === "leaf") clone.targetId = remap(clone.targetId) ?? null;
+  return clone;
+}
+
+async function migrateLegacySession(record: SessionRecord) {
+  const existing = migrationPromises.get(record.id);
+  if (existing) return existing;
+  const migration = migrateLegacySessionOnce(record).finally(() => migrationPromises.delete(record.id));
+  migrationPromises.set(record.id, migration);
+  return migration;
+}
+
+async function migrateLegacySessionOnce(record: SessionRecord) {
+  try {
+    const existing = await piSessionRepo.open(nativeMetadata(record));
+    await closePiSession(existing);
+    return;
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+  }
+
+  const created = await piSessionRepo.create({
+    id: record.id,
+    cwd: dataDir,
+    parentSessionId: record.forkedFrom?.sessionId,
+    metadata: nativeApplicationMetadata(record),
+  });
+  try {
+    for (const entry of readLegacyEntries(record.id)) {
+      await created.getStorage().appendEntry(entry);
+    }
+  } catch (error) {
+    await closePiSession(created);
+    await piSessionRepo.delete(nativeMetadata(record)).catch(() => undefined);
+    throw error;
+  }
+  await closePiSession(created);
+}
+
+async function ensureNativeSession(record: SessionRecord) {
+  try {
+    const existing = await piSessionRepo.open(nativeMetadata(record));
+    await closePiSession(existing);
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+    await migrateLegacySession(record);
+  }
+}
+
+function readLegacyEntries(sessionId: string): SessionTreeEntry[] {
+  const rows = sqlite
     .prepare("SELECT seq, entry FROM pi_session_entries WHERE session_id = ? ORDER BY seq")
-    .all(sessionId) as StoredEntryRow[]).map(parseEntry);
-}
-
-function leafIdAfterEntry(entry: SessionTreeEntry): string | null {
-  return entry.type === "leaf" ? entry.targetId : entry.id;
-}
-
-function timestampMillis(entry: SessionTreeEntry): number {
-  const value = Date.parse(entry.timestamp);
-  return Number.isFinite(value) ? value : now();
-}
-
-function insertEntries(sessionId: string, entries: SessionTreeEntry[]): void {
-  if (entries.length === 0) return;
-  const transaction = sqlite.transaction(() => {
-    const nextSeqRow = sqlite
-      .prepare("SELECT COALESCE(MAX(seq), -1) + 1 AS seq FROM pi_session_entries WHERE session_id = ?")
-      .get(sessionId) as { seq: number };
-    const hasEntry = sqlite.prepare(
-      "SELECT 1 FROM pi_session_entries WHERE session_id = ? AND entry_id = ? LIMIT 1",
-    );
-    const insert = sqlite.prepare(`
-      INSERT INTO pi_session_entries
-        (session_id, entry_id, seq, parent_id, entry_type, entry, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    let seq = nextSeqRow.seq;
-    for (const entry of entries) {
-      if (hasEntry.get(sessionId, entry.id)) {
-        throw new SessionError("invalid_entry", `Duplicate entry id ${entry.id}`);
+    .all(sessionId) as LegacyEntryRow[];
+  return rows.map((row) => {
+    try {
+      const entry = JSON.parse(row.entry) as SessionTreeEntry;
+      if (!entry || typeof entry !== "object" || typeof entry.id !== "string" || typeof entry.type !== "string") {
+        throw new Error("entry is not an object with an id and type");
       }
-      insert.run(
-        sessionId,
-        entry.id,
-        seq++,
-        entry.parentId,
-        entry.type,
-        JSON.stringify(entry),
-        timestampMillis(entry),
+      return entry;
+    } catch (error) {
+      throw new SessionError(
+        "invalid_entry",
+        `Invalid legacy session entry at sequence ${row.seq}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   });
-  transaction();
 }
 
-function findLeafId(entries: SessionTreeEntry[]): string | null {
-  let leafId: string | null = null;
-  for (const entry of entries) leafId = leafIdAfterEntry(entry);
-  return leafId;
+function readSessionRecord(sessionId: string) {
+  const record = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+  if (!record) throw new SessionError("not_found", `Session ${sessionId} not found`);
+  return record;
 }
 
-export function readActivePiSessionBranch(sessionId: string): SessionTreeEntry[] {
-  const entries = readStoredEntries(sessionId);
-  const byId = new Map(entries.map((entry) => [entry.id, entry]));
-  const leafId = findLeafId(entries);
-  if (leafId === null) return [];
-  const branch: SessionTreeEntry[] = [];
-  const visited = new Set<string>();
-  let current = byId.get(leafId);
-  if (!current) throw new SessionError("invalid_session", `Entry ${leafId} not found`);
-  while (current) {
-    if (visited.has(current.id)) throw new SessionError("invalid_session", `Cycle at entry ${current.id}`);
-    visited.add(current.id);
-    branch.unshift(current);
-    if (!current.parentId) break;
-    const parent = byId.get(current.parentId);
-    if (!parent) throw new SessionError("invalid_session", `Entry ${current.parentId} not found`);
-    current = parent;
-  }
-  return branch;
+function nativeMetadata(record: SessionRecord): SqliteSessionMetadata {
+  return {
+    id: record.id,
+    createdAt: new Date(record.createdAt).toISOString(),
+    cwd: dataDir,
+    path: piDatabasePath,
+    parentSessionId: record.forkedFrom?.sessionId,
+    metadata: nativeApplicationMetadata(record),
+  };
 }
 
-export function replacePiSessionMessages(sessionId: string, messages: AgentMessage[]): void {
-  if (messages.length === 0) {
-    const entries = readStoredEntries(sessionId);
-    insertEntries(sessionId, [
-      {
-        type: "leaf",
-        id: uuidv7(),
-        parentId: findLeafId(entries),
-        timestamp: new Date().toISOString(),
-        targetId: null,
-      },
-    ]);
-    return;
-  }
-  let parentId: string | null = null;
-  const entries: SessionTreeEntry[] = messages.map((message) => {
-    const entry: SessionTreeEntry = {
-      type: "message",
-      id: uuidv7(),
-      parentId,
-      timestamp: new Date().toISOString(),
-      message,
-    };
-    parentId = entry.id;
-    return entry;
-  });
-  insertEntries(sessionId, entries);
+function nativeApplicationMetadata(record: SessionRecord) {
+  return { userId: record.userId, agentId: record.agentId };
 }
 
-export class SqliteSessionStorage implements SessionStorage<CarmelPiSessionMetadata> {
-  constructor(readonly sessionId: string) {}
-
-  async getMetadata(): Promise<CarmelPiSessionMetadata> {
-    const record = db.select().from(sessions).where(eq(sessions.id, this.sessionId)).get();
-    if (!record) throw new SessionError("not_found", `Session ${this.sessionId} not found`);
-    return {
-      id: record.id,
-      createdAt: new Date(record.createdAt).toISOString(),
-      userId: record.userId,
-      agentId: record.agentId,
-    };
-  }
-
-  async getLeafId(): Promise<string | null> {
-    const entries = readStoredEntries(this.sessionId);
-    const leafId = findLeafId(entries);
-    if (leafId !== null && !entries.some((entry) => entry.id === leafId)) {
-      throw new SessionError("invalid_session", `Entry ${leafId} not found`);
-    }
-    return leafId;
-  }
-
-  async setLeafId(leafId: string | null): Promise<void> {
-    if (leafId !== null && !(await this.getEntry(leafId))) {
-      throw new SessionError("not_found", `Entry ${leafId} not found`);
-    }
-    const entry: SessionTreeEntry = {
-      type: "leaf",
-      id: await this.createEntryId(),
-      parentId: await this.getLeafId(),
-      timestamp: new Date().toISOString(),
-      targetId: leafId,
-    };
-    insertEntries(this.sessionId, [entry]);
-  }
-
-  async createEntryId(): Promise<string> {
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const entryId = uuidv7();
-      if (!(await this.getEntry(entryId))) return entryId;
-    }
-    throw new SessionError("storage", "Unable to allocate a unique session entry id");
-  }
-
-  async appendEntry(entry: SessionTreeEntry): Promise<void> {
-    insertEntries(this.sessionId, [entry]);
-  }
-
-  async getEntry(id: string): Promise<SessionTreeEntry | undefined> {
-    const row = sqlite
-      .prepare("SELECT seq, entry FROM pi_session_entries WHERE session_id = ? AND entry_id = ?")
-      .get(this.sessionId, id) as StoredEntryRow | undefined;
-    return row ? parseEntry(row) : undefined;
-  }
-
-  async findEntries<TType extends SessionTreeEntry["type"]>(
-    type: TType,
-  ): Promise<Array<Extract<SessionTreeEntry, { type: TType }>>> {
-    const rows = sqlite
-      .prepare("SELECT seq, entry FROM pi_session_entries WHERE session_id = ? AND entry_type = ? ORDER BY seq")
-      .all(this.sessionId, type) as StoredEntryRow[];
-    return rows.map(parseEntry) as Array<Extract<SessionTreeEntry, { type: TType }>>;
-  }
-
-  async getLabel(id: string): Promise<string | undefined> {
-    const labels = await this.findEntries("label");
-    let label: string | undefined;
-    for (const entry of labels) {
-      if (entry.targetId === id) label = entry.label?.trim() || undefined;
-    }
-    return label;
-  }
-
-  async getSessionName(): Promise<string | undefined> {
-    const entries = await this.findEntries("session_info");
-    return entries.at(-1)?.name?.trim() || undefined;
-  }
-
-  async getSessionStats(): Promise<SessionStats> {
-    let messageCount = 0;
-    let cachedTokens = 0;
-    let uncachedTokens = 0;
-    let totalTokens = 0;
-    let costTotal = 0;
-    for (const entry of readStoredEntries(this.sessionId)) {
-      if (entry.type === "message") messageCount += 1;
-      const usage =
-        entry.type === "message"
-          ? entry.message.role === "assistant"
-            ? entry.message.usage
-            : undefined
-          : entry.type === "compaction" || entry.type === "branch_summary"
-            ? entry.usage
-            : undefined;
-      if (
-        !usage ||
-        typeof usage.input !== "number" ||
-        typeof usage.output !== "number" ||
-        typeof usage.cacheRead !== "number" ||
-        typeof usage.cacheWrite !== "number" ||
-        typeof usage.cost?.total !== "number"
-      )
-        continue;
-      cachedTokens += usage.cacheRead;
-      uncachedTokens += usage.input + usage.cacheWrite;
-      totalTokens += usage.input + usage.output + usage.cacheRead + usage.cacheWrite;
-      costTotal += usage.cost.total;
-    }
-    return { messageCount, cachedTokens, uncachedTokens, totalTokens, costTotal };
-  }
-
-  async getPathToRootOrCompaction(leafId: string | null): Promise<SessionTreeEntry[]> {
-    if (leafId === null) return [];
-    const entries = readStoredEntries(this.sessionId);
-    const byId = new Map(entries.map((entry) => [entry.id, entry]));
-    const path: SessionTreeEntry[] = [];
-    let stopAtEntryId: string | null = null;
-    let current = byId.get(leafId);
-    if (!current) throw new SessionError("not_found", `Entry ${leafId} not found`);
-    while (current) {
-      path.unshift(current);
-      if (stopAtEntryId !== null && current.id === stopAtEntryId) break;
-      if (current.type === "compaction") {
-        if (current.retainedTail) break;
-        stopAtEntryId = current.firstKeptEntryId ?? null;
-      }
-      if (!current.parentId) break;
-      const parent = byId.get(current.parentId);
-      if (!parent) throw new SessionError("invalid_session", `Entry ${current.parentId} not found`);
-      current = parent;
-    }
-    return path;
-  }
-
-  async getEntries(options?: SessionEntryCursorOptions): Promise<SessionTreeEntry[]> {
-    const entries = readStoredEntries(this.sessionId);
-    const start = options?.afterEntrySeq ?? 0;
-    const end = options?.limit === undefined ? undefined : start + options.limit;
-    return entries.slice(start, end);
-  }
+function isNotFound(error: unknown) {
+  return error instanceof SessionError && error.code === "not_found";
 }
 
-export function openPiSession(sessionId: string): Session<CarmelPiSessionMetadata> {
-  return new Session(new SqliteSessionStorage(sessionId));
+function resolvePiDatabasePath() {
+  const configured = process.env.CARMEL_PI_SESSION_DATABASE_URL;
+  if (configured && configured !== ":memory:") return resolve(configured.replace(/^file:/, ""));
+  if (process.env.DATABASE_URL === ":memory:" || configured === ":memory:") {
+    return join(mkdtempSync(join(tmpdir(), "carmel-pi-sessions-")), "sessions.sqlite");
+  }
+  return join(dataDir, "pi-sessions.sqlite");
 }

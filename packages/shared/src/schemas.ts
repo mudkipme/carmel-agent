@@ -128,9 +128,9 @@ export const sessionPatchRequestSchema = z.object({
   thinkingLevel: thinkingLevelSchema.optional(),
   pinnedAt: z.number().finite().nullable().optional(),
 }).partial();
-export const forkSessionRequestSchema = z.object({ messageIndex: z.number().int().nonnegative() });
+export const forkSessionRequestSchema = z.object({ entryId: z.string().min(1) });
 export const sessionTruncateRequestSchema = z.object({
-  messageIndex: z.number().int().nonnegative(),
+  entryId: z.string().min(1),
   thinkingLevel: thinkingLevelSchema.optional(),
 });
 export const sessionMessageEditRequestSchema = z.object({

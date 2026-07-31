@@ -20,9 +20,9 @@ import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
 import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { serializeModelRef } from "../serializers.ts";
-import { openPiSession } from "../services/pi-session-storage.ts";
+import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
 import { resolveModelContext } from "../services/model-context.ts";
-import { readSessionMessages } from "../services/session-store.ts";
+
 import { type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
@@ -101,13 +101,14 @@ export function createAgentRunResponse({
     if (run.started) return;
     run.started = true;
 
-    const piSession = openPiSession(session.id);
+    let piSession: Awaited<ReturnType<typeof openPiSession>> | undefined;
     let harness: AgentHarness<ExecutionToolContext> | undefined;
     let execution: ReturnType<typeof createServerExecution> | undefined;
     let unsubscribe: (() => void) | undefined;
     let retryOriginalLeafId: string | undefined;
     let retryMessagePersisted = false;
     try {
+      piSession = await openPiSession(session.id);
       const resourceLoader = await createAgentResourceLoader(agent);
       const skills = await Promise.all(
         resourceLoader.getSkills().skills.map(async (skill) => ({
@@ -167,7 +168,7 @@ export function createAgentRunResponse({
       retryOriginalLeafId = preparedPrompt.retryOriginalLeafId;
       await recordRunConfiguration(piSession, model, thinkingLevel, activeToolNames);
       if (abortRequested) {
-        if (retryOriginalLeafId) await piSession.getStorage().setLeafId(retryOriginalLeafId);
+        if (retryOriginalLeafId) await piSession.moveTo(retryOriginalLeafId);
         await harness.abort();
         return;
       }
@@ -177,9 +178,9 @@ export function createAgentRunResponse({
       }
       await compactIfNeeded(harness, piSession, model);
     } catch (error) {
-      if (retryOriginalLeafId && !retryMessagePersisted) {
+      if (piSession && retryOriginalLeafId && !retryMessagePersisted) {
         try {
-          await piSession.getStorage().setLeafId(retryOriginalLeafId);
+          await piSession.moveTo(retryOriginalLeafId);
         } catch (restoreError) {
           console.warn(
             "Retry branch restoration failed:",
@@ -189,7 +190,9 @@ export function createAgentRunResponse({
       }
       const errorEvent = createAgentError(error, model);
       try {
-        for (const message of errorEvent.messages) await piSession.appendMessage(message);
+        if (piSession) {
+          for (const message of errorEvent.messages) await piSession.appendMessage(message);
+        }
       } catch (persistenceError) {
         console.warn(
           "Session error persistence failed:",
@@ -198,7 +201,20 @@ export function createAgentRunResponse({
       }
       emit(errorEvent as AgentEvent);
     } finally {
-      const finalMessages = readSessionMessages(session.id);
+      let finalMessages: AgentMessage[] = [];
+      if (piSession) {
+        try {
+          finalMessages = (await piSession.getBranch()).flatMap((entry) =>
+            entry.type === "message" ? [entry.message] : [],
+          );
+        } finally {
+          try {
+            await closePiSession(piSession);
+          } catch (error) {
+            console.warn("Pi session cleanup failed:", error instanceof Error ? error.message : String(error));
+          }
+        }
+      }
       try {
         await persistSessionRun(session, {
           messages: finalMessages,
@@ -211,9 +227,14 @@ export function createAgentRunResponse({
         console.warn("Session persistence failed:", error instanceof Error ? error.message : String(error));
       }
       unsubscribe?.();
-      await execution?.env.cleanup();
-      activeHarness = undefined;
-      finishAgentRun(run);
+      try {
+        await execution?.env.cleanup();
+      } catch (error) {
+        console.warn("Execution environment cleanup failed:", error instanceof Error ? error.message : String(error));
+      } finally {
+        activeHarness = undefined;
+        finishAgentRun(run);
+      }
     }
   };
 
@@ -228,7 +249,7 @@ export function createAgentRunResponse({
  * without inserting the empty user message that prompt("") would create.
  */
 export async function prepareAgentRunPrompt(
-  piSession: ReturnType<typeof openPiSession>,
+  piSession: Awaited<ReturnType<typeof openPiSession>>,
   promptInput?: PromptInput,
 ): Promise<{ promptInput: PromptInput; retryOriginalLeafId?: string }> {
   if (promptInput) return { promptInput };
@@ -240,7 +261,7 @@ export async function prepareAgentRunPrompt(
   }
 
   const retryPromptInput = promptInputFromUserMessage(lastEntry.message);
-  await piSession.getStorage().setLeafId(lastEntry.parentId);
+  await piSession.moveTo(lastEntry.parentId);
   return {
     promptInput: retryPromptInput,
     retryOriginalLeafId: lastEntry.id,
@@ -298,7 +319,7 @@ function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user
 }
 
 async function recordRunConfiguration(
-  piSession: ReturnType<typeof openPiSession>,
+  piSession: Awaited<ReturnType<typeof openPiSession>>,
   model: Model<Api>,
   thinkingLevel: Session["thinkingLevel"],
   activeToolNames: string[],
@@ -315,7 +336,7 @@ async function recordRunConfiguration(
 
 async function compactIfNeeded(
   harness: Pick<AgentHarness, "compact">,
-  piSession: ReturnType<typeof openPiSession>,
+  piSession: Awaited<ReturnType<typeof openPiSession>>,
   model: Model<Api>,
 ) {
   const context = await piSession.buildContext();

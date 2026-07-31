@@ -87,5 +87,5 @@ export function canUserSeeAgent(agent: AgentConfig, userId: string) {
 }
 
 function mergeSessionMetadata(session: Session, metadata: SessionMetadata): Session {
-  return { ...metadata, messages: session.messages };
+  return { ...metadata, messages: session.messages, messageEntryIds: session.messageEntryIds };
 }

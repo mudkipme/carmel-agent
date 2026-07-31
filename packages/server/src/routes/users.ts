@@ -8,6 +8,7 @@ import { id, now } from "../db/seed.ts";
 import { serializeUser } from "../serializers.ts";
 import { canUseModel } from "../services/agent-access.ts";
 import { readActiveRunLeaseForUser } from "../services/active-run-lease.ts";
+import { deletePiSessions } from "../services/pi-session-storage.ts";
 import {
   adminPasswordResetRequestSchema,
   createUserRequestSchema,
@@ -77,7 +78,7 @@ export function createUserRoutes() {
     return c.json({ ok: true });
   });
 
-  route.delete("/users/:id", requireAdmin, (c) => {
+  route.delete("/users/:id", requireAdmin, async (c) => {
     const adminId = c.get("user").id;
     const targetId = c.req.param("id");
     if (targetId === adminId) return c.json({ error: "You cannot delete your own account." }, 400);
@@ -85,6 +86,9 @@ export function createUserRoutes() {
     if (!target) return c.json({ error: "User not found." }, 404);
     const activeRun = readActiveRunLeaseForUser(targetId);
     if (activeRun) return activeRunConflictResponse(c, activeRun);
+
+    const deletedSessions = db.select().from(sessions).where(eq(sessions.userId, targetId)).all();
+    await deletePiSessions(deletedSessions);
 
     const timestamp = now();
     // Transfer the user's owned resources to the acting admin (so shared agents/

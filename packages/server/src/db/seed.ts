@@ -79,7 +79,7 @@ export const defaultAgent: AgentConfig = {
 };
 
 // Messages live in the session_messages table; the seeded session starts empty.
-export const defaultSession: Omit<Session, "messages"> = {
+export const defaultSession: Omit<Session, "messages" | "messageEntryIds"> = {
   id: "session_initial",
   title: "Initial session",
   userId: defaultUser.id,

@@ -232,16 +232,19 @@ export type Session = {
   thinkingLevel: AgentThinkingLevel;
   revision: number;
   messages: AgentMessage[];
+  messageEntryIds: string[];
   forkedFrom?: {
     sessionId: string;
-    messageIndex: number;
+    entryId?: string;
+    /** Legacy metadata retained for sessions forked before entry-ID operations. */
+    messageIndex?: number;
   };
   pinnedAt?: number;
   createdAt: number;
   updatedAt: number;
 };
 
-export type SessionMetadata = Omit<Session, "messages"> & {
+export type SessionMetadata = Omit<Session, "messages" | "messageEntryIds"> & {
   messageCount: number;
 };
 

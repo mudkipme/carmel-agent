@@ -7,8 +7,8 @@ export function createSystemRoutes() {
 
   route.get("/health", (c) => c.json({ ok: true }));
 
-  route.get("/bootstrap", (c) => {
-    return c.json(readBootstrapPayload(c.get("user").id));
+  route.get("/bootstrap", async (c) => {
+    return c.json(await readBootstrapPayload(c.get("user").id));
   });
 
   return route;

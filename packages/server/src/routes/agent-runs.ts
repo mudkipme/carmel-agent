@@ -16,10 +16,10 @@ import { resolveModelContext } from "../services/model-context.ts";
 import { loadSession } from "../services/session-store.ts";
 import { agentRunRequestSchema, jsonValidator } from "../validation.ts";
 
-export function readSessionConnection(userId: string, sessionId: string) {
+export async function readSessionConnection(userId: string, sessionId: string) {
   const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   if (!session || session.userId !== userId) return undefined;
-  const loadedSession = loadSession(session.id);
+  const loadedSession = await loadSession(session.id);
   if (!loadedSession) return undefined;
   return {
     session: loadedSession,
@@ -53,8 +53,8 @@ export function createAgentRunRoutes() {
     return c.json(getActiveAgentRunForSession(c.get("user").id, session.id) ?? null);
   });
 
-  route.get("/sessions/:id/connection", (c) => {
-    const connection = readSessionConnection(c.get("user").id, c.req.param("id"));
+  route.get("/sessions/:id/connection", async (c) => {
+    const connection = await readSessionConnection(c.get("user").id, c.req.param("id"));
     return connection ? c.json(connection) : c.json({ error: "Session not found" }, 404);
   });
 

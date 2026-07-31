@@ -47,6 +47,7 @@ export function importOpenWebuiSessions(source: unknown, options: OpenWebuiImpor
         thinkingLevel: options.thinkingLevel,
         revision: 0,
         messages: convertedMessages,
+        messageEntryIds: [],
         createdAt,
         updatedAt,
       } satisfies Session,

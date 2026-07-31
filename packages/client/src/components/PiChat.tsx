@@ -111,6 +111,7 @@ export function PiChat({
 
       try {
         const saved = await commit();
+        sessionRef.current = saved;
         activeAgent.setMessages(saved.messages);
         await options?.afterCommit?.();
       } catch (error) {
@@ -129,11 +130,13 @@ export function PiChat({
       const currentMessages = [...activeAgent.state.messages];
       const index = findMessageIndex(currentMessages, message);
       if (index < 0) return;
+      const entryId = sessionRef.current.messageEntryIds[index];
+      if (!entryId) return;
 
       await applyOptimisticMessages(
         activeAgent,
         currentMessages.slice(0, index + 1),
-        () => truncateSessionMessages(sessionRef.current.id, index, activeAgent.state.thinkingLevel),
+        () => truncateSessionMessages(sessionRef.current.id, entryId, activeAgent.state.thinkingLevel),
         { afterCommit: () => activeAgent.continue(), errorMessage: "Failed to retry message" },
       );
     },
@@ -148,6 +151,8 @@ export function PiChat({
       const currentMessages = [...activeAgent.state.messages];
       const index = findMessageIndex(currentMessages, message);
       if (index < 0) return;
+      const entryId = sessionRef.current.messageEntryIds[index];
+      if (!entryId) return;
 
       const editedMessage = updateUserMessageContent(currentMessages[index], content, removals);
       const nextMessages = submit
@@ -158,7 +163,7 @@ export function PiChat({
         activeAgent,
         nextMessages,
         () =>
-          editSessionMessage(sessionRef.current.id, index, content, {
+          editSessionMessage(sessionRef.current.id, entryId, content, {
             truncate: submit,
             thinkingLevel: activeAgent.state.thinkingLevel,
             ...removals,
@@ -180,6 +185,8 @@ export function PiChat({
       const currentMessages = [...activeAgent.state.messages];
       const index = findMessageIndex(currentMessages, message);
       if (index < 0) return;
+      const entryId = sessionRef.current.messageEntryIds[index];
+      if (!entryId) return;
 
       // Editing an assistant message never truncates or reruns; it only rewrites
       // the stored message so it carries forward into the next turn.
@@ -189,7 +196,7 @@ export function PiChat({
       await applyOptimisticMessages(
         activeAgent,
         nextMessages,
-        () => editSessionMessage(sessionRef.current.id, index, content, { truncate: false }),
+        () => editSessionMessage(sessionRef.current.id, entryId, content, { truncate: false }),
         { errorMessage: "Failed to save assistant message edit" },
       );
     },
@@ -203,9 +210,11 @@ export function PiChat({
 
       const index = findMessageIndex([...activeAgent.state.messages], message);
       if (index < 0) return;
+      const entryId = sessionRef.current.messageEntryIds[index];
+      if (!entryId) return;
 
       try {
-        const fork = await forkSession(sessionRef.current.id, index);
+        const fork = await forkSession(sessionRef.current.id, entryId);
         navigate(`/agents/${fork.agentId}/sessions/${fork.id}`);
       } catch (error) {
         console.error("Failed to fork session", error);
