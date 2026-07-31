@@ -12,7 +12,7 @@
     "serve": "pnpm --filter @carmel-agent/server start",
     "build": "pnpm -r build",
     "lint": "oxlint .",
-    "test": "pnpm --filter @carmel-agent/server test",
+    "test": "pnpm --filter @carmel-agent/server test && pnpm --filter @carmel-agent/client test",
     "check": "pnpm lint && pnpm test && pnpm build",
     "preview": "pnpm --filter @carmel-agent/client preview"
   },

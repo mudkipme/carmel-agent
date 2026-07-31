@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "^0.83.0",
-    "@earendil-works/pi-ai": "^0.83.0"
+    "@earendil-works/pi-ai": "^0.83.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

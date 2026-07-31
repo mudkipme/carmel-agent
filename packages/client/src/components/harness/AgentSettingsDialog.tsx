@@ -55,6 +55,9 @@ export function AgentSettingsDialog({
   triggerClassName?: string;
 }) {
   const activeUserId = useHarnessStore((state) => state.activeUserId);
+  const canConfigureHostPaths = useHarnessStore(
+    (state) => state.users.find((user) => user.id === state.activeUserId)?.role === "admin",
+  );
   const [open, setOpen] = useState(false);
   const [settingsAgent, setSettingsAgent] = useState<AgentConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,6 +117,7 @@ export function AgentSettingsDialog({
               agent={settingsAgent}
               modelRefs={modelRefs}
               providerConfigs={providerConfigs}
+              canConfigureHostPaths={canConfigureHostPaths}
               onClose={() => setOpen(false)}
             />
           ) : (
@@ -129,11 +133,13 @@ function AgentSettings({
   agent,
   modelRefs,
   providerConfigs,
+  canConfigureHostPaths,
   onClose,
 }: {
   agent: AgentConfig;
   modelRefs: ModelRef[];
   providerConfigs: ProviderConfig[];
+  canConfigureHostPaths: boolean;
   onClose?: () => void;
 }) {
   const upsertAgent = useHarnessStore((state) => state.upsertAgent);
@@ -265,11 +271,11 @@ function AgentSettings({
                     <SelectContent>
                       <SelectGroup>
                         <SelectItem value="default">Default per-agent folder</SelectItem>
-                        <SelectItem value="manual">Manual server folder</SelectItem>
+                        {canConfigureHostPaths ? <SelectItem value="manual">Manual server folder</SelectItem> : null}
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                  {draft.workingDirMode === "manual" ? (
+                  {canConfigureHostPaths && draft.workingDirMode === "manual" ? (
                     <Input
                       value={draft.workingDir}
                       onChange={(event) => setDraft((current) => ({ ...current, workingDir: event.target.value }))}
@@ -278,7 +284,8 @@ function AgentSettings({
                   ) : null}
                 </div>
               </Field>
-              <Field label="Extra runner mounts">
+              {canConfigureHostPaths ? (
+                <Field label="Extra runner mounts">
                 <div className="grid gap-2">
                   <p className="text-xs text-muted-foreground">
                     Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the
@@ -319,6 +326,7 @@ function AgentSettings({
                   </Button>
                 </div>
               </Field>
+              ) : null}
               <Field label="Default model">
                 <Select
                   value={draft.defaultModelRefId}

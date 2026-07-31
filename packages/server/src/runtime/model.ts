@@ -1,46 +1,13 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { providerConfigs } from "../db/schema.ts";
-import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER, type ModelRef } from "@carmel-agent/shared";
+import { resolveModelRef, type ModelRef } from "@carmel-agent/shared";
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 
 export function resolveServerModelRef(modelRef: ModelRef, providerConfig?: ProviderConfigRecord): Model<Api> {
-  const builtIn = getBuiltinModel(modelRef.provider as never, modelRef.modelId as never);
-  const baseUrl =
-    providerConfig?.baseUrl ??
-    modelRef.baseUrl ??
-    (modelRef.provider === OLLAMA_PROVIDER ? DEFAULT_OLLAMA_BASE_URL : "");
-  if (builtIn) {
-    return {
-      ...builtIn,
-      baseUrl: baseUrl || builtIn.baseUrl,
-    };
-  }
-  return {
-    id: modelRef.modelId,
-    name: modelRef.label,
-    api: modelRef.api ?? "openai-completions",
-    provider: modelRef.provider,
-    baseUrl,
-    reasoning: modelRef.reasoning ?? false,
-    input: modelRef.input ?? ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: modelRef.contextWindow ?? 128000,
-    maxTokens: modelRef.maxTokens ?? 8192,
-    compat: modelRef.provider === OLLAMA_PROVIDER ? ollamaCompat : undefined,
-  } as Model<Api>;
+  return resolveModelRef(modelRef, { baseUrl: providerConfig?.baseUrl ?? modelRef.baseUrl });
 }
-
-const ollamaCompat = {
-  supportsStore: false,
-  supportsDeveloperRole: false,
-  supportsReasoningEffort: false,
-  supportsUsageInStreaming: false,
-  maxTokensField: "max_tokens" as const,
-  supportsStrictMode: false,
-};
 
 export function createAgentError(error: unknown, model: Model<Api>) {
   const message: AgentMessage = {

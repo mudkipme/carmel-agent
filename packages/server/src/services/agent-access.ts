@@ -1,5 +1,5 @@
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
-import type { AgentConfig, AgentThinkingLevel } from "@carmel-agent/shared";
+import type { AgentConfig, AgentThinkingLevel, UserRole } from "@carmel-agent/shared";
 import { asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
@@ -59,7 +59,7 @@ export function resolveAgentWorkingDir(agent: AgentConfig, agentId: string, curr
   const defaultWorkingDir = normalizeDataRelativePath(
     current?.defaultWorkingDir ?? agent.defaultWorkingDir ?? defaultAgentWorkingDir(agentId),
   );
-  if ((agent.workingDirMode ?? "manual") === "default") {
+  if ((agent.workingDirMode ?? "default") === "default") {
     ensureDir(resolveDataPath(defaultWorkingDir));
     return {
       workingDir: defaultWorkingDir,
@@ -76,6 +76,18 @@ export function resolveAgentWorkingDir(agent: AgentConfig, agentId: string, curr
     defaultWorkingDir,
   };
 }
+
+export function assertAgentHostPathAccess(role: UserRole, agent: Pick<AgentConfig, "workingDirMode" | "mounts">) {
+  if (role === "admin") return;
+  if (agent.workingDirMode === "manual") {
+    throw new AgentHostPathAccessError("Manual working directories are admin-only.");
+  }
+  if (agent.mounts.length > 0) {
+    throw new AgentHostPathAccessError("Host mounts are admin-only.");
+  }
+}
+
+export class AgentHostPathAccessError extends Error {}
 
 export function reassignModelReferences(deletedModelIds: Set<string>) {
   const ids = [...deletedModelIds];

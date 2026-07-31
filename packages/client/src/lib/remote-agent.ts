@@ -183,7 +183,7 @@ export class RemoteAgent {
         if (activeRunId) {
           this.runId = activeRunId;
           await this.consumeActiveRun(activeRunId, controller.signal);
-          await this.config.onRunComplete?.();
+          await this.notifyRunComplete();
           return;
         }
         throw new Error((await response.text()) || `Agent request failed with ${response.status}`);
@@ -193,7 +193,7 @@ export class RemoteAgent {
       if (!this.sawAgentEnd) {
         this.processEvent({ type: "agent_end", messages: this.messages });
       }
-      await this.config.onRunComplete?.();
+      await this.notifyRunComplete();
     } catch (error) {
       if (!(this.detachRequested && controller.signal.aborted)) {
         this.handleFailure(error, controller.signal.aborted);
@@ -217,7 +217,7 @@ export class RemoteAgent {
 
     try {
       await this.consumeActiveRun(runId, controller.signal);
-      await this.config.onRunComplete?.();
+      await this.notifyRunComplete();
     } catch (error) {
       if (!(this.detachRequested && controller.signal.aborted)) {
         this.state.errorMessage = error instanceof Error ? error.message : String(error);
@@ -239,6 +239,15 @@ export class RemoteAgent {
       throw new Error("Cannot continue from current message state.");
     }
     await this.prompt([]);
+  }
+
+  private async notifyRunComplete() {
+    try {
+      await this.config.onRunComplete?.();
+    } catch (error) {
+      this.state.errorMessage = error instanceof Error ? error.message : String(error);
+      this.notify();
+    }
   }
 
   private beginRun() {

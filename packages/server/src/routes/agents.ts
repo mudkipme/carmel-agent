@@ -9,6 +9,8 @@ import { createAgentResourceLoader } from "../runtime/resources.ts";
 import { discardAgentContainer } from "../runtime/sandbox/container-manager.ts";
 import { serializeAgentSettings, serializePublicAgent } from "../serializers.ts";
 import {
+  AgentHostPathAccessError,
+  assertAgentHostPathAccess,
   canUseModel,
   readVisibleAgent,
   resolveAgentWorkingDir,
@@ -21,11 +23,18 @@ export function createAgentRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
 
   route.put("/agents/:id", jsonValidator(agentConfigRequestSchema), async (c) => {
-    const currentUserId = c.get("user").id;
+    const currentUser = c.get("user");
+    const currentUserId = currentUser.id;
     const agent = c.req.valid("json") as AgentConfig;
     const agentId = c.req.param("id");
     const current = db.select().from(agents).where(eq(agents.id, agentId)).get();
     if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
+    try {
+      assertAgentHostPathAccess(currentUser.role, agent);
+    } catch (error) {
+      if (error instanceof AgentHostPathAccessError) return c.json({ error: error.message }, 403);
+      throw error;
+    }
     const defaultModelRef = db.select().from(modelRefs).where(eq(modelRefs.id, agent.defaultModelRefId)).get();
     if (!defaultModelRef || !canUseModel(currentUserId, defaultModelRef)) {
       return c.json({ error: "Model not found." }, 404);
@@ -39,7 +48,7 @@ export function createAgentRoutes() {
         ...agent,
         id: agentId,
         ownerUserId: currentUserId,
-        workingDirMode: agent.workingDirMode ?? "manual",
+        workingDirMode: agent.workingDirMode ?? "default",
         workingDir: workingDir.workingDir,
         defaultWorkingDir: workingDir.defaultWorkingDir,
         defaultThinkingLevel,
@@ -53,7 +62,7 @@ export function createAgentRoutes() {
           shared: agent.shared,
           name: agent.name,
           description: agent.description,
-          workingDirMode: agent.workingDirMode ?? "manual",
+          workingDirMode: agent.workingDirMode ?? "default",
           workingDir: workingDir.workingDir,
           defaultWorkingDir: workingDir.defaultWorkingDir,
           mounts: agent.mounts,

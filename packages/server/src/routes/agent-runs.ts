@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
-import { modelRefs, providerConfigs, providerKeys, sessions } from "../db/schema.ts";
+import { sessions } from "../db/schema.ts";
 import {
   abortAgentRun,
   createAgentRunEventStream,
@@ -11,12 +11,21 @@ import {
   getActiveAgentRunForSession,
   normalizePromptInput,
 } from "../runtime/agent-runtime.ts";
-import { createProviderConfigCredentialStore } from "../runtime/auth-storage.ts";
-import { createCarmelModelRuntime } from "../runtime/model-runtime.ts";
-import { revealSecret } from "../security.ts";
-import { canUseModel, readVisibleAgent } from "../services/agent-access.ts";
-import { ensureOptionalProviderAuth, hasProviderAuth } from "../services/provider-auth.ts";
+import { readVisibleAgent } from "../services/agent-access.ts";
+import { resolveModelContext } from "../services/model-context.ts";
+import { loadSession } from "../services/session-store.ts";
 import { agentRunRequestSchema, jsonValidator } from "../validation.ts";
+
+export function readSessionConnection(userId: string, sessionId: string) {
+  const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+  if (!session || session.userId !== userId) return undefined;
+  const loadedSession = loadSession(session.id);
+  if (!loadedSession) return undefined;
+  return {
+    session: loadedSession,
+    activeRun: getActiveAgentRunForSession(userId, session.id) ?? null,
+  };
+}
 
 export function createAgentRunRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -39,6 +48,11 @@ export function createAgentRunRoutes() {
     return c.json(getActiveAgentRunForSession(c.get("user").id, session.id) ?? null);
   });
 
+  route.get("/sessions/:id/connection", (c) => {
+    const connection = readSessionConnection(c.get("user").id, c.req.param("id"));
+    return connection ? c.json(connection) : c.json({ error: "Session not found" }, 404);
+  });
+
   route.post("/agents/:id/run", jsonValidator(agentRunRequestSchema), async (c) => {
     const currentUserId = c.get("user").id;
     const agent = readVisibleAgent(currentUserId, c.req.param("id"));
@@ -57,33 +71,16 @@ export function createAgentRunRoutes() {
       return c.json({ error: "Session already has an active agent run.", ...activeRun }, 409);
     }
 
-    const modelRef = db
-      .select()
-      .from(modelRefs)
-      .where(eq(modelRefs.id, body.modelRefId ?? session.modelRefId))
-      .get();
-    if (!modelRef) return c.json({ error: "Model not found" }, 404);
-    if (!canUseModel(currentUserId, modelRef)) return c.json({ error: "Model not found" }, 404);
-
-    const providerConfig = modelRef.providerConfigId
-      ? db.select().from(providerConfigs).where(eq(providerConfigs.id, modelRef.providerConfigId)).get()
-      : undefined;
-    const providerKey = db
-      .select()
-      .from(providerKeys)
-      .where(eq(providerKeys.userId, session.userId))
-      .all()
-      .find((item) => item.provider === modelRef.provider);
-    const modelRuntime = await createCarmelModelRuntime(
-      providerConfig ? createProviderConfigCredentialStore(providerConfig, modelRef.provider) : undefined,
+    const modelContext = await resolveModelContext(
+      currentUserId,
+      body.modelRefId ?? session.modelRefId,
     );
-    if (!providerConfig && providerKey?.apiKey) {
-      await modelRuntime.setRuntimeApiKey(modelRef.provider, revealSecret(providerKey.apiKey) ?? "");
+    if (!modelContext.ok) {
+      return modelContext.reason === "not_found"
+        ? c.json({ error: "Model not found" }, 404)
+        : c.json({ error: "No API key or OAuth login configured for this model provider." }, 400);
     }
-    await ensureOptionalProviderAuth(modelRuntime, modelRef.provider);
-    if (!(await hasProviderAuth(modelRuntime, modelRef.provider))) {
-      return c.json({ error: "No API key or OAuth login configured for this model provider." }, 400);
-    }
+    const { modelRef, providerConfig, modelRuntime } = modelContext.value;
 
     let promptInput: PromptInput | undefined;
     try {

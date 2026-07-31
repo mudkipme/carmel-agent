@@ -1,19 +1,12 @@
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { ApiError, api, type BootstrapPayload, type EditSessionMessageOptions, type SessionPatch } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { createClientId } from "@/lib/id";
 import { resolveModelRef } from "@/store/model-utils";
-import {
-  type AgentConfig,
-  type ModelRef,
-  type PromptTemplate,
-  type ProviderConfig,
-  type Session,
-  type SessionDraft,
-  type SessionMetadata,
-  type User,
-} from "@carmel-agent/shared";
+import type { AgentConfig } from "@carmel-agent/shared";
+import { cacheSession, canUserSeeAgent, resetState, resolveBootstrapState, toSessionMetadata } from "@/store/harness-state";
+import type { HarnessPersistedState, HarnessState } from "@/store/harness-types";
 
 export {
   defaultBaseUrlForProvider,
@@ -24,55 +17,6 @@ export {
 } from "@/store/model-utils";
 
 const id = createClientId;
-
-type HarnessStatus = "idle" | "loading" | "ready" | "unauthenticated" | "setup" | "error";
-
-type HarnessState = {
-  status: HarnessStatus;
-  error?: string;
-  users: User[];
-  activeUserId: string;
-  agents: AgentConfig[];
-  activeAgentId: string;
-  providerConfigs: ProviderConfig[];
-  modelRefs: ModelRef[];
-  sessions: SessionMetadata[];
-  sessionDetails: Record<string, Session>;
-  activeSessionId: string;
-  bootstrap: () => Promise<void>;
-  login: (username: string, password: string) => Promise<void>;
-  setup: (input: { username: string; password: string; email?: string; name?: string }) => Promise<void>;
-  logout: () => Promise<void>;
-  updateAccount: (currentPassword: string, email: string, newPassword?: string) => Promise<void>;
-  setActiveUser: (userId: string) => void;
-  setActiveAgent: (agentId: string) => void;
-  setActiveSession: (sessionId: string) => void;
-  upsertUser: (user: User) => Promise<void>;
-  upsertAgent: (agent: AgentConfig) => Promise<void>;
-  createAgent: (draft?: Partial<AgentConfig>) => Promise<AgentConfig>;
-  deleteAgent: (agentId: string) => Promise<void>;
-  upsertProviderConfig: (providerConfig: ProviderConfig) => Promise<void>;
-  deleteProviderConfig: (providerConfigId: string) => Promise<void>;
-  upsertModelRef: (model: ModelRef) => Promise<ModelRef>;
-  deleteModelRef: (modelRefId: string) => Promise<void>;
-  createSession: (draft: SessionDraft) => Promise<Session>;
-  importOpenWebuiSessions: (draft: SessionDraft & { source: unknown }) => Promise<Session[]>;
-  updateSession: (sessionId: string, patch: SessionPatch) => Promise<void>;
-  truncateSessionMessages: (sessionId: string, messageIndex: number, thinkingLevel?: Session["thinkingLevel"]) => Promise<Session>;
-  editSessionMessage: (
-    sessionId: string,
-    messageIndex: number,
-    content: string,
-    options?: EditSessionMessageOptions,
-  ) => Promise<Session>;
-  refreshSession: (sessionId: string) => Promise<void>;
-  forkSession: (sessionId: string, messageIndex: number) => Promise<Session>;
-  deleteSession: (sessionId: string) => Promise<void>;
-  addPromptTemplate: (agentId: string, template: Omit<PromptTemplate, "id">) => Promise<void>;
-  deletePromptTemplate: (agentId: string, templateId: string) => Promise<void>;
-};
-
-type HarnessPersistedState = Pick<HarnessState, "activeUserId" | "activeAgentId" | "activeSessionId">;
 
 export const useHarnessStore = create<HarnessState>()(
   persist<HarnessState, [], [], HarnessPersistedState>(
@@ -153,7 +97,7 @@ export const useHarnessStore = create<HarnessState>()(
       activeAgentId: agent?.id ?? "",
       activeSessionId,
     });
-    if (activeSessionId && !get().sessionDetails[activeSessionId]) void get().refreshSession(activeSessionId);
+    if (activeSessionId) void get().refreshSession(activeSessionId);
   },
   setActiveAgent: (agentId) => {
     const agent = get().agents.find((item) => item.id === agentId && canUserSeeAgent(item, get().activeUserId));
@@ -165,13 +109,13 @@ export const useHarnessStore = create<HarnessState>()(
       activeAgentId: agentId,
       activeSessionId: session?.id ?? "",
     });
-    if (session?.id && !get().sessionDetails[session.id]) void get().refreshSession(session.id);
+    if (session?.id) void get().refreshSession(session.id);
   },
   setActiveSession: (sessionId) => {
     const session = get().sessions.find((item) => item.id === sessionId && item.userId === get().activeUserId);
     if (!session) return;
     set({ activeSessionId: sessionId, activeAgentId: session.agentId });
-    if (!get().sessionDetails[sessionId]) void get().refreshSession(sessionId);
+    void get().refreshSession(sessionId);
   },
   upsertUser: async (user) => {
     const saved = await api.upsertUser(user);
@@ -324,12 +268,18 @@ export const useHarnessStore = create<HarnessState>()(
     }));
     return saved;
   },
+  connectSession: async (sessionId) => {
+    const connection = await api.getSessionConnection(sessionId);
+    set((state) => cacheSession(state, connection.session));
+    return connection;
+  },
   refreshSession: async (sessionId) => {
     const saved = await api.getSession(sessionId);
     set((state) => ({
       sessions: state.sessions.map((item) => (item.id === sessionId ? toSessionMetadata(saved) : item)),
       sessionDetails: { ...state.sessionDetails, [sessionId]: saved },
     }));
+    return saved;
   },
   forkSession: async (sessionId, messageIndex) => {
     const session = await api.forkSession(sessionId, messageIndex);
@@ -388,96 +338,3 @@ export const useHarnessStore = create<HarnessState>()(
     },
   ),
 );
-
-function resetState(
-  patch: Pick<HarnessState, "status"> & Partial<Pick<HarnessState, "error">>,
-  preserveSelection?: HarnessPersistedState,
-) {
-  return {
-    ...patch,
-    users: [],
-    activeUserId: preserveSelection?.activeUserId ?? "",
-    agents: [],
-    activeAgentId: preserveSelection?.activeAgentId ?? "",
-    providerConfigs: [],
-    modelRefs: [],
-    sessions: [],
-    sessionDetails: {},
-    activeSessionId: preserveSelection?.activeSessionId ?? "",
-  };
-}
-
-function resolveBootstrapState(
-  payload: BootstrapPayload,
-  current: Pick<HarnessState, "activeUserId" | "activeAgentId" | "activeSessionId" | "sessionDetails">,
-) {
-  const activeUserId = payload.users.some((user) => user.id === current.activeUserId)
-    ? current.activeUserId
-    : (payload.users[0]?.id ?? "");
-  const sessions = payload.sessions.filter((session) => session.userId === activeUserId);
-  const agents = payload.agents.filter((agent) => canUserSeeAgent(agent, activeUserId));
-  const activeSession = sessions.find(
-    (session) => session.id === current.activeSessionId && session.userId === activeUserId,
-  );
-  const activeAgent =
-    agents.find((agent) => agent.id === current.activeAgentId) ??
-    agents.find((agent) => agent.id === activeSession?.agentId) ??
-    agents.find((agent) => agent.ownerUserId === activeUserId || agent.shared);
-  const nextActiveSession =
-    activeSession?.agentId === activeAgent?.id
-      ? activeSession
-      : sessions.find((session) => session.agentId === activeAgent?.id);
-  const sessionDetails = Object.fromEntries(
-    sessions.flatMap((metadata) => {
-      const detail = current.sessionDetails[metadata.id];
-      return detail ? [[metadata.id, mergeSessionMetadata(detail, metadata)] as const] : [];
-    }),
-  );
-
-  return {
-    ...payload,
-    agents,
-    sessions,
-    sessionDetails,
-    activeUserId,
-    activeAgentId: activeAgent?.id ?? "",
-    activeSessionId: nextActiveSession?.id ?? "",
-    status: "ready" as const,
-  };
-}
-
-function toSessionMetadata(session: Session): SessionMetadata {
-  return {
-    id: session.id,
-    title: session.title,
-    userId: session.userId,
-    agentId: session.agentId,
-    modelRefId: session.modelRefId,
-    thinkingLevel: session.thinkingLevel,
-    forkedFrom: session.forkedFrom,
-    pinnedAt: session.pinnedAt,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
-    messageCount: session.messages.length,
-  };
-}
-
-function mergeSessionMetadata(session: Session, metadata: SessionMetadata): Session {
-  return {
-    id: metadata.id,
-    title: metadata.title,
-    userId: metadata.userId,
-    agentId: metadata.agentId,
-    modelRefId: metadata.modelRefId,
-    thinkingLevel: metadata.thinkingLevel,
-    forkedFrom: metadata.forkedFrom,
-    pinnedAt: metadata.pinnedAt,
-    createdAt: metadata.createdAt,
-    updatedAt: metadata.updatedAt,
-    messages: session.messages,
-  };
-}
-
-function canUserSeeAgent(agent: AgentConfig, userId: string) {
-  return agent.ownerUserId === userId || agent.shared;
-}

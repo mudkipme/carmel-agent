@@ -1,57 +1,53 @@
 import {
-  createBashToolDefinition,
-  createEditToolDefinition,
   createFindToolDefinition,
   createGrepToolDefinition,
   createLsToolDefinition,
-  createReadToolDefinition,
-  createWriteToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { existsSync, lstatSync, realpathSync } from "node:fs";
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
-import type { AgentMount } from "@carmel-agent/shared";
+import {
+  createBashTool,
+  createEditTool,
+  createReadTool,
+  createWriteTool,
+  type AgentHarnessTool,
+  type AgentTool,
+  type ExecutionToolContext,
+} from "@earendil-works/pi-agent-core";
 import { agents } from "../db/schema.ts";
-import { resolveAgentReadableRoots, resolveAgentWorkingDirPath } from "./resources.ts";
-import { createSandboxBashOperations } from "./sandbox/bash-operations.ts";
-import { resolveAgentTmpDirPath, resolveContainerWorkspace } from "./sandbox/container-manager.ts";
+import { AgentExecutionEnv } from "./execution-env.ts";
+export { remapContainerPath } from "./execution-env.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ToolArgs = Record<string, unknown> | undefined;
 type ServerToolDefinition =
-  | ReturnType<typeof createReadToolDefinition>
   | ReturnType<typeof createGrepToolDefinition>
   | ReturnType<typeof createFindToolDefinition>
   | ReturnType<typeof createLsToolDefinition>
-  | ReturnType<typeof createWriteToolDefinition>
-  | ReturnType<typeof createEditToolDefinition>
-  | ReturnType<typeof createBashToolDefinition>
+  | AgentHarnessTool<ExecutionToolContext>
   | AgentTool;
 
-export function createServerToolDefinitions(agent: AgentRecord) {
-  const cwd = resolveWorkingDir(agent);
-  const guard = resolveToolPathGuard(agent, cwd);
+export function createServerExecution(agent: AgentRecord) {
+  const env = new AgentExecutionEnv(agent);
+  return {
+    env,
+    toolContext: { env } satisfies ExecutionToolContext,
+    tools: createServerToolDefinitions(agent, env),
+  };
+}
+
+export function createServerToolDefinitions(agent: AgentRecord, env = new AgentExecutionEnv(agent)) {
   const tools: ServerToolDefinition[] = [];
 
   if (agent.permissions.read) {
     tools.push(
-      guardToolPath(createReadToolDefinition(cwd), guard),
-      guardToolPath(createGrepToolDefinition(cwd), guard),
-      guardToolPath(createFindToolDefinition(cwd), guard),
-      guardToolPath(createLsToolDefinition(cwd), guard),
+      guardExecutionTool(createReadTool<ExecutionToolContext>(), env, "read"),
+      guardSearchTool(createGrepToolDefinition(env.cwd), env),
+      guardSearchTool(createFindToolDefinition(env.cwd), env),
+      guardSearchTool(createLsToolDefinition(env.cwd), env),
     );
   }
-  if (agent.permissions.write) {
-    tools.push(guardToolPath(createWriteToolDefinition(cwd), guard));
-  }
-  if (agent.permissions.edit) {
-    tools.push(guardToolPath(createEditToolDefinition(cwd), guard));
-  }
-  if (agent.permissions.bash) {
-    // Bash runs in a per-agent sandbox container instead of the host shell, so
-    // it cannot escape the workspace or read server secrets. See ./sandbox.
-    tools.push(createBashToolDefinition(cwd, { operations: createSandboxBashOperations(agent) }));
-  }
+  if (agent.permissions.write) tools.push(guardExecutionTool(createWriteTool<ExecutionToolContext>(), env, "write"));
+  if (agent.permissions.edit) tools.push(guardExecutionTool(createEditTool<ExecutionToolContext>(), env, "write"));
+  if (agent.permissions.bash) tools.push(createBashTool<ExecutionToolContext>());
   if (agent.permissions.network) tools.push(...createNetworkToolDefinitions());
 
   return tools;
@@ -135,155 +131,34 @@ function createNetworkToolDefinitions(): AgentTool[] {
   ];
 }
 
-function resolveWorkingDir(agent: AgentRecord) {
-  const cwd = resolveAgentWorkingDirPath(agent);
-  if (!existsSync(cwd)) throw new Error(`Working directory does not exist: ${cwd}`);
-  return resolve(cwd);
-}
-
-// Builds the host-path roots and the container→host path mappings used to guard
-// the file tools. The tools run on the host, but the agent refers to paths as it
-// sees them in the sandbox (/workspace, /tmp, mount targets), so those are
-// translated to the corresponding host paths before access.
-type ToolPathGuard = { readRoots: string[]; writeRoots: string[]; mappings: PathMapping[] };
-type PathMapping = { containerPath: string; hostPath: string };
-
-function resolveToolPathGuard(agent: AgentRecord, cwd: string): ToolPathGuard {
-  const tmpDir = resolveAgentTmpDirPath(agent);
-  const mountSources = agent.mounts
-    .map((mount) => mount.source?.trim())
-    .filter((source): source is string => Boolean(source))
-    .map((source) => resolve(source));
-  const writableMountSources = agent.mounts
-    .filter((mount): mount is AgentMount & { source: string } => Boolean(!mount.readOnly && mount.source?.trim()))
-    .map((mount) => resolve(mount.source.trim()));
+function guardExecutionTool<TTool extends AgentHarnessTool<ExecutionToolContext>>(tool: TTool, env: AgentExecutionEnv, mode: "read" | "write"): TTool {
+  const execute = tool.execute.bind(tool);
   return {
-    readRoots: [...resolveAgentReadableRoots(agent, cwd), tmpDir, ...mountSources],
-    writeRoots: [cwd, tmpDir, ...writableMountSources],
-    mappings: resolveAgentPathMappings(agent, cwd, tmpDir),
+    ...tool,
+    execute: ((toolCallId, params, signal, onUpdate, context) => {
+      const path = typeof (params as ToolArgs)?.path === "string" ? (params as ToolArgs)?.path as string : ".";
+      env.resolveAuthorizedPath(path, mode);
+      return execute(toolCallId, params, signal, onUpdate, context);
+    }) as TTool["execute"],
   };
 }
 
-function resolveAgentPathMappings(agent: AgentRecord, cwd: string, tmpDir: string): PathMapping[] {
-  const mappings: PathMapping[] = [
-    { containerPath: resolveContainerWorkspace(agent), hostPath: cwd },
-    { containerPath: "/tmp", hostPath: tmpDir },
-  ];
-  for (const mount of agent.mounts) {
-    const source = mount.source?.trim();
-    if (!source) continue;
-    mappings.push({ containerPath: mount.target?.trim() || source, hostPath: resolve(source) });
-  }
-  return mappings;
-}
-
-function guardToolPath<TTool extends ServerToolDefinition>(tool: TTool, guard: ToolPathGuard): TTool {
+function guardSearchTool<TTool extends ServerToolDefinition>(tool: TTool, env: AgentExecutionEnv): TTool {
   const execute = tool.execute.bind(tool) as unknown as (...args: unknown[]) => unknown;
   return {
     ...tool,
     execute: ((toolCallId: unknown, params: unknown, signal: unknown, onUpdate: unknown, context: unknown) => {
-      const guarded = guardToolArgs(tool.name, params as ToolArgs, guard);
+      const guarded = authorizeSearchArgs(params as ToolArgs, env);
       return execute(toolCallId, guarded, signal, onUpdate, context);
     }) as TTool["execute"],
   } as TTool;
 }
 
-function guardToolArgs(toolName: string, args: ToolArgs, guard: ToolPathGuard): ToolArgs {
+function authorizeSearchArgs(args: ToolArgs, env: AgentExecutionEnv): ToolArgs {
   if (!args) return args;
-  const normalized = toolName.toLowerCase();
-  if (!["read", "write", "edit", "grep", "find", "ls"].includes(normalized)) return args;
-
-  const roots = normalized === "write" || normalized === "edit" ? guard.writeRoots : guard.readRoots;
-  const isSearch = normalized === "grep" || normalized === "find" || normalized === "ls";
   const rawPath = args.path;
-
-  if (typeof rawPath !== "string" || rawPath.length === 0) {
-    if (isSearch) guardAndRemapPath(".", roots, guard.mappings);
-    return args;
-  }
-
-  const rewritten = guardAndRemapPath(rawPath, roots, guard.mappings);
-  return rewritten === rawPath ? args : { ...args, path: rewritten };
-}
-
-// Translates a container path the agent supplied to its host equivalent, asserts
-// it lands inside an allowed host root, and returns the path the tool should use
-// (the original when no translation was needed, so unrelated behaviour is intact).
-function guardAndRemapPath(filePath: string, roots: string[], mappings: PathMapping[]) {
-  const hasAt = filePath.startsWith("@");
-  const cleanPath = hasAt ? filePath.slice(1) : filePath;
-  const remapped = remapContainerPath(cleanPath, mappings);
-  const primaryRoot = roots[0] ?? process.cwd();
-  const absolutePath = isAbsolute(remapped) ? resolve(remapped) : resolve(primaryRoot, remapped);
-  assertInsideAllowedRoots(absolutePath, roots, filePath);
-  if (remapped === cleanPath) return filePath;
-  return hasAt ? `@${remapped}` : remapped;
-}
-
-export function remapContainerPath(filePath: string, mappings: PathMapping[]) {
-  if (!isAbsolute(filePath)) return filePath;
-  const normalized = resolve(filePath);
-  for (const { containerPath, hostPath } of mappings) {
-    const root = resolve(containerPath);
-    if (normalized === root) return resolve(hostPath);
-    const relativePath = relative(root, normalized);
-    if (relativePath && !relativePath.startsWith("..") && !isAbsolute(relativePath)) {
-      return resolve(hostPath, relativePath);
-    }
-  }
-  return filePath;
-}
-
-function assertInsideAllowedRoots(absolutePath: string, roots: string[], displayPath = absolutePath) {
-  const normalizedPath = resolve(absolutePath);
-  // The lexical relative() check gives a fast, clear error for ../ escapes, but
-  // it trusts the path string. Bash can create a symlink inside the workspace
-  // that points outside it (e.g. ln -s /etc/passwd ws/x); the link's stored path
-  // stays lexically inside a root, yet the host fs call would follow it out. So
-  // we also resolve symlinks and require the real target to stay inside a root,
-  // matching the browser file API guard in routes/agent-files.ts.
-  const realPath = resolveRealPath(normalizedPath);
-  for (const root of roots) {
-    const normalizedRoot = resolve(root);
-    if (isInsideRoot(normalizedRoot, normalizedPath) && isInsideRoot(resolveRealPath(normalizedRoot), realPath)) {
-      return normalizedPath;
-    }
-  }
-  throw new Error(`Path is outside the agent working directory: ${displayPath}`);
-}
-
-function isInsideRoot(root: string, target: string) {
-  const relativePath = relative(root, target);
-  return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
-}
-
-// Resolves symlinks so containment checks cannot be fooled by a symlink placed
-// inside the workspace. The leaf may not exist yet (write/edit creating a new
-// file), so we resolve the deepest existing ancestor and re-append the segments
-// below it — those cannot be symlinks because they do not exist on disk. lstat
-// (not existsSync) is used so a dangling symlink counts as existing and is handed
-// to realpathSync, which throws rather than being treated as a new writable file.
-function resolveRealPath(absolutePath: string): string {
-  let current = resolve(absolutePath);
-  const trailing: string[] = [];
-  for (;;) {
-    try {
-      lstatSync(current);
-      break;
-    } catch (error) {
-      if (!isMissingPathError(error)) throw error;
-      const parent = dirname(current);
-      if (parent === current) return current;
-      trailing.unshift(basename(current));
-      current = parent;
-    }
-  }
-  const realBase = realpathSync(current);
-  return trailing.length > 0 ? resolve(realBase, ...trailing) : realBase;
-}
-
-function isMissingPathError(error: unknown) {
-  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+  const resolved = env.resolveAuthorizedPath(typeof rawPath === "string" && rawPath ? rawPath : ".", "read");
+  return { ...args, path: resolved };
 }
 
 async function fetchUrlWithExa(url: string, maxCharacters: number, signal?: AbortSignal) {

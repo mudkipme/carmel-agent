@@ -43,6 +43,8 @@ export {
   updateUserMessageContent,
 } from "./messages.ts";
 export type { UserMessageEditOptions } from "./messages.ts";
+export * from "./schemas.ts";
+export { resolveModelRef } from "./model.ts";
 
 export const OLLAMA_PROVIDER = "ollama";
 export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1";
@@ -116,6 +118,11 @@ export type ActiveAgentRunSummary = {
   runId: string;
   sessionId: string;
 };
+export type SessionConnection = {
+  session: Session;
+  activeRun: ActiveAgentRunSummary | null;
+};
+
 
 export type PromptInput = {
   text: string;

@@ -77,6 +77,28 @@ test("file routes do not create files outside the working directory", async () =
   assert.equal(existsSync(outside), false);
 });
 
+test("write-only file routes can create and rename inside the workspace", async () => {
+  const agent = makeAgent({ permissions: { ...allPermissions(false), write: true } });
+  const app = createTestApp(agent);
+
+  const createResponse = await app.request("/agent_1/files", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "created.txt", type: "file" }),
+  });
+  assert.equal(createResponse.status, 201);
+  assert.equal(existsSync(join(agent.workingDir, "created.txt")), true);
+
+  const renameResponse = await app.request("/agent_1/files", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "created.txt", newPath: "renamed.txt" }),
+  });
+  assert.equal(renameResponse.status, 200);
+  assert.equal(existsSync(join(agent.workingDir, "created.txt")), false);
+  assert.equal(existsSync(join(agent.workingDir, "renamed.txt")), true);
+});
+
 test("file routes reject reads through symlinks outside the working directory", async () => {
   const root = mkdtempSync(join(tmpdir(), "carmel-agent-files-test-"));
   const workspace = join(root, "workspace");

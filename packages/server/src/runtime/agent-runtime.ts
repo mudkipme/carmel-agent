@@ -10,6 +10,7 @@ import {
   type AgentEvent,
   type AgentHarnessEvent,
   type AgentHarnessTool,
+  type ExecutionToolContext,
   type AgentMessage,
 } from "@earendil-works/pi-agent-core";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
@@ -17,17 +18,14 @@ import { readFile } from "node:fs/promises";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
-import { agents, modelRefs, providerConfigs, providerKeys, sessions, users } from "../db/schema.ts";
-import { revealSecret } from "../security.ts";
+import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { serializeModelRef } from "../serializers.ts";
-import { ensureOptionalProviderAuth, hasProviderAuth } from "../services/provider-auth.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
+import { resolveModelContext } from "../services/model-context.ts";
 import { readSessionMessages } from "../services/session-store.ts";
 import { type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { createProviderConfigCredentialStore } from "./auth-storage.ts";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
-import { createCarmelModelRuntime } from "./model-runtime.ts";
 import { createAgentResourceLoader, resolveAgentWorkingDirPath } from "./resources.ts";
 import {
   createActiveAgentRun,
@@ -37,7 +35,7 @@ import {
   type RunEvent,
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
-import { createServerToolDefinitions } from "./tools.ts";
+import { createServerExecution } from "./tools.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
@@ -85,7 +83,7 @@ export function createAgentRunResponse({
   const runId = randomId();
   const model = resolveServerModelRef(serializeModelRef(modelRef), providerConfig);
   const encoder = new TextEncoder();
-  let activeHarness: AgentHarness | undefined;
+  let activeHarness: AgentHarness<ExecutionToolContext> | undefined;
   let abortRequested = false;
   const abortRun = () => {
     abortRequested = true;
@@ -104,7 +102,8 @@ export function createAgentRunResponse({
     run.started = true;
 
     const piSession = openPiSession(session.id);
-    let harness: AgentHarness | undefined;
+    let harness: AgentHarness<ExecutionToolContext> | undefined;
+    let execution: ReturnType<typeof createServerExecution> | undefined;
     let unsubscribe: (() => void) | undefined;
     try {
       const resourceLoader = await createAgentResourceLoader(agent);
@@ -125,7 +124,8 @@ export function createAgentRunResponse({
         })),
         ...agent.promptTemplates.map((template) => ({ name: template.name, content: template.body })),
       ];
-      const tools = createServerToolDefinitions(agent) as unknown as AgentHarnessTool<undefined>[];
+      execution = createServerExecution(agent);
+      const tools = execution.tools as unknown as AgentHarnessTool<ExecutionToolContext>[];
       const activeToolNames = tools.map((tool) => tool.name);
       const systemPrompt = buildHarnessSystemPrompt({
         base: resourceLoader.getSystemPrompt()?.trim() || "You are a helpful assistant.",
@@ -147,6 +147,7 @@ export function createAgentRunResponse({
           promptTemplates,
         },
         tools,
+        toolContext: execution.toolContext,
         activeToolNames,
         streamOptions: { maxRetries: 2, maxRetryDelayMs: 60_000 },
       });
@@ -186,6 +187,7 @@ export function createAgentRunResponse({
         console.warn("Session persistence failed:", error instanceof Error ? error.message : String(error));
       }
       unsubscribe?.();
+      await execution?.env.cleanup();
       activeHarness = undefined;
       finishAgentRun(run);
     }
@@ -196,7 +198,7 @@ export function createAgentRunResponse({
 }
 
 export async function runHarnessPrompt(
-  harness: AgentHarness,
+  harness: Pick<AgentHarness, "getResources" | "prompt" | "skill" | "promptFromTemplate">,
   text: string,
   images?: PromptInput["images"],
 ) {
@@ -244,7 +246,7 @@ async function recordRunConfiguration(
 }
 
 async function compactIfNeeded(
-  harness: AgentHarness,
+  harness: Pick<AgentHarness, "compact">,
   piSession: ReturnType<typeof openPiSession>,
   model: Model<Api>,
 ) {
@@ -350,32 +352,11 @@ async function resolveTitleModelContext(
   const fastTaskModelRefId = user?.fastTaskModelRefId;
   if (!fastTaskModelRefId) return fallback;
 
-  const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, fastTaskModelRefId)).get();
-  if (!modelRef || !canUserUseTitleModel(userId, modelRef)) return fallback;
-
-  const providerConfig = modelRef.providerConfigId
-    ? db.select().from(providerConfigs).where(eq(providerConfigs.id, modelRef.providerConfigId)).get()
-    : undefined;
-  const modelRuntime = await createCarmelModelRuntime(
-    providerConfig ? createProviderConfigCredentialStore(providerConfig, modelRef.provider) : undefined,
-  );
-  if (!providerConfig) {
-    const providerKey = db
-      .select()
-      .from(providerKeys)
-      .where(eq(providerKeys.userId, userId))
-      .all()
-      .find((item) => item.provider === modelRef.provider);
-    if (providerKey?.apiKey) {
-      await modelRuntime.setRuntimeApiKey(modelRef.provider, revealSecret(providerKey.apiKey) ?? "");
-    }
-  }
-  await ensureOptionalProviderAuth(modelRuntime, modelRef.provider);
-  if (!(await hasProviderAuth(modelRuntime, modelRef.provider))) return fallback;
-
+  const result = await resolveModelContext(userId, fastTaskModelRefId, { canUse: canUserUseTitleModel });
+  if (!result.ok) return fallback;
   return {
-    model: resolveServerModelRef(serializeModelRef(modelRef), providerConfig),
-    modelRuntime,
+    model: result.value.model,
+    modelRuntime: result.value.modelRuntime,
   };
 }
 

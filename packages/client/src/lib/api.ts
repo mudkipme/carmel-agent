@@ -12,6 +12,7 @@ import type {
   ProviderConfig,
   ProviderModelSummary,
   Session,
+  SessionConnection,
   SessionDraft,
   SessionImportResult,
   SessionMetadata,
@@ -162,6 +163,8 @@ export const api = {
       body: JSON.stringify(draft),
     }),
   getSession: (sessionId: string) => request<Session>(`/api/sessions/${sessionId}`),
+  getSessionConnection: (sessionId: string) =>
+    request<SessionConnection>(`/api/sessions/${sessionId}/connection`),
   getActiveSessionRun: (sessionId: string) =>
     request<ActiveAgentRunSummary | null>(`/api/sessions/${sessionId}/active-run`),
   updateSession: (sessionId: string, patch: SessionPatch) =>

@@ -1,35 +1,16 @@
 import { getBuiltinModel, getBuiltinModels, getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
-import type { Api, Model } from "@earendil-works/pi-ai";
 import { createClientId } from "@/lib/id";
 import {
   DEFAULT_OLLAMA_BASE_URL,
   OLLAMA_PROVIDER,
   type ModelRef,
   type ProviderModelSummary,
+  resolveModelRef,
 } from "@carmel-agent/shared";
 
 const id = createClientId;
 
-export function resolveModelRef(modelRef: ModelRef): Model<Api> {
-  const builtIn = getBuiltinModel(modelRef.provider as never, modelRef.modelId as never);
-  if (builtIn) {
-    return {
-      ...builtIn,
-    };
-  }
-  return {
-    id: modelRef.modelId,
-    name: modelRef.label,
-    api: modelRef.api ?? "openai-completions",
-    provider: modelRef.provider,
-    baseUrl: modelRef.provider === OLLAMA_PROVIDER ? DEFAULT_OLLAMA_BASE_URL : "",
-    reasoning: modelRef.reasoning ?? false,
-    input: modelRef.input ?? ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: modelRef.contextWindow ?? 128000,
-    maxTokens: modelRef.maxTokens ?? 8192,
-  } as Model<Api>;
-}
+export { resolveModelRef };
 
 export function makeModelRef(
   provider: string,

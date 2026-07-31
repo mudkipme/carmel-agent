@@ -1,28 +1,15 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import { CheckIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import { type ChatInputHandle } from "@/components/chat/ChatInput";
 import { ChatPanel } from "@/components/chat/ChatPanel";
-import { Button } from "@/components/ui/button";
-import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  fullscreenDialogContentClass,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { api } from "@/lib/api";
+import { MessageEditDialog, type MessageEditState } from "@/components/chat/MessageEditDialog";
+import { ModelCommandDialog } from "@/components/chat/ModelCommandDialog";
 import { type AgentSnapshot, RemoteAgent } from "@/lib/remote-agent";
 import {
-  type EditableUserImage,
   findMessageIndex,
   getEditableUserImages,
   getMessageText,
@@ -71,13 +58,8 @@ export function PiChat({
   const inputDraftRef = useRef("");
   const [agent, setAgent] = useState<RemoteAgent | null>(null);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
-  const [editingMessage, setEditingMessage] = useState<{
-    message: AgentMessage;
-    draft: string;
-    kind: "user" | "assistant";
-    images: EditableUserImage[];
-    removedKeys: Set<string>;
-  } | null>(null);
+  const [editingMessage, setEditingMessage] = useState<MessageEditState | null>(null);
+  const connectSession = useHarnessStore((state) => state.connectSession);
   const refreshSession = useHarnessStore((state) => state.refreshSession);
   const updateSession = useHarnessStore((state) => state.updateSession);
   const truncateSessionMessages = useHarnessStore((state) => state.truncateSessionMessages);
@@ -236,34 +218,43 @@ export function PiChat({
     let cancelled = false;
     let activeAgent: RemoteAgent | undefined;
 
-    const messagesForAgent = seedMessagesRef.current;
-
-    const createAgent = (messages: AgentMessage[]) => {
-      // Read the model seed at creation time (not effect start): getActiveSessionRun
-      // is async and the selected model may have changed while it was in flight.
+    const createAgent = (authoritativeSession: Session) => {
       const { modelRefId, model } = modelSeedRef.current;
-      return new RemoteAgent({
+      const nextAgent = new RemoteAgent({
         agentId: agentConfig.id,
-        sessionId: session.id,
+        sessionId: authoritativeSession.id,
         modelRefId,
         model,
-        thinkingLevel: clampThinkingLevel(model, seedThinkingRef.current),
-        messages,
-        onRunComplete: () => refreshSession(session.id),
+        thinkingLevel: clampThinkingLevel(model, authoritativeSession.thinkingLevel),
+        messages: authoritativeSession.messages,
+        onRunComplete: async () => {
+          const saved = await refreshSession(authoritativeSession.id);
+          if (cancelled || activeAgent !== nextAgent) return;
+          sessionRef.current = saved;
+          seedMessagesRef.current = saved.messages;
+          seedThinkingRef.current = saved.thinkingLevel;
+          nextAgent.setMessages(saved.messages);
+        },
       });
+      return nextAgent;
     };
 
-    void api.getActiveSessionRun(session.id).then(
-      (activeRun) => {
+    void connectSession(session.id).then(
+      (connection) => {
         if (cancelled) return;
-        activeAgent = createAgent(activeRun ? sessionRef.current.messages : messagesForAgent);
+        sessionRef.current = connection.session;
+        seedMessagesRef.current = connection.session.messages;
+        seedThinkingRef.current = connection.session.thinkingLevel;
+        activeAgent = createAgent(connection.session);
         agentRef.current = activeAgent;
         setAgent(activeAgent);
-        if (activeRun) void activeAgent.attachToRun(activeRun.runId, sessionRef.current.messages);
+        if (connection.activeRun) {
+          void activeAgent.attachToRun(connection.activeRun.runId, connection.session.messages);
+        }
       },
       () => {
         if (cancelled) return;
-        activeAgent = createAgent(messagesForAgent);
+        activeAgent = createAgent({ ...sessionRef.current, messages: seedMessagesRef.current });
         agentRef.current = activeAgent;
         setAgent(activeAgent);
       },
@@ -280,7 +271,7 @@ export function PiChat({
       agentRef.current = null;
       setAgent(null);
     };
-  }, [agentConfig.id, refreshSession, session.id]);
+  }, [agentConfig.id, connectSession, refreshSession, session.id]);
 
   // Apply model changes to the live agent in place. setModel no-ops while a
   // response is streaming, so this also re-runs when streaming ends to pick up
@@ -329,17 +320,6 @@ export function PiChat({
     }
   };
 
-  const saveEdit = async (submit: boolean) => {
-    if (!editingMessage) return;
-    const { message, draft, kind, images, removedKeys } = editingMessage;
-    setEditingMessage(null);
-    if (kind === "assistant") {
-      await saveAssistantMessage(message, draft);
-    } else {
-      await saveUserMessage(message, draft, submit, computeImageRemovals(images, removedKeys));
-    }
-  };
-
   const setThinkingLevel = (level: ThinkingLevel) => {
     const activeAgent = agentRef.current;
     if (!activeAgent) return;
@@ -364,25 +344,6 @@ export function PiChat({
     });
   }, []);
 
-  const removeEditingImage = (key: string) => {
-    setEditingMessage((current) => {
-      if (!current) return current;
-      const removedKeys = new Set(current.removedKeys);
-      removedKeys.add(key);
-      return { ...current, removedKeys };
-    });
-  };
-
-  // Images the user hasn't removed yet — an edit stays committable while any of
-  // them remain, so an image-only message can be edited without adding text.
-  const survivingImages = editingMessage
-    ? editingMessage.images.filter((image) => !editingMessage.removedKeys.has(image.key))
-    : [];
-  const canCommitEdit = editingMessage
-    ? editingMessage.kind === "assistant"
-      ? Boolean(editingMessage.draft.trim())
-      : Boolean(editingMessage.draft.trim()) || survivingImages.length > 0
-    : false;
 
   return (
     <>
@@ -426,149 +387,17 @@ export function PiChat({
         selectedModelRefId={session.modelRefId}
         onSelect={(nextModelRef) => void selectModel(nextModelRef)}
       />
-      <Dialog
-        open={editingMessage !== null}
-        onOpenChange={(open) => {
-          if (!open) setEditingMessage(null);
+      <MessageEditDialog
+        value={editingMessage}
+        onChange={setEditingMessage}
+        onSave={async (edit, submit, removals) => {
+          if (edit.kind === "assistant") {
+            await saveAssistantMessage(edit.message, edit.draft);
+          } else {
+            await saveUserMessage(edit.message, edit.draft, submit, removals);
+          }
         }}
-      >
-        <DialogContent className={fullscreenDialogContentClass("sm:max-w-4xl")}>
-          <DialogHeader className="shrink-0 pr-8 text-left">
-            <DialogTitle className="text-base sm:text-lg">
-              {editingMessage?.kind === "assistant" ? "Edit Assistant Message" : "Edit Message"}
-            </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
-              {editingMessage?.kind === "assistant"
-                ? "Rewrites this assistant message in place. It won't rerun anything and only affects the next turn."
-                : "Save updates the message only. Submit saves it and reruns from this point."}
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            autoFocus
-            className="min-h-0 flex-1 resize-none overflow-y-auto text-base sm:max-h-[60vh] sm:min-h-36 sm:flex-none sm:resize-y"
-            value={editingMessage?.draft ?? ""}
-            onChange={(event) =>
-              setEditingMessage((current) =>
-                current ? { ...current, draft: event.target.value } : current,
-              )
-            }
-            onKeyDown={(event) => {
-              // Plain Enter inserts a newline (multi-line edit); only the keyboard
-              // shortcut commits. It triggers the dialog's primary action: rerun
-              // (Submit) for user messages, in-place Save for assistant messages.
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && canCommitEdit) {
-                event.preventDefault();
-                void saveEdit(editingMessage?.kind === "user");
-              }
-            }}
-          />
-          {editingMessage?.kind === "user" && survivingImages.length > 0 ? (
-            <div className="flex shrink-0 flex-wrap gap-2">
-              {survivingImages.map((image) => (
-                <div key={image.key} className="relative">
-                  <img
-                    className="size-20 rounded-md border object-cover"
-                    src={image.src}
-                    alt={image.label}
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon-xs"
-                    className="absolute -right-2 -top-2 rounded-full border shadow-xs"
-                    aria-label={`Remove ${image.label}`}
-                    onClick={() => removeEditingImage(image.key)}
-                  >
-                    <XIcon />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-          <DialogFooter className="shrink-0">
-            <Button variant="outline" onClick={() => setEditingMessage(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant={editingMessage?.kind === "assistant" ? undefined : "outline"}
-              disabled={!canCommitEdit}
-              onClick={() => void saveEdit(false)}
-            >
-              Save
-            </Button>
-            {editingMessage?.kind === "assistant" ? null : (
-              <Button disabled={!canCommitEdit} onClick={() => void saveEdit(true)}>
-                Submit
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      />
     </>
-  );
-}
-
-function computeImageRemovals(images: EditableUserImage[], removedKeys: Set<string>): UserMessageEditOptions {
-  const removedImageIndexes: number[] = [];
-  const removedAttachmentIds: string[] = [];
-  for (const image of images) {
-    if (!removedKeys.has(image.key)) continue;
-    if (image.removal.kind === "content") removedImageIndexes.push(image.removal.index);
-    else removedAttachmentIds.push(image.removal.id);
-  }
-  return { removedImageIndexes, removedAttachmentIds };
-}
-
-function ModelCommandDialog({
-  open,
-  onOpenChange,
-  modelRefs,
-  providerConfigs,
-  selectedModelRefId,
-  onSelect,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  modelRefs: ModelRef[];
-  providerConfigs: ProviderConfig[];
-  selectedModelRefId: string;
-  onSelect: (modelRef: ModelRef) => void;
-}) {
-  return (
-    <CommandDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Select Model"
-      description="Select one of the models configured in settings."
-      className="w-[calc(100vw-1.5rem)] max-w-md sm:max-w-lg"
-    >
-      <CommandInput placeholder="Search configured models..." />
-      <CommandList>
-        <CommandEmpty>No configured models found.</CommandEmpty>
-        <CommandGroup heading="Models">
-          {modelRefs.map((configuredModel) => {
-            const configuredProvider = providerConfigs.find((item) => item.id === configuredModel.providerConfigId);
-            const selected = configuredModel.id === selectedModelRefId;
-            const providerLabel = configuredProvider?.label ?? configuredModel.provider;
-            return (
-              <CommandItem
-                key={configuredModel.id}
-                value={`${configuredModel.label} ${providerLabel} ${configuredModel.modelId}`}
-                className="min-w-0"
-                onSelect={() => onSelect(configuredModel)}
-              >
-                <CheckIcon className={selected ? "opacity-100" : "opacity-0"} />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate">{configuredModel.label}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {providerLabel} · {configuredModel.modelId}
-                  </span>
-                </div>
-              </CommandItem>
-            );
-          })}
-        </CommandGroup>
-      </CommandList>
-    </CommandDialog>
   );
 }

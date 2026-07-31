@@ -73,6 +73,11 @@ const migrations: Migration[] = [
     description: "Create native Pi session trees and migrate flat transcripts",
     run: migrateFlatTranscriptsToPiSessionEntries,
   },
+  {
+    id: "011_restrict_host_paths",
+    description: "Move non-admin agents off privileged host paths and mounts",
+    run: restrictNonAdminAgentHostPaths,
+  },
 ];
 
 export function migrate() {
@@ -350,6 +355,32 @@ export function migrateFlatTranscriptsToPiSessionEntries() {
       insertEntry.run(session.id, entryId, seq, parentId, entry.type, JSON.stringify(entry), createdAt);
       parentId = entryId;
     });
+  }
+}
+
+// Manual host paths and mounts are privileged infrastructure configuration.
+// Existing accounts predate roles and became admins in migration 009, so this
+// only changes agents owned by accounts explicitly created as regular users.
+function restrictNonAdminAgentHostPaths() {
+  const rows = sqlite.prepare(`
+    SELECT agents.id AS id
+    FROM agents
+    JOIN users ON users.id = agents.owner_user_id
+    WHERE users.role <> 'admin'
+      AND (agents.working_dir_mode = 'manual' OR agents.mounts <> '[]')
+  `).all() as Array<{ id: string }>;
+  const update = sqlite.prepare(`
+    UPDATE agents
+    SET working_dir_mode = 'default',
+        working_dir = ?,
+        default_working_dir = ?,
+        mounts = '[]',
+        updated_at = ?
+    WHERE id = ?
+  `);
+  for (const row of rows) {
+    const workingDir = defaultAgentWorkingDir(row.id);
+    update.run(workingDir, workingDir, now(), row.id);
   }
 }
 

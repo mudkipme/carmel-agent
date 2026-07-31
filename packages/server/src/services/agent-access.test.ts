@@ -5,6 +5,7 @@ import { db, migrate } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import { createAgent, createModelRef, createProviderConfig, createSession, createUser } from "../test-support.ts";
 import {
+  assertAgentHostPathAccess,
   canUseModel,
   reassignModelReferences,
   readVisibleAgent,
@@ -69,6 +70,21 @@ test("canUseModel enforces ownership/sharing", () => {
   assert.equal(canUseModel(alice, bobPrivateModel), false);
   assert.equal(canUseModel(alice, sharedModel), true);
   assert.equal(canUseModel(bob, bobPrivateModel), true);
+});
+
+test("regular users cannot configure manual host paths or mounts", () => {
+  assert.throws(
+    () => assertAgentHostPathAccess("user", { workingDirMode: "manual", mounts: [] }),
+    /Manual working directories are admin-only/,
+  );
+  assert.throws(
+    () => assertAgentHostPathAccess("user", { workingDirMode: "default", mounts: [{ source: "/srv" }] }),
+    /Host mounts are admin-only/,
+  );
+  assert.doesNotThrow(() => assertAgentHostPathAccess("user", { workingDirMode: "default", mounts: [] }));
+  assert.doesNotThrow(() =>
+    assertAgentHostPathAccess("admin", { workingDirMode: "manual", mounts: [{ source: "/srv" }] }),
+  );
 });
 
 test("reassignModelReferences swaps a session's model without touching its update time", () => {
