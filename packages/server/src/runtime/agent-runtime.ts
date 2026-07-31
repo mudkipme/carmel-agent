@@ -105,6 +105,8 @@ export function createAgentRunResponse({
     let harness: AgentHarness<ExecutionToolContext> | undefined;
     let execution: ReturnType<typeof createServerExecution> | undefined;
     let unsubscribe: (() => void) | undefined;
+    let retryOriginalLeafId: string | undefined;
+    let retryMessagePersisted = false;
     try {
       const resourceLoader = await createAgentResourceLoader(agent);
       const skills = await Promise.all(
@@ -134,8 +136,6 @@ export function createAgentRunResponse({
         contextFiles: resourceLoader.getAgentsFiles().agentsFiles,
         includeSkills: activeToolNames.includes("read"),
       });
-      await recordRunConfiguration(piSession, model, thinkingLevel, activeToolNames);
-
       harness = new AgentHarness({
         session: piSession,
         models: modelRuntime,
@@ -153,6 +153,9 @@ export function createAgentRunResponse({
       });
       activeHarness = harness;
       unsubscribe = harness.subscribe((event: AgentHarnessEvent) => {
+        if (retryOriginalLeafId && event.type === "message_end" && event.message.role === "user") {
+          retryMessagePersisted = true;
+        }
         emit(event as RunEvent);
       });
 
@@ -160,9 +163,30 @@ export function createAgentRunResponse({
         await harness.abort();
         return;
       }
-      await runHarnessPrompt(harness, promptInput?.text ?? "", promptInput?.images);
+      const preparedPrompt = await prepareAgentRunPrompt(piSession, promptInput);
+      retryOriginalLeafId = preparedPrompt.retryOriginalLeafId;
+      await recordRunConfiguration(piSession, model, thinkingLevel, activeToolNames);
+      if (abortRequested) {
+        if (retryOriginalLeafId) await piSession.getStorage().setLeafId(retryOriginalLeafId);
+        await harness.abort();
+        return;
+      }
+      await runHarnessPrompt(harness, preparedPrompt.promptInput.text, preparedPrompt.promptInput.images);
+      if (retryOriginalLeafId && !retryMessagePersisted) {
+        throw new Error("Retry completed without persisting the user message.");
+      }
       await compactIfNeeded(harness, piSession, model);
     } catch (error) {
+      if (retryOriginalLeafId && !retryMessagePersisted) {
+        try {
+          await piSession.getStorage().setLeafId(retryOriginalLeafId);
+        } catch (restoreError) {
+          console.warn(
+            "Retry branch restoration failed:",
+            restoreError instanceof Error ? restoreError.message : String(restoreError),
+          );
+        }
+      }
       const errorEvent = createAgentError(error, model);
       try {
         for (const message of errorEvent.messages) await piSession.appendMessage(message);
@@ -197,6 +221,32 @@ export function createAgentRunResponse({
   return createRunStream(run, encoder);
 }
 
+/**
+ * A run without prompt input is a retry/edit-and-resend. The active branch
+ * already ends in the user message, so rewind to its parent and send that same
+ * content through AgentHarness.prompt(). This preserves the abandoned branch
+ * without inserting the empty user message that prompt("") would create.
+ */
+export async function prepareAgentRunPrompt(
+  piSession: ReturnType<typeof openPiSession>,
+  promptInput?: PromptInput,
+): Promise<{ promptInput: PromptInput; retryOriginalLeafId?: string }> {
+  if (promptInput) return { promptInput };
+
+  const branch = await piSession.getBranch();
+  const lastEntry = branch.at(-1);
+  if (lastEntry?.type !== "message" || lastEntry.message.role !== "user") {
+    throw new Error("Cannot retry: the active session branch must end in a user message.");
+  }
+
+  const retryPromptInput = promptInputFromUserMessage(lastEntry.message);
+  await piSession.getStorage().setLeafId(lastEntry.parentId);
+  return {
+    promptInput: retryPromptInput,
+    retryOriginalLeafId: lastEntry.id,
+  };
+}
+
 export async function runHarnessPrompt(
   harness: Pick<AgentHarness, "getResources" | "prompt" | "skill" | "promptFromTemplate">,
   text: string,
@@ -227,6 +277,24 @@ export async function runHarnessPrompt(
     }
   }
   return harness.prompt(text, { images });
+}
+
+function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user" }>): PromptInput {
+  if (typeof message.content === "string") {
+    if (!message.content.trim()) throw new Error("Cannot retry an empty user message.");
+    return { text: message.content };
+  }
+
+  const text = message.content
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n\n");
+  const images = message.content.filter((part) => part.type === "image");
+  if (!text.trim() && images.length === 0) throw new Error("Cannot retry an empty user message.");
+  return {
+    text,
+    images: images.length > 0 ? images : undefined,
+  };
 }
 
 async function recordRunConfiguration(

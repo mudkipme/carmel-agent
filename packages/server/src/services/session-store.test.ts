@@ -8,7 +8,7 @@ import { db, migrate, migrateFlatTranscriptsToPiSessionEntries } from "../db/ind
 import { piSessionEntries, sessionMessages, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createSession, userMessage } from "../test-support.ts";
-import { runHarnessPrompt } from "../runtime/agent-runtime.ts";
+import { prepareAgentRunPrompt, runHarnessPrompt } from "../runtime/agent-runtime.ts";
 import { openPiSession, SqliteSessionStorage } from "./pi-session-storage.ts";
 import {
   loadSession,
@@ -73,6 +73,36 @@ test("AgentHarness persists a complete turn directly into SQLite", async () => {
   const messages = readSessionMessages(sessionId);
   assert.deepEqual(messages.map((message) => message.role), ["user", "assistant"]);
   assert.equal((messages[1] as { content: Array<{ type: string; text: string }> }).content[0]?.text, "persisted reply");
+});
+
+test("retrying a stored user message does not persist an empty user message", async () => {
+  const { sessionId } = createSession();
+  replaceSessionMessages(sessionId, [
+    userMessage("first question"),
+    fauxAssistantMessage("first reply"),
+    userMessage("retry this question"),
+  ]);
+  const piSession = openPiSession(sessionId);
+  const prepared = await prepareAgentRunPrompt(piSession);
+  const faux = fauxProvider({ provider: "faux-retry-" + crypto.randomUUID() });
+  const models = createModels();
+  models.setProvider(faux.provider);
+  faux.setResponses([fauxAssistantMessage("retried reply")]);
+  const harness = new AgentHarness({
+    session: piSession,
+    models,
+    model: faux.getModel(),
+    systemPrompt: "Test assistant",
+  });
+
+  await runHarnessPrompt(harness, prepared.promptInput.text, prepared.promptInput.images);
+
+  const messages = readSessionMessages(sessionId);
+  assert.deepEqual(messages.map((message) => message.role), ["user", "assistant", "user", "assistant"]);
+  assert.deepEqual(
+    messages.filter((message) => message.role === "user").map((message) => userMessageText(message)),
+    ["first question", "retry this question"],
+  );
 });
 
 test("native harness commands expand file prompts and skills", async () => {
