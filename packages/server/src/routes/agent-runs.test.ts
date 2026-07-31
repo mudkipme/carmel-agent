@@ -4,7 +4,7 @@ import { migrate } from "../db/index.ts";
 import { createActiveAgentRun, emitRunEvent, finishAgentRun } from "../runtime/run-stream.ts";
 import { replaceSessionMessages } from "../services/session-store.ts";
 import { createSession, userMessage } from "../test-support.ts";
-import { readSessionConnection } from "./agent-runs.ts";
+import { readSessionConnection } from "../services/session-snapshot.ts";
 
 migrate();
 
@@ -42,5 +42,27 @@ test("finished run snapshot returns the final persisted transcript with no stale
 
   const connection = await readSessionConnection(fixture.userId, fixture.sessionId);
   assert.equal(connection?.activeRun, null);
-  assert.deepEqual(connection?.session.messages, [userMessage("final authoritative message")]);
+  assert.equal((connection?.session.messages[0] as { content?: unknown })?.content, "final authoritative message");
+});
+
+test("connection snapshots replace raw image data with the shared authenticated URL projection", async () => {
+  const fixture = createSession();
+  const rawImageData = "connection-raw-image-data";
+  await replaceSessionMessages(fixture.sessionId, [
+    {
+      role: "user",
+      content: [{ type: "image", data: rawImageData, mimeType: "image/png" }],
+    } as ReturnType<typeof userMessage>,
+  ]);
+
+  const connection = await readSessionConnection(fixture.userId, fixture.sessionId);
+  const message = connection?.session.messages[0] as { content: unknown } | undefined;
+  assert.deepEqual(message?.content, [
+    {
+      type: "image",
+      mimeType: "image/png",
+      url: `/api/sessions/${fixture.sessionId}/images/0/0`,
+    },
+  ]);
+  assert.doesNotMatch(JSON.stringify(connection), new RegExp(rawImageData));
 });

@@ -1,7 +1,6 @@
 import type {
   AgentCommandPayload,
   AgentConfig,
-  ActiveAgentRunSummary,
   AgentFileContent,
   AgentFileEntry,
   AgentFileList,
@@ -162,11 +161,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(draft),
     }),
-  getSession: (sessionId: string) => request<Session>(`/api/sessions/${sessionId}`),
   getSessionConnection: (sessionId: string) =>
     request<SessionConnection>(`/api/sessions/${sessionId}/connection`),
-  getActiveSessionRun: (sessionId: string) =>
-    request<ActiveAgentRunSummary | null>(`/api/sessions/${sessionId}/active-run`),
   updateSession: (sessionId: string, patch: SessionPatch) =>
     request<Session>(`/api/sessions/${sessionId}`, { method: "PATCH", body: JSON.stringify(patch) }),
   truncateSessionMessages: (sessionId: string, entryId: string, thinkingLevel?: Session["thinkingLevel"]) =>

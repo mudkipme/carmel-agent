@@ -20,6 +20,7 @@ import { readActiveRunLeaseForSession } from "../services/active-run-lease.ts";
 import { deletePiSession, forkPiSession } from "../services/pi-session-storage.ts";
 import {
   editSessionMessageEntry,
+  loadOwnedSession,
   loadSession,
   readSessionMessageAt,
   replaceSessionMessages,
@@ -39,11 +40,6 @@ import {
 export function createSessionRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
 
-  route.get("/sessions/:id", async (c) => {
-    const session = await ownedSession(c);
-    if (!session) return c.json({ error: "Session not found" }, 404);
-    return c.json(serializeSession(session));
-  });
 
   route.get("/sessions/:id/images/:messageIndex/:imageIndex", async (c) => {
     const session = ownedSessionRecord(c);
@@ -324,8 +320,7 @@ function toSessionRow(session: Session) {
 // otherwise so handlers can answer 404 with their own resource-specific message.
 async function ownedSession(c: Context<{ Variables: AuthVariables }>) {
   const sessionId = c.req.param("id");
-  const session = sessionId ? await loadSession(sessionId) : undefined;
-  return session && session.userId === c.get("user").id ? session : undefined;
+  return sessionId ? loadOwnedSession(c.get("user").id, sessionId) : undefined;
 }
 
 // Ownership check that loads only the session row, not its messages. Use for

@@ -13,19 +13,8 @@ import {
 } from "../runtime/agent-runtime.ts";
 import { readVisibleAgent } from "../services/agent-access.ts";
 import { resolveModelContext } from "../services/model-context.ts";
-import { loadSession } from "../services/session-store.ts";
+import { readSessionConnection } from "../services/session-snapshot.ts";
 import { agentRunRequestSchema, jsonValidator } from "../validation.ts";
-
-export async function readSessionConnection(userId: string, sessionId: string) {
-  const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-  if (!session || session.userId !== userId) return undefined;
-  const loadedSession = await loadSession(session.id);
-  if (!loadedSession) return undefined;
-  return {
-    session: loadedSession,
-    activeRun: getActiveAgentRunForSession(userId, session.id) ?? null,
-  };
-}
 
 export function createAgentRunRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -45,12 +34,6 @@ export function createAgentRunRoutes() {
     const response = createAgentRunEventStream(c.get("user").id, c.req.param("runId"), afterSequence);
     if (!response) return c.json({ error: "Agent run not found" }, 404);
     return response;
-  });
-
-  route.get("/sessions/:id/active-run", (c) => {
-    const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
-    if (!session || session.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
-    return c.json(getActiveAgentRunForSession(c.get("user").id, session.id) ?? null);
   });
 
   route.get("/sessions/:id/connection", async (c) => {

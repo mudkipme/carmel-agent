@@ -45,7 +45,13 @@ export function HarnessShell() {
     selectedSession?.userId === store.activeUserId && selectedSession.agentId === activeAgent?.id
       ? selectedSession
       : undefined;
-  const activeSession = activeSessionMetadata ? store.sessionDetails[activeSessionMetadata.id] : undefined;
+  const activeSession = activeSessionMetadata
+    ? (store.sessionDetails[activeSessionMetadata.id] ?? {
+        ...activeSessionMetadata,
+        messages: [],
+        messageEntryIds: [],
+      })
+    : undefined;
   const activeModel = store.modelRefs.find((model) => model.id === activeSessionMetadata?.modelRefId);
   const selectedFilePath = selectedFile.agentId === activeAgent?.id ? selectedFile.path : "";
   const visibleSessions = store.sessions
@@ -200,10 +206,6 @@ export function HarnessShell() {
               modelRefs={store.modelRefs}
               providerConfigs={store.providerConfigs}
             />
-          ) : activeSessionMetadata && activeAgent && activeModel ? (
-            <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-              Loading session...
-            </div>
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
               Create a session to start chatting.

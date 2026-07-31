@@ -37,7 +37,6 @@ export const useHarnessStore = create<HarnessState>()(
       const payload = await api.bootstrap();
       const nextState = resolveBootstrapState(payload, get());
       set(nextState);
-      if (nextState.activeSessionId) await get().refreshSession(nextState.activeSessionId);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         const needsSetup = await api
@@ -56,7 +55,6 @@ export const useHarnessStore = create<HarnessState>()(
       const payload = await api.setup(input);
       const nextState = resolveBootstrapState(payload, get());
       set(nextState);
-      if (nextState.activeSessionId) await get().refreshSession(nextState.activeSessionId);
     } catch (error) {
       set((state) => ({
         ...resetState({ status: "setup" }, state),
@@ -70,7 +68,6 @@ export const useHarnessStore = create<HarnessState>()(
       const payload = await api.login(username, password);
       const nextState = resolveBootstrapState(payload, get());
       set(nextState);
-      if (nextState.activeSessionId) await get().refreshSession(nextState.activeSessionId);
     } catch (error) {
       set((state) => ({
         ...resetState({ status: "unauthenticated" }, state),
@@ -97,7 +94,6 @@ export const useHarnessStore = create<HarnessState>()(
       activeAgentId: agent?.id ?? "",
       activeSessionId,
     });
-    if (activeSessionId) void get().refreshSession(activeSessionId);
   },
   setActiveAgent: (agentId) => {
     const agent = get().agents.find((item) => item.id === agentId && canUserSeeAgent(item, get().activeUserId));
@@ -109,13 +105,11 @@ export const useHarnessStore = create<HarnessState>()(
       activeAgentId: agentId,
       activeSessionId: session?.id ?? "",
     });
-    if (session?.id) void get().refreshSession(session.id);
   },
   setActiveSession: (sessionId) => {
     const session = get().sessions.find((item) => item.id === sessionId && item.userId === get().activeUserId);
     if (!session) return;
     set({ activeSessionId: sessionId, activeAgentId: session.agentId });
-    void get().refreshSession(sessionId);
   },
   upsertUser: async (user) => {
     const saved = await api.upsertUser(user);
@@ -274,7 +268,7 @@ export const useHarnessStore = create<HarnessState>()(
     return connection;
   },
   refreshSession: async (sessionId) => {
-    const saved = await api.getSession(sessionId);
+    const saved = (await api.getSessionConnection(sessionId)).session;
     set((state) => ({
       sessions: state.sessions.map((item) => (item.id === sessionId ? toSessionMetadata(saved) : item)),
       sessionDetails: { ...state.sessionDetails, [sessionId]: saved },
