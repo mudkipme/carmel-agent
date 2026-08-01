@@ -99,7 +99,7 @@ export function createModelRoutes() {
       reassignModelReferences(deletedModelIds);
       db.delete(modelRefs).where(eq(modelRefs.id, modelId)).run();
     });
-    return c.json(await readBootstrapPayload(currentUserId));
+    return c.json(readBootstrapPayload(currentUserId));
   });
 
   return route;

@@ -1,13 +1,10 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
+import { isRecord } from "./records.ts";
 
 // Pure, framework-agnostic helpers for inspecting and editing agent messages.
 // These run on both the client (in-memory agent state) and the server
 // (DB-loaded messages), so they must agree exactly — keep them here, not copied.
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
 
 export function isUserMessage(message: AgentMessage): boolean {
   const role = (message as { role?: string }).role;

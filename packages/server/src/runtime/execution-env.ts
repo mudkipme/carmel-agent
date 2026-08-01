@@ -19,6 +19,7 @@ import { resolveAgentWorkingDirPath } from "./resources.ts";
 import { execSandboxCommand } from "./sandbox/bash-operations.ts";
 import { resolveAgentTmpDirPath, resolveContainerWorkspace } from "./sandbox/container-manager.ts";
 import { isSandboxConfigured, sandboxUnavailableMessage } from "./sandbox/podman.ts";
+import { errorMessage } from "../errors.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type AccessMode = "address" | "read" | "write";
@@ -200,7 +201,7 @@ export class AgentExecutionEnv implements ExecutionEnv {
       const result = await execSandboxCommand(this.agent, command, cwd, execOptions);
       return ok({ stdout: "", stderr: "", exitCode: result.exitCode ?? 1 });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       const code = options?.abortSignal?.aborted
         ? "aborted"
         : message.startsWith("timeout:")
@@ -304,7 +305,7 @@ function resolveRealPath(absolutePath: string): string {
 
 function toFileError(error: unknown, path: string) {
   if (error instanceof FileError) return error;
-  const message = error instanceof Error ? error.message : String(error);
+  const message = errorMessage(error);
   const nodeCode = typeof error === "object" && error && "code" in error ? error.code : undefined;
   const code = nodeCode === "ENOENT" ? "not_found" : nodeCode === "EACCES" || nodeCode === "EPERM" ? "permission_denied" : nodeCode === "ENOTDIR" ? "not_directory" : nodeCode === "EISDIR" ? "is_directory" : nodeCode === "EINVAL" ? "invalid" : "unknown";
   return new FileError(code, message, path, error instanceof Error ? error : undefined);

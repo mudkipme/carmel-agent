@@ -70,14 +70,3 @@ export async function editSessionMessageEntry(
   return rewritePiSessionMessage(sessionId, entryId, message, truncate);
 }
 
-export async function readSessionMessageCountsForUser(userId: string): Promise<Map<string, number>> {
-  const records = db
-    .select({ id: sessions.id })
-    .from(sessions)
-    .where(eq(sessions.userId, userId))
-    .all();
-  const counts = await Promise.all(
-    records.map(async (record) => [record.id, (await readSessionMessageEntries(record.id)).length] as const),
-  );
-  return new Map(counts);
-}

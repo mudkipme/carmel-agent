@@ -24,6 +24,7 @@ import { readProviderModels } from "../services/model-catalog.ts";
 import { readActiveRunLeaseForProviderConfig } from "../services/active-run-lease.ts";
 import { jsonValidator, oauthInputRequestSchema, providerConfigRequestSchema } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
+import { errorMessage } from "../errors.ts";
 
 export function createProviderConfigRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -81,7 +82,7 @@ export function createProviderConfigRoutes() {
     try {
       return c.json(await listOllamaModels(providerConfig.baseUrl ?? DEFAULT_OLLAMA_BASE_URL));
     } catch (error) {
-      return c.json({ error: error instanceof Error ? error.message : "Unable to discover provider models." }, 502);
+      return c.json({ error: errorMessage(error, "Unable to discover provider models.") }, 502);
     }
   });
 
@@ -98,7 +99,7 @@ export function createProviderConfigRoutes() {
     try {
       return c.json(await startOAuthLoginFlow(currentUserId, providerConfig));
     } catch (error) {
-      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+      return c.json({ error: errorMessage(error) }, 400);
     }
   });
 
@@ -115,7 +116,7 @@ export function createProviderConfigRoutes() {
       if (!flow) return c.json({ error: "OAuth flow not found." }, 404);
       return c.json(flow);
     } catch (error) {
-      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+      return c.json({ error: errorMessage(error) }, 400);
     }
   });
 
@@ -145,7 +146,7 @@ export function createProviderConfigRoutes() {
       db.delete(modelRefs).where(eq(modelRefs.providerConfigId, providerConfigId)).run();
       db.delete(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).run();
     });
-    return c.json(await readBootstrapPayload(currentUserId));
+    return c.json(readBootstrapPayload(currentUserId));
   });
 
   return route;

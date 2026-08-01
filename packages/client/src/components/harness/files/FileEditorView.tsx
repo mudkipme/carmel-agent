@@ -5,6 +5,7 @@ import { CodeEditor, type EditorLanguage } from "@/components/harness/files/Code
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { useThemePreference } from "@/lib/theme";
+import { errorMessage } from "@/lib/errors";
 
 type FileEditorViewProps = {
   agent?: AgentConfig;
@@ -40,7 +41,7 @@ export function FileEditorView({ agent, filePath }: FileEditorViewProps) {
     } catch (loadError) {
       setContent("");
       setSavedContent("");
-      setError(loadError instanceof Error ? loadError.message : "Unable to open file");
+      setError(errorMessage(loadError, "Unable to open file"));
     } finally {
       setLoading(false);
     }
@@ -62,7 +63,7 @@ export function FileEditorView({ agent, filePath }: FileEditorViewProps) {
       setContent(result.content);
       setSavedContent(result.content);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to save file");
+      setError(errorMessage(saveError, "Unable to save file"));
     } finally {
       setSaving(false);
     }

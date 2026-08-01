@@ -1,10 +1,4 @@
-import type {
-  AgentEvent,
-  AgentMessage,
-  AgentState,
-  AgentTool,
-  ThinkingLevel,
-} from "@earendil-works/pi-agent-core";
+import type { AgentEvent, AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import type {
   ActiveAgentRunSummary,
@@ -13,21 +7,15 @@ import type {
   PromptInput,
   SessionConnection,
 } from "@carmel-agent/shared";
+import { api, ApiError, apiError, apiFetch } from "@/lib/api";
+import { errorMessage } from "@/lib/errors";
 
-type MutableAgentState = Omit<
-  AgentState,
-  "tools" | "messages" | "isStreaming" | "streamingMessage" | "pendingToolCalls" | "errorMessage"
-> & {
-  tools: AgentTool[];
-  messages: AgentMessage[];
-  isStreaming: boolean;
-  streamingMessage?: AgentMessage;
-  pendingToolCalls: Set<string>;
-  errorMessage?: string;
-};
-
-// Immutable view of the agent's observable state. Its identity changes only when
-// `notify()` runs, so React's useSyncExternalStore can compare references cheaply.
+/**
+ * Immutable view of the agent's observable state, and the only way to read it.
+ * Its identity changes only when `notify()` runs, so React's useSyncExternalStore
+ * can compare references cheaply, and imperative callers outside render read the
+ * same object rather than a second, separately-mutated copy.
+ */
 export type AgentSnapshot = {
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
@@ -42,15 +30,18 @@ export class RemoteAgent {
   private storeListeners = new Set<() => void>();
   private snapshotValue: AgentSnapshot;
   private abortController?: AbortController;
-  private tools: AgentTool[] = [];
   private messages: AgentMessage[];
+  private streamingMessage?: AgentMessage;
+  private pendingToolCalls = new Set<string>();
+  private isStreaming = false;
+  private model: Model<Api>;
+  private thinkingLevel: ThinkingLevel;
+  private errorMessage?: string;
   private runId?: string;
   private lastSequence = 0;
   private runFinished = false;
   private detachRequested = false;
   private replaceNextUserMessage = false;
-
-  readonly state: MutableAgentState;
 
   constructor(
     private readonly config: {
@@ -64,40 +55,8 @@ export class RemoteAgent {
     },
   ) {
     this.messages = [...config.messages];
-    this.state = {
-      systemPrompt: "",
-      model: config.model,
-      thinkingLevel: config.thinkingLevel,
-      get tools() {
-        return [];
-      },
-      set tools(tools: AgentTool[]) {
-        void tools;
-      },
-      get messages() {
-        return [];
-      },
-      set messages(_messages: AgentMessage[]) {},
-      isStreaming: false,
-      streamingMessage: undefined,
-      pendingToolCalls: new Set(),
-      errorMessage: undefined,
-    } as MutableAgentState;
-
-    Object.defineProperty(this.state, "tools", {
-      get: () => this.tools,
-      set: (tools: AgentTool[]) => {
-        this.tools = [...tools];
-      },
-    });
-    Object.defineProperty(this.state, "messages", {
-      get: () => this.messages,
-      set: (messages: AgentMessage[]) => {
-        this.messages = [...messages];
-        this.notify();
-      },
-    });
-
+    this.model = config.model;
+    this.thinkingLevel = config.thinkingLevel;
     this.snapshotValue = this.buildSnapshot();
   }
 
@@ -119,25 +78,30 @@ export class RemoteAgent {
   }
 
   setThinkingLevel(thinkingLevel: ThinkingLevel) {
-    this.state.thinkingLevel = thinkingLevel;
+    this.thinkingLevel = thinkingLevel;
     this.notify();
   }
 
   private buildSnapshot(): AgentSnapshot {
     return {
       messages: this.messages,
-      streamingMessage: this.state.streamingMessage,
-      pendingToolCalls: this.state.pendingToolCalls,
-      isStreaming: this.state.isStreaming,
-      model: this.state.model,
-      thinkingLevel: this.state.thinkingLevel,
-      errorMessage: this.state.errorMessage,
+      streamingMessage: this.streamingMessage,
+      pendingToolCalls: this.pendingToolCalls,
+      isStreaming: this.isStreaming,
+      model: this.model,
+      thinkingLevel: this.thinkingLevel,
+      errorMessage: this.errorMessage,
     };
   }
 
   private notify() {
     this.snapshotValue = this.buildSnapshot();
     for (const onChange of this.storeListeners) onChange();
+  }
+
+  private fail(error: unknown) {
+    this.errorMessage = errorMessage(error);
+    this.notify();
   }
 
   get signal() {
@@ -148,16 +112,11 @@ export class RemoteAgent {
     const runId = this.runId;
     if (!runId) return;
     try {
-      const response = await fetch(`/api/agent-runs/${encodeURIComponent(runId)}/abort`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!response.ok && response.status !== 404) {
-        throw new Error((await response.text()) || `Unable to stop agent run (${response.status})`);
-      }
+      await api.abortAgentRun(runId);
     } catch (error) {
-      this.state.errorMessage = error instanceof Error ? error.message : String(error);
-      this.notify();
+      // The run finishing on its own before the abort lands is not an error.
+      if (error instanceof ApiError && error.status === 404) return;
+      this.fail(error);
     }
   }
 
@@ -167,11 +126,11 @@ export class RemoteAgent {
   }
 
   setModel(modelRefId: string, model: Model<Api>, thinkingLevel?: ThinkingLevel) {
-    if (this.state.isStreaming) return;
+    if (this.isStreaming) return;
     this.config.modelRefId = modelRefId;
     this.config.model = model;
-    this.state.model = model;
-    if (thinkingLevel) this.state.thinkingLevel = thinkingLevel;
+    this.model = model;
+    if (thinkingLevel) this.thinkingLevel = thinkingLevel;
     this.notify();
   }
 
@@ -183,13 +142,12 @@ export class RemoteAgent {
     try {
       let response: Response;
       try {
-        response = await fetch(`/api/agents/${this.config.agentId}/run`, {
+        response = await apiFetch(`/api/agents/${encodeURIComponent(this.config.agentId)}/run`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
           body: JSON.stringify({
             sessionId: this.config.sessionId,
             modelRefId: this.config.modelRefId,
-            thinkingLevel: this.state.thinkingLevel,
+            thinkingLevel: this.thinkingLevel,
             promptInput,
           }),
           signal: controller.signal,
@@ -220,7 +178,7 @@ export class RemoteAgent {
         return;
       }
       if (!response.ok || !response.body) {
-        throw new Error((await response.text()) || `Agent request failed with ${response.status}`);
+        throw await apiError(response, `Agent request failed with ${response.status}`);
       }
 
       const runId = response.headers.get("x-agent-run-id");
@@ -231,7 +189,7 @@ export class RemoteAgent {
       await this.notifyRunComplete();
     } catch (error) {
       if (!(this.detachRequested && controller.signal.aborted)) {
-        this.state.errorMessage = error instanceof Error ? error.message : String(error);
+        this.errorMessage = errorMessage(error);
         await this.notifyRunComplete();
       }
     } finally {
@@ -250,7 +208,7 @@ export class RemoteAgent {
       await this.notifyRunComplete();
     } catch (error) {
       if (!(this.detachRequested && controller.signal.aborted)) {
-        this.state.errorMessage = error instanceof Error ? error.message : String(error);
+        this.errorMessage = errorMessage(error);
         await this.notifyRunComplete();
       }
     } finally {
@@ -271,17 +229,16 @@ export class RemoteAgent {
     try {
       await this.config.onRunComplete?.();
     } catch (error) {
-      this.state.errorMessage = error instanceof Error ? error.message : String(error);
-      this.notify();
+      this.fail(error);
     }
   }
 
   private beginRun(afterSequence = 0) {
     const controller = new AbortController();
     this.abortController = controller;
-    this.state.isStreaming = true;
-    this.state.streamingMessage = undefined;
-    this.state.errorMessage = undefined;
+    this.isStreaming = true;
+    this.streamingMessage = undefined;
+    this.errorMessage = undefined;
     this.runId = undefined;
     this.lastSequence = afterSequence;
     this.runFinished = false;
@@ -291,9 +248,9 @@ export class RemoteAgent {
   }
 
   private finishObservation() {
-    this.state.isStreaming = false;
-    this.state.streamingMessage = undefined;
-    this.state.pendingToolCalls = new Set();
+    this.isStreaming = false;
+    this.streamingMessage = undefined;
+    this.pendingToolCalls = new Set();
     this.abortController = undefined;
     this.runId = undefined;
     this.detachRequested = false;
@@ -320,10 +277,7 @@ export class RemoteAgent {
       let response: Response;
       try {
         const query = new URLSearchParams({ after: String(this.lastSequence) });
-        response = await fetch(`/api/agent-runs/${encodeURIComponent(runId)}/events?${query}`, {
-          credentials: "include",
-          signal,
-        });
+        response = await apiFetch(`/api/agent-runs/${encodeURIComponent(runId)}/events?${query}`, { signal });
       } catch (error) {
         if (signal.aborted) throw error;
         this.markReconnecting(error);
@@ -347,10 +301,8 @@ export class RemoteAgent {
         continue;
       }
       if (!response.ok || !response.body) {
-        if (response.status === 400) {
-          throw new Error((await response.text()) || "Invalid agent event cursor.");
-        }
-        this.markReconnecting(new Error((await response.text()) || `Agent event stream failed with ${response.status}`));
+        if (response.status === 400) throw await apiError(response, "Invalid agent event cursor.");
+        this.markReconnecting(await apiError(response, `Agent event stream failed with ${response.status}`));
         retryDelayMs = nextReconnectDelay(retryDelayMs);
         continue;
       }
@@ -391,20 +343,15 @@ export class RemoteAgent {
     }
   }
 
-  private async readConnection(signal: AbortSignal): Promise<SessionConnection> {
-    const response = await fetch(`/api/sessions/${encodeURIComponent(this.config.sessionId)}/connection`, {
-      credentials: "include",
-      signal,
-    });
-    if (!response.ok) throw new Error((await response.text()) || `Session connection failed with ${response.status}`);
-    return (await response.json()) as SessionConnection;
+  private readConnection(signal: AbortSignal): Promise<SessionConnection> {
+    return api.getSessionConnection(this.config.sessionId, signal);
   }
 
   private applyConnectionSnapshot(connection: SessionConnection) {
     this.messages = [...connection.session.messages];
-    this.state.thinkingLevel = connection.session.thinkingLevel;
-    this.state.streamingMessage = undefined;
-    this.state.pendingToolCalls = new Set();
+    this.thinkingLevel = connection.session.thinkingLevel;
+    this.streamingMessage = undefined;
+    this.pendingToolCalls = new Set();
     this.notify();
   }
 
@@ -438,14 +385,13 @@ export class RemoteAgent {
   }
 
   private markReconnecting(error: unknown) {
-    const detail = error instanceof Error ? error.message : String(error);
-    this.state.errorMessage = `Connection lost; reconnecting… ${detail}`;
+    this.errorMessage = `${RECONNECTING_PREFIX} ${errorMessage(error)}`;
     this.notify();
   }
 
   private clearReconnectError() {
-    if (!this.state.errorMessage?.startsWith("Connection lost; reconnecting…")) return;
-    this.state.errorMessage = undefined;
+    if (!this.errorMessage?.startsWith(RECONNECTING_PREFIX)) return;
+    this.errorMessage = undefined;
     this.notify();
   }
 
@@ -453,10 +399,10 @@ export class RemoteAgent {
     switch (event.type) {
       case "message_start":
       case "message_update":
-        this.state.streamingMessage = event.message;
+        this.streamingMessage = event.message;
         break;
       case "message_end":
-        this.state.streamingMessage = undefined;
+        this.streamingMessage = undefined;
         if (this.replaceNextUserMessage && event.message.role === "user") {
           this.messages = [...this.messages.slice(0, -1), event.message];
           this.replaceNextUserMessage = false;
@@ -465,36 +411,38 @@ export class RemoteAgent {
         }
         break;
       case "tool_execution_start": {
-        const pendingToolCalls = new Set(this.state.pendingToolCalls);
+        const pendingToolCalls = new Set(this.pendingToolCalls);
         pendingToolCalls.add(event.toolCallId);
-        this.state.pendingToolCalls = pendingToolCalls;
+        this.pendingToolCalls = pendingToolCalls;
         break;
       }
       case "tool_execution_end": {
-        const pendingToolCalls = new Set(this.state.pendingToolCalls);
+        const pendingToolCalls = new Set(this.pendingToolCalls);
         pendingToolCalls.delete(event.toolCallId);
-        this.state.pendingToolCalls = pendingToolCalls;
+        this.pendingToolCalls = pendingToolCalls;
         break;
       }
       case "turn_end":
         if (event.message.role === "assistant" && event.message.errorMessage) {
-          this.state.errorMessage = event.message.errorMessage;
+          this.errorMessage = event.message.errorMessage;
         }
         break;
       case "agent_end":
         // AgentHarness has stopped producing messages, but server persistence and
         // title generation still follow, so this is not terminal authority.
-        this.state.streamingMessage = undefined;
+        this.streamingMessage = undefined;
         break;
       case "run_finished":
         this.runFinished = true;
-        this.state.streamingMessage = undefined;
-        this.state.pendingToolCalls = new Set();
+        this.streamingMessage = undefined;
+        this.pendingToolCalls = new Set();
         break;
     }
     this.notify();
   }
 }
+
+const RECONNECTING_PREFIX = "Connection lost; reconnecting…";
 
 function normalizePromptInput(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]): PromptInput | undefined {
   if (typeof input === "string") return { text: input, images: images?.length ? images : undefined };

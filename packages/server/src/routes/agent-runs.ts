@@ -15,6 +15,7 @@ import { readVisibleAgent } from "../services/agent-access.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { readSessionConnection } from "../services/session-snapshot.ts";
 import { agentRunRequestSchema, jsonValidator } from "../validation.ts";
+import { errorMessage } from "../errors.ts";
 
 export function createAgentRunRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -74,7 +75,7 @@ export function createAgentRunRoutes() {
     try {
       promptInput = normalizePromptInput(body.promptInput);
     } catch (error) {
-      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+      return c.json({ error: errorMessage(error) }, 400);
     }
 
     // Model/auth resolution can yield to other requests. Revalidate the session

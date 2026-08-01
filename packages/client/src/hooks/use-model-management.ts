@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { OLLAMA_PROVIDER, type ModelRef, type ProviderConfig, type ProviderModelSummary } from "@carmel-agent/shared";
 import { api } from "@/lib/api";
 import { confirmAction } from "@/lib/action-dialogs";
-import { showError } from "@/lib/errors";
+import { errorMessage, showError } from "@/lib/errors";
 import { getAppProviders, makeModelRef, useHarnessStore } from "@/store/harness-store";
 
 export function useModelManagement(modelRefs: ModelRef[], providerConfigs: ProviderConfig[]) {
@@ -33,7 +33,7 @@ export function useModelManagement(modelRefs: ModelRef[], providerConfigs: Provi
       setModelId((current) => current || (models[0]?.id ?? ""));
     } catch (error) {
       setProviderModels([]);
-      setProviderModelsError(error instanceof Error ? error.message : "Unable to load provider models");
+      setProviderModelsError(errorMessage(error, "Unable to load provider models"));
     } finally {
       setLoadingProviderModels(false);
     }
@@ -54,7 +54,7 @@ export function useModelManagement(modelRefs: ModelRef[], providerConfigs: Provi
       (error: unknown) => {
         if (cancelled) return;
         setProviderModels([]);
-        setProviderModelsError(error instanceof Error ? error.message : "Unable to load provider models");
+        setProviderModelsError(errorMessage(error, "Unable to load provider models"));
         setLoadingProviderModels(false);
       },
     );

@@ -47,7 +47,7 @@ export function createAuthRoutes() {
 
     loginFailures.delete(attemptKey);
     await createAuthSession(c, user.id);
-    return c.json(await readBootstrapPayload(user.id));
+    return c.json(readBootstrapPayload(user.id));
   });
 
   route.post("/logout", (c) => {
@@ -99,7 +99,7 @@ export function createAuthRoutes() {
       .run();
 
     await createAuthSession(c, userId);
-    return c.json(await readBootstrapPayload(userId), 201);
+    return c.json(readBootstrapPayload(userId), 201);
   });
 
   // Update the signed-in account's email, and optionally the password, after

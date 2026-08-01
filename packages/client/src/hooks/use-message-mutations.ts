@@ -32,7 +32,7 @@ export function useMessageMutations(
     commit: () => Promise<Session>,
     options?: { afterCommit?: () => Promise<void>; errorMessage?: string },
   ) => {
-    const previousMessages = activeAgent.state.messages;
+    const previousMessages = activeAgent.getSnapshot().messages;
     activeAgent.setMessages(nextMessages);
     try {
       const saved = await commit();
@@ -47,23 +47,25 @@ export function useMessageMutations(
 
   const retryFromMessage = useCallback(async (message: AgentMessage) => {
     const activeAgent = agentRef.current;
-    if (!activeAgent || activeAgent.state.isStreaming || !isUserMessage(message)) return;
-    const currentMessages = [...activeAgent.state.messages];
+    const snapshot = activeAgent?.getSnapshot();
+    if (!activeAgent || !snapshot || snapshot.isStreaming || !isUserMessage(message)) return;
+    const currentMessages = [...snapshot.messages];
     const index = findMessageIndex(currentMessages, message);
     const entryId = index >= 0 ? sessionRef.current.messageEntryIds[index] : undefined;
     if (!entryId) return;
     await applyOptimisticMessages(
       activeAgent,
       currentMessages.slice(0, index + 1),
-      () => truncateSessionMessages(sessionRef.current.id, entryId, activeAgent.state.thinkingLevel),
+      () => truncateSessionMessages(sessionRef.current.id, entryId, activeAgent.getSnapshot().thinkingLevel),
       { afterCommit: () => activeAgent.continue(), errorMessage: "Unable to retry message" },
     );
   }, [agentRef, applyOptimisticMessages, sessionRef, truncateSessionMessages]);
 
   const saveUserMessage = useCallback(async (message: AgentMessage, content: string, submit: boolean, removals?: UserMessageEditOptions) => {
     const activeAgent = agentRef.current;
-    if (!activeAgent || activeAgent.state.isStreaming || !isUserMessage(message)) return;
-    const currentMessages = [...activeAgent.state.messages];
+    const snapshot = activeAgent?.getSnapshot();
+    if (!activeAgent || !snapshot || snapshot.isStreaming || !isUserMessage(message)) return;
+    const currentMessages = [...snapshot.messages];
     const index = findMessageIndex(currentMessages, message);
     const entryId = index >= 0 ? sessionRef.current.messageEntryIds[index] : undefined;
     if (!entryId) return;
@@ -73,15 +75,16 @@ export function useMessageMutations(
       : currentMessages.map((item, itemIndex) => (itemIndex === index ? editedMessage : item));
     await applyOptimisticMessages(activeAgent, nextMessages, () => editSessionMessage(sessionRef.current.id, entryId, content, {
       truncate: submit,
-      thinkingLevel: activeAgent.state.thinkingLevel,
+      thinkingLevel: activeAgent.getSnapshot().thinkingLevel,
       ...removals,
     }), { afterCommit: submit ? () => activeAgent.continue() : undefined, errorMessage: "Unable to save message" });
   }, [agentRef, applyOptimisticMessages, editSessionMessage, sessionRef]);
 
   const saveAssistantMessage = useCallback(async (message: AgentMessage, content: string) => {
     const activeAgent = agentRef.current;
-    if (!activeAgent || activeAgent.state.isStreaming || !isEditableAssistantMessage(message)) return;
-    const currentMessages = [...activeAgent.state.messages];
+    const snapshot = activeAgent?.getSnapshot();
+    if (!activeAgent || !snapshot || snapshot.isStreaming || !isEditableAssistantMessage(message)) return;
+    const currentMessages = [...snapshot.messages];
     const index = findMessageIndex(currentMessages, message);
     const entryId = index >= 0 ? sessionRef.current.messageEntryIds[index] : undefined;
     if (!entryId) return;
@@ -96,8 +99,9 @@ export function useMessageMutations(
 
   const forkFromMessage = useCallback(async (message: AgentMessage) => {
     const activeAgent = agentRef.current;
-    if (!activeAgent || activeAgent.state.isStreaming) return;
-    const index = findMessageIndex([...activeAgent.state.messages], message);
+    const snapshot = activeAgent?.getSnapshot();
+    if (!activeAgent || !snapshot || snapshot.isStreaming) return;
+    const index = findMessageIndex([...snapshot.messages], message);
     const entryId = index >= 0 ? sessionRef.current.messageEntryIds[index] : undefined;
     if (!entryId) return;
     try {

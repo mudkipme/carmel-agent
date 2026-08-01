@@ -1,5 +1,6 @@
 import type { BootstrapPayload } from "@/lib/api";
 import type { HarnessPersistedState, HarnessState } from "@/store/harness-types";
+import { toSessionMetadata } from "@carmel-agent/shared";
 import type {
   AgentConfig,
   AgentConfigCommand,
@@ -98,23 +99,6 @@ export function resolveBootstrapState(
     activeAgentId: activeAgent?.id ?? "",
     activeSessionId: nextActiveSession?.id ?? "",
     status: "ready" as const,
-  };
-}
-
-export function toSessionMetadata(session: Session): SessionMetadata {
-  return {
-    id: session.id,
-    title: session.title,
-    userId: session.userId,
-    agentId: session.agentId,
-    modelRefId: session.modelRefId,
-    thinkingLevel: session.thinkingLevel,
-    revision: session.revision,
-    forkedFrom: session.forkedFrom,
-    pinnedAt: session.pinnedAt,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
-    messageCount: session.messages.length,
   };
 }
 

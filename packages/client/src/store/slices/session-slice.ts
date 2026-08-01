@@ -1,7 +1,8 @@
 import type { StoreApi } from "zustand";
 import { api } from "@/lib/api";
 import { readSessionConnection } from "@/lib/session-connection";
-import { cacheSession, toSessionMetadata } from "@/store/harness-state";
+import { cacheSession } from "@/store/harness-state";
+import { toSessionMetadata } from "@carmel-agent/shared";
 import type { HarnessState } from "@/store/harness-types";
 
 type SetState = StoreApi<HarnessState>["setState"];

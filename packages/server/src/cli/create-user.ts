@@ -3,6 +3,7 @@ import { db, migrate, seed } from "../db/index.ts";
 import { users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { hashPassword } from "../auth.ts";
+import { errorMessage } from "../errors.ts";
 
 type Args = {
   id?: string;
@@ -75,6 +76,6 @@ function readArgs(argv: string[]): Args {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(errorMessage(error));
   process.exit(1);
 });

@@ -1,3 +1,4 @@
+import { skillCommandName, slashCommandText } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -120,13 +121,13 @@ export function createAgentRoutes() {
       name: prompt.name,
       description: prompt.description,
       source: "prompt" as const,
-      commandText: `/${prompt.name} `,
+      commandText: slashCommandText(prompt.name),
     }));
     const skillCommands = resources.skills.map((skill) => ({
-      name: `skill:${skill.name}`,
+      name: skillCommandName(skill.name),
       description: skill.description,
       source: "skill" as const,
-      commandText: `/skill:${skill.name} `,
+      commandText: slashCommandText(skillCommandName(skill.name)),
       sourcePath: skill.filePath,
     }));
     const agentTemplateCommands = agent.promptTemplates.map((template) => ({

@@ -13,7 +13,6 @@ import {
   editSessionMessageEntry,
   loadSession,
   readSessionMessageAt,
-  readSessionMessageCountsForUser,
   readSessionMessages,
   replaceSessionMessages,
   truncateSessionAtEntry,
@@ -203,13 +202,6 @@ test("loadSession and display-index reads expose the active native branch", asyn
   assert.equal((await readSessionMessageAt(sessionId, 1) as { content: string }).content, "b");
   assert.equal(await readSessionMessageAt(sessionId, 3), undefined);
   assert.equal(await loadSession("missing"), undefined);
-});
-
-test("message counts are reported from each active Pi branch", async () => {
-  const { sessionId, userId } = createSession();
-  await replaceSessionMessages(sessionId, [userMessage("a"), userMessage("b")]);
-  const counts = await readSessionMessageCountsForUser(userId);
-  assert.equal(counts.get(sessionId), 2);
 });
 
 test("deleting a session removes native storage", async () => {

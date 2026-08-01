@@ -1,9 +1,10 @@
-import { Hono, type Context } from "hono";
+import { Hono, type Context, type Next } from "hono";
 import { extname } from "node:path";
-import type { AgentFileContent, AgentFileEntry, AgentFileList } from "@carmel-agent/shared";
+import type { AgentFileContent, AgentFileEntry, AgentFileList, AgentPermissions } from "@carmel-agent/shared";
 import { FileError, type Result } from "@earendil-works/pi-agent-core";
 import { agents } from "../db/schema.ts";
 import type { AuthVariables } from "../auth.ts";
+import { errorMessage } from "../errors.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
 import {
   createFileEntryRequestSchema,
@@ -15,161 +16,161 @@ import {
 type AgentRecord = typeof agents.$inferSelect;
 type ReadVisibleAgent = (userId: string, agentId: string) => AgentRecord | undefined;
 
+// Every file route runs against one visible agent's execution environment, so
+// agent lookup, env lifecycle, and FileError -> HTTP status mapping live in one
+// middleware rather than being repeated in each handler.
+type AgentFilesVariables = AuthVariables & {
+  agent: AgentRecord;
+  agentEnv: AgentExecutionEnv;
+};
+type AgentFilesEnv = { Variables: AgentFilesVariables };
+
 const MAX_TEXT_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_IMAGE_FILE_BYTES = 32 * 1024 * 1024;
 
 export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
-  const route = new Hono<{ Variables: AuthVariables }>();
+  const route = new Hono<AgentFilesEnv>();
 
-  route.get("/:id/files", async (c) => {
-    const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    if (!agent.permissions.read) return c.json({ error: "Read permission is disabled for this agent." }, 403);
+  // Scoped to this sub-app, so filesystem failures map to a status once instead
+  // of in every handler. Hono's `route()` preserves a sub-app's own onError.
+  route.onError((error, c) => fileError(c, error));
+  route.use("/:id/files", agentFileContext(readVisibleAgent));
+  route.use("/:id/files/*", agentFileContext(readVisibleAgent));
 
-    try {
-      const env = new AgentExecutionEnv(agent);
-      const directoryPath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
-      const directory = unwrap(await env.fileInfo(directoryPath));
-      if (directory.kind !== "directory") return c.json({ error: "Path is not a directory." }, 400);
-      const entries = await readDirectoryEntries(env, directoryPath, c.req.query("showHidden") === "true");
-      return c.json({ path: env.toWorkspaceRelativePath(directoryPath), entries } satisfies AgentFileList);
-    } catch (error) {
-      return fileError(c, error);
-    }
+  route.get("/:id/files", requireRead, async (c) => {
+    const env = c.get("agentEnv");
+    const directoryPath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
+    const directory = unwrap(await env.fileInfo(directoryPath));
+    if (directory.kind !== "directory") return c.json({ error: "Path is not a directory." }, 400);
+    const entries = await readDirectoryEntries(env, directoryPath, c.req.query("showHidden") === "true");
+    return c.json({ path: env.toWorkspaceRelativePath(directoryPath), entries } satisfies AgentFileList);
   });
 
-  route.get("/:id/files/content", async (c) => {
-    const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    if (!agent.permissions.read) return c.json({ error: "Read permission is disabled for this agent." }, 403);
-
-    try {
-      const env = new AgentExecutionEnv(agent);
-      const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
-      const file = unwrap(await env.fileInfo(filePath));
-      if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
-      if (file.size > MAX_TEXT_FILE_BYTES) return c.json({ error: "File is too large to edit." }, 413);
-      const bytes = unwrap(await env.readBinaryFile(filePath));
-      if (bytes.includes(0)) throw new FileError("invalid", "Binary files cannot be edited.", filePath);
-      return c.json({
-        path: env.toWorkspaceRelativePath(filePath),
-        content: new TextDecoder().decode(bytes),
-        updatedAt: file.mtimeMs,
-      } satisfies AgentFileContent);
-    } catch (error) {
-      return fileError(c, error);
-    }
+  route.get("/:id/files/content", requireRead, async (c) => {
+    const env = c.get("agentEnv");
+    const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
+    const file = unwrap(await env.fileInfo(filePath));
+    if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
+    if (file.size > MAX_TEXT_FILE_BYTES) return c.json({ error: "File is too large to edit." }, 413);
+    const bytes = unwrap(await env.readBinaryFile(filePath));
+    if (bytes.includes(0)) throw new FileError("invalid", "Binary files cannot be edited.", filePath);
+    return c.json({
+      path: env.toWorkspaceRelativePath(filePath),
+      content: new TextDecoder().decode(bytes),
+      updatedAt: file.mtimeMs,
+    } satisfies AgentFileContent);
   });
 
-  route.get("/:id/files/raw", async (c) => {
-    const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    if (!agent.permissions.read) return c.json({ error: "Read permission is disabled for this agent." }, 403);
-
-    try {
-      const env = new AgentExecutionEnv(agent);
-      const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
-      const file = unwrap(await env.fileInfo(filePath));
-      if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
-      if (file.size > MAX_IMAGE_FILE_BYTES) return c.json({ error: "File is too large to preview." }, 413);
-      const contentType = imageContentType(filePath);
-      if (!contentType) return c.json({ error: "File is not a supported image." }, 415);
-      return c.body(unwrap(await env.readBinaryFile(filePath)).buffer as ArrayBuffer, 200, {
-        "content-type": contentType,
-        "cache-control": "no-store",
-      });
-    } catch (error) {
-      return fileError(c, error);
-    }
+  route.get("/:id/files/raw", requireRead, async (c) => {
+    const env = c.get("agentEnv");
+    const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
+    const file = unwrap(await env.fileInfo(filePath));
+    if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
+    if (file.size > MAX_IMAGE_FILE_BYTES) return c.json({ error: "File is too large to preview." }, 413);
+    const contentType = imageContentType(filePath);
+    if (!contentType) return c.json({ error: "File is not a supported image." }, 415);
+    return c.body(unwrap(await env.readBinaryFile(filePath)).buffer as ArrayBuffer, 200, {
+      "content-type": contentType,
+      "cache-control": "no-store",
+    });
   });
 
-  route.put("/:id/files/content", jsonValidator(fileContentRequestSchema), async (c) => {
-    const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    if (!agent.permissions.write && !agent.permissions.edit) {
-      return c.json({ error: "Write permission is disabled for this agent." }, 403);
-    }
+  route.put("/:id/files/content", requireWriteOrEdit, jsonValidator(fileContentRequestSchema), async (c) => {
     const body = c.req.valid("json");
     if (!body.path || typeof body.content !== "string") return c.json({ error: "Path and content are required." }, 400);
 
-    try {
-      const env = new AgentExecutionEnv(agent);
-      const filePath = env.resolveBrowserPath(body.path, "write");
-      unwrap(await env.writeFile(filePath, body.content));
-      const file = unwrap(await env.fileInfo(filePath));
-      return c.json({
-        path: env.toWorkspaceRelativePath(filePath),
-        content: body.content,
-        updatedAt: file.mtimeMs,
-      } satisfies AgentFileContent);
-    } catch (error) {
-      return fileError(c, error);
-    }
+    const env = c.get("agentEnv");
+    const filePath = env.resolveBrowserPath(body.path, "write");
+    unwrap(await env.writeFile(filePath, body.content));
+    const file = unwrap(await env.fileInfo(filePath));
+    return c.json({
+      path: env.toWorkspaceRelativePath(filePath),
+      content: body.content,
+      updatedAt: file.mtimeMs,
+    } satisfies AgentFileContent);
   });
 
-  route.post("/:id/files", jsonValidator(createFileEntryRequestSchema), async (c) => {
-    const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    if (!agent.permissions.write) return c.json({ error: "Write permission is disabled for this agent." }, 403);
+  route.post("/:id/files", requireWrite, jsonValidator(createFileEntryRequestSchema), async (c) => {
     const body = c.req.valid("json");
     if (!body.path || (body.type !== "file" && body.type !== "directory")) {
       return c.json({ error: "Path and type are required." }, 400);
     }
 
-    try {
-      const env = new AgentExecutionEnv(agent);
-      const targetPath = env.resolveBrowserPath(body.path, "write");
-      const exists = unwrap(await env.exists(targetPath));
-      if (exists) return c.json({ error: "Path already exists." }, 409);
-      if (body.type === "directory") {
-        unwrap(await env.createDir(targetPath, { recursive: false }));
-      } else {
-        unwrap(await env.createFileExclusive(body.path, true));
-      }
-      return c.json(await toFileEntry(env, targetPath), 201);
-    } catch (error) {
-      return fileError(c, error);
+    const env = c.get("agentEnv");
+    const targetPath = env.resolveBrowserPath(body.path, "write");
+    if (unwrap(await env.exists(targetPath))) return c.json({ error: "Path already exists." }, 409);
+    if (body.type === "directory") {
+      unwrap(await env.createDir(targetPath, { recursive: false }));
+    } else {
+      unwrap(await env.createFileExclusive(body.path, true));
     }
+    return c.json(await toFileEntry(env, targetPath), 201);
   });
 
-  route.patch("/:id/files", jsonValidator(renameFileEntryRequestSchema), async (c) => {
-    const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    if (!agent.permissions.write && !agent.permissions.edit) {
-      return c.json({ error: "Write permission is disabled for this agent." }, 403);
-    }
+  route.patch("/:id/files", requireWriteOrEdit, jsonValidator(renameFileEntryRequestSchema), async (c) => {
     const body = c.req.valid("json");
     if (!body.path || !body.newPath) return c.json({ error: "Path and newPath are required." }, 400);
 
-    try {
-      const env = new AgentExecutionEnv(agent);
-      const nextPath = env.resolveBrowserPath(body.newPath, "write");
-      if (unwrap(await env.exists(nextPath))) return c.json({ error: "Path already exists." }, 409);
-      unwrap(await env.rename(body.path, body.newPath, true));
-      return c.json(await toFileEntry(env, nextPath));
-    } catch (error) {
-      return fileError(c, error);
-    }
+    const env = c.get("agentEnv");
+    const nextPath = env.resolveBrowserPath(body.newPath, "write");
+    if (unwrap(await env.exists(nextPath))) return c.json({ error: "Path already exists." }, 409);
+    unwrap(await env.rename(body.path, body.newPath, true));
+    return c.json(await toFileEntry(env, nextPath));
   });
 
-  route.delete("/:id/files", async (c) => {
-    const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    if (!agent.permissions.write) return c.json({ error: "Write permission is disabled for this agent." }, 403);
-
-    try {
-      const env = new AgentExecutionEnv(agent);
-      const targetPath = env.resolveBrowserPath(c.req.query("path") ?? "", "write");
-      if (targetPath === env.cwd) return c.json({ error: "The working directory cannot be deleted." }, 400);
-      unwrap(await env.remove(targetPath, { recursive: true }));
-      return c.json({ ok: true });
-    } catch (error) {
-      return fileError(c, error);
-    }
+  route.delete("/:id/files", requireWrite, async (c) => {
+    const env = c.get("agentEnv");
+    const targetPath = env.resolveBrowserPath(c.req.query("path") ?? "", "write");
+    if (targetPath === env.cwd) return c.json({ error: "The working directory cannot be deleted." }, 400);
+    unwrap(await env.remove(targetPath, { recursive: true }));
+    return c.json({ ok: true });
   });
 
   return route;
 }
+
+/**
+ * Resolve the `:id` agent, open its execution environment for the handler, and
+ * always release it afterwards. Failures are mapped to a status by `onError`.
+ */
+function agentFileContext(readVisibleAgent: ReadVisibleAgent) {
+  return async (c: Context<AgentFilesEnv>, next: Next) => {
+    const agentId = c.req.param("id");
+    const agent = agentId ? readVisibleAgent(c.get("user").id, agentId) : undefined;
+    if (!agent) return c.json({ error: "Agent not found." }, 404);
+
+    const env = new AgentExecutionEnv(agent);
+    c.set("agent", agent);
+    c.set("agentEnv", env);
+    try {
+      await next();
+    } finally {
+      await env.cleanup().catch(() => undefined);
+    }
+  };
+}
+
+function requirePermission(allowed: (permissions: AgentPermissions) => boolean, message: string) {
+  return async (c: Context<AgentFilesEnv>, next: Next) => {
+    if (!allowed(c.get("agent").permissions)) return c.json({ error: message }, 403);
+    await next();
+  };
+}
+
+const requireRead = requirePermission(
+  (permissions) => permissions.read,
+  "Read permission is disabled for this agent.",
+);
+const requireWrite = requirePermission(
+  (permissions) => permissions.write,
+  "Write permission is disabled for this agent.",
+);
+// Editing an existing file is allowed with either permission; creating or
+// deleting one still requires `write`.
+const requireWriteOrEdit = requirePermission(
+  (permissions) => permissions.write || permissions.edit,
+  "Write permission is disabled for this agent.",
+);
 
 async function readDirectoryEntries(env: AgentExecutionEnv, directoryPath: string, showHidden: boolean) {
   const children = unwrap(await env.listDir(directoryPath));
@@ -222,7 +223,7 @@ function imageContentType(filePath: string) {
 }
 
 function fileError(c: Context, error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = errorMessage(error);
   const code = error instanceof FileError ? error.code : undefined;
   const status = code === "permission_denied"
     ? 400

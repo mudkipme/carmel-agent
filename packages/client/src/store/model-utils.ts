@@ -1,4 +1,3 @@
-import type { Api, Model } from "@earendil-works/pi-ai";
 import { createClientId } from "@/lib/id";
 import {
   DEFAULT_OLLAMA_BASE_URL,
@@ -8,20 +7,9 @@ import {
   type ProviderModelSummary,
 } from "@carmel-agent/shared";
 
-export function resolveModelRef(modelRef: ModelRef): Model<Api> {
-  return {
-    id: modelRef.modelId,
-    name: modelRef.label,
-    api: modelRef.api ?? "openai-completions",
-    provider: modelRef.provider,
-    baseUrl: modelRef.baseUrl ?? defaultBaseUrlForProvider(modelRef.provider),
-    reasoning: modelRef.reasoning ?? false,
-    input: modelRef.input ?? ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: modelRef.contextWindow ?? 128000,
-    maxTokens: modelRef.maxTokens ?? 8192,
-  } as Model<Api>;
-}
+// The ModelRef -> Pi `Model` mapping lives in @carmel-agent/shared so the client
+// and server resolve a model entry identically; re-export it for existing call sites.
+export { defaultBaseUrlForProvider, resolveModelRef } from "@carmel-agent/shared";
 
 export function makeModelRef(
   provider: string,
@@ -48,8 +36,4 @@ export function makeModelRef(
 
 export function getAppProviders(catalog: ModelCatalog) {
   return catalog.providers.map((provider) => provider.id);
-}
-
-export function defaultBaseUrlForProvider(provider: string) {
-  return provider === OLLAMA_PROVIDER ? DEFAULT_OLLAMA_BASE_URL : "";
 }

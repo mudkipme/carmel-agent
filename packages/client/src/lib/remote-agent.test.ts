@@ -43,7 +43,7 @@ test("reconnect starts after the snapshot cursor and does not duplicate persiste
     await agent.attachToRun("run_cursor", [question, persisted], 7);
 
     assert.deepEqual(requests, ["/api/agent-runs/run_cursor/events?after=7"]);
-    assert.deepEqual(agent.state.messages, final);
+    assert.deepEqual(agent.getSnapshot().messages, final);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -80,7 +80,7 @@ test("a broken observer stream reconnects after the last received sequence witho
       { url: "/api/agent-runs/run_reconnect/events?after=2", method: "GET" },
     ]);
     assert.equal(requests.some((request) => request.url.includes("/abort")), false);
-    assert.deepEqual(agent.state.messages, final);
+    assert.deepEqual(agent.getSnapshot().messages, final);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -120,7 +120,7 @@ test("an uncertain submit response recovers the server-owned run through session
       { url: "/api/agent-runs/run_recovered/events?after=1", method: "GET" },
     ]);
     assert.equal(requests.some((request) => request.url.includes("/abort")), false);
-    assert.deepEqual(agent.state.messages, final);
+    assert.deepEqual(agent.getSnapshot().messages, final);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -156,7 +156,7 @@ test("a replay gap replaces local messages with one authoritative connection sna
       "/api/agent-runs/run_gap/events?after=10",
       "/api/agent-runs/run_gap/events?after=11",
     ]);
-    assert.deepEqual(agent.state.messages, final);
+    assert.deepEqual(agent.getSnapshot().messages, final);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -173,13 +173,13 @@ test("detaching cancels only the observer request and never calls the stop API",
   };
   try {
     const agent = createAgent([userMessage("question")]);
-    const observing = agent.attachToRun("run_detach", agent.state.messages, 3);
+    const observing = agent.attachToRun("run_detach", agent.getSnapshot().messages, 3);
     await Promise.resolve();
     agent.detach();
     await observing;
 
     assert.deepEqual(requests, [{ url: "/api/agent-runs/run_detach/events?after=3", method: "GET" }]);
-    assert.equal(agent.state.isStreaming, false);
+    assert.equal(agent.getSnapshot().isStreaming, false);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -218,7 +218,7 @@ test("manual stop uses the abort API but keeps watching the server-persisted abo
     await Promise.resolve();
     await agent.abort();
 
-    assert.equal(agent.state.isStreaming, true);
+    assert.equal(agent.getSnapshot().isStreaming, true);
     assert.ok(streamController);
     streamController.enqueue(encodeEvents([
       envelope(1, { type: "message_end", message: aborted }),
@@ -230,8 +230,8 @@ test("manual stop uses the abort API but keeps watching the server-persisted abo
     await observing;
 
     assert.equal(requests.filter((request) => request.method === "POST" && request.url.endsWith("/abort")).length, 1);
-    assert.deepEqual(agent.state.messages, final);
-    assert.equal(agent.state.errorMessage, "Stopped by user");
+    assert.deepEqual(agent.getSnapshot().messages, final);
+    assert.equal(agent.getSnapshot().errorMessage, "Stopped by user");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -264,9 +264,9 @@ test("a server-persisted model failure is authoritative and is not duplicated sy
     agent = createAgent([question], async () => agent.setMessages(final));
     await agent.attachToRun("run_failure", [question], 0);
 
-    assert.deepEqual(agent.state.messages, final);
-    assert.equal(agent.state.messages.filter((message) => message.role === "assistant").length, 1);
-    assert.equal(agent.state.errorMessage, "Provider failed");
+    assert.deepEqual(agent.getSnapshot().messages, final);
+    assert.equal(agent.getSnapshot().messages.filter((message) => message.role === "assistant").length, 1);
+    assert.equal(agent.getSnapshot().errorMessage, "Provider failed");
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -1,3 +1,4 @@
+import { isRecord } from "@carmel-agent/shared";
 import type { ModelRef, Session } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, AssistantMessage, ImageContent, TextContent, Usage } from "@earendil-works/pi-ai";
@@ -327,8 +328,4 @@ function numberValue(value: unknown) {
 
 function readString(value: unknown) {
   return typeof value === "string" ? value : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

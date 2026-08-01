@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { User, UserRole } from "@carmel-agent/shared";
 import { api } from "@/lib/api";
 import { confirmAction } from "@/lib/action-dialogs";
+import { errorMessage } from "@/lib/errors";
 
 export function useUserAdministration() {
   const [users, setUsers] = useState<User[]>([]);
@@ -22,7 +23,7 @@ export function useUserAdministration() {
         if (!cancelled) setUsers(list);
       },
       (error: unknown) => {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : "Unable to load users");
+        if (!cancelled) setLoadError(errorMessage(error, "Unable to load users"));
       },
     );
     return () => {
@@ -36,7 +37,7 @@ export function useUserAdministration() {
       const updated = await api.updateUserRole(userId, nextRole);
       setUsers((current) => current.map((item) => (item.id === userId ? updated : item)));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to update role.");
+      setStatus(errorMessage(error, "Unable to update role."));
     }
   };
 
@@ -48,7 +49,7 @@ export function useUserAdministration() {
       setResetPassword("");
       setStatus("Password reset.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to reset password.");
+      setStatus(errorMessage(error, "Unable to reset password."));
     }
   };
 
@@ -69,7 +70,7 @@ export function useUserAdministration() {
       await api.deleteUser(user.id);
       setUsers((current) => current.filter((item) => item.id !== user.id));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to delete user.");
+      setStatus(errorMessage(error, "Unable to delete user."));
     }
   };
 
@@ -85,7 +86,7 @@ export function useUserAdministration() {
       setRole("user");
       setStatus(`Created ${created.username}.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to create user.");
+      setStatus(errorMessage(error, "Unable to create user."));
     } finally {
       setCreating(false);
     }

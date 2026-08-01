@@ -10,28 +10,28 @@ import {
 } from "../serializers.ts";
 import { readProviderConfigs, readVisibleAgents, readVisibleModelRefs } from "./agent-access.ts";
 import { readModelCatalog } from "./model-catalog.ts";
-import { readSessionMessageCountsForUser } from "./session-store.ts";
 
-export async function readBootstrapPayload(userId: string) {
+export function readBootstrapPayload(userId: string) {
   return {
     users: db.select().from(users).where(eq(users.id, userId)).all().map(serializeUser),
     agents: readVisibleAgents(userId).map(serializePublicAgent),
     providerConfigs: readProviderConfigs().map(serializeProviderConfig),
     modelRefs: readVisibleModelRefs(userId).map(serializeModelRef),
     modelCatalog: readModelCatalog(),
-    sessions: await readSessionMetadataForUser(userId),
+    sessions: readSessionMetadataForUser(userId),
   };
 }
 
-async function readSessionMetadataForUser(userId: string) {
-  const counts = await readSessionMessageCountsForUser(userId);
+// Session rows only: bootstrap never needs a transcript, so it must not open a
+// Pi session per row to read one.
+function readSessionMetadataForUser(userId: string) {
   return db
     .select()
     .from(sessions)
     .where(eq(sessions.userId, userId))
     .all()
     .sort(sortSessions)
-    .map((session) => serializeSessionMetadata(session, counts.get(session.id) ?? 0));
+    .map(serializeSessionMetadata);
 }
 
 function sortSessions(a: typeof sessions.$inferSelect, b: typeof sessions.$inferSelect) {

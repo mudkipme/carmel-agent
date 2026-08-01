@@ -15,6 +15,7 @@ import {
   sandboxUnavailableMessage,
   startContainer,
 } from "./podman.ts";
+import { errorMessage } from "../../errors.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
@@ -102,7 +103,7 @@ function clearAgentTmp(agentId: string) {
   try {
     rmSync(agentTmpDirPath(agentId), { recursive: true, force: true });
   } catch (error) {
-    console.warn("Failed to clear agent tmp dir:", error instanceof Error ? error.message : String(error));
+    console.warn("Failed to clear agent tmp dir:", errorMessage(error));
   }
 }
 
@@ -164,7 +165,7 @@ export async function reapManagedContainers() {
     const stale = await listManagedContainers(`${managedLabel}=${managedLabelValue}`);
     await Promise.all(stale.map((container) => removeContainer(container.Id)));
   } catch (error) {
-    console.warn("Failed to reap sandbox containers:", error instanceof Error ? error.message : String(error));
+    console.warn("Failed to reap sandbox containers:", errorMessage(error));
   }
 }
 
@@ -282,7 +283,7 @@ async function reapUntrackedContainers() {
   try {
     managed = await listManagedContainers(`${managedLabel}=${managedLabelValue}`);
   } catch (error) {
-    console.warn("Failed to list sandbox containers:", error instanceof Error ? error.message : String(error));
+    console.warn("Failed to list sandbox containers:", errorMessage(error));
     return;
   }
   const tracked = new Set<string>();

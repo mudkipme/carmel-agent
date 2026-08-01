@@ -1,4 +1,5 @@
 import type { Session, SessionImportResult } from "@carmel-agent/shared";
+import { isRecord, toSessionRow } from "@carmel-agent/shared";
 import {
   isEditableAssistantMessage,
   isUserMessage,
@@ -25,6 +26,7 @@ import {
   readSessionMessageAt,
   replaceSessionMessages,
   truncateSessionAtEntry,
+  type SessionWithMessages,
 } from "../services/session-store.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import {
@@ -138,7 +140,7 @@ export function createSessionRoutes() {
       }
     } catch (error) {
       for (const session of imported.sessions) {
-        await deletePiSession(toSessionRecord(session)).catch(() => undefined);
+        await deletePiSession(toSessionRow(session)).catch(() => undefined);
         db.delete(sessions).where(eq(sessions.id, session.id)).run();
       }
       throw error;
@@ -154,9 +156,9 @@ export function createSessionRoutes() {
 
   route.patch("/sessions/:id", jsonValidator(sessionPatchRequestSchema), async (c) => {
     const patch = c.req.valid("json");
-    const sessionId = c.req.param("id");
-    const current = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-    if (!current || current.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+    // Row-only ownership check: nothing here needs the transcript before the commit.
+    const current = ownedSessionRecord(c);
+    if (!current) return c.json({ error: "Session not found" }, 404);
     const leaseConflict = rejectActiveRunMutation(c, current.id);
     if (leaseConflict) return leaseConflict;
     if (patch.modelRefId && !canUseModel(c.get("user").id, patch.modelRefId)) {
@@ -173,28 +175,21 @@ export function createSessionRoutes() {
     // affect the session's update time or its sort order. Only a rename counts as
     // a meaningful edit here; conversation activity touches updatedAt elsewhere.
     const titleChanged = patch.title !== undefined && patch.title !== current.title;
-    db.update(sessions)
-      .set({
-        title: patch.title ?? current.title,
-        modelRefId: patch.modelRefId ?? current.modelRefId,
-        thinkingLevel,
-        forkedFrom: current.forkedFrom,
-        pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
-        revision: sql`${sessions.revision} + 1`,
-        updatedAt: titleChanged ? now() : current.updatedAt,
-      })
-      .where(eq(sessions.id, sessionId))
-      .run();
-    return c.json(serializeSession((await loadSession(sessionId))!));
+    return c.json(await commitSessionChange(current.id, {
+      title: patch.title ?? current.title,
+      modelRefId: patch.modelRefId ?? current.modelRefId,
+      thinkingLevel,
+      forkedFrom: current.forkedFrom,
+      pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
+      updatedAt: titleChanged ? now() : current.updatedAt,
+    }));
   });
 
   route.post("/sessions/:id/fork", jsonValidator(forkSessionRequestSchema), async (c) => {
     const sessionId = c.req.param("id");
     const body = c.req.valid("json");
-    const source = await ownedSession(c);
-    if (!source) return c.json({ error: "Session not found" }, 404);
-    const leaseConflict = rejectActiveRunMutation(c, source.id);
-    if (leaseConflict) return leaseConflict;
+    const { session: source, conflict } = await guardSessionMutation(c);
+    if (!source) return conflict;
     const messageIndex = source.messageEntryIds.indexOf(body.entryId);
     if (messageIndex < 0) return c.json({ error: "Message not found" }, 404);
     const timestamp = now();
@@ -214,7 +209,7 @@ export function createSessionRoutes() {
     try {
       await forkPiSession(source.id, fork.id, body.entryId);
     } catch (error) {
-      await deletePiSession(toSessionRecord(fork)).catch(() => undefined);
+      await deletePiSession(toSessionRow(fork)).catch(() => undefined);
       db.delete(sessions).where(eq(sessions.id, fork.id)).run();
       throw error;
     }
@@ -222,34 +217,23 @@ export function createSessionRoutes() {
   });
 
   route.post("/sessions/:id/messages/truncate", jsonValidator(sessionTruncateRequestSchema), async (c) => {
-    const sessionId = c.req.param("id");
     const body = c.req.valid("json");
-    const current = await ownedSession(c);
-    if (!current) return c.json({ error: "Session not found" }, 404);
-    const leaseConflict = rejectActiveRunMutation(c, current.id);
-    if (leaseConflict) return leaseConflict;
+    const { session: current, conflict } = await guardSessionMutation(c);
+    if (!current) return conflict;
     if (!current.messageEntryIds.includes(body.entryId)) return c.json({ error: "Message not found" }, 404);
 
-    await truncateSessionAtEntry(sessionId, body.entryId);
-    db.update(sessions)
-      .set({
-        thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
-        revision: sql`${sessions.revision} + 1`,
-        updatedAt: now(),
-      })
-      .where(eq(sessions.id, sessionId))
-      .run();
-    return c.json(serializeSession((await loadSession(sessionId))!));
+    await truncateSessionAtEntry(current.id, body.entryId);
+    return c.json(await commitSessionChange(current.id, {
+      thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
+      updatedAt: now(),
+    }));
   });
 
   route.patch("/sessions/:id/messages/:entryId", jsonValidator(sessionMessageEditRequestSchema), async (c) => {
-    const sessionId = c.req.param("id");
     const entryId = c.req.param("entryId");
     const body = c.req.valid("json");
-    const current = await ownedSession(c);
-    if (!current) return c.json({ error: "Session not found" }, 404);
-    const leaseConflict = rejectActiveRunMutation(c, current.id);
-    if (leaseConflict) return leaseConflict;
+    const { session: current, conflict } = await guardSessionMutation(c);
+    if (!current) return conflict;
     const messageIndex = current.messageEntryIds.indexOf(entryId);
     if (messageIndex < 0) return c.json({ error: "Message not found" }, 404);
 
@@ -266,21 +250,16 @@ export function createSessionRoutes() {
       : updateAssistantMessageContent(target, body.content);
     // Pi entries are immutable: create a sibling branch at this entry ID and
     // preserve the native suffix unless this is an explicit edit-and-rerun.
-    await editSessionMessageEntry(sessionId, entryId, editedMessage, editableUser && Boolean(body.truncate));
-    db.update(sessions)
-      .set({
-        thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
-        revision: sql`${sessions.revision} + 1`,
-        updatedAt: now(),
-      })
-      .where(eq(sessions.id, sessionId))
-      .run();
-    return c.json(serializeSession((await loadSession(sessionId))!));
+    await editSessionMessageEntry(current.id, entryId, editedMessage, editableUser && Boolean(body.truncate));
+    return c.json(await commitSessionChange(current.id, {
+      thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
+      updatedAt: now(),
+    }));
   });
 
   route.delete("/sessions/:id", async (c) => {
-    const session = db.select().from(sessions).where(eq(sessions.id, c.req.param("id"))).get();
-    if (!session || session.userId !== c.get("user").id) return c.json({ error: "Session not found" }, 404);
+    const session = ownedSessionRecord(c);
+    if (!session) return c.json({ error: "Session not found" }, 404);
     const leaseConflict = rejectActiveRunMutation(c, session.id);
     if (leaseConflict) return leaseConflict;
     await deletePiSession(session);
@@ -296,24 +275,31 @@ function rejectActiveRunMutation(c: Context<{ Variables: AuthVariables }>, sessi
   return run ? activeRunConflictResponse(c, run) : undefined;
 }
 
-function toSessionRecord(session: Session): typeof sessions.$inferSelect {
-  return { ...toSessionRow(session), forkedFrom: session.forkedFrom ?? null, pinnedAt: session.pinnedAt ?? null };
+/**
+ * The precondition every transcript mutation shares: the caller owns the session
+ * and no agent run currently holds its lease. Returns either the loaded session
+ * or the response to send instead.
+ */
+async function guardSessionMutation(
+  c: Context<{ Variables: AuthVariables }>,
+): Promise<{ session: SessionWithMessages; conflict?: undefined } | { session?: undefined; conflict: Response }> {
+  const session = await ownedSession(c);
+  if (!session) return { conflict: c.json({ error: "Session not found" }, 404) };
+  const leaseConflict = rejectActiveRunMutation(c, session.id);
+  if (leaseConflict) return { conflict: leaseConflict };
+  return { session };
 }
 
-function toSessionRow(session: Session) {
-  return {
-    id: session.id,
-    title: session.title,
-    userId: session.userId,
-    agentId: session.agentId,
-    modelRefId: session.modelRefId,
-    thinkingLevel: session.thinkingLevel,
-    revision: session.revision,
-    forkedFrom: session.forkedFrom ?? null,
-    pinnedAt: session.pinnedAt ?? null,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
-  };
+/**
+ * Apply a session-row change, advance its optimistic revision, and return the
+ * refreshed display projection every mutation route responds with.
+ */
+async function commitSessionChange(sessionId: string, patch: Partial<typeof sessions.$inferInsert>) {
+  db.update(sessions)
+    .set({ ...patch, revision: sql`${sessions.revision} + 1` })
+    .where(eq(sessions.id, sessionId))
+    .run();
+  return serializeSession((await loadSession(sessionId))!);
 }
 
 // Load the `:id` session and confirm the caller owns it; returns undefined
@@ -323,9 +309,10 @@ async function ownedSession(c: Context<{ Variables: AuthVariables }>) {
   return sessionId ? loadOwnedSession(c.get("user").id, sessionId) : undefined;
 }
 
-// Ownership check that loads only the session row, not its messages. Use for
-// per-message endpoints (images/attachments) that read one message by index and
-// would otherwise deserialize the whole transcript on every request.
+// Ownership check that loads only the session row, not its messages. Use wherever
+// the handler does not need the transcript — per-message endpoints that read one
+// message by index, and row-only mutations — since `loadSession` would otherwise
+// deserialize the whole transcript on every request.
 function ownedSessionRecord(c: Context<{ Variables: AuthVariables }>) {
   const sessionId = c.req.param("id");
   const record = sessionId ? db.select().from(sessions).where(eq(sessions.id, sessionId)).get() : undefined;
@@ -391,8 +378,4 @@ function imageResponse(image: { data: string; mimeType: string }) {
 
 function safeImageMimeType(mimeType: string) {
   return mimeType.startsWith("image/") ? mimeType : "image/png";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

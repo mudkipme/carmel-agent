@@ -1,3 +1,4 @@
+import { isRecord, toSessionMetadata } from "@carmel-agent/shared";
 import type { AgentConfig, ModelRef, ProviderConfig, Session, SessionMetadata, User } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { agents, modelRefs, providerConfigs, sessions, users } from "./db/schema.ts";
@@ -67,36 +68,19 @@ export function serializeProviderConfig(providerConfig: typeof providerConfigs.$
 
 export function serializeSession(session: Session | SessionWithMessages): Session {
   return {
-    ...session,
+    ...toSessionMetadata(session),
     messages: session.messages.map((message, messageIndex) =>
       serializeMessageForDisplay(message, {
         sessionId: session.id,
         messageIndex,
       }),
     ),
-    forkedFrom: session.forkedFrom ?? undefined,
-    pinnedAt: session.pinnedAt ?? undefined,
+    messageEntryIds: session.messageEntryIds,
   };
 }
 
-export function serializeSessionMetadata(
-  session: typeof sessions.$inferSelect,
-  messageCount: number,
-): SessionMetadata {
-  return {
-    id: session.id,
-    title: session.title,
-    userId: session.userId,
-    agentId: session.agentId,
-    modelRefId: session.modelRefId,
-    thinkingLevel: session.thinkingLevel,
-    revision: session.revision,
-    forkedFrom: session.forkedFrom ?? undefined,
-    pinnedAt: session.pinnedAt ?? undefined,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
-    messageCount,
-  };
+export function serializeSessionMetadata(session: typeof sessions.$inferSelect): SessionMetadata {
+  return toSessionMetadata(session);
 }
 
 const MAX_TOOL_RESULT_TEXT_LENGTH = 8_000;
@@ -274,8 +258,4 @@ function summarizeValue(value: unknown, depth = 0): unknown {
 function truncateText(text: string, maxLength: number) {
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength)}\n\n[Truncated ${text.length - maxLength} characters for display]`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

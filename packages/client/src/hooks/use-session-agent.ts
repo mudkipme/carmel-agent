@@ -84,7 +84,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
 
     return () => {
       cancelled = true;
-      if (activeAgent) seedMessagesRef.current = activeAgent.state.messages;
+      if (activeAgent) seedMessagesRef.current = activeAgent.getSnapshot().messages;
       activeAgent?.detach();
       agentRef.current = null;
       setAgent(null);
@@ -93,11 +93,12 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
 
   const sendMessage = useCallback((text: string, images?: ImageContent[]) => {
     const activeAgent = agentRef.current;
-    if (!activeAgent || activeAgent.state.isStreaming) return;
+    const { isStreaming, thinkingLevel } = activeAgent?.getSnapshot() ?? EMPTY_SNAPSHOT;
+    if (!activeAgent || isStreaming) return;
     const currentSession = sessionRef.current;
     void (async () => {
-      if (activeAgent.state.thinkingLevel !== currentSession.thinkingLevel) {
-        await updateSession(currentSession.id, { thinkingLevel: activeAgent.state.thinkingLevel });
+      if (thinkingLevel !== currentSession.thinkingLevel) {
+        await updateSession(currentSession.id, { thinkingLevel });
       }
       await activeAgent.prompt(text, images);
     })();

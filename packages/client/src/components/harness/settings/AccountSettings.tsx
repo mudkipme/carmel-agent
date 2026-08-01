@@ -5,6 +5,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useHarnessStore } from "@/store/harness-store";
+import { errorMessage } from "@/lib/errors";
 
 export function AccountSettings() {
   const user = useHarnessStore((state) => state.users.find((item) => item.id === state.activeUserId));
@@ -25,7 +26,7 @@ export function AccountSettings() {
       setNewPassword("");
       setStatus(newPassword ? "Email and password updated." : "Email updated.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Unable to update account.");
+      setStatus(errorMessage(error, "Unable to update account."));
     } finally {
       setSaving(false);
     }

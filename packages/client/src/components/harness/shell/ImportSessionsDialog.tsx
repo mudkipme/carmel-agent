@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, ModelRef } from "@carmel-agent/shared";
 import type { SidebarMode } from "./sidebar-utils";
+import { errorMessage } from "@/lib/errors";
 
 export function ImportSessionsDialog({
   open,
@@ -67,7 +68,7 @@ export function ImportSessionsDialog({
       onOpenChange(false);
       reset();
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : "Unable to import sessions");
+      setImportError(errorMessage(error, "Unable to import sessions"));
     } finally {
       setImporting(false);
     }

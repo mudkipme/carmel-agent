@@ -3,6 +3,7 @@ import { builtinModels, builtinProviders } from "@earendil-works/pi-ai/providers
 import type { OAuthLoginFlowState, OAuthProviderSummary } from "@carmel-agent/shared";
 import { createProviderConfigCredentialStore } from "./auth-storage.ts";
 import type { providerConfigs } from "../db/schema.ts";
+import { errorMessage } from "../errors.ts";
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 
@@ -86,7 +87,7 @@ async function runOAuthLoginFlow(flow: OAuthFlow, providerConfig: ProviderConfig
     flow.progress = "OAuth login completed.";
   } catch (error) {
     flow.status = "error";
-    flow.error = error instanceof Error ? error.message : String(error);
+    flow.error = errorMessage(error);
   } finally {
     flow.pendingInput = undefined;
   }

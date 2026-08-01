@@ -2,35 +2,27 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { providerConfigs } from "../db/schema.ts";
-import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER, type ModelRef } from "@carmel-agent/shared";
+import { resolveModelRef, type ModelRef } from "@carmel-agent/shared";
 import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
+import { errorMessage } from "../errors.ts";
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 
+/**
+ * Server-side `resolveModelRef`: same shared mapping, plus the Pi catalog lookup
+ * and provider-config base URL that only the server can supply.
+ */
 export function resolveServerModelRef(
   modelRef: ModelRef,
   providerConfig?: ProviderConfigRecord,
   modelRuntime?: Pick<ModelRuntime, "getModel">,
 ): Model<Api> {
-  const catalogModel = modelRuntime?.getModel(modelRef.provider, modelRef.modelId)
-    ?? getBuiltinModel(modelRef.provider as never, modelRef.modelId as never);
-  const baseUrl = providerConfig?.baseUrl
-    ?? modelRef.baseUrl
-    ?? (modelRef.provider === OLLAMA_PROVIDER ? DEFAULT_OLLAMA_BASE_URL : "");
-  if (catalogModel) return { ...catalogModel, baseUrl: baseUrl || catalogModel.baseUrl };
-  return {
-    id: modelRef.modelId,
-    name: modelRef.label,
-    api: modelRef.api ?? "openai-completions",
-    provider: modelRef.provider,
-    baseUrl,
-    reasoning: modelRef.reasoning ?? false,
-    input: modelRef.input ?? ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: modelRef.contextWindow ?? 128000,
-    maxTokens: modelRef.maxTokens ?? 8192,
-    compat: modelRef.provider === OLLAMA_PROVIDER ? ollamaCompat : undefined,
-  } as Model<Api>;
+  return resolveModelRef(modelRef, {
+    catalogModel:
+      modelRuntime?.getModel(modelRef.provider, modelRef.modelId) ??
+      getBuiltinModel(modelRef.provider as never, modelRef.modelId as never),
+    baseUrl: providerConfig?.baseUrl ?? undefined,
+  });
 }
 
 export function createAgentError(error: unknown, model: Model<Api>) {
@@ -49,17 +41,8 @@ export function createAgentError(error: unknown, model: Model<Api>) {
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     },
     stopReason: "error",
-    errorMessage: error instanceof Error ? error.message : String(error),
+    errorMessage: errorMessage(error),
     timestamp: Date.now(),
   };
   return { type: "agent_end", messages: [message] };
 }
-
-const ollamaCompat = {
-  supportsStore: false,
-  supportsDeveloperRole: false,
-  supportsReasoningEffort: false,
-  supportsUsageInStreaming: false,
-  maxTokensField: "max_tokens" as const,
-  supportsStrictMode: false,
-};

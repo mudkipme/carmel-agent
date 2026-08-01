@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 import { confirmAction, promptText } from "@/lib/action-dialogs";
-import { showError } from "@/lib/errors";
+import { errorMessage, showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
 type FileExplorerPanelProps = {
@@ -49,7 +49,7 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
       setEntries(result.entries);
     } catch (loadError) {
       if (requestId !== loadRequestIdRef.current) return;
-      setError(loadError instanceof Error ? loadError.message : "Unable to load files");
+      setError(errorMessage(loadError, "Unable to load files"));
     } finally {
       if (requestId === loadRequestIdRef.current) setLoading(false);
     }

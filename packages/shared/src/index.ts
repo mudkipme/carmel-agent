@@ -1,6 +1,7 @@
-import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
-import type { Api, ImageContent, TextContent } from "@earendil-works/pi-ai";
+import type { AgentEvent } from "@earendil-works/pi-agent-core";
+import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
 import type { AgentMount, AgentPermissions, AgentThinkingLevel, PromptTemplate } from "./schemas.ts";
+import type { Session } from "./sessions.ts";
 
 export type ChatAttachment = {
   id: string;
@@ -44,10 +45,11 @@ export {
   updateUserMessageContent,
 } from "./messages.ts";
 export type { UserMessageEditOptions } from "./messages.ts";
+export * from "./commands.ts";
+export * from "./models.ts";
+export * from "./records.ts";
 export * from "./schemas.ts";
-
-export const OLLAMA_PROVIDER = "ollama";
-export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1";
+export * from "./sessions.ts";
 
 export type UserRole = "admin" | "user";
 
@@ -69,21 +71,6 @@ export type SetupStatus = {
 };
 
 export type AgentWorkingDirMode = "default" | "manual";
-
-export type AgentSlashCommandSource = "prompt" | "skill";
-
-export type AgentSlashCommand = {
-  name: string;
-  description?: string;
-  source: AgentSlashCommandSource;
-  commandText: string;
-  sourcePath?: string;
-  argumentHint?: string;
-};
-
-export type AgentCommandPayload = {
-  commands: AgentSlashCommand[];
-};
 
 /** Emitted after server-side run finalization, including persistence and title work, has completed. */
 export type AgentRunFinishedEvent = {
@@ -107,41 +94,6 @@ export type SessionConnection = {
   activeRun: ActiveAgentRunSummary | null;
 };
 
-
-export type ModelRef = {
-  id: string;
-  ownerUserId: string;
-  shared: boolean;
-  label: string;
-  provider: string;
-  providerConfigId?: string;
-  modelId: string;
-  api?: Api;
-  baseUrl?: string;
-  contextWindow?: number;
-  maxTokens?: number;
-  reasoning?: boolean;
-  input?: Array<"text" | "image">;
-};
-
-export type ProviderModelSummary = {
-  id: string;
-  name: string;
-  api?: Api;
-  contextWindow?: number;
-  maxTokens?: number;
-  reasoning?: boolean;
-  input?: Array<"text" | "image">;
-};
-
-export type ModelProviderSummary = {
-  id: string;
-  name: string;
-};
-
-export type ModelCatalog = {
-  providers: ModelProviderSummary[];
-};
 
 export type ProviderConfig = {
   id: string;
@@ -201,34 +153,6 @@ export type AgentConfig = {
   defaultThinkingLevel: AgentThinkingLevel;
   createdAt: number;
   updatedAt: number;
-};
-
-export type Session = {
-  id: string;
-  title: string;
-  userId: string;
-  agentId: string;
-  modelRefId: string;
-  thinkingLevel: AgentThinkingLevel;
-  revision: number;
-  messages: AgentMessage[];
-  messageEntryIds: string[];
-  forkedFrom?: {
-    sessionId: string;
-    entryId: string;
-  };
-  pinnedAt?: number;
-  createdAt: number;
-  updatedAt: number;
-};
-
-export type SessionMetadata = Omit<Session, "messages" | "messageEntryIds"> & {
-  messageCount: number;
-};
-
-export type SessionImportResult = {
-  sessions: Session[];
-  skipped: number;
 };
 
 export type AgentFileEntry = {

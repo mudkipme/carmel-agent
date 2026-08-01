@@ -20,7 +20,7 @@ import { SectionHeader, ToggleRow } from "@/components/harness/form-primitives";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { api } from "@/lib/api";
 import { confirmAction } from "@/lib/action-dialogs";
-import { showError } from "@/lib/errors";
+import { errorMessage, showError } from "@/lib/errors";
 import { createClientId } from "@/lib/id";
 import { cn } from "@/lib/utils";
 import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
@@ -75,7 +75,7 @@ export function AgentSettingsDialog({
         if (!cancelled) setSettingsAgent(payload);
       })
       .catch((loadError: unknown) => {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load agent settings");
+        if (!cancelled) setError(errorMessage(loadError, "Unable to load agent settings"));
       });
     return () => {
       cancelled = true;
@@ -172,7 +172,7 @@ function AgentSettings({
       await upsertAgent({ ...draft, defaultThinkingLevel: selectedThinkingLevel, updatedAt: Date.now() });
       onClose?.();
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Unable to save agent");
+      setSaveError(errorMessage(error, "Unable to save agent"));
     } finally {
       setSaving(false);
     }

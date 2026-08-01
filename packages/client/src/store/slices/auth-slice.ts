@@ -1,5 +1,6 @@
 import type { StoreApi } from "zustand";
 import { ApiError, api } from "@/lib/api";
+import { errorMessage } from "@/lib/errors";
 import { canUserSeeAgent, resetState, resolveBootstrapState, upsertById } from "@/store/harness-state";
 import type { HarnessState } from "@/store/harness-types";
 
@@ -21,7 +22,7 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
           set((state) => resetState({ status: needsSetup ? "setup" : "unauthenticated" }, state));
           return;
         }
-        set({ status: "error", error: message(error, "Failed to load harness") });
+        set({ status: "error", error: errorMessage(error, "Failed to load harness") });
       }
     },
     setup: async (input) => {
@@ -29,7 +30,7 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
       try {
         set(resolveBootstrapState(await api.setup(input), get()));
       } catch (error) {
-        set((state) => ({ ...resetState({ status: "setup" }, state), error: message(error, "Setup failed") }));
+        set((state) => ({ ...resetState({ status: "setup" }, state), error: errorMessage(error, "Setup failed") }));
       }
     },
     login: async (username, password) => {
@@ -37,7 +38,7 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
       try {
         set(resolveBootstrapState(await api.login(username, password), get()));
       } catch (error) {
-        set((state) => ({ ...resetState({ status: "unauthenticated" }, state), error: message(error, "Login failed") }));
+        set((state) => ({ ...resetState({ status: "unauthenticated" }, state), error: errorMessage(error, "Login failed") }));
       }
     },
     logout: async () => {
@@ -68,8 +69,4 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
       if (session) set({ activeSessionId: sessionId, activeAgentId: session.agentId });
     },
   };
-}
-
-function message(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
 }

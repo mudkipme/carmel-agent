@@ -50,8 +50,13 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
+/**
+ * The one place credentials are attached. Returns the raw `Response` without
+ * throwing, for callers (streaming runs) that must inspect status codes
+ * themselves; everything else should go through `request`.
+ */
+export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, {
     ...init,
     credentials: "include",
     headers: {
@@ -59,12 +64,17 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   });
+}
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new ApiError(readErrorMessage(body) || `Request failed: ${response.status}`, response.status);
-  }
+/** Build the `ApiError` for a failed response, unwrapping the server's `{error}` body. */
+export async function apiError(response: Response, fallback = `Request failed: ${response.status}`) {
+  const body = await response.text().catch(() => "");
+  return new ApiError(readErrorMessage(body) || fallback, response.status);
+}
 
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await apiFetch(url, init);
+  if (!response.ok) throw await apiError(response);
   return response.json() as Promise<T>;
 }
 
@@ -164,8 +174,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(draft),
     }),
-  getSessionConnection: (sessionId: string) =>
-    request<SessionConnection>(`/api/sessions/${sessionId}/connection`),
+  getSessionConnection: (sessionId: string, signal?: AbortSignal) =>
+    request<SessionConnection>(`/api/sessions/${encodeURIComponent(sessionId)}/connection`, { signal }),
+  abortAgentRun: (runId: string) =>
+    request<unknown>(`/api/agent-runs/${encodeURIComponent(runId)}/abort`, { method: "POST" }),
   updateSession: (sessionId: string, patch: SessionPatch) =>
     request<Session>(`/api/sessions/${sessionId}`, { method: "PATCH", body: JSON.stringify(patch) }),
   truncateSessionMessages: (sessionId: string, entryId: string, thinkingLevel?: Session["thinkingLevel"]) =>

@@ -21,7 +21,7 @@ import { serializeModelRef } from "../serializers.ts";
 import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 
-import { type PromptInput, type Session } from "@carmel-agent/shared";
+import { parseSlashCommand, type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { loadAgentResources, resolveAgentWorkingDirPath } from "./resources.ts";
@@ -30,10 +30,12 @@ import {
   createRunStream,
   emitRunEvent,
   finishAgentRun,
+  type ActiveAgentRun,
   type RunEvent,
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerExecution } from "./tools.ts";
+import { errorMessage } from "../errors.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
@@ -61,15 +63,11 @@ export function normalizePromptInput(input?: PromptInput) {
   } satisfies PromptInput;
 }
 
-export function createAgentRunResponse({
-  agent,
-  session,
-  modelRef,
-  providerConfig,
-  modelRuntime,
-  thinkingLevel,
-  promptInput,
-}: {
+type PiSession = Awaited<ReturnType<typeof openPiSession>>;
+type RunHarness = AgentHarness<ExecutionToolContext>;
+type ServerExecution = ReturnType<typeof createServerExecution>;
+
+export type AgentRunInput = {
   agent: AgentRecord;
   session: SessionRecord;
   modelRef: ModelRefRecord;
@@ -77,158 +75,253 @@ export function createAgentRunResponse({
   modelRuntime: ModelRuntime;
   thinkingLevel: Session["thinkingLevel"];
   promptInput?: PromptInput;
-}) {
-  const runId = randomId();
-  const model = resolveServerModelRef(serializeModelRef(modelRef), providerConfig, modelRuntime);
-  const encoder = new TextEncoder();
-  let activeHarness: AgentHarness<ExecutionToolContext> | undefined;
-  let abortRequested = false;
-  const abortRun = () => {
-    abortRequested = true;
-    void activeHarness?.abort();
-  };
+};
+
+/** Everything the run body and its finalization share, fixed at run startup. */
+type AgentRun = AgentRunInput & {
+  run: ActiveAgentRun;
+  abort: HarnessAbortGate;
+  model: Model<Api>;
+};
+
+export function createAgentRunResponse(input: AgentRunInput) {
+  const abort = new HarnessAbortGate();
   const run = createActiveAgentRun({
-    runId,
-    userId: session.userId,
-    sessionId: session.id,
-    abort: abortRun,
+    runId: randomId(),
+    userId: input.session.userId,
+    sessionId: input.session.id,
+    abort: () => abort.request(),
   });
+  const model = resolveServerModelRef(serializeModelRef(input.modelRef), input.providerConfig, input.modelRuntime);
 
-  const emit = (event: RunEvent) => emitRunEvent(run, event);
-  const startRun = async () => {
-    if (run.started) return;
-    run.started = true;
+  queueMicrotask(() => void startAgentRun({ ...input, run, abort, model }));
+  return createRunStream(run, new TextEncoder());
+}
 
-    let piSession: Awaited<ReturnType<typeof openPiSession>> | undefined;
-    let harness: AgentHarness<ExecutionToolContext> | undefined;
-    let execution: ReturnType<typeof createServerExecution> | undefined;
-    let unsubscribe: (() => void) | undefined;
-    let retryOriginalLeafId: string | undefined;
-    let retryMessagePersisted = false;
-    try {
-      piSession = await openPiSession(session.id);
-      execution = createServerExecution(agent);
-      const resources = await loadAgentResources(agent, execution.env);
-      const skills = resources.skills;
-      const promptTemplates = [
+/**
+ * Drive one agent turn to completion. Failures are reported to observers rather
+ * than thrown: this runs detached from the HTTP response, so `finalizeRun` in
+ * the `finally` is the only thing that can release the run and its resources.
+ */
+async function startAgentRun(context: AgentRun) {
+  const { run, abort, agent, session, model, thinkingLevel, promptInput } = context;
+  if (run.started) return;
+  run.started = true;
+
+  const retry = new RetryBranch();
+  let piSession: PiSession | undefined;
+  let execution: ServerExecution | undefined;
+  let unsubscribe: (() => void) | undefined;
+
+  try {
+    piSession = await openPiSession(session.id);
+    execution = createServerExecution(agent);
+    const { harness, activeToolNames } = await openRunHarness({ ...context, piSession, execution });
+    abort.attach(harness);
+    unsubscribe = harness.subscribe((event: AgentHarnessEvent) => {
+      retry.observe(event);
+      emitRunEvent(run, event as RunEvent);
+    });
+
+    // Abort can land at any moment; check wherever the run can still stop without
+    // leaving the session branch half-rewound.
+    if (abort.requested) {
+      await harness.abort();
+      return;
+    }
+
+    const prepared = await prepareAgentRunPrompt(piSession, promptInput);
+    retry.arm(prepared.retryOriginalLeafId);
+    await recordRunConfiguration(piSession, model, thinkingLevel, activeToolNames);
+    if (abort.requested) {
+      await retry.restore(piSession);
+      await harness.abort();
+      return;
+    }
+
+    await runHarnessPrompt(harness, prepared.promptInput.text, prepared.promptInput.images);
+    if (retry.isAbandoned) throw new Error("Retry completed without persisting the user message.");
+    await compactIfNeeded(harness, piSession, model);
+  } catch (error) {
+    await reportRunFailure(context, { piSession, retry, error });
+  } finally {
+    await finalizeRun(context, { piSession, execution, unsubscribe });
+  }
+}
+
+/**
+ * Coordinates an abort that can arrive before, during, or after the harness
+ * exists. The HTTP abort path calls `request()` from outside the run body, so
+ * the flag and the harness handle have to live behind one object rather than as
+ * two variables the run body and the abort callback both reach into.
+ */
+export class HarnessAbortGate {
+  #requested = false;
+  #harness?: Pick<RunHarness, "abort">;
+
+  get requested() {
+    return this.#requested;
+  }
+
+  request() {
+    this.#requested = true;
+    void this.#harness?.abort();
+  }
+
+  attach(harness: Pick<RunHarness, "abort">) {
+    this.#harness = harness;
+  }
+
+  release() {
+    this.#harness = undefined;
+  }
+}
+
+/**
+ * A retry rewinds the branch to the parent of the user message before re-sending
+ * it, so until the replacement message is persisted the original branch is the
+ * only copy. Tracks whether that replacement landed, and restores the original
+ * leaf when it did not.
+ */
+export class RetryBranch {
+  #originalLeafId?: string;
+  #messagePersisted = false;
+
+  /** `leafId` is undefined for an ordinary prompt, which arms nothing. */
+  arm(leafId?: string) {
+    this.#originalLeafId = leafId;
+  }
+
+  observe(event: AgentHarnessEvent) {
+    if (this.#originalLeafId && event.type === "message_end" && event.message.role === "user") {
+      this.#messagePersisted = true;
+    }
+  }
+
+  /** Armed, but the replacement user message was never written. */
+  get isAbandoned() {
+    return this.#originalLeafId !== undefined && !this.#messagePersisted;
+  }
+
+  async restore(piSession: PiSession) {
+    if (this.#originalLeafId === undefined) return;
+    await piSession.moveTo(this.#originalLeafId);
+  }
+}
+
+async function openRunHarness(
+  context: AgentRun & { piSession: PiSession; execution: ServerExecution },
+): Promise<{ harness: RunHarness; activeToolNames: string[] }> {
+  const { agent, piSession, execution, model, modelRuntime, thinkingLevel } = context;
+  const resources = await loadAgentResources(agent, execution.env);
+  const tools = execution.tools;
+  const activeToolNames = tools.map((tool) => tool.name);
+  const harness = new AgentHarness<ExecutionToolContext>({
+    session: piSession,
+    models: modelRuntime,
+    model,
+    thinkingLevel,
+    systemPrompt: buildHarnessSystemPrompt({
+      base: agent.systemPrompt.trim() || "You are a helpful assistant.",
+      cwd: resolveAgentWorkingDirPath(agent),
+      skills: resources.skills,
+      contextFiles: resources.contextFiles,
+      includeSkills: activeToolNames.includes("read"),
+    }),
+    resources: {
+      skills: resources.skills,
+      promptTemplates: [
         ...resources.promptTemplates,
         ...agent.promptTemplates.map((template) => ({ name: template.name, content: template.body })),
-      ];
-      const tools = execution.tools;
-      const activeToolNames = tools.map((tool) => tool.name);
-      const systemPrompt = buildHarnessSystemPrompt({
-        base: agent.systemPrompt.trim() || "You are a helpful assistant.",
-        cwd: resolveAgentWorkingDirPath(agent),
-        skills,
-        contextFiles: resources.contextFiles,
-        includeSkills: activeToolNames.includes("read"),
-      });
-      harness = new AgentHarness({
-        session: piSession,
-        models: modelRuntime,
-        model,
-        thinkingLevel,
-        systemPrompt,
-        resources: {
-          skills,
-          promptTemplates,
-        },
-        tools,
-        toolContext: execution.toolContext,
-        activeToolNames,
-        streamOptions: { maxRetries: 2, maxRetryDelayMs: 60_000 },
-      });
-      activeHarness = harness;
-      unsubscribe = harness.subscribe((event: AgentHarnessEvent) => {
-        if (retryOriginalLeafId && event.type === "message_end" && event.message.role === "user") {
-          retryMessagePersisted = true;
-        }
-        emit(event as RunEvent);
-      });
+      ],
+    },
+    tools,
+    toolContext: execution.toolContext,
+    activeToolNames,
+    streamOptions: { maxRetries: 2, maxRetryDelayMs: 60_000 },
+  });
+  return { harness, activeToolNames };
+}
 
-      if (abortRequested) {
-        await harness.abort();
-        return;
-      }
-      const preparedPrompt = await prepareAgentRunPrompt(piSession, promptInput);
-      retryOriginalLeafId = preparedPrompt.retryOriginalLeafId;
-      await recordRunConfiguration(piSession, model, thinkingLevel, activeToolNames);
-      if (abortRequested) {
-        if (retryOriginalLeafId) await piSession.moveTo(retryOriginalLeafId);
-        await harness.abort();
-        return;
-      }
-      await runHarnessPrompt(harness, preparedPrompt.promptInput.text, preparedPrompt.promptInput.images);
-      if (retryOriginalLeafId && !retryMessagePersisted) {
-        throw new Error("Retry completed without persisting the user message.");
-      }
-      await compactIfNeeded(harness, piSession, model);
-    } catch (error) {
-      if (piSession && retryOriginalLeafId && !retryMessagePersisted) {
-        try {
-          await piSession.moveTo(retryOriginalLeafId);
-        } catch (restoreError) {
-          console.warn(
-            "Retry branch restoration failed:",
-            restoreError instanceof Error ? restoreError.message : String(restoreError),
-          );
-        }
-      }
-      const errorEvent = createAgentError(error, model);
-      try {
-        if (piSession) {
-          for (const message of errorEvent.messages) await piSession.appendMessage(message);
-        }
-      } catch (persistenceError) {
-        console.warn(
-          "Session error persistence failed:",
-          persistenceError instanceof Error ? persistenceError.message : String(persistenceError),
-        );
-      }
-      emit(errorEvent as AgentEvent);
-    } finally {
-      let finalMessages: AgentMessage[] = [];
-      if (piSession) {
-        try {
-          finalMessages = (await piSession.getBranch()).flatMap((entry) =>
-            entry.type === "message" ? [entry.message] : [],
-          );
-        } finally {
-          try {
-            await closePiSession(piSession);
-          } catch (error) {
-            console.warn("Pi session cleanup failed:", error instanceof Error ? error.message : String(error));
-          }
-        }
-      }
-      try {
-        await persistSessionRun(session, {
-          messages: finalMessages,
-          modelRefId: modelRef.id,
-          thinkingLevel,
-          model,
-          modelRuntime,
-        });
-      } catch (error) {
-        console.warn("Session persistence failed:", error instanceof Error ? error.message : String(error));
-      }
-      unsubscribe?.();
-      try {
-        await execution?.env.cleanup();
-      } catch (error) {
-        console.warn("Execution environment cleanup failed:", error instanceof Error ? error.message : String(error));
-      } finally {
-        activeHarness = undefined;
-        // This is the sequenced terminal authority for observers. It follows all
-        // persistence/title finalization attempts and execution cleanup.
-        emitRunEvent(run, { type: "run_finished" });
-        finishAgentRun(run);
-      }
+/** Restore an abandoned retry branch, then persist and emit the failure. */
+async function reportRunFailure(
+  context: AgentRun,
+  state: { piSession?: PiSession; retry: RetryBranch; error: unknown },
+) {
+  const { piSession, retry, error } = state;
+  if (piSession && retry.isAbandoned) {
+    try {
+      await retry.restore(piSession);
+    } catch (restoreError) {
+      console.warn("Retry branch restoration failed:", errorMessage(restoreError));
     }
-  };
+  }
 
-  queueMicrotask(() => void startRun());
-  return createRunStream(run, encoder);
+  const errorEvent = createAgentError(error, context.model);
+  try {
+    if (piSession) {
+      for (const message of errorEvent.messages) await piSession.appendMessage(message);
+    }
+  } catch (persistenceError) {
+    console.warn("Session error persistence failed:", errorMessage(persistenceError));
+  }
+  emitRunEvent(context.run, errorEvent as AgentEvent);
+}
+
+/**
+ * Release the run, in this order: read the final transcript, close the Pi
+ * session, commit session state and title, detach the observer, release the
+ * execution environment, and only then publish `run_finished`. Every step is
+ * best-effort, because a failure in any of them must not strand the run without
+ * its terminal event or leave it registered as active.
+ */
+async function finalizeRun(
+  context: AgentRun,
+  state: { piSession?: PiSession; execution?: ServerExecution; unsubscribe?: () => void },
+) {
+  const { run, abort, session, modelRef, model, modelRuntime, thinkingLevel } = context;
+  const { piSession, execution, unsubscribe } = state;
+
+  let finalMessages: AgentMessage[] = [];
+  if (piSession) {
+    try {
+      finalMessages = (await piSession.getBranch()).flatMap((entry) =>
+        entry.type === "message" ? [entry.message] : [],
+      );
+    } catch (error) {
+      console.warn("Final transcript read failed:", errorMessage(error));
+    }
+    try {
+      await closePiSession(piSession);
+    } catch (error) {
+      console.warn("Pi session cleanup failed:", errorMessage(error));
+    }
+  }
+
+  try {
+    await persistSessionRun(session, {
+      messages: finalMessages,
+      modelRefId: modelRef.id,
+      thinkingLevel,
+      model,
+      modelRuntime,
+    });
+  } catch (error) {
+    console.warn("Session persistence failed:", errorMessage(error));
+  }
+
+  unsubscribe?.();
+  try {
+    await execution?.env.cleanup();
+  } catch (error) {
+    console.warn("Execution environment cleanup failed:", errorMessage(error));
+  } finally {
+    abort.release();
+    // Sequenced terminal authority for observers: it follows every persistence
+    // and title finalization attempt, and the execution cleanup.
+    emitRunEvent(run, { type: "run_finished" });
+    finishAgentRun(run);
+  }
 }
 
 /**
@@ -257,34 +350,42 @@ export async function prepareAgentRunPrompt(
   };
 }
 
+/**
+ * Dispatch composer text to the Pi harness. A leading slash command is resolved
+ * against the agent's live resources -- the authoritative list, which is why
+ * this resolution stays server-side -- and falls back to a plain prompt when it
+ * names nothing. Images bypass the native skill/template calls because those
+ * take text only, so the invocation is pre-formatted with Pi's own formatters.
+ */
 export async function runHarnessPrompt(
   harness: Pick<AgentHarness, "getResources" | "prompt" | "skill" | "promptFromTemplate">,
   text: string,
   images?: PromptInput["images"],
 ) {
+  const command = parseSlashCommand(text);
+  if (!command) return harness.prompt(text, { images });
   const resources = harness.getResources();
-  const skillMatch = text.match(/^\/skill:([^\s]+)(?:\s+([\s\S]*))?$/);
-  if (skillMatch) {
-    const skill = resources.skills?.find((candidate) => candidate.name === skillMatch[1]);
-    if (skill) {
-      const additionalInstructions = skillMatch[2]?.trim() || undefined;
-      if (images?.length) {
-        return harness.prompt(formatSkillInvocation(skill, additionalInstructions), { images });
-      }
-      return harness.skill(skill.name, additionalInstructions);
+
+  const skill = command.skillName
+    ? resources.skills?.find((candidate) => candidate.name === command.skillName)
+    : undefined;
+  if (skill) {
+    const additionalInstructions = command.args.trim() || undefined;
+    if (images?.length) {
+      return harness.prompt(formatSkillInvocation(skill, additionalInstructions), { images });
     }
+    return harness.skill(skill.name, additionalInstructions);
   }
 
-  const templateMatch = text.match(/^\/([^\s]+)(?:\s+([\s\S]*))?$/);
-  if (templateMatch) {
-    const template = resources.promptTemplates?.find((candidate) => candidate.name === templateMatch[1]);
-    if (template) {
-      const args = parseCommandArgs(templateMatch[2] ?? "");
-      if (images?.length) {
-        return harness.prompt(formatPromptTemplateInvocation(template, args), { images });
-      }
-      return harness.promptFromTemplate(template.name, args);
+  // A `skill:`-namespaced token that matches no loaded skill still falls through
+  // to a prompt template of that exact name, and then to plain text.
+  const template = resources.promptTemplates?.find((candidate) => candidate.name === command.name);
+  if (template) {
+    const args = parseCommandArgs(command.args);
+    if (images?.length) {
+      return harness.prompt(formatPromptTemplateInvocation(template, args), { images });
     }
+    return harness.promptFromTemplate(template.name, args);
   }
   return harness.prompt(text, { images });
 }
@@ -334,7 +435,7 @@ async function compactIfNeeded(
   try {
     await harness.compact();
   } catch (error) {
-    console.warn("Session compaction failed:", error instanceof Error ? error.message : String(error));
+    console.warn("Session compaction failed:", errorMessage(error));
   }
 }
 
@@ -412,7 +513,7 @@ async function persistSessionRun(
   } catch (error) {
     console.warn(
       "Session title generation failed:",
-      error instanceof Error ? error.message : String(error),
+      errorMessage(error),
     );
   }
 }

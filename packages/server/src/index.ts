@@ -5,6 +5,7 @@ import { migrate, seed, sqlite } from "./db/index.ts";
 import { shutdownActiveRuns } from "./runtime/run-stream.ts";
 import { reapManagedContainers, shutdownContainerManager } from "./runtime/sandbox/container-manager.ts";
 import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
+import { errorMessage } from "./errors.ts";
 
 migrate();
 seed();
@@ -20,7 +21,7 @@ void refreshConfiguredModelCatalogs()
   .catch((error: unknown) => {
     console.warn(
       "Failed to refresh configured model catalogs:",
-      error instanceof Error ? error.message : String(error),
+      errorMessage(error),
     );
   });
 
@@ -40,12 +41,12 @@ async function shutdown(signal: string) {
   try {
     await shutdownActiveRuns();
   } catch (error) {
-    console.warn("Failed to drain active runs:", error instanceof Error ? error.message : String(error));
+    console.warn("Failed to drain active runs:", errorMessage(error));
   }
   try {
     await shutdownContainerManager();
   } catch (error) {
-    console.warn("Failed to stop sandbox containers:", error instanceof Error ? error.message : String(error));
+    console.warn("Failed to stop sandbox containers:", errorMessage(error));
   }
   server.close();
   try {

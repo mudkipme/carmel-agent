@@ -19,6 +19,7 @@ import { setThemePreference, useThemePreference, type ThemePreference } from "@/
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 import { type ModelRef, type OAuthProviderSummary } from "@carmel-agent/shared";
+import { errorMessage } from "@/lib/errors";
 
 const allSettingsSections = [
   { id: "models", label: "Models", icon: DatabaseIcon, adminOnly: false },
@@ -73,7 +74,7 @@ export function SettingsPage() {
     } catch (error) {
       setModelStatus({
         tone: "destructive",
-        message: error instanceof Error ? error.message : "Unable to save fast task model",
+        message: errorMessage(error, "Unable to save fast task model"),
       });
     } finally {
       setUpdatingModelSettings(false);
@@ -89,7 +90,7 @@ export function SettingsPage() {
     } catch (error) {
       setModelStatus({
         tone: "destructive",
-        message: error instanceof Error ? error.message : "Unable to save model sharing",
+        message: errorMessage(error, "Unable to save model sharing"),
       });
     } finally {
       setUpdatingModelSettings(false);
