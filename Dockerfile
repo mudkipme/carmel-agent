@@ -8,19 +8,20 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR /app
 
-# ripgrep backs the server-side grep tool; git/ca-certificates support skill
-# loading and outbound HTTPS to providers.
+# ripgrep and fd back the server-side grep/find tools, which Pi runs as host
+# processes and would otherwise download at first use. Everything an agent
+# reaches from bash belongs in Dockerfile.runner, not here.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends bash ca-certificates git ripgrep && \
-    rm -rf /var/lib/apt/lists/* && \
-    corepack enable && \
-    corepack prepare pnpm@11.1.2 --activate
+  apt-get install -y --no-install-recommends fd-find ripgrep && \
+  rm -rf /var/lib/apt/lists/* && \
+  corepack enable && \
+  corepack prepare pnpm@11.1.2 --activate
 
 FROM base AS deps
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends g++ make python3 && \
-    rm -rf /var/lib/apt/lists/*
+  apt-get install -y --no-install-recommends g++ make python3 && \
+  rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json .oxlintrc.json ./
 COPY packages/client/package.json packages/client/package.json
@@ -32,7 +33,6 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 
 COPY packages packages
-COPY skills-lock.json skills-lock.json
 
 RUN pnpm build
 

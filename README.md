@@ -1,37 +1,32 @@
 # Carmel Agent
 
-Carmel Agent is a self-hosted, web-based multi-user harness for running Pi-powered agents. It gives you a shared control surface for useful chat, research, browsing, file work, coding, and other agent workflows while keeping each agent's tools and workspace explicit.
+Carmel Agent is a self-hosted, multi-user web app for running AI agents. You bring your own model provider keys, and Carmel Agent gives you a chat interface where agents can read and write files, run shell commands in a container, browse the web, and load your own skills.
 
-Run it on your own machine or server, add users, connect model providers, create agents for different jobs, and decide which agents or models should be shared with the rest of your team.
+It runs on your machine or your server. Nothing leaves your host except the calls your agents make to the model providers you configure.
 
-## What It Can Do
+## What You Get
 
-- **Chat and agent sessions** - keep persistent conversations, fork from earlier messages, edit user turns, pin sessions, and choose model/thinking settings per session.
-- **Multi-user sharing** - users have their own login, provider credentials, sessions, agents, and model entries. Agents and model refs can be marked shared so other users can use them.
-- **Container-based per-agent sandboxing** - when bash is enabled, commands run in a dedicated runner container for that agent, with CPU, memory, PID, mount, and network controls.
-- **Agent Skills** - agents can load project skills from `.agents/skills` in their workspace and expose skill slash commands in the UI.
-- **File tools and file management** - agents can read, search, write, and edit files according to their permissions. The web UI also includes a file explorer/editor scoped to the agent workspace.
-- **Network access control** - network tools are only exposed to agents with the network permission. Search and fetch tools are available through Exa when `EXA_API_KEY` is configured.
-- **Provider and model management** - connect OpenAI-compatible providers, OAuth-backed providers supported by Pi, and Ollama. Add model refs, choose default models, and share model refs.
-- **Open WebUI import** - import Open WebUI JSON chat exports into the selected Carmel agent.
+- **Chat with agents that keep working.** Sessions persist, runs continue on the server if you close the tab, and reopening a session reconnects to a run in progress.
+- **Agents you shape.** Each agent has its own workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
+- **Sandboxed shell.** When an agent is allowed to run commands, they execute in a per-agent container with CPU, memory, PID, mount, and network limits — not on your host shell.
+- **Files in the browser.** Browse, edit, create, rename, and delete files in an agent's workspace, with the same permissions the agent has.
+- **Your own skills.** Drop skills into `.agents/skills` in an agent's workspace and they show up as slash commands in the chat.
+- **Conversation control.** Fork a session from any earlier message, edit your own messages, truncate a branch, pin the sessions you keep coming back to, attach images.
+- **Multiple people, one instance.** Admins manage provider credentials and accounts; everyone gets their own sessions and can share agents and model entries with the rest of the instance.
+- **Your providers.** Anthropic, OpenAI, and other providers supported by Pi (API key or OAuth login), any OpenAI-compatible endpoint, and local Ollama.
+- **Bring your history.** Import Open WebUI JSON chat exports into an agent.
 
-## Quick Self-Hosted Deployment
+## Requirements
 
-The recommended deployment uses rootless Podman and Compose. Carmel Agent itself runs as the web/API server; agent shell commands run in separate sandbox runner containers.
+- A Linux host (other hosts work if they can run the container images and expose a container socket).
+- A container runtime with a Docker-compatible API socket — Podman or Docker both work. Rootless Podman is recommended.
+- Compose (`podman compose` or `docker compose`).
 
-Requirements:
+The container socket is only needed for the bash sandbox. Without it, Carmel still runs — chat, files, and network tools all work, and bash commands return a "sandbox unavailable" error.
 
-- Linux host with rootless Podman
-- `podman compose`
-- A running user Podman socket
+## Quick Start
 
-Enable the Podman socket:
-
-```sh
-systemctl --user enable --now podman.socket
-```
-
-Build the server and sandbox runner images:
+Clone the repo, then build the server and sandbox runner images:
 
 ```sh
 podman compose --profile build build
@@ -43,80 +38,60 @@ Start Carmel Agent:
 podman compose up -d
 ```
 
-Create your first login user:
+Open `http://localhost:8797` and create your administrator account on the welcome screen. That first account is created in the browser — no CLI step needed.
 
-```sh
-CARMEL_PASSWORD='choose-a-long-password' \
-  podman compose exec carmel-agent pnpm --filter @carmel-agent/server user:create --username admin
+Using Docker instead? The compose file is written for the rootless Podman socket, so point the socket bind mount at Docker's socket and use `docker compose` for the two commands above:
+
+```yaml
+    volumes:
+      - ./data:/data
+      - /var/run/docker.sock:/run/podman/podman.sock
 ```
 
-Open:
+For anything beyond a local trial — a stable secret key, HTTPS, backups, reverse proxies — see [docs/deployment.md](docs/deployment.md).
 
-```text
-http://localhost:8797
-```
+## First Steps After Login
 
-For production, set a stable `CARMEL_SECRET_KEY`, put the app behind HTTPS, and back up the `data/` directory. See [docs/deployment.md](docs/deployment.md) for the full deployment guide.
+1. Go to **Settings → Providers** and add a provider: an API key, an OAuth login, or an Ollama base URL. (Admins only — provider credentials belong to the instance, not to one person.)
+2. In **Settings → Models**, add the models you want to use from that provider.
+3. Open the default agent, or create a new one: give it a workspace, a system prompt, a default model, and its permissions.
+4. Start a session.
 
-## First Setup
+New agents start with file read, write, and edit enabled; bash and network are off until you turn them on. Turning on bash requires the runner image and a reachable container socket.
 
-1. Log in with the user you created.
-2. Go to settings and create a provider config with an API key, OAuth login, or an Ollama base URL.
-3. Add one or more model refs from that provider.
-4. Open or create an agent, choose its default model, system prompt, workspace, and permissions.
-5. Start a session.
+## Users And Sharing
 
-Agents start conservatively: file read/write/edit can be enabled separately from bash and network access. Bash is containerized when the sandbox is configured.
+Carmel is multi-user, and sharing is opt-in rather than automatic.
 
-## Sharing
+- **Accounts** come in two roles. Admins manage users and provider credentials; everyone else uses what's been set up.
+- **Provider configs and their secrets** are instance-level and admin-managed. Stored keys and OAuth credentials are never sent back to any browser.
+- **Model entries** belong to the person who created them. Mark one shared and everyone can select it — the underlying credentials stay on the server.
+- **Agents** belong to their owner. Mark one shared and others can use it; their sessions with it stay private to them.
+- **Sessions** are always private to the user who created them.
 
-Carmel Agent is multi-user, but not everything is automatically shared.
-
-- **Shared agents** are visible to other users. Their sessions remain per-user.
-- **Shared model refs** are visible to other users. If a shared model is backed by a provider config, Carmel can use that config for runs, but other users do not see the stored secrets.
-- **Provider configs and API keys** are per-user.
-
-This lets one operator publish useful agents or model definitions without exposing every credential or conversation.
+So one operator can hold the API keys and publish a set of useful agents without exposing credentials or reading anyone's conversations.
 
 ## Import From Open WebUI
 
-Open the import dialog from the sidebar, choose an Open WebUI JSON export, and Carmel Agent will import the conversations into the selected agent using that agent's default model and thinking level.
-
-The importer handles common Open WebUI export shapes, current conversation branches, user/assistant turns, image data URLs, model names, usage fields, and reasoning details when present. More details are in [docs/open-webui-import.md](docs/open-webui-import.md).
+Select the agent you want the chats to land in, open the import dialog from the sidebar, and pick an Open WebUI JSON export. Conversations arrive using that agent's default model and thinking level. Details and supported export shapes: [docs/open-webui-import.md](docs/open-webui-import.md).
 
 ## Documentation
 
-- [Deployment](docs/deployment.md) - Compose, manual containers, local development, reverse proxy notes, and production checklist.
-- [Configuration](docs/configuration.md) - environment variables, secrets, provider setup, CORS, data paths, and sandbox settings.
-- [Runtime And Security](docs/runtime-and-security.md) - agents, sessions, skills, tools, file access, network controls, sandbox internals, sharing, and migrations.
-- [Open WebUI Import](docs/open-webui-import.md) - supported import format and behavior.
+- [Deployment](docs/deployment.md) — Compose, manual containers, reverse proxies, and the production checklist.
+- [Configuration](docs/configuration.md) — environment variables, secrets, provider setup, data paths, and sandbox settings.
+- [Runtime And Security](docs/runtime-and-security.md) — how agents, tools, file access, sandboxing, roles, and sharing actually work.
+- [Open WebUI Import](docs/open-webui-import.md) — supported import format and behavior.
 
-## Local Development
+## Development
 
-Requirements:
-
-- Node.js 24
-- pnpm 11
-
-Install dependencies:
+Requirements: Node.js 24 and pnpm 11.
 
 ```sh
 pnpm install
-```
-
-Create a local user:
-
-```sh
-pnpm --filter @carmel-agent/server user:create --username admin --password 'choose-a-long-password'
-```
-
-Run the API and web client:
-
-```sh
 pnpm dev
 ```
 
-The API listens on `http://localhost:8797`; the Vite client listens on `http://localhost:5173`.
+The API listens on `http://localhost:8797` and the Vite client on `http://localhost:5173`. Open the client and create your admin account on the welcome screen.
 
 Useful scripts:
 
@@ -126,20 +101,22 @@ pnpm dev:server   # run only the API
 pnpm dev:client   # run only the Vite client
 pnpm build        # type-check and build all packages
 pnpm lint         # run oxlint
-pnpm test         # run server tests
+pnpm test         # run server and client tests
 pnpm check        # lint, test, and build
 pnpm serve        # run the built server entrypoint
 ```
 
+For sandboxed bash in development, build the runner image (`podman build -f Dockerfile.runner -t carmel-agent-runner:latest .`) and make sure your container socket is reachable.
+
 ## Project Layout
 
-- `packages/server` - Hono API, SQLite/Drizzle metadata, Pi-native SQLite sessions, auth, runtime wiring, file APIs, provider/model/agent/session routes.
-- `packages/client` - Vite + React UI for chat, settings, files, sessions, imports, and agent management.
-- `packages/shared` - shared TypeScript types used by the client and server.
-- `Dockerfile` - web/API server image.
-- `Dockerfile.runner` - per-agent bash sandbox image.
-- `compose.yaml` - rootless Podman Compose deployment.
-- `data/` - default runtime state for SQLite databases, agent workspaces, and sandbox scratch data.
+- `packages/server` — Hono API, SQLite/Drizzle metadata, Pi-native session storage, auth, agent runtime, sandbox, file APIs.
+- `packages/client` — Vite + React UI for chat, files, settings, sessions, and agent management.
+- `packages/shared` — TypeScript types shared by client and server.
+- `Dockerfile` — web/API server image.
+- `Dockerfile.runner` — per-agent bash sandbox image.
+- `compose.yaml` — Compose deployment (written for rootless Podman).
+- `data/` — runtime state: SQLite databases, agent workspaces, sandbox scratch space.
 
 ## License
 

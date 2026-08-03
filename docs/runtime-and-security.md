@@ -1,6 +1,23 @@
 # Runtime And Security
 
-This document describes how Carmel Agent runs agents, tools, sessions, file access, sharing, and the bash sandbox.
+How Carmel Agent runs agents, tools, sessions, file access, accounts, and the bash sandbox.
+
+## Accounts And Roles
+
+Every account is either an **administrator** or a regular **user**.
+
+Administrators can:
+
+- create, delete, and manage accounts, including role changes and password resets
+- create, edit, and delete the instance's provider configs and their credentials
+
+Everyone can:
+
+- create agents, model entries, and sessions
+- use any agent or model entry that is shared with the instance
+- change their own name, password, theme, and fast task model
+
+The first account is created in the browser on first run and is an administrator. The setup endpoint refuses to run once any account has a password, so it cannot be reused to create more admins later.
 
 ## Runtime Model
 
@@ -15,9 +32,13 @@ An agent stores:
 - default model and thinking level
 - permissions for read, write, edit, bash, and network
 
-The server creates a Pi coding-agent session for each run, streams events to the browser as NDJSON, and persists messages to SQLite when the run ends.
+The server creates a Pi coding-agent session for each run, streams events to the browser as NDJSON, and persists messages when the run ends.
 
-Sessions belong to individual users. Users can fork a session from an earlier message, edit user messages, truncate a conversation, pin sessions, and import Open WebUI chats.
+Runs live on the server, not in the tab. Each event carries a sequence number, so a browser that reloads or reconnects resumes the stream from where it left off instead of losing the run. Runs can be aborted explicitly.
+
+While a session has an active run, changes that would pull the ground out from under it are rejected with a conflict response: deleting or editing the model entry, provider config, agent, or user account that run depends on.
+
+Sessions belong to individual users. Users can fork a session from an earlier message, edit their own messages, truncate a conversation, pin sessions, attach images, and import Open WebUI chats.
 
 ## Agent Skills
 
@@ -27,68 +48,69 @@ Agents load project skills from:
 <agent-workspace>/.agents/skills
 ```
 
-Only skills under that workspace path are loaded. Global skill discovery is disabled. Skill commands and prompt commands are exposed to the web UI as slash commands.
+Only skills under that workspace path are loaded — global skill discovery is disabled. Skill commands and prompt templates are exposed to the web UI as slash commands.
 
-Read tools are allowed to read the workspace and `.agents/skills` so agents can inspect their own skills.
+Read tools are allowed to read the workspace and `.agents/skills`, so agents can inspect their own skills.
 
 ## File Tools And File Management
 
-Agent permissions decide which file tools are exposed:
+Agent permissions decide which file tools exist for a run:
 
 - `read` enables read, grep, find, and list tools.
-- `write` enables file creation/replacement and web UI create/delete operations.
-- `edit` enables patch-style file edits and web UI edits/renames.
+- `write` enables file creation/replacement, and create/delete in the web UI.
+- `edit` enables patch-style edits, and edit/rename in the web UI.
 
-The browser file explorer/editor is scoped to the selected agent's working directory and respects the agent's read/write/edit permissions.
+The browser file explorer is scoped to the selected agent's working directory and respects the same permissions.
 
-Server-side file tools run on the host, but path access is guarded. The allowed roots are the workspace, the agent's private `/tmp`, and any configured extra mounts. Container paths such as `/workspace`, `/tmp`, and mount targets are translated back to host paths before the server accesses them.
+Server-side file tools run on the host, but path access is guarded. The allowed roots are the workspace, the agent's private `/tmp`, and any configured extra mounts. Container paths such as `/workspace`, `/tmp`, and mount targets are translated back to host paths before the server touches them.
 
-The file API prevents absolute-path escape from the workspace for browser file management. Text files larger than 4 MiB are not opened for editing; supported image previews are capped at 32 MiB.
+The file API blocks absolute-path escapes from the workspace. Text files larger than 4 MiB are not opened for editing; image previews are capped at 32 MiB.
 
 ## Network Access
 
 Network access is explicit per agent.
 
-When an agent has network permission:
+With the network permission:
 
-- the sandbox runner container is created with normal rootless Podman networking
+- the sandbox container gets the runtime's default network
 - `exa_search` is exposed and requires `EXA_API_KEY`
 - `fetch_url` is exposed for URL fetching
 
-When network permission is disabled:
+Without it:
 
-- the sandbox runner container uses `NetworkMode=none`
-- network tools are not exposed to the agent
+- the sandbox container is created with `NetworkMode: none`
+- no network tools are exposed to the agent
 
 ## Bash Sandboxing
 
-When bash permission is enabled, commands run inside a per-agent container instead of the server's host shell.
+When the bash permission is on, commands run inside a per-agent container instead of the server's host shell.
 
 Key properties:
 
-- Containers are created lazily on first command and reused across runs for the same agent.
+- Containers are created lazily on the first command and reused across runs for the same agent.
 - Idle containers are reaped after `CARMEL_BASH_IDLE_MINUTES`.
-- The default workspace is mounted at `/workspace`.
-- Manual workspaces are mounted at their absolute path so paths match between host file tools and sandbox bash.
+- The default workspace is mounted at `/workspace`. Manual workspaces are mounted at their absolute path, so paths match between host file tools and sandbox bash.
 - Each agent gets a private host-backed scratch directory mounted as `/tmp`.
 - Extra mounts can be added per agent with source, optional target, and read-only flag.
-- The container drops capabilities, uses `no-new-privileges`, and applies memory, CPU, and PID limits.
-- The server's environment and SQLite database are not mounted into the runner.
-- Runner containers are labeled `carmel.managed=1` and are removed on graceful shutdown or startup reap.
+- Containers drop all capabilities, run with `no-new-privileges`, and apply memory, CPU, and PID limits.
+- The server's environment and SQLite databases are never mounted into a runner.
+- Runner containers are labeled `carmel.managed=1` and are removed on graceful shutdown and on startup.
 
-The intended container runtime is rootless Podman. Docker can work through its socket, but the Docker socket grants broad host control and is not recommended for untrusted workloads.
+Carmel talks to the container runtime over its Docker-compatible REST API on a unix socket, so it never needs a `podman` or `docker` CLI inside its own image. Podman and Docker both work.
 
-If no socket is reachable, bash commands fail with a sandbox unavailable error. Other tools are unaffected.
+Rootless Podman is the recommended runtime. A rootful Docker socket also works, but whoever can reach that socket effectively controls the host, which is a poor fit for untrusted agent workloads.
+
+If no socket is reachable, bash commands fail with a sandbox unavailable error. Every other tool keeps working.
 
 ## Extra Mounts
 
-An agent can declare extra mounts in settings. Each mount has:
+An agent can declare extra mounts in its settings. Each mount has:
 
-- `source` - host path
-- `target` - optional container path; defaults to the source path
-- `readOnly` - whether writes are blocked
+- `source` — host path
+- `target` — optional container path; defaults to the source path
+- `readOnly` — whether writes are blocked
 
-Read-only mounts are available to read/search/list tools and sandbox bash as read-only binds. Writable mounts are also available to write/edit tools.
+Read-only mounts are available to read/search/list tools and to sandbox bash as read-only binds. Writable mounts are also available to write/edit tools.
 
 ## GPU Passthrough
 
@@ -98,34 +120,34 @@ Set `CARMEL_BASH_GPU` to one or more CDI device ids, such as:
 nvidia.com/gpu=all
 ```
 
-This requires CDI to be configured on the host. CDI injects device nodes and driver libraries, but CUDA developer tools such as `nvcc` must exist in the runner image if the agent needs them.
+This requires CDI to be configured on the host. CDI injects device nodes and driver libraries, but CUDA developer tools such as `nvcc` must exist in the runner image if an agent needs them.
 
 ## Sharing And Access
 
 Users can see:
 
-- agents they own
-- agents marked shared
-- model refs they own
-- model refs marked shared
-- model refs without a private provider config
-- model refs attached to their own provider configs
+- agents they own, and agents marked shared
+- model entries they own, model entries marked shared, and model entries with no provider config behind them
 
-Only owners can edit agent settings or delete their agents. Provider configs are per-user. Deleting a model or provider that is used by agents or sessions requires another visible fallback model for affected users.
+Only owners can edit or delete their own agents and model entries. Provider configs are instance-level and only administrators can change them; their stored API keys, OAuth credentials, and custom headers are never included in API responses.
 
-When a shared model ref points at a provider config, Carmel uses that provider config server-side for model calls. Other users can select the shared model, but they do not receive the stored API key, OAuth credential, or custom headers in the UI/API payload.
+Deleting a model entry or provider config that agents or sessions depend on requires another usable fallback model for the affected users, and is refused while a run using it is in flight.
+
+## Credentials At Rest
+
+Provider API keys, OAuth credentials, and custom headers are encrypted with `CARMEL_SECRET_KEY` before they are written to the database. Set that key before adding credentials and keep it stable — rotating it makes existing secrets unreadable.
 
 ## Database And Migrations
 
-The server uses separate SQLite databases for Carmel metadata/auth and Pi-native session trees. Drizzle manages only the Carmel database; its migrations run on startup and record applied migrations in `schema_migrations`.
+Carmel uses two SQLite databases: one for Carmel metadata and auth, one for Pi-native session trees. Drizzle manages only the Carmel database; its migrations run at startup and are recorded in `schema_migrations`.
 
-New Carmel databases are created with the current metadata schema. Existing databases are upgraded through compatibility migrations. Session content is owned exclusively by Pi native storage.
+New databases are created with the current schema; existing ones are upgraded through compatibility migrations. Session content is owned exclusively by Pi native storage.
 
-Runtime state is stored under `data/` by default, including:
+Runtime state lives under `data/` by default:
 
-- SQLite databases (Carmel metadata/auth and Pi-native session trees)
+- the two SQLite databases
 - default agent workspaces
-- Pi agent runtime directory
+- the Pi agent runtime directory
 - per-agent sandbox `/tmp` directories
 
-Back up this directory for disaster recovery.
+Back up that directory.

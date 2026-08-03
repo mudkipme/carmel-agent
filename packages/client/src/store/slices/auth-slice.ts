@@ -22,7 +22,7 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
           set((state) => resetState({ status: needsSetup ? "setup" : "unauthenticated" }, state));
           return;
         }
-        set({ status: "error", error: errorMessage(error, "Failed to load harness") });
+        set({ status: "error", error: errorMessage(error, "Something went wrong while loading your workspace.") });
       }
     },
     setup: async (input) => {

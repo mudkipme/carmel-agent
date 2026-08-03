@@ -43,11 +43,16 @@ export default function App() {
   }, []);
 
   if (status === "loading" || status === "idle") {
-    return <Splash title="Loading harness" detail="Connecting to the SQLite-backed API." />;
+    return <Splash title="Starting Carmel Agent" detail="Getting your workspace ready — this only takes a moment." />;
   }
 
   if (status === "error") {
-    return <Splash title="API unavailable" detail={error ?? "Start the server with pnpm dev:server."} />;
+    return (
+      <Splash
+        title="Can't reach Carmel Agent"
+        detail={error ?? "We couldn't connect to the server. Check that it's running, then reload this page."}
+      />
+    );
   }
 
   if (status === "setup") {

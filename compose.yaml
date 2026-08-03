@@ -1,11 +1,14 @@
-# Run carmel-agent with rootless Podman and the bash sandbox.
+# Run carmel-agent with the bash sandbox.
 #
 #   # 1. Build the sandbox runner image referenced by CARMEL_BASH_IMAGE:
 #   podman compose --profile build build
 #   # 2. Start the server:
 #   podman compose up -d
 #
-# Requires the rootless Podman socket (systemctl --user enable --now podman.socket).
+# Written for the rootless Podman socket (systemctl --user enable --now
+# podman.socket), which is the recommended setup. Any Docker-API-compatible
+# runtime works: for Docker, replace the socket bind mount below with
+# /var/run/docker.sock:/run/podman/podman.sock and use `docker compose`.
 services:
   carmel-agent:
     build:
