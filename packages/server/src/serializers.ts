@@ -36,8 +36,18 @@ export function serializeAgentSettings(agent: typeof agents.$inferSelect): Agent
 }
 
 export function serializeModelRef(model: typeof modelRefs.$inferSelect): ModelRef {
+  // Listed field by field on purpose: spreading the row leaks storage-only
+  // columns (createdAt/updatedAt) that the strict command schema rejects when
+  // the client echoes a model back on save.
   const serialized: ModelRef = {
-    ...model,
+    id: model.id,
+    ownerUserId: model.ownerUserId,
+    shared: model.shared,
+    label: model.label,
+    provider: model.provider,
+    modelId: model.modelId,
+    reasoning: model.reasoning,
+    input: model.input,
     providerConfigId: model.providerConfigId ?? undefined,
     api: model.api ?? undefined,
     baseUrl: model.baseUrl ?? undefined,
@@ -56,13 +66,20 @@ export function serializeModelRef(model: typeof modelRefs.$inferSelect): ModelRe
 }
 
 export function serializeProviderConfig(providerConfig: typeof providerConfigs.$inferSelect): ProviderConfig {
+  // Listed field by field on purpose: spreading the row leaks the stored OAuth
+  // credential to clients.
   return {
-    ...providerConfig,
+    id: providerConfig.id,
+    userId: providerConfig.userId,
+    label: providerConfig.label,
+    provider: providerConfig.provider,
     authType: providerConfig.authType ?? "api_key",
     apiKey: undefined,
     hasApiKey: Boolean(providerConfig.apiKey),
     hasOAuth: Boolean(providerConfig.oauthCredential),
     baseUrl: providerConfig.baseUrl ?? undefined,
+    createdAt: providerConfig.createdAt,
+    updatedAt: providerConfig.updatedAt,
   };
 }
 
