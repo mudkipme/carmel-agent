@@ -1,5 +1,5 @@
-import type { AgentEvent } from "@earendil-works/pi-agent-core";
-import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { ImageContent, TextContent, ToolCall } from "@earendil-works/pi-ai";
 import type { AgentMount, AgentPermissions, AgentThinkingLevel, PromptTemplate } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
 
@@ -46,6 +46,7 @@ export {
 } from "./messages.ts";
 export type { UserMessageEditOptions } from "./messages.ts";
 export * from "./commands.ts";
+export * from "./run-events.ts";
 export * from "./models.ts";
 export * from "./records.ts";
 export * from "./schemas.ts";
@@ -77,7 +78,29 @@ export type AgentRunFinishedEvent = {
   type: "run_finished";
 };
 
-export type AgentRunEvent = AgentEvent | AgentRunFinishedEvent;
+/**
+ * Wire protocol for the run event stream, deliberately narrower than Pi's
+ * `AgentEvent`.
+ *
+ * Pi emits the whole message-so-far on every token -- twice over, as
+ * `message_update.message` and again as `assistantMessageEvent.partial` -- which
+ * makes a streamed reply cost O(n^2) bytes. Streamed text and thinking travel
+ * here as deltas instead, so a reply costs O(n), and every field the client does
+ * not render is dropped rather than forwarded. The server projects Pi's events
+ * into this shape; see `runtime/run-events.ts`.
+ */
+export type AgentRunEvent =
+  | { type: "message_start"; message: AgentMessage }
+  /** Append `delta` to the `text`/`thinking` of the content part at `contentIndex`. */
+  | { type: "message_delta"; contentIndex: number; field: "text" | "thinking"; delta: string }
+  /** Replace the whole content part at `contentIndex`. Tool calls arrive this way, not as deltas. */
+  | { type: "message_part"; contentIndex: number; part: ToolCall }
+  | { type: "message_end"; message: AgentMessage }
+  | { type: "tool_execution_start"; toolCallId: string; toolName: string }
+  | { type: "tool_execution_end"; toolCallId: string; toolName: string; isError: boolean }
+  | { type: "turn_end"; errorMessage?: string }
+  | { type: "agent_end" }
+  | AgentRunFinishedEvent;
 
 export type AgentRunEventEnvelope = {
   sequence: number;

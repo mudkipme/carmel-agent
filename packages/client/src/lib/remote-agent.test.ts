@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
-import type { Api, Model } from "@earendil-works/pi-ai";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
 import type { AgentRunEvent, AgentRunEventEnvelope, SessionConnection } from "@carmel-agent/shared";
 import { RemoteAgent } from "./remote-agent.ts";
 
@@ -32,7 +32,7 @@ test("reconnect starts after the snapshot cursor and does not duplicate persiste
     if (url.endsWith("/events?after=7")) {
       return eventResponse([
         envelope(8, { type: "message_end", message: streamed }),
-        envelope(9, agentEnd(streamed)),
+        envelope(9, agentEnd()),
         envelope(10, runFinished()),
       ]);
     }
@@ -65,7 +65,7 @@ test("a broken observer stream reconnects after the last received sequence witho
     if (url.endsWith("/events?after=2")) {
       return eventResponse([
         envelope(3, { type: "message_end", message: streamed }),
-        envelope(4, agentEnd(streamed)),
+        envelope(4, agentEnd()),
         envelope(5, runFinished()),
       ]);
     }
@@ -104,7 +104,7 @@ test("an uncertain submit response recovers the server-owned run through session
     if (url.endsWith("/events?after=1")) {
       return eventResponse([
         envelope(2, { type: "message_end", message: answer }),
-        envelope(3, agentEnd(answer)),
+        envelope(3, agentEnd()),
         envelope(4, runFinished()),
       ]);
     }
@@ -222,8 +222,8 @@ test("manual stop uses the abort API but keeps watching the server-persisted abo
     assert.ok(streamController);
     streamController.enqueue(encodeEvents([
       envelope(1, { type: "message_end", message: aborted }),
-      envelope(2, { type: "turn_end", message: aborted, toolResults: [] }),
-      envelope(3, agentEnd(aborted)),
+      envelope(2, { type: "turn_end", errorMessage: "Stopped by user" }),
+      envelope(3, agentEnd()),
       envelope(4, runFinished()),
     ]));
     streamController.close();
@@ -251,8 +251,8 @@ test("a server-persisted model failure is authoritative and is not duplicated sy
       if (eventRequests === 1) {
         return eventResponse([
           envelope(1, { type: "message_end", message: failure }),
-          envelope(2, { type: "turn_end", message: failure, toolResults: [] }),
-          envelope(3, agentEnd(failure)),
+          envelope(2, { type: "turn_end", errorMessage: "Provider failed" }),
+          envelope(3, agentEnd()),
           envelope(4, runFinished()),
         ]);
       }
@@ -267,6 +267,81 @@ test("a server-persisted model failure is authoritative and is not duplicated sy
     assert.deepEqual(agent.getSnapshot().messages, final);
     assert.equal(agent.getSnapshot().messages.filter((message) => message.role === "assistant").length, 1);
     assert.equal(agent.getSnapshot().errorMessage, "Provider failed");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("the streaming message is rebuilt from deltas and tool-call parts", async () => {
+  const originalFetch = globalThis.fetch;
+  const question = userMessage("question");
+  const answer = assistantMessage("Hello, world");
+  const snapshots: Array<AgentMessage | undefined> = [];
+  let agent: RemoteAgent;
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.includes("/events?")) {
+      return eventResponse([
+        envelope(1, { type: "message_start", message: assistantMessage("") }),
+        envelope(2, { type: "message_delta", contentIndex: 0, field: "thinking", delta: "let me think" }),
+        envelope(3, { type: "message_delta", contentIndex: 1, field: "text", delta: "Hello, " }),
+        envelope(4, { type: "message_delta", contentIndex: 1, field: "text", delta: "world" }),
+        envelope(5, {
+          type: "message_part",
+          contentIndex: 2,
+          part: { type: "toolCall", id: "call_1", name: "read", arguments: { path: "a.ts" } },
+        }),
+        envelope(6, { type: "message_end", message: answer }),
+        envelope(7, runFinished()),
+      ]);
+    }
+    return new Response(null, { status: 404 });
+  };
+  try {
+    agent = createAgent([question]);
+    agent.subscribeStore(() => snapshots.push(agent.getSnapshot().streamingMessage));
+    await agent.attachToRun("run_delta", [question], 0);
+
+    // `message_start` seeds an empty message; each delta extends it in place.
+    const streamed = snapshots.filter((message) => message !== undefined);
+    assert.deepEqual((streamed.at(-1) as AssistantMessage).content, [
+      { type: "thinking", thinking: "let me think" },
+      { type: "text", text: "Hello, world" },
+      { type: "toolCall", id: "call_1", name: "read", arguments: { path: "a.ts" } },
+    ]);
+    // Every applied delta has to produce a fresh object, or the snapshot
+    // identity check in useSyncExternalStore drops the render.
+    assert.equal(new Set(streamed).size, streamed.length);
+    assert.deepEqual(agent.getSnapshot().messages, JSON.parse(JSON.stringify([question, answer])));
+    assert.equal(agent.getSnapshot().streamingMessage, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("a delta with no message to rebuild is dropped instead of synthesizing one", async () => {
+  const originalFetch = globalThis.fetch;
+  const question = userMessage("question");
+  const answer = assistantMessage("Hello, world");
+  let agent: RemoteAgent;
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.includes("/events?")) {
+      // Joining a run whose message_start has already aged out of the replay buffer.
+      return eventResponse([
+        envelope(1, { type: "message_delta", contentIndex: 0, field: "text", delta: "world" }),
+        envelope(2, { type: "message_end", message: answer }),
+        envelope(3, runFinished()),
+      ]);
+    }
+    return new Response(null, { status: 404 });
+  };
+  try {
+    agent = createAgent([question]);
+    await agent.attachToRun("run_orphan", [question], 0);
+
+    assert.deepEqual(agent.getSnapshot().messages, JSON.parse(JSON.stringify([question, answer])));
+    assert.equal(agent.getSnapshot().errorMessage, undefined);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -310,8 +385,8 @@ function envelope(sequence: number, event: AgentRunEvent): AgentRunEventEnvelope
   return { sequence, event };
 }
 
-function agentEnd(message: AgentMessage): AgentEvent {
-  return { type: "agent_end", messages: [message] };
+function agentEnd(): AgentRunEvent {
+  return { type: "agent_end" };
 }
 
 function runFinished(): AgentRunEvent {

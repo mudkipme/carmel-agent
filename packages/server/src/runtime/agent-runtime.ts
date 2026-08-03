@@ -7,7 +7,6 @@ import {
   formatSkillInvocation,
   parseCommandArgs,
   formatSkillsForSystemPrompt,
-  type AgentEvent,
   type AgentHarnessEvent,
   type ExecutionToolContext,
   type AgentMessage,
@@ -25,13 +24,13 @@ import { parseSlashCommand, type PromptInput, type Session } from "@carmel-agent
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { loadAgentResources, resolveAgentWorkingDirPath } from "./resources.ts";
+import { projectRunEvent } from "./run-events.ts";
 import {
   createActiveAgentRun,
   createRunStream,
   emitRunEvent,
   finishAgentRun,
   type ActiveAgentRun,
-  type RunEvent,
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerExecution } from "./tools.ts";
@@ -120,7 +119,8 @@ async function startAgentRun(context: AgentRun) {
     abort.attach(harness);
     unsubscribe = harness.subscribe((event: AgentHarnessEvent) => {
       retry.observe(event);
-      emitRunEvent(run, event as RunEvent);
+      const projected = projectRunEvent(event);
+      if (projected) emitRunEvent(run, projected);
     });
 
     // Abort can land at any moment; check wherever the run can still stop without
@@ -265,7 +265,10 @@ async function reportRunFailure(
   } catch (persistenceError) {
     console.warn("Session error persistence failed:", errorMessage(persistenceError));
   }
-  emitRunEvent(context.run, errorEvent as AgentEvent);
+  // The failure messages were just persisted, so observers pick them up from the
+  // session refresh that follows `run_finished`; the event itself only has to
+  // stop the streaming indicator.
+  emitRunEvent(context.run, { type: "agent_end" });
 }
 
 /**

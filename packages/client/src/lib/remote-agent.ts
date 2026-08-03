@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import type {
   ActiveAgentRunSummary,
@@ -7,6 +7,8 @@ import type {
   PromptInput,
   SessionConnection,
 } from "@carmel-agent/shared";
+import { applyStreamingEvent } from "@carmel-agent/shared";
+
 import { api, ApiError, apiError, apiFetch } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
 
@@ -381,7 +383,7 @@ export class RemoteAgent {
       throw new Error(`Agent event sequence gap: expected ${this.lastSequence + 1}, received ${envelope.sequence}.`);
     }
     this.lastSequence = envelope.sequence;
-    this.processEvent(envelope.event as AgentEvent);
+    this.processEvent(envelope.event);
   }
 
   private markReconnecting(error: unknown) {
@@ -398,8 +400,11 @@ export class RemoteAgent {
   private processEvent(event: AgentRunEvent) {
     switch (event.type) {
       case "message_start":
-      case "message_update":
-        this.streamingMessage = event.message;
+      case "message_delta":
+      case "message_part":
+        // Text and thinking arrive as deltas, so the streaming message is
+        // rebuilt here rather than replaced wholesale.
+        this.streamingMessage = applyStreamingEvent(this.streamingMessage, event);
         break;
       case "message_end":
         this.streamingMessage = undefined;
@@ -423,9 +428,7 @@ export class RemoteAgent {
         break;
       }
       case "turn_end":
-        if (event.message.role === "assistant" && event.message.errorMessage) {
-          this.errorMessage = event.message.errorMessage;
-        }
+        if (event.errorMessage) this.errorMessage = event.errorMessage;
         break;
       case "agent_end":
         // AgentHarness has stopped producing messages, but server persistence and
