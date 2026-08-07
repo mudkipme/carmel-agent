@@ -19,12 +19,22 @@ RUN apt-get update && \
       fonts-noto-cjk \
       fonts-noto-color-emoji \
       git \
+      libegl1 \
+      libvulkan1 \
       python3 \
       python3-pip \
       ripgrep \
       wget && \
     rm -rf /var/lib/apt/lists/* && \
     ln -sf /usr/bin/python3 /usr/local/bin/python
+
+# qmd runs llama.cpp on the GPU through Vulkan when CARMEL_BASH_GPU exposes one.
+# The NVIDIA container toolkit injects the driver (libGLX_nvidia, the Vulkan ICD
+# manifest, /dev/nvidia*) but never the vendor-neutral GLVND/loader libraries --
+# those must come from the image. libvulkan1 is the Vulkan loader; libegl1 pulls
+# in libEGL.so.1, which libGLX_nvidia dlopens during ICD init. Without libegl1
+# that init fails, vk_icdGetInstanceProcAddr returns NULL for vkCreateInstance,
+# and qmd silently falls back to CPU even though nvidia-smi sees the GPU.
 
 # agent-browser drives the bundled Chromium. Downloads and the browser profile
 # live under /workspace so they persist with the agent's bind-mounted workspace.

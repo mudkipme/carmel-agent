@@ -15,7 +15,7 @@ RUN apt-get update && \
   apt-get install -y --no-install-recommends fd-find ripgrep && \
   rm -rf /var/lib/apt/lists/* && \
   corepack enable && \
-  corepack prepare pnpm@11.1.2 --activate
+  corepack prepare pnpm@11.20.0 --activate
 
 FROM base AS deps
 
