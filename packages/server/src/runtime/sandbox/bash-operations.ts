@@ -1,10 +1,5 @@
 import type { agents } from "../../db/schema.ts";
-import {
-  ensureAgentContainer,
-  killAgentContainer,
-  resolveContainerWorkspace,
-  toContainerWorkdir,
-} from "./container-manager.ts";
+import { containerHome, ensureAgentContainer, killAgentContainer, toContainerWorkdir } from "./container-manager.ts";
 import { execInContainer, isSandboxConfigured, sandboxUnavailableMessage } from "./podman.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -49,7 +44,7 @@ export async function execSandboxCommand(
 
     const { exitCode } = await execInContainer(
       containerId,
-      { cmd, workingDir, env: sandboxEnv(agent, options.env) },
+      { cmd, workingDir, env: sandboxEnv(options.env) },
       {
         onStdout: (chunk) => options.onStdout?.(chunk.toString("utf8")),
         onStderr: (chunk) => options.onStderr?.(chunk.toString("utf8")),
@@ -68,9 +63,12 @@ export async function execSandboxCommand(
 }
 
 // Never inherit the server process environment into a container.
-function sandboxEnv(agent: AgentRecord, overrides?: Record<string, string>) {
+// PATH here is only a floor: commands run through `bash -lc`, and Debian's
+// /etc/profile unconditionally reassigns PATH. Per-agent bin directories under
+// $HOME are prepended by /etc/profile.d/carmel-home.sh in the runner image.
+function sandboxEnv(overrides?: Record<string, string>) {
   const values = new Map([
-    ["HOME", resolveContainerWorkspace(agent)],
+    ["HOME", containerHome],
     ["PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
     ["TERM", "xterm-256color"],
     ["LANG", "C.UTF-8"],

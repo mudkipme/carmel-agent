@@ -17,7 +17,12 @@ import type { agents } from "../db/schema.ts";
 import { ensureDir } from "../paths.ts";
 import { resolveAgentWorkingDirPath } from "./resources.ts";
 import { execSandboxCommand } from "./sandbox/bash-operations.ts";
-import { resolveAgentTmpDirPath, resolveContainerWorkspace } from "./sandbox/container-manager.ts";
+import {
+  containerHome,
+  resolveAgentHomeDirPath,
+  resolveAgentTmpDirPath,
+  resolveContainerWorkspace,
+} from "./sandbox/container-manager.ts";
 import { isSandboxConfigured, sandboxUnavailableMessage } from "./sandbox/podman.ts";
 import { errorMessage } from "../errors.ts";
 
@@ -29,6 +34,7 @@ type PathMapping = { containerPath: string; hostPath: string };
 export class AgentExecutionEnv implements ExecutionEnv {
   readonly cwd: string;
   readonly tmpDir: string;
+  readonly homeDir: string;
   private readonly node: NodeExecutionEnv;
   private readonly readRoots: string[];
   private readonly writeRoots: string[];
@@ -37,8 +43,10 @@ export class AgentExecutionEnv implements ExecutionEnv {
   constructor(readonly agent: AgentRecord) {
     this.cwd = resolve(resolveAgentWorkingDirPath(agent));
     this.tmpDir = resolve(resolveAgentTmpDirPath(agent));
+    this.homeDir = resolve(resolveAgentHomeDirPath(agent));
     ensureDir(this.cwd);
     ensureDir(this.tmpDir);
+    ensureDir(this.homeDir);
     this.node = new NodeExecutionEnv({ cwd: this.cwd });
     const mountSources = agent.mounts.flatMap((mount) => {
       const source = mount.source?.trim();
@@ -48,9 +56,9 @@ export class AgentExecutionEnv implements ExecutionEnv {
       const source = mount.source?.trim();
       return source && !mount.readOnly ? [resolve(source)] : [];
     });
-    this.readRoots = uniquePaths([this.cwd, this.tmpDir, ...mountSources]);
-    this.writeRoots = uniquePaths([this.cwd, this.tmpDir, ...writableMountSources]);
-    this.mappings = createPathMappings(agent, this.cwd, this.tmpDir);
+    this.readRoots = uniquePaths([this.cwd, this.tmpDir, this.homeDir, ...mountSources]);
+    this.writeRoots = uniquePaths([this.cwd, this.tmpDir, this.homeDir, ...writableMountSources]);
+    this.mappings = createPathMappings(agent, this.cwd, this.tmpDir, this.homeDir);
   }
 
   resolveAuthorizedPath(path: string, mode: AccessMode = "read", workspaceOnly = false) {
@@ -252,10 +260,11 @@ export function remapContainerPath(filePath: string, mappings: PathMapping[]) {
   return filePath;
 }
 
-function createPathMappings(agent: AgentRecord, cwd: string, tmpDir: string): PathMapping[] {
+function createPathMappings(agent: AgentRecord, cwd: string, tmpDir: string, homeDir: string): PathMapping[] {
   const mappings: PathMapping[] = [
     { containerPath: resolveContainerWorkspace(agent), hostPath: cwd },
     { containerPath: "/tmp", hostPath: tmpDir },
+    { containerPath: containerHome, hostPath: homeDir },
   ];
   for (const mount of agent.mounts) {
     const source = mount.source?.trim();

@@ -2,7 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { agents } from "../../db/schema.ts";
 import { createStreamDemuxer, parseImageRef } from "./podman.ts";
-import { buildBinds, containerSignature, containerWorkdir, resolveContainerWorkspace } from "./container-manager.ts";
+import {
+  buildBinds,
+  containerSignature,
+  containerWorkdir,
+  resolveAgentHomeDirPath,
+  resolveContainerWorkspace,
+} from "./container-manager.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
@@ -89,16 +95,30 @@ test("containerSignature changes when the workspace dir, mounts, or network chan
   assert.notEqual(base, containerSignature(manualAgent(), { network: true }));
 });
 
-test("buildBinds adds the workspace, /tmp, and extra mounts with SELinux relabel", () => {
-  const binds = buildBinds("/host/data/agents/a/workspace", "/workspace", "/host/data/agents/a/tmp", [
-    { source: "/srv/shared", target: "/refs", readOnly: true },
-    { source: "/srv/cache" },
-    { source: "  " },
-  ]);
+test("buildBinds adds the workspace, /tmp, $HOME, and extra mounts with SELinux relabel", () => {
+  const binds = buildBinds(
+    "/host/data/agents/a/workspace",
+    "/workspace",
+    "/host/data/agents/a/tmp",
+    "/host/data/agents/a/home",
+    [{ source: "/srv/shared", target: "/refs", readOnly: true }, { source: "/srv/cache" }, { source: "  " }],
+  );
   assert.deepEqual(binds, [
     "/host/data/agents/a/workspace:/workspace:rw,z",
     "/host/data/agents/a/tmp:/tmp:rw,z",
+    "/host/data/agents/a/home:/home/agent:rw,z",
     "/srv/shared:/refs:ro,z",
     "/srv/cache:/srv/cache:rw,z",
   ]);
+});
+
+test("the agent home bind is per-agent and independent of the workspace", () => {
+  const home = (agent: AgentRecord) => resolveAgentHomeDirPath(agent);
+  assert.notEqual(home(manualAgent({ id: "agent_a" })), home(manualAgent({ id: "agent_b" })));
+  // A manual workspace move must not drag $HOME along with it.
+  assert.equal(
+    home(manualAgent({ workingDir: "/srv/projects/app" })),
+    home(manualAgent({ workingDir: "/srv/projects/other" })),
+  );
+  assert.match(home(manualAgent({ id: "agent_a" })), /[/\\]agents[/\\]agent_a[/\\]home$/);
 });

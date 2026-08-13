@@ -13,11 +13,13 @@ test("remapContainerPath translates container paths to host paths", () => {
   const mappings = [
     { containerPath: "/workspace", hostPath: "/data/agents/a/workspace" },
     { containerPath: "/tmp", hostPath: "/data/agents/a/tmp" },
+    { containerPath: "/home/agent", hostPath: "/data/agents/a/home" },
     { containerPath: "/refs", hostPath: "/srv/shared" },
   ];
-  // workspace + /tmp + an extra mount whose target differs from its host source
+  // workspace + /tmp + $HOME + an extra mount whose target differs from its host source
   assert.equal(remapContainerPath("/workspace/src/x.ts", mappings), "/data/agents/a/workspace/src/x.ts");
   assert.equal(remapContainerPath("/tmp/out.txt", mappings), "/data/agents/a/tmp/out.txt");
+  assert.equal(remapContainerPath("/home/agent/.npmrc", mappings), "/data/agents/a/home/.npmrc");
   assert.equal(remapContainerPath("/refs/readme.md", mappings), "/srv/shared/readme.md");
   // relative paths and unmapped absolute paths pass through unchanged
   assert.equal(remapContainerPath("notes/todo.md", mappings), "notes/todo.md");

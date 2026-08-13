@@ -36,8 +36,9 @@ RUN apt-get update && \
 # that init fails, vk_icdGetInstanceProcAddr returns NULL for vkCreateInstance,
 # and qmd silently falls back to CPU even though nvidia-smi sees the GPU.
 
-# agent-browser drives the bundled Chromium. Downloads and the browser profile
-# live under /workspace so they persist with the agent's bind-mounted workspace.
+# agent-browser drives the bundled Chromium. The browser profile is tool state,
+# so it lives in the agent's private $HOME; downloads stay under /workspace where
+# the user can see them as project files. Both are bind-mounted per agent.
 RUN mkdir -p /etc/agent-browser && \
     printf '%s\n' \
       '{' \
@@ -46,13 +47,29 @@ RUN mkdir -p /etc/agent-browser && \
       '  "args": "--no-sandbox,--disable-dev-shm-usage,--disable-gpu",' \
       '  "ignoreHttpsErrors": true,' \
       '  "downloadPath": "/workspace/.agent-browser/downloads",' \
-      '  "profile": "/workspace/.agent-browser/profile"' \
+      '  "profile": "/home/agent/.agent-browser/profile"' \
       '}' \
       > /etc/agent-browser/config.json
 
 RUN npm install -g agent-browser@0.27.0 @tobilu/qmd && \
     agent-browser --version && \
     qmd --version
+
+# Everything below must stay after the global installs above: it repoints npm's
+# global prefix into $HOME, which carmel bind-mounts per agent. Without it
+# `npm install -g` writes to /usr/local inside the container layer and is lost
+# the next time the runner is recreated (idle reap, config change, restart).
+#
+# The PATH additions go in /etc/profile.d rather than the exec environment
+# because carmel runs commands via `bash -lc`, and Debian's /etc/profile
+# reassigns PATH unconditionally -- anything we pass in as PATH is discarded.
+RUN mkdir -p /home/agent/.npm-global/bin /home/agent/.local/bin /usr/local/etc && \
+    printf 'prefix=/home/agent/.npm-global\n' > /usr/local/etc/npmrc && \
+    printf '%s\n' \
+      'export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"' \
+      > /etc/profile.d/carmel-home.sh
+
+ENV HOME="/home/agent"
 
 WORKDIR /workspace
 

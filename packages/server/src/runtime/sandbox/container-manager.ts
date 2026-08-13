@@ -2,7 +2,7 @@ import { rmSync } from "node:fs";
 import { isAbsolute, posix, relative, resolve } from "node:path";
 import type { AgentMount } from "@carmel-agent/shared";
 import { agents } from "../../db/schema.ts";
-import { agentTmpDir, dataDir, ensureDir, resolveDataPath } from "../../paths.ts";
+import { agentHomeDir, agentTmpDir, dataDir, ensureDir, resolveDataPath } from "../../paths.ts";
 import { resolveAgentWorkingDirPath } from "../resources.ts";
 import {
   createContainer,
@@ -23,6 +23,9 @@ const managedLabel = "carmel.managed";
 const managedLabelValue = "1";
 const agentLabel = "carmel.agent";
 const containerWorkspace = "/workspace";
+// $HOME inside the runner. A fixed path (not the workspace mount) so tool state
+// stays out of the user's project files; see resolveAgentHomeDirPath.
+export const containerHome = "/home/agent";
 const reaperIntervalMs = 60_000;
 
 const config = {
@@ -77,9 +80,10 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
 export function containerSignature(agent: AgentRecord, options: { network: boolean }) {
   const workspaceHostPath = toHostPath(resolveAgentWorkingDirPath(agent));
   const tmpHostPath = toHostPath(resolveAgentTmpDirPath(agent));
+  const homeHostPath = toHostPath(resolveAgentHomeDirPath(agent));
   const mountPath = resolveContainerWorkspace(agent);
   return JSON.stringify({
-    binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, agent.mounts),
+    binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, agent.mounts),
     network: options.network,
   });
 }
@@ -123,6 +127,14 @@ export function resolveAgentTmpDirPath(agent: AgentRecord) {
   return agentTmpDirPath(agent.id);
 }
 
+// Per-agent host directory bind-mounted at containerHome. Unlike /tmp this is
+// never reclaimed by the reaper: surviving container recreation is the point,
+// so a `npm install -g` or a git identity set in one session is still there in
+// the next one.
+export function resolveAgentHomeDirPath(agent: AgentRecord) {
+  return resolveDataPath(agentHomeDir(agent.id));
+}
+
 function agentTmpDirPath(agentId: string) {
   return resolveDataPath(agentTmpDir(agentId));
 }
@@ -139,16 +151,22 @@ export function containerWorkdir(workspaceRoot: string, cwd: string, mountPath: 
   return posix.join(mountPath, rel.split(/[\\/]/).join("/"));
 }
 
-// Builds the runner bind list: the workspace, a private /tmp, plus any per-agent
-// extra mounts. Extra mount sources are host paths as the Podman daemon sees them.
+// Builds the runner bind list: the workspace, a private /tmp, a private $HOME,
+// plus any per-agent extra mounts. Extra mount sources are host paths as the
+// Podman daemon sees them.
 export function buildBinds(
   workspaceHostPath: string,
   mountPath: string,
   tmpHostPath: string,
+  homeHostPath: string,
   mounts: AgentMount[],
 ) {
   const relabel = config.selinuxRelabel ? ",z" : "";
-  const binds = [`${workspaceHostPath}:${mountPath}:rw${relabel}`, `${tmpHostPath}:/tmp:rw${relabel}`];
+  const binds = [
+    `${workspaceHostPath}:${mountPath}:rw${relabel}`,
+    `${tmpHostPath}:/tmp:rw${relabel}`,
+    `${homeHostPath}:${containerHome}:rw${relabel}`,
+  ];
   for (const mount of mounts) {
     const source = mount.source?.trim();
     if (!source) continue;
@@ -184,11 +202,14 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
 
   const workspacePath = resolveAgentWorkingDirPath(agent);
   const tmpPath = resolveAgentTmpDirPath(agent);
+  const homePath = resolveAgentHomeDirPath(agent);
   ensureDir(workspacePath);
   ensureDir(tmpPath);
+  ensureDir(homePath);
   const mountPath = resolveContainerWorkspace(agent);
   const workspaceHostPath = toHostPath(workspacePath);
   const tmpHostPath = toHostPath(tmpPath);
+  const homeHostPath = toHostPath(homePath);
 
   const name = `carmel-bash-${sanitizeName(agent.id)}-${Date.now().toString(36)}`;
   const containerId = await createContainer(name, {
@@ -197,9 +218,9 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
     Cmd: ["sleep", "infinity"],
     WorkingDir: mountPath,
     Labels: { [managedLabel]: managedLabelValue, [agentLabel]: agent.id },
-    Env: [`HOME=${mountPath}`, "TERM=xterm-256color"],
+    Env: [`HOME=${containerHome}`, "TERM=xterm-256color"],
     HostConfig: {
-      Binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, agent.mounts),
+      Binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, agent.mounts),
       Memory: config.memoryBytes,
       NanoCpus: config.nanoCpus,
       PidsLimit: config.pidsLimit,

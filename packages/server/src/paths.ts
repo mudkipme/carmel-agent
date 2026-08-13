@@ -15,6 +15,13 @@ export function agentTmpDir(agentId: string) {
   return `agents/${safePathSegment(agentId)}/tmp`;
 }
 
+// Backs $HOME inside the runner. Kept out of the workspace so tool state
+// (npm/pip caches, global installs, shell history, browser profile) does not
+// land in the user's project directory.
+export function agentHomeDir(agentId: string) {
+  return `agents/${safePathSegment(agentId)}/home`;
+}
+
 export function resolveDataPath(path: string) {
   return isAbsolute(path) ? resolve(path) : resolve(dataDir, path);
 }
