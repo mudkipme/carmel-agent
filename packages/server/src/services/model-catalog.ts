@@ -27,11 +27,37 @@ export function readModelCatalog(): ModelCatalog {
   };
 }
 
+/**
+ * Serve the persisted catalog first and revalidate behind the response. Pi's
+ * remote catalog lives on one host, so a blocked or slow request there stalled
+ * the model picker for the whole refresh timeout. Pass `allowNetwork` or `force`
+ * to wait for a live refresh instead.
+ */
 export async function readProviderModels(
   providerConfig: ProviderConfigRecord,
   options: CatalogReadOptions = {},
 ): Promise<ProviderModelSummary[]> {
-  return (await refreshProviderModelCatalog(providerConfig, options)).models;
+  if (options.allowNetwork ?? options.force ?? false) {
+    return (await refreshProviderModelCatalog(providerConfig, { ...options, allowNetwork: true })).models;
+  }
+  const { models } = await refreshProviderModelCatalog(providerConfig, { ...options, allowNetwork: false });
+  // An explicit `allowNetwork: false` means offline, so only an unstated
+  // preference (the model picker) gets the background revalidation.
+  if (options.allowNetwork === undefined) queueCatalogRefresh(providerConfig, options);
+  return models;
+}
+
+/** At most one in-flight revalidation per provider, so a burst of picker opens is one fetch. */
+const backgroundRefreshes = new Map<string, Promise<unknown>>();
+
+function queueCatalogRefresh(providerConfig: ProviderConfigRecord, options: CatalogReadOptions) {
+  const provider = providerConfig.provider;
+  if (backgroundRefreshes.has(provider)) return;
+  const task = refreshProviderModelCatalog(providerConfig, { ...options, allowNetwork: true, force: false })
+    // Nobody is waiting on this; the next read just keeps serving the cache.
+    .catch(() => undefined)
+    .finally(() => backgroundRefreshes.delete(provider));
+  backgroundRefreshes.set(provider, task);
 }
 
 export async function refreshConfiguredModelCatalogs(): Promise<Map<string, Error>> {

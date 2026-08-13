@@ -76,7 +76,8 @@ export function createProviderConfigRoutes() {
       return c.json({ error: "Provider config not found." }, 404);
     }
     if (providerConfig.provider !== OLLAMA_PROVIDER) {
-      return c.json(await readProviderModels(providerConfig));
+      const refresh = c.req.query("refresh") === "true";
+      return c.json(await readProviderModels(providerConfig, refresh ? { allowNetwork: true, force: true } : {}));
     }
 
     try {

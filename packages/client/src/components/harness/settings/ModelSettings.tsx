@@ -139,27 +139,25 @@ export function ModelSettings({
             onValueChange={management.setModelId}
           />
           {management.isOllamaProvider ? (
-            <>
-              <Field>
-                <FieldLabel>Model ID</FieldLabel>
-                <Input
-                  value={management.modelId}
-                  placeholder="llama3.2:latest"
-                  onChange={(event) => management.setModelId(event.target.value)}
-                />
-              </Field>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void management.loadProviderModels()}
-                disabled={management.loadingProviderModels}
-              >
-                {management.loadingProviderModels ? "Refreshing..." : "Refresh models"}
-              </Button>
-              {management.providerModelsError ? (
-                <p className="text-xs text-destructive">{management.providerModelsError}</p>
-              ) : null}
-            </>
+            <Field>
+              <FieldLabel>Model ID</FieldLabel>
+              <Input
+                value={management.modelId}
+                placeholder="llama3.2:latest"
+                onChange={(event) => management.setModelId(event.target.value)}
+              />
+            </Field>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void management.loadProviderModels()}
+            disabled={management.loadingProviderModels}
+          >
+            {management.loadingProviderModels ? "Refreshing..." : "Refresh models"}
+          </Button>
+          {management.providerModelsError ? (
+            <p className="text-xs text-destructive">{management.providerModelsError}</p>
           ) : null}
           <Button
             onClick={() => void management.addModel()}

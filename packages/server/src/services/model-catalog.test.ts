@@ -73,3 +73,51 @@ test("remote Pi catalogs are persisted across runtimes and retained after refres
   });
   assert.ok(afterFailure.some((model) => model.id === remoteModel.id));
 });
+
+test("the model picker read does not wait on an unresponsive catalog host", async (t) => {
+  const userId = createUser();
+  const providerConfigId = createProviderConfig(userId);
+  db.update(providerConfigs)
+    .set({ apiKey: "test-api-key" })
+    .where(eq(providerConfigs.id, providerConfigId))
+    .run();
+  const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).get();
+  assert.ok(providerConfig);
+
+  const catalogBaseUrl = "https://catalog.test";
+  let hang = false;
+  t.mock.method(globalThis, "fetch", async () => {
+    // A host that accepts the connection and never answers, which is what makes
+    // the picker sit on the refresh timeout instead of failing fast.
+    if (hang) return new Promise<Response>(() => {});
+    return new Response(JSON.stringify({ [remoteModel.id]: remoteModel }), {
+      status: 200,
+      headers: {
+        "content-type": "application/json",
+        "last-modified": new Date("2035-01-01T00:00:00.000Z").toUTCString(),
+        etag: '"future-catalog"',
+      },
+    });
+  });
+
+  await readProviderModels(providerConfig, {
+    catalogBaseUrl,
+    force: true,
+    modelsStore: new SqliteModelsStore(sqlite),
+  });
+
+  hang = true;
+  const models = await withDeadline(
+    readProviderModels(providerConfig, { catalogBaseUrl, modelsStore: new SqliteModelsStore(sqlite) }),
+    2_000,
+  );
+  assert.ok(models.some((model) => model.id === remoteModel.id));
+});
+
+function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Read blocked for more than ${ms}ms`)), ms);
+  });
+  return Promise.race([work, deadline]).finally(() => clearTimeout(timer));
+}

@@ -125,8 +125,10 @@ export const api = {
     }),
   deleteProviderConfig: (providerConfigId: string) =>
     request<BootstrapPayload>(`/api/provider-configs/${providerConfigId}`, { method: "DELETE" }),
-  listProviderModels: (providerConfigId: string) =>
-    request<ProviderModelSummary[]>(`/api/provider-configs/${providerConfigId}/models`),
+  listProviderModels: (providerConfigId: string, options: { refresh?: boolean } = {}) =>
+    request<ProviderModelSummary[]>(
+      `/api/provider-configs/${providerConfigId}/models${options.refresh ? "?refresh=true" : ""}`,
+    ),
   upsertAgent: (agentId: string, input: AgentConfigCommand) =>
     request<AgentConfig>(`/api/agents/${agentId}`, { method: "PUT", body: JSON.stringify(input) }),
   getAgentSettings: (agentId: string) => request<AgentConfig>(`/api/agents/${agentId}/settings`),

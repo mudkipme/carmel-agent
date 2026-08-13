@@ -28,7 +28,9 @@ export function useModelManagement(modelRefs: ModelRef[], providerConfigs: Provi
     setLoadingProviderModels(true);
     setProviderModelsError("");
     try {
-      const models = await api.listProviderModels(providerConfig.id);
+      // The picker is served from the cached catalog, so an explicit refresh is
+      // the only way to pull a provider's newest models on demand.
+      const models = await api.listProviderModels(providerConfig.id, { refresh: true });
       setProviderModels(models);
       setModelId((current) => current || (models[0]?.id ?? ""));
     } catch (error) {
