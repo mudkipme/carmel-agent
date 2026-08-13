@@ -1,4 +1,4 @@
-import type { Api, Model } from "@earendil-works/pi-ai";
+import type { Api, Model, ThinkingLevelMap } from "@earendil-works/pi-ai";
 
 // The single ModelRef -> Pi `Model` mapping. Both the client (thinking-level
 // clamping, model pickers) and the server (agent runs, title generation) go
@@ -37,6 +37,12 @@ export type ModelRef = {
   maxTokens?: number;
   reasoning?: boolean;
   input?: Array<"text" | "image">;
+  /**
+   * Per-level provider values. Pi only offers `xhigh`/`max` when this map has an
+   * entry for them (`getSupportedThinkingLevels`), so a model that omits it is
+   * capped at `high` no matter how capable it is.
+   */
+  thinkingLevelMap?: ThinkingLevelMap;
 };
 
 export type ProviderModelSummary = {
@@ -47,6 +53,7 @@ export type ProviderModelSummary = {
   maxTokens?: number;
   reasoning?: boolean;
   input?: Array<"text" | "image">;
+  thinkingLevelMap?: ThinkingLevelMap;
 };
 
 export type ModelProviderSummary = {
@@ -72,7 +79,13 @@ export type ResolveModelRefOptions = {
 export function resolveModelRef(modelRef: ModelRef, options: ResolveModelRefOptions = {}): Model<Api> {
   const baseUrl = options.baseUrl ?? modelRef.baseUrl ?? defaultBaseUrlForProvider(modelRef.provider);
   if (options.catalogModel) {
-    return { ...options.catalogModel, baseUrl: baseUrl || options.catalogModel.baseUrl };
+    return {
+      ...options.catalogModel,
+      baseUrl: baseUrl || options.catalogModel.baseUrl,
+      // The stored entry wins per level, matching how Pi's own model config
+      // layers a model override onto a catalog entry.
+      thinkingLevelMap: mergeThinkingLevelMaps(options.catalogModel.thinkingLevelMap, modelRef.thinkingLevelMap),
+    };
   }
   return {
     id: modelRef.modelId,
@@ -85,8 +98,19 @@ export function resolveModelRef(modelRef: ModelRef, options: ResolveModelRefOpti
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: modelRef.contextWindow ?? DEFAULT_MODEL_CONTEXT_WINDOW,
     maxTokens: modelRef.maxTokens ?? DEFAULT_MODEL_MAX_TOKENS,
+    thinkingLevelMap: modelRef.thinkingLevelMap,
     compat: modelRef.provider === OLLAMA_PROVIDER ? OLLAMA_COMPAT : undefined,
   } as Model<Api>;
+}
+
+/** Undefined when neither side defines one, so Pi keeps its provider defaults. */
+function mergeThinkingLevelMaps(
+  catalog: ThinkingLevelMap | undefined,
+  override: ThinkingLevelMap | undefined,
+): ThinkingLevelMap | undefined {
+  if (!catalog) return override;
+  if (!override) return catalog;
+  return { ...catalog, ...override };
 }
 
 export function defaultBaseUrlForProvider(provider: string) {

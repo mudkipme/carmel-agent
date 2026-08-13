@@ -54,11 +54,62 @@ export class SqliteModelsStore implements ModelsStore {
       entry.lastModified ?? null,
       entry.etag ?? null,
     );
+    catalogCache.delete(providerId);
   }
 
   async delete(providerId: string): Promise<void> {
     this.database.prepare("DELETE FROM model_catalogs WHERE provider_id = ?").run(providerId);
+    catalogCache.delete(providerId);
   }
 }
 
 export const modelCatalogStore = new SqliteModelsStore();
+
+/**
+ * Parsed catalogs keyed by provider. Populated lazily and dropped whenever that
+ * provider's row is rewritten, so a refresh is picked up on the next read.
+ */
+const catalogCache = new Map<string, Map<string, Model<Api>>>();
+
+function readCachedCatalog(providerId: string, database: BetterSqlite3.Database = sqlite) {
+  const cached = catalogCache.get(providerId);
+  if (cached) return cached;
+  const row = database
+    .prepare("SELECT models FROM model_catalogs WHERE provider_id = ?")
+    .get(providerId) as { models: string } | undefined;
+  const models = new Map<string, Model<Api>>();
+  if (row) {
+    try {
+      const parsed = JSON.parse(row.models) as unknown;
+      if (Array.isArray(parsed)) {
+        for (const model of parsed as Array<Model<Api>>) {
+          if (model?.id) models.set(model.id, model);
+        }
+      }
+    } catch {
+      // A corrupt row is treated as an empty catalog; SqliteModelsStore.read
+      // deletes it on the next async read.
+    }
+  }
+  catalogCache.set(providerId, models);
+  return models;
+}
+
+/**
+ * Synchronous catalog lookup for the serializers, which run outside async
+ * request paths and have no `ModelRuntime`. Without this a stored model entry
+ * only ever sees the bundled catalog, which declares no `thinkingLevelMap`, so
+ * every model's thinking selector falls back to the generic off..high range.
+ */
+export function getCachedCatalogModel(
+  providerId: string,
+  modelId: string,
+  database?: BetterSqlite3.Database,
+): Model<Api> | undefined {
+  return readCachedCatalog(providerId, database).get(modelId);
+}
+
+/** Drops memoized catalogs so the next lookup re-reads SQLite. */
+export function resetCatalogCache() {
+  catalogCache.clear();
+}

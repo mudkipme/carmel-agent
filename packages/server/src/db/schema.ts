@@ -1,5 +1,5 @@
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import type { Api, Credential, Model } from "@earendil-works/pi-ai";
+import type { Api, Credential, Model, ThinkingLevelMap } from "@earendil-works/pi-ai";
 import type {
   AgentMount,
   AgentPermissions,
@@ -48,6 +48,7 @@ export const modelRefs = sqliteTable("model_refs", {
   maxTokens: integer("max_tokens"),
   reasoning: integer("reasoning", { mode: "boolean" }).notNull().default(false),
   input: text("input", { mode: "json" }).$type<Array<"text" | "image">>().notNull(),
+  thinkingLevelMap: text("thinking_level_map", { mode: "json" }).$type<ThinkingLevelMap>(),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

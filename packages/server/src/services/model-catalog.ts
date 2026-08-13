@@ -86,6 +86,9 @@ async function refreshProviderModelCatalog(
       maxTokens: model.maxTokens,
       reasoning: model.reasoning,
       input: model.input,
+      // Carries which levels the provider actually accepts; dropping it caps the
+      // thinking selector at "high" for models that support xhigh/max.
+      thinkingLevelMap: model.thinkingLevelMap,
     })),
     refresh,
   };

@@ -53,6 +53,7 @@ export function serializeModelRef(model: typeof modelRefs.$inferSelect): ModelRe
     baseUrl: model.baseUrl ?? undefined,
     contextWindow: model.contextWindow ?? undefined,
     maxTokens: model.maxTokens ?? undefined,
+    thinkingLevelMap: model.thinkingLevelMap ?? undefined,
   };
   const definition = resolveServerModelRef(serialized);
   return {
@@ -62,6 +63,9 @@ export function serializeModelRef(model: typeof modelRefs.$inferSelect): ModelRe
     maxTokens: serialized.maxTokens ?? definition.maxTokens,
     reasoning: serialized.reasoning ?? definition.reasoning,
     input: serialized.input ?? definition.input,
+    // Without this the client rebuilds the model without a level map, and its
+    // thinking selector silently caps at "high".
+    thinkingLevelMap: definition.thinkingLevelMap,
   };
 }
 

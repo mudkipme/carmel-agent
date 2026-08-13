@@ -81,7 +81,7 @@ export function ModelSettings({
                   </p>
                 </div>
                 {owned ? (
-                  <div className="flex shrink-0 items-center justify-end gap-1">
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                     <Button
                       type="button"
                       variant={model.shared ? "secondary" : "outline"}

@@ -31,6 +31,7 @@ export function makeModelRef(
     maxTokens: modelSummary.maxTokens,
     reasoning: modelSummary.reasoning,
     input: modelSummary.input,
+    thinkingLevelMap: modelSummary.thinkingLevelMap,
   };
 }
 

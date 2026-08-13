@@ -56,6 +56,11 @@ const migrations: Migration[] = [
     description: "Create the persistent Pi model catalog cache",
     run: createModelCatalogCache,
   },
+  {
+    id: "016_model_thinking_level_map",
+    description: "Add per-model thinking level mapping so xhigh/max can be offered",
+    run: addModelThinkingLevelMap,
+  },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -324,6 +329,10 @@ function repairModelRefIntegrity(sqlite: Sqlite) {
     CREATE UNIQUE INDEX IF NOT EXISTS model_refs_provider_model_unique
       ON model_refs(provider, model_id) WHERE provider_config_id IS NULL;
   `);
+}
+
+function addModelThinkingLevelMap(sqlite: Sqlite) {
+  addColumnIfMissing(sqlite, "model_refs", "thinking_level_map", "TEXT");
 }
 
 function createModelCatalogCache(sqlite: Sqlite) {

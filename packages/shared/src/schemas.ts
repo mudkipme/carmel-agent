@@ -4,6 +4,20 @@ export const emptyStringToUndefined = (value: unknown) => (value === "" ? undefi
 export const optionalStringSchema = z.preprocess(emptyStringToUndefined, z.string().optional());
 export const thinkingLevelSchema = z.enum(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 export const modelInputSchema = z.array(z.enum(["text", "image"]));
+/**
+ * Per-level provider value, or null to mark a level unsupported. Pi gates
+ * `xhigh`/`max` on a key being present here, so this is what makes those levels
+ * selectable at all.
+ */
+export const thinkingLevelMapSchema = z.object({
+  off: z.string().nullable().optional(),
+  minimal: z.string().nullable().optional(),
+  low: z.string().nullable().optional(),
+  medium: z.string().nullable().optional(),
+  high: z.string().nullable().optional(),
+  xhigh: z.string().nullable().optional(),
+  max: z.string().nullable().optional(),
+}).strict();
 export const promptTemplateSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -69,6 +83,7 @@ export const modelRefRequestSchema = z.object({
   maxTokens: z.number().finite().optional(),
   reasoning: z.boolean().optional(),
   input: modelInputSchema.optional(),
+  thinkingLevelMap: thinkingLevelMapSchema.optional(),
 }).strict();
 export const providerConfigRequestSchema = z.object({
   label: z.string(),

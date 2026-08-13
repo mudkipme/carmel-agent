@@ -11,6 +11,7 @@ import {
   readFallbackModelForUser,
   reassignModelReferences,
 } from "../services/agent-access.ts";
+import { thinkingLevelOverrides } from "../runtime/model.ts";
 import { readActiveRunLeaseForModels } from "../services/active-run-lease.ts";
 import { jsonValidator, modelRefRequestSchema } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
@@ -53,6 +54,7 @@ export function createModelRoutes() {
         ownerUserId: currentUserId,
         shared: model.shared ?? false,
         input: model.input ?? ["text"],
+        thinkingLevelMap: thinkingLevelOverrides(model),
         createdAt: timestamp,
         updatedAt: timestamp,
       })
@@ -71,6 +73,9 @@ export function createModelRoutes() {
           maxTokens: model.maxTokens,
           reasoning: model.reasoning ?? false,
           input: model.input ?? ["text"],
+          // Explicit null, not undefined: Drizzle omits undefined from SET, which
+          // would make clearing a level map silently keep the old one.
+          thinkingLevelMap: thinkingLevelOverrides(model),
           updatedAt: timestamp,
         },
       })
