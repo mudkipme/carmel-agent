@@ -17,11 +17,38 @@ export const DEFAULT_MODEL_MAX_TOKENS = 8_192;
 export const OLLAMA_COMPAT = {
   supportsStore: false,
   supportsDeveloperRole: false,
-  supportsReasoningEffort: false,
+  supportsReasoningEffort: true,
   supportsUsageInStreaming: false,
   maxTokensField: "max_tokens" as const,
   supportsStrictMode: false,
 };
+
+export const OLLAMA_THINKING_LEVEL_MAP: ThinkingLevelMap = {
+  off: "none",
+  minimal: null,
+  low: "low",
+  medium: "medium",
+  high: "high",
+  xhigh: null,
+  max: "max",
+};
+
+export const OLLAMA_GPT_OSS_THINKING_LEVEL_MAP: ThinkingLevelMap = {
+  off: null,
+  minimal: null,
+  low: "low",
+  medium: "medium",
+  high: "high",
+  xhigh: null,
+  max: null,
+};
+
+export function getOllamaThinkingLevelMap(modelId: string): ThinkingLevelMap {
+  const normalized = modelId.toLowerCase();
+  return normalized.startsWith("gpt-oss") || normalized.startsWith("gpt_oss")
+    ? { ...OLLAMA_GPT_OSS_THINKING_LEVEL_MAP }
+    : { ...OLLAMA_THINKING_LEVEL_MAP };
+}
 
 export type ModelRef = {
   id: string;
@@ -78,13 +105,21 @@ export type ResolveModelRefOptions = {
 
 export function resolveModelRef(modelRef: ModelRef, options: ResolveModelRefOptions = {}): Model<Api> {
   const baseUrl = options.baseUrl ?? modelRef.baseUrl ?? defaultBaseUrlForProvider(modelRef.provider);
+  const ollamaModel = modelRef.provider === OLLAMA_PROVIDER;
+  const defaultThinkingLevelMap = ollamaModel
+    ? getOllamaThinkingLevelMap(modelRef.modelId)
+    : undefined;
   if (options.catalogModel) {
     return {
       ...options.catalogModel,
       baseUrl: baseUrl || options.catalogModel.baseUrl,
+      reasoning: options.catalogModel.reasoning || ollamaModel || modelRef.reasoning || false,
       // The stored entry wins per level, matching how Pi's own model config
       // layers a model override onto a catalog entry.
-      thinkingLevelMap: mergeThinkingLevelMaps(options.catalogModel.thinkingLevelMap, modelRef.thinkingLevelMap),
+      thinkingLevelMap: mergeThinkingLevelMaps(
+        options.catalogModel.thinkingLevelMap ?? defaultThinkingLevelMap,
+        modelRef.thinkingLevelMap,
+      ),
     };
   }
   return {
@@ -93,12 +128,12 @@ export function resolveModelRef(modelRef: ModelRef, options: ResolveModelRefOpti
     api: modelRef.api ?? DEFAULT_MODEL_API,
     provider: modelRef.provider,
     baseUrl,
-    reasoning: modelRef.reasoning ?? false,
+    reasoning: modelRef.reasoning || ollamaModel,
     input: modelRef.input ?? ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: modelRef.contextWindow ?? DEFAULT_MODEL_CONTEXT_WINDOW,
     maxTokens: modelRef.maxTokens ?? DEFAULT_MODEL_MAX_TOKENS,
-    thinkingLevelMap: modelRef.thinkingLevelMap,
+    thinkingLevelMap: mergeThinkingLevelMaps(defaultThinkingLevelMap, modelRef.thinkingLevelMap),
     compat: modelRef.provider === OLLAMA_PROVIDER ? OLLAMA_COMPAT : undefined,
   } as Model<Api>;
 }

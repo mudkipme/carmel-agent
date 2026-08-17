@@ -61,7 +61,10 @@ export function serializeModelRef(model: typeof modelRefs.$inferSelect): ModelRe
     api: serialized.api ?? definition.api,
     contextWindow: serialized.contextWindow ?? definition.contextWindow,
     maxTokens: serialized.maxTokens ?? definition.maxTokens,
-    reasoning: serialized.reasoning ?? definition.reasoning,
+    // Resolve against the catalog/defaults so existing Ollama rows (which
+    // were stored before thinking metadata was discovered) gain reasoning
+    // support when they are serialized again.
+    reasoning: definition.reasoning,
     input: serialized.input ?? definition.input,
     // Without this the client rebuilds the model without a level map, and its
     // thinking selector silently caps at "high".

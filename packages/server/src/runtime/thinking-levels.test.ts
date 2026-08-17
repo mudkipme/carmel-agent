@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import { resolveModelRef, type ModelRef } from "@carmel-agent/shared";
+import { OLLAMA_PROVIDER, resolveModelRef, type ModelRef } from "@carmel-agent/shared";
 import { migrate, sqlite } from "../db/index.ts";
 import { modelCatalogStore, resetCatalogCache } from "./model-store.ts";
 import { thinkingLevelOverrides } from "./model.ts";
@@ -27,6 +27,18 @@ const reasoningRef: ModelRef = {
 test("a reasoning model without a level map stops at high", () => {
   const levels = getSupportedThinkingLevels(resolveModelRef(reasoningRef));
   assert.deepEqual(levels, ["off", "minimal", "low", "medium", "high"]);
+});
+
+test("Ollama models expose effort levels and compatibility", () => {
+  const resolved = resolveModelRef({
+    ...reasoningRef,
+    provider: OLLAMA_PROVIDER,
+    modelId: "llama3.2",
+    reasoning: false,
+  });
+  assert.equal(resolved.reasoning, true);
+  assert.equal((resolved.compat as { supportsReasoningEffort?: boolean } | undefined)?.supportsReasoningEffort, true);
+  assert.deepEqual(getSupportedThinkingLevels(resolved), ["off", "low", "medium", "high", "max"]);
 });
 
 test("a stored level map survives resolveModelRef and unlocks xhigh/max", () => {

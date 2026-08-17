@@ -48,7 +48,7 @@ export async function resolveModelContext(
       await modelRuntime.setRuntimeApiKey(modelRef.provider, revealSecret(providerKey.apiKey) ?? "");
     }
   }
-  await ensureOptionalProviderAuth(modelRuntime, modelRef.provider);
+  await ensureOptionalProviderAuth(modelRuntime, modelRef.provider, providerConfig?.baseUrl ?? modelRef.baseUrl ?? undefined);
   if (!(await hasProviderAuth(modelRuntime, modelRef.provider))) {
     return { ok: false, reason: "no_auth" };
   }

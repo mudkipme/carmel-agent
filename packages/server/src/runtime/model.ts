@@ -2,7 +2,12 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, Model, ModelThinkingLevel, ThinkingLevelMap } from "@earendil-works/pi-ai";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { providerConfigs } from "../db/schema.ts";
-import { resolveModelRef, type ModelRef } from "@carmel-agent/shared";
+import {
+  getOllamaThinkingLevelMap,
+  OLLAMA_PROVIDER,
+  resolveModelRef,
+  type ModelRef,
+} from "@carmel-agent/shared";
 import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
 import { getCachedCatalogModel } from "./model-store.ts";
 import { errorMessage } from "../errors.ts";
@@ -42,7 +47,11 @@ export function thinkingLevelOverrides(
 ): ThinkingLevelMap | null {
   const submitted = modelRef.thinkingLevelMap;
   if (!submitted) return null;
-  const catalog = getCachedCatalogModel(modelRef.provider, modelRef.modelId)?.thinkingLevelMap ?? {};
+  const catalog =
+    getCachedCatalogModel(modelRef.provider, modelRef.modelId)?.thinkingLevelMap ??
+    (modelRef.provider === OLLAMA_PROVIDER
+      ? getOllamaThinkingLevelMap(modelRef.modelId)
+      : {});
   const overrides: ThinkingLevelMap = {};
   for (const [level, value] of Object.entries(submitted) as Array<[ModelThinkingLevel, string | null | undefined]>) {
     if (value === undefined) continue;
