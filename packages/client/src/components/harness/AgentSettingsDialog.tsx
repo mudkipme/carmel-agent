@@ -51,24 +51,32 @@ export function AgentSettingsDialog({
   modelRefs,
   providerConfigs,
   triggerClassName,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   agent: AgentConfig;
   modelRefs: ModelRef[];
   providerConfigs: ProviderConfig[];
   triggerClassName?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const activeUserId = useHarnessStore((state) => state.activeUserId);
   const canConfigureHostPaths = useHarnessStore(
     (state) => state.users.find((user) => user.id === state.activeUserId)?.role === "admin",
   );
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [settingsAgent, setSettingsAgent] = useState<AgentConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   const owned = agent.ownerUserId === activeUserId;
+  const open = controlledOpen ?? uncontrolledOpen;
+  const isControlled = controlledOpen !== undefined;
 
   useEffect(() => {
     if (!open || !owned) return;
     let cancelled = false;
+    setSettingsAgent(null);
+    setError(null);
     void api
       .getAgentSettings(agent.id)
       .then((payload) => {
@@ -87,7 +95,8 @@ export function AgentSettingsDialog({
       setSettingsAgent(null);
       setError(null);
     }
-    setOpen(nextOpen);
+    if (!isControlled) setUncontrolledOpen(nextOpen);
+    onOpenChange?.(nextOpen);
   };
 
   if (!owned) return null;
@@ -121,7 +130,7 @@ export function AgentSettingsDialog({
               modelRefs={modelRefs}
               providerConfigs={providerConfigs}
               canConfigureHostPaths={canConfigureHostPaths}
-              onClose={() => setOpen(false)}
+              onClose={() => handleOpenChange(false)}
             />
           ) : (
             <p className="text-xs text-muted-foreground sm:text-sm">Loading agent settings...</p>

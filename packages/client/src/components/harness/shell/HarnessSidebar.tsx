@@ -49,14 +49,15 @@ export function HarnessSidebar({
 }) {
   const store = useHarnessStore();
 
-  const createSidebarAgent = async () => {
+  const createSidebarAgent = async (): Promise<AgentConfig | undefined> => {
     try {
-      await store.createAgent({
+      return await store.createAgent({
         name: `Agent ${visibleAgents.length + 1}`,
         defaultModelRefId: store.modelRefs[0]?.id,
       });
     } catch (error) {
       showError("Unable to create agent", error);
+      return undefined;
     }
   };
 
@@ -85,7 +86,7 @@ export function HarnessSidebar({
           activeUserId={store.activeUserId}
           modelRefs={store.modelRefs}
           providerConfigs={store.providerConfigs}
-          onCreateAgent={() => void createSidebarAgent()}
+          onCreateAgent={createSidebarAgent}
         />
         <Tabs
           value={sidebarMode}

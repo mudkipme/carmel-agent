@@ -1,4 +1,5 @@
 import { BotIcon } from "lucide-react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AgentSettingsDialog } from "@/components/harness/AgentSettingsDialog";
 import { Badge } from "@/components/ui/badge";
@@ -20,10 +21,19 @@ export function AgentSelector({
   activeUserId: string;
   modelRefs: ModelRef[];
   providerConfigs: ProviderConfig[];
-  onCreateAgent: () => void;
+  onCreateAgent: () => Promise<AgentConfig | undefined>;
 }) {
   const navigate = useNavigate();
   const setActiveAgent = useHarnessStore((state) => state.setActiveAgent);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const createAgent = async () => {
+    const createdAgent = await onCreateAgent();
+    if (!createdAgent) return;
+    setActiveAgent(createdAgent.id);
+    navigate(`/agents/${createdAgent.id}`);
+    setSettingsOpen(true);
+  };
 
   return (
     <section className="flex flex-col gap-1">
@@ -66,9 +76,11 @@ export function AgentSelector({
             modelRefs={modelRefs}
             providerConfigs={providerConfigs}
             triggerClassName="opacity-100"
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
           />
         ) : null}
-        <Button size="icon-sm" variant="ghost" disabled={!modelRefs.length} onClick={onCreateAgent} title="New agent">
+        <Button size="icon-sm" variant="ghost" disabled={!modelRefs.length} onClick={() => void createAgent()} title="New agent">
           <BotIcon />
         </Button>
       </div>
