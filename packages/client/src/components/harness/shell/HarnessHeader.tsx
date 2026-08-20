@@ -18,7 +18,7 @@ export function HarnessHeader({
   onOpenSettings: () => void;
 }) {
   return (
-    <header className="flex h-11 items-center justify-between gap-3 border-b bg-background px-4">
+    <header className="flex h-[var(--header-height)] shrink-0 items-center justify-between gap-3 border-b bg-background px-3">
       <div className="flex min-w-0 items-center gap-2">
         <Button
           size="icon-sm"
@@ -30,13 +30,13 @@ export function HarnessHeader({
         </Button>
         <div className="min-w-0">
           <h2 className="truncate text-[13px] font-medium">{activeSession?.title ?? "No session"}</h2>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="text-ui-smaller truncate text-muted-foreground">
             {activeAgent?.workingDir ?? "No working directory"} · {activeModel?.label ?? "No model"}
           </p>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Button variant="outline" size="icon-sm" title="Settings" onClick={onOpenSettings}>
+        <Button variant="ghost" size="icon-sm" title="Settings" onClick={onOpenSettings}>
           <SettingsIcon />
         </Button>
       </div>

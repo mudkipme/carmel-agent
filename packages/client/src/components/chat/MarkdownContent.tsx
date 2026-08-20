@@ -17,7 +17,7 @@ const components: Components = {
     </a>
   ),
   table: ({ children, ...props }) => (
-    <div className="my-2 overflow-x-auto rounded border border-border">
+    <div className="my-4 overflow-x-auto">
       <table {...props}>{children}</table>
     </div>
   ),

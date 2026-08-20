@@ -36,10 +36,8 @@ export function SessionList({
       {sessions.map((session) => (
         <div
           key={session.id}
-          className={cn(
-            "group flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 transition-colors hover:bg-accent hover:text-accent-foreground",
-            session.id === activeSessionId && "bg-accent text-accent-foreground",
-          )}
+          data-active={session.id === activeSessionId}
+          className="nav-item group flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5"
         >
           <button
             className="flex h-full min-w-0 flex-1 items-center text-left"
@@ -51,7 +49,7 @@ export function SessionList({
           >
             <span className="sr-only">Open session</span>
             <span className="flex min-w-0 items-center gap-1.5">
-              {session.pinnedAt ? <Pin className="size-3 shrink-0 text-muted-foreground" /> : null}
+              {session.pinnedAt ? <Pin className="size-3 shrink-0 text-faint" /> : null}
               <span className="truncate text-[13px]">{session.title}</span>
             </span>
           </button>
@@ -82,7 +80,7 @@ function SessionActions({
     <div className="relative flex h-full w-8 shrink-0 items-center justify-end">
       <span
         className={cn(
-          "coarse-pointer-hidden text-xs text-muted-foreground transition-opacity group-hover:opacity-0 group-focus-within:opacity-0",
+          "coarse-pointer-hidden text-ui-smaller text-muted-foreground transition-opacity group-hover:opacity-0 group-focus-within:opacity-0",
           open && "opacity-0",
         )}
       >

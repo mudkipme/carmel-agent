@@ -64,16 +64,16 @@ export function HarnessSidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-30 flex min-h-0 flex-col border-r bg-muted/50 shadow-lg transition-transform duration-200 lg:static lg:z-auto lg:shrink-0 lg:shadow-none",
+        "fixed inset-y-0 left-0 z-30 flex min-h-0 flex-col border-r bg-sidebar shadow-lg transition-transform duration-200 lg:static lg:z-auto lg:shrink-0 lg:shadow-none",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:hidden",
       )}
       style={{ width: sidebarWidth }}
     >
-      <div className="flex h-11 items-center gap-2 border-b px-3">
-        <img src="/apple-touch-icon.png" alt="" className="size-7 rounded-md" draggable={false} />
+      <div className="flex h-[var(--header-height)] shrink-0 items-center gap-2 px-3">
+        <img src="/apple-touch-icon.png" alt="" className="size-6 rounded" draggable={false} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[13px] font-medium">Carmel Agent</h1>
-          <p className="truncate text-xs text-muted-foreground">{activeUser?.email}</p>
+          <p className="text-ui-smaller truncate text-muted-foreground">{activeUser?.email}</p>
         </div>
         <Button size="icon-sm" variant="ghost" title="Collapse sidebar" onClick={onClose}>
           <PanelLeftCloseIcon />
@@ -125,7 +125,7 @@ export function HarnessSidebar({
         aria-valuemin={MIN_SIDEBAR_WIDTH}
         aria-valuemax={MAX_SIDEBAR_WIDTH}
         aria-valuenow={sidebarWidth}
-        className="absolute inset-y-0 right-[-3px] hidden w-2 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-border/80 focus-visible:bg-border/80 focus-visible:outline-none lg:block"
+        className="absolute inset-y-0 right-[-3px] hidden w-2 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-[var(--ui2)] focus-visible:bg-[var(--ui2)] focus-visible:outline-none lg:block"
         onPointerDown={onStartResize}
         onDoubleClick={onResetWidth}
       />

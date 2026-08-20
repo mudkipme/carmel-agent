@@ -24,14 +24,14 @@ export function CodeBlock({ code, language }: CodeBlockProps) {
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
+    <div className="overflow-hidden rounded-md border border-border bg-muted">
       <div className="flex items-center justify-between px-3 py-1">
-        <span className="font-mono text-xs text-muted-foreground">{displayLanguage}</span>
+        <span className="text-ui-smaller font-mono text-faint">{displayLanguage}</span>
         <button
           type="button"
           onClick={() => void handleCopy()}
           title="Copy code"
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
+          className="text-ui-smaller inline-flex items-center gap-1 rounded px-2 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           {copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
           <span>{copied ? "Copied!" : "Copy"}</span>

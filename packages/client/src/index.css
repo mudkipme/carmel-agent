@@ -42,75 +42,173 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-faint: var(--faint-foreground);
+  --color-link: var(--link);
+  --font-sans: var(--font-interface);
+  --font-mono: var(--font-monospace);
+}
+
+/* --------------------------------------------------------------------------
+   Dynamic color, after Obsidian's Minimal theme.
+
+   Almost every surface, border and text shade is derived from two HSL triples:
+   a neutral base and a muted accent. Retune the six knobs below and the whole
+   interface follows.
+
+     Hue        0-360   0 red, 120 green, 240 blue
+     Saturation 0-100%  0% is fully desaturated
+     Lightness  0-100%  0% black, 100% white
+
+   The derived ramps keep Minimal's naming so they stay easy to compare against
+   the upstream theme:
+
+     bg1..bg3  backgrounds (bg3 is a translucent hover wash)
+     ui1..ui3  borders: rest, hover, focus
+     tx1..tx4  text: normal, muted, faint, code
+     ax0..ax3  accent: solid, link, link-hover, interactive
+   -------------------------------------------------------------------------- */
+
+:root {
+  --base-h: 0;
+  --base-s: 0%;
+  --base-l: 96%;
+
+  --accent-h: 201;
+  --accent-s: 17%;
+  --accent-l: 50%;
+
+  --radius: 0.5rem;
+
+  --font-interface: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Ubuntu, sans-serif;
+  --font-monospace: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Roboto Mono", monospace;
+
+  /* Minimal's metrics: a compact chrome around a comfortable reading column. */
+  --line-height: 1.5;
+  /* Minimal's reading measure is 40rem. The chat column runs wider because it
+     also carries code blocks, diffs and tool output. */
+  --line-width: 48rem;
+  --header-height: 40px;
+  --input-height: 32px;
+  --font-ui-smaller: 11px;
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --bg1: hsl(var(--base-h), var(--base-s), 100%);
+  --bg2: hsl(var(--base-h), var(--base-s), var(--base-l));
+  --bg3: hsla(var(--base-h), var(--base-s), calc(var(--base-l) - 50%), 0.12);
+
+  --ui1: hsl(var(--base-h), var(--base-s), calc(var(--base-l) - 6%));
+  --ui2: hsl(var(--base-h), var(--base-s), calc(var(--base-l) - 12%));
+  --ui3: hsl(var(--base-h), var(--base-s), calc(var(--base-l) - 20%));
+
+  --tx1: hsl(var(--base-h), var(--base-s), calc(var(--base-l) - 90%));
+  --tx2: hsl(var(--base-h), calc(var(--base-s) - 20%), calc(var(--base-l) - 50%));
+  --tx3: hsl(var(--base-h), calc(var(--base-s) - 10%), calc(var(--base-l) - 25%));
+  --tx4: hsl(var(--base-h), calc(var(--base-s) - 10%), calc(var(--base-l) - 60%));
+
+  /* ax0 is a darkened step Minimal has no need for: it backs filled buttons,
+     where white label text has to stay legible. */
+  --ax0: hsl(var(--accent-h), calc(var(--accent-s) + 4%), calc(var(--accent-l) - 12%));
+  --ax1: hsl(var(--accent-h), calc(var(--accent-s) + 8%), calc(var(--accent-l) - 8%));
+  --ax2: hsl(var(--accent-h), calc(var(--accent-s) + 8%), calc(var(--accent-l) - 16%));
+  --ax3: hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) + 6%));
+
+  --hl1: hsla(var(--accent-h), 50%, calc(var(--base-l) - 20%), 0.3);
+  --sp1: hsl(var(--base-h), var(--base-s), 100%);
+
+  --color-red: hsl(351, 62%, 42%);
+  --color-orange: hsl(23, 66%, 40%);
+  --color-yellow: hsl(38, 70%, 35%);
+  --color-green: hsl(80, 45%, 30%);
+  --color-cyan: hsl(173, 45%, 30%);
+  --color-blue: hsl(207, 45%, 40%);
+  --color-purple: hsl(258, 40%, 46%);
+  --color-pink: hsl(334, 45%, 42%);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --base-l: 15%;
+  --accent-l: 60%;
+
+  --bg1: hsl(var(--base-h), var(--base-s), var(--base-l));
+  --bg2: hsl(var(--base-h), var(--base-s), calc(var(--base-l) - 2%));
+  --bg3: hsla(var(--base-h), var(--base-s), calc(var(--base-l) + 40%), 0.12);
+
+  --ui1: hsl(var(--base-h), var(--base-s), calc(var(--base-l) + 6%));
+  --ui2: hsl(var(--base-h), var(--base-s), calc(var(--base-l) + 12%));
+  --ui3: hsl(var(--base-h), var(--base-s), calc(var(--base-l) + 20%));
+
+  --tx1: hsl(var(--base-h), calc(var(--base-s) - 10%), calc(var(--base-l) + 67%));
+  --tx2: hsl(var(--base-h), calc(var(--base-s) - 20%), calc(var(--base-l) + 45%));
+  --tx3: hsl(var(--base-h), calc(var(--base-s) - 10%), calc(var(--base-l) + 20%));
+  --tx4: hsl(var(--base-h), calc(var(--base-s) - 10%), calc(var(--base-l) + 50%));
+
+  --ax0: hsl(var(--accent-h), calc(var(--accent-s) + 4%), calc(var(--accent-l) + 4%));
+  --ax1: hsl(var(--accent-h), calc(var(--accent-s) + 8%), calc(var(--accent-l) + 8%));
+  --ax2: hsl(var(--accent-h), calc(var(--accent-s) + 8%), calc(var(--accent-l) + 16%));
+  --ax3: hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) - 5%));
+
+  --hl1: hsla(var(--accent-h), 50%, 40%, 0.3);
+  --sp1: hsl(var(--base-h), var(--base-s), 100%);
+
+  --color-red: hsl(351, 60%, 60%);
+  --color-orange: hsl(23, 64%, 60%);
+  --color-yellow: hsl(38, 69%, 65%);
+  --color-green: hsl(80, 38%, 61%);
+  --color-cyan: hsl(173, 34%, 59%);
+  --color-blue: hsl(207, 36%, 62%);
+  --color-purple: hsl(258, 38%, 70%);
+  --color-pink: hsl(334, 37%, 62%);
+}
+
+/* Map the Minimal ramps onto the semantic names the components consume. */
+:root,
+.dark {
+  --background: var(--bg1);
+  --foreground: var(--tx1);
+  --card: var(--bg1);
+  --card-foreground: var(--tx1);
+  --popover: var(--bg1);
+  --popover-foreground: var(--tx1);
+
+  --primary: var(--ax0);
+  --primary-foreground: var(--sp1);
+  --secondary: var(--bg3);
+  --secondary-foreground: var(--tx1);
+  --muted: var(--bg2);
+  --muted-foreground: var(--tx2);
+  --faint-foreground: var(--tx3);
+  --accent: var(--bg3);
+  --accent-foreground: var(--tx1);
+  --destructive: var(--color-red);
+
+  --link: var(--ax1);
+  --link-hover: var(--ax2);
+
+  --border: var(--ui1);
+  --border-hover: var(--ui2);
+  --input: var(--ui1);
+  --ring: var(--ui3);
+
+  --chart-1: var(--color-blue);
+  --chart-2: var(--color-green);
+  --chart-3: var(--color-orange);
+  --chart-4: var(--color-purple);
+  --chart-5: var(--color-cyan);
+
+  --sidebar: var(--bg2);
+  --sidebar-foreground: var(--tx1);
+  --sidebar-primary: var(--ax0);
+  --sidebar-primary-foreground: var(--sp1);
+  --sidebar-accent: var(--bg3);
+  --sidebar-accent-foreground: var(--tx1);
+  --sidebar-border: var(--ui1);
+  --sidebar-ring: var(--ui3);
+}
+
+.dark {
+  --primary-foreground: hsl(var(--base-h), var(--base-s), 10%);
+  --sidebar-primary-foreground: hsl(var(--base-h), var(--base-s), 10%);
 }
 
 @layer base {
@@ -135,8 +233,51 @@
     min-width: 320px;
     min-height: 100%;
     overflow: hidden;
-    font-family:
-      Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--font-interface);
+    line-height: var(--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: var(--hl1);
+  }
+
+  /* Minimal keeps scrollbars out of the way until you go looking for them. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  *:hover,
+  *:focus-within {
+    scrollbar-color: var(--ui2) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 4px solid transparent;
+    border-radius: 8px;
+    background-color: transparent;
+    background-clip: content-box;
+  }
+
+  :hover::-webkit-scrollbar-thumb,
+  :focus-within::-webkit-scrollbar-thumb {
+    background-color: var(--ui2);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ui3);
   }
 
   @media (pointer: coarse) {
@@ -158,6 +299,38 @@
       opacity: 0 !important;
     }
   }
+
+  .text-ui-smaller {
+    font-size: var(--font-ui-smaller);
+    line-height: 1.4;
+  }
+
+  /* Minimal's section labels in the file explorer: small, spaced, receding. */
+  .nav-label {
+    font-size: var(--font-ui-smaller);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--tx2);
+  }
+
+  /* Nav rows read as muted text until hovered or selected. */
+  .nav-item {
+    color: var(--tx2);
+    transition:
+      color 100ms ease,
+      background-color 100ms ease;
+  }
+
+  .nav-item:hover {
+    background-color: var(--bg3);
+    color: var(--tx1);
+  }
+
+  .nav-item[data-active="true"] {
+    background-color: var(--bg3);
+    color: var(--tx1);
+  }
 }
 
 .agent-chat-host {
@@ -166,45 +339,73 @@
 
 .agent-chat-host .markdown-content {
   font-size: 14px;
-  line-height: 1.45;
+  line-height: var(--line-height);
   max-width: 100%;
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-.markdown-content h1 {
-  margin: 1.25rem 0 0.5rem;
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1.2;
+/* --------------------------------------------------------------------------
+   Markdown, on Minimal's type scale.
+
+   Minimal deliberately refuses a dramatic heading ramp — h1 is only 1.125em and
+   h3 matches body copy exactly. Hierarchy comes from weight and the space above
+   a heading, not from size.
+   -------------------------------------------------------------------------- */
+
+.markdown-content {
+  line-height: var(--line-height);
 }
 
-.markdown-content h2 {
-  margin: 1rem 0 0.5rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.markdown-content h3 {
-  margin: 0.75rem 0 0.5rem;
-  font-size: 1.125rem;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-  margin: 0.75rem 0 0.25rem;
+  margin: 1.5em 0 0.5em;
+  line-height: 1.3;
+}
+
+.markdown-content h1 {
+  font-size: 1.125em;
   font-weight: 600;
-  line-height: 1.35;
+}
+
+.markdown-content h2 {
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.markdown-content h3 {
+  font-size: 1em;
+  font-weight: 500;
+}
+
+.markdown-content h4 {
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.markdown-content h5 {
+  font-size: 0.85em;
+  font-weight: 500;
+  font-variant: small-caps;
+}
+
+.markdown-content h6 {
+  font-size: 0.85em;
+  font-weight: 400;
+  font-variant: small-caps;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
 }
 
 .markdown-content p {
-  margin-top: 1rem;
-  line-height: 1.65;
+  margin-top: 1em;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -214,15 +415,21 @@
 }
 
 .markdown-content a {
-  color: var(--primary);
-  text-decoration: underline;
+  color: var(--link);
+  text-decoration: none;
   text-underline-offset: 2px;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
+.markdown-content a:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+}
+
 .markdown-content strong {
   font-weight: 600;
+  color: var(--tx1);
 }
 
 .markdown-content em {
@@ -231,8 +438,8 @@
 
 .markdown-content ul,
 .markdown-content ol {
-  margin: 1rem 0;
-  padding-left: 1.5rem;
+  margin: 0.75em 0;
+  padding-left: 1.5em;
 }
 
 .markdown-content ul {
@@ -244,34 +451,42 @@
 }
 
 .markdown-content li {
-  margin-top: 0.5rem;
-  line-height: 1.65;
+  margin-top: 0.2em;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
+.markdown-content li::marker {
+  color: var(--tx3);
+}
+
 .markdown-content li > ul,
 .markdown-content li > ol {
-  margin: 0.5rem 0 0;
+  margin: 0.2em 0 0;
 }
 
 .markdown-content blockquote {
-  margin: 1rem 0;
-  border-left: 4px solid var(--border);
-  padding-left: 1rem;
-  color: var(--muted-foreground);
+  margin: 1em 0;
+  border-left: 1px solid var(--ui2);
+  padding-left: 1.1em;
+  color: var(--tx2);
+  font-style: normal;
 }
 
 .markdown-content code:not(.hljs) {
-  border-radius: 0.25rem;
-  background: var(--muted);
-  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  background: var(--bg3);
+  padding: 0.1em 0.35em;
+  color: var(--tx4);
+  font-family: var(--font-monospace);
   font-size: 0.875em;
 }
 
+/* Minimal's tables rule horizontally only — no column borders, no filled header. */
 .markdown-content table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.95em;
 }
 
 .markdown-content .overflow-x-auto {
@@ -280,46 +495,40 @@
 
 .markdown-content th,
 .markdown-content td {
-  border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  padding: 0.5rem;
+  border-bottom: 1px solid var(--ui1);
+  padding: 0.4em 0.75em;
   text-align: left;
 }
 
 .markdown-content th {
-  background: var(--muted);
-  font-weight: 600;
+  border-bottom-color: var(--ui2);
+  color: var(--tx2);
+  font-weight: 500;
 }
 
-.markdown-content th:last-child,
-.markdown-content td:last-child {
-  border-right: 0;
+.markdown-content tr:last-child td {
+  border-bottom: 0;
 }
 
 .markdown-content hr {
-  margin: 2rem 0;
+  margin: 2em 0;
   border: 0;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--ui1);
 }
 
-:root {
-  --syntax-keyword: oklch(0.577 0.245 27.325);
-  --syntax-entity: oklch(0.511 0.136 307.715);
-  --syntax-constant: oklch(0.435 0.141 237.016);
-  --syntax-string: oklch(0.296 0.103 244.038);
-  --syntax-variable: oklch(0.608 0.178 54.291);
-  --syntax-comment: oklch(0.54 0.019 247.858);
-  --syntax-tag: oklch(0.403 0.111 145.348);
-}
+/* --------------------------------------------------------------------------
+   Syntax highlighting, drawn from Minimal's eight accent colours.
+   -------------------------------------------------------------------------- */
 
+:root,
 .dark {
-  --syntax-keyword: oklch(0.698 0.159 21.174);
-  --syntax-entity: oklch(0.792 0.124 307.715);
-  --syntax-constant: oklch(0.732 0.137 237.016);
-  --syntax-string: oklch(0.786 0.08 237.016);
-  --syntax-variable: oklch(0.74 0.141 54.291);
-  --syntax-comment: oklch(0.626 0.025 247.858);
-  --syntax-tag: oklch(0.812 0.159 145.348);
+  --syntax-keyword: var(--color-purple);
+  --syntax-entity: var(--color-blue);
+  --syntax-constant: var(--color-orange);
+  --syntax-string: var(--color-green);
+  --syntax-variable: var(--color-cyan);
+  --syntax-comment: var(--tx3);
+  --syntax-tag: var(--color-red);
 }
 
 .hljs-doctag,

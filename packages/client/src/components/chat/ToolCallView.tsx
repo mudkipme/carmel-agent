@@ -20,7 +20,7 @@ export function ToolCallView({ toolCall, result, pending = false, aborted = fals
   const images = getToolResultImages(result);
 
   return (
-    <div className="rounded-md border bg-card text-card-foreground shadow-xs">
+    <div className="rounded-md border bg-card text-card-foreground">
       <button
         type="button"
         className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm"

@@ -22,7 +22,7 @@ export function SidebarTabsToolbar({
 
   return (
     <div className="flex items-center gap-2 px-2">
-      <TabsList className="grid h-8 flex-1 grid-cols-2">
+      <TabsList variant="line" className="grid h-[var(--input-height)] flex-1 grid-cols-2">
         <TabsTrigger value="sessions" className="text-xs">
           Sessions
         </TabsTrigger>

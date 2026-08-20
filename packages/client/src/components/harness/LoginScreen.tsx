@@ -24,7 +24,7 @@ export function LoginScreen() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <main className="flex min-h-screen items-center justify-center bg-muted p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Carmel Agent</CardTitle>

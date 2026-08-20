@@ -38,8 +38,8 @@ export function AgentSelector({
   return (
     <section className="flex flex-col gap-1">
       <div className="flex items-center justify-between px-2">
-        <h2 className="text-xs font-normal text-muted-foreground">Agent</h2>
-        <Badge variant="secondary">{visibleAgents.length}</Badge>
+        <h2 className="nav-label">Agent</h2>
+        <span className="text-ui-smaller text-faint">{visibleAgents.length}</span>
       </div>
       <div className="flex items-center gap-1">
         <Select
@@ -50,7 +50,7 @@ export function AgentSelector({
             navigate(`/agents/${agentId}`);
           }}
         >
-          <SelectTrigger className="h-8 min-w-0 flex-1 bg-background px-2 text-[13px]">
+          <SelectTrigger className="h-[var(--input-height)] min-w-0 flex-1 px-2 text-[13px]">
             <SelectValue placeholder="Select agent" />
           </SelectTrigger>
           <SelectContent className="max-w-[280px]">

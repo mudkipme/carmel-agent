@@ -127,7 +127,7 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        "relative rounded-lg border bg-card shadow-xs",
+        "relative rounded-lg border bg-background transition-colors focus-within:border-[var(--border-hover)]",
         dragging && "border-primary bg-primary/5",
       )}
       onDragOver={(event) => {

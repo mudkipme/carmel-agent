@@ -90,7 +90,7 @@ export function ChatPanel({
           autoScrollRef.current = distanceFromBottom < 48;
         }}
       >
-        <div ref={contentRef} className="mx-auto flex w-full max-w-3xl min-w-0 flex-col px-3 py-4">
+        <div ref={contentRef} className="mx-auto flex w-full max-w-[var(--line-width)] min-w-0 flex-col px-3 py-4">
           <ChatMessages
             messages={messages}
             streamingMessage={streamingMessage}
@@ -103,7 +103,7 @@ export function ChatPanel({
         </div>
       </div>
       <div className="shrink-0 px-3 pb-3">
-        <div className="mx-auto w-full max-w-3xl min-w-0">
+        <div className="mx-auto w-full max-w-[var(--line-width)] min-w-0">
           <ChatInput
             ref={inputRef}
             currentModel={currentModel}

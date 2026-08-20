@@ -85,9 +85,15 @@ export function AgentCommandPalette({ agent, onInsert, className }: AgentCommand
 
   return (
     <>
-      <Button className={className} variant="outline" size="sm" onClick={() => setPaletteOpen(true)}>
-        <CommandIcon data-icon="inline-start" />
-        Commands
+      <Button
+        className={className}
+        variant="ghost"
+        size="icon-sm"
+        title="Commands"
+        aria-label="Commands"
+        onClick={() => setPaletteOpen(true)}
+      >
+        <CommandIcon />
       </Button>
       <CommandDialog
         open={open}

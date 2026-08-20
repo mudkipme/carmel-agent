@@ -137,7 +137,7 @@ function UserMessage({ message }: { message: AgentMessage }) {
 
   return (
     <div className="flex min-w-0 justify-start px-4">
-      <div className="min-w-0 max-w-full rounded-xl bg-muted px-4 py-2 text-sm">
+      <div className="min-w-0 max-w-full rounded-lg bg-secondary px-3.5 py-2 text-sm">
         {skill ? (
           <details>
             <summary className="cursor-pointer text-sm font-medium">Using skill: {skill.name}</summary>
@@ -235,7 +235,7 @@ function AssistantMessage({
         }
         if (part.type === "thinking" && part.thinking.trim()) {
           return (
-            <details key={index} className="min-w-0 rounded-md border bg-muted/50 px-3 py-2 text-muted-foreground" open={streaming}>
+            <details key={index} className="min-w-0 border-l pl-3 text-muted-foreground" open={streaming}>
               <summary className="cursor-pointer text-xs font-medium">Thinking</summary>
               <div className="mt-2">
                 <MarkdownContent content={part.thinking} thinking />

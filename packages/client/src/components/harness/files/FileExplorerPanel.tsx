@@ -15,7 +15,6 @@ import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 import { confirmAction, promptText } from "@/lib/action-dialogs";
 import { errorMessage, showError } from "@/lib/errors";
-import { cn } from "@/lib/utils";
 
 type FileExplorerPanelProps = {
   agent?: AgentConfig;
@@ -161,7 +160,7 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
           >
             <ChevronLeftIcon />
           </Button>
-          <span className="truncate text-xs text-muted-foreground">{currentPath || "."}</span>
+          <span className="text-ui-smaller truncate font-mono text-muted-foreground">{currentPath || "."}</span>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <Button size="icon-xs" variant="ghost" title="New file" onClick={() => void createEntry("file")}>
@@ -179,7 +178,7 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
         <span>Show hidden files</span>
         <Switch size="sm" checked={showHidden} onCheckedChange={toggleShowHidden} />
       </label>
-      {error ? <p className="px-2 text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="px-2 text-xs break-words text-destructive">{error}</p> : null}
       <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto">
         {loading ? <p className="px-2 py-1.5 text-xs text-muted-foreground">Loading files...</p> : null}
         {!loading && entries.length === 0 ? (
@@ -188,10 +187,8 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
         {entries.map((entry) => (
           <div
             key={entry.path}
-            className={cn(
-              "group flex cursor-default items-center gap-1 rounded-md px-2 py-1.5 transition-colors hover:bg-accent hover:text-accent-foreground",
-              entry.path === selectedFilePath && "bg-accent text-accent-foreground",
-            )}
+            data-active={entry.path === selectedFilePath}
+            className="nav-item group flex cursor-default items-center gap-1 rounded-md px-2 py-1.5"
             role="button"
             tabIndex={0}
             onClick={() => openEntry(entry)}
@@ -199,9 +196,9 @@ export function FileExplorerPanel({ agent, selectedFilePath, onOpenFile, onAfter
           >
             <div className="flex min-w-0 flex-1 items-center gap-2">
               {entry.type === "directory" ? (
-                <FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                <FolderIcon className="size-3.5 shrink-0 text-faint" />
               ) : (
-                <FileIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                <FileIcon className="size-3.5 shrink-0 text-faint" />
               )}
               <span className="truncate text-[13px]">{entry.name}</span>
             </div>

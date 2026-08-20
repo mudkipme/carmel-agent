@@ -104,19 +104,19 @@ export function SettingsPage() {
 
   return (
     <main className="flex h-screen min-h-0 flex-col bg-background text-foreground">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b px-4">
+      <header className="flex h-[var(--header-height)] shrink-0 items-center gap-3 border-b px-3">
         <div className="flex min-w-0 items-center gap-2">
           <Button variant="ghost" size="icon-sm" title="Back to harness" onClick={() => navigate("/")}>
             <ArrowLeftIcon />
           </Button>
           <div className="min-w-0">
             <h1 className="truncate text-sm font-medium">Harness Settings</h1>
-            <p className="truncate text-xs text-muted-foreground">Manage global provider and model settings.</p>
+            <p className="text-ui-smaller truncate text-muted-foreground">Manage global provider and model settings.</p>
           </div>
         </div>
       </header>
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <aside className="shrink-0 border-b bg-muted/35 p-2 md:w-56 md:border-r md:border-b-0">
+        <aside className="shrink-0 border-b bg-sidebar p-2 md:w-56 md:border-r md:border-b-0">
           <nav className="grid grid-cols-2 gap-1 md:grid-cols-1">
             {settingsSections.map((item) => {
               const Icon = item.icon;
@@ -124,11 +124,9 @@ export function SettingsPage() {
                 <NavLink
                   key={item.id}
                   to={`/settings/${item.id}`}
+                  data-active={item.id === activeSection}
                   className={({ isActive }) =>
-                    cn(
-                      "flex h-9 items-center gap-2 rounded-md px-3 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      isActive && "bg-accent text-accent-foreground",
-                    )
+                    cn("nav-item flex h-8 items-center gap-2 rounded-md px-2.5 text-[13px]", isActive && "font-medium")
                   }
                 >
                   <Icon data-icon="inline-start" />
