@@ -173,7 +173,7 @@ export function HarnessShell() {
         onOpenImport={() => setImportDialogOpen(true)}
       />
 
-      <section className="flex min-w-0 flex-1 flex-col">
+      <section className="flex min-w-0 flex-1 flex-col pr-[var(--safe-right)]">
         <HarnessHeader
           sidebarOpen={sidebarOpen}
           activeAgent={activeAgent}

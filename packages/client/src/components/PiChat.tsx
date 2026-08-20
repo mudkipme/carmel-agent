@@ -43,6 +43,7 @@ export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConf
             currentModel={snapshot.model}
             thinkingLevel={snapshot.thinkingLevel}
             inputRef={chatInputRef}
+            inputLeadingActions={<AgentCommandPalette agent={agentConfig} onInsert={insertCommandText} />}
             initialInput={inputDraftRef.current}
             onInputDraftChange={(value) => { inputDraftRef.current = value; }}
             onThinkingLevelChange={modelSelection.setThinkingLevel}
@@ -56,9 +57,6 @@ export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConf
         ) : (
           <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">Loading chat...</div>
         )}
-        <div className="absolute right-3 top-3">
-          <AgentCommandPalette agent={agentConfig} onInsert={insertCommandText} />
-        </div>
       </div>
       <ModelCommandDialog
         open={modelDialogOpen}

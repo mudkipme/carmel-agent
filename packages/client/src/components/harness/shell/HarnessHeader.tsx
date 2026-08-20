@@ -18,7 +18,7 @@ export function HarnessHeader({
   onOpenSettings: () => void;
 }) {
   return (
-    <header className="flex h-[var(--header-height)] shrink-0 items-center justify-between gap-3 border-b bg-background px-3">
+    <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-3 border-b bg-background px-3 pt-[var(--safe-top)]">
       <div className="flex min-w-0 items-center gap-2">
         <Button
           size="icon-sm"

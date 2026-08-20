@@ -90,6 +90,69 @@
   --header-height: 40px;
   --input-height: 32px;
   --font-ui-smaller: 11px;
+
+  /* The document is served with viewport-fit=cover and installs as a
+     standalone PWA, so every edge of the shell has to inset itself. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* The keyboard covers the home indicator, so its inset would only push the
+   composer up into a blank gap. See lib/viewport.ts. */
+:root[data-keyboard-open] {
+  --safe-bottom: 0px;
+}
+
+/* Touch pointers need room. Minimal grows its own chrome on phones the same
+   way; this keeps controls at or above the 40px the platform guidelines ask
+   for without changing anything on a mouse-driven desktop. */
+@media (pointer: coarse) {
+  :root {
+    --header-height: 52px;
+    --input-height: 40px;
+  }
+
+  [data-slot="button"][data-size="icon"],
+  [data-slot="button"][data-size="icon-sm"] {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  [data-slot="button"][data-size="icon-xs"] {
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  [data-slot="button"][data-size="sm"],
+  [data-slot="button"][data-size="default"] {
+    min-height: 40px;
+  }
+
+  [data-slot="select-trigger"],
+  [data-slot="dropdown-menu-item"],
+  [data-slot="select-item"] {
+    min-height: 40px;
+  }
+
+  .nav-item {
+    min-height: 40px;
+  }
+}
+
+/* A phone in landscape has under 400px of height. Left alone, the header plus a
+   five-line composer leave about 100px for the transcript, so both give ground.
+   Declared after the coarse block so it wins on source order. */
+@media (max-height: 500px) {
+  :root {
+    --header-height: 44px;
+  }
+
+  .agent-chat-host textarea {
+    min-height: 2.25rem;
+    max-height: 5rem;
+  }
 }
 
 :root {
@@ -331,6 +394,16 @@
     background-color: var(--bg3);
     color: var(--tx1);
   }
+}
+
+/* Grid and flex items default to `min-width: auto`, so a single intrinsically
+   wide child sizes the whole track and the panel scrolls sideways: an unbroken
+   email address in the user list, a `field-sizing: content` textarea in the
+   agent dialog. Every stack on these surfaces is a single column that should
+   shrink and let its content truncate instead. */
+[data-slot="dialog-content"] :is(.grid, .flex) > *,
+[data-settings-content] :is(.grid, .flex) > * {
+  min-width: 0;
 }
 
 .agent-chat-host {

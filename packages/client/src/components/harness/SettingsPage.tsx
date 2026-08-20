@@ -103,8 +103,8 @@ export function SettingsPage() {
   };
 
   return (
-    <main className="flex h-screen min-h-0 flex-col bg-background text-foreground">
-      <header className="flex h-[var(--header-height)] shrink-0 items-center gap-3 border-b px-3">
+    <main className="flex h-[100dvh] min-h-0 flex-col bg-background pr-[var(--safe-right)] pl-[var(--safe-left)] text-foreground">
+      <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center gap-3 border-b px-3 pt-[var(--safe-top)]">
         <div className="flex min-w-0 items-center gap-2">
           <Button variant="ghost" size="icon-sm" title="Back to harness" onClick={() => navigate("/")}>
             <ArrowLeftIcon />
@@ -137,7 +137,10 @@ export function SettingsPage() {
           </nav>
         </aside>
         <section className="min-w-0 min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-4 p-3 sm:p-4 md:p-6">
+          <div
+            data-settings-content
+            className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-4 p-3 pb-[calc(0.75rem+var(--safe-bottom))] sm:p-4 sm:pb-[calc(1rem+var(--safe-bottom))] md:p-6 md:pb-[calc(1.5rem+var(--safe-bottom))]"
+          >
             {activeSection === "models" ? (
               <ModelSettings
                 modelRefs={modelRefs}

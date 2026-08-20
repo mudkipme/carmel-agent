@@ -2,7 +2,16 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import { BrainIcon, Loader2Icon, PaperclipIcon, SendIcon, SparklesIcon, SquareIcon, XIcon } from "lucide-react";
-import { useEffect, useImperativeHandle, useMemo, useRef, useState, type KeyboardEvent, type Ref } from "react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -27,6 +36,7 @@ export type ChatInputHandle = {
 
 type ChatInputProps = {
   ref?: Ref<ChatInputHandle>;
+  leadingActions?: ReactNode;
   currentModel: Model<Api>;
   thinkingLevel: ThinkingLevel;
   isStreaming: boolean;
@@ -44,6 +54,7 @@ type ChatInputProps = {
 // e.g. the agent teardown on model switch.
 export function ChatInput({
   ref,
+  leadingActions,
   currentModel,
   thinkingLevel,
   isStreaming,
@@ -221,6 +232,7 @@ export function ChatInput({
       />
       <div className="flex items-center justify-between gap-2 px-2 pt-1 pb-2">
         <div className="flex min-w-0 items-center gap-2">
+          {leadingActions}
           {supportsImages ? (
             <Button
               type="button"
@@ -240,7 +252,7 @@ export function ChatInput({
               disabled={isStreaming}
               onValueChange={(level) => onThinkingLevelChange(level as ThinkingLevel)}
             >
-              <SelectTrigger size="sm" className="max-w-32 border-0 shadow-none">
+              <SelectTrigger size="sm" className="max-w-28 shrink-0 border-0 shadow-none">
                 <BrainIcon />
                 <SelectValue />
               </SelectTrigger>
@@ -257,7 +269,7 @@ export function ChatInput({
           ) : null}
         </div>
         <div className="flex min-w-0 items-center gap-2">
-          <Button type="button" variant="ghost" size="sm" className="min-w-0" disabled={isStreaming} onClick={onModelSelect}>
+          <Button type="button" variant="ghost" size="sm" className="min-w-0 shrink" disabled={isStreaming} onClick={onModelSelect}>
             <SparklesIcon data-icon="inline-start" />
             <span className="truncate">{currentModel.id}</span>
           </Button>

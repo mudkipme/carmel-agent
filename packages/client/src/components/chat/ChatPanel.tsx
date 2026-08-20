@@ -1,6 +1,6 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type Ref } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode, type Ref } from "react";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMessages } from "./ChatMessages";
 
@@ -13,6 +13,7 @@ type ChatPanelProps = {
   currentModel: Model<Api>;
   thinkingLevel: ThinkingLevel;
   inputRef?: Ref<ChatInputHandle>;
+  inputLeadingActions?: ReactNode;
   initialInput?: string;
   onInputDraftChange?: (value: string) => void;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
@@ -33,6 +34,7 @@ export function ChatPanel({
   currentModel,
   thinkingLevel,
   inputRef,
+  inputLeadingActions,
   initialInput,
   onInputDraftChange,
   onThinkingLevelChange,
@@ -102,10 +104,11 @@ export function ChatPanel({
           />
         </div>
       </div>
-      <div className="shrink-0 px-3 pb-3">
+      <div className="shrink-0 px-3 pb-[calc(0.75rem+var(--safe-bottom))]">
         <div className="mx-auto w-full max-w-[var(--line-width)] min-w-0">
           <ChatInput
             ref={inputRef}
+            leadingActions={inputLeadingActions}
             currentModel={currentModel}
             thinkingLevel={thinkingLevel}
             isStreaming={isStreaming}

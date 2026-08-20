@@ -64,7 +64,7 @@ export function HarnessSidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-30 flex min-h-0 flex-col border-r bg-sidebar shadow-lg transition-transform duration-200 lg:static lg:z-auto lg:shrink-0 lg:shadow-none",
+        "fixed inset-y-0 left-0 z-30 flex min-h-0 max-w-[85vw] flex-col border-r bg-sidebar pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] shadow-lg transition-transform duration-200 lg:static lg:z-auto lg:max-w-none lg:shrink-0 lg:pl-0 lg:shadow-none",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:hidden",
       )}
       style={{ width: sidebarWidth }}

@@ -16,6 +16,17 @@ export function applyThemePreference() {
   document.documentElement.dataset.theme = resolvedTheme;
   document.documentElement.dataset.themePreference = currentThemePreference;
   document.documentElement.style.colorScheme = resolvedTheme;
+  syncThemeColorMeta();
+}
+
+// The browser/PWA chrome has to follow the theme the user actually picked, which
+// is not necessarily the one the OS reports. Reading the token back keeps this
+// honest if the palette is ever retuned.
+function syncThemeColorMeta() {
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!meta) return;
+  const background = getComputedStyle(document.documentElement).getPropertyValue("--bg1").trim();
+  if (background) meta.content = background;
 }
 
 export function setThemePreference(themePreference: ThemePreference) {
