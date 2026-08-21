@@ -1,6 +1,7 @@
 import { PanelLeftIcon, SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AgentConfig, ModelRef, SessionMetadata } from "@carmel-agent/shared";
+import { AgentAvatar } from "./AgentAvatar";
 
 export function HarnessHeader({
   sidebarOpen,
@@ -30,8 +31,12 @@ export function HarnessHeader({
         </Button>
         <div className="min-w-0">
           <h2 className="truncate text-[13px] font-medium">{activeSession?.title ?? "No session"}</h2>
-          <p className="text-ui-smaller truncate text-muted-foreground">
-            {activeAgent?.workingDir ?? "No working directory"} · {activeModel?.label ?? "No model"}
+          <p className="text-ui-smaller flex min-w-0 items-center gap-1.5 text-muted-foreground">
+            <AgentAvatar agent={activeAgent} className="size-3.5 text-[8px]" />
+            <span className="truncate">
+              {activeAgent?.name ?? "No agent"} · {activeAgent?.workingDir ?? "No working directory"} ·{" "}
+              {activeModel?.label ?? "No model"}
+            </span>
           </p>
         </div>
       </div>
