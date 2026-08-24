@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { createExtensionRoutes } from "./extensions.ts";
+import { createAgentTaskRoutes } from "./agent-tasks.ts";
 import { createAgentRoutes } from "./agents.ts";
 import { createAgentRunRoutes } from "./agent-runs.ts";
 import { createAuthRoutes } from "./auth.ts";
@@ -20,6 +21,7 @@ export function createApiRoutes() {
   api.route("/", createProviderConfigRoutes());
   api.route("/", createAgentRoutes());
   api.route("/", createExtensionRoutes());
+  api.route("/", createAgentTaskRoutes());
   api.route("/", createAgentRunRoutes());
   api.route("/", createSessionRoutes());
 

@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AgentTasksPanel } from "@/components/harness/AgentTasksPanel";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionHeader, ToggleRow } from "@/components/harness/form-primitives";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -243,10 +244,11 @@ function AgentSettings({
   return (
     <div className="grid gap-4 sm:gap-6">
       <Tabs defaultValue="agent" className="w-full">
-        <TabsList className="!grid !h-auto w-full grid-cols-3 gap-1">
+        <TabsList className="!grid !h-auto w-full grid-cols-4 gap-1">
           <TabsTrigger value="agent" className="h-8 text-xs sm:text-sm">Agent</TabsTrigger>
           <TabsTrigger value="templates" className="h-8 text-xs sm:text-sm">Templates</TabsTrigger>
           <TabsTrigger value="permissions" className="h-8 text-xs sm:text-sm">Permissions</TabsTrigger>
+          <TabsTrigger value="tasks" className="h-8 text-xs sm:text-sm">Tasks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="agent" className="mt-2">
@@ -480,6 +482,10 @@ function AgentSettings({
               ))}
             </div>
           </section>
+        </TabsContent>
+
+        <TabsContent value="tasks" className="mt-2">
+          <AgentTasksPanel agentId={agent.id} />
         </TabsContent>
       </Tabs>
 

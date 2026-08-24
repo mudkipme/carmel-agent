@@ -66,6 +66,11 @@ const migrations: Migration[] = [
     description: "Add the per-agent allowlist of admin-installed extension providers",
     run: addAgentEnabledExtensions,
   },
+  {
+    id: "018_agent_tasks",
+    description: "Create scheduled agent tasks and their run log",
+    run: createAgentTasks,
+  },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -386,6 +391,45 @@ function deduplicateModelRefs(sqlite: Sqlite) {
       remove.run(model.id);
     }
   }
+}
+
+function createAgentTasks(sqlite: Sqlite) {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS agent_tasks (
+      id TEXT PRIMARY KEY NOT NULL,
+      agent_id TEXT NOT NULL REFERENCES agents(id),
+      user_id TEXT NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      model_ref_id TEXT,
+      thinking_level TEXT,
+      schedule_kind TEXT NOT NULL,
+      schedule_value TEXT NOT NULL,
+      timezone TEXT,
+      session_id TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      next_run_at INTEGER,
+      last_run_at INTEGER,
+      last_outcome TEXT,
+      last_error TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    -- The scheduler's only hot query: active tasks that are due.
+    CREATE INDEX IF NOT EXISTS agent_tasks_due ON agent_tasks (status, next_run_at);
+    CREATE INDEX IF NOT EXISTS agent_tasks_agent ON agent_tasks (agent_id);
+
+    CREATE TABLE IF NOT EXISTS agent_task_runs (
+      id TEXT PRIMARY KEY NOT NULL,
+      task_id TEXT NOT NULL REFERENCES agent_tasks(id),
+      scheduled_for INTEGER NOT NULL,
+      started_at INTEGER NOT NULL,
+      finished_at INTEGER,
+      outcome TEXT NOT NULL,
+      detail TEXT
+    );
+    CREATE INDEX IF NOT EXISTS agent_task_runs_task ON agent_task_runs (task_id, started_at DESC);
+  `);
 }
 
 // Existing agents get an empty allowlist: installing an extension must never

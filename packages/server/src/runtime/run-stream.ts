@@ -149,6 +149,18 @@ export function finishAgentRun(run: ActiveAgentRun) {
   run.subscribers.clear();
 }
 
+/**
+ * Resolve when a run has finished.
+ *
+ * For callers with no stream to close, which is what "finished" otherwise means
+ * here. Polled rather than event-driven because `finishAgentRun` is reached
+ * from a `finally` on several paths, and adding a notification to each of them
+ * would be more surface than a scheduler tick needs.
+ */
+export async function whenRunFinished(run: ActiveAgentRun, pollMs = 200) {
+  while (!run.finished) await new Promise((resolve) => setTimeout(resolve, pollMs));
+}
+
 export function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder(), afterSequence = 0) {
   let subscriber: RunSubscriber | undefined;
   return new Response(

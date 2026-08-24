@@ -49,7 +49,7 @@ type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 type SessionRecord = typeof sessions.$inferSelect;
-export { abortAgentRun, createAgentRunEventStream, getActiveAgentRunForSession } from "./run-stream.ts";
+export { abortAgentRun, createAgentRunEventStream, getActiveAgentRunForSession, whenRunFinished } from "./run-stream.ts";
 
 export function normalizePromptInput(input?: PromptInput) {
   if (!input) return undefined;
@@ -93,6 +93,20 @@ type AgentRun = AgentRunInput & {
 };
 
 export function createAgentRunResponse(input: AgentRunInput) {
+  return createRunStream(startDetachedAgentRun(input), new TextEncoder());
+}
+
+/**
+ * Start a run with no observer attached.
+ *
+ * The HTTP path wraps this in an SSE stream; the scheduler does not, because
+ * nobody is watching a task fire. The run does not care either way -- it was
+ * always detached from the response, and `run.events` accumulates whether or
+ * not anything is subscribed.
+ *
+ * The returned run is the handle: await `whenFinished(run)` to know it is over.
+ */
+export function startDetachedAgentRun(input: AgentRunInput): ActiveAgentRun {
   const abort = new HarnessAbortGate();
   const run = createActiveAgentRun({
     runId: randomId(),
@@ -103,7 +117,7 @@ export function createAgentRunResponse(input: AgentRunInput) {
   const model = resolveServerModelRef(serializeModelRef(input.modelRef), input.providerConfig, input.modelRuntime);
 
   queueMicrotask(() => void startAgentRun({ ...input, run, abort, model }));
-  return createRunStream(run, new TextEncoder());
+  return run;
 }
 
 /**

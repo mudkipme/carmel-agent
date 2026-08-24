@@ -5,6 +5,10 @@ import type {
   AgentFileContent,
   AgentFileEntry,
   AgentFileList,
+  AgentTask,
+  AgentTaskCreateCommand,
+  AgentTaskPatchCommand,
+  AgentTaskRun,
   CreateUserRequest,
   ModelCatalog,
   ModelRefCommand,
@@ -167,6 +171,17 @@ export const api = {
     }),
   deleteAgentFileEntry: (agentId: string, path: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}/files?${new URLSearchParams({ path })}`, { method: "DELETE" }),
+  listAgentTasks: (agentId: string) => request<AgentTask[]>(`/api/agents/${agentId}/tasks`),
+  createAgentTask: (agentId: string, input: AgentTaskCreateCommand) =>
+    request<AgentTask>(`/api/agents/${agentId}/tasks`, { method: "POST", body: JSON.stringify(input) }),
+  updateAgentTask: (agentId: string, taskId: string, patch: AgentTaskPatchCommand) =>
+    request<AgentTask>(`/api/agents/${agentId}/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteAgentTask: (agentId: string, taskId: string) =>
+    request<{ ok: true }>(`/api/agents/${agentId}/tasks/${taskId}`, { method: "DELETE" }),
+  runAgentTaskNow: (agentId: string, taskId: string) =>
+    request<{ outcome: string; detail?: string }>(`/api/agents/${agentId}/tasks/${taskId}/run`, { method: "POST" }),
+  listAgentTaskRuns: (agentId: string, taskId: string) =>
+    request<AgentTaskRun[]>(`/api/agents/${agentId}/tasks/${taskId}/runs`),
   deleteAgent: (agentId: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}`, { method: "DELETE" }),
   createSession: (draft: SessionDraft & { title?: string }) =>

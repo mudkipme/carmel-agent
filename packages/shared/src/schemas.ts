@@ -109,6 +109,31 @@ export const agentConfigRequestSchema = z.object({
   /** Admin-only; see `assertAgentExtensionAccess`. */
   enabledExtensions: z.array(z.string()).default([]),
 }).strict();
+export const agentTaskScheduleSchema = z.object({
+  scheduleKind: z.enum(["cron", "interval", "once"]),
+  scheduleValue: z.string().min(1),
+  timezone: optionalStringSchema,
+});
+export const agentTaskCreateSchema = agentTaskScheduleSchema.extend({
+  name: z.string().min(1),
+  prompt: z.string().min(1),
+  modelRefId: optionalStringSchema,
+  thinkingLevel: thinkingLevelSchema.optional(),
+  status: z.enum(["active", "paused"]).optional(),
+}).strict();
+export const agentTaskPatchSchema = z.object({
+  name: z.string().min(1).optional(),
+  prompt: z.string().min(1).optional(),
+  modelRefId: optionalStringSchema,
+  thinkingLevel: thinkingLevelSchema.optional(),
+  scheduleKind: z.enum(["cron", "interval", "once"]).optional(),
+  scheduleValue: z.string().min(1).optional(),
+  timezone: optionalStringSchema,
+  status: z.enum(["active", "paused"]).optional(),
+}).strict();
+export type AgentTaskCreateCommand = z.infer<typeof agentTaskCreateSchema>;
+export type AgentTaskPatchCommand = z.infer<typeof agentTaskPatchSchema>;
+
 export const promptInputSchema = z.object({
   text: z.string(),
   images: z.array(imageContentSchema).optional(),

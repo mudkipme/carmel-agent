@@ -3,10 +3,13 @@ import type { Api, Credential, Model, ThinkingLevelMap } from "@earendil-works/p
 import type {
   AgentMount,
   AgentPermissions,
+  AgentTaskOutcome,
+  AgentTaskStatus,
   AgentThinkingLevel,
   AgentWorkingDirMode,
   PromptTemplate,
   Session,
+  TaskScheduleKind,
   UserRole,
 } from "@carmel-agent/shared";
 
@@ -120,6 +123,53 @@ export const agents = sqliteTable("agents", {
   defaultThinkingLevel: text("default_thinking_level").$type<AgentThinkingLevel>().notNull().default("off"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
+});
+
+/**
+ * A prompt an agent runs on a schedule.
+ *
+ * Belongs to an agent and dies with it. `userId` is still needed even so:
+ * agents can be shared, and the dedicated session, the model permission check,
+ * and the provider credentials all resolve per user rather than per agent.
+ */
+export const agentTasks = sqliteTable("agent_tasks", {
+  id: text("id").primaryKey(),
+  agentId: text("agent_id")
+    .notNull()
+    .references(() => agents.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  prompt: text("prompt").notNull(),
+  /** Null falls back to the agent's defaults at fire time, not at write time. */
+  modelRefId: text("model_ref_id"),
+  thinkingLevel: text("thinking_level").$type<AgentThinkingLevel>(),
+  scheduleKind: text("schedule_kind").$type<TaskScheduleKind>().notNull(),
+  scheduleValue: text("schedule_value").notNull(),
+  timezone: text("timezone"),
+  /** The task's own session, created on first fire so every run appends to one thread. */
+  sessionId: text("session_id"),
+  status: text("status").$type<AgentTaskStatus>().notNull().default("active"),
+  nextRunAt: integer("next_run_at"),
+  lastRunAt: integer("last_run_at"),
+  lastOutcome: text("last_outcome").$type<AgentTaskOutcome>(),
+  lastError: text("last_error"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+/** One row per firing, including the ones that did not run. */
+export const agentTaskRuns = sqliteTable("agent_task_runs", {
+  id: text("id").primaryKey(),
+  taskId: text("task_id")
+    .notNull()
+    .references(() => agentTasks.id),
+  scheduledFor: integer("scheduled_for").notNull(),
+  startedAt: integer("started_at").notNull(),
+  finishedAt: integer("finished_at"),
+  outcome: text("outcome").$type<AgentTaskOutcome>().notNull(),
+  detail: text("detail"),
 });
 
 export const sessions = sqliteTable("sessions", {

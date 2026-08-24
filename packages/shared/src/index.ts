@@ -203,6 +203,43 @@ export type AgentConfig = {
   updatedAt: number;
 };
 
+export type TaskScheduleKind = "cron" | "interval" | "once";
+export type AgentTaskStatus = "active" | "paused" | "completed" | "disabled";
+/** `missed` and `skipped` are recorded like any other firing: not running is a result. */
+export type AgentTaskOutcome = "succeeded" | "failed" | "missed" | "skipped";
+
+export type AgentTask = {
+  id: string;
+  agentId: string;
+  userId: string;
+  name: string;
+  prompt: string;
+  modelRefId?: string;
+  thinkingLevel?: AgentThinkingLevel;
+  scheduleKind: TaskScheduleKind;
+  scheduleValue: string;
+  timezone?: string;
+  /** The task's own session. Absent until the first firing creates it. */
+  sessionId?: string;
+  status: AgentTaskStatus;
+  nextRunAt?: number;
+  lastRunAt?: number;
+  lastOutcome?: AgentTaskOutcome;
+  lastError?: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type AgentTaskRun = {
+  id: string;
+  taskId: string;
+  scheduledFor: number;
+  startedAt: number;
+  finishedAt?: number;
+  outcome: AgentTaskOutcome;
+  detail?: string;
+};
+
 export type InstalledExtension = {
   /** Provider id, as used in `AgentConfig.enabledExtensions`. */
   id: string;
