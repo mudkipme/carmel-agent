@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AuthVariables } from "../auth.ts";
 import { db, migrate } from "../db/index.ts";
 import { users } from "../db/schema.ts";
@@ -58,6 +59,58 @@ test("session routes fork, edit, and truncate by native Pi entry ID", async () =
   assert.deepEqual(truncated.messages.map(messageText), ["question", "edited answer"]);
   assert.deepEqual(truncated.messageEntryIds, edited.messageEntryIds.slice(0, 2));
 });
+
+test("truncate and fork refuse a cut that would strand a tool call", async () => {
+  // The UI only offers these on user messages, so this is the API's own guard:
+  // ending a branch on an unanswered tool call makes the session unpromptable,
+  // and the provider -- not Carmel -- is where the user would find out.
+  const fixture = createSession();
+  await replaceSessionMessages(fixture.sessionId, [
+    userMessage("run ls"),
+    assistantToolCall("call-1", "bash"),
+    toolResultMessage("call-1", "bash"),
+    fauxAssistantMessage("here are the files"),
+  ]);
+  const source = await loadSession(fixture.sessionId);
+  assert.ok(source);
+  const [, callId, resultId] = source.messageEntryIds;
+  assert.ok(callId && resultId);
+  const app = createTestApp(fixture.userId);
+
+  for (const path of [`/sessions/${fixture.sessionId}/messages/truncate`, `/sessions/${fixture.sessionId}/fork`]) {
+    const response = await app.request(path, {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ entryId: callId }),
+    });
+    assert.equal(response.status, 409, path);
+    const body = await response.json() as { error: string; safeEntryId: string | null };
+    assert.match(body.error, /unanswered tool call \(bash\)/);
+    // The caller is told where the valid cut is rather than left to guess.
+    assert.equal(body.safeEntryId, resultId);
+  }
+
+  // The branch is untouched by the refusals, and the offered entry is accepted.
+  const accepted = await app.request(`/sessions/${fixture.sessionId}/messages/truncate`, {
+    method: "POST",
+    headers: json,
+    body: JSON.stringify({ entryId: resultId }),
+  });
+  assert.equal(accepted.status, 200);
+  const truncated = await accepted.json() as typeof source;
+  assert.deepEqual(truncated.messageEntryIds, source.messageEntryIds.slice(0, 3));
+});
+
+function assistantToolCall(id: string, name: string) {
+  return {
+    ...fauxAssistantMessage(""),
+    content: [{ type: "toolCall", id, name, arguments: {} }],
+  } as unknown as AgentMessage;
+}
+
+function toolResultMessage(toolCallId: string, toolName: string) {
+  return { role: "toolResult", toolCallId, toolName, content: [], isError: false, timestamp: Date.now() } as unknown as AgentMessage;
+}
 
 function createTestApp(userId: string) {
   const user = db.select().from(users).where(eq(users.id, userId)).get();

@@ -29,6 +29,7 @@ import {
   type SessionWithMessages,
 } from "../services/session-store.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
+import { checkCutPoint, describeCutPointRejection, type BranchMessage } from "../effectors/branch-integrity.ts";
 import {
   forkSessionRequestSchema,
   jsonValidator,
@@ -192,6 +193,12 @@ export function createSessionRoutes() {
     if (!source) return conflict;
     const messageIndex = source.messageEntryIds.indexOf(body.entryId);
     if (messageIndex < 0) return c.json({ error: "Message not found" }, 404);
+    // A fork ends its new branch at `entryId`, so it is the same cut as a
+    // truncate and carries the same way of producing an unpromptable session.
+    const cut = checkCutPoint(branchOf(source), body.entryId);
+    if (!cut.ok) {
+      return c.json({ error: describeCutPointRejection(cut), safeEntryId: cut.safeEntryId }, 409);
+    }
     const timestamp = now();
     const fork: Session = {
       ...source,
@@ -221,6 +228,10 @@ export function createSessionRoutes() {
     const { session: current, conflict } = await guardSessionMutation(c);
     if (!current) return conflict;
     if (!current.messageEntryIds.includes(body.entryId)) return c.json({ error: "Message not found" }, 404);
+    const cut = checkCutPoint(branchOf(current), body.entryId);
+    if (!cut.ok) {
+      return c.json({ error: describeCutPointRejection(cut), safeEntryId: cut.safeEntryId }, 409);
+    }
 
     await truncateSessionAtEntry(current.id, body.entryId);
     return c.json(await commitSessionChange(current.id, {
@@ -268,6 +279,11 @@ export function createSessionRoutes() {
   });
 
   return route;
+}
+
+/** The loaded session's branch in the shape the cut-point check reads. */
+function branchOf(session: SessionWithMessages): BranchMessage[] {
+  return session.messageEntryIds.map((entryId, index) => ({ entryId, message: session.messages[index]! }));
 }
 
 function rejectActiveRunMutation(c: Context<{ Variables: AuthVariables }>, sessionId: string) {

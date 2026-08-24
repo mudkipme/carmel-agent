@@ -1,6 +1,7 @@
 import type { AgentHarnessEvent } from "@earendil-works/pi-agent-core";
-import type { AssistantMessageEvent, ToolCall } from "@earendil-works/pi-ai";
+import { isRetryableAssistantError, type AssistantMessageEvent, type ToolCall } from "@earendil-works/pi-ai";
 import type { AgentRunEvent } from "@carmel-agent/shared";
+import { classifyTurnFailure, formatTurnFailure } from "../effectors/failure-classifier.ts";
 
 /**
  * Project one Pi harness event onto the client's wire protocol, or drop it.
@@ -36,8 +37,22 @@ export function projectRunEvent(event: AgentHarnessEvent): AgentRunEvent | undef
         isError: event.isError,
       };
     case "turn_end":
+      // The other failure path. A provider rejection does not throw -- Pi turns
+      // it into an assistant message with `stopReason: "error"` -- so classifying
+      // only in `createAgentError` would leave the common case unimproved. Pi's
+      // own transient verdict rides along as a hint; this is the layer that is
+      // allowed to know Pi, so the classifier itself stays free of it.
       return event.message.role === "assistant" && event.message.errorMessage
-        ? { type: "turn_end", errorMessage: event.message.errorMessage }
+        ? {
+            type: "turn_end",
+            errorMessage: formatTurnFailure(
+              classifyTurnFailure({
+                message: event.message.errorMessage,
+                aborted: event.message.stopReason === "aborted",
+                transientHint: isRetryableAssistantError(event.message),
+              }),
+            ),
+          }
         : { type: "turn_end" };
     case "agent_end":
       // `messages` is the entire transcript, which the client already holds.

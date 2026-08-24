@@ -11,6 +11,7 @@ import {
 import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
 import { getCachedCatalogModel } from "./model-store.ts";
 import { errorMessage } from "../errors.ts";
+import { classifyTurnFailure, formatTurnFailure } from "../effectors/failure-classifier.ts";
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 
@@ -60,7 +61,15 @@ export function thinkingLevelOverrides(
   return Object.keys(overrides).length > 0 ? overrides : null;
 }
 
+/**
+ * Persist a run failure as the assistant turn the client renders.
+ *
+ * The text is classified rather than passed through: this path sees exceptions
+ * thrown out of the run body, where the provider's own wording is the only
+ * thing the user would otherwise get.
+ */
 export function createAgentError(error: unknown, model: Model<Api>) {
+  const failure = classifyTurnFailure({ message: errorMessage(error), aborted: isAbortError(error) });
   const message: AgentMessage = {
     role: "assistant",
     content: [{ type: "text", text: "" }],
@@ -76,8 +85,13 @@ export function createAgentError(error: unknown, model: Model<Api>) {
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     },
     stopReason: "error",
-    errorMessage: errorMessage(error),
+    errorMessage: formatTurnFailure(failure),
     timestamp: Date.now(),
   };
-  return { type: "agent_end", messages: [message] };
+  return { type: "agent_end", messages: [message], failure };
+}
+
+function isAbortError(error: unknown) {
+  const name = (error as { name?: unknown } | null)?.name;
+  return name === "AbortError" || /\baborted\b/i.test(errorMessage(error));
 }

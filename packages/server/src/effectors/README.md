@@ -69,6 +69,48 @@ the start of a turn without having grown, because moving it onto a
 smaller-window model is enough. Outcomes the user can act on reach the client as
 a `context_pressure` run event.
 
+## Branch integrity
+
+`branch-integrity.ts` answers whether a branch is a context a provider will
+accept: every tool call answered, every tool result called for. Pi keeps its own
+branches valid -- the agent loop synthesizes an aborted tool result for anything
+still pending when a run is cancelled -- so the only way Carmel reaches an
+invalid branch is by moving the leaf itself.
+
+Truncate and fork both do that by entry id, and both now refuse a cut that would
+strand a tool call, answering `409` with the nearest entry that *would* be safe.
+The refusal is offered rather than applied: silently extending the cut would
+mean `truncate(entryId)` keeps messages the caller asked to drop. The UI never
+hit this (it only offers these on user messages); the API had no guard at all.
+
+Edit is safe by construction -- `truncate: true` is restricted to user messages,
+and a user message cannot hold a tool call.
+
+## Failure classification
+
+`failure-classifier.ts` turns a provider or harness error into a category, a
+retryable verdict, and a remedy. Before it, an expired credential, an exhausted
+quota, a context overflow, and a malformed tool history all reached the user as
+the same red box of provider text with no suggested action -- which matters more
+in a multi-user instance than a single-user one, because the person who can fix
+an auth or quota problem is usually not the person watching the session fail.
+
+Two call sites, because there are two failure paths:
+
+- `runtime/model.ts` `createAgentError` — exceptions out of the run body.
+- `runtime/run-events.ts` `turn_end` — provider rejections, which do not throw;
+  Pi turns them into an assistant message with `stopReason: "error"`. This is the
+  common case, so classifying only in `createAgentError` would have missed it.
+
+Pi's `isRetryableAssistantError` rides in as a *hint* rather than a dependency,
+so its pattern list stays the source of truth for "transient" while the
+classifier itself stays Pi-free. The hint only promotes an unrecognised failure;
+it never overrides a specific match, because Pi reads any 429 as transient and
+retrying an exhausted quota just burns the turn.
+
+An unclassified failure keeps the provider's text verbatim: when the
+classification is worst is when the raw text is worth most.
+
 ## What is still on the far side of the seam
 
 `runtime/agent-runtime.ts` is migrated for prompt dispatch only. Still holding
