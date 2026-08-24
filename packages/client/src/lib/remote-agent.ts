@@ -439,6 +439,13 @@ export class RemoteAgent {
       case "turn_end":
         if (event.errorMessage) this.errorMessage = event.errorMessage;
         break;
+      case "run_recovered":
+        // The failing turn_end already set an error the user can see. It was
+        // true when it was sent and is not any more, so clearing it is part of
+        // reporting the recovery honestly.
+        this.errorMessage = undefined;
+        this.contextPressure = { level: "warning", message: event.message };
+        break;
       case "context_pressure":
         // Survives `run_finished`: the condition it reports is a property of the
         // session, so clearing it when the run ends would hide it exactly when

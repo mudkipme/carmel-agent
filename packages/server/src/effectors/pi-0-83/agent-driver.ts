@@ -116,7 +116,7 @@ export function createPi083AgentDriver(options: Pi083DriverOptions): AgentDriver
       await harness.abort();
     },
 
-    async relieveContextPressure(): Promise<CompactionOutcome> {
+    async relieveContextPressure({ force = false } = {}): Promise<CompactionOutcome> {
       const settings = options.settings ?? PI_083_COMPACTION_SETTINGS;
       const decision = decideCompaction({
         tokens: await estimate(options.log),
@@ -124,7 +124,7 @@ export function createPi083AgentDriver(options: Pi083DriverOptions): AgentDriver
         settings,
       });
 
-      if (decision.action === "none") {
+      if (decision.action === "none" && !force) {
         return { status: "not_needed", tokens: decision.tokens, headroom: decision.headroom };
       }
       if (decision.action === "impossible") {

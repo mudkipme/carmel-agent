@@ -18,7 +18,7 @@ import { type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { loadAgentResources, resolveAgentWorkingDirPath } from "./resources.ts";
-import { projectRunEvent } from "./run-events.ts";
+import { classifyHarnessTurnFailure, projectRunEvent } from "./run-events.ts";
 import {
   createActiveAgentRun,
   createRunStream,
@@ -32,6 +32,15 @@ import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
 import { createPi083AgentDriver, createPi083PromptDispatcher, type Pi083Harness } from "../effectors/pi-0-83/agent-driver.ts";
 import { createPi083SessionLog } from "../effectors/pi-0-83/session-log.ts";
 import { describeContextPressure, type CompactionOutcome } from "../effectors/compaction-policy.ts";
+import {
+  CONTINUATION_PROMPT,
+  planContextRecovery,
+  RECOVERED_BY_CONTINUATION,
+  RECOVERED_BY_RESEND,
+} from "../effectors/turn-recovery.ts";
+import type { TurnFailure } from "../effectors/failure-classifier.ts";
+import type { AgentDriver } from "../effectors/contracts/agent-driver.ts";
+import type { BranchEntry, SessionLog } from "../effectors/contracts/session-log.ts";
 import { errorMessage } from "../errors.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -106,6 +115,7 @@ async function startAgentRun(context: AgentRun) {
   run.started = true;
 
   const retry = new RetryBranch();
+  const turnFailure = new TurnFailureWatch();
   let piSession: PiSession | undefined;
   let execution: ServerExecution | undefined;
   let unsubscribe: (() => void) | undefined;
@@ -117,9 +127,12 @@ async function startAgentRun(context: AgentRun) {
     abort.attach(harness);
     unsubscribe = harness.subscribe((event: AgentHarnessEvent) => {
       retry.observe(event);
+      turnFailure.observe(event);
       const projected = projectRunEvent(event);
       if (projected) emitRunEvent(run, projected);
     });
+    const log = createPi083SessionLog(piSession);
+    const driver = createPi083AgentDriver({ harness, log, model });
 
     // Abort can land at any moment; check wherever the run can still stop without
     // leaving the session branch half-rewound.
@@ -139,16 +152,28 @@ async function startAgentRun(context: AgentRun) {
 
     // Pre-flight: compaction here is what keeps an over-budget session from
     // spending a whole turn to earn a provider context-length rejection.
-    await relieveContextPressure(context, harness, piSession);
+    await relieveContextPressure(context, driver);
     if (abort.requested) {
       await retry.restore(piSession);
       await harness.abort();
       return;
     }
 
+    // The leaf before the prompt: what a resend has to rewind to, and the line
+    // that separates this turn's entries from the history.
+    const attemptBaselineId = (await log.readBranch()).at(-1)?.id ?? null;
     await runHarnessPrompt(harness, prepared.promptInput.text, prepared.promptInput.images);
     if (retry.isAbandoned) throw new Error("Retry completed without persisting the user message.");
-    await relieveContextPressure(context, harness, piSession);
+
+    await recoverFromContextOverflow(context, {
+      driver,
+      harness,
+      log,
+      failure: turnFailure.last,
+      attemptBaselineId,
+      promptInput: prepared.promptInput,
+    });
+    await relieveContextPressure(context, driver);
   } catch (error) {
     await reportRunFailure(context, { piSession, retry, error });
   } finally {
@@ -426,27 +451,107 @@ async function recordRunConfiguration(
  * failure mode this replaces was a `console.warn` on a session that kept
  * accepting turns while heading for a wall nobody had been told about.
  */
-async function relieveContextPressure(context: AgentRun, harness: RunHarness, piSession: PiSession) {
-  const driver = createPi083AgentDriver({
-    harness,
-    log: createPi083SessionLog(piSession),
-    model: context.model,
-  });
-
+async function relieveContextPressure(context: AgentRun, driver: AgentDriver, options?: { force?: boolean }) {
   let outcome: CompactionOutcome;
   try {
-    outcome = await driver.relieveContextPressure();
+    outcome = await driver.relieveContextPressure(options);
   } catch (error) {
     // The driver reports rather than throws, so reaching here means the
     // measurement itself broke. Never let that end the run.
     console.warn("Context pressure check failed:", errorMessage(error));
-    return;
+    return { status: "failed" } as const;
   }
 
   const notice = describeContextPressure(outcome);
-  if (!notice) return;
-  console.warn(`Context pressure (${outcome.status}) on session ${context.session.id}: ${notice.message}`);
-  emitRunEvent(context.run, { type: "context_pressure", level: notice.level, message: notice.message });
+  if (notice) {
+    console.warn(`Context pressure (${outcome.status}) on session ${context.session.id}: ${notice.message}`);
+    emitRunEvent(context.run, { type: "context_pressure", level: notice.level, message: notice.message });
+  }
+  return outcome;
+}
+
+/** Records the failure carried by the most recent turn, if it carried one. */
+export class TurnFailureWatch {
+  #last?: TurnFailure;
+
+  observe(event: AgentHarnessEvent) {
+    if (event.type !== "turn_end") return;
+    // A clean turn clears the record: only the last turn of a run decides
+    // whether the run needs recovering.
+    this.#last = classifyHarnessTurnFailure(event);
+  }
+
+  get last() {
+    return this.#last;
+  }
+}
+
+/**
+ * Repair a turn the provider rejected for context length.
+ *
+ * Compaction runs before every prompt, so reaching here means the turn started
+ * inside its budget and left it: either the estimate was wrong, or a tool result
+ * was larger than the turn had room for. Both are fixable without the user, and
+ * both are invisible to them if this works -- which is why the recovery reports
+ * itself rather than passing silently.
+ */
+export async function recoverFromContextOverflow(
+  context: AgentRun,
+  state: {
+    driver: AgentDriver;
+    /** Only the prompt surface: recovery re-sends, it does not run the harness. */
+    harness: Pi083Harness;
+    log: SessionLog;
+    failure: TurnFailure | undefined;
+    attemptBaselineId: string | null;
+    promptInput: PromptInput;
+  },
+) {
+  const { driver, harness, log, failure, attemptBaselineId, promptInput } = state;
+
+  const branch = await log.readBranch();
+  // Called once per run. A second overflow after a successful compaction is
+  // something the user has to know about, not something to spend more tokens on.
+  const plan = planContextRecovery({
+    failure,
+    turnProducedToolResults: producedToolResultsSince(branch, attemptBaselineId),
+  });
+  if (plan.action === "none") return;
+  if (context.abort.requested) return;
+
+  // Forced: the provider has already rejected this context as too large, which
+  // outranks the local estimate that let the turn start. Compaction is the whole
+  // remedy -- if it did not actually free room, retrying would earn the same
+  // rejection at the user's expense, and the notice already emitted says why.
+  const outcome = await relieveContextPressure(context, driver, { force: true });
+  if (outcome.status !== "compacted") return;
+  if (context.abort.requested) return;
+
+  if (plan.action === "resend") {
+    // Rewind past the user message and the failed reply both, so the retry
+    // leaves one user turn and one answer rather than a visible false start.
+    await log.moveTo(attemptBaselineId);
+    await runHarnessPrompt(harness, promptInput.text, promptInput.images);
+  } else {
+    await driver.prompt(CONTINUATION_PROMPT);
+  }
+
+  emitRunEvent(context.run, {
+    type: "run_recovered",
+    message: plan.action === "resend" ? RECOVERED_BY_RESEND : RECOVERED_BY_CONTINUATION,
+  });
+}
+
+/**
+ * Tool results are the durable, expensive part of a turn. Assistant text before
+ * an overflow is usually a preamble the retry will produce again, so it does not
+ * count as work worth keeping a false start for.
+ */
+function producedToolResultsSince(branch: readonly BranchEntry[], baselineId: string | null) {
+  const start = baselineId === null ? 0 : branch.findIndex((entry) => entry.id === baselineId) + 1;
+  return branch
+    .slice(start)
+    .some((entry) => entry.type === "message" && (entry.message as { role?: unknown } | undefined)?.role === "toolResult");
 }
 
 function sameStrings(left: string[] | null, right: string[]) {

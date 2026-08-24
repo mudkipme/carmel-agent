@@ -108,6 +108,14 @@ export type AgentRunEvent =
    * client shows it until the next run starts.
    */
   | { type: "context_pressure"; level: "warning" | "critical"; message: string }
+  /**
+   * A turn failed and the server fixed it without the user doing anything.
+   *
+   * Distinct from `context_pressure` because it must also *clear* the error the
+   * client already showed: the failing `turn_end` reached it before the server
+   * knew the failure was recoverable.
+   */
+  | { type: "run_recovered"; message: string }
   | { type: "agent_end" }
   | AgentRunFinishedEvent;
 

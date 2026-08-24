@@ -111,6 +111,44 @@ retrying an exhausted quota just burns the turn.
 An unclassified failure keeps the provider's text verbatim: when the
 classification is worst is when the raw text is worth most.
 
+## Context recovery
+
+`turn-recovery.ts` decides whether a failed turn gets one more attempt.
+
+Only `context_overflow` is recovered: it is the one provider rejection Carmel
+can actually fix between attempts. Auth, quota, and a malformed tool history all
+need a person, and retrying them spends the user's tokens to reach the same
+answer.
+
+Compaction runs before every prompt, so an overflow means the turn started
+inside its budget and left it. Two causes, two repairs:
+
+- **The estimate was wrong.** `estimateContextTokens` is a character heuristic;
+  the provider's count is ground truth. Nothing durable happened, so the run
+  rewinds past the user message and the failed reply both and sends the message
+  again — the transcript ends up as though it never happened.
+- **A tool result ballooned the context mid-turn.** The turn *did* work, so
+  rewinding would discard the expensive part. The run keeps it and sends a
+  continuation prompt instead, at the cost of a visible extra turn.
+
+The rule is `turnProducedToolResults`: tool results are the durable part, while
+assistant text before an overflow is usually a preamble the retry produces
+again.
+
+Two things this needed that are worth remembering:
+
+- **The compaction is forced.** The provider has already rejected this context as
+  too large, which outranks the local estimate that let the turn start. Without
+  `force`, recovery would consult the estimate that was just proven wrong and
+  decline to act — the exact case the resend path exists for. `force` does not
+  override an `impossible` verdict, which is about the model, not the estimate.
+- **`run_recovered` clears the client's error.** The failing `turn_end` reached
+  the client before the server knew the failure was recoverable, so reporting
+  the recovery honestly means retracting what was already shown.
+
+One attempt per run. A second overflow after a successful compaction is
+information the user needs, not a reason to spend more tokens.
+
 ## What is still on the far side of the seam
 
 `runtime/agent-runtime.ts` is migrated for prompt dispatch only. Still holding

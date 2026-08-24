@@ -69,8 +69,15 @@ export interface AgentDriver {
    * having grown -- switching it onto a model with a smaller window is enough,
    * and Carmel lets that happen per session -- and discovering it after the
    * prompt has already been rejected is too late to do anything about.
+   *
+   * `force` compacts even when the local estimate says there is room. It exists
+   * for the case where the provider has already rejected the request as too
+   * large: `estimateContextTokens` is a character heuristic, the provider's own
+   * count is ground truth, and without this the recovery path would consult the
+   * estimate that was just proven wrong and decline to act. It does not override
+   * an `impossible` verdict, which is about the model rather than the estimate.
    */
-  relieveContextPressure(): Promise<CompactionOutcome>;
+  relieveContextPressure(options?: { readonly force?: boolean }): Promise<CompactionOutcome>;
 }
 
 /**

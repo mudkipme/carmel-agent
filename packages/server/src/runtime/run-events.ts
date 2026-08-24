@@ -1,7 +1,7 @@
 import type { AgentHarnessEvent } from "@earendil-works/pi-agent-core";
 import { isRetryableAssistantError, type AssistantMessageEvent, type ToolCall } from "@earendil-works/pi-ai";
 import type { AgentRunEvent } from "@carmel-agent/shared";
-import { classifyTurnFailure, formatTurnFailure } from "../effectors/failure-classifier.ts";
+import { classifyTurnFailure, formatTurnFailure, type TurnFailure } from "../effectors/failure-classifier.ts";
 
 /**
  * Project one Pi harness event onto the client's wire protocol, or drop it.
@@ -11,6 +11,23 @@ import { classifyTurnFailure, formatTurnFailure } from "../effectors/failure-cla
  * O(n^2) bytes for a streamed reply. Everything the client does not read is
  * dropped here rather than at the far end of a slow link.
  */
+/**
+ * Classify the failure carried by a harness turn, if it carries one.
+ *
+ * Lives here because this is the layer allowed to know Pi: it is what supplies
+ * `isRetryableAssistantError` as a hint so the classifier itself stays Pi-free.
+ * The run path uses the same function, so what the user is told and what the
+ * server decides to do about it cannot drift apart.
+ */
+export function classifyHarnessTurnFailure(event: AgentHarnessEvent): TurnFailure | undefined {
+  if (event.type !== "turn_end" || event.message.role !== "assistant" || !event.message.errorMessage) return undefined;
+  return classifyTurnFailure({
+    message: event.message.errorMessage,
+    aborted: event.message.stopReason === "aborted",
+    transientHint: isRetryableAssistantError(event.message),
+  });
+}
+
 export function projectRunEvent(event: AgentHarnessEvent): AgentRunEvent | undefined {
   switch (event.type) {
     case "message_start":
@@ -42,18 +59,10 @@ export function projectRunEvent(event: AgentHarnessEvent): AgentRunEvent | undef
       // only in `createAgentError` would leave the common case unimproved. Pi's
       // own transient verdict rides along as a hint; this is the layer that is
       // allowed to know Pi, so the classifier itself stays free of it.
-      return event.message.role === "assistant" && event.message.errorMessage
-        ? {
-            type: "turn_end",
-            errorMessage: formatTurnFailure(
-              classifyTurnFailure({
-                message: event.message.errorMessage,
-                aborted: event.message.stopReason === "aborted",
-                transientHint: isRetryableAssistantError(event.message),
-              }),
-            ),
-          }
-        : { type: "turn_end" };
+      {
+        const failure = classifyHarnessTurnFailure(event);
+        return failure ? { type: "turn_end", errorMessage: formatTurnFailure(failure) } : { type: "turn_end" };
+      }
     case "agent_end":
       // `messages` is the entire transcript, which the client already holds.
       return { type: "agent_end" };
