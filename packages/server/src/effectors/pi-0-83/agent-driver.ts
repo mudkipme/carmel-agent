@@ -1,10 +1,8 @@
 import {
-  DEFAULT_COMPACTION_SETTINGS,
   estimateContextTokens,
   formatPromptTemplateInvocation,
   formatSkillInvocation,
   parseCommandArgs,
-  shouldCompact,
   type AgentHarness,
   type AgentHarnessEvent,
   type ExecutionToolContext,
@@ -15,10 +13,15 @@ import { projectRunEvent } from "../../runtime/run-events.ts";
 import type {
   AgentDriver,
   AgentRunObserver,
-  CompactionOutcome,
   DriverResources,
   PromptDispatcher,
 } from "../contracts/agent-driver.ts";
+import {
+  decideCompaction,
+  PI_083_COMPACTION_SETTINGS,
+  type CompactionOutcome,
+  type CompactionSettings,
+} from "../compaction-policy.ts";
 import type { SessionLog } from "../contracts/session-log.ts";
 
 /**
@@ -41,6 +44,8 @@ export type Pi083DriverOptions = {
   /** Read for context pressure; the harness owns the compaction itself. */
   log: Pick<SessionLog, "readState" | "readBranch">;
   model: Model<Api>;
+  /** Defaults to Pi 0.83's; overridden in tests to reach the edge cases cheaply. */
+  settings?: CompactionSettings;
   /** Present only so tests can drive pressure without a real transcript. */
   estimateTokens?: (log: Pick<SessionLog, "readBranch">) => Promise<number>;
 };
@@ -111,23 +116,64 @@ export function createPi083AgentDriver(options: Pi083DriverOptions): AgentDriver
       await harness.abort();
     },
 
-    async compactIfNeeded(): Promise<CompactionOutcome> {
-      const limit = model.contextWindow;
-      const tokens = await estimate(options.log);
-      if (!shouldCompact(tokens, limit, DEFAULT_COMPACTION_SETTINGS)) {
-        return { status: "skipped", tokens, limit };
+    async relieveContextPressure(): Promise<CompactionOutcome> {
+      const settings = options.settings ?? PI_083_COMPACTION_SETTINGS;
+      const decision = decideCompaction({
+        tokens: await estimate(options.log),
+        contextWindow: model.contextWindow,
+        settings,
+      });
+
+      if (decision.action === "none") {
+        return { status: "not_needed", tokens: decision.tokens, headroom: decision.headroom };
       }
+      if (decision.action === "impossible") {
+        return {
+          status: "impossible",
+          tokens: decision.tokens,
+          headroom: decision.headroom,
+          reason: decision.reason,
+        };
+      }
+
+      const tokensBefore = decision.tokens;
       try {
         await harness.compact();
-        return { status: "compacted", tokens, limit };
       } catch (error) {
-        // Reported, not thrown and not logged away: the run is finishing either
-        // way, and the caller is the only thing that can tell the user their
-        // session is now heading for the context wall.
-        return { status: "failed", tokens, limit, reason: errorMessage(error) };
+        // "Nothing to compact" is Pi telling us the branch has no history old
+        // enough to summarize, which is a state of the session and not a fault.
+        // It used to reach the log as a compaction failure.
+        if (isNothingToCompact(error)) {
+          return { status: "nothing_to_compact", tokens: tokensBefore, headroom: decision.headroom };
+        }
+        return {
+          status: "failed",
+          tokens: tokensBefore,
+          headroom: decision.headroom,
+          code: harnessErrorCode(error),
+          reason: errorMessage(error),
+        };
       }
+
+      // Re-measure rather than trust the call. Pi returns `tokensBefore` and no
+      // "after", and a compaction that succeeds without buying enough room is
+      // the failure mode that repeats -- silently, once per turn, at the cost of
+      // a summarization call each time.
+      const tokensAfter = await estimate(options.log);
+      const status = tokensAfter > decision.headroom ? "ineffective" : "compacted";
+      return { status, tokensBefore, tokensAfter, headroom: decision.headroom };
     },
   };
+}
+
+/** Pi throws `AgentHarnessError("compaction", "Nothing to compact")` for this. */
+function isNothingToCompact(error: unknown) {
+  return /nothing to compact/i.test(errorMessage(error));
+}
+
+function harnessErrorCode(error: unknown) {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" ? code : "unknown";
 }
 
 async function estimateFromBranch(log: Pick<SessionLog, "readBranch">) {

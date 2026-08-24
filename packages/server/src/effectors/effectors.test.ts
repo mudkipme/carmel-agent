@@ -7,7 +7,8 @@ import { createPi083SessionLog } from "./pi-0-83/session-log.ts";
 import { FakeSessionLog } from "./testing/fake-session-log.ts";
 import { runSessionLogContract } from "./testing/session-log-contract.ts";
 import { dispatchPrompt } from "./dispatch-prompt.ts";
-import type { AgentDriver, CompactionOutcome, DriverResources } from "./contracts/agent-driver.ts";
+import type { AgentDriver, DriverResources } from "./contracts/agent-driver.ts";
+import type { CompactionOutcome } from "./compaction-policy.ts";
 
 migrate();
 
@@ -89,7 +90,7 @@ function recordingDriver(resources: DriverResources = { skills: [], promptTempla
     },
     observe: () => () => {},
     abort: async () => {},
-    compactIfNeeded: async (): Promise<CompactionOutcome> => ({ status: "skipped", tokens: 0, limit: 1 }),
+    relieveContextPressure: async (): Promise<CompactionOutcome> => ({ status: "not_needed", tokens: 0, headroom: 1 }),
   };
   return { driver, calls };
 }

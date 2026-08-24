@@ -1,4 +1,5 @@
 import type { AgentRunEvent, PromptInput } from "@carmel-agent/shared";
+import type { CompactionOutcome } from "../compaction-policy.ts";
 
 /**
  * What Carmel needs an agent loop to do, expressed without naming one.
@@ -20,21 +21,10 @@ export type DriverResources = {
 };
 
 /**
- * Compaction reports rather than throws, because the interesting outcome is the
- * one that used to be a `console.warn`: a long session whose compaction failed
- * is still running, still accepting turns, and now heading for the context wall
- * with nobody told. Callers get the numbers so they can surface that.
+ * Compaction reports rather than throws, and its outcome type lives in
+ * `../compaction-policy.ts` because deciding what an outcome means is policy,
+ * not something an adapter should each get its own opinion about.
  */
-export type CompactionOutcome =
-  | { readonly status: "skipped"; readonly tokens: number; readonly limit: number }
-  | { readonly status: "compacted"; readonly tokens: number; readonly limit: number }
-  | {
-      readonly status: "failed";
-      readonly tokens: number;
-      readonly limit: number;
-      readonly reason: string;
-    };
-
 /**
  * The two things Carmel reads off the event stream. Anything else Pi emits is
  * the adapter's business.
@@ -71,7 +61,16 @@ export interface AgentDriver {
 
   abort(): Promise<void>;
 
-  compactIfNeeded(): Promise<CompactionOutcome>;
+  /**
+   * Bring the session back under its context budget if it is over it.
+   *
+   * Called before a prompt as well as after one. The pre-flight call is not
+   * redundant: a session can be over budget at the start of a turn without
+   * having grown -- switching it onto a model with a smaller window is enough,
+   * and Carmel lets that happen per session -- and discovering it after the
+   * prompt has already been rejected is too late to do anything about.
+   */
+  relieveContextPressure(): Promise<CompactionOutcome>;
 }
 
 /**

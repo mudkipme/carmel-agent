@@ -26,7 +26,11 @@ export type AgentSnapshot = {
   model: Model<Api>;
   thinkingLevel: ThinkingLevel;
   errorMessage?: string;
+  /** Set when compaction could not keep the session inside its context budget. */
+  contextPressure?: ContextPressure;
 };
+
+export type ContextPressure = { level: "warning" | "critical"; message: string };
 
 export class RemoteAgent {
   private storeListeners = new Set<() => void>();
@@ -39,6 +43,7 @@ export class RemoteAgent {
   private model: Model<Api>;
   private thinkingLevel: ThinkingLevel;
   private errorMessage?: string;
+  private contextPressure?: ContextPressure;
   private runId?: string;
   private lastSequence = 0;
   private runFinished = false;
@@ -93,6 +98,7 @@ export class RemoteAgent {
       model: this.model,
       thinkingLevel: this.thinkingLevel,
       errorMessage: this.errorMessage,
+      contextPressure: this.contextPressure,
     };
   }
 
@@ -241,6 +247,9 @@ export class RemoteAgent {
     this.isStreaming = true;
     this.streamingMessage = undefined;
     this.errorMessage = undefined;
+    // Re-derived by every run: the new one may be on a different model, which is
+    // the usual way this condition gets fixed.
+    this.contextPressure = undefined;
     this.runId = undefined;
     this.lastSequence = afterSequence;
     this.runFinished = false;
@@ -429,6 +438,12 @@ export class RemoteAgent {
       }
       case "turn_end":
         if (event.errorMessage) this.errorMessage = event.errorMessage;
+        break;
+      case "context_pressure":
+        // Survives `run_finished`: the condition it reports is a property of the
+        // session, so clearing it when the run ends would hide it exactly when
+        // the user is reading the result.
+        this.contextPressure = { level: event.level, message: event.message };
         break;
       case "agent_end":
         // AgentHarness has stopped producing messages, but server persistence and

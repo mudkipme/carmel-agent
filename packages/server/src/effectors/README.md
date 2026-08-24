@@ -44,6 +44,31 @@ see the `thinkingLevel` note in `contracts/session-log.ts`, a redundant write on
 the first turn of every new session, found by running the fake and the real
 adapter through the same cases.
 
+## Compaction
+
+`compaction-policy.ts` decides whether compaction is worth attempting, as a pure
+function of tokens, the model's window, and the settings. It exists because
+Pi's `shouldCompact()` answers "is the context over the threshold?" and Carmel
+was reading it as "will compacting help?". Two configurations separate those:
+
+- **`window_below_reserve`** — the window is smaller than the 16,384 tokens
+  reserved for summarization, so the threshold is negative and even an empty
+  session asks to be compacted.
+- **`retained_tail_exceeds_headroom`** — compaction retains ~20,000 tokens of
+  recent history, so it cannot get below that. With Pi's defaults, any window at
+  or below **36,384 tokens** is in this state: compaction is requested, runs,
+  costs a summarization call, and leaves the session over the threshold, once
+  per turn, forever. Reachable through Settings -> Models by giving an Ollama
+  entry its real window.
+
+Both are now reported instead of attempted. Beyond that, the driver re-measures
+after compacting rather than trusting the call (`ineffective` vs `compacted`),
+distinguishes Pi's benign "Nothing to compact" from a real failure, and the run
+calls it *before* the prompt as well as after -- a session can be over budget at
+the start of a turn without having grown, because moving it onto a
+smaller-window model is enough. Outcomes the user can act on reach the client as
+a `context_pressure` run event.
+
 ## What is still on the far side of the seam
 
 `runtime/agent-runtime.ts` is migrated for prompt dispatch only. Still holding
@@ -52,10 +77,6 @@ Pi types directly:
 - `startAgentRun` / `openRunHarness` — constructs `AgentHarness`, subscribes,
   aborts. Moves behind `AgentDriver.observe`; `RetryBranch.observe` becomes
   `onUserMessagePersisted`.
-- `compactIfNeeded` — replace with `AgentDriver.compactIfNeeded`, which reports
-  `failed` with the token numbers instead of swallowing the error into a
-  `console.warn`. That reporting is the point: a long session whose compaction
-  failed keeps accepting turns and heads for the context wall with nobody told.
 - `recordRunConfiguration` — replace with `reconcileSessionState`.
 - `finalizeRun` / `prepareAgentRunPrompt` — branch reads and rewinds, onto
   `SessionLog`.

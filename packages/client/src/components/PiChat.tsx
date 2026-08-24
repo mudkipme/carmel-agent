@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import type { ChatInputHandle } from "@/components/chat/ChatInput";
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { ContextPressureNotice } from "@/components/chat/ContextPressureNotice";
 import { MessageEditDialog } from "@/components/chat/MessageEditDialog";
 import { ModelCommandDialog } from "@/components/chat/ModelCommandDialog";
 import { useMessageMutations } from "@/hooks/use-message-mutations";
@@ -32,7 +33,11 @@ export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConf
 
   return (
     <>
-      <div className="relative h-full min-h-0">
+      <div className="relative flex h-full min-h-0 flex-col">
+        {snapshot.contextPressure ? <ContextPressureNotice pressure={snapshot.contextPressure} /> : null}
+        {/* ChatPanel is `h-full`, so the notice takes its height from a sibling
+            row rather than overlaying or squeezing the chat. */}
+        <div className="min-h-0 flex-1">
         {agent ? (
           <ChatPanel
             scrollResetKey={session.id}
@@ -57,6 +62,7 @@ export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConf
         ) : (
           <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">Loading chat...</div>
         )}
+        </div>
       </div>
       <ModelCommandDialog
         open={modelDialogOpen}

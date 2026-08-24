@@ -1,8 +1,5 @@
 import {
   AgentHarness,
-  DEFAULT_COMPACTION_SETTINGS,
-  estimateContextTokens,
-  shouldCompact,
   formatSkillsForSystemPrompt,
   type AgentHarnessEvent,
   type ExecutionToolContext,
@@ -32,7 +29,9 @@ import {
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerExecution } from "./tools.ts";
 import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
-import { createPi083PromptDispatcher, type Pi083Harness } from "../effectors/pi-0-83/agent-driver.ts";
+import { createPi083AgentDriver, createPi083PromptDispatcher, type Pi083Harness } from "../effectors/pi-0-83/agent-driver.ts";
+import { createPi083SessionLog } from "../effectors/pi-0-83/session-log.ts";
+import { describeContextPressure, type CompactionOutcome } from "../effectors/compaction-policy.ts";
 import { errorMessage } from "../errors.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -138,9 +137,18 @@ async function startAgentRun(context: AgentRun) {
       return;
     }
 
+    // Pre-flight: compaction here is what keeps an over-budget session from
+    // spending a whole turn to earn a provider context-length rejection.
+    await relieveContextPressure(context, harness, piSession);
+    if (abort.requested) {
+      await retry.restore(piSession);
+      await harness.abort();
+      return;
+    }
+
     await runHarnessPrompt(harness, prepared.promptInput.text, prepared.promptInput.images);
     if (retry.isAbandoned) throw new Error("Retry completed without persisting the user message.");
-    await compactIfNeeded(harness, piSession, model);
+    await relieveContextPressure(context, harness, piSession);
   } catch (error) {
     await reportRunFailure(context, { piSession, retry, error });
   } finally {
@@ -238,6 +246,10 @@ async function openRunHarness(
     toolContext: execution.toolContext,
     activeToolNames,
     streamOptions: { maxRetries: 2, maxRetryDelayMs: 60_000 },
+    // Distinct from `streamOptions`, which only covers turn streaming. Without
+    // this, a transient provider error during summarization ended compaction for
+    // the turn -- on the one call the session most needs to succeed.
+    retry: { enabled: true, maxRetries: 2, baseDelayMs: 1_000 },
   });
   return { harness, activeToolNames };
 }
@@ -404,19 +416,37 @@ async function recordRunConfiguration(
   }
 }
 
-async function compactIfNeeded(
-  harness: Pick<AgentHarness, "compact">,
-  piSession: Awaited<ReturnType<typeof openPiSession>>,
-  model: Model<Api>,
-) {
-  const context = await piSession.buildContext();
-  const contextTokens = estimateContextTokens(context.messages).tokens;
-  if (!shouldCompact(contextTokens, model.contextWindow, DEFAULT_COMPACTION_SETTINGS)) return;
+/**
+ * Bring the session back under its context budget and report what happened.
+ *
+ * Runs twice per turn. Before the prompt, because a session can arrive over
+ * budget without having grown -- moving it onto a smaller-window model is
+ * enough, and Carmel allows that per session -- and after, because that is when
+ * it has just grown. Everything except a clean result reaches the user: the
+ * failure mode this replaces was a `console.warn` on a session that kept
+ * accepting turns while heading for a wall nobody had been told about.
+ */
+async function relieveContextPressure(context: AgentRun, harness: RunHarness, piSession: PiSession) {
+  const driver = createPi083AgentDriver({
+    harness,
+    log: createPi083SessionLog(piSession),
+    model: context.model,
+  });
+
+  let outcome: CompactionOutcome;
   try {
-    await harness.compact();
+    outcome = await driver.relieveContextPressure();
   } catch (error) {
-    console.warn("Session compaction failed:", errorMessage(error));
+    // The driver reports rather than throws, so reaching here means the
+    // measurement itself broke. Never let that end the run.
+    console.warn("Context pressure check failed:", errorMessage(error));
+    return;
   }
+
+  const notice = describeContextPressure(outcome);
+  if (!notice) return;
+  console.warn(`Context pressure (${outcome.status}) on session ${context.session.id}: ${notice.message}`);
+  emitRunEvent(context.run, { type: "context_pressure", level: notice.level, message: notice.message });
 }
 
 function sameStrings(left: string[] | null, right: string[]) {

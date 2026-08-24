@@ -13,6 +13,7 @@ const EMPTY_SNAPSHOT: AgentSnapshot = {
   model: undefined as unknown as Model<Api>,
   thinkingLevel: "off",
   errorMessage: undefined,
+  contextPressure: undefined,
 };
 
 export function useSessionAgent(agentConfig: AgentConfig, session: Session, modelRef: ModelRef) {

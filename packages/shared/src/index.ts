@@ -99,6 +99,15 @@ export type AgentRunEvent =
   | { type: "tool_execution_start"; toolCallId: string; toolName: string }
   | { type: "tool_execution_end"; toolCallId: string; toolName: string; isError: boolean }
   | { type: "turn_end"; errorMessage?: string }
+  /**
+   * Automatic compaction could not keep the session inside its context budget.
+   *
+   * Carried on the run stream rather than persisted as a message: it describes
+   * the session's configuration, not anything the agent said, and it stops being
+   * true the moment the session moves onto a model with a bigger window. The
+   * client shows it until the next run starts.
+   */
+  | { type: "context_pressure"; level: "warning" | "critical"; message: string }
   | { type: "agent_end" }
   | AgentRunFinishedEvent;
 
