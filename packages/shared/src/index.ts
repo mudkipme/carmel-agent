@@ -191,8 +191,23 @@ export type AgentConfig = {
   permissions: AgentPermissions;
   defaultModelRefId: string;
   defaultThinkingLevel: AgentThinkingLevel;
+  /**
+   * Admin-installed extension providers this agent may use.
+   *
+   * Admin-only to change, even by the agent's owner: an extension runs
+   * unsandboxed in the server process, so letting a regular user arm one on
+   * their own agent would be a privilege escalation rather than a preference.
+   */
+  enabledExtensions: string[];
   createdAt: number;
   updatedAt: number;
+};
+
+export type InstalledExtension = {
+  /** Provider id, as used in `AgentConfig.enabledExtensions`. */
+  id: string;
+  label: string;
+  toolNames: string[];
 };
 
 export type AgentFileEntry = {

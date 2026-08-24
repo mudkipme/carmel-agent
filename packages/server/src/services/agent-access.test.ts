@@ -5,6 +5,7 @@ import { db, migrate } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import { createAgent, createModelRef, createProviderConfig, createSession, createUser } from "../test-support.ts";
 import {
+  assertAgentExtensionAccess,
   assertAgentHostPathAccess,
   canUseModel,
   reassignModelReferences,
@@ -102,4 +103,29 @@ test("reassignModelReferences swaps a session's model without touching its updat
   // session that used it to the top of the list.
   assert.equal(session?.updatedAt, updatedAt);
   assert.equal(session?.revision, 1);
+});
+
+test("a non-admin cannot enable an extension on their own agent", () => {
+  // Owning the agent is not enough: an extension runs unsandboxed in the server
+  // process, so arming one is handing out the host rather than setting a
+  // preference.
+  assert.throws(
+    () => assertAgentExtensionAccess("user", ["ext:weather"], []),
+    /Enabling extensions is admin-only/,
+  );
+});
+
+test("a non-admin cannot disable one either", () => {
+  assert.throws(() => assertAgentExtensionAccess("user", [], ["ext:weather"]), /admin-only/);
+});
+
+test("a non-admin may save an agent whose extension list is unchanged", () => {
+  // Otherwise every other edit to an extension-enabled agent would be blocked
+  // for its owner.
+  assert.doesNotThrow(() => assertAgentExtensionAccess("user", ["b", "a"], ["a", "b"]));
+  assert.doesNotThrow(() => assertAgentExtensionAccess("user", [], undefined));
+});
+
+test("an admin may change the list", () => {
+  assert.doesNotThrow(() => assertAgentExtensionAccess("admin", ["ext:weather"], []));
 });

@@ -12,6 +12,7 @@ import { serializeAgentSettings, serializePublicAgent } from "../serializers.ts"
 import { deletePiSessions } from "../services/pi-session-storage.ts";
 import {
   AgentHostPathAccessError,
+  assertAgentExtensionAccess,
   assertAgentHostPathAccess,
   canUseModel,
   readVisibleAgent,
@@ -37,6 +38,7 @@ export function createAgentRoutes() {
     if (activeRun) return activeRunConflictResponse(c, activeRun);
     try {
       assertAgentHostPathAccess(currentUser.role, agent);
+      assertAgentExtensionAccess(currentUser.role, agent.enabledExtensions, current?.enabledExtensions);
     } catch (error) {
       if (error instanceof AgentHostPathAccessError) return c.json({ error: error.message }, 403);
       throw error;

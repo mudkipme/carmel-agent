@@ -61,6 +61,11 @@ const migrations: Migration[] = [
     description: "Add per-model thinking level mapping so xhigh/max can be offered",
     run: addModelThinkingLevelMap,
   },
+  {
+    id: "017_agent_enabled_extensions",
+    description: "Add the per-agent allowlist of admin-installed extension providers",
+    run: addAgentEnabledExtensions,
+  },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -381,6 +386,12 @@ function deduplicateModelRefs(sqlite: Sqlite) {
       remove.run(model.id);
     }
   }
+}
+
+// Existing agents get an empty allowlist: installing an extension must never
+// retroactively arm agents that were created before it existed.
+function addAgentEnabledExtensions(sqlite: Sqlite) {
+  addColumnIfMissing(sqlite, "agents", "enabled_extensions", "TEXT NOT NULL DEFAULT '[]'");
 }
 
 function addColumnIfMissing(sqlite: Sqlite, table: string, column: string, type: string) {

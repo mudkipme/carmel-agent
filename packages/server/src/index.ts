@@ -5,6 +5,7 @@ import { migrate, seed, sqlite } from "./db/index.ts";
 import { shutdownActiveRuns } from "./runtime/run-stream.ts";
 import { reapManagedContainers, shutdownContainerManager } from "./runtime/sandbox/container-manager.ts";
 import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
+import { loadInstalledExtensions } from "./runtime/extension-registry.ts";
 import { errorMessage } from "./errors.ts";
 
 migrate();
@@ -24,6 +25,11 @@ void refreshConfiguredModelCatalogs()
       errorMessage(error),
     );
   });
+
+// Awaited before the server accepts traffic: a run that started while
+// extensions were still loading would build its tool list from an incomplete
+// registry and silently omit tools the agent is configured for.
+await loadInstalledExtensions();
 
 const app = createApp();
 const port = Number(process.env.PORT ?? 8797);

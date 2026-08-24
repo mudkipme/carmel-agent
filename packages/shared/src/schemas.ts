@@ -106,6 +106,8 @@ export const agentConfigRequestSchema = z.object({
   permissions: agentPermissionsSchema,
   defaultModelRefId: z.string(),
   defaultThinkingLevel: thinkingLevelSchema.default("off"),
+  /** Admin-only; see `assertAgentExtensionAccess`. */
+  enabledExtensions: z.array(z.string()).default([]),
 }).strict();
 export const promptInputSchema = z.object({
   text: z.string(),

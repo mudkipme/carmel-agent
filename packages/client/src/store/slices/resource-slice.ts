@@ -42,6 +42,8 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
         name: draft?.name ?? "New agent",
         description: draft?.description ?? "Personal agent",
         workingDirMode: draft?.workingDirMode ?? "default",
+        // New agents start with no extensions; an admin arms them afterwards.
+        enabledExtensions: [],
         workingDir: draft?.workingDir ?? "",
         defaultWorkingDir: draft?.defaultWorkingDir,
         mounts: draft?.mounts ?? [],
