@@ -3,9 +3,6 @@ import {
   DEFAULT_COMPACTION_SETTINGS,
   estimateContextTokens,
   shouldCompact,
-  formatPromptTemplateInvocation,
-  formatSkillInvocation,
-  parseCommandArgs,
   formatSkillsForSystemPrompt,
   type AgentHarnessEvent,
   type ExecutionToolContext,
@@ -20,7 +17,7 @@ import { serializeModelRef } from "../serializers.ts";
 import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 
-import { parseSlashCommand, type PromptInput, type Session } from "@carmel-agent/shared";
+import { type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { loadAgentResources, resolveAgentWorkingDirPath } from "./resources.ts";
@@ -34,6 +31,8 @@ import {
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerExecution } from "./tools.ts";
+import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
+import { createPi083PromptDispatcher, type Pi083Harness } from "../effectors/pi-0-83/agent-driver.ts";
 import { errorMessage } from "../errors.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -354,43 +353,21 @@ export async function prepareAgentRunPrompt(
 }
 
 /**
- * Dispatch composer text to the Pi harness. A leading slash command is resolved
- * against the agent's live resources -- the authoritative list, which is why
- * this resolution stays server-side -- and falls back to a plain prompt when it
- * names nothing. Images bypass the native skill/template calls because those
- * take text only, so the invocation is pre-formatted with Pi's own formatters.
+ * Dispatch composer text to the agent loop.
+ *
+ * The rule -- which slash commands exist and which wins when a name is
+ * ambiguous -- now lives in `effectors/dispatch-prompt.ts` with no Pi imports,
+ * and the Pi-shaped parts of it (invocation formatting, argument parsing, the
+ * fact that a named invocation cannot carry an attachment) live in the 0.83
+ * adapter. This is the seam: everything below it is what the harness rewrite
+ * gets to change.
  */
 export async function runHarnessPrompt(
-  harness: Pick<AgentHarness, "getResources" | "prompt" | "skill" | "promptFromTemplate">,
+  harness: Pi083Harness,
   text: string,
   images?: PromptInput["images"],
 ) {
-  const command = parseSlashCommand(text);
-  if (!command) return harness.prompt(text, { images });
-  const resources = harness.getResources();
-
-  const skill = command.skillName
-    ? resources.skills?.find((candidate) => candidate.name === command.skillName)
-    : undefined;
-  if (skill) {
-    const additionalInstructions = command.args.trim() || undefined;
-    if (images?.length) {
-      return harness.prompt(formatSkillInvocation(skill, additionalInstructions), { images });
-    }
-    return harness.skill(skill.name, additionalInstructions);
-  }
-
-  // A `skill:`-namespaced token that matches no loaded skill still falls through
-  // to a prompt template of that exact name, and then to plain text.
-  const template = resources.promptTemplates?.find((candidate) => candidate.name === command.name);
-  if (template) {
-    const args = parseCommandArgs(command.args);
-    if (images?.length) {
-      return harness.prompt(formatPromptTemplateInvocation(template, args), { images });
-    }
-    return harness.promptFromTemplate(template.name, args);
-  }
-  return harness.prompt(text, { images });
+  return dispatchPrompt(createPi083PromptDispatcher(harness), text, images);
 }
 
 function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user" }>): PromptInput {
