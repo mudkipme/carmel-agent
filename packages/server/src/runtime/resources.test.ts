@@ -76,3 +76,31 @@ function makeAgent(workingDir: string): AgentRecord {
     updatedAt: 0,
   };
 }
+
+test("skills and prompt templates reach the system prompt in a stable order", async () => {
+  // Pi discovers both with `readdirSync` and no ordering of its own. An order
+  // that shifts between runs silently invalidates the cached prompt prefix for
+  // the whole session, which is far more expensive than sorting.
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-resources-"));
+  for (const name of ["zebra", "alpha", "middle"]) {
+    mkdirSync(join(workingDir, ".agents", "skills", name), { recursive: true });
+    writeFileSync(
+      join(workingDir, ".agents", "skills", name, "SKILL.md"),
+      `---\nname: ${name}\ndescription: ${name} skill\n---\nBody.`,
+    );
+  }
+  const env = new AgentExecutionEnv(makeAgent(workingDir));
+
+  try {
+    const resources = await loadAgentResources(env.agent, env);
+    assert.deepEqual(resources.skills.map((skill) => skill.name), ["alpha", "middle", "zebra"]);
+  } finally {
+    await env.cleanup();
+  }
+});
+
+test("PI_CACHE_RETENTION defaults to the 1-hour cache", () => {
+  // The default that keeps a session's prefix cached across an ordinary human
+  // pause instead of the 5 minutes Pi ships with.
+  assert.equal(process.env.PI_CACHE_RETENTION, "long");
+});

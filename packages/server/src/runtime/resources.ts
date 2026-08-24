@@ -36,11 +36,20 @@ export async function loadAgentResources(agent: AgentRecord, env: ExecutionEnv):
     loadWorkspaceContext(env, cwd),
   ]);
   return {
-    skills: skillResult.skills,
-    promptTemplates: promptResult.promptTemplates,
+    // Sorted, because both of these reach the system prompt and Pi discovers
+    // them with `readdirSync` and no ordering of its own. Directory order is
+    // usually stable on one filesystem, but nothing promises it -- and an order
+    // that shifts silently invalidates the cached prompt prefix for the whole
+    // session, which costs far more than the sort.
+    skills: sortByName(skillResult.skills),
+    promptTemplates: sortByName(promptResult.promptTemplates),
     contextFiles: contextResult.contextFiles,
     diagnostics: [...skillResult.diagnostics, ...promptResult.diagnostics, ...contextResult.diagnostics],
   };
+}
+
+function sortByName<T extends { name: string }>(items: T[]): T[] {
+  return [...items].sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
 }
 
 export function resolveAgentWorkingDirPath(agent: AgentRecord) {

@@ -14,6 +14,20 @@ for (const file of [
   loadEnvFile(file);
 }
 
+/**
+ * Prefer Anthropic's 1-hour prompt cache over the 5-minute default.
+ *
+ * Pi reads `PI_CACHE_RETENTION` and defaults to "short". Carmel's sessions are
+ * long-lived and human-paced: reading a reply, a meeting, or lunch all exceed
+ * five minutes, and each one would otherwise be a full cache miss on the entire
+ * session prefix. A 1-hour write costs more per token than a 5-minute one, so
+ * this is a trade -- dearer writes for far more hits -- and it is the right way
+ * round for sessions people come back to. Set it explicitly to override.
+ */
+if (process.env.PI_CACHE_RETENTION === undefined) {
+  process.env.PI_CACHE_RETENTION = "long";
+}
+
 function loadEnvFile(file: string) {
   if (!existsSync(file)) return;
 

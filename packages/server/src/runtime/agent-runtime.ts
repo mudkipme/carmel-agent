@@ -41,6 +41,8 @@ import {
 import type { TurnFailure } from "../effectors/failure-classifier.ts";
 import type { AgentDriver } from "../effectors/contracts/agent-driver.ts";
 import type { BranchEntry, SessionLog } from "../effectors/contracts/session-log.ts";
+import { RunGuard, RunGuardError } from "../effectors/run-guard.ts";
+import { runGuardLimits, providerRequestTimeoutMs, RUN_GUARD_POLL_MS } from "./run-limits.ts";
 import { errorMessage } from "../errors.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -116,6 +118,8 @@ async function startAgentRun(context: AgentRun) {
 
   const retry = new RetryBranch();
   const turnFailure = new TurnFailureWatch();
+  const guard = new RunGuard(runGuardLimits());
+  let guardTimer: ReturnType<typeof setInterval> | undefined;
   let piSession: PiSession | undefined;
   let execution: ServerExecution | undefined;
   let unsubscribe: (() => void) | undefined;
@@ -128,9 +132,19 @@ async function startAgentRun(context: AgentRun) {
     unsubscribe = harness.subscribe((event: AgentHarnessEvent) => {
       retry.observe(event);
       turnFailure.observe(event);
+      // Every event is a sign of life; only finished tool calls count against
+      // the ceiling. Aborting through the same gate the HTTP path uses means a
+      // guard stop tears down exactly like a user stop.
+      const stop = event.type === "tool_execution_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
+      if (stop) abort.request();
       const projected = projectRunEvent(event);
       if (projected) emitRunEvent(run, projected);
     });
+    // Catches what events cannot: a provider connection that opened and went
+    // quiet, or a bash command the model launched without a timeout.
+    guardTimer = setInterval(() => {
+      if (guard.poll()) abort.request();
+    }, RUN_GUARD_POLL_MS);
     const log = createPi083SessionLog(piSession);
     const driver = createPi083AgentDriver({ harness, log, model });
 
@@ -163,6 +177,10 @@ async function startAgentRun(context: AgentRun) {
     // that separates this turn's entries from the history.
     const attemptBaselineId = (await log.readBranch()).at(-1)?.id ?? null;
     await runHarnessPrompt(harness, prepared.promptInput.text, prepared.promptInput.images);
+    // Checked before the retry-abandonment test: a guard stop aborts mid-turn,
+    // which is a plausible way to leave a retry unpersisted, and the guard is
+    // the more useful of the two explanations.
+    if (guard.stop) throw new RunGuardError(guard.stop);
     if (retry.isAbandoned) throw new Error("Retry completed without persisting the user message.");
 
     await recoverFromContextOverflow(context, {
@@ -177,6 +195,7 @@ async function startAgentRun(context: AgentRun) {
   } catch (error) {
     await reportRunFailure(context, { piSession, retry, error });
   } finally {
+    if (guardTimer) clearInterval(guardTimer);
     await finalizeRun(context, { piSession, execution, unsubscribe });
   }
 }
@@ -270,7 +289,10 @@ async function openRunHarness(
     tools,
     toolContext: execution.toolContext,
     activeToolNames,
-    streamOptions: { maxRetries: 2, maxRetryDelayMs: 60_000 },
+    // `timeoutMs` was missing, so a provider connection that opened and never
+    // answered held the run -- and the session's mutation lease -- for the life
+    // of the process.
+    streamOptions: { timeoutMs: providerRequestTimeoutMs(), maxRetries: 2, maxRetryDelayMs: 60_000 },
     // Distinct from `streamOptions`, which only covers turn streaming. Without
     // this, a transient provider error during summarization ended compaction for
     // the turn -- on the one call the session most needs to succeed.

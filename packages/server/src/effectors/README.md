@@ -149,6 +149,66 @@ Two things this needed that are worth remembering:
 One attempt per run. A second overflow after a successful compaction is
 information the user needs, not a reason to spend more tokens.
 
+## Runtime limits
+
+`run-guard.ts` stops a run that has gone wrong in a way nothing else catches.
+Three gaps made it necessary, each verified rather than assumed:
+
+- **Pi's agent loop has no iteration cap.** It runs until the model stops asking
+  for tools. `grep maxIterations|maxSteps|maxTurns` over `agent-loop.js` returns
+  nothing.
+- **The bash tool only times out when the *model* passes a timeout.**
+  `bash-operations.ts` guards on `typeof options.timeout === "number"`; omit the
+  argument and the command runs until the container does.
+- **`streamOptions.timeoutMs` was never set.** A provider connection that opened
+  and never answered held the run, and with it the session's mutation lease, for
+  the life of the process. Now set, default 10 minutes.
+
+On a single-user machine any of these is an annoyance. On a shared instance it is
+one user's agent holding another user's container CPU.
+
+The guard counts finished tool calls (default 250) and watches for silence
+(default 15 minutes), polled on a 30-second timer. Both are deliberately far
+above ordinary work: a real task can make a hundred tool calls, but nothing
+legitimate makes hundreds while producing no other activity for a quarter of an
+hour. `CARMEL_AGENT_MAX_TOOL_CALLS`, `CARMEL_AGENT_STALL_TIMEOUT_MS`, and
+`CARMEL_AGENT_REQUEST_TIMEOUT_MS` override them.
+
+A stop aborts through the same `HarnessAbortGate` the HTTP stop path uses, then
+throws `RunGuardError` into the run body so it is persisted like any other
+failure. That routing matters for a reason the integration test asserts: Pi
+synthesizes results for tool calls still pending when an abort lands, so a guard
+stop cannot leave the branch unpromptable.
+
+The failure classifier deliberately leaves these as `unknown`, which means the
+guard's own message reaches the user verbatim. A category would replace a
+precise sentence with a generic one.
+
+## Prompt cache
+
+Two changes, both about keeping the cached prefix intact rather than making it
+smaller:
+
+- **Skills and prompt templates are sorted** before they reach the system prompt
+  (`runtime/resources.ts`). Pi discovers both with `readdirSync` and no ordering
+  of its own, and `formatSkillsForSystemPrompt` emits them as given. Directory
+  order is usually stable on one filesystem but nothing promises it, and a shift
+  invalidates the whole prefix.
+- **`PI_CACHE_RETENTION` defaults to `long`** (`env.ts`), so Anthropic caches for
+  an hour instead of Pi's five-minute default. Carmel sessions are human-paced;
+  reading a reply or going to a meeting exceeds five minutes, and each pause was
+  a full miss on the entire prefix. One-hour writes cost more per token, so this
+  trades dearer writes for far more hits. An explicit value in the environment or
+  a `.env` file still wins.
+
+Pi places the `cache_control` breakpoints itself -- system blocks, last tool,
+last user message -- so nothing else is needed there.
+
+Worth remembering when changing either: **every compaction is a full prefix
+invalidation**, since it rewrites the history. That is the link between the
+compaction work above and cache economics, and the reason the `impossible`
+detection matters beyond saving a model call.
+
 ## What is still on the far side of the seam
 
 `runtime/agent-runtime.ts` is migrated for prompt dispatch only. Still holding
