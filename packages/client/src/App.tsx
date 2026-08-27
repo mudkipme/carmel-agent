@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { HarnessShell } from "@/components/harness/HarnessShell";
+import { HarnessSkeleton } from "@/components/harness/shell/HarnessSkeleton";
 import { LoginScreen } from "@/components/harness/LoginScreen";
 import { SetupScreen } from "@/components/harness/SetupScreen";
 import { SettingsPage } from "@/components/harness/SettingsPage";
@@ -43,7 +44,7 @@ export default function App() {
   }, []);
 
   if (status === "loading" || status === "idle") {
-    return <Splash title="Starting Carmel Agent" detail="Getting your workspace ready — this only takes a moment." />;
+    return <HarnessSkeleton />;
   }
 
   if (status === "error") {
