@@ -283,7 +283,12 @@ function assertInsideAllowedRoots(absolutePath: string, roots: string[], display
   const realPath = resolveRealPath(normalizedPath);
   for (const root of roots) {
     const normalizedRoot = resolve(root);
-    if (isInsideRoot(normalizedRoot, normalizedPath) && isInsideRoot(resolveRealPath(normalizedRoot), realPath)) return;
+    const realRoot = resolveRealPath(normalizedRoot);
+    // macOS exposes /var through the /private/var symlink. Filesystem APIs may
+    // return either spelling, so accept the canonical spelling lexically while
+    // still requiring the resolved target to remain inside the resolved root.
+    const lexicallyInside = isInsideRoot(normalizedRoot, normalizedPath) || isInsideRoot(realRoot, normalizedPath);
+    if (lexicallyInside && isInsideRoot(realRoot, realPath)) return;
   }
   throw new FileError("permission_denied", `Path is outside the agent working directory: ${displayPath}`, absolutePath);
 }

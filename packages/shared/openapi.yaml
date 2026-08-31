@@ -1,0 +1,220 @@
+openapi: 3.0.3
+info:
+  title: Carmel Agent API
+  version: 1.0.0
+  description: Authoritative HTTP contract for native and web Carmel Agent clients. Streams are NDJSON, never SSE.
+servers:
+  - url: /
+security:
+  - carmelSession: []
+tags:
+  - {name: Auth}
+  - {name: Bootstrap}
+  - {name: Users}
+  - {name: Models}
+  - {name: Providers}
+  - {name: Agents}
+  - {name: Runs}
+  - {name: Sessions}
+  - {name: Files}
+  - {name: Tasks}
+paths:
+  /api/health:
+    get: {operationId: health, tags: [Bootstrap], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+  /api/bootstrap:
+    get: {operationId: getBootstrap, tags: [Bootstrap], responses: {'200': {description: Bootstrap state, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '401': {$ref: '#/components/responses/Error'}}}
+  /api/auth/status:
+    get: {operationId: getAuthStatus, tags: [Auth], security: [], responses: {'200': {description: Setup state, content: {application/json: {schema: {$ref: '#/components/schemas/SetupStatus'}}}}}}
+  /api/auth/login:
+    post: {operationId: login, tags: [Auth], security: [], requestBody: {$ref: '#/components/requestBodies/Login'}, responses: {'200': {description: Signed-in bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '401': {$ref: '#/components/responses/Error'}, '429': {$ref: '#/components/responses/Error'}}}
+  /api/auth/logout:
+    post: {operationId: logout, tags: [Auth], security: [], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+  /api/auth/setup:
+    post: {operationId: setup, tags: [Auth], security: [], requestBody: {$ref: '#/components/requestBodies/Setup'}, responses: {'201': {description: Initial bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '400': {$ref: '#/components/responses/Error'}}}
+  /api/auth/account:
+    post: {operationId: updateAccount, tags: [Auth], requestBody: {$ref: '#/components/requestBodies/Account'}, responses: {'200': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}, '400': {$ref: '#/components/responses/Error'}}}
+  /api/users:
+    get: {operationId: listUsers, tags: [Users], responses: {'200': {description: Users, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/User'}}}}}}}
+    post: {operationId: createUser, tags: [Users], requestBody: {$ref: '#/components/requestBodies/CreateUser'}, responses: {'201': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}, '409': {$ref: '#/components/responses/Error'}}}
+  /api/users/{id}:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    put: {operationId: updateUserProfile, tags: [Users], requestBody: {$ref: '#/components/requestBodies/UserProfile'}, responses: {'200': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}}}
+    patch: {operationId: updateUserRole, tags: [Users], requestBody: {$ref: '#/components/requestBodies/UserRole'}, responses: {'200': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}}}
+    delete: {operationId: deleteUser, tags: [Users], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '409': {$ref: '#/components/responses/Error'}}}
+  /api/users/{id}/password:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    post: {operationId: resetUserPassword, tags: [Users], requestBody: {$ref: '#/components/requestBodies/Password'}, responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+  /api/models/{id}:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    put: {operationId: upsertModel, tags: [Models], requestBody: {$ref: '#/components/requestBodies/Model'}, responses: {'200': {description: Model, content: {application/json: {schema: {$ref: '#/components/schemas/ModelRef'}}}}, '409': {$ref: '#/components/responses/Error'}}}
+    delete: {operationId: deleteModel, tags: [Models], responses: {'200': {description: Replacement bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '409': {$ref: '#/components/responses/Error'}}}
+  /api/provider-configs/{id}:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    put: {operationId: upsertProviderConfig, tags: [Providers], requestBody: {$ref: '#/components/requestBodies/Provider'}, responses: {'200': {description: Provider, content: {application/json: {schema: {$ref: '#/components/schemas/ProviderConfig'}}}}, '409': {$ref: '#/components/responses/Error'}}}
+    delete: {operationId: deleteProviderConfig, tags: [Providers], responses: {'200': {description: Replacement bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '409': {$ref: '#/components/responses/Error'}}}
+  /api/provider-configs/{id}/models:
+    parameters: [{$ref: '#/components/parameters/ID'}, {name: refresh, in: query, schema: {type: boolean}}]
+    get: {operationId: listProviderModels, tags: [Providers], responses: {'200': {description: Models, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/ProviderModel'}}}}}}}
+  /api/oauth/providers:
+    get: {operationId: listOAuthProviders, tags: [Providers], responses: {'200': {description: OAuth providers, content: {application/json: {schema: {type: array, items: {type: object, additionalProperties: true}}}}}}}
+  /api/provider-configs/{id}/oauth/login:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    post: {operationId: startProviderOAuth, tags: [Providers], responses: {'200': {description: OAuth flow, content: {application/json: {schema: {$ref: '#/components/schemas/OAuthFlow'}}}}}}
+  /api/oauth/flows/{id}:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: getOAuthFlow, tags: [Providers], responses: {'200': {description: OAuth flow, content: {application/json: {schema: {$ref: '#/components/schemas/OAuthFlow'}}}}}}
+  /api/oauth/flows/{id}/input:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    post: {operationId: submitOAuthInput, tags: [Providers], requestBody: {$ref: '#/components/requestBodies/OAuthInput'}, responses: {'200': {description: OAuth flow, content: {application/json: {schema: {$ref: '#/components/schemas/OAuthFlow'}}}}}}
+  /api/agents/{id}:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    put: {operationId: upsertAgent, tags: [Agents], requestBody: {$ref: '#/components/requestBodies/Agent'}, responses: {'200': {description: Redacted agent, content: {application/json: {schema: {$ref: '#/components/schemas/AgentConfig'}}}}, '409': {$ref: '#/components/responses/Error'}}}
+    delete: {operationId: deleteAgent, tags: [Agents], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '409': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{id}/settings:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: getAgentSettings, tags: [Agents], responses: {'200': {description: Owner settings, content: {application/json: {schema: {$ref: '#/components/schemas/AgentConfig'}}}}}}
+  /api/agents/{id}/commands:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: getAgentCommands, tags: [Agents], responses: {'200': {description: Commands, content: {application/json: {schema: {type: object, additionalProperties: true}}}}}}
+  /api/extensions:
+    get: {operationId: listExtensions, tags: [Agents], responses: {'200': {description: Extensions, content: {application/json: {schema: {type: object, additionalProperties: true}}}}}}
+  /api/agents/{id}/run:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    post: {operationId: startAgentRun, tags: [Runs], requestBody: {$ref: '#/components/requestBodies/AgentRun'}, responses: {'200': {$ref: '#/components/responses/NDJSON'}, '409': {$ref: '#/components/responses/ActiveRunConflict'}}}
+  /api/agent-runs/{runId}/events:
+    parameters: [{$ref: '#/components/parameters/RunID'}, {name: after, in: query, required: true, schema: {type: integer, minimum: 0}}]
+    get: {operationId: watchAgentRun, tags: [Runs], responses: {'200': {$ref: '#/components/responses/NDJSON'}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}}
+  /api/agent-runs/{runId}/abort:
+    parameters: [{$ref: '#/components/parameters/RunID'}]
+    post: {operationId: abortAgentRun, tags: [Runs], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '404': {$ref: '#/components/responses/Error'}}}
+  /api/sessions:
+    post: {operationId: createSession, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/SessionDraft'}, responses: {'201': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}}}
+  /api/sessions/import/open-webui:
+    post: {operationId: importOpenWebUISessions, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/OpenWebUIImport'}, responses: {'201': {description: Import result, content: {application/json: {schema: {type: object, additionalProperties: true}}}}}}
+  /api/sessions/{id}:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    patch: {operationId: patchSession, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/SessionPatch'}, responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '409': {$ref: '#/components/responses/ActiveRunConflict'}}}
+    delete: {operationId: deleteSession, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '409': {$ref: '#/components/responses/ActiveRunConflict'}}}
+  /api/sessions/{id}/connection:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: getSessionConnection, tags: [Sessions], responses: {'200': {description: Transcript and active run, content: {application/json: {schema: {$ref: '#/components/schemas/SessionConnection'}}}}}}
+  /api/sessions/{id}/fork:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    post: {operationId: forkSession, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/Fork'}, responses: {'201': {description: Forked session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '409': {$ref: '#/components/responses/SafeEntryConflict'}}}
+  /api/sessions/{id}/messages/truncate:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    post: {operationId: truncateSession, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/Truncate'}, responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '409': {$ref: '#/components/responses/SafeEntryConflict'}}}
+  /api/sessions/{id}/messages/{entryId}:
+    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/EntryID'}]
+    patch: {operationId: editSessionMessage, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/MessageEdit'}, responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}}}
+  /api/sessions/{id}/images/{messageIndex}/{imageIndex}:
+    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/MessageIndex'}, {$ref: '#/components/parameters/ImageIndex'}]
+    get: {operationId: getSessionImage, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/Image'}}}
+  /api/sessions/{id}/tool-result-images/{messageIndex}/{partIndex}:
+    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/MessageIndex'}, {$ref: '#/components/parameters/PartIndex'}]
+    get: {operationId: getToolResultImage, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/Image'}}}
+  /api/sessions/{id}/attachments/{messageIndex}/{attachmentId}:
+    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/MessageIndex'}, {$ref: '#/components/parameters/AttachmentID'}]
+    get: {operationId: getSessionAttachment, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/Image'}}}
+  /api/agents/{id}/files:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: listAgentFiles, tags: [Files], parameters: [{name: path, in: query, schema: {type: string}}, {name: showHidden, in: query, schema: {type: boolean}}], responses: {'200': {description: Files, content: {application/json: {schema: {$ref: '#/components/schemas/FileList'}}}}}}
+    post: {operationId: createAgentFile, tags: [Files], requestBody: {$ref: '#/components/requestBodies/FileCreate'}, responses: {'201': {description: Entry, content: {application/json: {schema: {$ref: '#/components/schemas/FileEntry'}}}}}}
+    patch: {operationId: renameAgentFile, tags: [Files], requestBody: {$ref: '#/components/requestBodies/FileRename'}, responses: {'200': {description: Entry, content: {application/json: {schema: {$ref: '#/components/schemas/FileEntry'}}}}}}
+    delete: {operationId: deleteAgentFile, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+  /api/agents/{id}/files/content:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: getAgentFileContent, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}], responses: {'200': {description: Content, content: {application/json: {schema: {$ref: '#/components/schemas/FileContent'}}}}}}
+    put: {operationId: putAgentFileContent, tags: [Files], requestBody: {$ref: '#/components/requestBodies/FileContent'}, responses: {'200': {description: Content, content: {application/json: {schema: {$ref: '#/components/schemas/FileContent'}}}}}}
+  /api/agents/{id}/files/raw:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: getAgentFileImage, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}], responses: {'200': {$ref: '#/components/responses/Image'}}}
+  /api/agents/{agentId}/tasks:
+    parameters: [{$ref: '#/components/parameters/AgentID'}]
+    get: {operationId: listAgentTasks, tags: [Tasks], responses: {'200': {description: Tasks, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/AgentTask'}}}}}}}
+    post: {operationId: createAgentTask, tags: [Tasks], requestBody: {$ref: '#/components/requestBodies/TaskCreate'}, responses: {'201': {description: Task, content: {application/json: {schema: {$ref: '#/components/schemas/AgentTask'}}}}}}
+  /api/agents/{agentId}/tasks/{taskId}:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/TaskID'}]
+    patch: {operationId: updateAgentTask, tags: [Tasks], requestBody: {$ref: '#/components/requestBodies/TaskPatch'}, responses: {'200': {description: Task, content: {application/json: {schema: {$ref: '#/components/schemas/AgentTask'}}}}}}
+    delete: {operationId: deleteAgentTask, tags: [Tasks], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+  /api/agents/{agentId}/tasks/{taskId}/runs:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/TaskID'}]
+    get: {operationId: listAgentTaskRuns, tags: [Tasks], responses: {'200': {description: Runs, content: {application/json: {schema: {type: array, items: {type: object, additionalProperties: true}}}}}}}
+  /api/agents/{agentId}/tasks/{taskId}/run:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/TaskID'}]
+    post: {operationId: runAgentTask, tags: [Tasks], responses: {'200': {description: Outcome, content: {application/json: {schema: {type: object, additionalProperties: true}}}}}}
+components:
+  securitySchemes:
+    carmelSession: {type: apiKey, in: cookie, name: carmel_session}
+  parameters:
+    ID: {name: id, in: path, required: true, schema: {type: string}}
+    AgentID: {name: agentId, in: path, required: true, schema: {type: string}}
+    RunID: {name: runId, in: path, required: true, schema: {type: string}}
+    TaskID: {name: taskId, in: path, required: true, schema: {type: string}}
+    EntryID: {name: entryId, in: path, required: true, schema: {type: string}}
+    AttachmentID: {name: attachmentId, in: path, required: true, schema: {type: string}}
+    MessageIndex: {name: messageIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
+    ImageIndex: {name: imageIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
+    PartIndex: {name: partIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
+  responses:
+    Error: {description: Error, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    JSONSuccess: {description: Success, content: {application/json: {schema: {$ref: '#/components/schemas/OK'}}}}
+    ActiveRunConflict: {description: Resource is busy, headers: {x-agent-run-id: {schema: {type: string}}}, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/Error'}, {type: object, properties: {runId: {type: string}}}]}}}}
+    SafeEntryConflict: {description: Invalid cut point, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/Error'}, {type: object, properties: {safeEntryId: {type: string}}}]}}}}
+    NDJSON: {description: Live sequence-enveloped run events, headers: {x-agent-run-id: {schema: {type: string}}, x-agent-event-cursor: {schema: {type: integer}}}, content: {application/x-ndjson: {schema: {type: string, format: binary}}}}
+    Image: {description: Binary image, content: {image/png: {schema: {type: string, format: binary}}, image/jpeg: {schema: {type: string, format: binary}}, image/webp: {schema: {type: string, format: binary}}}}
+  requestBodies:
+    Login: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LoginRequest'}}}}
+    Setup: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SetupRequest'}}}}
+    Account: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AccountRequest'}}}}
+    CreateUser: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateUserRequest'}}}}
+    UserProfile: {required: true, content: {application/json: {schema: {type: object, required: [name], properties: {name: {type: string}, fastTaskModelRefId: {type: string}}}}}}
+    UserRole: {required: true, content: {application/json: {schema: {type: object, required: [role], properties: {role: {type: string, enum: [admin, user]}}}}}}
+    Password: {required: true, content: {application/json: {schema: {type: object, required: [password], properties: {password: {type: string}}}}}}
+    Model: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ModelRequest'}}}}
+    Provider: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProviderRequest'}}}}
+    OAuthInput: {required: true, content: {application/json: {schema: {type: object, properties: {value: {type: string}}}}}}
+    Agent: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentRequest'}}}}
+    AgentRun: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentRunRequest'}}}}
+    SessionDraft: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SessionDraftRequest'}}}}
+    SessionPatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SessionPatchRequest'}}}}
+    OpenWebUIImport: {required: true, content: {application/json: {schema: {type: object, required: [agentId, modelRefId, source], properties: {agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, source: {}}}}}}
+    Fork: {required: true, content: {application/json: {schema: {type: object, required: [entryId], properties: {entryId: {type: string}}}}}}
+    Truncate: {required: true, content: {application/json: {schema: {type: object, required: [entryId], properties: {entryId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}}}}}}
+    MessageEdit: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/MessageEditRequest'}}}}
+    FileContent: {required: true, content: {application/json: {schema: {type: object, required: [path, content], properties: {path: {type: string}, content: {type: string}}}}}}
+    FileCreate: {required: true, content: {application/json: {schema: {type: object, required: [path, type], properties: {path: {type: string}, type: {type: string, enum: [file, directory]}}}}}}
+    FileRename: {required: true, content: {application/json: {schema: {type: object, required: [path, newPath], properties: {path: {type: string}, newPath: {type: string}}}}}}
+    TaskCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
+    TaskPatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
+  schemas:
+    Error: {type: object, required: [error], properties: {error: {type: string}}}
+    OK: {type: object, required: [ok], properties: {ok: {type: boolean}}}
+    SetupStatus: {type: object, required: [needsSetup], properties: {needsSetup: {type: boolean}}}
+    ThinkingLevel: {type: string, enum: [off, minimal, low, medium, high, xhigh, max]}
+    LoginRequest: {type: object, additionalProperties: false, properties: {username: {type: string}, password: {type: string}}}
+    SetupRequest: {type: object, additionalProperties: false, required: [username, password], properties: {username: {type: string}, password: {type: string}, email: {type: string}, name: {type: string}}}
+    AccountRequest: {type: object, additionalProperties: false, required: [email], properties: {currentPassword: {type: string}, email: {type: string}, newPassword: {type: string}}}
+    CreateUserRequest: {type: object, additionalProperties: false, required: [username, email, password], properties: {username: {type: string}, email: {type: string}, password: {type: string}, name: {type: string}, role: {type: string, enum: [admin, user]}}}
+    User: {type: object, required: [id, name, email, role], properties: {id: {type: string}, username: {type: string}, name: {type: string}, email: {type: string}, role: {type: string, enum: [admin, user]}, fastTaskModelRefId: {type: string}}}
+    ModelRequest: {type: object, required: [shared, label, provider, modelId], additionalProperties: false, properties: {shared: {type: boolean}, label: {type: string}, provider: {type: string}, providerConfigId: {type: string}, modelId: {type: string}, api: {type: string}, baseUrl: {type: string}, contextWindow: {type: number}, maxTokens: {type: number}, reasoning: {type: boolean}, input: {type: array, items: {type: string, enum: [text, image]}}, thinkingLevelMap: {type: object, additionalProperties: true}}}
+    ModelRef: {type: object, required: [id, ownerUserId, shared, label, provider, modelId], additionalProperties: false, properties: {id: {type: string}, ownerUserId: {type: string}, shared: {type: boolean}, label: {type: string}, provider: {type: string}, providerConfigId: {type: string}, modelId: {type: string}, api: {type: string}, baseUrl: {type: string}, contextWindow: {type: number}, maxTokens: {type: number}, reasoning: {type: boolean}, input: {type: array, items: {type: string, enum: [text, image]}}, thinkingLevelMap: {type: object, additionalProperties: true}}}
+    ProviderRequest: {type: object, required: [label, provider], additionalProperties: false, properties: {label: {type: string}, provider: {type: string}, authType: {type: string, enum: [api_key, oauth]}, apiKey: {type: string}, baseUrl: {type: string}}}
+    ProviderConfig: {type: object, required: [id, userId, label, provider, createdAt, updatedAt], properties: {id: {type: string}, userId: {type: string}, label: {type: string}, provider: {type: string}, authType: {type: string}, hasApiKey: {type: boolean}, hasOAuth: {type: boolean}, baseUrl: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
+    ProviderModel: {type: object, required: [id, name], additionalProperties: true, properties: {id: {type: string}, name: {type: string}}}
+    OAuthFlow: {type: object, required: [id, providerConfigId, provider, providerName, status], additionalProperties: true, properties: {id: {type: string}, providerConfigId: {type: string}, provider: {type: string}, providerName: {type: string}, status: {type: string, enum: [pending, auth, input, success, error]}}}
+    AgentRequest: {type: object, required: [shared, name, description, workingDirMode, workingDir, mounts, systemPrompt, promptTemplates, permissions, defaultModelRefId, defaultThinkingLevel, enabledExtensions], additionalProperties: false, properties: {shared: {type: boolean}, name: {type: string}, description: {type: string}, workingDirMode: {type: string, enum: [default, manual]}, workingDir: {type: string}, defaultWorkingDir: {type: string}, mounts: {type: array, items: {type: object, additionalProperties: true}}, systemPrompt: {type: string}, promptTemplates: {type: array, items: {type: object, additionalProperties: true}}, permissions: {type: object, additionalProperties: {type: boolean}}, defaultModelRefId: {type: string}, defaultThinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, enabledExtensions: {type: array, items: {type: string}}}}
+    AgentConfig: {type: object, required: [id, ownerUserId, shared, name, description, workingDirMode, workingDir, mounts, systemPrompt, promptTemplates, permissions, defaultModelRefId, defaultThinkingLevel, enabledExtensions, createdAt, updatedAt], additionalProperties: false, properties: {id: {type: string}, ownerUserId: {type: string}, shared: {type: boolean}, name: {type: string}, description: {type: string}, workingDirMode: {type: string, enum: [default, manual]}, workingDir: {type: string}, defaultWorkingDir: {type: string}, mounts: {type: array, items: {type: object, additionalProperties: true}}, systemPrompt: {type: string}, promptTemplates: {type: array, items: {type: object, additionalProperties: true}}, permissions: {type: object, additionalProperties: {type: boolean}}, defaultModelRefId: {type: string}, defaultThinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, enabledExtensions: {type: array, items: {type: string}}, createdAt: {type: number}, updatedAt: {type: number}}}
+    AgentRunRequest: {type: object, additionalProperties: false, properties: {sessionId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, promptInput: {type: object, required: [text], properties: {text: {type: string}, images: {type: array, maxItems: 10, items: {type: object, required: [type, data, mimeType], properties: {type: {type: string, enum: [image]}, data: {type: string}, mimeType: {type: string}}}}}}}}
+    SessionDraftRequest: {type: object, required: [agentId, modelRefId], additionalProperties: false, properties: {agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, title: {type: string}}}
+    SessionPatchRequest: {type: object, additionalProperties: false, properties: {title: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, pinnedAt: {type: number, nullable: true}}}
+    MessageEditRequest: {type: object, required: [content], additionalProperties: false, properties: {content: {type: string}, truncate: {type: boolean}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, removedImageIndexes: {type: array, items: {type: integer, minimum: 0}}, removedAttachmentIds: {type: array, items: {type: string}}}}
+    SessionMetadata: {type: object, required: [id, title, userId, agentId, modelRefId, thinkingLevel, revision, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, title: {type: string}, userId: {type: string}, agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, revision: {type: integer}, pinnedAt: {type: number}, createdAt: {type: number}, updatedAt: {type: number}}}
+    Session: {allOf: [{$ref: '#/components/schemas/SessionMetadata'}, {type: object, required: [messages, messageEntryIds], properties: {messages: {type: array, items: {type: object, additionalProperties: true}}, messageEntryIds: {type: array, items: {type: string}}}}]}
+    SessionConnection: {type: object, required: [session, activeRun], properties: {session: {$ref: '#/components/schemas/Session'}, activeRun: {nullable: true, type: object, required: [runId, sessionId, eventCursor], properties: {runId: {type: string}, sessionId: {type: string}, eventCursor: {type: integer}}}}}
+    FileEntry: {type: object, required: [name, path, type, updatedAt, hidden], properties: {name: {type: string}, path: {type: string}, type: {type: string, enum: [file, directory]}, size: {type: number}, updatedAt: {type: number}, hidden: {type: boolean}}}
+    FileList: {type: object, required: [path, entries], properties: {path: {type: string}, entries: {type: array, items: {$ref: '#/components/schemas/FileEntry'}}}}
+    FileContent: {type: object, required: [path, content, updatedAt], properties: {path: {type: string}, content: {type: string}, updatedAt: {type: number}}}
+    TaskWrite: {type: object, additionalProperties: false, properties: {name: {type: string}, prompt: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, scheduleKind: {type: string, enum: [cron, interval, once]}, scheduleValue: {type: string}, timezone: {type: string}, status: {type: string, enum: [active, paused]}}}
+    AgentTask: {type: object, required: [id, agentId, userId, name, prompt, scheduleKind, scheduleValue, status, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, agentId: {type: string}, userId: {type: string}, name: {type: string}, prompt: {type: string}, scheduleKind: {type: string}, scheduleValue: {type: string}, status: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
+    BootstrapPayload: {type: object, required: [users, agents, providerConfigs, modelRefs, modelCatalog, sessions], properties: {users: {type: array, items: {$ref: '#/components/schemas/User'}}, agents: {type: array, items: {$ref: '#/components/schemas/AgentConfig'}}, providerConfigs: {type: array, items: {$ref: '#/components/schemas/ProviderConfig'}}, modelRefs: {type: array, items: {$ref: '#/components/schemas/ModelRef'}}, modelCatalog: {type: object, additionalProperties: true}, sessions: {type: array, items: {$ref: '#/components/schemas/SessionMetadata'}}}}

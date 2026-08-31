@@ -80,6 +80,7 @@ export function createAgentRoutes() {
           permissions: agent.permissions,
           defaultModelRefId: agent.defaultModelRefId,
           defaultThinkingLevel,
+          enabledExtensions: agent.enabledExtensions,
           updatedAt: timestamp,
         },
       })

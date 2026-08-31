@@ -196,12 +196,18 @@ importers:
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
+      ajv:
+        specifier: ^8.17.1
+        version: 8.20.0
       tsx:
         specifier: ^4.22.3
         version: 4.22.3
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+      yaml:
+        specifier: ^2.8.1
+        version: 2.9.0
 
   packages/shared:
     dependencies:
@@ -215,6 +221,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      tsx:
+        specifier: ^4.22.3
+        version: 4.22.3
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

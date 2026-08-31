@@ -8,7 +8,8 @@
   },
   "types": "./src/index.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "openapi:components": "node --import tsx scripts/emit-openapi-components.ts"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "^0.83.0",
@@ -16,6 +17,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "tsx": "^4.22.3",
     "typescript": "^7.0.2"
   }
 }

@@ -1,0 +1,5 @@
+{"sequence":1,"event":{"type":"message_start","message":{"role":"assistant","content":[]}}}
+{"sequence":2,"event":{"type":"message_delta","contentIndex":0,"field":"text","delta":"Hello"}}
+{"sequence":3,"event":{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Hello"}]}}}
+{"sequence":4,"event":{"type":"agent_end"}}
+{"sequence":5,"event":{"type":"run_finished"}}
