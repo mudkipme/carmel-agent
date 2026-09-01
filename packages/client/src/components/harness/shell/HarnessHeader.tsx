@@ -1,23 +1,28 @@
 import { PanelLeftIcon, SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { AgentConfig, ModelRef, SessionMetadata } from "@carmel-agent/shared";
-import { AgentAvatar } from "./AgentAvatar";
+import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
 
 export function HarnessHeader({
   sidebarOpen,
   activeAgent,
-  activeModel,
   activeSession,
   onToggleSidebar,
   onOpenSettings,
 }: {
   sidebarOpen: boolean;
   activeAgent?: AgentConfig;
-  activeModel?: ModelRef;
   activeSession?: SessionMetadata;
   onToggleSidebar: () => void;
   onOpenSettings: () => void;
 }) {
+  /* The subtitle carries only what nothing else on screen says: the model is
+     already named in the composer, and the working directory is worth the room
+     just when the agent runs somewhere other than its own default. */
+  const customWorkingDir =
+    activeAgent?.workingDirMode === "manual" && activeAgent.workingDir !== activeAgent.defaultWorkingDir
+      ? activeAgent.workingDir
+      : "";
+
   return (
     <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-3 border-b bg-background px-3 pt-[var(--safe-top)]">
       <div className="flex min-w-0 items-center gap-2">
@@ -31,12 +36,9 @@ export function HarnessHeader({
         </Button>
         <div className="min-w-0">
           <h2 className="truncate text-[13px] font-medium">{activeSession?.title ?? "No session"}</h2>
-          <p className="text-ui-smaller flex min-w-0 items-center gap-1.5 text-muted-foreground">
-            <AgentAvatar agent={activeAgent} className="size-3.5 text-[8px]" />
-            <span className="truncate">
-              {activeAgent?.name ?? "No agent"} · {activeAgent?.workingDir ?? "No working directory"} ·{" "}
-              {activeModel?.label ?? "No model"}
-            </span>
+          <p className="text-ui-smaller truncate text-muted-foreground">
+            {activeAgent?.name ?? "No agent"}
+            {customWorkingDir ? ` · ${customWorkingDir}` : ""}
           </p>
         </div>
       </div>

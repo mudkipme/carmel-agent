@@ -20,6 +20,7 @@ import {
   sortSessions,
   type SidebarMode,
 } from "@/components/harness/shell/sidebar-utils";
+import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 
 export function HarnessShell() {
@@ -31,6 +32,7 @@ export function HarnessShell() {
   const setActiveSession = store.setActiveSession;
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
+  const [sidebarResizing, setSidebarResizing] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("sessions");
   const [selectedFile, setSelectedFile] = useState({ agentId: "", path: "" });
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -123,10 +125,12 @@ export function HarnessShell() {
     const startWidth = sidebarWidth;
     const originalCursor = document.body.style.cursor;
     const originalUserSelect = document.body.style.userSelect;
+    setSidebarResizing(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
 
     const finishResize = () => {
+      setSidebarResizing(false);
       document.body.style.cursor = originalCursor;
       document.body.style.userSelect = originalUserSelect;
       window.removeEventListener("pointermove", resize);
@@ -146,14 +150,18 @@ export function HarnessShell() {
 
   return (
     <main className="relative flex h-[100dvh] min-h-0 overflow-hidden bg-background text-foreground">
-      {sidebarOpen ? (
-        <button
-          type="button"
-          aria-label="Close sidebar"
-          className="fixed inset-0 z-20 bg-background/80 backdrop-blur-sm lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      ) : null}
+      <button
+        type="button"
+        aria-label="Close sidebar"
+        inert={!sidebarOpen}
+        className={cn(
+          /* visibility rides the same transition so the scrim fades out fully
+             before it stops painting its blur. */
+          "fixed inset-0 z-20 bg-background/80 backdrop-blur-sm transition-[opacity,visibility] duration-200 motion-reduce:transition-none lg:hidden",
+          sidebarOpen ? "visible opacity-100" : "invisible opacity-0",
+        )}
+        onClick={() => setSidebarOpen(false)}
+      />
       <HarnessSidebar
         activeUser={activeUser}
         activeAgent={activeAgent}
@@ -164,6 +172,7 @@ export function HarnessShell() {
         sidebarMode={sidebarMode}
         sidebarOpen={sidebarOpen}
         sidebarWidth={sidebarWidth}
+        sidebarResizing={sidebarResizing}
         onClose={() => setSidebarOpen(false)}
         onSidebarModeChange={setSidebarMode}
         onOpenFile={setSelectedFilePath}
@@ -177,7 +186,6 @@ export function HarnessShell() {
         <HarnessHeader
           sidebarOpen={sidebarOpen}
           activeAgent={activeAgent}
-          activeModel={activeModel}
           activeSession={activeSessionMetadata}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
           onOpenSettings={() => navigate("/settings/models")}
