@@ -5,6 +5,7 @@ import type {
   AgentFileContent,
   AgentFileEntry,
   AgentFileList,
+  AgentSecret,
   AgentTask,
   AgentTaskCreateCommand,
   AgentTaskPatchCommand,
@@ -171,6 +172,14 @@ export const api = {
     }),
   deleteAgentFileEntry: (agentId: string, path: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}/files?${new URLSearchParams({ path })}`, { method: "DELETE" }),
+  listAgentSecrets: (agentId: string) => request<AgentSecret[]>(`/api/agents/${agentId}/secrets`),
+  writeAgentSecret: (agentId: string, name: string, value: string) =>
+    request<AgentSecret>(`/api/agents/${agentId}/secrets/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      body: JSON.stringify({ value }),
+    }),
+  deleteAgentSecret: (agentId: string, name: string) =>
+    request<{ ok: true }>(`/api/agents/${agentId}/secrets/${encodeURIComponent(name)}`, { method: "DELETE" }),
   listAgentTasks: (agentId: string) => request<AgentTask[]>(`/api/agents/${agentId}/tasks`),
   createAgentTask: (agentId: string, input: AgentTaskCreateCommand) =>
     request<AgentTask>(`/api/agents/${agentId}/tasks`, { method: "POST", body: JSON.stringify(input) }),

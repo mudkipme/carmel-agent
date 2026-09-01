@@ -71,6 +71,11 @@ const migrations: Migration[] = [
     description: "Create scheduled agent tasks and their run log",
     run: createAgentTasks,
   },
+  {
+    id: "019_agent_secrets",
+    description: "Create per-agent sandbox environment secrets",
+    run: createAgentSecrets,
+  },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -429,6 +434,19 @@ function createAgentTasks(sqlite: Sqlite) {
       detail TEXT
     );
     CREATE INDEX IF NOT EXISTS agent_task_runs_task ON agent_task_runs (task_id, started_at DESC);
+  `);
+}
+
+function createAgentSecrets(sqlite: Sqlite) {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS agent_secrets (
+      agent_id TEXT NOT NULL REFERENCES agents(id),
+      name TEXT NOT NULL,
+      value TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (agent_id, name)
+    );
   `);
 }
 

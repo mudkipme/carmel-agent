@@ -129,6 +129,13 @@ paths:
   /api/agents/{id}/files/raw:
     parameters: [{$ref: '#/components/parameters/ID'}]
     get: {operationId: getAgentFileImage, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}], responses: {'200': {$ref: '#/components/responses/Image'}}}
+  /api/agents/{agentId}/secrets:
+    parameters: [{$ref: '#/components/parameters/AgentID'}]
+    get: {operationId: listAgentSecrets, tags: [Secrets], responses: {'200': {description: Secret names, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/AgentSecret'}}}}}, '403': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{agentId}/secrets/{name}:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/SecretName'}]
+    put: {operationId: writeAgentSecret, tags: [Secrets], requestBody: {$ref: '#/components/requestBodies/AgentSecret'}, responses: {'200': {description: Secret, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSecret'}}}}, '400': {$ref: '#/components/responses/Error'}, '403': {$ref: '#/components/responses/Error'}}}
+    delete: {operationId: deleteAgentSecret, tags: [Secrets], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '403': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}}}
   /api/agents/{agentId}/tasks:
     parameters: [{$ref: '#/components/parameters/AgentID'}]
     get: {operationId: listAgentTasks, tags: [Tasks], responses: {'200': {description: Tasks, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/AgentTask'}}}}}}}
@@ -151,6 +158,7 @@ components:
     AgentID: {name: agentId, in: path, required: true, schema: {type: string}}
     RunID: {name: runId, in: path, required: true, schema: {type: string}}
     TaskID: {name: taskId, in: path, required: true, schema: {type: string}}
+    SecretName: {name: name, in: path, required: true, schema: {type: string}}
     EntryID: {name: entryId, in: path, required: true, schema: {type: string}}
     AttachmentID: {name: attachmentId, in: path, required: true, schema: {type: string}}
     MessageIndex: {name: messageIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
@@ -185,6 +193,7 @@ components:
     FileContent: {required: true, content: {application/json: {schema: {type: object, required: [path, content], properties: {path: {type: string}, content: {type: string}}}}}}
     FileCreate: {required: true, content: {application/json: {schema: {type: object, required: [path, type], properties: {path: {type: string}, type: {type: string, enum: [file, directory]}}}}}}
     FileRename: {required: true, content: {application/json: {schema: {type: object, required: [path, newPath], properties: {path: {type: string}, newPath: {type: string}}}}}}
+    AgentSecret: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSecretRequest'}}}}
     TaskCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
     TaskPatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
   schemas:
@@ -216,5 +225,7 @@ components:
     FileList: {type: object, required: [path, entries], properties: {path: {type: string}, entries: {type: array, items: {$ref: '#/components/schemas/FileEntry'}}}}
     FileContent: {type: object, required: [path, content, updatedAt], properties: {path: {type: string}, content: {type: string}, updatedAt: {type: number}}}
     TaskWrite: {type: object, additionalProperties: false, properties: {name: {type: string}, prompt: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, scheduleKind: {type: string, enum: [cron, interval, once]}, scheduleValue: {type: string}, timezone: {type: string}, status: {type: string, enum: [active, paused]}}}
+    AgentSecretRequest: {type: object, required: [value], additionalProperties: false, properties: {value: {type: string, minLength: 1, maxLength: 8192}}}
+    AgentSecret: {type: object, required: [agentId, name, updatedAt], additionalProperties: false, properties: {agentId: {type: string}, name: {type: string}, updatedAt: {type: number}}}
     AgentTask: {type: object, required: [id, agentId, userId, name, prompt, scheduleKind, scheduleValue, status, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, agentId: {type: string}, userId: {type: string}, name: {type: string}, prompt: {type: string}, scheduleKind: {type: string}, scheduleValue: {type: string}, status: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
     BootstrapPayload: {type: object, required: [users, agents, providerConfigs, modelRefs, modelCatalog, sessions], properties: {users: {type: array, items: {$ref: '#/components/schemas/User'}}, agents: {type: array, items: {$ref: '#/components/schemas/AgentConfig'}}, providerConfigs: {type: array, items: {$ref: '#/components/schemas/ProviderConfig'}}, modelRefs: {type: array, items: {$ref: '#/components/schemas/ModelRef'}}, modelCatalog: {type: object, additionalProperties: true}, sessions: {type: array, items: {$ref: '#/components/schemas/SessionMetadata'}}}}

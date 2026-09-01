@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { agents } from "../../db/schema.ts";
+import { sandboxEnv } from "./bash-operations.ts";
 import { createStreamDemuxer, parseImageRef } from "./podman.ts";
 import {
   buildBinds,
@@ -121,4 +122,30 @@ test("the agent home bind is per-agent and independent of the workspace", () => 
     home(manualAgent({ workingDir: "/srv/projects/other" })),
   );
   assert.match(home(manualAgent({ id: "agent_a" })), /[/\\]agents[/\\]agent_a[/\\]home$/);
+});
+
+test("sandbox env starts from a fixed base and never inherits the server environment", () => {
+  const env = sandboxEnv();
+  assert.deepEqual(env.map((entry) => entry.split("=")[0]).sort(), ["HOME", "LANG", "PATH", "TERM"]);
+});
+
+test("agent secrets are exported into the exec environment", () => {
+  const env = sandboxEnv(undefined, [{ name: "GITHUB_TOKEN", value: "ghp_example" }]);
+  assert.ok(env.includes("GITHUB_TOKEN=ghp_example"));
+});
+
+test("a secret wins over a caller-supplied variable of the same name", () => {
+  // Otherwise the model's own `env` argument could shadow a configured
+  // credential with a value of its choosing.
+  const env = sandboxEnv({ TOKEN: "from-caller" }, [{ name: "TOKEN", value: "from-secret" }]);
+  assert.ok(env.includes("TOKEN=from-secret"));
+  assert.ok(!env.includes("TOKEN=from-caller"));
+});
+
+test("a malformed secret name is dropped rather than emitted as a broken entry", () => {
+  const env = sandboxEnv(undefined, [
+    { name: "not a name", value: "x" },
+    { name: "GOOD", value: "y" },
+  ]);
+  assert.deepEqual(env.filter((entry) => entry.startsWith("GOOD") || entry.includes("not a name")), ["GOOD=y"]);
 });

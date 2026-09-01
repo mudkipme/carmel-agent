@@ -1,9 +1,17 @@
 import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import { ArrowLeftIcon, CalendarClockIcon, FileTextIcon, ShieldIcon, SlidersHorizontalIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  CalendarClockIcon,
+  FileTextIcon,
+  KeyRoundIcon,
+  ShieldIcon,
+  SlidersHorizontalIcon,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { AgentGeneralSettings } from "@/components/harness/agent-settings/AgentGeneralSettings";
 import { AgentPermissionsSettings } from "@/components/harness/agent-settings/AgentPermissionsSettings";
+import { AgentSecretsSettings } from "@/components/harness/agent-settings/AgentSecretsSettings";
 import { AgentTemplatesSettings } from "@/components/harness/agent-settings/AgentTemplatesSettings";
 import { AgentTasksPanel } from "@/components/harness/AgentTasksPanel";
 import { Button } from "@/components/ui/button";
@@ -18,6 +26,7 @@ const agentSettingsSections = [
   { id: "general", label: "General", icon: SlidersHorizontalIcon },
   { id: "templates", label: "Templates", icon: FileTextIcon },
   { id: "permissions", label: "Permissions", icon: ShieldIcon },
+  { id: "secrets", label: "Secrets", icon: KeyRoundIcon },
   { id: "tasks", label: "Tasks", icon: CalendarClockIcon },
 ] as const;
 type AgentSettingsSection = (typeof agentSettingsSections)[number]["id"];
@@ -210,14 +219,17 @@ export function AgentSettingsPage() {
                       onChange={(permissions) => updateDraft({ permissions })}
                     />
                   ) : null}
+                  {activeSection === "secrets" ? (
+                    <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
+                  ) : null}
                   {activeSection === "tasks" ? <AgentTasksPanel agentId={agent.id} /> : null}
                 </>
               ) : null}
             </div>
           </div>
-          {/* Tasks save themselves, so the draft's save bar would only be a
-              misleading no-op there. */}
-          {draft && activeSection !== "tasks" ? (
+          {/* Tasks and secrets are their own resources and save themselves, so
+              the draft's save bar would only be a misleading no-op there. */}
+          {draft && activeSection !== "tasks" && activeSection !== "secrets" ? (
             <footer className="flex shrink-0 items-center justify-end gap-3 border-t px-3 py-2 pb-[calc(0.5rem+var(--safe-bottom))]">
               {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
               {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}

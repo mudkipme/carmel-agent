@@ -31,6 +31,7 @@ An agent stores:
 - prompt templates
 - default model and thinking level
 - permissions for read, write, edit, bash, and network
+- secrets exported into its sandbox shell
 
 The server creates a Pi coding-agent session for each run, streams events to the browser as NDJSON, and persists messages when the run ends.
 
@@ -111,6 +112,58 @@ An agent can declare extra mounts in its settings. Each mount has:
 - `readOnly` — whether writes are blocked
 
 Read-only mounts are available to read/search/list tools and to sandbox bash as read-only binds. Writable mounts are also available to write/edit tools.
+
+## Agent Secrets
+
+An agent can carry named secrets, which are exported as environment variables
+into its sandbox container — a `GITHUB_TOKEN` for `gh`, a registry password for
+`npm`, a database URL for `psql`.
+
+Where they go, and where they do not:
+
+- Secrets reach **sandbox bash only**. They are not given to `fetch_url` or
+  `exa_search`, are not substituted into the system prompt or prompt templates,
+  and never enter model context except by way of something the agent itself runs.
+- They are read per command rather than baked into the container at creation, so
+  a rotated secret takes effect on the next command instead of when the idle
+  reaper next recycles the container, and it never appears in `podman inspect`.
+- Values are encrypted at rest with `CARMEL_SECRET_KEY`, the same mechanism that
+  protects provider credentials. Without that key set they are stored in plain
+  text in the database, as provider keys already are.
+
+Names must be valid shell identifiers. Names the sandbox sets itself (`HOME`,
+`PATH`, `TERM`, `LANG`) and names that redirect the shell or dynamic loader
+(`BASH_ENV`, `LD_PRELOAD`, `LD_LIBRARY_PATH`, and similar) are rejected, so a
+secret cannot change which binaries a command resolves to.
+
+### Reading And Writing
+
+Secrets are **owner-only**, and the API is write-only: no endpoint returns a
+value. The owner can add, replace, and delete a secret, and can see its name and
+when it was last set. A stored value leaves the database only on its way into a
+container.
+
+### Secrets On A Shared Agent
+
+Secrets travel with the agent, exactly as its mounts do. If you share an agent
+that has secrets, everyone who can run that agent runs commands with your
+credentials in their environment — they cannot read the values through carmel,
+but the agent they are driving can use them, and can be asked to print them.
+Share an agent with secrets the way you would hand someone the credential.
+
+### Output Redaction
+
+Secret values are stripped from sandbox stdout and stderr before that output is
+streamed to the browser or written into the session transcript, and are replaced
+with `[redacted:NAME]`. This is what stops an `env`, a `set -x`, or a curl that
+echoes its own headers from writing a live credential into a transcript that is
+stored on disk and replayed into model context on every later turn.
+
+It is a guard against accidents, not a containment boundary. An agent that has a
+secret can always encode it, and redaction only covers the sandbox streams —
+output the agent writes to a file and a *host-side* file tool then reads back is
+not scanned. Values shorter than four characters are left alone, since matching
+them would shred unrelated output.
 
 ## GPU Passthrough
 

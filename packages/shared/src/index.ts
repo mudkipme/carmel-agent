@@ -203,6 +203,17 @@ export type AgentConfig = {
   updatedAt: number;
 };
 
+/**
+ * A secret as the browser is allowed to see it: the name and when it changed,
+ * never the value. Values leave the database only on their way into a sandbox
+ * container, the same rule provider credentials already follow.
+ */
+export type AgentSecret = {
+  agentId: string;
+  name: string;
+  updatedAt: number;
+};
+
 export type TaskScheduleKind = "cron" | "interval" | "once";
 export type AgentTaskStatus = "active" | "paused" | "completed" | "disabled";
 /** `missed` and `skipped` are recorded like any other firing: not running is a result. */

@@ -13,6 +13,7 @@ const requestSchemas = {
   ProviderRequest: S.providerConfigRequestSchema,
   OAuthInputRequest: S.oauthInputRequestSchema,
   AgentRequest: S.agentConfigRequestSchema,
+  AgentSecretRequest: S.agentSecretWriteSchema,
   AgentTaskCreateRequest: S.agentTaskCreateSchema,
   AgentTaskPatchRequest: S.agentTaskPatchSchema,
   AgentRunRequest: S.agentRunRequestSchema,

@@ -22,6 +22,7 @@ import {
 import { readActiveRunLeaseForAgent } from "../services/active-run-lease.ts";
 import { agentConfigRequestSchema, jsonValidator } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
+import { deleteAgentSecretsForAgent } from "../services/agent-secrets.ts";
 import { deleteAgentTasksForAgent } from "../services/agent-tasks.ts";
 import { createAgentFilesRoute } from "./agent-files.ts";
 
@@ -98,6 +99,7 @@ export function createAgentRoutes() {
     // Tasks first: they reference sessions, and a task left behind would fire
     // against an agent that no longer exists.
     deleteAgentTasksForAgent(agentId);
+    deleteAgentSecretsForAgent(agentId);
     const deletedSessions = db.select().from(sessions).where(eq(sessions.agentId, agentId)).all();
     await deletePiSessions(deletedSessions);
     db.delete(sessions).where(eq(sessions.agentId, agentId)).run();

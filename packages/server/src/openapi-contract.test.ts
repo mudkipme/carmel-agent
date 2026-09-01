@@ -73,6 +73,7 @@ test("representative response fixtures satisfy every response component", async 
     FileList: { path: "", entries: [file] },
     FileContent: { path: "README.md", content: "hello", updatedAt: 1 },
     AgentTask: task,
+    AgentSecret: { agentId: "a1", name: "GITHUB_TOKEN", updatedAt: 1 },
     BootstrapPayload: { users: [user], agents: [agent], providerConfigs: [provider], modelRefs: [model], modelCatalog: {}, sessions: [metadata] },
   };
 

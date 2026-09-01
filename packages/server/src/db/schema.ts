@@ -126,6 +126,32 @@ export const agents = sqliteTable("agents", {
 });
 
 /**
+ * Environment variables exported into an agent's sandbox container.
+ *
+ * A table rather than a column on `agents` for one reason: `serializeAgentSettings`
+ * spreads the agent row, so a column here would be a secret one refactor away
+ * from the browser. Keeping values in their own table means the agent endpoints
+ * cannot leak them even by accident.
+ *
+ * Keyed by agent, not by (agent, user): a shared agent carries its owner's
+ * secrets to whoever runs it, exactly as its mounts already do.
+ */
+export const agentSecrets = sqliteTable(
+  "agent_secrets",
+  {
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => agents.id),
+    name: text("name").notNull(),
+    /** Encrypted with `protectSecret` when CARMEL_SECRET_KEY is set. */
+    value: text("value").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.agentId, table.name] })],
+);
+
+/**
  * A prompt an agent runs on a schedule.
  *
  * Belongs to an agent and dies with it. `userId` is still needed even so:

@@ -28,6 +28,50 @@ export const agentMountSchema = z.object({
   target: optionalStringSchema,
   readOnly: z.boolean().optional(),
 });
+/**
+ * A secret's name is the environment variable the sandbox will export, so it
+ * has to be a valid shell identifier before it is anything else.
+ */
+export const agentSecretNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * Names the sandbox sets itself, or that change how the shell and dynamic
+ * loader behave. A secret is a credential handed to a command, not a lever on
+ * the environment that runs it -- letting one land on `PATH` or `LD_PRELOAD`
+ * would turn "store a token" into "replace every binary the agent runs".
+ */
+export const reservedAgentSecretNames = new Set([
+  "HOME",
+  "PATH",
+  "TERM",
+  "LANG",
+  "IFS",
+  "ENV",
+  "BASH_ENV",
+  "BASHOPTS",
+  "SHELLOPTS",
+  "PS1",
+  "PS2",
+  "PS3",
+  "PS4",
+  "LD_PRELOAD",
+  "LD_LIBRARY_PATH",
+  "LD_AUDIT",
+]);
+
+/** The one place the name rule lives, so the browser and the server agree. */
+export function agentSecretNameError(name: string) {
+  if (!name) return "A secret name is required.";
+  if (name.length > 128) return "Secret names are limited to 128 characters.";
+  if (!agentSecretNamePattern.test(name)) {
+    return "Secret names must start with a letter or underscore and contain only letters, digits, and underscores.";
+  }
+  if (reservedAgentSecretNames.has(name)) return `${name} is set by the sandbox and cannot be used as a secret.`;
+  return undefined;
+}
+
+export const agentSecretWriteSchema = z.object({ value: z.string().min(1).max(8192) }).strict();
+
 export const agentPermissionsSchema = z.object({
   read: z.boolean(),
   write: z.boolean(),
@@ -188,6 +232,7 @@ export const renameFileEntryRequestSchema = z.object({
 }).strict();
 
 export type AgentMount = z.infer<typeof agentMountSchema>;
+export type AgentSecretWriteCommand = z.infer<typeof agentSecretWriteSchema>;
 export type AgentPermissions = z.infer<typeof agentPermissionsSchema>;
 export type AgentThinkingLevel = z.infer<typeof thinkingLevelSchema>;
 export type PromptTemplate = z.infer<typeof promptTemplateSchema>;
