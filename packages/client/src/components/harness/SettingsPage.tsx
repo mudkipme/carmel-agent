@@ -109,10 +109,7 @@ export function SettingsPage() {
           <Button variant="ghost" size="icon-sm" title="Back to harness" onClick={() => navigate("/")}>
             <ArrowLeftIcon />
           </Button>
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-medium">Harness Settings</h1>
-            <p className="text-ui-smaller truncate text-muted-foreground">Manage global provider and model settings.</p>
-          </div>
+          <h1 className="min-w-0 truncate text-sm font-medium">Harness Settings</h1>
         </div>
       </header>
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">

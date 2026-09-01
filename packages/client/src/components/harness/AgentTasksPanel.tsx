@@ -13,9 +13,9 @@ import { errorMessage } from "@/lib/errors";
 /**
  * Scheduled tasks for one agent.
  *
- * Unlike the other tabs in this dialog, tasks are their own resource rather
- * than fields of the agent draft, so edits here save immediately instead of
- * waiting for the dialog's Save. That matches what they are: a task keeps
+ * Unlike the other sections of agent settings, tasks are their own resource
+ * rather than fields of the agent draft, so edits here save immediately instead
+ * of waiting for the page's Save. That matches what they are: a task keeps
  * running whether or not the agent is being edited.
  */
 export function AgentTasksPanel({ agentId }: { agentId: string }) {

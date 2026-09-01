@@ -1,8 +1,8 @@
 import { ChevronsUpDownIcon, PlusIcon, SettingsIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AgentSettingsDialog } from "@/components/harness/AgentSettingsDialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
   CommandEmpty,
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/command";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
-import type { AgentConfig, ModelRef, ProviderConfig, SessionMetadata } from "@carmel-agent/shared";
+import type { AgentConfig, ModelRef, SessionMetadata } from "@carmel-agent/shared";
 import { AgentAvatar } from "./AgentAvatar";
 
 type AgentEntry = {
@@ -28,20 +28,17 @@ export function AgentSelector({
   visibleAgents,
   activeUserId,
   modelRefs,
-  providerConfigs,
   onCreateAgent,
 }: {
   activeAgent?: AgentConfig;
   visibleAgents: AgentConfig[];
   activeUserId: string;
   modelRefs: ModelRef[];
-  providerConfigs: ProviderConfig[];
   onCreateAgent: () => Promise<AgentConfig | undefined>;
 }) {
   const navigate = useNavigate();
   const setActiveAgent = useHarnessStore((state) => state.setActiveAgent);
   const sessions = useHarnessStore((state) => state.sessions);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
 
   const entries = useMemo(
@@ -71,13 +68,22 @@ export function AgentSelector({
     [activeAgent?.id, navigate, setActiveAgent],
   );
 
+  const openAgentSettings = useCallback(
+    (agentId: string) => {
+      setSwitcherOpen(false);
+      navigate(`/agents/${agentId}/settings/general`);
+    },
+    [navigate],
+  );
+
+  /* A fresh agent has nothing configured yet, so it opens straight into its
+     settings rather than an empty chat. */
   const createAgent = async () => {
     setSwitcherOpen(false);
     const createdAgent = await onCreateAgent();
     if (!createdAgent) return;
     setActiveAgent(createdAgent.id);
-    navigate(`/agents/${createdAgent.id}`);
-    setSettingsOpen(true);
+    openAgentSettings(createdAgent.id);
   };
 
   const owned = activeAgent?.ownerUserId === activeUserId;
@@ -105,14 +111,15 @@ export function AgentSelector({
         </span>
       </button>
       {owned && activeAgent ? (
-        <AgentSettingsDialog
-          agent={activeAgent}
-          modelRefs={modelRefs}
-          providerConfigs={providerConfigs}
-          triggerClassName="opacity-100"
-          open={settingsOpen}
-          onOpenChange={setSettingsOpen}
-        />
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          className="shrink-0"
+          title="Agent settings"
+          onClick={() => openAgentSettings(activeAgent.id)}
+        >
+          <SettingsIcon />
+        </Button>
       ) : null}
       <CommandDialog
         open={switcherOpen}
@@ -159,14 +166,8 @@ export function AgentSelector({
               <PlusIcon />
               New agent
             </CommandItem>
-            {owned ? (
-              <CommandItem
-                value="agent settings configure"
-                onSelect={() => {
-                  setSwitcherOpen(false);
-                  setSettingsOpen(true);
-                }}
-              >
+            {owned && activeAgent ? (
+              <CommandItem value="agent settings configure" onSelect={() => openAgentSettings(activeAgent.id)}>
                 <SettingsIcon />
                 Agent settings
               </CommandItem>

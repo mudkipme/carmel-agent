@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { AgentSettingsPage } from "@/components/harness/AgentSettingsPage";
 import { HarnessShell } from "@/components/harness/HarnessShell";
 import { HarnessSkeleton } from "@/components/harness/shell/HarnessSkeleton";
 import { LoginScreen } from "@/components/harness/LoginScreen";
@@ -7,6 +8,14 @@ import { SetupScreen } from "@/components/harness/SetupScreen";
 import { SettingsPage } from "@/components/harness/SettingsPage";
 import { Splash } from "@/components/harness/Splash";
 import { useHarnessStore } from "@/store/harness-store";
+
+/* Sections are routes, so the page stays mounted — and keeps its unsaved draft —
+   while you move between them. That only holds if every entry lands on the same
+   route, hence the redirect rather than a second bare-path route. */
+function AgentSettingsRedirect() {
+  const { agentId } = useParams();
+  return <Navigate to={`/agents/${agentId}/settings/general`} replace />;
+}
 
 export default function App() {
   const status = useHarnessStore((state) => state.status);
@@ -69,6 +78,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HarnessShell />} />
         <Route path="/agents/:agentId" element={<HarnessShell />} />
+        <Route path="/agents/:agentId/settings" element={<AgentSettingsRedirect />} />
+        <Route path="/agents/:agentId/settings/:section" element={<AgentSettingsPage />} />
         <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
         <Route path="/settings" element={<Navigate to="/settings/models" replace />} />
         <Route path="/settings/:section" element={<SettingsPage />} />

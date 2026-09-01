@@ -95,7 +95,6 @@ export function HarnessSidebar({
             visibleAgents={visibleAgents}
             activeUserId={store.activeUserId}
             modelRefs={store.modelRefs}
-            providerConfigs={store.providerConfigs}
             onCreateAgent={createSidebarAgent}
           />
           <Tabs
