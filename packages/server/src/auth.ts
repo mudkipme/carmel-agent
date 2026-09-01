@@ -62,6 +62,44 @@ export function pruneExpiredAuthSessions(timestamp = now()) {
   db.delete(authSessions).where(lte(authSessions.expiresAt, timestamp)).run();
 }
 
+/**
+ * Resolve a session cookie to its user, dropping the session if it is stale.
+ *
+ * Shared by the HTTP middleware and the terminal WebSocket upgrade, which
+ * happens below hono and so has no context to read the cookie from. One
+ * implementation on purpose: an authentication check that exists twice is an
+ * authentication check that will eventually disagree with itself.
+ */
+export function readAuthenticatedUser(token: string | undefined) {
+  if (!token) return undefined;
+
+  const session = db
+    .select()
+    .from(authSessions)
+    .where(and(eq(authSessions.tokenHash, hashToken(token)), gt(authSessions.expiresAt, now())))
+    .get();
+  if (!session) return undefined;
+
+  const user = db.select().from(users).where(eq(users.id, session.userId)).get();
+  if (!user) {
+    db.delete(authSessions).where(eq(authSessions.id, session.id)).run();
+    return undefined;
+  }
+  return user;
+}
+
+/** Read the session cookie out of a raw `Cookie` header. */
+export function readSessionCookie(header: string | undefined) {
+  for (const part of header?.split(";") ?? []) {
+    const separator = part.indexOf("=");
+    if (separator <= 0) continue;
+    if (part.slice(0, separator).trim() === cookieName) {
+      return decodeURIComponent(part.slice(separator + 1).trim());
+    }
+  }
+  return undefined;
+}
+
 export const requireAuth: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {
   if (isPublicApiPath(c.req.path)) {
     await next();
@@ -71,19 +109,8 @@ export const requireAuth: MiddlewareHandler<{ Variables: AuthVariables }> = asyn
   const token = getCookie(c, cookieName);
   if (!token) return c.json({ error: "Authentication required." }, 401);
 
-  const session = db
-    .select()
-    .from(authSessions)
-    .where(and(eq(authSessions.tokenHash, hashToken(token)), gt(authSessions.expiresAt, now())))
-    .get();
-  if (!session) {
-    deleteCookie(c, cookieName, { path: "/" });
-    return c.json({ error: "Authentication required." }, 401);
-  }
-
-  const user = db.select().from(users).where(eq(users.id, session.userId)).get();
+  const user = readAuthenticatedUser(token);
   if (!user) {
-    db.delete(authSessions).where(eq(authSessions.id, session.id)).run();
     deleteCookie(c, cookieName, { path: "/" });
     return c.json({ error: "Authentication required." }, 401);
   }

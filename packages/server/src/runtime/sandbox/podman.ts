@@ -1,4 +1,5 @@
 import { request as httpRequest, type IncomingMessage } from "node:http";
+import type { Duplex } from "node:stream";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
@@ -262,6 +263,84 @@ export async function execInContainer(
     await podmanRequest({ method: "GET", path: `/exec/${exec.Id}/json` }),
   );
   return { exitCode: typeof inspect?.ExitCode === "number" ? inspect.ExitCode : null };
+}
+
+/**
+ * Attach an interactive TTY exec and hand back the raw duplex socket.
+ *
+ * Docker's API "hijacks" the connection for an interactive attach: the server
+ * answers the start request with `101 Upgrade` and from then on the socket
+ * carries raw terminal bytes in both directions rather than HTTP. With `Tty`
+ * set there is no 8-byte stream framing either -- stdout and stderr are merged
+ * onto one stream, which is exactly what a terminal emulator wants.
+ */
+export async function attachExecTty(
+  containerId: string,
+  spec: { cmd: string[]; workingDir: string; env: string[] },
+): Promise<{ execId: string; socket: Duplex }> {
+  const createRes = await podmanRequest({
+    method: "POST",
+    path: `/containers/${containerId}/exec`,
+    body: {
+      AttachStdin: true,
+      AttachStdout: true,
+      AttachStderr: true,
+      Tty: true,
+      Cmd: spec.cmd,
+      WorkingDir: spec.workingDir,
+      Env: spec.env,
+    },
+  });
+  await expectStatus(createRes, [201], "Creating terminal exec");
+  const exec = await readJson<{ Id: string }>(createRes);
+  if (!exec?.Id) throw new Error("Terminal exec create response did not include an id.");
+
+  const socketPath = resolvePodmanSocketPath();
+  if (!socketPath) throw new Error(sandboxUnavailableMessage());
+
+  const socket = await new Promise<Duplex>((resolve, reject) => {
+    const req = httpRequest({
+      socketPath,
+      method: "POST",
+      path: `/${apiVersion}/exec/${exec.Id}/start`,
+      headers: {
+        host: "podman",
+        "content-type": "application/json",
+        // Without these the daemon answers with a normal buffered response and
+        // stdin is never connected, which looks like a terminal that accepts no
+        // input rather than an error.
+        Connection: "Upgrade",
+        Upgrade: "tcp",
+      },
+    });
+    req.on("upgrade", (_res, upgraded) => resolve(upgraded));
+    req.on("response", async (res) => {
+      reject(new Error(`Terminal exec was not upgraded (${res.statusCode}): ${(await readBody(res)).slice(0, 300)}`));
+    });
+    req.on("error", reject);
+    req.write(JSON.stringify({ Detach: false, Tty: true }));
+  });
+
+  return { execId: exec.Id, socket };
+}
+
+/**
+ * Resize a live exec's pseudo-terminal.
+ *
+ * Only valid once the exec is running: called before the attach it answers 500,
+ * and called after it has exited it answers 500 as well. Both are non-fatal, so
+ * failures here are swallowed by the caller rather than tearing down a session
+ * that is otherwise fine.
+ */
+export async function resizeExec(execId: string, rows: number, cols: number) {
+  const res = await podmanRequest({
+    method: "POST",
+    path: `/exec/${execId}/resize`,
+    query: { h: Math.max(1, Math.floor(rows)), w: Math.max(1, Math.floor(cols)) },
+  });
+  const status = res.statusCode ?? 0;
+  await drain(res);
+  return status === 200 || status === 201;
 }
 
 function buildPath(path: string, query?: RequestOptions["query"]) {

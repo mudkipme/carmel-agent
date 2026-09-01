@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Hono } from "hono";
-import { hashPassword, requireAuth, verifyPassword, type AuthVariables } from "./auth.ts";
+import { hashPassword, readSessionCookie, requireAuth, verifyPassword, type AuthVariables } from "./auth.ts";
 import { db, migrate } from "./db/index.ts";
 import { users } from "./db/schema.ts";
 import { id, now } from "./db/seed.ts";
@@ -80,4 +80,22 @@ test("login issues a session cookie that authorizes protected routes; otherwise 
 
   assert.equal((await app.request("/api/me")).status, 401);
   assert.equal((await app.request("/api/me", { headers: { cookie: "carmel_session=bogus" } })).status, 401);
+});
+
+test("readSessionCookie finds the session in a raw Cookie header", () => {
+  // The terminal WebSocket upgrade happens below hono, so it parses the header
+  // itself rather than going through hono's cookie helper.
+  assert.equal(readSessionCookie("carmel_session=abc123"), "abc123");
+  assert.equal(readSessionCookie("theme=dark; carmel_session=abc123; other=1"), "abc123");
+  assert.equal(readSessionCookie("  carmel_session = abc123 "), "abc123");
+  assert.equal(readSessionCookie("carmel_session=a%2Fb"), "a/b");
+});
+
+test("readSessionCookie ignores absent, empty, and lookalike cookie names", () => {
+  assert.equal(readSessionCookie(undefined), undefined);
+  assert.equal(readSessionCookie(""), undefined);
+  assert.equal(readSessionCookie("theme=dark"), undefined);
+  // A prefix match here would authenticate the wrong cookie.
+  assert.equal(readSessionCookie("xcarmel_session=abc123"), undefined);
+  assert.equal(readSessionCookie("carmel_session_backup=abc123"), undefined);
 });

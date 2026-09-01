@@ -8,6 +8,7 @@ import { now } from "../db/seed.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
 import { loadAgentResources } from "../runtime/resources.ts";
 import { discardAgentContainer } from "../runtime/sandbox/container-manager.ts";
+import { closeAgentTerminals } from "../runtime/sandbox/terminal-sessions.ts";
 import { serializeAgentSettings, serializePublicAgent } from "../serializers.ts";
 import { deletePiSessions } from "../services/pi-session-storage.ts";
 import {
@@ -86,6 +87,10 @@ export function createAgentRoutes() {
         },
       })
       .run();
+    // Permissions, mounts, and the working directory are all baked into a live
+    // shell. Rather than leave one running against the old configuration, close
+    // it and let the next attach start from the saved agent.
+    closeAgentTerminals(agentId, "The agent settings changed.");
     return c.json(serializePublicAgent(db.select().from(agents).where(eq(agents.id, agentId)).get()!));
   });
 
@@ -98,6 +103,7 @@ export function createAgentRoutes() {
     if (activeRun) return activeRunConflictResponse(c, activeRun);
     // Tasks first: they reference sessions, and a task left behind would fire
     // against an agent that no longer exists.
+    closeAgentTerminals(agentId, "The agent was deleted.");
     deleteAgentTasksForAgent(agentId);
     deleteAgentSecretsForAgent(agentId);
     const deletedSessions = db.select().from(sessions).where(eq(sessions.agentId, agentId)).all();

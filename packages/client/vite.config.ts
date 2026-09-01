@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
+      // The terminal upgrades to a WebSocket, which the default proxy entry
+      // would not carry.
+      "/api/terminal": { target: "ws://localhost:8797", ws: true },
       "/api": "http://localhost:8797",
     },
     allowedHosts: ["porygon-z.lan"]

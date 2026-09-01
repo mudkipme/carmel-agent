@@ -9,6 +9,7 @@ It runs on your machine or your server. Nothing leaves your host except the call
 - **Chat with agents that keep working.** Sessions persist, runs continue on the server if you close the tab, and reopening a session reconnects to a run in progress.
 - **Agents you shape.** Each agent has its own workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
 - **Sandboxed shell.** When an agent is allowed to run commands, they execute in a per-agent container with CPU, memory, PID, mount, and network limits — not on your host shell.
+- **A terminal in the browser.** Open an interactive shell straight into an agent's container, with the same environment its own commands get. The shell lives on the server, so a reload reattaches instead of starting over.
 - **Files in the browser.** Browse, edit, create, rename, and delete files in an agent's workspace, with the same permissions the agent has.
 - **Per-agent secrets.** Give an agent a `GITHUB_TOKEN` or a registry password; it is exported into that agent's sandbox shell only, encrypted at rest, and redacted out of command output.
 - **Your own skills.** Drop skills into `.agents/skills` in an agent's workspace and they show up as slash commands in the chat.

@@ -1,4 +1,4 @@
-import { PanelLeftIcon, SettingsIcon } from "lucide-react";
+import { PanelLeftIcon, SettingsIcon, SquareTerminalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
 
@@ -6,13 +6,19 @@ export function HarnessHeader({
   sidebarOpen,
   activeAgent,
   activeSession,
+  terminalOpen,
+  canOpenTerminal,
   onToggleSidebar,
+  onToggleTerminal,
   onOpenSettings,
 }: {
   sidebarOpen: boolean;
   activeAgent?: AgentConfig;
   activeSession?: SessionMetadata;
+  terminalOpen: boolean;
+  canOpenTerminal: boolean;
   onToggleSidebar: () => void;
+  onToggleTerminal: () => void;
   onOpenSettings: () => void;
 }) {
   /* The subtitle carries only what nothing else on screen says: the model is
@@ -43,6 +49,17 @@ export function HarnessHeader({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        {canOpenTerminal ? (
+          <Button
+            variant={terminalOpen ? "secondary" : "ghost"}
+            size="icon-sm"
+            title={terminalOpen ? "Close terminal" : "Open terminal"}
+            aria-pressed={terminalOpen}
+            onClick={onToggleTerminal}
+          >
+            <SquareTerminalIcon />
+          </Button>
+        ) : null}
         <Button variant="ghost" size="icon-sm" title="Settings" onClick={onOpenSettings}>
           <SettingsIcon />
         </Button>

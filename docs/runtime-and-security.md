@@ -103,6 +103,50 @@ Rootless Podman is the recommended runtime. A rootful Docker socket also works, 
 
 If no socket is reachable, bash commands fail with a sandbox unavailable error. Every other tool keeps working.
 
+## Web Terminal
+
+The agent's runner container can be opened as an interactive shell in the
+browser, from the terminal button in the session header.
+
+- **Owner only.** A shared agent gives its other users a chat with the agent,
+  not a shell. The terminal hands over the agent's whole environment with none
+  of the redaction that covers agent-run output, so a user of a shared agent
+  could otherwise read the owner's secrets with a single `echo`.
+- **Requires the `bash` permission.** With bash off, no terminal is offered.
+- **Same environment as the agent's own commands**, secrets included, so the
+  terminal can be used to debug what the agent actually sees (`gh auth status`,
+  `psql "$DATABASE_URL"`). Terminal output is *not* redacted: nothing here is
+  persisted to a transcript or sent to a model, and rewriting a live PTY stream
+  would corrupt the escape sequences the emulator depends on.
+- **One shell per agent per user.** Two browser tabs on the same agent drive the
+  same shell, like two windows on one tmux session.
+
+### Sessions Outlive Tabs
+
+The shell lives on the server, not in the tab, exactly as a run does. Reloading
+the page reattaches to the shell that is already running and replays its recent
+scrollback rather than dropping you at a fresh prompt. A shell nobody is
+attached to is killed after a two-minute grace period.
+
+While a terminal is attached, its container is exempt from the idle reaper --
+otherwise a shell someone is reading rather than typing into would look exactly
+like an abandoned container. Saving the agent's settings closes its terminals,
+since permissions, mounts, and the working directory are all baked into a
+running shell.
+
+### Transport
+
+The terminal is a WebSocket at `/api/terminal`, upgraded on the HTTP server
+below the REST app -- which is why it is not in the OpenAPI contract that
+describes the HTTP operations. It authenticates with the same session cookie as
+the rest of the API and validates the request `Origin`, because a WebSocket
+handshake is not covered by the CORS preflight that guards the REST routes.
+
+Under the hood this is a hijacked `exec` against the container runtime's
+Docker-compatible API, with a TTY attached. Terminals need the same container
+socket as the bash sandbox: without one, the button reports that the sandbox is
+unavailable.
+
 ## Extra Mounts
 
 An agent can declare extra mounts in its settings. Each mount has:

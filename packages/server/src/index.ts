@@ -4,6 +4,8 @@ import { pruneExpiredAuthSessions } from "./auth.ts";
 import { migrate, seed, sqlite } from "./db/index.ts";
 import { shutdownActiveRuns } from "./runtime/run-stream.ts";
 import { reapManagedContainers, shutdownContainerManager } from "./runtime/sandbox/container-manager.ts";
+import { shutdownTerminals } from "./runtime/sandbox/terminal-sessions.ts";
+import { attachTerminalSocket } from "./terminal-socket.ts";
 import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
 import { loadInstalledExtensions } from "./runtime/extension-registry.ts";
 import { startTaskScheduler } from "./runtime/task-scheduler.ts";
@@ -44,6 +46,9 @@ const server = serve({ fetch: app.fetch, hostname, port }, (info) => {
   console.log(`Carmel agent listening on http://${hostname}:${info.port}`);
 });
 
+// The terminal upgrade is handled on the raw HTTP server; see terminal-socket.ts.
+attachTerminalSocket(server as unknown as import("node:http").Server);
+
 let shuttingDown = false;
 async function shutdown(signal: string) {
   if (shuttingDown) return;
@@ -53,6 +58,13 @@ async function shutdown(signal: string) {
     await shutdownActiveRuns();
   } catch (error) {
     console.warn("Failed to drain active runs:", errorMessage(error));
+  }
+  // Terminals before containers: each open shell holds its container against
+  // teardown, so releasing them first lets the container manager actually stop.
+  try {
+    shutdownTerminals();
+  } catch (error) {
+    console.warn("Failed to close terminal sessions:", errorMessage(error));
   }
   try {
     await shutdownContainerManager();

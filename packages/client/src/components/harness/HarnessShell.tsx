@@ -7,6 +7,11 @@ const FileEditorView = lazy(() =>
     default: module.FileEditorView,
   })),
 );
+const TerminalPanel = lazy(() =>
+  import("@/components/harness/TerminalPanel").then((module) => ({
+    default: module.TerminalPanel,
+  })),
+);
 import { HarnessSidebar } from "@/components/harness/shell/HarnessSidebar";
 import { HarnessHeader } from "@/components/harness/shell/HarnessHeader";
 import { ImportSessionsDialog } from "@/components/harness/shell/ImportSessionsDialog";
@@ -36,6 +41,7 @@ export function HarnessShell() {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("sessions");
   const [selectedFile, setSelectedFile] = useState({ agentId: "", path: "" });
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
   const activeUser = store.users.find((user) => user.id === store.activeUserId);
   const selectedSession = store.sessions.find(
     (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
@@ -56,6 +62,11 @@ export function HarnessShell() {
     : undefined;
   const activeModel = store.modelRefs.find((model) => model.id === activeSessionMetadata?.modelRefId);
   const selectedFilePath = selectedFile.agentId === activeAgent?.id ? selectedFile.path : "";
+  /* Mirrors the server gate in terminal-socket.ts. Shown as "not offered"
+     rather than "offered then refused". */
+  const canOpenTerminal = Boolean(
+    activeAgent && activeAgent.ownerUserId === store.activeUserId && activeAgent.permissions.bash,
+  );
   const visibleSessions = store.sessions
     .filter((session) => session.userId === store.activeUserId && session.agentId === activeAgent?.id)
     .slice()
@@ -187,11 +198,26 @@ export function HarnessShell() {
           sidebarOpen={sidebarOpen}
           activeAgent={activeAgent}
           activeSession={activeSessionMetadata}
+          terminalOpen={terminalOpen}
+          canOpenTerminal={canOpenTerminal}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
+          onToggleTerminal={() => setTerminalOpen((open) => !open)}
           onOpenSettings={() => navigate("/settings/models")}
         />
         <div className="min-h-0 flex-1">
-          {sidebarMode === "files" ? (
+          {terminalOpen && canOpenTerminal && activeAgent ? (
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+                  Loading terminal...
+                </div>
+              }
+            >
+              {/* Keyed by agent so switching agents attaches to that agent's
+                  own shell rather than reusing the mounted one. */}
+              <TerminalPanel key={activeAgent.id} agent={activeAgent} />
+            </Suspense>
+          ) : sidebarMode === "files" ? (
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">

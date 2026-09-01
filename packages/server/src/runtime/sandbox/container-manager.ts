@@ -43,6 +43,10 @@ const config = {
 type ContainerEntry = { containerId: string; lastUsedAt: number; signature: string };
 
 const containers = new Map<string, ContainerEntry>();
+// Agents with something attached that the idle reaper must not interrupt --
+// today, open terminal sessions. Counted rather than boolean: two browser tabs
+// on the same shell are two holds, and the last one to leave releases it.
+const containerHolds = new Map<string, number>();
 const pendingStarts = new Map<string, Promise<string>>();
 let imageReady: Promise<void> | undefined;
 let reaper: ReturnType<typeof setInterval> | undefined;
@@ -86,6 +90,31 @@ export function containerSignature(agent: AgentRecord, options: { network: boole
     binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, agent.mounts),
     network: options.network,
   });
+}
+
+/**
+ * Pin an agent's container against the idle reaper.
+ *
+ * The reaper measures idleness by `lastUsedAt`, which only moves when a command
+ * is dispatched. A terminal where someone is reading rather than typing looks
+ * exactly like an abandoned container, so it needs to say so explicitly.
+ */
+export function holdAgentContainer(agentId: string) {
+  containerHolds.set(agentId, (containerHolds.get(agentId) ?? 0) + 1);
+}
+
+export function releaseAgentContainer(agentId: string) {
+  const held = (containerHolds.get(agentId) ?? 0) - 1;
+  if (held > 0) containerHolds.set(agentId, held);
+  else containerHolds.delete(agentId);
+  // Idleness is counted from the release, not from the last command: a session
+  // that just ended should buy the full TTL before the container is reclaimed.
+  const entry = containers.get(agentId);
+  if (entry && held <= 0) entry.lastUsedAt = Date.now();
+}
+
+export function isAgentContainerHeld(agentId: string) {
+  return (containerHolds.get(agentId) ?? 0) > 0;
 }
 
 // Transient teardown (abort, command timeout, config-change recreate). The
@@ -271,6 +300,7 @@ async function reapIdleContainers() {
   const now = Date.now();
   const stale: Array<[string, ContainerEntry]> = [];
   for (const [agentId, entry] of containers) {
+    if (containerHolds.has(agentId)) continue;
     if (now - entry.lastUsedAt < config.idleTtlMs) continue;
     stale.push([agentId, entry]);
     // Drop the entry up front so it cannot be reused while removal is in flight.

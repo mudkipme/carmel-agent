@@ -7,6 +7,9 @@ import {
   buildBinds,
   containerSignature,
   containerWorkdir,
+  holdAgentContainer,
+  isAgentContainerHeld,
+  releaseAgentContainer,
   resolveAgentHomeDirPath,
   resolveContainerWorkspace,
 } from "./container-manager.ts";
@@ -148,4 +151,24 @@ test("a malformed secret name is dropped rather than emitted as a broken entry",
     { name: "GOOD", value: "y" },
   ]);
   assert.deepEqual(env.filter((entry) => entry.startsWith("GOOD") || entry.includes("not a name")), ["GOOD=y"]);
+});
+
+test("a held container is exempt from the idle reaper until every hold is released", () => {
+  // An open terminal is idle by `lastUsedAt` the whole time someone is reading
+  // it, so the hold is the only thing standing between them and a reaped shell.
+  const agentId = "agent_hold_test";
+  assert.equal(isAgentContainerHeld(agentId), false);
+  holdAgentContainer(agentId);
+  holdAgentContainer(agentId);
+  assert.equal(isAgentContainerHeld(agentId), true);
+  releaseAgentContainer(agentId);
+  assert.equal(isAgentContainerHeld(agentId), true, "one tab closing must not release another tab's hold");
+  releaseAgentContainer(agentId);
+  assert.equal(isAgentContainerHeld(agentId), false);
+});
+
+test("releasing a hold that was never taken does not wrap around", () => {
+  const agentId = "agent_unbalanced_release";
+  releaseAgentContainer(agentId);
+  assert.equal(isAgentContainerHeld(agentId), false);
 });
