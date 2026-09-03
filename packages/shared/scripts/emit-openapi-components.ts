@@ -26,6 +26,7 @@ const requestSchemas = {
   FileContentRequest: S.fileContentRequestSchema,
   FileCreateRequest: S.createFileEntryRequestSchema,
   FileRenameRequest: S.renameFileEntryRequestSchema,
+  FileBatchRequest: S.fileBatchRequestSchema,
 } as const;
 
 const schemas = Object.fromEntries(

@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, ModelRef } from "@carmel-agent/shared";
-import type { SidebarMode } from "./sidebar-utils";
 import { errorMessage } from "@/lib/errors";
 
 export function ImportSessionsDialog({
@@ -19,14 +18,12 @@ export function ImportSessionsDialog({
   activeAgent,
   modelRefs,
   onOpenChange,
-  onSidebarModeChange,
   onAfterImport,
 }: {
   open: boolean;
   activeAgent?: AgentConfig;
   modelRefs: ModelRef[];
   onOpenChange: (open: boolean) => void;
-  onSidebarModeChange: (mode: SidebarMode) => void;
   onAfterImport: () => void;
 }) {
   const navigate = useNavigate();
@@ -62,7 +59,6 @@ export function ImportSessionsDialog({
       const firstSession = importedSessions[0];
       if (firstSession) {
         navigate(`/agents/${firstSession.agentId}/sessions/${firstSession.id}`);
-        onSidebarModeChange("sessions");
         onAfterImport();
       }
       onOpenChange(false);

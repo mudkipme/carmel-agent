@@ -1,4 +1,4 @@
-import { RotateCcwIcon, SaveIcon } from "lucide-react";
+import { ArrowLeftIcon, DownloadIcon, RotateCcwIcon, SaveIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentConfig } from "@carmel-agent/shared";
 import { CodeEditor, type EditorLanguage } from "@/components/harness/files/CodeEditor";
@@ -10,9 +10,10 @@ import { errorMessage } from "@/lib/errors";
 type FileEditorViewProps = {
   agent?: AgentConfig;
   filePath?: string;
+  onClose?: () => void;
 };
 
-export function FileEditorView({ agent, filePath }: FileEditorViewProps) {
+export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps) {
   const themePreference = useThemePreference();
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
@@ -90,25 +91,38 @@ export function FileEditorView({ agent, filePath }: FileEditorViewProps) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b px-4">
-        <div className="min-w-0">
-          <h2 className="truncate text-[13px] font-medium">{filePath}</h2>
-          <p className="truncate text-xs text-muted-foreground">
-            {isImage ? "Image preview" : isDirty ? "Unsaved changes" : "Saved"}
-            {loading ? " · Loading..." : ""}
-          </p>
-        </div>
-        {!isImage ? (
-          <div className="flex shrink-0 items-center gap-2">
-            <Button size="sm" variant="outline" disabled={!isDirty || saving || loading} onClick={() => setContent(savedContent)}>
-              <RotateCcwIcon />
-              Discard
+        <div className="flex min-w-0 items-center gap-2">
+          {onClose ? (
+            <Button size="icon-sm" variant="ghost" title="Back to files" onClick={onClose}>
+              <ArrowLeftIcon />
             </Button>
-            <Button size="sm" disabled={!isDirty || saving || loading} onClick={() => void saveFile()}>
-              <SaveIcon />
-              {saving ? "Saving..." : "Save"}
-            </Button>
+          ) : null}
+          <div className="min-w-0">
+            <h2 className="truncate text-[13px] font-medium">{filePath}</h2>
+            <p className="truncate text-xs text-muted-foreground">
+              {isImage ? "Image preview" : isDirty ? "Unsaved changes" : "Saved"}
+              {loading ? " · Loading..." : ""}
+            </p>
           </div>
-        ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button size="sm" variant="outline" title="Download this file" onClick={() => downloadFile(agent.id, filePath)}>
+            <DownloadIcon />
+            Download
+          </Button>
+          {!isImage ? (
+            <>
+              <Button size="sm" variant="outline" disabled={!isDirty || saving || loading} onClick={() => setContent(savedContent)}>
+                <RotateCcwIcon />
+                Discard
+              </Button>
+              <Button size="sm" disabled={!isDirty || saving || loading} onClick={() => void saveFile()}>
+                <SaveIcon />
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </>
+          ) : null}
+        </div>
       </div>
       {error ? <div className="border-b px-4 py-2 text-xs text-destructive">{error}</div> : null}
       <div className="min-h-0 flex-1">
@@ -120,6 +134,15 @@ export function FileEditorView({ agent, filePath }: FileEditorViewProps) {
       </div>
     </div>
   );
+}
+
+function downloadFile(agentId: string, filePath: string) {
+  const link = document.createElement("a");
+  link.href = api.getAgentFileDownloadUrl(agentId, [filePath]);
+  link.rel = "noopener";
+  document.body.append(link);
+  link.click();
+  link.remove();
 }
 
 function ImagePreview({ agentId, filePath }: { agentId: string; filePath: string }) {

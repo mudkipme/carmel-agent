@@ -277,3 +277,12 @@ export type AgentFileContent = {
   content: string;
   updatedAt: number;
 };
+
+/**
+ * Batch operations are best-effort per path: one unreadable entry must not
+ * cancel the rest of the selection, so both halves are reported.
+ */
+export type AgentFileBatchResult = {
+  completed: string[];
+  failed: { path: string; error: string }[];
+};

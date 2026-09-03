@@ -230,7 +230,19 @@ export const renameFileEntryRequestSchema = z.object({
   path: optionalStringSchema,
   newPath: optionalStringSchema,
 }).strict();
+/**
+ * One request per user gesture rather than per path: a batch delete, cut/paste
+ * or copy/paste in the file manager reports partial failure per entry instead
+ * of leaving the client to reconcile a burst of independent requests.
+ */
+export const fileBatchRequestSchema = z.object({
+  operation: z.enum(["delete", "move", "copy"]),
+  paths: z.array(z.string().min(1)).min(1).max(500),
+  destination: optionalStringSchema,
+}).strict();
 
+export type AgentFileBatchCommand = z.infer<typeof fileBatchRequestSchema>;
+export type AgentFileBatchOperation = AgentFileBatchCommand["operation"];
 export type AgentMount = z.infer<typeof agentMountSchema>;
 export type AgentSecretWriteCommand = z.infer<typeof agentSecretWriteSchema>;
 export type AgentPermissions = z.infer<typeof agentPermissionsSchema>;

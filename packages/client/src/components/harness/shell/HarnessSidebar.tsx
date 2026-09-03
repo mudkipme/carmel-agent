@@ -1,16 +1,14 @@
 import { PanelLeftCloseIcon } from "lucide-react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import { FileExplorerPanel } from "@/components/harness/files/FileExplorerPanel";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, SessionMetadata, User } from "@carmel-agent/shared";
 import { AgentSelector } from "./AgentSelector";
 import { SessionList } from "./SessionList";
-import { SidebarTabsToolbar } from "./SidebarTabsToolbar";
-import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH, type SidebarMode } from "./sidebar-utils";
+import { SidebarSessionsToolbar } from "./SidebarSessionsToolbar";
+import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "./sidebar-utils";
 
 export function HarnessSidebar({
   activeUser,
@@ -18,15 +16,11 @@ export function HarnessSidebar({
   activeSession,
   visibleAgents,
   visibleSessions,
-  selectedFilePath,
-  sidebarMode,
   sidebarOpen,
   sidebarWidth,
   sidebarResizing,
   onClose,
-  onSidebarModeChange,
-  onOpenFile,
-  onAfterOpen,
+  onOpenSession,
   onStartResize,
   onResetWidth,
   onOpenImport,
@@ -36,15 +30,11 @@ export function HarnessSidebar({
   activeSession?: SessionMetadata;
   visibleAgents: AgentConfig[];
   visibleSessions: SessionMetadata[];
-  selectedFilePath: string;
-  sidebarMode: SidebarMode;
   sidebarOpen: boolean;
   sidebarWidth: number;
   sidebarResizing: boolean;
   onClose: () => void;
-  onSidebarModeChange: (mode: SidebarMode) => void;
-  onOpenFile: (path: string) => void;
-  onAfterOpen: () => void;
+  onOpenSession: () => void;
   onStartResize: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onResetWidth: () => void;
   onOpenImport: () => void;
@@ -97,35 +87,20 @@ export function HarnessSidebar({
             modelRefs={store.modelRefs}
             onCreateAgent={createSidebarAgent}
           />
-          <Tabs
-            value={sidebarMode}
-            onValueChange={(value) => onSidebarModeChange(value as SidebarMode)}
-            className="flex min-h-0 flex-1 flex-col gap-2"
-          >
-            <SidebarTabsToolbar
+          <div className="flex min-h-0 flex-1 flex-col gap-2">
+            <SidebarSessionsToolbar
               activeAgent={activeAgent}
-              onSidebarModeChange={onSidebarModeChange}
-              onAfterOpen={onAfterOpen}
+              onOpenSession={onOpenSession}
               onOpenImport={onOpenImport}
             />
-            <TabsContent value="sessions" className="min-h-0 flex-1 overflow-hidden">
+            <div className="min-h-0 flex-1 overflow-hidden">
               <SessionList
                 sessions={visibleSessions}
                 activeSessionId={activeSession?.id}
-                onSidebarModeChange={onSidebarModeChange}
-                onAfterOpen={onAfterOpen}
+                onOpenSession={onOpenSession}
               />
-            </TabsContent>
-            <TabsContent value="files" className="min-h-0 flex-1 overflow-hidden">
-              <FileExplorerPanel
-                key={activeAgent?.id ?? "no-agent"}
-                agent={activeAgent}
-                selectedFilePath={selectedFilePath}
-                onOpenFile={onOpenFile}
-                onAfterOpen={onAfterOpen}
-              />
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </div>
       </div>
       <button

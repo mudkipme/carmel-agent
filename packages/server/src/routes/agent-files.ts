@@ -1,13 +1,26 @@
 import { Hono, type Context, type Next } from "hono";
-import { extname } from "node:path";
-import type { AgentFileContent, AgentFileEntry, AgentFileList, AgentPermissions } from "@carmel-agent/shared";
+import { createReadStream, createWriteStream } from "node:fs";
+import { cp, mkdir, rename as renameFile, rm } from "node:fs/promises";
+import { basename, dirname, extname, isAbsolute, relative } from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import type {
+  AgentFileBatchCommand,
+  AgentFileBatchResult,
+  AgentFileContent,
+  AgentFileEntry,
+  AgentFileList,
+  AgentPermissions,
+} from "@carmel-agent/shared";
 import { FileError, type Result } from "@earendil-works/pi-agent-core";
 import { agents } from "../db/schema.ts";
 import type { AuthVariables } from "../auth.ts";
 import { errorMessage } from "../errors.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
+import { zipArchive, type ZipEntry } from "../runtime/zip.ts";
 import {
   createFileEntryRequestSchema,
+  fileBatchRequestSchema,
   fileContentRequestSchema,
   jsonValidator,
   renameFileEntryRequestSchema,
@@ -27,6 +40,11 @@ type AgentFilesEnv = { Variables: AgentFilesVariables };
 
 const MAX_TEXT_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_IMAGE_FILE_BYTES = 32 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+// The archive writer has no zip64 support, so an oversized download is refused
+// before it starts rather than streaming an archive extractors would reject.
+const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024;
+const MAX_ARCHIVE_ENTRIES = 20_000;
 
 export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
   const route = new Hono<AgentFilesEnv>();
@@ -126,7 +144,201 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     return c.json({ ok: true });
   });
 
+  // One endpoint for every download shape the file manager offers: a single
+  // file streams as-is, anything else (a folder, a multi-select) streams as a
+  // zip built on the fly.
+  route.get("/:id/files/download", requireRead, async (c) => {
+    const env = c.get("agentEnv");
+    const requested = (c.req.queries("path") ?? []).map((path) => path.trim()).filter(Boolean);
+    if (requested.length === 0) return c.json({ error: "At least one path is required." }, 400);
+
+    const targets = [];
+    for (const path of requested) {
+      const absolutePath = env.resolveBrowserPath(path, "read");
+      targets.push({ absolutePath, info: unwrap(await env.fileInfo(absolutePath)) });
+    }
+
+    const single = targets.length === 1 ? targets[0] : undefined;
+    if (single && single.info.kind === "file") {
+      return c.body(toWebStream(createReadStream(single.absolutePath)), 200, {
+        "content-type": "application/octet-stream",
+        "content-length": String(single.info.size),
+        "content-disposition": contentDisposition(basename(single.absolutePath)),
+        "cache-control": "no-store",
+      });
+    }
+
+    const entries = await collectArchiveEntries(env, targets.map((target) => target.absolutePath));
+    const archiveName = single ? `${single.absolutePath === env.cwd ? "workspace" : basename(single.absolutePath)}.zip` : "files.zip";
+    return c.body(toWebStream(Readable.from(zipArchive(entries))), 200, {
+      "content-type": "application/zip",
+      "content-disposition": contentDisposition(archiveName),
+      "cache-control": "no-store",
+    });
+  });
+
+  // Raw body rather than multipart: the browser uploads one file per request,
+  // which keeps large files off the server heap and gives the client a real
+  // per-file progress bar.
+  route.put("/:id/files/upload", requireWrite, async (c) => {
+    const requestedPath = (c.req.query("path") ?? "").trim();
+    if (!requestedPath || requestedPath.endsWith("/")) return c.json({ error: "A file path is required." }, 400);
+    const declaredSize = Number(c.req.header("content-length"));
+    if (Number.isFinite(declaredSize) && declaredSize > MAX_UPLOAD_BYTES) {
+      return c.json({ error: "File is too large to upload." }, 413);
+    }
+
+    const env = c.get("agentEnv");
+    const targetPath = env.resolveBrowserPath(requestedPath, "write");
+    if (targetPath === env.cwd) return c.json({ error: "A file path is required." }, 400);
+    if (unwrap(await env.exists(targetPath))) {
+      if (c.req.query("overwrite") !== "true") return c.json({ error: "Path already exists." }, 409);
+      if (unwrap(await env.fileInfo(targetPath)).kind !== "file") return c.json({ error: "Path is not a file." }, 400);
+    }
+
+    // Folder uploads arrive as files carrying their relative path, so the
+    // directories on the way to one are created as needed.
+    await mkdir(env.resolveBrowserPath(dirname(requestedPath), "write"), { recursive: true });
+    await streamUpload(c.req.raw.body, targetPath);
+    return c.json(await toFileEntry(env, targetPath), 201);
+  });
+
+  // Batch delete / cut-paste / copy-paste. Each path is attempted on its own so
+  // one failure inside a selection does not strand the rest.
+  route.post("/:id/files/batch", requireWrite, jsonValidator(fileBatchRequestSchema), async (c) => {
+    const { operation, paths, destination } = c.req.valid("json");
+    const env = c.get("agentEnv");
+    const destinationPath = operation === "delete" ? "" : env.resolveBrowserPath(destination ?? "", "write");
+    if (destinationPath && unwrap(await env.fileInfo(destinationPath)).kind !== "directory") {
+      return c.json({ error: "Destination is not a directory." }, 400);
+    }
+
+    const result: AgentFileBatchResult = { completed: [], failed: [] };
+    for (const path of paths) {
+      try {
+        await applyBatchOperation(env, operation, path, destinationPath);
+        result.completed.push(path);
+      } catch (error) {
+        result.failed.push({ path, error: errorMessage(error) });
+      }
+    }
+    return c.json(result satisfies AgentFileBatchResult);
+  });
+
   return route;
+}
+
+/**
+ * Walk the selection into a flat entry list before a byte is streamed: the
+ * archive format cannot express a mid-stream failure, so limits are enforced
+ * and unreadable entries dropped up front.
+ */
+async function collectArchiveEntries(env: AgentExecutionEnv, roots: string[]) {
+  const entries: ZipEntry[] = [];
+  const visitedDirectories = new Set<string>();
+  let totalBytes = 0;
+
+  const visit = async (absolutePath: string, archiveName: string) => {
+    const info = unwrap(await env.fileInfo(absolutePath));
+    if (entries.length >= MAX_ARCHIVE_ENTRIES) {
+      throw new FileError("invalid", "Too many files to download at once.", archiveName);
+    }
+    if (info.kind !== "directory") {
+      totalBytes += info.size;
+      if (totalBytes > MAX_ARCHIVE_BYTES) {
+        throw new FileError("invalid", "Selection is too large to download.", archiveName);
+      }
+      entries.push({ name: archiveName, mtimeMs: info.mtimeMs, open: () => createReadStream(absolutePath) });
+      return;
+    }
+    // Symlinked directories can point back at an ancestor; the canonical path
+    // keeps such a loop from expanding forever.
+    const canonical = unwrap(await env.canonicalPath(absolutePath));
+    if (visitedDirectories.has(canonical)) return;
+    visitedDirectories.add(canonical);
+    if (archiveName) entries.push({ name: archiveName, mtimeMs: info.mtimeMs });
+    for (const child of unwrap(await env.listDir(absolutePath))) {
+      try {
+        // Anything that resolves outside the workspace throws here and is left
+        // out, exactly as it is left out of a directory listing.
+        const childPath = env.resolveBrowserPath(env.toWorkspaceRelativePath(child.path), "read");
+        await visit(childPath, archiveName ? `${archiveName}/${child.name}` : child.name);
+      } catch (error) {
+        if (error instanceof FileError && error.code === "permission_denied") continue;
+        throw error;
+      }
+    }
+  };
+
+  for (const root of roots) await visit(root, root === env.cwd ? "" : basename(root));
+  return entries;
+}
+
+/**
+ * Upload beside the target and rename into place, so a dropped connection
+ * leaves the existing file untouched instead of half-overwritten.
+ */
+async function streamUpload(body: ReadableStream<Uint8Array> | null, targetPath: string) {
+  const pendingPath = `${targetPath}.upload-${Math.random().toString(36).slice(2, 10)}`;
+  let received = 0;
+  const limited = async function* () {
+    if (!body) return;
+    for await (const chunk of Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0])) {
+      received += (chunk as Uint8Array).length;
+      if (received > MAX_UPLOAD_BYTES) throw new FileError("invalid", "File is too large to upload.", targetPath);
+      yield chunk as Uint8Array;
+    }
+  };
+  try {
+    await pipeline(Readable.from(limited()), createWriteStream(pendingPath));
+    await renameFile(pendingPath, targetPath);
+  } catch (error) {
+    await rm(pendingPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+async function applyBatchOperation(
+  env: AgentExecutionEnv,
+  operation: AgentFileBatchCommand["operation"],
+  path: string,
+  destinationPath: string,
+) {
+  const sourcePath = env.resolveBrowserPath(path, "write");
+  const name = basename(sourcePath);
+  if (sourcePath === env.cwd) throw new FileError("invalid", "The working directory cannot be moved or deleted.", path);
+  if (operation === "delete") {
+    unwrap(await env.remove(sourcePath, { recursive: true }));
+    return;
+  }
+
+  if (isInsidePath(sourcePath, destinationPath)) {
+    throw new FileError("invalid", `“${name}” cannot be placed inside itself.`, path);
+  }
+  const destinationRelative = env.toWorkspaceRelativePath(destinationPath);
+  const targetPath = env.resolveBrowserPath([destinationRelative, name].filter(Boolean).join("/"), "write");
+  if (targetPath === sourcePath) throw new FileError("invalid", `“${name}” is already here.`, path);
+  if (unwrap(await env.exists(targetPath))) throw new FileError("invalid", `“${name}” already exists here.`, path);
+
+  if (operation === "move") await renameFile(sourcePath, targetPath);
+  // Symlinks are copied as symlinks: following them would pull content from
+  // outside the workspace into it.
+  else await cp(sourcePath, targetPath, { recursive: true, errorOnExist: true, verbatimSymlinks: true });
+}
+
+function isInsidePath(root: string, target: string) {
+  const child = relative(root, target);
+  return child === "" || (!child.startsWith("..") && !isAbsolute(child));
+}
+
+function toWebStream(stream: Readable) {
+  return Readable.toWeb(stream) as unknown as ReadableStream<Uint8Array>;
+}
+
+/** RFC 6266 disposition: an ASCII fallback plus the real UTF-8 name. */
+function contentDisposition(name: string) {
+  const fallback = name.replaceAll(/[^\x20-\x7e]/g, "_").replaceAll(/["\\]/g, "_") || "download";
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 }
 
 /**
@@ -231,7 +443,7 @@ function fileError(c: Context, error: unknown) {
       ? 404
       : message.includes("already exists") || message.includes("EEXIST")
         ? 409
-        : code === "invalid"
+        : code === "invalid" || message.includes("ENOTDIR") || message.includes("EISDIR")
           ? 400
           : 500;
   return c.json({ error: message }, status);

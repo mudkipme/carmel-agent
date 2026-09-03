@@ -7,6 +7,11 @@ const FileEditorView = lazy(() =>
     default: module.FileEditorView,
   })),
 );
+const FileManagerView = lazy(() =>
+  import("@/components/harness/files/FileManagerView").then((module) => ({
+    default: module.FileManagerView,
+  })),
+);
 const TerminalPanel = lazy(() =>
   import("@/components/harness/TerminalPanel").then((module) => ({
     default: module.TerminalPanel,
@@ -23,7 +28,7 @@ import {
   resetSidebarWidth,
   SIDEBAR_WIDTH_STORAGE_KEY,
   sortSessions,
-  type SidebarMode,
+  type ContentView,
 } from "@/components/harness/shell/sidebar-utils";
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
@@ -38,10 +43,11 @@ export function HarnessShell() {
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarResizing, setSidebarResizing] = useState(false);
-  const [sidebarMode, setSidebarMode] = useState<SidebarMode>("sessions");
+  /* The chat, the file manager, and the terminal share the main column, so one
+     value decides which is mounted rather than a flag per pane. */
+  const [contentView, setContentView] = useState<ContentView>("chat");
   const [selectedFile, setSelectedFile] = useState({ agentId: "", path: "" });
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [terminalOpen, setTerminalOpen] = useState(false);
   const activeUser = store.users.find((user) => user.id === store.activeUserId);
   const selectedSession = store.sessions.find(
     (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
@@ -129,6 +135,11 @@ export function HarnessShell() {
     setSelectedFile({ agentId: activeAgent?.id ?? "", path });
   };
 
+  const openSessionView = () => {
+    setContentView("chat");
+    closeSidebarOnMobile();
+  };
+
   const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches) return;
     event.preventDefault();
@@ -179,15 +190,11 @@ export function HarnessShell() {
         activeSession={activeSessionMetadata}
         visibleAgents={visibleAgents}
         visibleSessions={visibleSessions}
-        selectedFilePath={selectedFilePath}
-        sidebarMode={sidebarMode}
         sidebarOpen={sidebarOpen}
         sidebarWidth={sidebarWidth}
         sidebarResizing={sidebarResizing}
         onClose={() => setSidebarOpen(false)}
-        onSidebarModeChange={setSidebarMode}
-        onOpenFile={setSelectedFilePath}
-        onAfterOpen={closeSidebarOnMobile}
+        onOpenSession={openSessionView}
         onStartResize={startSidebarResize}
         onResetWidth={() => resetSidebarWidth(setSidebarWidth)}
         onOpenImport={() => setImportDialogOpen(true)}
@@ -198,14 +205,14 @@ export function HarnessShell() {
           sidebarOpen={sidebarOpen}
           activeAgent={activeAgent}
           activeSession={activeSessionMetadata}
-          terminalOpen={terminalOpen}
+          contentView={contentView}
           canOpenTerminal={canOpenTerminal}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
-          onToggleTerminal={() => setTerminalOpen((open) => !open)}
+          onContentViewChange={setContentView}
           onOpenSettings={() => navigate("/settings/models")}
         />
         <div className="min-h-0 flex-1">
-          {terminalOpen && canOpenTerminal && activeAgent ? (
+          {contentView === "terminal" && canOpenTerminal && activeAgent ? (
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
@@ -217,19 +224,28 @@ export function HarnessShell() {
                   own shell rather than reusing the mounted one. */}
               <TerminalPanel key={activeAgent.id} agent={activeAgent} />
             </Suspense>
-          ) : sidebarMode === "files" ? (
+          ) : contentView === "files" && activeAgent ? (
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-                  Loading editor...
+                  Loading files...
                 </div>
               }
             >
-              <FileEditorView
-                key={`${activeAgent?.id ?? "no-agent"}:${selectedFilePath}`}
-                agent={activeAgent}
-                filePath={selectedFilePath}
-              />
+              {selectedFilePath ? (
+                <FileEditorView
+                  key={`${activeAgent.id}:${selectedFilePath}`}
+                  agent={activeAgent}
+                  filePath={selectedFilePath}
+                  onClose={() => setSelectedFilePath("")}
+                />
+              ) : (
+                <FileManagerView
+                  key={activeAgent.id}
+                  agent={activeAgent}
+                  onOpenFile={setSelectedFilePath}
+                />
+              )}
             </Suspense>
           ) : activeSession && activeAgent && activeModel ? (
             <PiChat
@@ -252,8 +268,7 @@ export function HarnessShell() {
         activeAgent={activeAgent}
         modelRefs={store.modelRefs}
         onOpenChange={setImportDialogOpen}
-        onSidebarModeChange={setSidebarMode}
-        onAfterImport={closeSidebarOnMobile}
+        onAfterImport={openSessionView}
       />
     </main>
   );

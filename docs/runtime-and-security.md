@@ -57,15 +57,17 @@ Read tools are allowed to read the workspace and `.agents/skills`, so agents can
 
 Agent permissions decide which file tools exist for a run:
 
-- `read` enables read, grep, find, and list tools.
-- `write` enables file creation/replacement, and create/delete in the web UI.
+- `read` enables read, grep, find, and list tools, and downloads in the web UI.
+- `write` enables file creation/replacement, and create/upload/move/copy/delete in the web UI.
 - `edit` enables patch-style edits, and edit/rename in the web UI.
 
-The browser file explorer is scoped to the selected agent's working directory and respects the same permissions.
+The browser file manager is scoped to the selected agent's working directory and respects the same permissions.
 
 Server-side file tools run on the host, but path access is guarded. The allowed roots are the workspace, the agent's private `/tmp`, and any configured extra mounts. Container paths such as `/workspace`, `/tmp`, and mount targets are translated back to host paths before the server touches them.
 
 The file API blocks absolute-path escapes from the workspace. Text files larger than 4 MiB are not opened for editing; image previews are capped at 32 MiB.
+
+Downloads stream from the same guarded roots: a single file is sent as-is, and a folder or multi-selection is packed into a zip as it streams, skipping anything that resolves outside the workspace and refusing a selection over 2 GiB or 20,000 entries. Uploads are one streamed request per file, capped at 2 GiB, written beside the target and renamed into place so a dropped connection cannot leave a half-written file; an existing name is refused unless the request asks to overwrite.
 
 ## Network Access
 

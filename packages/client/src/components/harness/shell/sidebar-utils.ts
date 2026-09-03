@@ -4,7 +4,8 @@ export const DEFAULT_SIDEBAR_WIDTH = 298;
 export const MIN_SIDEBAR_WIDTH = 240;
 export const MAX_SIDEBAR_WIDTH = 520;
 
-export type SidebarMode = "sessions" | "files";
+/** Which pane fills the main column: the chat, the file manager, or a shell. */
+export type ContentView = "chat" | "files" | "terminal";
 
 export function getDefaultSidebarOpen() {
   return typeof window === "undefined" ? true : window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches;

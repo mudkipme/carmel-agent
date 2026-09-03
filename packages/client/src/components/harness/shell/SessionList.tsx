@@ -15,18 +15,15 @@ import { confirmAction, promptText } from "@/lib/action-dialogs";
 import { showError } from "@/lib/errors";
 import { useHarnessStore } from "@/store/harness-store";
 import type { SessionMetadata } from "@carmel-agent/shared";
-import type { SidebarMode } from "./sidebar-utils";
 
 export function SessionList({
   sessions,
   activeSessionId,
-  onSidebarModeChange,
-  onAfterOpen,
+  onOpenSession,
 }: {
   sessions: SessionMetadata[];
   activeSessionId?: string;
-  onSidebarModeChange: (mode: SidebarMode) => void;
-  onAfterOpen: () => void;
+  onOpenSession: () => void;
 }) {
   const navigate = useNavigate();
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
@@ -43,8 +40,7 @@ export function SessionList({
             className="flex h-full min-w-0 flex-1 items-center text-left"
             onClick={() => {
               navigate(`/agents/${session.agentId}/sessions/${session.id}`);
-              onSidebarModeChange("sessions");
-              onAfterOpen();
+              onOpenSession();
             }}
           >
             <span className="sr-only">Open session</span>

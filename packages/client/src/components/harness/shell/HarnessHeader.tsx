@@ -1,24 +1,25 @@
-import { PanelLeftIcon, SettingsIcon, SquareTerminalIcon } from "lucide-react";
+import { FolderIcon, PanelLeftIcon, SettingsIcon, SquareTerminalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
+import type { ContentView } from "./sidebar-utils";
 
 export function HarnessHeader({
   sidebarOpen,
   activeAgent,
   activeSession,
-  terminalOpen,
+  contentView,
   canOpenTerminal,
   onToggleSidebar,
-  onToggleTerminal,
+  onContentViewChange,
   onOpenSettings,
 }: {
   sidebarOpen: boolean;
   activeAgent?: AgentConfig;
   activeSession?: SessionMetadata;
-  terminalOpen: boolean;
+  contentView: ContentView;
   canOpenTerminal: boolean;
   onToggleSidebar: () => void;
-  onToggleTerminal: () => void;
+  onContentViewChange: (view: ContentView) => void;
   onOpenSettings: () => void;
 }) {
   /* The subtitle carries only what nothing else on screen says: the model is
@@ -49,13 +50,26 @@ export function HarnessHeader({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        {/* The main column shows one of these at a time, so each button is a
+            toggle back to the chat rather than a separate destination. */}
+        {activeAgent ? (
+          <Button
+            variant={contentView === "files" ? "secondary" : "ghost"}
+            size="icon-sm"
+            title={contentView === "files" ? "Close files" : "Browse files"}
+            aria-pressed={contentView === "files"}
+            onClick={() => onContentViewChange(contentView === "files" ? "chat" : "files")}
+          >
+            <FolderIcon />
+          </Button>
+        ) : null}
         {canOpenTerminal ? (
           <Button
-            variant={terminalOpen ? "secondary" : "ghost"}
+            variant={contentView === "terminal" ? "secondary" : "ghost"}
             size="icon-sm"
-            title={terminalOpen ? "Close terminal" : "Open terminal"}
-            aria-pressed={terminalOpen}
-            onClick={onToggleTerminal}
+            title={contentView === "terminal" ? "Close terminal" : "Open terminal"}
+            aria-pressed={contentView === "terminal"}
+            onClick={() => onContentViewChange(contentView === "terminal" ? "chat" : "terminal")}
           >
             <SquareTerminalIcon />
           </Button>

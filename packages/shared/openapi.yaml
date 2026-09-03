@@ -129,6 +129,15 @@ paths:
   /api/agents/{id}/files/raw:
     parameters: [{$ref: '#/components/parameters/ID'}]
     get: {operationId: getAgentFileImage, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}], responses: {'200': {$ref: '#/components/responses/Image'}}}
+  /api/agents/{id}/files/download:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: downloadAgentFiles, tags: [Files], description: One file streams as-is; a directory or several paths stream as a zip archive., parameters: [{name: path, in: query, required: true, explode: true, schema: {type: array, items: {type: string}}}], responses: {'200': {$ref: '#/components/responses/Download'}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{id}/files/upload:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    put: {operationId: uploadAgentFile, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}, {name: overwrite, in: query, schema: {type: boolean}}], requestBody: {$ref: '#/components/requestBodies/FileUpload'}, responses: {'201': {description: Entry, content: {application/json: {schema: {$ref: '#/components/schemas/FileEntry'}}}}, '409': {$ref: '#/components/responses/Error'}, '413': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{id}/files/batch:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    post: {operationId: batchAgentFileOperation, tags: [Files], requestBody: {$ref: '#/components/requestBodies/FileBatch'}, responses: {'200': {description: Per-path outcome, content: {application/json: {schema: {$ref: '#/components/schemas/FileBatchResult'}}}}, '400': {$ref: '#/components/responses/Error'}}}
   /api/agents/{agentId}/secrets:
     parameters: [{$ref: '#/components/parameters/AgentID'}]
     get: {operationId: listAgentSecrets, tags: [Secrets], responses: {'200': {description: Secret names, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/AgentSecret'}}}}}, '403': {$ref: '#/components/responses/Error'}}}
@@ -170,6 +179,7 @@ components:
     ActiveRunConflict: {description: Resource is busy, headers: {x-agent-run-id: {schema: {type: string}}}, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/Error'}, {type: object, properties: {runId: {type: string}}}]}}}}
     SafeEntryConflict: {description: Invalid cut point, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/Error'}, {type: object, properties: {safeEntryId: {type: string}}}]}}}}
     NDJSON: {description: Live sequence-enveloped run events, headers: {x-agent-run-id: {schema: {type: string}}, x-agent-event-cursor: {schema: {type: integer}}}, content: {application/x-ndjson: {schema: {type: string, format: binary}}}}
+    Download: {description: File bytes or a zip archive, headers: {content-disposition: {schema: {type: string}}}, content: {application/octet-stream: {schema: {type: string, format: binary}}, application/zip: {schema: {type: string, format: binary}}}}
     Image: {description: Binary image, content: {image/png: {schema: {type: string, format: binary}}, image/jpeg: {schema: {type: string, format: binary}}, image/webp: {schema: {type: string, format: binary}}}}
   requestBodies:
     Login: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LoginRequest'}}}}
@@ -193,6 +203,8 @@ components:
     FileContent: {required: true, content: {application/json: {schema: {type: object, required: [path, content], properties: {path: {type: string}, content: {type: string}}}}}}
     FileCreate: {required: true, content: {application/json: {schema: {type: object, required: [path, type], properties: {path: {type: string}, type: {type: string, enum: [file, directory]}}}}}}
     FileRename: {required: true, content: {application/json: {schema: {type: object, required: [path, newPath], properties: {path: {type: string}, newPath: {type: string}}}}}}
+    FileUpload: {required: true, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
+    FileBatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/FileBatchRequest'}}}}
     AgentSecret: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSecretRequest'}}}}
     TaskCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
     TaskPatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
@@ -224,6 +236,8 @@ components:
     FileEntry: {type: object, required: [name, path, type, updatedAt, hidden], properties: {name: {type: string}, path: {type: string}, type: {type: string, enum: [file, directory]}, size: {type: number}, updatedAt: {type: number}, hidden: {type: boolean}}}
     FileList: {type: object, required: [path, entries], properties: {path: {type: string}, entries: {type: array, items: {$ref: '#/components/schemas/FileEntry'}}}}
     FileContent: {type: object, required: [path, content, updatedAt], properties: {path: {type: string}, content: {type: string}, updatedAt: {type: number}}}
+    FileBatchRequest: {type: object, required: [operation, paths], additionalProperties: false, properties: {operation: {type: string, enum: [delete, move, copy]}, paths: {type: array, minItems: 1, maxItems: 500, items: {type: string}}, destination: {type: string}}}
+    FileBatchResult: {type: object, required: [completed, failed], properties: {completed: {type: array, items: {type: string}}, failed: {type: array, items: {type: object, required: [path, error], properties: {path: {type: string}, error: {type: string}}}}}}
     TaskWrite: {type: object, additionalProperties: false, properties: {name: {type: string}, prompt: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, scheduleKind: {type: string, enum: [cron, interval, once]}, scheduleValue: {type: string}, timezone: {type: string}, status: {type: string, enum: [active, paused]}}}
     AgentSecretRequest: {type: object, required: [value], additionalProperties: false, properties: {value: {type: string, minLength: 1, maxLength: 8192}}}
     AgentSecret: {type: object, required: [agentId, name, updatedAt], additionalProperties: false, properties: {agentId: {type: string}, name: {type: string}, updatedAt: {type: number}}}

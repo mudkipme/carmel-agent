@@ -2,6 +2,8 @@ import type {
   AgentCommandPayload,
   AgentConfig,
   AgentConfigCommand,
+  AgentFileBatchCommand,
+  AgentFileBatchResult,
   AgentFileContent,
   AgentFileEntry,
   AgentFileList,
@@ -93,6 +95,44 @@ function readErrorMessage(body: string) {
   }
 }
 
+export type UploadOptions = {
+  overwrite?: boolean;
+  signal?: AbortSignal;
+  /** Fraction of the file sent so far, 0 to 1. */
+  onProgress?: (fraction: number) => void;
+};
+
+/**
+ * XHR rather than fetch: it is still the only way to observe upload progress,
+ * and a file manager without a progress bar feels broken on anything large.
+ */
+function uploadAgentFile(agentId: string, path: string, file: Blob, options: UploadOptions) {
+  const query = new URLSearchParams({ path });
+  if (options.overwrite) query.set("overwrite", "true");
+
+  return new Promise<AgentFileEntry>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", `/api/agents/${agentId}/files/upload?${query}`);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader("content-type", "application/octet-stream");
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) options.onProgress?.(event.loaded / event.total);
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        options.onProgress?.(1);
+        resolve(JSON.parse(xhr.responseText) as AgentFileEntry);
+        return;
+      }
+      reject(new ApiError(readErrorMessage(xhr.responseText) || `Upload failed: ${xhr.status}`, xhr.status));
+    });
+    xhr.addEventListener("error", () => reject(new ApiError(`Unable to upload ${path}`, 0)));
+    xhr.addEventListener("abort", () => reject(new ApiError("Upload cancelled", 0)));
+    options.signal?.addEventListener("abort", () => xhr.abort(), { once: true });
+    xhr.send(file);
+  });
+}
+
 export const api = {
   bootstrap: () => request<BootstrapPayload>("/api/bootstrap"),
   login: (username: string, password: string) =>
@@ -155,6 +195,16 @@ export const api = {
     request<AgentFileContent>(`/api/agents/${agentId}/files/content?${new URLSearchParams({ path })}`),
   getAgentFileRawUrl: (agentId: string, path: string) =>
     `/api/agents/${agentId}/files/raw?${new URLSearchParams({ path })}`,
+  /** One path downloads that file; a directory or several paths download a zip. */
+  getAgentFileDownloadUrl: (agentId: string, paths: string[]) =>
+    `/api/agents/${agentId}/files/download?${new URLSearchParams(paths.map((path) => ["path", path]))}`,
+  uploadAgentFile: (agentId: string, path: string, file: Blob, options: UploadOptions = {}) =>
+    uploadAgentFile(agentId, path, file, options),
+  batchAgentFiles: (agentId: string, input: AgentFileBatchCommand) =>
+    request<AgentFileBatchResult>(`/api/agents/${agentId}/files/batch`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
   saveAgentFile: (agentId: string, path: string, content: string) =>
     request<AgentFileContent>(`/api/agents/${agentId}/files/content`, {
       method: "PUT",

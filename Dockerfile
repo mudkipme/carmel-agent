@@ -28,7 +28,19 @@ COPY packages/client/package.json packages/client/package.json
 COPY packages/server/package.json packages/server/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-RUN pnpm install --frozen-lockfile
+# better-sqlite3 ships prebuilt binaries and falls back to compiling from source
+# when the download fails -- silently, because g++/make/python3 are present above
+# for exactly that fallback. That fallback is not equivalent: a source build
+# against this base image's Node headers aborts the process with
+# "RemoveEnvironmentCleanupHook: Assertion `(env) != nullptr' failed" when a
+# Statement is finalized during teardown, which takes the server down at random.
+# Fail the build instead of shipping a binary that crashes a few times an hour.
+RUN pnpm install --frozen-lockfile && \
+  if find node_modules/.pnpm -maxdepth 7 -type d -name obj.target -path '*better-sqlite3*' | grep -q .; then \
+    echo "ERROR: better-sqlite3 was compiled from source instead of using its prebuilt binary."; \
+    echo "The prebuild download probably failed. Re-run the build; do not ship this image."; \
+    exit 1; \
+  fi
 
 FROM deps AS build
 

@@ -72,6 +72,7 @@ test("representative response fixtures satisfy every response component", async 
     FileEntry: file,
     FileList: { path: "", entries: [file] },
     FileContent: { path: "README.md", content: "hello", updatedAt: 1 },
+    FileBatchResult: { completed: ["a.txt"], failed: [{ path: "b.txt", error: "Nope" }] },
     AgentTask: task,
     AgentSecret: { agentId: "a1", name: "GITHUB_TOKEN", updatedAt: 1 },
     BootstrapPayload: { users: [user], agents: [agent], providerConfigs: [provider], modelRefs: [model], modelCatalog: {}, sessions: [metadata] },
