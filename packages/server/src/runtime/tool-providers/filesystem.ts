@@ -11,6 +11,7 @@ import {
   createReadTool,
   createWriteTool,
   type AgentHarnessTool,
+  type AgentTool,
   type ExecutionToolContext,
 } from "@earendil-works/pi-agent-core";
 import type { AgentExecutionEnv } from "../execution-env.ts";
@@ -18,6 +19,24 @@ import { createGrepOperations, createLsOperations } from "../search-operations.t
 import type { ProvidedTool, ToolProvider, ToolProvisionContext } from "../../effectors/contracts/tool-provider.ts";
 
 type ServerToolDefinition = AgentHarnessTool<ExecutionToolContext>;
+
+/**
+ * Present an `Agent`-loop tool as a harness tool.
+ *
+ * 0.85 split the two shapes apart. Pi's own read/write/edit/bash take the
+ * harness signature -- update callback third, then tool context, invocation and
+ * `Context` -- while pi-coding-agent still builds grep/find/ls against the older
+ * `Agent` one, which takes an abort signal third and knows nothing about the
+ * rest. None of the harness's extra arguments mean anything to those three, so
+ * this drops them and moves the signal over from the invocation context.
+ */
+function asHarnessTool(tool: AgentTool): ServerToolDefinition {
+  return {
+    ...tool,
+    execute: (toolCallId, params, onUpdate, _toolContext, _invocation, context) =>
+      tool.execute(toolCallId, params, context.abortSignal, onUpdate),
+  };
+}
 
 /**
  * The tools that reach the agent's workspace.
@@ -43,7 +62,7 @@ export const filesystemToolProvider: ToolProvider = {
       own("read", createReadTool<ExecutionToolContext>()),
       own("read", createAuthorizedGrepTool(env)),
       own("read", createAuthorizedFindTool(env)),
-      own("read", createPiLsTool(env.cwd, { operations: createLsOperations(env) })),
+      own("read", asHarnessTool(createPiLsTool(env.cwd, { operations: createLsOperations(env) }))),
       own("write", createWriteTool<ExecutionToolContext>()),
       own("edit", createEditTool<ExecutionToolContext>()),
     ];
@@ -62,14 +81,14 @@ export const bashToolProvider: ToolProvider = {
 
 function createAuthorizedFindTool(env: AgentExecutionEnv): ServerToolDefinition {
   const tool = createPiFindTool(env.cwd);
-  return {
+  return asHarnessTool({
     ...tool,
     async execute(toolCallId, params, signal, onUpdate) {
       const args = params as FindToolInput;
       const path = env.resolveAuthorizedPath(args.path || ".", "read");
       return tool.execute(toolCallId, { ...args, path }, signal, onUpdate);
     },
-  };
+  });
 }
 
 // GrepOperations protects metadata and context reads, but Pi still passes the
@@ -77,12 +96,12 @@ function createAuthorizedFindTool(env: AgentExecutionEnv): ServerToolDefinition 
 // mount aliases are remapped and rg never receives an unauthorized host path.
 function createAuthorizedGrepTool(env: AgentExecutionEnv): ServerToolDefinition {
   const tool = createPiGrepTool(env.cwd, { operations: createGrepOperations(env) });
-  return {
+  return asHarnessTool({
     ...tool,
     async execute(toolCallId, params, signal, onUpdate) {
       const args = params as GrepToolInput;
       const path = env.resolveAuthorizedPath(args.path || ".", "read");
       return tool.execute(toolCallId, { ...args, path }, signal, onUpdate);
     },
-  };
+  });
 }

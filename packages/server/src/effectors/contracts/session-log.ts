@@ -5,12 +5,13 @@ import type { SessionMessage } from "./messages.ts";
  * The session tree, as Carmel uses it.
  *
  * This is the second port, and it is separate from `AgentDriver` on purpose:
- * upstream reshapes the loop and the store on independent schedules, and 0.84
- * already renames most of this surface underneath us --
- * `moveTo` -> `moveLane`/`navigateTree`, `getBranch()` -> `findEntriesOnBranch()`,
- * `SessionTreeEntry` -> `Entry`, `session.buildContext()` -> a standalone
- * `buildSessionContext(entries)`, and `getStorage()` going private. Every one of
- * those is a rename of something named here exactly once.
+ * upstream reshapes the loop and the store on independent schedules. It earned
+ * that separation in 0.85, which changed every operation named here and left
+ * this file untouched -- `moveTo` became the lane's `navigateTree`,
+ * `getBranch()` became a scan on a named branch, `SessionTreeEntry` became
+ * `Entry`, `getStorage()` disappeared, and model/thinking/tool state stopped
+ * being entries in the session tree at all and became lane state. Every one of
+ * those is a rename, or a relocation, of something named here exactly once.
  */
 
 /**

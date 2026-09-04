@@ -4,7 +4,8 @@ import { parseSlashCommand, skillCommandName, slashCommandText } from "@carmel-a
 import { eq } from "drizzle-orm";
 import { db, migrate } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
-import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
+import { openPiSession } from "../services/pi-session-storage.ts";
+import { attachTestHarness, fauxHarnessModels } from "../effectors/testing/pi-harness.ts";
 import { loadSession, replaceSessionMessages } from "../services/session-store.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import {
@@ -120,17 +121,20 @@ test("restoring an abandoned retry returns the session to the original leaf", as
   const originalLeafId = before!.messageEntryIds.at(-1)!;
 
   const piSession = await openPiSession(sessionId);
+  // `prepareAgentRunPrompt` and `RetryBranch` both work through the session log
+  // now: 0.85 has no `session.moveTo`, and rewinding is a branch-tip write.
+  const pi = await attachTestHarness(piSession, fauxHarnessModels());
   try {
     // Reproduce a retry that rewound the branch but never persisted a replacement.
-    const prepared = await prepareAgentRunPrompt(piSession);
+    const prepared = await prepareAgentRunPrompt(pi.log);
     const retry = new RetryBranch();
     retry.arm(prepared.retryOriginalLeafId);
     assert.equal(retry.isAbandoned, true);
-    assert.deepEqual((await piSession.getBranch()).filter((e) => e.type === "message").length, 1);
+    assert.deepEqual((await pi.branch()).filter((e) => e.type === "message").length, 1);
 
-    await retry.restore(piSession);
+    await retry.restore(pi.log);
   } finally {
-    await closePiSession(piSession);
+    await pi.close();
   }
 
   const after = await loadSession(sessionId);

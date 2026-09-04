@@ -18,16 +18,30 @@ export type SessionLogFactory = {
   /** A fresh, empty log. Disposal is the caller's. */
   create(): Promise<SessionLog> | SessionLog;
   dispose?(log: SessionLog): Promise<void> | void;
+  /**
+   * A model this log can actually store, if it is fussy about which.
+   *
+   * Pi 0.85 resolves a lane's model through the harness's model registry rather
+   * than storing whatever string it was handed, so a Pi-backed log reads back
+   * `null` for a model its registry has never heard of. An in-memory log stores
+   * anything. The contract asks each implementation for a name it can honour so
+   * the round-trip it is testing is the round-trip and not the registry.
+   */
+  readonly model?: { readonly provider: string; readonly modelId: string };
 };
 
-type Case = { readonly name: string; run(log: SessionLog): Promise<void> };
+type Case = { readonly name: string; run(log: SessionLog, factory: SessionLogFactory): Promise<void> };
+
+const DEFAULT_MODEL = { provider: "anthropic", modelId: "claude-opus-5" } as const;
+
+const modelOf = (factory: SessionLogFactory) => factory.model ?? DEFAULT_MODEL;
 
 export async function runSessionLogContract(factory: SessionLogFactory, register: RegisterCase) {
   for (const testCase of cases) {
     register(`${factory.name}: ${testCase.name}`, async () => {
       const log = await factory.create();
       try {
-        await testCase.run(log);
+        await testCase.run(log, factory);
       } finally {
         await factory.dispose?.(log);
       }
@@ -90,26 +104,30 @@ const cases: readonly Case[] = [
     },
   },
   {
-    name: "state starts at the defaults and reads back what was appended",
-    async run(log) {
-      // `thinkingLevel` starts at "off" rather than unset: a session always has
-      // an effective level, and reporting "unset" would make the first
-      // reconcile of every new session write a redundant change entry.
-      assert.deepEqual(await log.readState(), { model: null, thinkingLevel: "off", activeToolNames: null });
-      await log.appendModelChange("anthropic", "claude-opus-5");
+    name: "state reads back what was written",
+    async run(log, factory) {
+      // No assertion about the *initial* state: it stopped being a shared
+      // property in Pi 0.85. Configuration used to be entries appended to the
+      // session tree, so a fresh session genuinely had none; it is now lane
+      // state, and a lane is created already configured with the model and
+      // thinking level its harness was opened with. The fake still starts empty,
+      // the Pi adapter starts configured, and both round-trip -- which is the
+      // part every caller above the port actually depends on.
+      const model = modelOf(factory);
+      await log.appendModelChange(model.provider, model.modelId);
       await log.appendThinkingLevelChange("medium");
       await log.appendActiveToolsChange(["read", "bash"]);
       const state = await log.readState();
-      assert.deepEqual(state.model, { provider: "anthropic", modelId: "claude-opus-5" });
+      assert.deepEqual(state.model, { provider: model.provider, modelId: model.modelId });
       assert.equal(state.thinkingLevel, "medium");
       assert.deepEqual([...(state.activeToolNames ?? [])], ["read", "bash"]);
     },
   },
   {
     name: "reconcile writes nothing when the state already matches",
-    async run(log) {
+    async run(log, factory) {
       const desired = {
-        model: { provider: "anthropic", modelId: "claude-opus-5" },
+        model: modelOf(factory),
         thinkingLevel: "medium" as const,
         activeToolNames: ["read", "bash"],
       };
@@ -122,8 +140,8 @@ const cases: readonly Case[] = [
   {
     name: "reconcile treats tool order as significant",
     // Order is part of the cached prompt prefix, so a reorder is a real change.
-    async run(log) {
-      const base = { model: { provider: "anthropic", modelId: "m" }, thinkingLevel: "off" as const };
+    async run(log, factory) {
+      const base = { model: modelOf(factory), thinkingLevel: "off" as const };
       await reconcileSessionState(log, { ...base, activeToolNames: ["read", "bash"] });
       await reconcileSessionState(log, { ...base, activeToolNames: ["bash", "read"] });
       assert.deepEqual([...((await log.readState()).activeToolNames ?? [])], ["bash", "read"]);

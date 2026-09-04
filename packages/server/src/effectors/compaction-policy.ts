@@ -16,8 +16,8 @@ export type CompactionSettings = {
   readonly keepRecentTokens: number;
 };
 
-/** Pi 0.83's defaults, restated so the arithmetic below has no hidden inputs. */
-export const PI_083_COMPACTION_SETTINGS: CompactionSettings = {
+/** Pi's defaults (unchanged through 0.85), restated so the arithmetic below has no hidden inputs. */
+export const PI_COMPACTION_SETTINGS: CompactionSettings = {
   reserveTokens: 16_384,
   keepRecentTokens: 20_000,
 };
@@ -55,7 +55,7 @@ export function decideCompaction(input: {
   contextWindow: number;
   settings?: CompactionSettings;
 }): CompactionDecision {
-  const settings = input.settings ?? PI_083_COMPACTION_SETTINGS;
+  const settings = input.settings ?? PI_COMPACTION_SETTINGS;
   const { tokens } = input;
   const headroom = contextHeadroom(input.contextWindow, settings);
 
@@ -141,8 +141,8 @@ export function describeContextPressure(outcome: CompactionOutcome): ContextPres
         level: "critical",
         message:
           outcome.reason === "window_below_reserve"
-            ? `This model's context window (${format(outcome.headroom + PI_083_COMPACTION_SETTINGS.reserveTokens)} tokens) is too small to compact. Switch to a model with a larger window, or start a new session.`
-            : `This session is over its context budget and compaction cannot recover it: the recent history it must keep (~${format(PI_083_COMPACTION_SETTINGS.keepRecentTokens)} tokens) already exceeds this model's usable window (${format(outcome.headroom)}). Switch to a model with a larger window, or start a new session.`,
+            ? `This model's context window (${format(outcome.headroom + PI_COMPACTION_SETTINGS.reserveTokens)} tokens) is too small to compact. Switch to a model with a larger window, or start a new session.`
+            : `This session is over its context budget and compaction cannot recover it: the recent history it must keep (~${format(PI_COMPACTION_SETTINGS.keepRecentTokens)} tokens) already exceeds this model's usable window (${format(outcome.headroom)}). Switch to a model with a larger window, or start a new session.`,
       };
 
     case "ineffective":

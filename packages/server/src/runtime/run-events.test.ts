@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { AgentHarness, type AgentHarnessEvent, type AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage, HarnessEvent } from "@earendil-works/pi-agent-core";
 import { createModels, type AssistantMessage } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxThinking } from "@earendil-works/pi-ai/providers/faux";
 import { applyStreamingEvent, isStreamingEvent, type AgentRunEvent } from "@carmel-agent/shared";
 import { migrate } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
-import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
+import { openPiSession } from "../services/pi-session-storage.ts";
+import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
 import { projectRunEvent } from "./run-events.ts";
 
 migrate();
@@ -29,16 +30,19 @@ test("events the client cannot use are dropped rather than forwarded", () => {
     projectRunEvent(messageUpdate({ type: "text_end", contentIndex: 0, content: "Hello", partial: partial("Hello") })),
     undefined,
   );
-  assert.equal(projectRunEvent({ type: "agent_start" } as AgentHarnessEvent), undefined);
-  assert.equal(projectRunEvent({ type: "turn_start" } as AgentHarnessEvent), undefined);
+  assert.equal(projectRunEvent(laneEvent({ type: "run_start", runId: "run_1", startedAt: 1 })), undefined);
+  assert.equal(projectRunEvent(laneEvent({ type: "turn_start", runId: "run_1", turnId: "turn_1" })), undefined);
   assert.equal(
-    projectRunEvent({
-      type: "tool_execution_update",
-      toolCallId: "call_1",
-      toolName: "bash",
-      args: {},
-      partialResult: { output: "x".repeat(100_000) },
-    } as AgentHarnessEvent),
+    projectRunEvent(
+      laneEvent({
+        type: "tool_update",
+        runId: "run_1",
+        turnId: "turn_1",
+        toolCallId: "call_1",
+        toolName: "bash",
+        partialResult: { content: [{ type: "text", text: "x".repeat(100_000) }] },
+      }),
+    ),
     undefined,
   );
 });
@@ -76,7 +80,7 @@ test("tool calls arrive whole, without their streamed argument JSON", () => {
 
 test("only an assistant message_start is forwarded", () => {
   const assistant = assistantMessage();
-  assert.deepEqual(projectRunEvent({ type: "message_start", message: assistant }), {
+  assert.deepEqual(projectRunEvent(laneEvent({ type: "message_start", message: assistant })), {
     type: "message_start",
     message: assistant,
   });
@@ -91,8 +95,8 @@ test("only an assistant message_start is forwarded", () => {
     isError: false,
     timestamp: 1,
   } as unknown as AgentMessage;
-  assert.equal(projectRunEvent({ type: "message_start", message: toolResult }), undefined);
-  assert.deepEqual(projectRunEvent({ type: "message_end", message: toolResult }), {
+  assert.equal(projectRunEvent(laneEvent({ type: "message_start", message: toolResult })), undefined);
+  assert.deepEqual(projectRunEvent(laneEvent({ type: "message_end", message: toolResult })), {
     type: "message_end",
     message: toolResult,
   });
@@ -100,25 +104,26 @@ test("only an assistant message_start is forwarded", () => {
 
 test("bulk payloads are stripped from lifecycle events", () => {
   assert.deepEqual(
-    projectRunEvent({ type: "tool_execution_start", toolCallId: "call_1", toolName: "write", args: { content: "x".repeat(50_000) } }),
+    projectRunEvent(laneEvent({ type: "tool_start", runId: "run_1", turnId: "turn_1", toolCallId: "call_1", toolName: "write", args: { content: "x".repeat(50_000) } })),
     { type: "tool_execution_start", toolCallId: "call_1", toolName: "write" },
   );
   assert.deepEqual(
-    projectRunEvent({ type: "tool_execution_end", toolCallId: "call_1", toolName: "write", result: { output: "x".repeat(50_000) }, isError: false }),
+    projectRunEvent(laneEvent({ type: "tool_end", runId: "run_1", turnId: "turn_1", toolCallId: "call_1", toolName: "write", result: { content: [{ type: "text", text: "x".repeat(50_000) }] }, isError: false, terminate: false })),
     { type: "tool_execution_end", toolCallId: "call_1", toolName: "write", isError: false },
   );
-  assert.deepEqual(projectRunEvent({ type: "agent_end", messages: [assistantMessage(), assistantMessage()] }), {
-    type: "agent_end",
-  });
+  assert.deepEqual(
+    projectRunEvent(laneEvent({ type: "run_end", runId: "run_1", status: "completed", fromTipId: null, tipId: "e1", endedAt: 1 })),
+    { type: "agent_end" },
+  );
 });
 
 test("turn_end carries only the error the client renders", () => {
-  assert.deepEqual(projectRunEvent({ type: "turn_end", message: assistantMessage(), toolResults: [] }), {
+  assert.deepEqual(projectRunEvent(laneEvent({ type: "turn_end", runId: "run_1", turnId: "turn_1", message: assistantMessage(), toolResults: [] })), {
     type: "turn_end",
   });
   const failed = assistantMessage();
   failed.errorMessage = "Provider failed";
-  assert.deepEqual(projectRunEvent({ type: "turn_end", message: failed, toolResults: [] }), {
+  assert.deepEqual(projectRunEvent(laneEvent({ type: "turn_end", runId: "run_1", turnId: "turn_1", message: failed, toolResults: [] })), {
     type: "turn_end",
     errorMessage: "Provider failed",
   });
@@ -134,10 +139,10 @@ test("a real streamed turn reassembles byte-for-byte from the projected events",
   ]);
 
   const piSession = await openPiSession(sessionId);
-  const harness = new AgentHarness({ session: piSession, models, model: faux.getModel(), systemPrompt: "Test assistant" });
+  const pi = await attachTestHarness(piSession, { models, model: faux.getModel(), systemPrompt: "Test assistant" });
   const projected: AgentRunEvent[] = [];
   let rawBytes = 0;
-  const unsubscribe = harness.subscribe((event: AgentHarnessEvent) => {
+  const unsubscribe = pi.observe((event) => {
     rawBytes += Buffer.byteLength(JSON.stringify(event));
     const wireEvent = projectRunEvent(event);
     if (wireEvent) projected.push(wireEvent);
@@ -145,11 +150,11 @@ test("a real streamed turn reassembles byte-for-byte from the projected events",
 
   let final: AgentMessage | undefined;
   try {
-    await harness.prompt("hello");
-    final = (await piSession.getBranch()).flatMap((entry) => (entry.type === "message" ? [entry.message] : [])).at(-1);
+    await pi.lane.prompt("hello", undefined, pi.context);
+    final = (await pi.branch()).flatMap((entry) => (entry.type === "message" ? [entry.message] : [])).at(-1);
   } finally {
     unsubscribe();
-    await closePiSession(piSession);
+    await pi.close();
   }
 
   // Replay the wire events exactly as the client does.
@@ -171,8 +176,9 @@ test("a real streamed turn reassembles byte-for-byte from the projected events",
   );
 });
 
-function messageUpdate(assistantMessageEvent: unknown): AgentHarnessEvent {
-  return { type: "message_update", message: assistantMessage(), assistantMessageEvent } as AgentHarnessEvent;
+/** 0.85 renamed the payload's `assistantMessageEvent` field to plain `event`. */
+function messageUpdate(event: unknown): HarnessEvent {
+  return laneEvent({ type: "message_update", runId: "run_1", message: assistantMessage(), event });
 }
 
 function partial(text: string): AssistantMessage {
@@ -197,4 +203,15 @@ function assistantMessage(): AgentMessage & AssistantMessage {
     stopReason: "stop",
     timestamp: 1,
   } as AgentMessage & AssistantMessage;
+}
+
+/**
+ * Wrap a payload as the harness delivers it.
+ *
+ * 0.85 events are a payload plus an envelope: everything scoped to a lane
+ * carries its name. The projector never reads it, but the union does not admit
+ * a bare payload, so the tests build the same shape the bus emits.
+ */
+function laneEvent(payload: { type: HarnessEvent["type"] } & Record<string, unknown>): HarnessEvent {
+  return { ...payload, lane: "main" } as unknown as HarnessEvent;
 }

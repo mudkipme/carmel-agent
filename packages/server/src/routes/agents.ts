@@ -1,3 +1,4 @@
+import { BACKGROUND_CONTEXT } from "@earendil-works/pi-agent-core";
 import { skillCommandName, slashCommandText } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
@@ -130,7 +131,7 @@ export function createAgentRoutes() {
     try {
       resources = await loadAgentResources(agent, env);
     } finally {
-      await env.cleanup();
+      await env.cleanup(BACKGROUND_CONTEXT);
     }
     const promptCommands = resources.promptTemplates.map((prompt) => ({
       name: prompt.name,

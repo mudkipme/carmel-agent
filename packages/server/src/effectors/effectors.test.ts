@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { migrate } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
-import { createPi083SessionLog } from "./pi-0-83/session-log.ts";
+import { attachTestHarness, fauxHarnessModels } from "./testing/pi-harness.ts";
 import { FakeSessionLog } from "./testing/fake-session-log.ts";
 import { runSessionLogContract } from "./testing/session-log-contract.ts";
 import { dispatchPrompt } from "./dispatch-prompt.ts";
@@ -15,16 +15,25 @@ migrate();
 // Both implementations answer to the same suite. That equivalence is what lets
 // tests above the port use the fake, and what will decide whether a v2 adapter
 // is finished.
+const piHarnessOptions = fauxHarnessModels();
+const piModel = piHarnessOptions.model;
+
 await runSessionLogContract({ name: "FakeSessionLog", create: () => new FakeSessionLog() }, (name, run) =>
   test(name, run),
 );
 
 await runSessionLogContract(
   {
-    name: "Pi083SessionLog",
+    name: "PiSessionLog",
+    // Declared because a lane resolves its model through the harness registry,
+    // so the only model this log can read back is one the faux provider offers.
+    model: { provider: piModel.provider, modelId: piModel.id },
     async create() {
       const { sessionId } = createSession();
-      return createPi083SessionLog(await openPiSession(sessionId));
+      // 0.85 keeps per-lane configuration off the session tree, so the adapter
+      // needs an open lane -- and a lane needs a harness, faux provider and all.
+      const pi = await attachTestHarness(await openPiSession(sessionId), piHarnessOptions);
+      return pi.log;
     },
     dispose: (log) => log.close(),
   },
@@ -78,7 +87,7 @@ test("images ride along with a named invocation rather than forcing plain text",
 function recordingDriver(resources: DriverResources = { skills: [], promptTemplates: [] }) {
   const calls: unknown[][] = [];
   const driver: AgentDriver = {
-    listResources: () => resources,
+    listResources: async () => resources,
     async prompt(text, images) {
       calls.push(["prompt", text, images]);
     },

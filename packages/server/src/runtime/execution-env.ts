@@ -3,10 +3,13 @@ import {
   FileError,
   err,
   ok,
+  type Context,
   type ExecutionEnv,
   type FileInfo,
   type Result,
   type ShellExecOptions,
+  type ShellExecResult,
+  type ShellOutputTruncation,
 } from "@earendil-works/pi-agent-core";
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import { existsSync, lstatSync, realpathSync } from "node:fs";
@@ -85,80 +88,110 @@ export class AgentExecutionEnv implements ExecutionEnv {
     return relative(this.cwd, this.resolveAuthorizedPath(path, "address", true)).replaceAll("\\", "/");
   }
 
-  async absolutePath(path: string, abortSignal?: AbortSignal): Promise<Result<string, FileError>> {
-    return this.fileResult(path, abortSignal, () => this.resolveAuthorizedPath(path, "address"));
+  async absolutePath(path: string, context: Context): Promise<Result<string, FileError>> {
+    return this.fileResult(path, context, () => this.resolveAuthorizedPath(path, "address"));
   }
 
-  async joinPath(parts: string[], abortSignal?: AbortSignal): Promise<Result<string, FileError>> {
-    if (abortSignal?.aborted) return err(new FileError("aborted", "Operation aborted."));
-    const joined = await this.node.joinPath(parts);
+  async joinPath(parts: string[], context: Context): Promise<Result<string, FileError>> {
+    if (context.abortSignal?.aborted) return err(new FileError("aborted", "Operation aborted."));
+    const joined = await this.node.joinPath(parts, context);
     if (!joined.ok) return joined;
-    return this.fileResult(joined.value, abortSignal, () => this.resolveAuthorizedPath(joined.value, "address"));
+    return this.fileResult(joined.value, context, () => this.resolveAuthorizedPath(joined.value, "address"));
   }
 
-  async readTextFile(path: string, abortSignal?: AbortSignal): Promise<Result<string, FileError>> {
-    return this.delegatePath(path, "read", abortSignal, (resolved) => this.node.readTextFile(resolved, abortSignal));
+  async readTextFile(path: string, context: Context): Promise<Result<string, FileError>> {
+    return this.delegatePath(path, "read", context, (resolved) => this.node.readTextFile(resolved, context));
   }
 
-  async readTextLines(path: string, options?: { maxLines?: number; abortSignal?: AbortSignal }): Promise<Result<string[], FileError>> {
-    return this.delegatePath(path, "read", options?.abortSignal, (resolved) => this.node.readTextLines(resolved, options));
+  async readTextLines(
+    path: string,
+    options: { maxLines?: number } | undefined,
+    context: Context,
+  ): Promise<Result<string[], FileError>> {
+    return this.delegatePath(path, "read", context, (resolved) => this.node.readTextLines(resolved, options, context));
   }
 
-  async readBinaryFile(path: string, abortSignal?: AbortSignal): Promise<Result<Uint8Array, FileError>> {
-    return this.delegatePath(path, "read", abortSignal, (resolved) => this.node.readBinaryFile(resolved, abortSignal));
+  async readBinaryFile(path: string, context: Context): Promise<Result<Uint8Array, FileError>> {
+    return this.delegatePath(path, "read", context, (resolved) => this.node.readBinaryFile(resolved, context));
   }
 
-  async writeFile(path: string, content: string | Uint8Array, abortSignal?: AbortSignal): Promise<Result<void, FileError>> {
-    return this.delegatePath(path, "write", abortSignal, async (resolved) => {
+  async writeFile(path: string, content: string | Uint8Array, context: Context): Promise<Result<void, FileError>> {
+    return this.delegatePath(path, "write", context, async (resolved) => {
       if (!this.agent.permissions.write && !existsSync(resolved)) {
         return err(new FileError("permission_denied", "Edit permission cannot create files.", resolved));
       }
-      return this.node.writeFile(resolved, content, abortSignal);
+      return this.node.writeFile(resolved, content, context);
     });
   }
 
-  async appendFile(path: string, content: string | Uint8Array, abortSignal?: AbortSignal): Promise<Result<void, FileError>> {
-    return this.delegatePath(path, "write", abortSignal, async (resolved) => {
+  async appendFile(path: string, content: string | Uint8Array, context: Context): Promise<Result<void, FileError>> {
+    return this.delegatePath(path, "write", context, async (resolved) => {
       if (!this.agent.permissions.write && !existsSync(resolved)) {
         return err(new FileError("permission_denied", "Edit permission cannot create files.", resolved));
       }
-      return this.node.appendFile(resolved, content);
+      return this.node.appendFile(resolved, content, context);
     });
   }
 
-  async fileInfo(path: string, abortSignal?: AbortSignal): Promise<Result<FileInfo, FileError>> {
-    return this.delegatePath(path, this.metadataMode(), abortSignal, (resolved) => this.node.fileInfo(resolved));
+  /**
+   * Atomic rename, new in the 0.85 `FileSystem` contract.
+   *
+   * Both ends are authorized independently: a rename is a write to the
+   * destination as much as it is one to the source, so neither is allowed to
+   * escape the agent's write roots.
+   */
+  async renameFile(sourcePath: string, destinationPath: string, context: Context): Promise<Result<void, FileError>> {
+    return this.fileResult(sourcePath, context, async () => {
+      const from = this.resolveAuthorizedPath(sourcePath, "write");
+      const to = this.resolveAuthorizedPath(destinationPath, "write");
+      await renameFile(from, to);
+    });
   }
 
-  async listDir(path: string, abortSignal?: AbortSignal): Promise<Result<FileInfo[], FileError>> {
+  async fileInfo(path: string, context: Context): Promise<Result<FileInfo, FileError>> {
+    return this.delegatePath(path, this.metadataMode(), context, (resolved) => this.node.fileInfo(resolved, context));
+  }
+
+  async listDir(path: string, context: Context): Promise<Result<FileInfo[], FileError>> {
     if (!this.agent.permissions.read) return err(new FileError("permission_denied", "Read permission is disabled for this agent.", path));
-    return this.delegatePath(path, "read", abortSignal, (resolved) => this.node.listDir(resolved, abortSignal));
+    return this.delegatePath(path, "read", context, (resolved) => this.node.listDir(resolved, context));
   }
 
-  async canonicalPath(path: string, abortSignal?: AbortSignal): Promise<Result<string, FileError>> {
-    return this.delegatePath(path, this.metadataMode(), abortSignal, (resolved) => this.node.canonicalPath(resolved));
+  async canonicalPath(path: string, context: Context): Promise<Result<string, FileError>> {
+    return this.delegatePath(path, this.metadataMode(), context, (resolved) => this.node.canonicalPath(resolved, context));
   }
 
-  async exists(path: string, abortSignal?: AbortSignal): Promise<Result<boolean, FileError>> {
-    return this.delegatePath(path, this.metadataMode(), abortSignal, (resolved) => this.node.exists(resolved));
+  async exists(path: string, context: Context): Promise<Result<boolean, FileError>> {
+    return this.delegatePath(path, this.metadataMode(), context, (resolved) => this.node.exists(resolved, context));
   }
 
-  async createDir(path: string, options?: { recursive?: boolean; abortSignal?: AbortSignal }): Promise<Result<void, FileError>> {
+  async createDir(
+    path: string,
+    options: { recursive?: boolean } | undefined,
+    context: Context,
+  ): Promise<Result<void, FileError>> {
     if (!this.agent.permissions.write) return err(new FileError("permission_denied", "Write permission is disabled for this agent.", path));
-    return this.delegatePath(path, "write", options?.abortSignal, (resolved) => this.node.createDir(resolved, options));
+    return this.delegatePath(path, "write", context, (resolved) => this.node.createDir(resolved, options, context));
   }
 
-  async remove(path: string, options?: { recursive?: boolean; force?: boolean; abortSignal?: AbortSignal }): Promise<Result<void, FileError>> {
+  async remove(
+    path: string,
+    options: { recursive?: boolean; force?: boolean } | undefined,
+    context: Context,
+  ): Promise<Result<void, FileError>> {
     if (!this.agent.permissions.write) return err(new FileError("permission_denied", "Write permission is disabled for this agent.", path));
-    return this.delegatePath(path, "write", options?.abortSignal, (resolved) => this.node.remove(resolved, options));
+    return this.delegatePath(path, "write", context, (resolved) => this.node.remove(resolved, options, context));
   }
 
-  async createTempDir(prefix = "tmp-", abortSignal?: AbortSignal): Promise<Result<string, FileError>> {
-    return this.fileResult(this.tmpDir, abortSignal, () => mkdtemp(resolve(this.tmpDir, basename(prefix) || "tmp-")));
+  async createTempDir(prefix: string | undefined, context: Context): Promise<Result<string, FileError>> {
+    return this.fileResult(this.tmpDir, context, () => mkdtemp(resolve(this.tmpDir, basename(prefix ?? "tmp-") || "tmp-")));
   }
 
-  async createTempFile(options?: { prefix?: string; suffix?: string; abortSignal?: AbortSignal }): Promise<Result<string, FileError>> {
-    return this.fileResult(this.tmpDir, options?.abortSignal, async () => {
+  async createTempFile(
+    options: { prefix?: string; suffix?: string } | undefined,
+    context: Context,
+  ): Promise<Result<string, FileError>> {
+    return this.fileResult(this.tmpDir, context, async () => {
       const directory = await mkdtemp(resolve(this.tmpDir, basename(options?.prefix || "tmp-")));
       const path = resolve(directory, `file${options?.suffix ? basename(options.suffix) : ""}`);
       const handle = await open(path, "wx");
@@ -184,33 +217,55 @@ export class AgentExecutionEnv implements ExecutionEnv {
     });
   }
 
-  async exec(command: string, options?: ShellExecOptions): Promise<Result<{ stdout: string; stderr: string; exitCode: number }, ExecutionError>> {
+  /**
+   * Run a command in the agent's sandbox.
+   *
+   * 0.85 moved shell output off the result and onto `options.onUpdate`:
+   * `ShellExecResult` now carries only an exit code and truncation metadata.
+   * That suits this environment, which never buffered output in the first place
+   * -- it streamed through `onStdout`/`onStderr` and returned empty strings --
+   * so the two stderr/stdout streams are simply interleaved into one bounded
+   * view, which is the shape the harness renders anyway.
+   *
+   * No limits are applied here, so the reported totals are the real ones and
+   * nothing is ever marked truncated. Bounding is the caller's to request via
+   * `options.capture`, which this sandbox does not implement yet.
+   */
+  async exec(
+    command: string,
+    options: ShellExecOptions | undefined,
+    context: Context,
+  ): Promise<Result<ShellExecResult, ExecutionError>> {
     if (!this.agent.permissions.bash) return err(new ExecutionError("shell_unavailable", "Bash permission is disabled for this agent."));
-    if (options?.abortSignal?.aborted) return err(new ExecutionError("aborted", "Operation aborted."));
+    if (context.abortSignal?.aborted) return err(new ExecutionError("aborted", "Operation aborted."));
     let callbackFailed = false;
+    let totalBytes = 0;
+    let totalLines = 0;
     try {
       const cwd = this.resolveAuthorizedPath(options?.cwd ?? this.cwd, "address");
       if (!isSandboxConfigured()) return err(new ExecutionError("shell_unavailable", sandboxUnavailableMessage()));
-      const callOutput = (callback: ((chunk: string) => void) | undefined, chunk: string) => {
+      const emit = (chunk: string) => {
+        if (!chunk) return;
+        totalBytes += Buffer.byteLength(chunk, "utf8");
+        totalLines += chunk.split("\n").length - 1;
         try {
-          callback?.(chunk);
+          options?.onUpdate?.({ kind: "append", text: chunk, metadata: { truncation: untruncated(totalBytes, totalLines) } }, context);
         } catch (error) {
           callbackFailed = true;
           throw error;
         }
       };
-      const execOptions = {
-        onStdout: (chunk: string) => callOutput(options?.onStdout, chunk),
-        onStderr: (chunk: string) => callOutput(options?.onStderr, chunk),
-        signal: options?.abortSignal,
+      const result = await execSandboxCommand(this.agent, command, cwd, {
+        onStdout: emit,
+        onStderr: emit,
+        signal: context.abortSignal,
         timeout: options?.timeout,
         env: options?.env,
-      };
-      const result = await execSandboxCommand(this.agent, command, cwd, execOptions);
-      return ok({ stdout: "", stderr: "", exitCode: result.exitCode ?? 1 });
+      });
+      return ok({ exitCode: result.exitCode ?? 1, truncation: untruncated(totalBytes, totalLines) });
     } catch (error) {
       const message = errorMessage(error);
-      const code = options?.abortSignal?.aborted
+      const code = context.abortSignal?.aborted
         ? "aborted"
         : message.startsWith("timeout:")
           ? "timeout"
@@ -221,16 +276,16 @@ export class AgentExecutionEnv implements ExecutionEnv {
     }
   }
 
-  async cleanup() {
-    await this.node.cleanup();
+  async cleanup(context: Context) {
+    await this.node.cleanup(context);
   }
 
   private metadataMode(): "read" | "write" {
     return this.agent.permissions.read || this.agent.permissions.edit ? "read" : "write";
   }
 
-  private async delegatePath<T>(path: string, mode: AccessMode, abortSignal: AbortSignal | undefined, operation: (resolved: string) => Promise<Result<T, FileError>>): Promise<Result<T, FileError>> {
-    if (abortSignal?.aborted) return err(new FileError("aborted", "Operation aborted.", path));
+  private async delegatePath<T>(path: string, mode: AccessMode, context: Context | undefined, operation: (resolved: string) => Promise<Result<T, FileError>>): Promise<Result<T, FileError>> {
+    if (context?.abortSignal?.aborted) return err(new FileError("aborted", "Operation aborted.", path));
     try {
       return await operation(this.resolveAuthorizedPath(path, mode));
     } catch (error) {
@@ -238,14 +293,30 @@ export class AgentExecutionEnv implements ExecutionEnv {
     }
   }
 
-  private async fileResult<T>(path: string, abortSignal: AbortSignal | undefined, operation: () => T | Promise<T>): Promise<Result<T, FileError>> {
-    if (abortSignal?.aborted) return err(new FileError("aborted", "Operation aborted.", path));
+  private async fileResult<T>(path: string, context: Context | undefined, operation: () => T | Promise<T>): Promise<Result<T, FileError>> {
+    if (context?.abortSignal?.aborted) return err(new FileError("aborted", "Operation aborted.", path));
     try {
       return ok(await operation());
     } catch (error) {
       return err(toFileError(error, path));
     }
   }
+}
+
+/** Truncation metadata for a stream that was never bounded, so nothing was dropped. */
+function untruncated(totalBytes: number, totalLines: number): ShellOutputTruncation {
+  return {
+    truncated: false,
+    truncatedBy: null,
+    totalLines,
+    totalBytes,
+    outputLines: totalLines,
+    outputBytes: totalBytes,
+    lastLinePartial: false,
+    firstLineExceedsLimit: false,
+    maxLines: Number.POSITIVE_INFINITY,
+    maxBytes: Number.POSITIVE_INFINITY,
+  };
 }
 
 export function remapContainerPath(filePath: string, mappings: PathMapping[]) {

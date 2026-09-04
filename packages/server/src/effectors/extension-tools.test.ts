@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { TEST_CONTEXT } from "./testing/pi-harness.ts";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createExtensionToolContext,
   loadExtensionToolProviders,
-} from "./pi-0-83/extension-tools.ts";
+} from "./pi-0-85/extension-tools.ts";
 import { collectAgentTools, type ToolProvisionContext } from "./contracts/tool-provider.ts";
 
 const EXTENSION_SOURCE = `
@@ -43,7 +44,7 @@ test("a real Pi extension's tool loads, runs, and receives the synthesized conte
   });
   assert.deepEqual(tools.map((tool) => tool.name), ["weather"]);
 
-  const result = await tools[0]!.execute("call-1", { city: "Lisbon" } as never, undefined, undefined, {} as never);
+  const result = await tools[0]!.execute("call-1", { city: "Lisbon" } as never, () => {}, undefined as never, {} as never, TEST_CONTEXT);
   assert.match(JSON.stringify(result), /Sunny in Lisbon/);
   // The context is built from the agent it is running for, not from a global.
   assert.match(JSON.stringify(result), /cwd \/workspaces\/agent_1/);

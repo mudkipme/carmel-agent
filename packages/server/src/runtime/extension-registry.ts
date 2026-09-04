@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { dataDir } from "../paths.ts";
 import { errorMessage } from "../errors.ts";
 import type { ToolProvider } from "../effectors/contracts/tool-provider.ts";
-import { loadExtensionToolProviders } from "../effectors/pi-0-83/extension-tools.ts";
+import { loadExtensionToolProviders } from "../effectors/pi-0-85/extension-tools.ts";
 import { builtinToolProviders } from "./tool-providers/index.ts";
 
 /**
@@ -13,7 +13,7 @@ import { builtinToolProviders } from "./tool-providers/index.ts";
  * workspace: Pi's loader scans `cwd/.pi/extensions/` before any configured
  * path, so pointing it at a workspace would turn "an agent can write a file"
  * into "an agent can run code in the server process". See
- * `effectors/pi-0-83/extension-tools.ts` for the full note.
+ * `effectors/pi-0-85/extension-tools.ts` for the full note.
  *
  * Loading is opt-in. With no directory present, or `CARMEL_AGENT_EXTENSIONS`
  * unset, Carmel runs exactly as it did before extensions existed.
