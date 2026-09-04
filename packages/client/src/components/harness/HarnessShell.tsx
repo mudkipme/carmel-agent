@@ -33,20 +33,21 @@ import {
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 
-export function HarnessShell() {
+/** Workspace-relative path as URL segments: names carry spaces, #, and ?. */
+function encodeFilePath(path: string) {
+  return path.split("/").map(encodeURIComponent).join("/");
+}
+
+export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { agentId: routeAgentId, sessionId: routeSessionId } = useParams();
+  const { agentId: routeAgentId, sessionId: routeSessionId, "*": routeFilePath } = useParams();
   const store = useHarnessStore();
   const setActiveAgent = store.setActiveAgent;
   const setActiveSession = store.setActiveSession;
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarResizing, setSidebarResizing] = useState(false);
-  /* The chat, the file manager, and the terminal share the main column, so one
-     value decides which is mounted rather than a flag per pane. */
-  const [contentView, setContentView] = useState<ContentView>("chat");
-  const [selectedFile, setSelectedFile] = useState({ agentId: "", path: "" });
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const activeUser = store.users.find((user) => user.id === store.activeUserId);
   const selectedSession = store.sessions.find(
@@ -67,7 +68,9 @@ export function HarnessShell() {
       })
     : undefined;
   const activeModel = store.modelRefs.find((model) => model.id === activeSessionMetadata?.modelRefId);
-  const selectedFilePath = selectedFile.agentId === activeAgent?.id ? selectedFile.path : "";
+  /* The open file rides in the route, so a reload — or a shared link — comes
+     back to the same file rather than to the top of the workspace. */
+  const selectedFilePath = routeFilePath ?? "";
   /* Mirrors the server gate in terminal-socket.ts. Shown as "not offered"
      rather than "offered then refused". */
   const canOpenTerminal = Boolean(
@@ -81,6 +84,11 @@ export function HarnessShell() {
   const routeSession = routeSessionId
     ? store.sessions.find((session) => session.id === routeSessionId && session.userId === store.activeUserId)
     : undefined;
+  const chatPath = activeSessionMetadata
+    ? `/agents/${activeSessionMetadata.agentId}/sessions/${activeSessionMetadata.id}`
+    : activeAgent
+      ? `/agents/${activeAgent.id}`
+      : "/";
 
   useEffect(() => {
     if (routeSessionId) {
@@ -98,25 +106,32 @@ export function HarnessShell() {
     if (routeSessionId && routeSession && store.activeSessionId !== routeSession.id) return;
     if (routeAgentId && routeAgent && !routeSessionId && store.activeAgentId !== routeAgent.id) return;
 
-    const targetPath = activeSessionMetadata
-      ? `/agents/${activeSessionMetadata.agentId}/sessions/${activeSessionMetadata.id}`
-      : activeAgent
-        ? `/agents/${activeAgent.id}`
-        : "/";
+    /* Files and the terminal belong to the agent, not to a session, so they
+       hold their own URL for as long as that agent is the active one — an agent
+       switch, or a shell this agent may not open, falls back to the chat. */
+    const targetPath =
+      view === "files" && activeAgent
+        ? `/agents/${activeAgent.id}/files${selectedFilePath ? `/${encodeFilePath(selectedFilePath)}` : ""}`
+        : view === "terminal" && activeAgent && canOpenTerminal
+          ? `/agents/${activeAgent.id}/terminal`
+          : chatPath;
     if (location.pathname !== targetPath) {
       navigate(targetPath, { replace: true });
     }
   }, [
     activeAgent,
-    activeSessionMetadata,
+    canOpenTerminal,
+    chatPath,
     location.pathname,
     navigate,
     routeAgent,
     routeAgentId,
     routeSession,
     routeSessionId,
+    selectedFilePath,
     store.activeAgentId,
     store.activeSessionId,
+    view,
   ]);
 
   useEffect(() => {
@@ -131,13 +146,17 @@ export function HarnessShell() {
     if (!window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches) setSidebarOpen(false);
   };
 
-  const setSelectedFilePath = (path: string) => {
-    setSelectedFile({ agentId: activeAgent?.id ?? "", path });
+  /* Each pane is a destination of its own, so switching is navigation: the
+     file manager and the terminal take the selected session's place instead of
+     covering it up. */
+  const showContentView = (next: ContentView) => {
+    navigate(next !== "chat" && activeAgent ? `/agents/${activeAgent.id}/${next}` : chatPath);
   };
 
-  const openSessionView = () => {
-    setContentView("chat");
-    closeSidebarOnMobile();
+  const openFile = (path: string) => {
+    if (!activeAgent) return;
+    const filesPath = `/agents/${activeAgent.id}/files`;
+    navigate(path ? `${filesPath}/${encodeFilePath(path)}` : filesPath);
   };
 
   const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -187,14 +206,14 @@ export function HarnessShell() {
       <HarnessSidebar
         activeUser={activeUser}
         activeAgent={activeAgent}
-        activeSession={activeSessionMetadata}
+        activeSession={view === "chat" ? activeSessionMetadata : undefined}
         visibleAgents={visibleAgents}
         visibleSessions={visibleSessions}
         sidebarOpen={sidebarOpen}
         sidebarWidth={sidebarWidth}
         sidebarResizing={sidebarResizing}
         onClose={() => setSidebarOpen(false)}
-        onOpenSession={openSessionView}
+        onOpenSession={closeSidebarOnMobile}
         onStartResize={startSidebarResize}
         onResetWidth={() => resetSidebarWidth(setSidebarWidth)}
         onOpenImport={() => setImportDialogOpen(true)}
@@ -205,14 +224,14 @@ export function HarnessShell() {
           sidebarOpen={sidebarOpen}
           activeAgent={activeAgent}
           activeSession={activeSessionMetadata}
-          contentView={contentView}
+          contentView={view}
           canOpenTerminal={canOpenTerminal}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
-          onContentViewChange={setContentView}
+          onContentViewChange={showContentView}
           onOpenSettings={() => navigate("/settings/models")}
         />
         <div className="min-h-0 flex-1">
-          {contentView === "terminal" && canOpenTerminal && activeAgent ? (
+          {view === "terminal" && canOpenTerminal && activeAgent ? (
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
@@ -224,7 +243,7 @@ export function HarnessShell() {
                   own shell rather than reusing the mounted one. */}
               <TerminalPanel key={activeAgent.id} agent={activeAgent} />
             </Suspense>
-          ) : contentView === "files" && activeAgent ? (
+          ) : view === "files" && activeAgent ? (
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
@@ -232,20 +251,20 @@ export function HarnessShell() {
                 </div>
               }
             >
+              {/* The manager stays mounted behind the editor, so closing a file
+                  lands back in the folder it came from with the selection and
+                  the clipboard still there. */}
+              <div className={cn("h-full", selectedFilePath && "hidden")}>
+                <FileManagerView key={activeAgent.id} agent={activeAgent} onOpenFile={openFile} />
+              </div>
               {selectedFilePath ? (
                 <FileEditorView
                   key={`${activeAgent.id}:${selectedFilePath}`}
                   agent={activeAgent}
                   filePath={selectedFilePath}
-                  onClose={() => setSelectedFilePath("")}
+                  onClose={() => openFile("")}
                 />
-              ) : (
-                <FileManagerView
-                  key={activeAgent.id}
-                  agent={activeAgent}
-                  onOpenFile={setSelectedFilePath}
-                />
-              )}
+              ) : null}
             </Suspense>
           ) : activeSession && activeAgent && activeModel ? (
             <PiChat
@@ -268,7 +287,7 @@ export function HarnessShell() {
         activeAgent={activeAgent}
         modelRefs={store.modelRefs}
         onOpenChange={setImportDialogOpen}
-        onAfterImport={openSessionView}
+        onAfterImport={closeSidebarOnMobile}
       />
     </main>
   );

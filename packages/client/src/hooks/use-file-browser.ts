@@ -12,10 +12,9 @@ export type FileUpload = { id: string; name: string; progress: number; error?: s
 export type UploadCandidate = { file: File; relativePath: string };
 
 /**
- * Every file operation the manager and the sidebar explorer share: listing,
- * navigation, selection, and the mutations. Both surfaces mount their own
- * instance, so each keeps its own directory and selection while the wire
- * format and the confirmation prompts stay in one place.
+ * Every file operation the manager needs: listing, navigation, selection, and
+ * the mutations. Kept apart from the view so the wire format and the
+ * confirmation prompts stay in one place.
  */
 export function useFileBrowser({
   agent,

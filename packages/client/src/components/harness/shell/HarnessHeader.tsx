@@ -22,6 +22,10 @@ export function HarnessHeader({
   onContentViewChange: (view: ContentView) => void;
   onOpenSettings: () => void;
 }) {
+  /* Files and the terminal replace the session in the main column, so the
+     title names the pane you are actually looking at. */
+  const title =
+    contentView === "files" ? "Files" : contentView === "terminal" ? "Terminal" : (activeSession?.title ?? "No session");
   /* The subtitle carries only what nothing else on screen says: the model is
      already named in the composer, and the working directory is worth the room
      just when the agent runs somewhere other than its own default. */
@@ -42,7 +46,7 @@ export function HarnessHeader({
           <PanelLeftIcon />
         </Button>
         <div className="min-w-0">
-          <h2 className="truncate text-[13px] font-medium">{activeSession?.title ?? "No session"}</h2>
+          <h2 className="truncate text-[13px] font-medium">{title}</h2>
           <p className="text-ui-smaller truncate text-muted-foreground">
             {activeAgent?.name ?? "No agent"}
             {customWorkingDir ? ` · ${customWorkingDir}` : ""}
@@ -50,8 +54,8 @@ export function HarnessHeader({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {/* The main column shows one of these at a time, so each button is a
-            toggle back to the chat rather than a separate destination. */}
+        {/* Each pane has its own route and the main column shows one at a
+            time, so pressing the active one navigates back to the chat. */}
         {activeAgent ? (
           <Button
             variant={contentView === "files" ? "secondary" : "ghost"}
