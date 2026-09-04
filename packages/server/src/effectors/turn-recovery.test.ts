@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { classifyTurnFailure } from "./failure-classifier.ts";
 import { planContextRecovery } from "./turn-recovery.ts";
 
-const overflow = classifyTurnFailure({ message: "400 prompt is too long: 213451 tokens > 200000 maximum" });
+const overflow = classifyTurnFailure({
+  message: "400 prompt is too long: 213451 tokens > 200000 maximum",
+  overflowHint: true,
+});
 
 test("a turn that succeeded is not recovered", () => {
   assert.deepEqual(planContextRecovery({ failure: undefined, turnProducedToolResults: false }), { action: "none" });

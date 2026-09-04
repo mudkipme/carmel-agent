@@ -2,7 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { classifyTurnFailure, formatTurnFailure, type FailureCategory } from "./failure-classifier.ts";
 
-/** Wording taken from what the providers actually return. */
+/**
+ * Wording taken from what the providers actually return.
+ *
+ * No overflow cases: this unit does not detect one. `overflowHint` carries Pi's
+ * verdict, and that the hint still fires on real provider wording is asserted
+ * against Pi itself in `runtime/run-events.test.ts`.
+ */
 const REAL_MESSAGES: readonly { category: FailureCategory; message: string }[] = [
   {
     category: "auth",
@@ -14,14 +20,6 @@ const REAL_MESSAGES: readonly { category: FailureCategory; message: string }[] =
     message: "429 You exceeded your current quota, please check your plan and billing details. code: insufficient_quota",
   },
   { category: "quota", message: "Your credit balance is too low to access the Anthropic API." },
-  {
-    category: "context_overflow",
-    message: "400 prompt is too long: 213451 tokens > 200000 maximum",
-  },
-  {
-    category: "context_overflow",
-    message: "This model's maximum context length is 128000 tokens. However, your messages resulted in 131204 tokens.",
-  },
   {
     category: "tool_history",
     message:
@@ -41,6 +39,16 @@ for (const { category, message } of REAL_MESSAGES) {
     assert.equal(classifyTurnFailure({ message }).category, category);
   });
 }
+
+test("the overflow hint decides the category outright", () => {
+  // Authoritative, not a tie-breaker: Pi's detector has already excluded the
+  // throttling texts that read like an overflow, and it sees silent overflows
+  // that carry no error text for a pattern to match in the first place.
+  const failure = classifyTurnFailure({ message: "", overflowHint: true });
+  assert.equal(failure.category, "context_overflow");
+  assert.equal(failure.retryable, false);
+  assert.ok(failure.remedy);
+});
 
 test("a quota refusal that mentions 429 is not treated as retryable", () => {
   // Pi reads any 429 as transient. Retrying an exhausted quota just burns the

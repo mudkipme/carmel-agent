@@ -127,6 +127,10 @@ const OBSERVED_EVENTS = [
   "tool_end",
   "turn_end",
   "run_end",
+  // Not projected onto the wire -- nothing renders it -- but the run needs to
+  // know when Pi has spent its own overflow recovery, so that Carmel's does not
+  // pay for the same compaction twice.
+  "compaction_end",
 ] as const satisfies readonly HarnessEventType[];
 
 /**

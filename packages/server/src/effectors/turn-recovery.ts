@@ -9,17 +9,22 @@ import type { TurnFailure } from "./failure-classifier.ts";
  * quota, and a malformed tool history all need a person, and retrying them just
  * spends the user's tokens to reach the same answer.
  *
- * Overflow survives the pre-flight compaction we already run for two reasons,
- * and they want different handling:
+ * Reaching here at all means Pi's own overflow recovery did not settle it -- Pi
+ * 0.85 compacts and retries an overflowed generation once, before Carmel is
+ * asked -- so this plans for what is left after that:
  *
- *  - The estimate was wrong. `estimateContextTokens` is a character heuristic
- *    reconciled against the last reported usage, so it can sit under the
- *    threshold while the provider's own count is over it. Nothing durable
- *    happened, and the cleanest repair is to pretend the attempt never did.
+ *  - The estimate was wrong and Pi declined to compact. `estimateContextTokens`
+ *    is a character heuristic reconciled against the last reported usage, so it
+ *    can sit under the threshold while the provider's own count is over it.
+ *    Nothing durable happened, and the cleanest repair is to pretend the attempt
+ *    never did.
  *  - A tool result ballooned the context mid-turn. A file read or a long bash
  *    capture can add more in one step than the whole turn was budgeted. Here the
  *    turn *did* work, and rewinding past it would throw away exactly the
  *    expensive part.
+ *
+ * The caller decides separately whether either is worth attempting: when Pi has
+ * already compacted for this overflow, neither is, and the run reports instead.
  */
 
 export type RecoveryAction =

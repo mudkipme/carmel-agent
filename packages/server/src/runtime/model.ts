@@ -12,6 +12,7 @@ import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
 import { getCachedCatalogModel } from "./model-store.ts";
 import { errorMessage } from "../errors.ts";
 import { classifyTurnFailure, formatTurnFailure } from "../effectors/failure-classifier.ts";
+import { isOverflowMessage } from "./run-events.ts";
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 
@@ -69,7 +70,12 @@ export function thinkingLevelOverrides(
  * thing the user would otherwise get.
  */
 export function createAgentError(error: unknown, model: Model<Api>) {
-  const failure = classifyTurnFailure({ message: errorMessage(error), aborted: isAbortError(error) });
+  const text = errorMessage(error);
+  const failure = classifyTurnFailure({
+    message: text,
+    aborted: isAbortError(error),
+    overflowHint: isOverflowMessage(text),
+  });
   const message: AgentMessage = {
     role: "assistant",
     content: [{ type: "text", text: "" }],

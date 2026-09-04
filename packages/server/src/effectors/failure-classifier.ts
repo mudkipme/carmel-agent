@@ -8,10 +8,11 @@
  * an auth or quota problem (the admin who holds the keys) is usually not the
  * person watching the session fail.
  *
- * Pure: the provider-shaped input is a string plus two hints the caller derives.
- * Pi's own `isRetryableAssistantError` is one of those hints rather than a
- * dependency, so its pattern list stays the single source of truth for what
- * counts as transient without this file importing it.
+ * Pure: the provider-shaped input is a string plus the hints the caller derives.
+ * Pi's own `isRetryableAssistantError` and `isContextOverflow` are hints rather
+ * than dependencies, so their pattern lists stay the single source of truth for
+ * what counts as transient and what counts as an overflow, without this file
+ * importing either.
  */
 
 export type FailureCategory =
@@ -41,20 +42,26 @@ export type TurnFailureInput = {
   readonly aborted?: boolean;
   /** Pi's transient-error verdict, when the caller has an assistant message. */
   readonly transientHint?: boolean;
+  /**
+   * Pi's context-overflow verdict, when the caller has an assistant message.
+   *
+   * Authoritative rather than a tie-breaker, because it knows two things a
+   * message string cannot: which overflow-looking texts are actually throttling,
+   * and whether a *successful* response silently overran the window because its
+   * input usage exceeded it. A regex here would be a worse second copy of a list
+   * Pi already maintains.
+   */
+  readonly overflowHint?: boolean;
 };
 
 /**
  * Ordered most specific first. A quota message often also matches the transient
- * patterns (both mention 429), and a context-overflow message from some gateways
- * mentions "invalid_request" -- so the order here is load-bearing, not
- * cosmetic.
+ * patterns (both mention 429), so the order here is load-bearing, not cosmetic.
+ *
+ * `context_overflow` is deliberately absent: `overflowHint` decides it, from
+ * Pi's own detector.
  */
 const PATTERNS: readonly { category: FailureCategory; pattern: RegExp }[] = [
-  {
-    category: "context_overflow",
-    pattern:
-      /context (?:length|window)|maximum context|too many tokens|prompt is too long|exceeds? the (?:maximum|context)|reduce the length of the messages|input length and `max_tokens`/i,
-  },
   {
     category: "tool_history",
     // Anthropic names the ids; OpenAI names the roles. Both mean the branch is
@@ -112,10 +119,24 @@ export function classifyTurnFailure(input: TurnFailureInput): TurnFailure {
     return { category: "aborted", retryable: false, summary: SUMMARIES.aborted, detail };
   }
 
+  // Overflow is decided before the patterns, not after. Pi's detector already
+  // rules out the throttling texts that read like an overflow, so a hit here is
+  // more specific than anything the list below could match -- including the
+  // gateways that wrap an overflow in "invalid_request".
+  if (input.overflowHint) {
+    return {
+      category: "context_overflow",
+      retryable: RETRYABLE.has("context_overflow"),
+      summary: SUMMARIES.context_overflow,
+      remedy: REMEDIES.context_overflow,
+      detail,
+    };
+  }
+
   const matched = PATTERNS.find(({ pattern }) => pattern.test(detail))?.category;
-  // The hint only promotes an otherwise-unrecognised failure. It must not
-  // override a specific match: Pi reads a 429 as transient, but a quota refusal
-  // that mentions 429 is not something retrying fixes.
+  // The transient hint only promotes an otherwise-unrecognised failure. It must
+  // not override a specific match: Pi reads a 429 as transient, but a quota
+  // refusal that mentions 429 is not something retrying fixes.
   const category = matched ?? (input.transientHint ? "transient" : "unknown");
 
   return {

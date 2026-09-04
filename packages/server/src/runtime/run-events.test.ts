@@ -8,7 +8,8 @@ import { migrate } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
 import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
-import { projectRunEvent } from "./run-events.ts";
+import { classifyTurnFailure } from "../effectors/failure-classifier.ts";
+import { isOverflowMessage, projectRunEvent } from "./run-events.ts";
 
 migrate();
 
@@ -215,3 +216,30 @@ function assistantMessage(): AgentMessage & AssistantMessage {
 function laneEvent(payload: { type: HarnessEvent["type"] } & Record<string, unknown>): HarnessEvent {
   return { ...payload, lane: "main" } as unknown as HarnessEvent;
 }
+
+
+/**
+ * The regression guard for delegating overflow detection to Pi.
+ *
+ * Carmel used to carry its own pattern list; it now asks `isContextOverflow`.
+ * That is the right call -- one list, and Pi's also knows which
+ * overflow-shaped texts are really throttling -- but it moves a decision Carmel
+ * depends on into a dependency. These are the provider strings Carmel was
+ * written against, so if an upgrade stops recognising one, it fails here rather
+ * than silently downgrading a recoverable overflow to "unknown" in production.
+ */
+for (const message of [
+  "400 prompt is too long: 213451 tokens > 200000 maximum",
+  "This model's maximum context length is 128000 tokens. However, your messages resulted in 131204 tokens.",
+]) {
+  test(`Pi still recognises a real overflow: ${message.slice(0, 40)}…`, () => {
+    assert.equal(isOverflowMessage(message), true);
+    assert.equal(classifyTurnFailure({ message, overflowHint: true }).category, "context_overflow");
+  });
+}
+
+test("throttling that mentions token limits is not an overflow", () => {
+  // The reason this is Pi's job: the texts that look like an overflow but are
+  // rate limiting are exactly what a hand-rolled pattern list gets wrong.
+  assert.equal(isOverflowMessage("429 Request too large for gpt-4: rate limit reached for tokens"), false);
+});

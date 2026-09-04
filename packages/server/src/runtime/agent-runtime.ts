@@ -152,7 +152,7 @@ async function startAgentRun(context: AgentRun) {
   run.started = true;
 
   const retry = new RetryBranch();
-  const turnFailure = new TurnFailureWatch();
+  const turnFailure = new TurnFailureWatch(model.contextWindow);
   const guard = new RunGuard(runGuardLimits());
   let guardTimer: ReturnType<typeof setInterval> | undefined;
   let piSession: PiSession | undefined;
@@ -207,8 +207,15 @@ async function startAgentRun(context: AgentRun) {
       return;
     }
 
-    // Pre-flight: compaction here is what keeps an over-budget session from
-    // spending a whole turn to earn a provider context-length rejection.
+    // Pre-flight, and the only unconditional pressure check left.
+    //
+    // Pi 0.85 compacts on its own at every checkpoint inside `lane.prompt`
+    // (`prepareCompactionThreshold`, on by default), so the post-turn check this
+    // used to be paired with was measuring a session Pi had just compacted. What
+    // survives here is what Pi does not do: it reports the two states compaction
+    // cannot fix -- a window smaller than the reserve, and a retained tail larger
+    // than the headroom -- and tells the user before the turn is spent earning a
+    // provider rejection instead of after.
     await relieveContextPressure(context, driver);
     if (abort.requested) {
       await retry.restore(log);
@@ -231,10 +238,10 @@ async function startAgentRun(context: AgentRun) {
       dispatch: { harness, lane, context: runContext },
       log,
       failure: turnFailure.last,
+      piAlreadyCompacted: turnFailure.piAlreadyCompactedForOverflow,
       attemptBaselineId,
       promptInput: prepared.promptInput,
     });
-    await relieveContextPressure(context, driver);
   } catch (error) {
     await reportRunFailure(context, { log, retry, error });
   } finally {
@@ -545,30 +552,60 @@ async function relieveContextPressure(context: AgentRun, driver: AgentDriver, op
   return outcome;
 }
 
-/** Records the failure carried by the most recent turn, if it carried one. */
+/**
+ * Records the failure carried by the most recent turn, and whether Pi already
+ * spent its own overflow recovery on this run.
+ *
+ * The second part is what makes Carmel's recovery a second line rather than a
+ * duplicate. Pi 0.85 compacts and retries an overflowed turn itself, once per
+ * generation, and emits `compaction_end` with `reason: "overflow"` when it does.
+ * Seeing that and *still* holding an overflow failure means the remedy Carmel
+ * would reach for has already been tried and did not work.
+ */
 export class TurnFailureWatch {
   #last?: TurnFailure;
+  #piCompactedForOverflow = false;
+  readonly #contextWindow?: number;
+
+  /** The model's window, so a silent overflow -- a `stop` that overran -- is seen. */
+  constructor(contextWindow?: number) {
+    this.#contextWindow = contextWindow;
+  }
 
   observe(event: HarnessEvent) {
+    if (event.type === "compaction_end" && event.reason === "overflow" && event.status === "completed") {
+      this.#piCompactedForOverflow = true;
+      return;
+    }
     if (event.type !== "turn_end") return;
     // A clean turn clears the record: only the last turn of a run decides
     // whether the run needs recovering.
-    this.#last = classifyHarnessTurnFailure(event);
+    this.#last = classifyHarnessTurnFailure(event, this.#contextWindow);
   }
 
   get last() {
     return this.#last;
   }
+
+  /** Pi ran its own overflow compaction during this run. */
+  get piAlreadyCompactedForOverflow() {
+    return this.#piCompactedForOverflow;
+  }
 }
 
 /**
- * Repair a turn the provider rejected for context length.
+ * Repair a turn the provider rejected for context length -- second line only.
  *
- * Compaction runs before every prompt, so reaching here means the turn started
- * inside its budget and left it: either the estimate was wrong, or a tool result
- * was larger than the turn had room for. Both are fixable without the user, and
- * both are invisible to them if this works -- which is why the recovery reports
- * itself rather than passing silently.
+ * Pi 0.85 recovers an overflow itself: `publishResponse` classifies the response,
+ * compacts, and retries the generation once. When that works the turn ends clean
+ * and `failure` is undefined, so this returns immediately. What is left for
+ * Carmel is the cases Pi's single attempt does not cover -- an overflow it
+ * declined to compact for, or one that survived the compaction it did -- plus
+ * telling the user, which Pi never does.
+ *
+ * The one thing this must not do is spend a second summarization call on a
+ * branch Pi just compacted for the same reason. `piAlreadyCompacted` is how that
+ * is known, and it converts the recovery from a retry into a report.
  */
 export async function recoverFromContextOverflow(
   context: AgentRun,
@@ -578,11 +615,13 @@ export async function recoverFromContextOverflow(
     dispatch: PiDispatcherOptions;
     log: SessionLog;
     failure: TurnFailure | undefined;
+    /** Whether Pi already compacted for overflow during this run. */
+    piAlreadyCompacted?: boolean;
     attemptBaselineId: string | null;
     promptInput: PromptInput;
   },
 ) {
-  const { driver, dispatch, log, failure, attemptBaselineId, promptInput } = state;
+  const { driver, dispatch, log, failure, piAlreadyCompacted, attemptBaselineId, promptInput } = state;
 
   const branch = await log.readBranch();
   // Called once per run. A second overflow after a successful compaction is
@@ -593,6 +632,19 @@ export async function recoverFromContextOverflow(
   });
   if (plan.action === "none") return;
   if (context.abort.requested) return;
+
+  // Pi compacted for this same overflow and the turn failed anyway. Compaction
+  // is the entire remedy on this path, so trying it again buys a summarization
+  // call and the same rejection. Say so instead.
+  if (piAlreadyCompacted) {
+    emitRunEvent(context.run, {
+      type: "context_pressure",
+      level: "critical",
+      message:
+        "This session filled its context window mid-turn and compaction did not recover it. Move to a model with a larger window, or start a new session.",
+    });
+    return;
+  }
 
   // Forced: the provider has already rejected this context as too large, which
   // outranks the local estimate that let the turn start. Compaction is the whole

@@ -80,6 +80,60 @@ test("a failure compaction cannot fix is left for the user", async () => {
   await scene.close();
 });
 
+/**
+ * The point of #3: Carmel is the second line, and knows it.
+ *
+ * Pi compacts and retries the overflow itself; when the retry overflows too, its
+ * own recovery is spent (`overflowRecoveryUsed`) and it stops. Compaction is the
+ * entire remedy on this path, so Carmel forcing a second one would buy another
+ * summarization call and the same rejection. It reports instead.
+ */
+test("Carmel reports rather than re-compacting once Pi's own recovery is spent", async () => {
+  const scene = await setupScene(() => fauxAssistantMessage("Recovered."));
+  const baselineId = await scene.seedTurnWithToolResult();
+
+  await scene.recoverFrom(OVERFLOW, baselineId, { piAlreadyCompacted: true });
+
+  // The user is told, and no provider call is made: compaction is the entire
+  // remedy on this path and Pi has already spent it.
+  assert.deepEqual(scene.emitted(), ["context_pressure"]);
+  assert.equal(scene.callCount(), 0);
+  await scene.close();
+});
+
+test("the run learns from Pi's own compaction_end that its recovery is spent", async () => {
+  // The wiring the test above stands in for: without this the flag never sets,
+  // and Carmel goes on paying for a second compaction Pi already tried.
+  const watch = new TurnFailureWatch();
+  assert.equal(watch.piAlreadyCompactedForOverflow, false);
+  watch.observe({
+    type: "compaction_end",
+    lane: "main",
+    runId: "run_1",
+    reason: "overflow",
+    status: "completed",
+    entryId: "e1",
+    endedAt: 1,
+  } as never);
+  assert.equal(watch.piAlreadyCompactedForOverflow, true);
+});
+
+test("a threshold compaction is not mistaken for spent overflow recovery", () => {
+  // Pi compacts at every checkpoint by default. Only the overflow-reasoned one
+  // means the remedy has been tried against this failure.
+  const watch = new TurnFailureWatch();
+  watch.observe({
+    type: "compaction_end",
+    lane: "main",
+    runId: "run_1",
+    reason: "threshold",
+    status: "completed",
+    entryId: "e1",
+    endedAt: 1,
+  } as never);
+  assert.equal(watch.piAlreadyCompactedForOverflow, false);
+});
+
 test("Carmel's recovery is skipped once an abort has been requested", async () => {
   const scene = await setupScene(() =>
     fauxAssistantMessage("", { stopReason: "error", errorMessage: OVERFLOW }),
@@ -181,7 +235,11 @@ async function setupScene(respond: (callCount: number) => AgentMessage) {
       } as unknown as AgentMessage);
       return baselineId;
     },
-    async recoverFrom(providerError: string, attemptBaselineId: string | null) {
+    async recoverFrom(
+      providerError: string,
+      attemptBaselineId: string | null,
+      options: { piAlreadyCompacted?: boolean } = {},
+    ) {
       const before = run.nextSequence;
       await recoverFromContextOverflow(
         { run, abort, session: { id: sessionId } } as never,
@@ -189,7 +247,8 @@ async function setupScene(respond: (callCount: number) => AgentMessage) {
           driver,
           dispatch,
           log,
-          failure: classifyTurnFailure({ message: providerError }),
+          failure: classifyTurnFailure({ message: providerError, overflowHint: true }),
+          piAlreadyCompacted: options.piAlreadyCompacted,
           attemptBaselineId,
           promptInput: { text: "read the file" },
         },

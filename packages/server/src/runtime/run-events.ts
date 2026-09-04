@@ -1,5 +1,11 @@
 import type { HarnessEvent } from "@earendil-works/pi-agent-core";
-import { isRetryableAssistantError, type AssistantMessageEvent, type ToolCall } from "@earendil-works/pi-ai";
+import {
+  isContextOverflow,
+  isRetryableAssistantError,
+  type AssistantMessage,
+  type AssistantMessageEvent,
+  type ToolCall,
+} from "@earendil-works/pi-ai";
 import type { AgentRunEvent } from "@carmel-agent/shared";
 import { classifyTurnFailure, formatTurnFailure, type TurnFailure } from "../effectors/failure-classifier.ts";
 
@@ -15,18 +21,43 @@ import { classifyTurnFailure, formatTurnFailure, type TurnFailure } from "../eff
  * Classify the failure carried by a harness turn, if it carries one.
  *
  * Lives here because this is the layer allowed to know Pi: it is what supplies
- * `isRetryableAssistantError` as a hint so the classifier itself stays Pi-free.
- * The run path uses the same function, so what the user is told and what the
- * server decides to do about it cannot drift apart.
+ * `isRetryableAssistantError` and `isContextOverflow` as hints so the classifier
+ * itself stays Pi-free. The run path uses the same function, so what the user is
+ * told and what the server decides to do about it cannot drift apart.
+ *
+ * `contextWindow` is optional and worth passing wherever it is known. Without it
+ * `isContextOverflow` can only read the error text; with it, it also catches the
+ * providers that answer `stop` on a request whose input already exceeded the
+ * window -- an overflow with no error message at all, which no amount of pattern
+ * matching would find.
  */
-export function classifyHarnessTurnFailure(event: HarnessEvent): TurnFailure | undefined {
+/**
+ * Pi's overflow verdict for a bare error string.
+ *
+ * For the paths that hold an exception rather than an assistant message -- a
+ * provider that throws instead of answering. Only the error-text half of
+ * `isContextOverflow` can apply, but that is the half a string has, and running
+ * it through Pi keeps the pattern list in one place instead of growing a second
+ * copy here for the callers that lack a message.
+ */
+export function isOverflowMessage(message: string): boolean {
+  return isContextOverflow({ stopReason: "error", errorMessage: message } as AssistantMessage);
+}
+
+export function classifyHarnessTurnFailure(
+  event: HarnessEvent,
+  contextWindow?: number,
+): TurnFailure | undefined {
   // 0.85 types `turn_end.message` as an `AssistantMessage` outright, so the
   // role check the 0.83 union needed is gone with it.
-  if (event.type !== "turn_end" || !event.message.errorMessage) return undefined;
+  if (event.type !== "turn_end") return undefined;
+  const overflowHint = isContextOverflow(event.message, contextWindow);
+  if (!event.message.errorMessage && !overflowHint) return undefined;
   return classifyTurnFailure({
-    message: event.message.errorMessage,
+    message: event.message.errorMessage ?? "",
     aborted: event.message.stopReason === "aborted",
     transientHint: isRetryableAssistantError(event.message),
+    overflowHint,
   });
 }
 
