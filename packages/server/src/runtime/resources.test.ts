@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import type { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { loadAgentResources } from "./resources.ts";
@@ -34,7 +35,7 @@ test("filesystem resources load through AgentExecutionEnv with Pi-native parsing
     ]);
     assert.equal(resources.contextFiles[0]?.content, "Project instructions");
   } finally {
-    await env.cleanup();
+    await env.cleanup(TEST_CONTEXT);
   }
 });
 
@@ -51,7 +52,7 @@ test("resource discovery cannot follow a skill symlink outside readable roots", 
     assert.deepEqual(resources.skills, []);
     assert.ok(resources.diagnostics.some((diagnostic) => /outside the agent working directory/.test(diagnostic.message)));
   } finally {
-    await env.cleanup();
+    await env.cleanup(TEST_CONTEXT);
   }
 });
 
@@ -95,7 +96,7 @@ test("skills and prompt templates reach the system prompt in a stable order", as
     const resources = await loadAgentResources(env.agent, env);
     assert.deepEqual(resources.skills.map((skill) => skill.name), ["alpha", "middle", "zebra"]);
   } finally {
-    await env.cleanup();
+    await env.cleanup(TEST_CONTEXT);
   }
 });
 

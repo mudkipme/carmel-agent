@@ -4,12 +4,12 @@ import type { CompactionOutcome } from "../compaction-policy.ts";
 /**
  * What Carmel needs an agent loop to do, expressed without naming one.
  *
- * Pi's `AgentHarness` is the only implementation today (`../pi-0-83`), but it is
- * mid-rewrite upstream: v2 makes `AgentHarness` an interface, threads an
- * explicit `Context` through every method, unexports `AgentHarnessEvent`, and
- * replaces `subscribe()` with `events.on()`. None of that is visible here, which
- * is the point -- the port is the list of things Carmel actually asks for, and
- * it is deliberately shorter than the surface Pi offers.
+ * Pi's `AgentHarness` is the only implementation today (`../pi-0-85`). The
+ * rewrite this port was written against has now landed: v2 made `AgentHarness`
+ * an interface, threaded an explicit `Context` through every method, moved the
+ * whole conversation surface onto `AgentLane`, unexported `AgentHarnessEvent`,
+ * and replaced `subscribe()` with `events.on()`. Exactly one line here changed
+ * as a result -- `listResources` became async -- which is what the port was for.
  */
 
 export type PromptImages = PromptInput["images"];
@@ -41,8 +41,12 @@ export interface AgentRunObserver {
 }
 
 export interface AgentDriver {
-  /** Synchronous: dispatch decisions happen between an abort check and a prompt. */
-  listResources(): DriverResources;
+  /**
+   * Async since Pi 0.85, where reading the harness's resources became a call
+   * that takes an invocation `Context`. Dispatch was already async, so this
+   * costs one `await` at the single call site.
+   */
+  listResources(): Promise<DriverResources>;
 
   prompt(text: string, images?: PromptImages): Promise<void>;
 

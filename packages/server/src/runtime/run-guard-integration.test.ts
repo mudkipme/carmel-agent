@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { AgentHarness, type AgentHarnessEvent } from "@earendil-works/pi-agent-core";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import { migrate } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
-import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
+import { openPiSession } from "../services/pi-session-storage.ts";
+import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
 import { RunGuard } from "../effectors/run-guard.ts";
 import { HarnessAbortGate } from "./agent-runtime.ts";
 
@@ -24,8 +24,7 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
 
   const piSession = await openPiSession(sessionId);
   let executions = 0;
-  const harness = new AgentHarness({
-    session: piSession,
+  const pi = await attachTestHarness(piSession, {
     models,
     model: faux.getModel(),
     systemPrompt: "Test assistant",
@@ -42,17 +41,18 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
       } as never,
     ],
   });
+  const { lane, context } = pi;
 
   const guard = new RunGuard({ maxToolCalls: 4, stallTimeoutMs: 60_000 });
   const abort = new HarnessAbortGate();
-  abort.attach(harness);
-  const unsubscribe = harness.subscribe((event: AgentHarnessEvent) => {
-    const stop = event.type === "tool_execution_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
+  abort.attach(lane);
+  const unsubscribe = pi.observe((event) => {
+    const stop = event.type === "tool_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
     if (stop) abort.request();
   });
 
   try {
-    await harness.prompt("spin forever");
+    await lane.prompt("spin forever", undefined, context);
 
     assert.equal(guard.stop?.reason, "tool_ceiling");
     // One past the ceiling trips it, and the run must not carry on afterwards.
@@ -61,7 +61,7 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
 
     // The branch stays promptable: Pi synthesizes results for tool calls that
     // were pending when the abort landed, so the guard cannot strand one.
-    const branch = await piSession.getBranch();
+    const branch = await pi.branch();
     const calls = new Set<string>();
     const results = new Set<string>();
     for (const entry of branch) {
@@ -78,6 +78,6 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
     assert.deepEqual([...calls].filter((id) => !results.has(id)), [], "guard abort left an unanswered tool call");
   } finally {
     unsubscribe();
-    await closePiSession(piSession);
+    await pi.close();
   }
 });

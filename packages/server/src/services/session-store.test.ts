@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { AgentHarness } from "@earendil-works/pi-agent-core";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
 import { eq } from "drizzle-orm";
@@ -9,6 +8,7 @@ import { sessions } from "../db/schema.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { prepareAgentRunPrompt, runHarnessPrompt } from "../runtime/agent-runtime.ts";
 import { closePiSession, deletePiSession, openPiSession } from "./pi-session-storage.ts";
+import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import {
   editSessionMessageEntry,
   loadSession,
@@ -48,29 +48,32 @@ test("replacing a transcript moves the native leaf but retains the abandoned bra
   assert.deepEqual(await contents(sessionId), ["a"]);
   const session = await openPiSession(sessionId);
   try {
-    assert.equal((await session.getStorage().findEntries("message")).length, 4);
+    // Counts every message entry in the session, abandoned branches included.
+    assert.equal((await session.findEntries({ type: "message" }, TEST_CONTEXT)).length, 4);
   } finally {
     await closePiSession(session);
   }
 });
 
-test("Pi native SQLite storage persists entries and materialized context", async () => {
+test("Pi native SQLite storage persists entries and lane configuration", async () => {
   const { sessionId } = createSession();
-  const session = await openPiSession(sessionId);
+  const pi = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
-    await session.appendMessage(userMessage("a"));
-    await session.appendThinkingLevelChange("high");
-    await session.appendMessage(userMessage("b"));
+    await pi.log.appendMessage(userMessage("a"));
+    // 0.85 moved the thinking level out of the transcript and onto lane state,
+    // so this is a lane write rather than a third entry on the branch.
+    await pi.log.appendThinkingLevelChange("high");
+    await pi.log.appendMessage(userMessage("b"));
 
-    const context = await session.buildContext();
+    const messages = (await pi.branch()).flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
     assert.deepEqual(
-      context.messages.map((message) => (message as { content: string }).content),
+      messages.map((message) => (message as { content: string }).content),
       ["a", "b"],
     );
-    assert.equal(context.thinkingLevel, "high");
-    assert.equal((await session.getStorage().getMetadata()).id, sessionId);
+    assert.equal((await pi.log.readState()).thinkingLevel, "high");
+    assert.equal(pi.session.metadata.id, sessionId);
   } finally {
-    await closePiSession(session);
+    await pi.close();
   }
 });
 
@@ -80,13 +83,16 @@ test("AgentHarness persists a complete turn directly into Pi SQLite", async () =
   const models = createModels();
   models.setProvider(faux.provider);
   faux.setResponses([fauxAssistantMessage("persisted reply")]);
-  const session = await openPiSession(sessionId);
-  const harness = new AgentHarness({ session, models, model: faux.getModel(), systemPrompt: "Test assistant" });
+  const pi = await attachTestHarness(await openPiSession(sessionId), {
+    models,
+    model: faux.getModel(),
+    systemPrompt: "Test assistant",
+  });
 
   try {
-    await harness.prompt("hello");
+    await pi.lane.prompt("hello", undefined, pi.context);
   } finally {
-    await closePiSession(session);
+    await pi.close();
   }
 
   const messages = await readSessionMessages(sessionId);
@@ -106,12 +112,12 @@ test("retrying a stored user entry does not persist an empty message", async () 
   const models = createModels();
   models.setProvider(faux.provider);
   faux.setResponses([fauxAssistantMessage("retried reply")]);
+  const pi = await attachTestHarness(piSession, { models, model: faux.getModel(), systemPrompt: "Test assistant" });
   try {
-    const prepared = await prepareAgentRunPrompt(piSession);
-    const harness = new AgentHarness({ session: piSession, models, model: faux.getModel(), systemPrompt: "Test assistant" });
-    await runHarnessPrompt(harness, prepared.promptInput.text, prepared.promptInput.images);
+    const prepared = await prepareAgentRunPrompt(pi.log);
+    await runHarnessPrompt(pi, prepared.promptInput.text, prepared.promptInput.images);
   } finally {
-    await closePiSession(piSession);
+    await pi.close();
   }
 
   const messages = await readSessionMessages(sessionId);
@@ -128,9 +134,7 @@ test("native harness commands expand file prompts and skills", async () => {
   const models = createModels();
   models.setProvider(faux.provider);
   faux.setResponses([fauxAssistantMessage("first"), fauxAssistantMessage("second")]);
-  const session = await openPiSession(sessionId);
-  const harness = new AgentHarness({
-    session,
+  const pi = await attachTestHarness(await openPiSession(sessionId), {
     models,
     model: faux.getModel(),
     resources: {
@@ -139,10 +143,10 @@ test("native harness commands expand file prompts and skills", async () => {
     },
   });
   try {
-    await runHarnessPrompt(harness, '/review "some file"');
-    await runHarnessPrompt(harness, "/skill:inspect focus on safety");
+    await runHarnessPrompt(pi, '/review "some file"');
+    await runHarnessPrompt(pi, "/skill:inspect focus on safety");
   } finally {
-    await closePiSession(session);
+    await pi.close();
   }
 
   const userMessages = (await readSessionMessages(sessionId)).filter((message) => message.role === "user");
@@ -158,36 +162,41 @@ test("entry-ID leaf navigation retains the abandoned branch", async () => {
   assert.ok(loaded);
   await truncateSessionAtEntry(sessionId, loaded.messageEntryIds[0]!);
 
-  const session = await openPiSession(sessionId);
+  const pi = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
-    await session.appendMessage(userMessage("d"));
-    assert.equal((await session.getStorage().findEntries("message")).length, 4);
+    await pi.log.appendMessage(userMessage("d"));
+    assert.equal((await pi.session.findEntries({ type: "message" }, TEST_CONTEXT)).length, 4);
   } finally {
-    await closePiSession(session);
+    await pi.close();
   }
   assert.deepEqual(await contents(sessionId), ["a", "d"]);
 });
 
-test("non-truncating entry edit preserves native configuration entries in the suffix", async () => {
+test("non-truncating entry edit preserves the message suffix and lane configuration", async () => {
   const { sessionId } = createSession();
-  const session = await openPiSession(sessionId);
+  const pi = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   let firstId: string;
   try {
-    firstId = await session.appendMessage(userMessage("a"));
-    await session.appendThinkingLevelChange("high");
-    await session.appendMessage(userMessage("b"));
+    firstId = await pi.log.appendMessage(userMessage("a"));
+    await pi.log.appendThinkingLevelChange("high");
+    await pi.log.appendMessage(userMessage("b"));
   } finally {
-    await closePiSession(session);
+    await pi.close();
   }
 
   await editSessionMessageEntry(sessionId, firstId!, userMessage("edited"), false);
-  const edited = await openPiSession(sessionId);
+
+  // In 0.83 the thinking level was an entry on the branch, so this test was
+  // about the edit cloning it onto the new branch. 0.85 stores it as lane state
+  // instead, which the edit does not touch -- the same guarantee, reached by not
+  // putting configuration in the transcript in the first place.
+  const edited = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
-    const context = await edited.buildContext();
-    assert.equal(context.thinkingLevel, "high");
-    assert.deepEqual(context.messages.map((message) => userMessageText(message as { content?: unknown })), ["edited", "b"]);
+    assert.equal((await edited.log.readState()).thinkingLevel, "high");
+    const messages = (await edited.branch()).flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
+    assert.deepEqual(messages.map((message) => userMessageText(message as { content?: unknown })), ["edited", "b"]);
   } finally {
-    await closePiSession(edited);
+    await edited.close();
   }
 });
 

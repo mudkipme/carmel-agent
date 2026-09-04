@@ -30,7 +30,8 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
         "Search the web with Exa. Use this when current external information, documentation, sources, or web discovery is needed.",
       parameters: exaSearchSchema as never,
       executionMode: "parallel",
-      execute: async (_toolCallId, params, signal) => {
+      execute: async (_toolCallId, params, _onUpdate, _toolContext, _invocation, context) => {
+        const signal = context.abortSignal;
         const args = parseRecord(params);
         const query = requireString(args.query, "query");
         const numResults = clampNumber(args.numResults, 1, 10, 5);
@@ -67,7 +68,8 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
         "Fetch a URL as clean markdown/text through Exa Contents when available, or as raw HTML/text with direct fetch.",
       parameters: fetchUrlSchema as never,
       executionMode: "parallel",
-      execute: async (_toolCallId, params, signal) => {
+      execute: async (_toolCallId, params, _onUpdate, _toolContext, _invocation, context) => {
+        const signal = context.abortSignal;
         const args = parseRecord(params);
         const url = requireString(args.url, "url");
         const format = args.format === "html" || args.format === "text" ? args.format : "markdown";

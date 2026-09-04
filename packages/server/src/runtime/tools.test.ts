@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { withAbortSignal } from "@earendil-works/pi-agent-core";
+import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import { createGrepOperations } from "./search-operations.ts";
 import { createServerExecution, createServerToolDefinitions, remapContainerPath } from "./tools.ts";
 import type { agents } from "../db/schema.ts";
@@ -216,25 +218,41 @@ test("bash stays unavailable when no container socket exists", async () => {
   );
 
   try {
-    const result = await env.exec("printf should-not-run");
+    const result = await env.exec("printf should-not-run", undefined, TEST_CONTEXT);
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.error.code, "shell_unavailable");
   } finally {
-    await env.cleanup();
+    await env.cleanup(TEST_CONTEXT);
     restoreEnv("CARMEL_PODMAN_SOCKET", originalSocket);
   }
 });
 
+/**
+ * Call a tool the way the 0.85 harness does.
+ *
+ * The signature moved: the update callback took the abort signal's third
+ * position, the tool context follows it, and the signal now rides on the
+ * invocation `Context` at the end.
+ */
 function executeTool(
   tool: { execute: unknown },
   toolCallId: string,
   params: Record<string, unknown>,
   signal: AbortSignal,
-  context?: unknown,
+  toolContext?: unknown,
 ): Promise<unknown> {
+  const context = withAbortSignal(signal, TEST_CONTEXT);
+  const invocation = { invocationId: "inv_1", operationId: "op_1", turnId: "turn_1" };
   return Promise.resolve(
-    (tool.execute as (...args: unknown[]) => unknown)(toolCallId, params, signal, undefined, context),
+    (tool.execute as (...args: unknown[]) => unknown)(
+      toolCallId,
+      params,
+      () => {},
+      toolContext,
+      invocation,
+      context,
+    ),
   );
 }
 

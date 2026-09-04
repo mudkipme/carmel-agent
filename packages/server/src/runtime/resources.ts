@@ -1,4 +1,5 @@
 import {
+  BACKGROUND_CONTEXT,
   loadPromptTemplates,
   loadSkills,
   type ExecutionEnv,
@@ -12,6 +13,9 @@ import { agents } from "../db/schema.ts";
 import { resolveDataPath } from "../paths.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
+
+/** Resource loading runs once at session open and was never cancellable. */
+const ctx = BACKGROUND_CONTEXT;
 type ContextFile = { path: string; content: string };
 type ContextDiagnostic = {
   type: "warning";
@@ -31,8 +35,8 @@ export type AgentResources = {
 export async function loadAgentResources(agent: AgentRecord, env: ExecutionEnv): Promise<AgentResources> {
   const cwd = resolveAgentWorkingDirPath(agent);
   const [skillResult, promptResult, contextResult] = await Promise.all([
-    loadSkills(env, resolve(cwd, ".agents", "skills")),
-    loadPromptTemplates(env, resolve(cwd, ".pi", "prompts")),
+    loadSkills(env, resolve(cwd, ".agents", "skills"), ctx),
+    loadPromptTemplates(env, resolve(cwd, ".pi", "prompts"), ctx),
     loadWorkspaceContext(env, cwd),
   ]);
   return {
@@ -63,14 +67,14 @@ async function loadWorkspaceContext(
   const diagnostics: ContextDiagnostic[] = [];
   for (const name of ["AGENTS.md", "AGENTS.MD", "CLAUDE.md", "CLAUDE.MD"]) {
     const path = resolve(cwd, name);
-    const info = await env.fileInfo(path);
+    const info = await env.fileInfo(path, ctx);
     if (!info.ok) {
       if (info.error.code !== "not_found") {
         diagnostics.push({ type: "warning", code: "file_info_failed", message: info.error.message, path });
       }
       continue;
     }
-    const content = await env.readTextFile(path);
+    const content = await env.readTextFile(path, ctx);
     if (!content.ok) {
       diagnostics.push({ type: "warning", code: "read_failed", message: content.error.message, path });
       continue;

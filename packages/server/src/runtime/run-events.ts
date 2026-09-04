@@ -1,4 +1,4 @@
-import type { AgentHarnessEvent } from "@earendil-works/pi-agent-core";
+import type { HarnessEvent } from "@earendil-works/pi-agent-core";
 import { isRetryableAssistantError, type AssistantMessageEvent, type ToolCall } from "@earendil-works/pi-ai";
 import type { AgentRunEvent } from "@carmel-agent/shared";
 import { classifyTurnFailure, formatTurnFailure, type TurnFailure } from "../effectors/failure-classifier.ts";
@@ -19,8 +19,10 @@ import { classifyTurnFailure, formatTurnFailure, type TurnFailure } from "../eff
  * The run path uses the same function, so what the user is told and what the
  * server decides to do about it cannot drift apart.
  */
-export function classifyHarnessTurnFailure(event: AgentHarnessEvent): TurnFailure | undefined {
-  if (event.type !== "turn_end" || event.message.role !== "assistant" || !event.message.errorMessage) return undefined;
+export function classifyHarnessTurnFailure(event: HarnessEvent): TurnFailure | undefined {
+  // 0.85 types `turn_end.message` as an `AssistantMessage` outright, so the
+  // role check the 0.83 union needed is gone with it.
+  if (event.type !== "turn_end" || !event.message.errorMessage) return undefined;
   return classifyTurnFailure({
     message: event.message.errorMessage,
     aborted: event.message.stopReason === "aborted",
@@ -28,7 +30,7 @@ export function classifyHarnessTurnFailure(event: AgentHarnessEvent): TurnFailur
   });
 }
 
-export function projectRunEvent(event: AgentHarnessEvent): AgentRunEvent | undefined {
+export function projectRunEvent(event: HarnessEvent): AgentRunEvent | undefined {
   switch (event.type) {
     case "message_start":
       // Only an assistant message seeds delta accumulation. Every other role is
@@ -37,14 +39,14 @@ export function projectRunEvent(event: AgentHarnessEvent): AgentRunEvent | undef
       // a user message's base64 images -- a second time for no observable gain.
       return event.message.role === "assistant" ? { type: "message_start", message: event.message } : undefined;
     case "message_update":
-      return projectMessageUpdate(event.assistantMessageEvent);
+      return projectMessageUpdate(event.event);
     case "message_end":
       return { type: "message_end", message: event.message };
-    case "tool_execution_start":
+    case "tool_start":
       // `args` is dropped: the tool call itself already reached the client as a
       // `message_part`, and a write/edit call carries the entire file content.
       return { type: "tool_execution_start", toolCallId: event.toolCallId, toolName: event.toolName };
-    case "tool_execution_end":
+    case "tool_end":
       // `result` is dropped for the same reason -- the authoritative tool result
       // arrives as its own `message_end`.
       return {
@@ -63,13 +65,15 @@ export function projectRunEvent(event: AgentHarnessEvent): AgentRunEvent | undef
         const failure = classifyHarnessTurnFailure(event);
         return failure ? { type: "turn_end", errorMessage: formatTurnFailure(failure) } : { type: "turn_end" };
       }
-    case "agent_end":
-      // `messages` is the entire transcript, which the client already holds.
+    case "run_end":
+      // Formerly `agent_end`. Its payload is the whole transcript, which the
+      // client already holds.
       return { type: "agent_end" };
     default:
-      // `agent_start`/`turn_start` carry nothing the client renders,
-      // `tool_execution_update.partialResult` can be megabytes of tool output it
-      // ignores, and the harness's own lifecycle events have no observer.
+      // `run_start`/`turn_start` carry nothing the client renders,
+      // `tool_update.partialResult` can be megabytes of tool output it ignores,
+      // and the harness's own lifecycle, config, usage and lane events -- most
+      // of them new in 0.85 -- have no observer on the wire protocol.
       return undefined;
   }
 }

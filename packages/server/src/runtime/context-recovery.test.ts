@@ -1,14 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { AgentHarness, type AgentHarnessEvent, type AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
 import { migrate } from "../db/index.ts";
 import { createSession, userMessage } from "../test-support.ts";
-import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
+import { openPiSession } from "../services/pi-session-storage.ts";
+import { createPiAgentDriver } from "../effectors/pi-0-85/agent-driver.ts";
+import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
 import { replaceSessionMessages, readSessionMessages } from "../services/session-store.ts";
-import { createPi083AgentDriver } from "../effectors/pi-0-83/agent-driver.ts";
-import { createPi083SessionLog } from "../effectors/pi-0-83/session-log.ts";
 import { createActiveAgentRun, finishAgentRun } from "./run-stream.ts";
 import { classifyTurnFailure } from "../effectors/failure-classifier.ts";
 import { recoverFromContextOverflow, TurnFailureWatch, HarnessAbortGate } from "./agent-runtime.ts";
@@ -17,10 +17,24 @@ migrate();
 
 const OVERFLOW = "400 prompt is too long: 213451 tokens > 200000 maximum";
 
-test("a context overflow with no durable work is compacted and resent, leaving one clean turn", async () => {
+/**
+ * Pi 0.85 recovers a context overflow itself.
+ *
+ * `publishResponse` classifies an overflowed assistant response, prepares a
+ * compaction, and retries the generation once -- all inside `lane.prompt`, before
+ * Carmel's recovery is even asked. So the three provider calls this scene scripts
+ * are now all Pi's, and Carmel's layer correctly stands down: by the time it
+ * looks, the last turn ended clean and there is nothing to plan.
+ *
+ * Two things changed for the user as a result. The answer still arrives, but the
+ * failed attempt is now a persisted entry rather than something Carmel rewound
+ * away, and no `run_recovered` notice is emitted because Carmel did not recover
+ * anything.
+ */
+test("a context overflow is recovered by Pi itself, and Carmel stands down", async () => {
   const scene = await setupScene((callCount) => {
-    // 0: the turn overflows. 1: the summarization call compaction makes.
-    // 2: the resent turn, which now fits.
+    // 0: the turn overflows. 1: the summarization Pi's own recovery makes.
+    // 2: Pi's retried turn, which now fits.
     if (callCount === 0) return fauxAssistantMessage("", { stopReason: "error", errorMessage: OVERFLOW });
     if (callCount === 1) return fauxAssistantMessage("Summary of the conversation so far.");
     return fauxAssistantMessage("Here is the answer.");
@@ -29,11 +43,11 @@ test("a context overflow with no durable work is compacted and resent, leaving o
   await scene.promptAndRecover("what is the answer?");
 
   const roles = (await readSessionMessages(scene.sessionId)).map(describe);
-  // The failed attempt left no trace: one user turn, one answer, no error.
   assert.equal(roles.filter((entry) => entry === "user:what is the answer?").length, 1);
   assert.ok(roles.includes("assistant:Here is the answer."), roles.join(" | "));
-  assert.ok(!roles.some((entry) => entry.includes(OVERFLOW)), `error survived: ${roles.join(" | ")}`);
-  assert.deepEqual(scene.emitted(), ["run_recovered"]);
+  // The failed attempt is Pi's record of what it recovered from, and it stays.
+  assert.ok(roles.some((entry) => entry.includes(OVERFLOW)), roles.join(" | "));
+  assert.deepEqual(scene.emitted(), []);
   await scene.close();
 });
 
@@ -66,14 +80,17 @@ test("a failure compaction cannot fix is left for the user", async () => {
   await scene.close();
 });
 
-test("recovery is skipped once an abort has been requested", async () => {
+test("Carmel's recovery is skipped once an abort has been requested", async () => {
   const scene = await setupScene(() =>
     fauxAssistantMessage("", { stopReason: "error", errorMessage: OVERFLOW }),
   );
 
   scene.abort.request();
   await scene.promptAndRecover("go");
-  assert.equal(scene.callCount(), 1);
+  // Two calls, both Pi's: the overflowing turn and the summarization its own
+  // recovery attempts. Carmel's abort gate does not reach inside `lane.prompt`,
+  // so what it can still guarantee is that it adds no recovery of its own.
+  assert.equal(scene.callCount(), 2);
   assert.deepEqual(scene.emitted(), []);
   await scene.close();
 });
@@ -117,16 +134,17 @@ async function setupScene(respond: (callCount: number) => AgentMessage) {
 
   const piSession = await openPiSession(sessionId);
   const model = faux.getModel();
-  const harness = new AgentHarness({ session: piSession, models, model, systemPrompt: "Test assistant" });
-  const log = createPi083SessionLog(piSession);
-  const driver = createPi083AgentDriver({ harness, log, model });
+  const pi = await attachTestHarness(piSession, { models, model, systemPrompt: "Test assistant" });
+  const { harness, lane, log, context } = pi;
+  const dispatch = { harness, lane, context };
+  const driver = createPiAgentDriver({ harness, lane, context, log, model });
   const watch = new TurnFailureWatch();
   const abort = new HarnessAbortGate();
-  abort.attach(harness);
+  abort.attach(lane);
 
   const emitted: string[] = [];
   const run = createActiveAgentRun({ runId: `run_${sessionId}`, userId, sessionId, abort: () => abort.request() });
-  const unsubscribe = harness.subscribe((event: AgentHarnessEvent) => watch.observe(event));
+  const unsubscribe = pi.observe((event) => watch.observe(event));
 
   return {
     sessionId,
@@ -135,11 +153,11 @@ async function setupScene(respond: (callCount: number) => AgentMessage) {
     emitted: () => emitted,
     async promptAndRecover(text: string) {
       const attemptBaselineId = (await log.readBranch()).at(-1)?.id ?? null;
-      await harness.prompt(text);
+      await lane.prompt(text, undefined, context);
       const before = run.nextSequence;
       await recoverFromContextOverflow(
         { run, abort, session: { id: sessionId } } as never,
-        { driver, harness, log, failure: watch.last, attemptBaselineId, promptInput: { text } },
+        { driver, dispatch, log, failure: watch.last, attemptBaselineId, promptInput: { text } },
       );
       for (const envelope of run.events) {
         if (envelope.sequence >= before) emitted.push(envelope.event.type);
@@ -169,7 +187,7 @@ async function setupScene(respond: (callCount: number) => AgentMessage) {
         { run, abort, session: { id: sessionId } } as never,
         {
           driver,
-          harness,
+          dispatch,
           log,
           failure: classifyTurnFailure({ message: providerError }),
           attemptBaselineId,
@@ -183,7 +201,7 @@ async function setupScene(respond: (callCount: number) => AgentMessage) {
     async close() {
       unsubscribe();
       finishAgentRun(run);
-      await closePiSession(piSession);
+      await pi.close();
     },
   };
 }

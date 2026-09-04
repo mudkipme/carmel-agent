@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import {
   decideCompaction,
   describeContextPressure,
-  PI_083_COMPACTION_SETTINGS,
+  PI_COMPACTION_SETTINGS,
   type CompactionSettings,
 } from "./compaction-policy.ts";
-import { createPi083AgentDriver, type Pi083Harness } from "./pi-0-83/agent-driver.ts";
+import { createPiAgentDriver, type PiHarness, type PiLane } from "./pi-0-85/agent-driver.ts";
+import { TEST_CONTEXT } from "./testing/pi-harness.ts";
 import { FakeSessionLog } from "./testing/fake-session-log.ts";
 
 const SETTINGS: CompactionSettings = { reserveTokens: 100, keepRecentTokens: 200 };
@@ -54,7 +55,7 @@ test("Pi's shipped defaults make every window at or below 36,384 tokens uncompac
   assert.equal(at.action, "impossible");
   assert.equal(above.action, "compact");
   assert.equal(
-    PI_083_COMPACTION_SETTINGS.reserveTokens + PI_083_COMPACTION_SETTINGS.keepRecentTokens,
+    PI_COMPACTION_SETTINGS.reserveTokens + PI_COMPACTION_SETTINGS.keepRecentTokens,
     36_384,
   );
 });
@@ -84,7 +85,7 @@ test("an impossible session is reported without calling compact", async () => {
     headroom: 150,
     reason: "retained_tail_exceeds_headroom",
   });
-  assert.equal(harness.compactCalls, 0, "an impossible compaction must not reach the model");
+  assert.equal(harness.lane.compactCalls, 0, "an impossible compaction must not reach the model");
 });
 
 test("a compaction that does not free enough room reports ineffective, not success", async () => {
@@ -98,7 +99,7 @@ test("a compaction that does not free enough room reports ineffective, not succe
     tokensAfter: 940,
     headroom: 900,
   });
-  assert.equal(harness.compactCalls, 1);
+  assert.equal(harness.lane.compactCalls, 1);
 });
 
 test("a compaction that frees enough room reports the measured after-size", async () => {
@@ -135,28 +136,42 @@ test("a real compaction failure keeps its code and message for the notice", asyn
   assert.equal(describeContextPressure(outcome)?.level, "warning");
 });
 
+/**
+ * 0.85 split the harness in two, so the double does as well: `compact` lives on
+ * the lane now, and only `getResources`/`events` remain on the harness.
+ */
 function fakeHarness(onCompact?: () => void) {
-  const harness = {
+  const lane = {
     compactCalls: 0,
     async compact() {
-      harness.compactCalls += 1;
+      lane.compactCalls += 1;
       onCompact?.();
     },
-    getResources: () => ({ skills: [], promptTemplates: [] }),
     prompt: async () => {},
     skill: async () => {},
     promptFromTemplate: async () => {},
-    subscribe: () => () => {},
     abort: async () => {},
   };
-  return harness as unknown as Pi083Harness & { compactCalls: number };
+  const harness = {
+    getResources: async () => ({ skills: [], promptTemplates: [] }),
+    events: { on: () => () => {} },
+  };
+  return {
+    harness: harness as unknown as PiHarness,
+    lane: lane as unknown as PiLane & { compactCalls: number },
+  };
 }
 
 /** `tokens` as an array scripts successive measurements: before, then after. */
-function driverFor(harness: Pi083Harness, input: { tokens: number | number[]; contextWindow: number }) {
+function driverFor(
+  pi: { harness: PiHarness; lane: PiLane },
+  input: { tokens: number | number[]; contextWindow: number },
+) {
   const readings = Array.isArray(input.tokens) ? [...input.tokens] : [input.tokens];
-  return createPi083AgentDriver({
-    harness,
+  return createPiAgentDriver({
+    harness: pi.harness,
+    lane: pi.lane,
+    context: TEST_CONTEXT,
     log: new FakeSessionLog(),
     model: { contextWindow: input.contextWindow } as never,
     settings: SETTINGS,

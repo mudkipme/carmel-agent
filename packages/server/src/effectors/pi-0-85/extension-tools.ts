@@ -114,10 +114,15 @@ function adaptExtensionTool(
     constrainedSampling: definition.constrainedSampling,
     prepareArguments: definition.prepareArguments,
     executionMode: definition.executionMode,
-    // The harness passes Carmel's tool context as the fifth argument; the
+    // The harness passes Carmel's tool context as the fourth argument; the
     // extension expects Pi's. Substituting here is the whole adaptation.
-    execute: (toolCallId, params, signal, onUpdate) =>
-      definition.execute(toolCallId, params as never, signal, onUpdate as never, createContext() as never),
+    //
+    // 0.85 also reordered the harness side -- the update callback took the
+    // abort signal's third position, and the signal moved onto the invocation
+    // `Context` -- while the extension contract kept its 0.83 shape, so this is
+    // now a reorder as well as a substitution.
+    execute: (toolCallId, params, onUpdate, _toolContext, _invocation, context) =>
+      definition.execute(toolCallId, params as never, context.abortSignal, onUpdate as never, createContext() as never),
   } as AgentHarnessTool<ExecutionToolContext>;
 }
 

@@ -4,6 +4,7 @@ import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import {
   movePiSessionToEntry,
+  readPiSessionBranch,
   replacePiSessionMessages,
   rewritePiSessionMessage,
   withPiSession,
@@ -18,7 +19,7 @@ export type SessionWithMessages = SessionRecord & {
 
 export async function readSessionMessageEntries(sessionId: string): Promise<SessionMessageEntry[]> {
   return withPiSession(sessionId, async (session) =>
-    (await session.getBranch()).flatMap((entry) =>
+    (await readPiSessionBranch(session)).flatMap((entry) =>
       entry.type === "message" ? [{ entryId: entry.id, message: entry.message }] : [],
     ),
   );

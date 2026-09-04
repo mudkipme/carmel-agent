@@ -1,8 +1,11 @@
 import {
   AgentHarness,
+  BACKGROUND_CONTEXT,
   formatSkillsForSystemPrompt,
-  type AgentHarnessEvent,
+  type AgentLane,
+  type Context as PiContext,
   type ExecutionToolContext,
+  type HarnessEvent,
   type AgentMessage,
 } from "@earendil-works/pi-agent-core";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
@@ -11,7 +14,7 @@ import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
 import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { serializeModelRef } from "../serializers.ts";
-import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
+import { closePiSession, openPiSession, registerPiSessionLane } from "../services/pi-session-storage.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 
 import { type PromptInput, type Session } from "@carmel-agent/shared";
@@ -29,8 +32,14 @@ import {
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerExecution } from "./tools.ts";
 import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
-import { createPi083AgentDriver, createPi083PromptDispatcher, type Pi083Harness } from "../effectors/pi-0-83/agent-driver.ts";
-import { createPi083SessionLog } from "../effectors/pi-0-83/session-log.ts";
+import {
+  createPiAgentDriver,
+  createPiPromptDispatcher,
+  observeHarnessEvents,
+  reconcileLaneConfiguration,
+  type PiDispatcherOptions,
+} from "../effectors/pi-0-85/agent-driver.ts";
+import { createPiSessionLog, PI_MAIN_BRANCH } from "../effectors/pi-0-85/session-log.ts";
 import { describeContextPressure, type CompactionOutcome } from "../effectors/compaction-policy.ts";
 import {
   CONTINUATION_PROMPT,
@@ -73,6 +82,18 @@ export function normalizePromptInput(input?: PromptInput) {
 
 type PiSession = Awaited<ReturnType<typeof openPiSession>>;
 type RunHarness = AgentHarness<ExecutionToolContext>;
+
+/**
+ * The invocation context every Pi call in a run is made under.
+ *
+ * Deliberately not cancellable. Pi 0.85 requires a `Context` everywhere, and the
+ * obvious move -- hanging the run's abort on it -- would be a behaviour change,
+ * not a migration: 0.83 passed no signal at all, and the harness derives its own
+ * cancellable child context around each provider and tool call from the gate
+ * that `lane.abort()` trips. Aborting the outer context instead would also break
+ * the cleanup calls that have to run *after* an abort.
+ */
+const runContext: PiContext = BACKGROUND_CONTEXT;
 type ServerExecution = ReturnType<typeof createServerExecution>;
 
 export type AgentRunInput = {
@@ -135,21 +156,29 @@ async function startAgentRun(context: AgentRun) {
   const guard = new RunGuard(runGuardLimits());
   let guardTimer: ReturnType<typeof setInterval> | undefined;
   let piSession: PiSession | undefined;
+  // Hoisted because failure reporting and finalization both need it: the log is
+  // how the failure messages are appended and how the session gets closed.
+  let log: SessionLog | undefined;
+  // Also hoisted: the harness has to be closed before the session can be, and
+  // finalization runs on paths where the run never got past opening it.
+  let harness: RunHarness | undefined;
   let execution: ServerExecution | undefined;
   let unsubscribe: (() => void) | undefined;
 
   try {
     piSession = await openPiSession(session.id);
     execution = createServerExecution(agent);
-    const { harness, activeToolNames } = await openRunHarness({ ...context, piSession, execution });
-    abort.attach(harness);
-    unsubscribe = harness.subscribe((event: AgentHarnessEvent) => {
+    const opened = await openRunHarness({ ...context, piSession, execution });
+    const { lane, activeToolNames } = opened;
+    harness = opened.harness;
+    abort.attach(lane);
+    unsubscribe = observeHarnessEvents(harness, (event: HarnessEvent) => {
       retry.observe(event);
       turnFailure.observe(event);
       // Every event is a sign of life; only finished tool calls count against
       // the ceiling. Aborting through the same gate the HTTP path uses means a
       // guard stop tears down exactly like a user stop.
-      const stop = event.type === "tool_execution_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
+      const stop = event.type === "tool_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
       if (stop) abort.request();
       const projected = projectRunEvent(event);
       if (projected) emitRunEvent(run, projected);
@@ -159,22 +188,22 @@ async function startAgentRun(context: AgentRun) {
     guardTimer = setInterval(() => {
       if (guard.poll()) abort.request();
     }, RUN_GUARD_POLL_MS);
-    const log = createPi083SessionLog(piSession);
-    const driver = createPi083AgentDriver({ harness, log, model });
+    log = createPiSessionLog({ session: piSession, lane, context: runContext });
+    const driver = createPiAgentDriver({ harness, lane, context: runContext, log, model });
 
     // Abort can land at any moment; check wherever the run can still stop without
     // leaving the session branch half-rewound.
     if (abort.requested) {
-      await harness.abort();
+      await lane.abort(runContext);
       return;
     }
 
-    const prepared = await prepareAgentRunPrompt(piSession, promptInput);
+    const prepared = await prepareAgentRunPrompt(log, promptInput);
     retry.arm(prepared.retryOriginalLeafId);
-    await recordRunConfiguration(piSession, model, thinkingLevel, activeToolNames);
+    await reconcileLaneConfiguration(lane, runContext, { model, thinkingLevel, activeToolNames });
     if (abort.requested) {
-      await retry.restore(piSession);
-      await harness.abort();
+      await retry.restore(log);
+      await lane.abort(runContext);
       return;
     }
 
@@ -182,15 +211,15 @@ async function startAgentRun(context: AgentRun) {
     // spending a whole turn to earn a provider context-length rejection.
     await relieveContextPressure(context, driver);
     if (abort.requested) {
-      await retry.restore(piSession);
-      await harness.abort();
+      await retry.restore(log);
+      await lane.abort(runContext);
       return;
     }
 
     // The leaf before the prompt: what a resend has to rewind to, and the line
     // that separates this turn's entries from the history.
     const attemptBaselineId = (await log.readBranch()).at(-1)?.id ?? null;
-    await runHarnessPrompt(harness, prepared.promptInput.text, prepared.promptInput.images);
+    await runHarnessPrompt({ harness, lane, context: runContext }, prepared.promptInput.text, prepared.promptInput.images);
     // Checked before the retry-abandonment test: a guard stop aborts mid-turn,
     // which is a plausible way to leave a retry unpersisted, and the guard is
     // the more useful of the two explanations.
@@ -199,7 +228,7 @@ async function startAgentRun(context: AgentRun) {
 
     await recoverFromContextOverflow(context, {
       driver,
-      harness,
+      dispatch: { harness, lane, context: runContext },
       log,
       failure: turnFailure.last,
       attemptBaselineId,
@@ -207,10 +236,10 @@ async function startAgentRun(context: AgentRun) {
     });
     await relieveContextPressure(context, driver);
   } catch (error) {
-    await reportRunFailure(context, { piSession, retry, error });
+    await reportRunFailure(context, { log, retry, error });
   } finally {
     if (guardTimer) clearInterval(guardTimer);
-    await finalizeRun(context, { piSession, execution, unsubscribe });
+    await finalizeRun(context, { piSession, harness, log, execution, unsubscribe });
   }
 }
 
@@ -222,7 +251,8 @@ async function startAgentRun(context: AgentRun) {
  */
 export class HarnessAbortGate {
   #requested = false;
-  #harness?: Pick<RunHarness, "abort">;
+  /** 0.85 moved `abort()` off the harness and onto the lane that owns the run. */
+  #lane?: Pick<AgentLane, "abort">;
 
   get requested() {
     return this.#requested;
@@ -230,15 +260,15 @@ export class HarnessAbortGate {
 
   request() {
     this.#requested = true;
-    void this.#harness?.abort();
+    void this.#lane?.abort(runContext);
   }
 
-  attach(harness: Pick<RunHarness, "abort">) {
-    this.#harness = harness;
+  attach(lane: Pick<AgentLane, "abort">) {
+    this.#lane = lane;
   }
 
   release() {
-    this.#harness = undefined;
+    this.#lane = undefined;
   }
 }
 
@@ -257,7 +287,7 @@ export class RetryBranch {
     this.#originalLeafId = leafId;
   }
 
-  observe(event: AgentHarnessEvent) {
+  observe(event: HarnessEvent) {
     if (this.#originalLeafId && event.type === "message_end" && event.message.role === "user") {
       this.#messagePersisted = true;
     }
@@ -268,20 +298,22 @@ export class RetryBranch {
     return this.#originalLeafId !== undefined && !this.#messagePersisted;
   }
 
-  async restore(piSession: PiSession) {
+  async restore(log: Pick<SessionLog, "moveTo">) {
     if (this.#originalLeafId === undefined) return;
-    await piSession.moveTo(this.#originalLeafId);
+    await log.moveTo(this.#originalLeafId);
   }
 }
 
 async function openRunHarness(
   context: AgentRun & { piSession: PiSession; execution: ServerExecution },
-): Promise<{ harness: RunHarness; activeToolNames: string[] }> {
+): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[] }> {
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel } = context;
   const resources = await loadAgentResources(agent, execution.env);
   const tools = execution.tools;
   const activeToolNames = tools.map((tool) => tool.name);
-  const harness = new AgentHarness<ExecutionToolContext>({
+  // 0.85 replaced the constructor with a factory: it restores durable lane and
+  // operation state from the session, and reports what it found still open.
+  const { harness } = await AgentHarness.create<ExecutionToolContext>({
     session: piSession,
     models: modelRuntime,
     model,
@@ -311,19 +343,26 @@ async function openRunHarness(
     // this, a transient provider error during summarization ended compaction for
     // the turn -- on the one call the session most needs to succeed.
     retry: { enabled: true, maxRetries: 2, baseDelayMs: 1_000 },
-  });
-  return { harness, activeToolNames };
+  }, runContext);
+  // Acquiring the lane is what creates the conversation branch on a new session
+  // and restores it on an existing one. Everything that runs the loop hangs off
+  // this handle rather than off the harness.
+  const lane = await harness.lane(PI_MAIN_BRANCH, runContext);
+  // Reads of this session during the run follow the lane rather than the stored
+  // branch tip, which 0.85 only publishes at operation boundaries.
+  registerPiSessionLane(piSession, lane);
+  return { harness, lane, activeToolNames };
 }
 
 /** Restore an abandoned retry branch, then persist and emit the failure. */
 async function reportRunFailure(
   context: AgentRun,
-  state: { piSession?: PiSession; retry: RetryBranch; error: unknown },
+  state: { log?: SessionLog; retry: RetryBranch; error: unknown },
 ) {
-  const { piSession, retry, error } = state;
-  if (piSession && retry.isAbandoned) {
+  const { log, retry, error } = state;
+  if (log && retry.isAbandoned) {
     try {
-      await retry.restore(piSession);
+      await retry.restore(log);
     } catch (restoreError) {
       console.warn("Retry branch restoration failed:", errorMessage(restoreError));
     }
@@ -331,8 +370,8 @@ async function reportRunFailure(
 
   const errorEvent = createAgentError(error, context.model);
   try {
-    if (piSession) {
-      for (const message of errorEvent.messages) await piSession.appendMessage(message);
+    if (log) {
+      for (const message of errorEvent.messages) await log.appendMessage(message);
     }
   } catch (persistenceError) {
     console.warn("Session error persistence failed:", errorMessage(persistenceError));
@@ -352,22 +391,36 @@ async function reportRunFailure(
  */
 async function finalizeRun(
   context: AgentRun,
-  state: { piSession?: PiSession; execution?: ServerExecution; unsubscribe?: () => void },
+  state: {
+    piSession?: PiSession;
+    harness?: RunHarness;
+    log?: SessionLog;
+    execution?: ServerExecution;
+    unsubscribe?: () => void;
+  },
 ) {
   const { run, abort, session, modelRef, model, modelRuntime, thinkingLevel } = context;
-  const { piSession, execution, unsubscribe } = state;
+  const { piSession, harness, log, execution, unsubscribe } = state;
 
   let finalMessages: AgentMessage[] = [];
   if (piSession) {
     try {
-      finalMessages = (await piSession.getBranch()).flatMap((entry) =>
-        entry.type === "message" ? [entry.message] : [],
-      );
+      if (log) {
+        finalMessages = (await log.readBranch()).flatMap((entry) =>
+          entry.type === "message" ? [entry.message] : [],
+        );
+      }
     } catch (error) {
       console.warn("Final transcript read failed:", errorMessage(error));
     }
     try {
-      await closePiSession(piSession);
+      // Order matters: `session.close()` seals the mutation line and waits for
+      // it to drain, so a session whose harness is still open never finishes
+      // closing. The harness tears down its hooks, events and idle callbacks
+      // and closes the session itself; releasing the lease after that is
+      // idempotent and just drops this run's hold on the handle.
+      await harness?.close(runContext);
+      await (log ? log.close() : closePiSession(piSession));
     } catch (error) {
       console.warn("Pi session cleanup failed:", errorMessage(error));
     }
@@ -387,7 +440,7 @@ async function finalizeRun(
 
   unsubscribe?.();
   try {
-    await execution?.env.cleanup();
+    await execution?.env.cleanup(runContext);
   } catch (error) {
     console.warn("Execution environment cleanup failed:", errorMessage(error));
   } finally {
@@ -406,19 +459,21 @@ async function finalizeRun(
  * without inserting the empty user message that prompt("") would create.
  */
 export async function prepareAgentRunPrompt(
-  piSession: Awaited<ReturnType<typeof openPiSession>>,
+  log: Pick<SessionLog, "readBranch" | "moveTo">,
   promptInput?: PromptInput,
 ): Promise<{ promptInput: PromptInput; retryOriginalLeafId?: string }> {
   if (promptInput) return { promptInput };
 
-  const branch = await piSession.getBranch();
+  const branch = await log.readBranch();
   const lastEntry = branch.at(-1);
   if (lastEntry?.type !== "message" || lastEntry.message.role !== "user") {
     throw new Error("Cannot retry: the active session branch must end in a user message.");
   }
 
-  const retryPromptInput = promptInputFromUserMessage(lastEntry.message);
-  await piSession.moveTo(lastEntry.parentId);
+  const retryPromptInput = promptInputFromUserMessage(
+    lastEntry.message as Extract<AgentMessage, { role: "user" }>,
+  );
+  await log.moveTo(lastEntry.parentId);
   return {
     promptInput: retryPromptInput,
     retryOriginalLeafId: lastEntry.id,
@@ -436,11 +491,11 @@ export async function prepareAgentRunPrompt(
  * gets to change.
  */
 export async function runHarnessPrompt(
-  harness: Pi083Harness,
+  dispatch: PiDispatcherOptions,
   text: string,
   images?: PromptInput["images"],
 ) {
-  return dispatchPrompt(createPi083PromptDispatcher(harness), text, images);
+  return dispatchPrompt(createPiPromptDispatcher(dispatch), text, images);
 }
 
 function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user" }>): PromptInput {
@@ -459,22 +514,6 @@ function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user
     text,
     images: images.length > 0 ? images : undefined,
   };
-}
-
-async function recordRunConfiguration(
-  piSession: Awaited<ReturnType<typeof openPiSession>>,
-  model: Model<Api>,
-  thinkingLevel: Session["thinkingLevel"],
-  activeToolNames: string[],
-) {
-  const context = await piSession.buildContext();
-  if (context.model?.provider !== model.provider || context.model.modelId !== model.id) {
-    await piSession.appendModelChange(model.provider, model.id);
-  }
-  if (context.thinkingLevel !== thinkingLevel) await piSession.appendThinkingLevelChange(thinkingLevel);
-  if (!sameStrings(context.activeToolNames, activeToolNames)) {
-    await piSession.appendActiveToolsChange(activeToolNames);
-  }
 }
 
 /**
@@ -510,7 +549,7 @@ async function relieveContextPressure(context: AgentRun, driver: AgentDriver, op
 export class TurnFailureWatch {
   #last?: TurnFailure;
 
-  observe(event: AgentHarnessEvent) {
+  observe(event: HarnessEvent) {
     if (event.type !== "turn_end") return;
     // A clean turn clears the record: only the last turn of a run decides
     // whether the run needs recovering.
@@ -536,14 +575,14 @@ export async function recoverFromContextOverflow(
   state: {
     driver: AgentDriver;
     /** Only the prompt surface: recovery re-sends, it does not run the harness. */
-    harness: Pi083Harness;
+    dispatch: PiDispatcherOptions;
     log: SessionLog;
     failure: TurnFailure | undefined;
     attemptBaselineId: string | null;
     promptInput: PromptInput;
   },
 ) {
-  const { driver, harness, log, failure, attemptBaselineId, promptInput } = state;
+  const { driver, dispatch, log, failure, attemptBaselineId, promptInput } = state;
 
   const branch = await log.readBranch();
   // Called once per run. A second overflow after a successful compaction is
@@ -567,7 +606,7 @@ export async function recoverFromContextOverflow(
     // Rewind past the user message and the failed reply both, so the retry
     // leaves one user turn and one answer rather than a visible false start.
     await log.moveTo(attemptBaselineId);
-    await runHarnessPrompt(harness, promptInput.text, promptInput.images);
+    await runHarnessPrompt(dispatch, promptInput.text, promptInput.images);
   } else {
     await driver.prompt(CONTINUATION_PROMPT);
   }
@@ -588,10 +627,6 @@ function producedToolResultsSince(branch: readonly BranchEntry[], baselineId: st
   return branch
     .slice(start)
     .some((entry) => entry.type === "message" && (entry.message as { role?: unknown } | undefined)?.role === "toolResult");
-}
-
-function sameStrings(left: string[] | null, right: string[]) {
-  return Boolean(left && left.length === right.length && left.every((value, index) => value === right[index]));
 }
 
 function buildHarnessSystemPrompt(options: {

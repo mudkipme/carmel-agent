@@ -20,7 +20,7 @@ export async function dispatchPrompt(
   const command = parseSlashCommand(text);
   if (!command) return driver.prompt(text, images);
 
-  const resources = driver.listResources();
+  const resources = await driver.listResources();
 
   if (command.skillName && resources.skills.some((skill) => skill.name === command.skillName)) {
     return driver.invokeSkill(command.skillName, command.args.trim() || undefined, images);

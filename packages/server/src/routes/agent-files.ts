@@ -12,7 +12,7 @@ import type {
   AgentFileList,
   AgentPermissions,
 } from "@carmel-agent/shared";
-import { FileError, type Result } from "@earendil-works/pi-agent-core";
+import { BACKGROUND_CONTEXT, FileError, type Result } from "@earendil-works/pi-agent-core";
 import { agents } from "../db/schema.ts";
 import type { AuthVariables } from "../auth.ts";
 import { errorMessage } from "../errors.ts";
@@ -27,6 +27,13 @@ import {
 } from "../validation.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
+
+/**
+ * Pi 0.85 requires a `Context` on every filesystem call. These routes never
+ * passed an abort signal, so the background context is an exact translation.
+ * Named `fsCtx` because `Context` here is Hono's request context.
+ */
+const fsCtx = BACKGROUND_CONTEXT;
 type ReadVisibleAgent = (userId: string, agentId: string) => AgentRecord | undefined;
 
 // Every file route runs against one visible agent's execution environment, so
@@ -58,7 +65,7 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
   route.get("/:id/files", requireRead, async (c) => {
     const env = c.get("agentEnv");
     const directoryPath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
-    const directory = unwrap(await env.fileInfo(directoryPath));
+    const directory = unwrap(await env.fileInfo(directoryPath, fsCtx));
     if (directory.kind !== "directory") return c.json({ error: "Path is not a directory." }, 400);
     const entries = await readDirectoryEntries(env, directoryPath, c.req.query("showHidden") === "true");
     return c.json({ path: env.toWorkspaceRelativePath(directoryPath), entries } satisfies AgentFileList);
@@ -67,10 +74,10 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
   route.get("/:id/files/content", requireRead, async (c) => {
     const env = c.get("agentEnv");
     const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
-    const file = unwrap(await env.fileInfo(filePath));
+    const file = unwrap(await env.fileInfo(filePath, fsCtx));
     if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
     if (file.size > MAX_TEXT_FILE_BYTES) return c.json({ error: "File is too large to edit." }, 413);
-    const bytes = unwrap(await env.readBinaryFile(filePath));
+    const bytes = unwrap(await env.readBinaryFile(filePath, fsCtx));
     if (bytes.includes(0)) throw new FileError("invalid", "Binary files cannot be edited.", filePath);
     return c.json({
       path: env.toWorkspaceRelativePath(filePath),
@@ -82,12 +89,12 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
   route.get("/:id/files/raw", requireRead, async (c) => {
     const env = c.get("agentEnv");
     const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
-    const file = unwrap(await env.fileInfo(filePath));
+    const file = unwrap(await env.fileInfo(filePath, fsCtx));
     if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
     if (file.size > MAX_IMAGE_FILE_BYTES) return c.json({ error: "File is too large to preview." }, 413);
     const contentType = imageContentType(filePath);
     if (!contentType) return c.json({ error: "File is not a supported image." }, 415);
-    return c.body(unwrap(await env.readBinaryFile(filePath)).buffer as ArrayBuffer, 200, {
+    return c.body(unwrap(await env.readBinaryFile(filePath, fsCtx)).buffer as ArrayBuffer, 200, {
       "content-type": contentType,
       "cache-control": "no-store",
     });
@@ -99,8 +106,8 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
 
     const env = c.get("agentEnv");
     const filePath = env.resolveBrowserPath(body.path, "write");
-    unwrap(await env.writeFile(filePath, body.content));
-    const file = unwrap(await env.fileInfo(filePath));
+    unwrap(await env.writeFile(filePath, body.content, fsCtx));
+    const file = unwrap(await env.fileInfo(filePath, fsCtx));
     return c.json({
       path: env.toWorkspaceRelativePath(filePath),
       content: body.content,
@@ -116,9 +123,9 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
 
     const env = c.get("agentEnv");
     const targetPath = env.resolveBrowserPath(body.path, "write");
-    if (unwrap(await env.exists(targetPath))) return c.json({ error: "Path already exists." }, 409);
+    if (unwrap(await env.exists(targetPath, fsCtx))) return c.json({ error: "Path already exists." }, 409);
     if (body.type === "directory") {
-      unwrap(await env.createDir(targetPath, { recursive: false }));
+      unwrap(await env.createDir(targetPath, { recursive: false }, fsCtx));
     } else {
       unwrap(await env.createFileExclusive(body.path, true));
     }
@@ -131,7 +138,7 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
 
     const env = c.get("agentEnv");
     const nextPath = env.resolveBrowserPath(body.newPath, "write");
-    if (unwrap(await env.exists(nextPath))) return c.json({ error: "Path already exists." }, 409);
+    if (unwrap(await env.exists(nextPath, fsCtx))) return c.json({ error: "Path already exists." }, 409);
     unwrap(await env.rename(body.path, body.newPath, true));
     return c.json(await toFileEntry(env, nextPath));
   });
@@ -140,7 +147,7 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     const env = c.get("agentEnv");
     const targetPath = env.resolveBrowserPath(c.req.query("path") ?? "", "write");
     if (targetPath === env.cwd) return c.json({ error: "The working directory cannot be deleted." }, 400);
-    unwrap(await env.remove(targetPath, { recursive: true }));
+    unwrap(await env.remove(targetPath, { recursive: true }, fsCtx));
     return c.json({ ok: true });
   });
 
@@ -155,7 +162,7 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     const targets = [];
     for (const path of requested) {
       const absolutePath = env.resolveBrowserPath(path, "read");
-      targets.push({ absolutePath, info: unwrap(await env.fileInfo(absolutePath)) });
+      targets.push({ absolutePath, info: unwrap(await env.fileInfo(absolutePath, fsCtx)) });
     }
 
     const single = targets.length === 1 ? targets[0] : undefined;
@@ -191,9 +198,9 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     const env = c.get("agentEnv");
     const targetPath = env.resolveBrowserPath(requestedPath, "write");
     if (targetPath === env.cwd) return c.json({ error: "A file path is required." }, 400);
-    if (unwrap(await env.exists(targetPath))) {
+    if (unwrap(await env.exists(targetPath, fsCtx))) {
       if (c.req.query("overwrite") !== "true") return c.json({ error: "Path already exists." }, 409);
-      if (unwrap(await env.fileInfo(targetPath)).kind !== "file") return c.json({ error: "Path is not a file." }, 400);
+      if (unwrap(await env.fileInfo(targetPath, fsCtx)).kind !== "file") return c.json({ error: "Path is not a file." }, 400);
     }
 
     // Folder uploads arrive as files carrying their relative path, so the
@@ -209,7 +216,7 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     const { operation, paths, destination } = c.req.valid("json");
     const env = c.get("agentEnv");
     const destinationPath = operation === "delete" ? "" : env.resolveBrowserPath(destination ?? "", "write");
-    if (destinationPath && unwrap(await env.fileInfo(destinationPath)).kind !== "directory") {
+    if (destinationPath && unwrap(await env.fileInfo(destinationPath, fsCtx)).kind !== "directory") {
       return c.json({ error: "Destination is not a directory." }, 400);
     }
 
@@ -239,7 +246,7 @@ async function collectArchiveEntries(env: AgentExecutionEnv, roots: string[]) {
   let totalBytes = 0;
 
   const visit = async (absolutePath: string, archiveName: string) => {
-    const info = unwrap(await env.fileInfo(absolutePath));
+    const info = unwrap(await env.fileInfo(absolutePath, fsCtx));
     if (entries.length >= MAX_ARCHIVE_ENTRIES) {
       throw new FileError("invalid", "Too many files to download at once.", archiveName);
     }
@@ -253,11 +260,11 @@ async function collectArchiveEntries(env: AgentExecutionEnv, roots: string[]) {
     }
     // Symlinked directories can point back at an ancestor; the canonical path
     // keeps such a loop from expanding forever.
-    const canonical = unwrap(await env.canonicalPath(absolutePath));
+    const canonical = unwrap(await env.canonicalPath(absolutePath, fsCtx));
     if (visitedDirectories.has(canonical)) return;
     visitedDirectories.add(canonical);
     if (archiveName) entries.push({ name: archiveName, mtimeMs: info.mtimeMs });
-    for (const child of unwrap(await env.listDir(absolutePath))) {
+    for (const child of unwrap(await env.listDir(absolutePath, fsCtx))) {
       try {
         // Anything that resolves outside the workspace throws here and is left
         // out, exactly as it is left out of a directory listing.
@@ -308,7 +315,7 @@ async function applyBatchOperation(
   const name = basename(sourcePath);
   if (sourcePath === env.cwd) throw new FileError("invalid", "The working directory cannot be moved or deleted.", path);
   if (operation === "delete") {
-    unwrap(await env.remove(sourcePath, { recursive: true }));
+    unwrap(await env.remove(sourcePath, { recursive: true }, fsCtx));
     return;
   }
 
@@ -318,7 +325,7 @@ async function applyBatchOperation(
   const destinationRelative = env.toWorkspaceRelativePath(destinationPath);
   const targetPath = env.resolveBrowserPath([destinationRelative, name].filter(Boolean).join("/"), "write");
   if (targetPath === sourcePath) throw new FileError("invalid", `“${name}” is already here.`, path);
-  if (unwrap(await env.exists(targetPath))) throw new FileError("invalid", `“${name}” already exists here.`, path);
+  if (unwrap(await env.exists(targetPath, fsCtx))) throw new FileError("invalid", `“${name}” already exists here.`, path);
 
   if (operation === "move") await renameFile(sourcePath, targetPath);
   // Symlinks are copied as symlinks: following them would pull content from
@@ -357,7 +364,7 @@ function agentFileContext(readVisibleAgent: ReadVisibleAgent) {
     try {
       await next();
     } finally {
-      await env.cleanup().catch(() => undefined);
+      await env.cleanup(fsCtx).catch(() => undefined);
     }
   };
 }
@@ -385,7 +392,7 @@ const requireWriteOrEdit = requirePermission(
 );
 
 async function readDirectoryEntries(env: AgentExecutionEnv, directoryPath: string, showHidden: boolean) {
-  const children = unwrap(await env.listDir(directoryPath));
+  const children = unwrap(await env.listDir(directoryPath, fsCtx));
   const visible = showHidden ? children : children.filter((entry) => !entry.name.startsWith("."));
   const entries = await Promise.all(
     visible.map(async (entry) => {
@@ -403,8 +410,8 @@ async function readDirectoryEntries(env: AgentExecutionEnv, directoryPath: strin
 }
 
 async function toFileEntry(env: AgentExecutionEnv, path: string, displayName?: string): Promise<AgentFileEntry> {
-  const canonicalPath = unwrap(await env.canonicalPath(path));
-  const info = unwrap(await env.fileInfo(canonicalPath));
+  const canonicalPath = unwrap(await env.canonicalPath(path, fsCtx));
+  const info = unwrap(await env.fileInfo(canonicalPath, fsCtx));
   return {
     name: displayName ?? info.name,
     path: env.toWorkspaceRelativePath(path),
