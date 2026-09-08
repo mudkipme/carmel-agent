@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { showError } from "@/lib/errors";
+import type { PromptOutcome } from "@/lib/remote-agent";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { attachmentToImageContent, fileToImageAttachment, imageSrc, type LocalChatAttachment } from "./chat-utils";
@@ -43,7 +44,11 @@ type ChatInputProps = {
   initialValue?: string;
   onDraftChange?: (value: string) => void;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
-  onSend: (text: string, images?: ImageContent[]) => void;
+  /**
+   * Resolves with what happened to the submission. A rejected message was never
+   * taken by the server, so the composer takes it back.
+   */
+  onSend: (text: string, images?: ImageContent[]) => Promise<PromptOutcome>;
   onAbort: () => void;
   onModelSelect: () => void;
 };
@@ -68,6 +73,9 @@ export function ChatInput({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [value, setValue] = useState(initialValue ?? "");
+  // Read by the send path after an await, where `value` would be the state it
+  // closed over rather than whatever the user has typed since.
+  const valueRef = useRef(value);
   const [attachments, setAttachments] = useState<LocalChatAttachment[]>([]);
   const [processingFiles, setProcessingFiles] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -90,6 +98,7 @@ export function ChatInput({
   }, [value]);
 
   const updateValue = (next: string) => {
+    valueRef.current = next;
     setValue(next);
     onDraftChange?.(next);
   };
@@ -103,10 +112,23 @@ export function ChatInput({
 
   const send = () => {
     if (!canSend) return;
-    const images = attachments.map(attachmentToImageContent);
-    onSend(value, images.length > 0 ? images : undefined);
+    const submittedText = value;
+    const submittedAttachments = attachments;
+    const images = submittedAttachments.map(attachmentToImageContent);
+    // Cleared optimistically, because the send usually succeeds and a composer
+    // that empties only after the round trip feels stuck.
     updateValue("");
     setAttachments([]);
+    void onSend(submittedText, images.length > 0 ? images : undefined).then((outcome) => {
+      // Only an outright rejection proves the message was never taken; an
+      // `unknown` outcome may have reached the server, and restoring it would
+      // invite the user to send it twice. The error notice reports both.
+      if (outcome.status !== "rejected") return;
+      // Never restore over something typed in the meantime: the composer
+      // belongs to the user, and the error notice still carries the reason.
+      if (valueRef.current.length === 0) updateValue(submittedText);
+      setAttachments((current) => (current.length === 0 ? submittedAttachments : current));
+    });
   };
 
   const addFiles = async (files: File[]) => {

@@ -347,6 +347,124 @@ test("a delta with no message to rebuild is dropped instead of synthesizing one"
   }
 });
 
+test("a rejected send reports the rejection and the error it failed with", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    Response.json({ error: "No provider credentials are configured." }, { status: 400 });
+  try {
+    const agent = createAgent([]);
+    const outcome = await agent.prompt("question");
+
+    assert.equal(outcome.status, "rejected");
+    assert.match(agent.getSnapshot().errorMessage ?? "", /provider credentials/i);
+    // Nothing was admitted, so the transcript must not pretend otherwise.
+    assert.deepEqual(agent.getSnapshot().messages, []);
+    assert.equal(agent.getSnapshot().isStreaming, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("a send refused because the session is busy is rejected, not silently swallowed", async () => {
+  const originalFetch = globalThis.fetch;
+  const question = userMessage("earlier question");
+  const answer = assistantMessage("answer to the earlier question");
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if ((init?.method ?? "GET") === "POST" && url.endsWith("/run")) {
+      return Response.json({ runId: "run_busy" }, { status: 409, headers: { "x-agent-run-id": "run_busy" } });
+    }
+    if (url.endsWith("/sessions/session_1/connection")) {
+      return Response.json(connection([question], { runId: "run_busy", sessionId: "session_1", eventCursor: 1 }));
+    }
+    if (url.endsWith("/events?after=1")) {
+      return eventResponse([
+        envelope(2, { type: "message_end", message: answer }),
+        envelope(3, agentEnd()),
+        envelope(4, runFinished()),
+      ]);
+    }
+    return new Response(null, { status: 404 });
+  };
+  try {
+    const agent = createAgent([]);
+    const outcome = await agent.prompt("question");
+
+    // The client still follows the run holding the session, but the message it
+    // tried to send was never accepted by it.
+    assert.equal(outcome.status, "rejected");
+    assert.deepEqual(agent.getSnapshot().messages.map((message) => message.role), [question.role, answer.role]);
+    assert.match(agent.getSnapshot().errorMessage ?? "", /run in progress/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("a submission that may have landed is unknown rather than rejected", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if ((init?.method ?? "GET") === "POST" && url.endsWith("/run")) throw new Error("response socket lost");
+    if (url.endsWith("/sessions/session_1/connection")) return Response.json(connection([], null));
+    return new Response(null, { status: 404 });
+  };
+  try {
+    const agent = createAgent([]);
+    const outcome = await agent.prompt("question");
+
+    // The request left this client and no run answers for it. Reporting it as
+    // rejected would invite a resend of a message the server may already hold.
+    assert.equal(outcome.status, "unknown");
+    assert.ok(agent.getSnapshot().errorMessage);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("a run that fails after admission is still an accepted submission", async () => {
+  const originalFetch = globalThis.fetch;
+  const question = userMessage("question");
+  const failed = assistantMessage("", "error", "Provider rejected the request with 401.");
+  let agent: RemoteAgent;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if ((init?.method ?? "GET") === "POST" && url.endsWith("/run")) {
+      return eventResponse(
+        [envelope(1, { type: "message_end", message: question }), envelope(2, agentEnd())],
+        { "x-agent-run-id": "run_failing" },
+      );
+    }
+    if (url.endsWith("/events?after=2")) return eventResponse([envelope(3, runFinished())]);
+    return new Response(null, { status: 404 });
+  };
+  try {
+    agent = createAgent([], async () => agent.setMessages([question, failed]));
+    const outcome = await agent.prompt("question");
+
+    // The server took the message; its failure belongs to the transcript, and
+    // handing the prompt back to the composer would duplicate it.
+    assert.equal(outcome.status, "accepted");
+    assert.deepEqual(agent.getSnapshot().messages, [question, failed]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("dismissing an error clears it without touching the transcript", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("nope", { status: 500 });
+  try {
+    const agent = createAgent([]);
+    await agent.prompt("question");
+    assert.ok(agent.getSnapshot().errorMessage);
+
+    agent.dismissError();
+    assert.equal(agent.getSnapshot().errorMessage, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 function createAgent(messages: AgentMessage[], onRunComplete?: () => Promise<void> | void) {
   return new RemoteAgent({
     agentId: "agent_1",
@@ -393,8 +511,8 @@ function runFinished(): AgentRunEvent {
   return { type: "run_finished" };
 }
 
-function eventResponse(envelopes: AgentRunEventEnvelope[]) {
-  return new Response(encodeEvents(envelopes), { status: 200 });
+function eventResponse(envelopes: AgentRunEventEnvelope[], headers?: Record<string, string>) {
+  return new Response(encodeEvents(envelopes), { status: 200, headers });
 }
 
 function failingEventResponse(first: AgentRunEventEnvelope) {

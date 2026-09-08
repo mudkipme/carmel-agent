@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { modelRefs, providerConfigs, providerKeys } from "../db/schema.ts";
 import { createProviderConfigCredentialStore } from "../runtime/auth-storage.ts";
-import { createCarmelModelRuntime } from "../runtime/model-runtime.ts";
+import { bindResolvedModel, createCarmelModelRuntime } from "../runtime/model-runtime.ts";
 import { resolveServerModelRef } from "../runtime/model.ts";
 import { revealSecret } from "../security.ts";
 import { serializeModelRef } from "../serializers.ts";
@@ -52,13 +52,17 @@ export async function resolveModelContext(
   if (!(await hasProviderAuth(modelRuntime, modelRef.provider))) {
     return { ok: false, reason: "no_auth" };
   }
+  const model = resolveServerModelRef(serializeModelRef(modelRef), providerConfig, modelRuntime);
   return {
     ok: true,
     value: {
       modelRef,
       providerConfig,
-      modelRuntime,
-      model: resolveServerModelRef(serializeModelRef(modelRef), providerConfig, modelRuntime),
+      // Bound, not raw: Pi resolves the generation model out of this runtime, so
+      // the runtime -- not the `model` beside it -- is what decides where the
+      // request goes. They are returned together so they cannot disagree.
+      modelRuntime: bindResolvedModel(modelRuntime, model),
+      model,
     },
   };
 }

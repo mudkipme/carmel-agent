@@ -57,7 +57,9 @@ export function useMessageMutations(
       activeAgent,
       currentMessages.slice(0, index + 1),
       () => truncateSessionMessages(sessionRef.current.id, entryId, activeAgent.getSnapshot().thinkingLevel),
-      { afterCommit: () => activeAgent.continue(), errorMessage: "Unable to retry message" },
+      // The resend's own outcome reaches the user through the chat's error
+      // notice, which reports rejected submissions as well as failed runs.
+      { afterCommit: async () => void (await activeAgent.continue()), errorMessage: "Unable to retry message" },
     );
   }, [agentRef, applyOptimisticMessages, sessionRef, truncateSessionMessages]);
 
@@ -77,7 +79,10 @@ export function useMessageMutations(
       truncate: submit,
       thinkingLevel: activeAgent.getSnapshot().thinkingLevel,
       ...removals,
-    }), { afterCommit: submit ? () => activeAgent.continue() : undefined, errorMessage: "Unable to save message" });
+    }), {
+      afterCommit: submit ? async () => void (await activeAgent.continue()) : undefined,
+      errorMessage: "Unable to save message",
+    });
   }, [agentRef, applyOptimisticMessages, editSessionMessage, sessionRef]);
 
   const saveAssistantMessage = useCallback(async (message: AgentMessage, content: string) => {

@@ -1,7 +1,8 @@
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { type AgentSnapshot, RemoteAgent } from "@/lib/remote-agent";
+import { type AgentSnapshot, type PromptOutcome, RemoteAgent } from "@/lib/remote-agent";
+import { errorMessage } from "@/lib/errors";
 import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, ModelRef, Session } from "@carmel-agent/shared";
 
@@ -92,17 +93,23 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
     };
   }, [agentConfig.id, connectSession, refreshSession, session.id]);
 
-  const sendMessage = useCallback((text: string, images?: ImageContent[]) => {
+  // Returns what happened to the submission so the composer can keep a message
+  // the server never took. Everything that can stop a send before the prompt
+  // reaches the agent has to answer with a rejection rather than nothing.
+  const sendMessage = useCallback(async (text: string, images?: ImageContent[]): Promise<PromptOutcome> => {
     const activeAgent = agentRef.current;
     const { isStreaming, thinkingLevel } = activeAgent?.getSnapshot() ?? EMPTY_SNAPSHOT;
-    if (!activeAgent || isStreaming) return;
+    if (!activeAgent) return { status: "rejected", error: "Not connected to this conversation yet." };
+    if (isStreaming) return { status: "rejected", error: "This conversation already has a run in progress." };
     const currentSession = sessionRef.current;
-    void (async () => {
-      if (thinkingLevel !== currentSession.thinkingLevel) {
+    if (thinkingLevel !== currentSession.thinkingLevel) {
+      try {
         await updateSession(currentSession.id, { thinkingLevel });
+      } catch (error) {
+        return { status: "rejected", error: errorMessage(error) };
       }
-      await activeAgent.prompt(text, images);
-    })();
+    }
+    return activeAgent.prompt(text, images);
   }, [updateSession]);
 
   return { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot };

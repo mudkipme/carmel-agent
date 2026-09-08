@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import type { ChatInputHandle } from "@/components/chat/ChatInput";
+import { ChatErrorNotice } from "@/components/chat/ChatErrorNotice";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { ContextPressureNotice } from "@/components/chat/ContextPressureNotice";
 import { MessageEditDialog } from "@/components/chat/MessageEditDialog";
@@ -34,6 +35,9 @@ export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConf
   return (
     <>
       <div className="relative flex h-full min-h-0 flex-col">
+        {snapshot.errorMessage ? (
+          <ChatErrorNotice message={snapshot.errorMessage} onDismiss={() => agent?.dismissError()} />
+        ) : null}
         {snapshot.contextPressure ? <ContextPressureNotice pressure={snapshot.contextPressure} /> : null}
         {/* ChatPanel is `h-full`, so the notice takes its height from a sibling
             row rather than overlaying or squeezing the chat. */}

@@ -32,6 +32,20 @@ export type AgentSnapshot = {
 
 export type ContextPressure = { level: "warning" | "critical"; message: string };
 
+/**
+ * What happened to a submission, which is a different question from how the run
+ * ended: an admitted run that fails reports its failure as persisted messages,
+ * and its prompt must never be handed back to the composer as unsent.
+ *
+ * `unknown` is the honest answer when the request left this client and no server
+ * run can be found for it: it may still have been received, so the caller has to
+ * report it without resending or restoring the draft behind the user's back.
+ */
+export type PromptOutcome =
+  | { status: "accepted" }
+  | { status: "rejected"; error: string }
+  | { status: "unknown"; error: string };
+
 export class RemoteAgent {
   private storeListeners = new Set<() => void>();
   private snapshotValue: AgentSnapshot;
@@ -142,10 +156,15 @@ export class RemoteAgent {
     this.notify();
   }
 
-  async prompt(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]) {
+  async prompt(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]): Promise<PromptOutcome> {
     if (this.abortController) throw new Error("Agent is already processing.");
     const promptInput = normalizePromptInput(input, images);
     const controller = this.beginRun();
+    // Set as soon as a server run exists for this submission, and read by the
+    // failure path: after admission the prompt is the server's, whatever the run
+    // then does. `rejection` is the opposite -- proof that it never landed.
+    let admitted = false;
+    let rejection: string | undefined;
 
     try {
       let response: Response;
@@ -164,42 +183,58 @@ export class RemoteAgent {
         if (controller.signal.aborted) throw error;
         this.markReconnecting(error);
         if (await this.recoverSubmittedRun(controller.signal)) {
+          admitted = true;
           await this.notifyRunComplete();
-          return;
+          return { status: "accepted" };
         }
+        // The request failed in transit and no run answers for it, so whether
+        // the server received it cannot be settled from here: `unknown`.
         throw error;
       }
       if (response.status === 409) {
         const summary = (await response.json().catch(() => undefined)) as Partial<ActiveAgentRunSummary> | undefined;
         const activeRunId = response.headers.get("x-agent-run-id") ?? summary?.runId;
-        if (!activeRunId) throw new Error("Session already has an active agent run.");
+        // The session already had a run in flight, so this message was refused.
+        // The client still follows the run that holds the session -- but it is
+        // somebody else's turn, and this prompt was never sent.
+        rejection = "This conversation already has a run in progress; your message was not sent.";
+        if (!activeRunId) throw new Error(rejection);
         const connection = await this.readConnection(controller.signal);
         this.applyConnectionSnapshot(connection);
-        if (!connection.activeRun || connection.activeRun.runId !== activeRunId) {
-          await this.notifyRunComplete();
-          return;
+        if (connection.activeRun && connection.activeRun.runId === activeRunId) {
+          this.runId = activeRunId;
+          this.lastSequence = connection.activeRun.eventCursor;
+          await this.watchRun(activeRunId, controller.signal);
         }
-        this.runId = activeRunId;
-        this.lastSequence = connection.activeRun.eventCursor;
-        await this.watchRun(activeRunId, controller.signal);
+        this.errorMessage = rejection;
         await this.notifyRunComplete();
-        return;
+        return { status: "rejected", error: rejection };
       }
       if (!response.ok || !response.body) {
-        throw await apiError(response, `Agent request failed with ${response.status}`);
+        // The server answered and started nothing, so the message is still the
+        // caller's to keep.
+        const error = await apiError(response, `Agent request failed with ${response.status}`);
+        rejection = errorMessage(error);
+        throw error;
       }
 
       const runId = response.headers.get("x-agent-run-id");
       if (!runId) throw new Error("Agent response did not identify its server run.");
       this.runId = runId;
+      admitted = true;
       await this.consumeAcceptedResponse(response.body, controller.signal);
       await this.watchRun(runId, controller.signal);
       await this.notifyRunComplete();
+      return { status: "accepted" };
     } catch (error) {
       if (!(this.detachRequested && controller.signal.aborted)) {
         this.errorMessage = errorMessage(error);
         await this.notifyRunComplete();
       }
+      if (admitted) return { status: "accepted" };
+      return rejection === undefined
+        ? { status: "unknown", error: errorMessage(error) }
+        : { status: "rejected", error: rejection };
     } finally {
       this.finishObservation();
     }
@@ -230,7 +265,14 @@ export class RemoteAgent {
       throw new Error("Cannot continue from current message state.");
     }
     this.replaceNextUserMessage = true;
-    await this.prompt([]);
+    return this.prompt([]);
+  }
+
+  /** Dismiss the visible error. Reconnection failures re-report themselves. */
+  dismissError() {
+    if (this.errorMessage === undefined) return;
+    this.errorMessage = undefined;
+    this.notify();
   }
 
   private async notifyRunComplete() {
@@ -468,6 +510,11 @@ export class RemoteAgent {
 }
 
 const RECONNECTING_PREFIX = "Connection lost; reconnecting…";
+
+/** Whether a snapshot error is the transient reconnect state rather than a failure. */
+export function isReconnectingMessage(message: string) {
+  return message.startsWith(RECONNECTING_PREFIX);
+}
 
 function normalizePromptInput(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]): PromptInput | undefined {
   if (typeof input === "string") return { text: input, images: images?.length ? images : undefined };

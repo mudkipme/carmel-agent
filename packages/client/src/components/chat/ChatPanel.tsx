@@ -1,6 +1,7 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode, type Ref } from "react";
+import type { PromptOutcome } from "@/lib/remote-agent";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMessages } from "./ChatMessages";
 
@@ -17,7 +18,7 @@ type ChatPanelProps = {
   initialInput?: string;
   onInputDraftChange?: (value: string) => void;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
-  onSend: (text: string, images?: ImageContent[]) => void;
+  onSend: (text: string, images?: ImageContent[]) => Promise<PromptOutcome>;
   onAbort: () => void;
   onModelSelect: () => void;
   onEditMessage: (message: AgentMessage) => void;
