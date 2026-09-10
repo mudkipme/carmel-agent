@@ -50,9 +50,11 @@ Each user can also pick a **fast task model** in **Settings → Models**. It is 
 
 ## Network Tools
 
-- `EXA_API_KEY` — enables `exa_search` and improves markdown extraction for `fetch_url`.
+- `EXA_API_KEY` — enables `exa_search`.
 
-Network tools are only added to a run when the agent has the network permission. Without `EXA_API_KEY`, `fetch_url` still performs direct HTTP fetches, but `exa_search` reports that the key is required.
+Network tools are only added to a run when the agent has the network permission.
+
+`fetch_url` needs no key at all. It fetches the URL directly and, for its default `markdown` format, extracts the page's main content locally with [Defuddle](https://github.com/kepano/defuddle) — the extractor behind Obsidian Web Clipper — dropping navigation, ads, and boilerplate. Non-HTML responses and the `html`/`text` formats return the response body as sent. `exa_search` is the only network tool that reports a missing key.
 
 ## Bash Sandbox Settings
 

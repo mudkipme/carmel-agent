@@ -77,7 +77,11 @@ With the network permission:
 
 - the sandbox container gets the runtime's default network
 - `exa_search` is exposed and requires `EXA_API_KEY`
-- `fetch_url` is exposed for URL fetching
+- `fetch_url` is exposed for URL fetching, and needs no key: it extracts page
+  content locally with Defuddle rather than through a third-party API. Defuddle's
+  site-specific extractors may make their own requests for a few hosts (a YouTube
+  transcript, Reddit comments), so a `fetch_url` call is not always exactly one
+  request to exactly the host asked for
 
 Without it:
 

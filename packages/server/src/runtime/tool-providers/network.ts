@@ -1,12 +1,20 @@
 import type { AgentHarnessTool, ExecutionToolContext } from "@earendil-works/pi-agent-core";
 import type { ProvidedTool, ToolProvider } from "../../effectors/contracts/tool-provider.ts";
+import { extractArticleMarkdown, looksLikeHtml } from "./web-markdown.ts";
 
 type ServerToolDefinition = AgentHarnessTool<ExecutionToolContext>;
 
+/** Identifies us without tripping the servers that 403 unfamiliar agents. */
+const USER_AGENT = "Mozilla/5.0 (compatible; CarmelAgent/0.1)";
+
 /**
- * Web search and fetch. The only built-in provider that talks to a third party,
- * which is why it is the one whose absence is a configuration answer
- * (`EXA_API_KEY`) rather than a bug.
+ * Web search and fetch.
+ *
+ * `fetch_url` is self-contained: it makes one HTTP request and extracts the
+ * readable content locally, so it works the same with or without any API key.
+ * `exa_search` is the one built-in that talks to a third party, which is why it
+ * is the one whose absence is a configuration answer (`EXA_API_KEY`) rather
+ * than a bug.
  */
 export const networkToolProvider: ToolProvider = {
   id: "carmel.network",
@@ -65,7 +73,7 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
       name: "fetch_url",
       label: "Fetch URL",
       description:
-        "Fetch a URL as clean markdown/text through Exa Contents when available, or as raw HTML/text with direct fetch.",
+        "Fetch a URL. The default markdown format strips navigation, ads, and boilerplate and returns the page's main content; html/text return the response body as sent.",
       parameters: fetchUrlSchema as never,
       executionMode: "parallel",
       execute: async (_toolCallId, params, _onUpdate, _toolContext, _invocation, context) => {
@@ -75,56 +83,62 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
         const format = args.format === "html" || args.format === "text" ? args.format : "markdown";
         const maxCharacters = clampNumber(args.maxCharacters, 500, 30000, 12000);
 
-        if (format === "markdown") {
-          const exaResult = await fetchUrlWithExa(url, maxCharacters, signal);
-          if (exaResult) return exaResult;
-        }
-
         const response = await fetch(url, {
-          headers: { "user-agent": "CarmelAgent/0.1" },
+          headers: {
+            "user-agent": USER_AGENT,
+            accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          },
           signal,
         });
         if (!response.ok) throw new Error(`Fetch failed with ${response.status}: ${await response.text()}`);
-        const text = (await response.text()).slice(0, maxCharacters);
+
+        const contentType = response.headers.get("content-type");
+        const body = await response.text();
+        const details = {
+          url: response.url || url,
+          status: response.status,
+          contentType,
+          format,
+        };
+
+        if (format === "markdown" && looksLikeHtml(contentType, body)) {
+          // An empty extraction means the page had no article-shaped content
+          // (a search page, an app shell). Returning the raw body beats
+          // returning nothing, so fall through rather than fail.
+          const article = await extractArticleMarkdown(body, details.url, signal);
+          if (article) {
+            const { text, truncated } = truncate(article.markdown, maxCharacters);
+            return {
+              content: [{ type: "text", text }],
+              details: {
+                ...details,
+                extracted: true,
+                title: article.title,
+                author: article.author,
+                published: article.published,
+                site: article.site,
+                wordCount: article.wordCount,
+                extractorType: article.extractorType,
+                truncated,
+              },
+            };
+          }
+        }
+
+        const { text, truncated } = truncate(body, maxCharacters);
         return {
           content: [{ type: "text", text }],
-          details: {
-            url,
-            status: response.status,
-            contentType: response.headers.get("content-type"),
-            format,
-            truncated: text.length >= maxCharacters,
-          },
+          details: { ...details, extracted: false, truncated },
         };
       },
     },
   ];
 }
 
-async function fetchUrlWithExa(url: string, maxCharacters: number, signal?: AbortSignal) {
-  const apiKey = process.env.EXA_API_KEY;
-  if (!apiKey) return undefined;
-
-  const response = await fetch("https://api.exa.ai/contents", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-    },
-    body: JSON.stringify({
-      urls: [url],
-      text: { maxCharacters },
-    }),
-    signal,
-  });
-  const data = await readJsonResponse(response, "Exa contents failed");
-  const result = getResults(data)[0];
-  const text = typeof result?.text === "string" ? result.text : "";
-  if (!text) return undefined;
-  return {
-    content: [{ type: "text" as const, text }],
-    details: data,
-  };
+function truncate(text: string, maxCharacters: number) {
+  return text.length > maxCharacters
+    ? { text: text.slice(0, maxCharacters), truncated: true }
+    : { text, truncated: false };
 }
 
 function getExaApiKey() {
@@ -222,7 +236,8 @@ const fetchUrlSchema = {
     format: {
       type: "string",
       enum: ["markdown", "html", "text"],
-      description: "Use markdown for Exa-cleaned text, html/text for direct fetch.",
+      description:
+        "markdown (default) extracts the page's main content; html/text return the raw response body.",
     },
     maxCharacters: { type: "number", description: "Maximum characters to return. Defaults to 12000." },
   },

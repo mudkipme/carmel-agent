@@ -23,8 +23,10 @@
     "@hono/zod-validator": "^0.8.0",
     "better-sqlite3": "^12.11.1",
     "cron-parser": "^5.10.0",
+    "defuddle": "^0.19.3",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.21",
+    "linkedom": "^0.18.13",
     "ws": "^8.21.3",
     "zod": "^4.4.3"
   },
