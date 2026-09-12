@@ -3,6 +3,7 @@ import { db } from "../db/index.ts";
 import { modelRefs, providerConfigs, providerKeys } from "../db/schema.ts";
 import { createProviderConfigCredentialStore } from "../runtime/auth-storage.ts";
 import { bindResolvedModel, createCarmelModelRuntime } from "../runtime/model-runtime.ts";
+import { withProviderAttribution } from "../runtime/provider-attribution.ts";
 import { resolveServerModelRef } from "../runtime/model.ts";
 import { revealSecret } from "../security.ts";
 import { serializeModelRef } from "../serializers.ts";
@@ -61,7 +62,11 @@ export async function resolveModelContext(
       // Bound, not raw: Pi resolves the generation model out of this runtime, so
       // the runtime -- not the `model` beside it -- is what decides where the
       // request goes. They are returned together so they cannot disagree.
-      modelRuntime: bindResolvedModel(modelRuntime, model),
+      //
+      // Attribution wraps the bound runtime because it reads the model Pi
+      // actually resolved, base URL included, which is what decides whether a
+      // request is going to OpenRouter at all.
+      modelRuntime: withProviderAttribution(bindResolvedModel(modelRuntime, model)),
       model,
     },
   };

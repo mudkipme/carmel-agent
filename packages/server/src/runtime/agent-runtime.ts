@@ -30,6 +30,7 @@ import {
   type ActiveAgentRun,
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
+import { mergeProviderAttributionHeaders } from "./provider-attribution.ts";
 import { createServerExecution } from "./tools.ts";
 import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
 import {
@@ -741,7 +742,10 @@ async function persistSessionRun(
     const title = await generateSessionTitle({
       model: titleModelContext.model,
       apiKey: auth.auth.apiKey,
-      headers: auth.auth.headers,
+      // Titles go straight to `completeSimple`, not through the runtime, so the
+      // attribution wrapper never sees them -- merge it here or this one request
+      // per session shows up unattributed.
+      headers: mergeProviderAttributionHeaders(titleModelContext.model, undefined, auth.auth.headers),
       messages: patch.messages,
     });
     if (!title) return;
