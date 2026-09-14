@@ -6,8 +6,9 @@ import type { SessionMetadata } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
 import { db, migrate } from "../db/index.ts";
 import { sessions, users } from "../db/schema.ts";
+import { id, now } from "../db/seed.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
-import { createSession, createUser } from "../test-support.ts";
+import { createAgent, createModelRef, createSession, createUser } from "../test-support.ts";
 import { createSessionRoutes } from "./sessions.ts";
 
 migrate();
@@ -56,6 +57,27 @@ test("archived session listing is scoped to the caller and to visible agents", a
   const stranger = createUser();
   const response = await createTestApp(stranger).request(`/agents/${fixture.agentId}/archived-sessions`);
   assert.equal(response.status, 404);
+});
+
+test("users of a shared agent see only their own archived sessions", async () => {
+  const owner = createUser();
+  const modelRefId = createModelRef({ ownerUserId: owner, shared: true });
+  const agentId = createAgent({ ownerUserId: owner, shared: true, defaultModelRefId: modelRefId });
+  const guest = createUser();
+  const archiveSessionFor = (userId: string) => {
+    const sessionId = id("session");
+    const timestamp = now();
+    db.insert(sessions)
+      .values({ id: sessionId, title: "Test", userId, agentId, modelRefId, thinkingLevel: "off", archivedAt: timestamp, createdAt: timestamp, updatedAt: timestamp })
+      .run();
+    return sessionId;
+  };
+  archiveSessionFor(owner);
+  const guestSessionId = archiveSessionFor(guest);
+
+  const response = await createTestApp(guest).request(`/agents/${agentId}/archived-sessions`);
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json() as SessionMetadata[]).map((session) => session.id), [guestSessionId]);
 });
 
 function createTestApp(userId: string) {

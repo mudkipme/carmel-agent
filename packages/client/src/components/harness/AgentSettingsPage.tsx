@@ -34,6 +34,10 @@ const agentSettingsSections = [
 ] as const;
 type AgentSettingsSection = (typeof agentSettingsSections)[number]["id"];
 
+/* A shared agent's settings belong to its owner, but each user's archived
+   sessions are their own, so that is the one section everyone else gets. */
+const sharedAgentSettingsSections = agentSettingsSections.filter((item) => item.id === "archived");
+
 export function AgentSettingsPage() {
   const navigate = useNavigate();
   const { agentId = "", section } = useParams();
@@ -47,9 +51,9 @@ export function AgentSettingsPage() {
   const upsertAgent = useHarnessStore((state) => state.upsertAgent);
   const deleteAgent = useHarnessStore((state) => state.deleteAgent);
   const owned = agent?.ownerUserId === activeUserId;
-  const activeSection = agentSettingsSections.some((item) => item.id === section)
-    ? (section as AgentSettingsSection)
-    : "general";
+  const sections = owned ? agentSettingsSections : sharedAgentSettingsSections;
+  const defaultSection: AgentSettingsSection = owned ? "general" : "archived";
+  const activeSection = sections.some((item) => item.id === section) ? (section as AgentSettingsSection) : defaultSection;
   const [draft, setDraft] = useState<AgentConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -67,17 +71,16 @@ export function AgentSettingsPage() {
       : (thinkingLevels[0] ?? "off");
 
   useEffect(() => {
-    if (section && !agentSettingsSections.some((item) => item.id === section)) {
-      navigate(`/agents/${agentId}/settings/general`, { replace: true });
+    if (agent && section !== activeSection) {
+      navigate(`/agents/${agentId}/settings/${activeSection}`, { replace: true });
     }
-  }, [agentId, navigate, section]);
+  }, [activeSection, agent, agentId, navigate, section]);
 
-  /* Only the owner configures an agent — a shared one is read-only to everyone
-     else, and a stale link points at nothing at all. */
+  /* Only the owner configures an agent — everyone else sees just their archived
+     sessions — and a stale link points at nothing at all. */
   useEffect(() => {
     if (!agent) navigate("/", { replace: true });
-    else if (!owned) navigate(`/agents/${agent.id}`, { replace: true });
-  }, [agent, navigate, owned]);
+  }, [agent, navigate]);
 
   /* The list in the store carries only what the sidebar renders; the full
      record — prompt, mounts, permissions — comes from the settings endpoint. */
@@ -146,7 +149,7 @@ export function AgentSettingsPage() {
     }
   };
 
-  if (!agent || !owned) return null;
+  if (!agent) return null;
 
   return (
     <main className="flex h-[100dvh] min-h-0 flex-col bg-background pr-[var(--safe-right)] pl-[var(--safe-left)] text-foreground">
@@ -169,7 +172,7 @@ export function AgentSettingsPage() {
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside className="shrink-0 border-b bg-sidebar p-2 md:w-56 md:border-r md:border-b-0">
           <nav className="grid grid-cols-2 gap-1 md:grid-cols-1">
-            {agentSettingsSections.map((item) => {
+            {sections.map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink
@@ -193,8 +196,14 @@ export function AgentSettingsPage() {
               data-settings-content
               className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-4 p-3 pb-[calc(0.75rem+var(--safe-bottom))] sm:p-4 sm:pb-[calc(1rem+var(--safe-bottom))] md:p-6 md:pb-[calc(1.5rem+var(--safe-bottom))]"
             >
-              {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
-              {!draft && !loadError ? <p className="text-sm text-muted-foreground">Loading agent settings...</p> : null}
+              {/* Archived sessions are the caller's own, not part of the owner-only draft. */}
+              {activeSection === "archived" ? <AgentArchivedSessionsSettings agentId={agent.id} /> : null}
+              {owned && activeSection !== "archived" && loadError ? (
+                <p className="text-sm text-destructive">{loadError}</p>
+              ) : null}
+              {owned && activeSection !== "archived" && !draft && !loadError ? (
+                <p className="text-sm text-muted-foreground">Loading agent settings...</p>
+              ) : null}
               {draft ? (
                 <>
                   {activeSection === "general" ? (
@@ -226,7 +235,6 @@ export function AgentSettingsPage() {
                     <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
                   ) : null}
                   {activeSection === "tasks" ? <AgentTasksPanel agentId={agent.id} /> : null}
-                  {activeSection === "archived" ? <AgentArchivedSessionsSettings agentId={agent.id} /> : null}
                 </>
               ) : null}
             </div>

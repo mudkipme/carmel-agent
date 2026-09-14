@@ -20,13 +20,10 @@ import type { SessionMetadata } from "@carmel-agent/shared";
 export function SessionList({
   sessions,
   activeSessionId,
-  canArchive,
   onOpenSession,
 }: {
   sessions: SessionMetadata[];
   activeSessionId?: string;
-  /** Archived sessions are recovered from agent settings, which only the agent's owner can open. */
-  canArchive: boolean;
   onOpenSession: () => void;
 }) {
   const navigate = useNavigate();
@@ -55,7 +52,6 @@ export function SessionList({
           </button>
           <SessionActions
             session={session}
-            canArchive={canArchive}
             open={openSessionMenuId === session.id}
             onOpenChange={(open) => setOpenSessionMenuId(open ? session.id : null)}
           />
@@ -67,12 +63,10 @@ export function SessionList({
 
 function SessionActions({
   session,
-  canArchive,
   open,
   onOpenChange,
 }: {
   session: SessionMetadata;
-  canArchive: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -125,18 +119,16 @@ function SessionActions({
               <PencilIcon />
               Rename
             </DropdownMenuItem>
-            {canArchive ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  void archiveSession(session.id)
-                    .then(() => toast.success("Session archived", { description: "Restore it from Agent Settings." }))
-                    .catch((error) => showError("Unable to archive session", error));
-                }}
-              >
-                <ArchiveIcon />
-                Archive
-              </DropdownMenuItem>
-            ) : null}
+            <DropdownMenuItem
+              onSelect={() => {
+                void archiveSession(session.id)
+                  .then(() => toast.success("Session archived", { description: "Restore it from Agent Settings." }))
+                  .catch((error) => showError("Unable to archive session", error));
+              }}
+            >
+              <ArchiveIcon />
+              Archive
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>

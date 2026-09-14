@@ -96,7 +96,6 @@ export function HarnessSidebar({
             <div className="min-h-0 flex-1 overflow-hidden">
               <SessionList
                 sessions={visibleSessions}
-                canArchive={activeAgent?.ownerUserId === store.activeUserId}
                 activeSessionId={activeSession?.id}
                 onOpenSession={onOpenSession}
               />

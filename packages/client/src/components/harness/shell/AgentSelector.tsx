@@ -69,9 +69,9 @@ export function AgentSelector({
   );
 
   const openAgentSettings = useCallback(
-    (agentId: string) => {
+    (agentId: string, section = "general") => {
       setSwitcherOpen(false);
-      navigate(`/agents/${agentId}/settings/general`);
+      navigate(`/agents/${agentId}/settings/${section}`);
     },
     [navigate],
   );
@@ -87,6 +87,9 @@ export function AgentSelector({
   };
 
   const owned = activeAgent?.ownerUserId === activeUserId;
+  /* Anyone using an agent can reach its settings, but a shared agent's only
+     section for non-owners is their own archived sessions. */
+  const settingsSection = owned ? "general" : "archived";
 
   return (
     <section className="flex items-center gap-1">
@@ -110,13 +113,13 @@ export function AgentSelector({
           <ChevronsUpDownIcon className="size-3.5" />
         </span>
       </button>
-      {owned && activeAgent ? (
+      {activeAgent ? (
         <Button
           size="icon-sm"
           variant="ghost"
           className="shrink-0"
           title="Agent settings"
-          onClick={() => openAgentSettings(activeAgent.id)}
+          onClick={() => openAgentSettings(activeAgent.id, settingsSection)}
         >
           <SettingsIcon />
         </Button>
@@ -166,8 +169,11 @@ export function AgentSelector({
               <PlusIcon />
               New agent
             </CommandItem>
-            {owned && activeAgent ? (
-              <CommandItem value="agent settings configure" onSelect={() => openAgentSettings(activeAgent.id)}>
+            {activeAgent ? (
+              <CommandItem
+                value="agent settings configure archived"
+                onSelect={() => openAgentSettings(activeAgent.id, settingsSection)}
+              >
                 <SettingsIcon />
                 Agent settings
               </CommandItem>
