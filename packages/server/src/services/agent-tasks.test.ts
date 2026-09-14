@@ -19,9 +19,6 @@ test("a task is created armed with its next run", () => {
   const task = createAgentTask(user, agentId, draft({ scheduleKind: "interval", scheduleValue: String(60_000) }));
   assert.equal(task.status, "active");
   assert.ok(task.nextRunAt && task.nextRunAt > Date.now());
-  // The session is created on first fire, not up front: a task that is never
-  // due should not leave an empty session in the user's list.
-  assert.equal(task.sessionId, undefined);
 });
 
 test("an unparseable schedule is rejected at write time", () => {
@@ -105,10 +102,10 @@ test("deleting an agent takes its tasks with it", () => {
   assert.deepEqual(readAgentTasks(user, agentId), []);
 });
 
-test("deleting a task removes it", () => {
+test("deleting a task removes it", async () => {
   const { user, agentId } = fixture();
   const task = createAgentTask(user, agentId, draft({}));
-  deleteAgentTask(user, agentId, task.id);
+  await deleteAgentTask(user, agentId, task.id);
   assert.deepEqual(readAgentTasks(user, agentId), []);
 });
 

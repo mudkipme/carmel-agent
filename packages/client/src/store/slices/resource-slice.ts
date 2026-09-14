@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { createClientId } from "@/lib/id";
 import { resolveModelRef } from "@/store/model-utils";
 import {
+  isListedSession,
   resolveBootstrapState,
   toAgentCommand,
   toModelRefCommand,
@@ -69,7 +70,9 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
         const deletedSessionIds = new Set(state.sessions.filter((item) => item.agentId === agentId).map((item) => item.id));
         const sessionDetails = Object.fromEntries(Object.entries(state.sessionDetails).filter(([id]) => !deletedSessionIds.has(id)));
         const activeAgentId = state.activeAgentId === agentId ? (agents[0]?.id ?? "") : state.activeAgentId;
-        const activeSession = sessions.find((item) => item.agentId === activeAgentId && item.userId === state.activeUserId);
+        const activeSession = sessions.find(
+          (item) => item.agentId === activeAgentId && item.userId === state.activeUserId && isListedSession(item),
+        );
         return { agents, sessions, sessionDetails, activeAgentId, activeSessionId: state.activeAgentId === agentId ? (activeSession?.id ?? "") : state.activeSessionId };
       });
     },

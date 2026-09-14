@@ -16,10 +16,22 @@ A task **belongs to an agent** and dies with it. It still carries a `userId`,
 because agents can be shared while the task's session, model permission, and
 provider credentials all resolve per user.
 
-Each task gets **one session, created on its first firing**, and every run
-appends to it. A fresh session per run would be a guaranteed cold prompt cache
-every time; one thread per task keeps the prefix stable, which is worth more
-than the context it accumulates. Compaction handles the growth.
+**Every run gets a session of its own.** Tasks used to append every run to one
+session, for the prompt cache, but the cache lives an hour at most: a daily task
+started cold anyway while paying for an ever-longer context. The system prompt
+and tools are the same across runs, so that prefix still caches for frequent
+tasks. A fresh session also keeps one bad run from steering the next, and makes
+each result readable on its own.
+
+A run's session carries the task's id (`sessions.task_id`), which keeps it out
+of the session list, and the run log links to it (`agent_task_runs.session_id`).
+The run history under the agent's Tasks settings is where runs are opened. A run
+worth keeping is moved to the session list, which clears the task id; forks of a
+run join the list too. Deleting a task deletes the sessions of its runs, except
+the ones moved to the list.
+
+The session is created only once the model resolves, so a task that cannot run
+logs a failure without leaving an empty session behind every time it fires.
 
 ## Firing
 
@@ -33,8 +45,10 @@ under it, and one "active and due" query is self-correcting after a restart.
 
 Three things the loop protects against, each with a test:
 
-- **Overlap.** A firing is skipped when the task's session already has an active
-  run — either its own previous firing or a person prompting in it.
+- **Overlap.** A task never has two firings at once: the scheduler tracks which
+  tasks are running, and "run now" on a running task is skipped. A person
+  replying in an earlier run's session does not block the next one, since it is
+  a different session.
 - **Starvation.** Due tasks are ordered most-overdue-first, because the tick has
   a concurrency cap (default 2, `CARMEL_AGENT_MAX_CONCURRENT_TASKS`). In table
   order, one permanently-due task would hold a slot forever. This was found by a
@@ -70,6 +84,10 @@ which is most of them.
   are what the user sees.
 - **Shell tasks** (piclaw has them). An agent task with bash permission covers it
   without a second execution path.
-- **Lease recovery.** A task whose run somehow never reaches `finalizeRun` holds
-  its session's lease until restart, and subsequent firings skip as overlapping.
-  The run guard closes the realistic paths; a lease TTL would close the rest.
+- **Lease recovery.** A run that somehow never reaches `finalizeRun` holds its
+  session's lease until restart, and the task stays marked running in-process,
+  so later firings wait. The run guard closes the realistic paths; a lease TTL
+  would close the rest. A run is logged as `running` when it starts, and rows
+  still `running` at scheduler start are marked failed.
+- **Retention.** Run sessions accumulate. Keeping the last N per task, and
+  paging the run history past its 50 most recent runs, are the next steps.

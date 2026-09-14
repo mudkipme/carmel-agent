@@ -32,21 +32,24 @@ export function createAgentTaskRoutes() {
     respond(c, () => updateAgentTask(c.get("user"), c.req.param("agentId"), c.req.param("taskId"), c.req.valid("json"))),
   );
 
-  route.delete("/agents/:agentId/tasks/:taskId", (c) =>
-    respond(c, () => {
-      deleteAgentTask(c.get("user"), c.req.param("agentId"), c.req.param("taskId"));
-      return { ok: true };
-    }),
-  );
+  route.delete("/agents/:agentId/tasks/:taskId", async (c) => {
+    try {
+      await deleteAgentTask(c.get("user"), c.req.param("agentId"), c.req.param("taskId"));
+      return c.json({ ok: true });
+    } catch (error) {
+      if (error instanceof AgentTaskError) return c.json({ error: error.message }, error.status);
+      throw error;
+    }
+  });
 
   route.get("/agents/:agentId/tasks/:taskId/runs", (c) =>
     respond(c, () => readTaskRuns(c.get("user"), c.req.param("agentId"), c.req.param("taskId"))),
   );
 
   /**
-   * Fire now, so a task can be tried without waiting for its schedule. Returns
-   * once the run has finished rather than streaming it: the caller is testing a
-   * task, and the transcript is in the task's session either way.
+   * Fire now, so a task can be tried without waiting for its schedule. Answers
+   * once the run has started, with its session, so the caller can open it and
+   * watch; the run log records how it ends.
    */
   route.post("/agents/:agentId/tasks/:taskId/run", async (c) => {
     let task;
@@ -62,7 +65,7 @@ export function createAgentTaskRoutes() {
   return route;
 }
 
-function respond<T>(c: { json: (body: unknown, status?: 200 | 201 | 400 | 404) => Response }, read: () => T, status: 200 | 201 = 200) {
+function respond<T>(c: { json: (body: unknown, status?: 200 | 201 | 400 | 404 | 409) => Response }, read: () => T, status: 200 | 201 = 200) {
   try {
     return c.json(read() as object, status);
   } catch (error) {

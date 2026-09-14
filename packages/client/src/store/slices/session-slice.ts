@@ -1,7 +1,7 @@
 import type { StoreApi } from "zustand";
 import { api } from "@/lib/api";
 import { readSessionConnection } from "@/lib/session-connection";
-import { cacheSession } from "@/store/harness-state";
+import { cacheSession, isListedSession } from "@/store/harness-state";
 import { toSessionMetadata } from "@carmel-agent/shared";
 import type { HarnessState } from "@/store/harness-types";
 
@@ -9,7 +9,7 @@ type SetState = StoreApi<HarnessState>["setState"];
 type SessionActions = Pick<HarnessState,
   "createSession" | "importOpenWebuiSessions" | "updateSession" | "truncateSessionMessages" |
   "editSessionMessage" | "connectSession" | "refreshSession" | "forkSession" | "deleteSession" |
-  "archiveSession" | "restoreSession"
+  "archiveSession" | "restoreSession" | "loadUnlistedSession" | "moveSessionToList"
 >;
 
 export function createSessionSlice(set: SetState): SessionActions {
@@ -75,6 +75,17 @@ export function createSessionSlice(set: SetState): SessionActions {
         sessionDetails: { ...state.sessionDetails, [saved.id]: saved },
       }));
     },
+    loadUnlistedSession: async (sessionId) => {
+      const { session } = await readSessionConnection(sessionId);
+      set((state) => ({
+        sessions: [...state.sessions.filter((item) => item.id !== session.id), toSessionMetadata(session)],
+        sessionDetails: { ...state.sessionDetails, [session.id]: session },
+      }));
+    },
+    moveSessionToList: async (sessionId) => {
+      const saved = await api.updateSession(sessionId, { taskId: null });
+      set((state) => cacheSession(state, saved));
+    },
   };
 }
 
@@ -83,7 +94,7 @@ function removeSession(state: HarnessState, sessionId: string) {
   const sessions = state.sessions.filter((item) => item.id !== sessionId);
   const { [sessionId]: _removed, ...sessionDetails } = state.sessionDetails;
   const activeSessionId = state.activeSessionId === sessionId
-    ? (sessions.find((item) => item.userId === state.activeUserId && item.agentId === (removed?.agentId ?? state.activeAgentId))?.id ?? "")
+    ? (sessions.find((item) => item.userId === state.activeUserId && item.agentId === (removed?.agentId ?? state.activeAgentId) && isListedSession(item))?.id ?? "")
     : state.activeSessionId;
   return { sessions, sessionDetails, activeSessionId };
 }

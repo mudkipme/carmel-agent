@@ -1,15 +1,17 @@
 import { and, desc, eq, lte } from "drizzle-orm";
 import type { AgentTask, AgentTaskOutcome, AgentTaskRun, UserRole } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { agents, agentTasks, agentTaskRuns, modelRefs } from "../db/schema.ts";
+import { agents, agentTasks, agentTaskRuns, modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { computeNextRun, validateSchedule, type TaskSchedule } from "../effectors/task-schedule.ts";
+import { readActiveRunLeaseForSession } from "./active-run-lease.ts";
 import { canUseModel, readVisibleAgent } from "./agent-access.ts";
+import { deletePiSession } from "./pi-session-storage.ts";
 
 type TaskRecord = typeof agentTasks.$inferSelect;
 
 export class AgentTaskError extends Error {
-  constructor(message: string, readonly status: 400 | 404) {
+  constructor(message: string, readonly status: 400 | 404 | 409) {
     super(message);
   }
 }
@@ -91,7 +93,6 @@ export function createAgentTask(user: { id: string; role: UserRole }, agentId: s
     scheduleKind: draft.scheduleKind,
     scheduleValue: draft.scheduleValue,
     timezone: draft.timezone ?? null,
-    sessionId: null,
     status,
     nextRunAt: next.ok ? next.at : null,
     lastRunAt: null,
@@ -150,12 +151,25 @@ export function updateAgentTask(
   return serializeTask(row);
 }
 
-export function deleteAgentTask(user: { id: string; role: UserRole }, agentId: string, taskId: string) {
+/**
+ * Run sessions are only reachable from the task's run history, so they go with
+ * the task -- except the ones moved to the session list, which are ordinary
+ * sessions by then and no longer carry the task's id.
+ */
+export async function deleteAgentTask(user: { id: string; role: UserRole }, agentId: string, taskId: string) {
   const task = readAgentTask(user, agentId, taskId);
+  const runSessions = db.select().from(sessions).where(eq(sessions.taskId, task.id)).all();
+  if (runSessions.some((session) => readActiveRunLeaseForSession(session.id))) {
+    throw new AgentTaskError("This task has a run in progress. Try again once it finishes.", 409);
+  }
   deleteTaskRows([task.id]);
+  for (const session of runSessions) {
+    await deletePiSession(session);
+    db.delete(sessions).where(eq(sessions.id, session.id)).run();
+  }
 }
 
-/** Called from agent deletion, which has already checked ownership. */
+/** Called from agent deletion, which has already checked ownership and deletes the agent's sessions itself. */
 export function deleteAgentTasksForAgent(agentId: string) {
   const ids = db.select({ id: agentTasks.id }).from(agentTasks).where(eq(agentTasks.agentId, agentId)).all();
   deleteTaskRows(ids.map((row) => row.id));
@@ -196,6 +210,7 @@ export function readDueTasks(at: number): TaskRecord[] {
     .all();
 }
 
+/** Log a firing that never ran: missed, skipped, or failed before it had a session. */
 export function recordTaskRun(input: {
   taskId: string;
   scheduledFor: number;
@@ -212,7 +227,38 @@ export function recordTaskRun(input: {
       finishedAt: now(),
       outcome: input.outcome,
       detail: input.detail ?? null,
+      sessionId: null,
     })
+    .run();
+}
+
+/**
+ * Log a run as it starts, linked to its session, so the run history can open a
+ * run that is still going. `finishTaskRun` records how it ended.
+ */
+export function startTaskRun(input: { taskId: string; scheduledFor: number; startedAt: number; sessionId: string }) {
+  const runId = id("agent_task_run");
+  db.insert(agentTaskRuns)
+    .values({ id: runId, ...input, finishedAt: null, outcome: "running", detail: null })
+    .run();
+  return runId;
+}
+
+export function finishTaskRun(runId: string, result: { outcome: AgentTaskOutcome; detail?: string }) {
+  db.update(agentTaskRuns)
+    .set({ finishedAt: now(), outcome: result.outcome, detail: result.detail ?? null })
+    .where(eq(agentTaskRuns.id, runId))
+    .run();
+}
+
+/**
+ * A run still marked running when the scheduler starts was cut off by the
+ * process stopping. Nothing will ever finish it, so say so.
+ */
+export function failInterruptedTaskRuns() {
+  db.update(agentTaskRuns)
+    .set({ finishedAt: now(), outcome: "failed", detail: "The server stopped before this run finished." })
+    .where(eq(agentTaskRuns.outcome, "running"))
     .run();
 }
 
@@ -231,10 +277,6 @@ export function updateTaskAfterRun(
     })
     .where(eq(agentTasks.id, taskId))
     .run();
-}
-
-export function attachTaskSession(taskId: string, sessionId: string) {
-  db.update(agentTasks).set({ sessionId, updatedAt: now() }).where(eq(agentTasks.id, taskId)).run();
 }
 
 export function scheduleOf(task: {
@@ -271,7 +313,6 @@ function serializeTask(row: TaskRecord): AgentTask {
     scheduleKind: row.scheduleKind,
     scheduleValue: row.scheduleValue,
     timezone: row.timezone ?? undefined,
-    sessionId: row.sessionId ?? undefined,
     status: row.status,
     nextRunAt: row.nextRunAt ?? undefined,
     lastRunAt: row.lastRunAt ?? undefined,
@@ -291,5 +332,6 @@ function serializeRun(row: typeof agentTaskRuns.$inferSelect): AgentTaskRun {
     finishedAt: row.finishedAt ?? undefined,
     outcome: row.outcome,
     detail: row.detail ?? undefined,
+    sessionId: row.sessionId ?? undefined,
   };
 }

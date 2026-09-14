@@ -4,6 +4,7 @@ import type {
   AgentMount,
   AgentPermissions,
   AgentTaskOutcome,
+  AgentTaskRunOutcome,
   AgentTaskStatus,
   AgentThinkingLevel,
   AgentWorkingDirMode,
@@ -174,8 +175,6 @@ export const agentTasks = sqliteTable("agent_tasks", {
   scheduleKind: text("schedule_kind").$type<TaskScheduleKind>().notNull(),
   scheduleValue: text("schedule_value").notNull(),
   timezone: text("timezone"),
-  /** The task's own session, created on first fire so every run appends to one thread. */
-  sessionId: text("session_id"),
   status: text("status").$type<AgentTaskStatus>().notNull().default("active"),
   nextRunAt: integer("next_run_at"),
   lastRunAt: integer("last_run_at"),
@@ -194,8 +193,10 @@ export const agentTaskRuns = sqliteTable("agent_task_runs", {
   scheduledFor: integer("scheduled_for").notNull(),
   startedAt: integer("started_at").notNull(),
   finishedAt: integer("finished_at"),
-  outcome: text("outcome").$type<AgentTaskOutcome>().notNull(),
+  outcome: text("outcome").$type<AgentTaskRunOutcome>().notNull(),
   detail: text("detail"),
+  /** The session this run prompted in. Null for firings that never ran. */
+  sessionId: text("session_id"),
 });
 
 export const sessions = sqliteTable("sessions", {
@@ -216,6 +217,12 @@ export const sessions = sqliteTable("sessions", {
   pinnedAt: integer("pinned_at"),
   /** Archived sessions leave the session list; they are restored or deleted from agent settings. */
   archivedAt: integer("archived_at"),
+  /**
+   * The task whose run created this session. Task-run sessions stay out of the
+   * session list and are reached from the task's run history, until moved to
+   * the list, which clears this.
+   */
+  taskId: text("task_id"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

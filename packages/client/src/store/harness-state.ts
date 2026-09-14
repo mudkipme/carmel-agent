@@ -38,6 +38,15 @@ export function toProviderConfigCommand(providerConfig: ProviderConfig): Provide
   };
 }
 
+/**
+ * Whether a session belongs in the session list. A task run's session can be in
+ * the store because it is open, but it is reached from the task's run history,
+ * so it never counts as one of the agent's listed sessions.
+ */
+export function isListedSession(session: SessionMetadata) {
+  return !session.taskId;
+}
+
 export function cacheSession(state: HarnessState, session: Session) {
   return {
     sessions: state.sessions.map((item) => (item.id === session.id ? toSessionMetadata(session) : item)),
@@ -83,7 +92,7 @@ export function resolveBootstrapState(
   const nextActiveSession =
     activeSession?.agentId === activeAgent?.id
       ? activeSession
-      : sessions.find((session) => session.agentId === activeAgent?.id);
+      : sessions.find((session) => session.agentId === activeAgent?.id && isListedSession(session));
   const sessionDetails = Object.fromEntries(
     sessions.flatMap((metadata) => {
       const detail = current.sessionDetails[metadata.id];

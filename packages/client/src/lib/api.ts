@@ -238,7 +238,9 @@ export const api = {
   deleteAgentTask: (agentId: string, taskId: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}/tasks/${taskId}`, { method: "DELETE" }),
   runAgentTaskNow: (agentId: string, taskId: string) =>
-    request<{ outcome: string; detail?: string }>(`/api/agents/${agentId}/tasks/${taskId}/run`, { method: "POST" }),
+    request<{ outcome: string; detail?: string; sessionId?: string }>(`/api/agents/${agentId}/tasks/${taskId}/run`, {
+      method: "POST",
+    }),
   listAgentTaskRuns: (agentId: string, taskId: string) =>
     request<AgentTaskRun[]>(`/api/agents/${agentId}/tasks/${taskId}/runs`),
   deleteAgent: (agentId: string) =>

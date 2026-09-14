@@ -80,6 +80,31 @@ test("users of a shared agent see only their own archived sessions", async () =>
   assert.deepEqual((await response.json() as SessionMetadata[]).map((session) => session.id), [guestSessionId]);
 });
 
+test("a task run's session joins the session list only once moved there", async () => {
+  const fixture = createSession();
+  db.update(sessions).set({ taskId: "agent_task_test" }).where(eq(sessions.id, fixture.sessionId)).run();
+  const listed = () => readBootstrapPayload(fixture.userId).sessions.some((session) => session.id === fixture.sessionId);
+  assert.equal(listed(), false);
+
+  const app = createTestApp(fixture.userId);
+  const move = await app.request(`/sessions/${fixture.sessionId}`, {
+    method: "PATCH",
+    headers: jsonHeaders,
+    body: JSON.stringify({ taskId: null }),
+  });
+  assert.equal(move.status, 200);
+  assert.equal((await move.json() as SessionMetadata).taskId, undefined);
+  assert.equal(listed(), true);
+
+  // The id can only be cleared: a session cannot be attached to a task from outside.
+  const attach = await app.request(`/sessions/${fixture.sessionId}`, {
+    method: "PATCH",
+    headers: jsonHeaders,
+    body: JSON.stringify({ taskId: "agent_task_test" }),
+  });
+  assert.equal(attach.status, 400);
+});
+
 function createTestApp(userId: string) {
   const user = db.select().from(users).where(eq(users.id, userId)).get();
   assert.ok(user);

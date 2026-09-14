@@ -34,9 +34,9 @@ const agentSettingsSections = [
 ] as const;
 type AgentSettingsSection = (typeof agentSettingsSections)[number]["id"];
 
-/* A shared agent's settings belong to its owner, but each user's archived
-   sessions are their own, so that is the one section everyone else gets. */
-const sharedAgentSettingsSections = agentSettingsSections.filter((item) => item.id === "archived");
+/* A shared agent's settings belong to its owner, but each user's tasks and
+   archived sessions are their own, so those are the sections everyone else gets. */
+const sharedAgentSettingsSections = agentSettingsSections.filter((item) => item.id === "tasks" || item.id === "archived");
 
 export function AgentSettingsPage() {
   const navigate = useNavigate();
@@ -52,8 +52,9 @@ export function AgentSettingsPage() {
   const deleteAgent = useHarnessStore((state) => state.deleteAgent);
   const owned = agent?.ownerUserId === activeUserId;
   const sections = owned ? agentSettingsSections : sharedAgentSettingsSections;
-  const defaultSection: AgentSettingsSection = owned ? "general" : "archived";
+  const defaultSection: AgentSettingsSection = owned ? "general" : "tasks";
   const activeSection = sections.some((item) => item.id === section) ? (section as AgentSettingsSection) : defaultSection;
+  const callerSection = activeSection === "tasks" || activeSection === "archived";
   const [draft, setDraft] = useState<AgentConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -196,12 +197,13 @@ export function AgentSettingsPage() {
               data-settings-content
               className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-4 p-3 pb-[calc(0.75rem+var(--safe-bottom))] sm:p-4 sm:pb-[calc(1rem+var(--safe-bottom))] md:p-6 md:pb-[calc(1.5rem+var(--safe-bottom))]"
             >
-              {/* Archived sessions are the caller's own, not part of the owner-only draft. */}
+              {/* Tasks and archived sessions are the caller's own, not part of the owner-only draft. */}
+              {activeSection === "tasks" ? <AgentTasksPanel agentId={agent.id} /> : null}
               {activeSection === "archived" ? <AgentArchivedSessionsSettings agentId={agent.id} /> : null}
-              {owned && activeSection !== "archived" && loadError ? (
+              {owned && !callerSection && loadError ? (
                 <p className="text-sm text-destructive">{loadError}</p>
               ) : null}
-              {owned && activeSection !== "archived" && !draft && !loadError ? (
+              {owned && !callerSection && !draft && !loadError ? (
                 <p className="text-sm text-muted-foreground">Loading agent settings...</p>
               ) : null}
               {draft ? (
@@ -234,14 +236,13 @@ export function AgentSettingsPage() {
                   {activeSection === "secrets" ? (
                     <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
                   ) : null}
-                  {activeSection === "tasks" ? <AgentTasksPanel agentId={agent.id} /> : null}
                 </>
               ) : null}
             </div>
           </div>
           {/* Tasks, secrets, and archived sessions are their own resources and save
               themselves, so the draft's save bar would only be a misleading no-op there. */}
-          {draft && activeSection !== "tasks" && activeSection !== "secrets" && activeSection !== "archived" ? (
+          {draft && !callerSection && activeSection !== "secrets" ? (
             <footer className="flex shrink-0 items-center justify-end gap-3 border-t px-3 py-2 pb-[calc(0.5rem+var(--safe-bottom))]">
               {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
               {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}

@@ -196,6 +196,7 @@ export function createSessionRoutes() {
       forkedFrom: current.forkedFrom,
       pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
       archivedAt: patch.archivedAt === null ? null : (patch.archivedAt ?? current.archivedAt ?? null),
+      taskId: patch.taskId === null ? null : current.taskId,
       updatedAt: titleChanged ? now() : current.updatedAt,
     }));
   });
@@ -223,6 +224,9 @@ export function createSessionRoutes() {
       forkedFrom: { sessionId, entryId: body.entryId },
       pinnedAt: undefined,
       archivedAt: undefined,
+      // A fork is something you chose to continue, so it joins the session
+      // list even when it comes from a task run.
+      taskId: undefined,
       revision: 0,
       createdAt: timestamp,
       updatedAt: timestamp,

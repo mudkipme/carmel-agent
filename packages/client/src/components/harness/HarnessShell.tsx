@@ -20,6 +20,7 @@ const TerminalPanel = lazy(() =>
 import { HarnessSidebar } from "@/components/harness/shell/HarnessSidebar";
 import { HarnessHeader } from "@/components/harness/shell/HarnessHeader";
 import { ImportSessionsDialog } from "@/components/harness/shell/ImportSessionsDialog";
+import { TaskRunBanner } from "@/components/harness/shell/TaskRunBanner";
 import {
   clampSidebarWidth,
   DESKTOP_SIDEBAR_QUERY,
@@ -31,6 +32,7 @@ import {
   type ContentView,
 } from "@/components/harness/shell/sidebar-utils";
 import { cn } from "@/lib/utils";
+import { isListedSession } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";
 
 /** Workspace-relative path as URL segments: names carry spaces, #, and ?. */
@@ -45,10 +47,12 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const store = useHarnessStore();
   const setActiveAgent = store.setActiveAgent;
   const setActiveSession = store.setActiveSession;
+  const loadUnlistedSession = store.loadUnlistedSession;
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [routeSessionLookup, setRouteSessionLookup] = useState<{ sessionId: string; done: boolean }>();
   const activeUser = store.users.find((user) => user.id === store.activeUserId);
   const selectedSession = store.sessions.find(
     (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
@@ -77,13 +81,21 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     activeAgent && activeAgent.ownerUserId === store.activeUserId && activeAgent.permissions.bash,
   );
   const visibleSessions = store.sessions
-    .filter((session) => session.userId === store.activeUserId && session.agentId === activeAgent?.id)
+    .filter(
+      (session) =>
+        session.userId === store.activeUserId && session.agentId === activeAgent?.id && isListedSession(session),
+    )
     .slice()
     .sort(sortSessions);
   const routeAgent = routeAgentId ? visibleAgents.find((agent) => agent.id === routeAgentId) : undefined;
   const routeSession = routeSessionId
     ? store.sessions.find((session) => session.id === routeSessionId && session.userId === store.activeUserId)
     : undefined;
+  /* A task run's session is not in bootstrap, so a link to one -- or a reload
+     while it is open -- has to fetch it before the route can be judged stale. */
+  const lookingUpRouteSession = Boolean(
+    routeSessionId && !routeSession && !(routeSessionLookup?.sessionId === routeSessionId && routeSessionLookup.done),
+  );
   const chatPath = activeSessionMetadata
     ? `/agents/${activeSessionMetadata.agentId}/sessions/${activeSessionMetadata.id}`
     : activeAgent
@@ -103,6 +115,15 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   }, [routeAgent, routeSession, routeSessionId, setActiveAgent, setActiveSession, store.activeAgentId, store.activeSessionId]);
 
   useEffect(() => {
+    if (!routeSessionId || routeSession || routeSessionLookup?.sessionId === routeSessionId) return;
+    setRouteSessionLookup({ sessionId: routeSessionId, done: false });
+    void loadUnlistedSession(routeSessionId)
+      .catch(() => undefined)
+      .finally(() => setRouteSessionLookup({ sessionId: routeSessionId, done: true }));
+  }, [loadUnlistedSession, routeSession, routeSessionId, routeSessionLookup?.sessionId]);
+
+  useEffect(() => {
+    if (lookingUpRouteSession) return;
     if (routeSessionId && routeSession && store.activeSessionId !== routeSession.id) return;
     if (routeAgentId && routeAgent && !routeSessionId && store.activeAgentId !== routeAgent.id) return;
 
@@ -123,6 +144,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     canOpenTerminal,
     chatPath,
     location.pathname,
+    lookingUpRouteSession,
     navigate,
     routeAgent,
     routeAgentId,
@@ -230,6 +252,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
           onContentViewChange={showContentView}
           onOpenSettings={() => navigate("/settings/models")}
         />
+        {view === "chat" && activeSessionMetadata?.taskId ? <TaskRunBanner session={activeSessionMetadata} /> : null}
         <div className="min-h-0 flex-1">
           {view === "terminal" && canOpenTerminal && activeAgent ? (
             <Suspense

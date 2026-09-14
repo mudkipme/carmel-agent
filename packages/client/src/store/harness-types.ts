@@ -60,6 +60,9 @@ export type HarnessState = {
   deleteSession: (sessionId: string) => Promise<void>;
   archiveSession: (sessionId: string) => Promise<void>;
   restoreSession: (sessionId: string) => Promise<void>;
+  /** Bring a session that is not in the session list -- a task run's -- into the store so it can be opened. */
+  loadUnlistedSession: (sessionId: string) => Promise<void>;
+  moveSessionToList: (sessionId: string) => Promise<void>;
   addPromptTemplate: (agentId: string, template: Omit<PromptTemplate, "id">) => Promise<void>;
   deletePromptTemplate: (agentId: string, templateId: string) => Promise<void>;
 };

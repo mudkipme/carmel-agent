@@ -1,18 +1,19 @@
 import { eq } from "drizzle-orm";
 import { toSessionRow, type AgentTaskOutcome, type Session } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { agents, modelRefs, sessions } from "../db/schema.ts";
+import { agents, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { errorMessage } from "../errors.ts";
 import { computeNextRun, planTaskFiring } from "../effectors/task-schedule.ts";
 import {
-  attachTaskSession,
+  failInterruptedTaskRuns,
+  finishTaskRun,
   readDueTasks,
   recordTaskRun,
   scheduleOf,
+  startTaskRun,
   updateTaskAfterRun,
 } from "../services/agent-tasks.ts";
-import { readActiveRunLeaseForSession } from "../services/active-run-lease.ts";
 import { resolveSupportedThinkingLevel } from "../services/agent-access.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 
@@ -43,6 +44,7 @@ const running = new Set<string>();
 
 export function startTaskScheduler() {
   if (timer) return;
+  failInterruptedTaskRuns();
   timer = setInterval(() => void tick(), POLL_INTERVAL_MS);
   timer.unref?.();
 }
@@ -53,7 +55,7 @@ export function stopTaskScheduler() {
   timer = undefined;
 }
 
-/** Exported for tests and for the "run now" route, which fires one task by hand. */
+/** Exported for tests. */
 export async function tick(at = now()) {
   // Ticks do not overlap. A slow tick would otherwise start a second copy of
   // every task it had not yet reached.
@@ -116,25 +118,22 @@ export async function tick(at = now()) {
  * Fire one task immediately, outside the schedule.
  *
  * Does not disturb `nextRunAt`: trying a task by hand should not move when it
- * next runs on its own.
+ * next runs on its own. Answers once the run has started rather than when it
+ * ends, so the caller can open the run's session and watch it.
  */
-export async function runTaskNow(task: TaskRecord) {
-  if (running.has(task.id)) return { outcome: "skipped" as const, detail: "This task is already running." };
+export async function runTaskNow(task: TaskRecord): Promise<TaskResult | { outcome: "running"; sessionId: string }> {
+  if (running.has(task.id)) return { outcome: "skipped", detail: "This task is already running." };
   running.add(task.id);
-  const startedAt = now();
-  try {
-    const result = await executeTask(task);
-    recordTaskRun({ taskId: task.id, scheduledFor: startedAt, startedAt, outcome: result.outcome, detail: result.detail });
-    return result;
-  } finally {
+  const firing = await startTask(task, now()).catch((error: unknown) => {
     running.delete(task.id);
-  }
+    throw error;
+  });
+  void firing.finished.finally(() => running.delete(task.id));
+  return firing.sessionId ? { outcome: "running", sessionId: firing.sessionId } : firing.finished;
 }
 
 async function fireTask(task: TaskRecord, scheduledFor: number) {
-  const startedAt = now();
-  const { outcome, detail } = await executeTask(task);
-  recordTaskRun({ taskId: task.id, scheduledFor, startedAt, outcome, detail });
+  const { outcome, detail } = await (await startTask(task, scheduledFor)).finished;
   // Re-arm from the later of the occurrence and the completion. From the
   // occurrence alone, a run that outlasts its own interval would come back due
   // the instant it finished; from the clock alone, a one-shot whose instant is
@@ -148,81 +147,86 @@ async function fireTask(task: TaskRecord, scheduledFor: number) {
   });
 }
 
-async function executeTask(task: TaskRecord): Promise<{ outcome: AgentTaskOutcome; detail?: string }> {
-  try {
-    const prepared = await prepareTaskRun(task);
-    if ("error" in prepared) {
-      return { outcome: prepared.skipped ? "skipped" : "failed", detail: prepared.error };
-    }
-    // The run reports its own failures into the session transcript, so reaching
-    // the end is the outcome this layer can honestly claim.
-    await whenRunFinished(startDetachedAgentRun(prepared.input));
-    return { outcome: "succeeded" };
-  } catch (error) {
-    return { outcome: "failed", detail: errorMessage(error) };
+type TaskResult = { outcome: AgentTaskOutcome; detail?: string };
+
+/**
+ * Start one run of a task in a session of its own.
+ *
+ * Resolves as soon as the run is under way, or known not to run at all;
+ * `finished` settles with the outcome once the run log has recorded it.
+ */
+async function startTask(
+  task: TaskRecord,
+  scheduledFor: number,
+): Promise<{ sessionId?: string; finished: Promise<TaskResult> }> {
+  const startedAt = now();
+  const prepared = await prepareTaskRun(task).catch((error: unknown) => ({ error: errorMessage(error) }));
+  if ("error" in prepared) {
+    const result: TaskResult = { outcome: "failed", detail: prepared.error };
+    recordTaskRun({ taskId: task.id, scheduledFor, startedAt, ...result });
+    return { finished: Promise.resolve(result) };
   }
+
+  const sessionId = prepared.input.session.id;
+  const runId = startTaskRun({ taskId: task.id, scheduledFor, startedAt, sessionId });
+  const finished = (async (): Promise<TaskResult> => {
+    try {
+      // The run reports its own failures into the session transcript, so
+      // reaching the end is the outcome this layer can honestly claim.
+      await whenRunFinished(startDetachedAgentRun(prepared.input));
+      return { outcome: "succeeded" };
+    } catch (error) {
+      return { outcome: "failed", detail: errorMessage(error) };
+    }
+  })().then((result) => {
+    finishTaskRun(runId, result);
+    return result;
+  });
+  return { sessionId, finished };
 }
 
-type PreparedTaskRun =
-  | { input: Parameters<typeof startDetachedAgentRun>[0] }
-  | { error: string; skipped?: boolean };
-
-async function prepareTaskRun(task: TaskRecord): Promise<PreparedTaskRun> {
+async function prepareTaskRun(task: TaskRecord): Promise<{ input: Parameters<typeof startDetachedAgentRun>[0] } | { error: string }> {
   const agent = db.select().from(agents).where(eq(agents.id, task.agentId)).get();
   if (!agent) return { error: "The agent this task belongs to no longer exists." };
 
-  const session = await ensureTaskSession(task, agent);
-  if ("error" in session) return session;
-
-  // A firing must never overlap its own previous one. The session is the
-  // task's alone, so an active run on it is either the last firing still going
-  // or a person reading it in the UI and prompting -- both mean wait.
-  if (readActiveRunLeaseForSession(session.record.id)) {
-    return { error: "The previous run of this task was still going.", skipped: true };
-  }
-
-  const modelRefId = task.modelRefId ?? session.record.modelRefId;
-  const context = await resolveModelContext(task.userId, modelRefId);
+  // Resolved before the session exists: a task that cannot run must not leave
+  // an empty session behind every time it fires.
+  const context = await resolveModelContext(task.userId, task.modelRefId ?? agent.defaultModelRefId);
   if (!context.ok) {
     return { error: "The model this task uses is no longer available to its owner." };
   }
+  const { modelRef } = context.value;
+  const thinkingLevel = resolveSupportedThinkingLevel(modelRef, task.thinkingLevel ?? agent.defaultThinkingLevel ?? "off");
+
+  const session = await createRunSession(task, modelRef.id, thinkingLevel);
+  if (!session) return { error: "Could not create a session for this run." };
 
   return {
     input: {
       agent,
-      session: session.record,
-      modelRef: context.value.modelRef,
+      session,
+      modelRef,
       providerConfig: context.value.providerConfig,
       modelRuntime: context.value.modelRuntime,
-      thinkingLevel: task.thinkingLevel ?? session.record.thinkingLevel,
+      thinkingLevel,
       promptInput: { text: task.prompt },
     },
   };
 }
 
 /**
- * The task's own session, created on the first firing.
+ * Every run gets a fresh session.
  *
- * Created lazily so a task that is paused before it ever runs leaves nothing
- * behind, and reused every firing after that: one thread per task means a
- * stable prompt prefix, which is the difference between a daily task hitting
- * the provider cache and paying full price every night.
+ * One thread per task used to be the rule, for the prompt cache -- but the
+ * cache lives an hour at most, so a daily task started cold anyway while paying
+ * for an ever-longer context. The system prompt and tools are identical across
+ * runs, so what can be cached still is. A fresh session also keeps one bad run
+ * from steering the next, and makes each result readable on its own.
+ *
+ * The session carries the task's id, which keeps it out of the session list;
+ * the run log links to it.
  */
-async function ensureTaskSession(
-  task: TaskRecord,
-  agent: typeof agents.$inferSelect,
-): Promise<{ record: Awaited<ReturnType<typeof loadSession>> & object } | { error: string }> {
-  if (task.sessionId) {
-    const existing = await loadSession(task.sessionId);
-    if (existing) return { record: existing };
-    // Deleted from the UI. Making a new one is friendlier than disabling the
-    // task, and the run log keeps the history the session lost.
-  }
-
-  const modelRefId = task.modelRefId ?? agent.defaultModelRefId;
-  const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, modelRefId)).get();
-  if (!modelRef) return { error: "The model this task uses no longer exists." };
-
+async function createRunSession(task: TaskRecord, modelRefId: string, thinkingLevel: Session["thinkingLevel"]) {
   const timestamp = now();
   const session: Session = {
     id: id("session"),
@@ -230,19 +234,16 @@ async function ensureTaskSession(
     userId: task.userId,
     agentId: task.agentId,
     modelRefId,
-    thinkingLevel: resolveSupportedThinkingLevel(modelRef, task.thinkingLevel ?? agent.defaultThinkingLevel ?? "off"),
+    thinkingLevel,
     revision: 0,
     messages: [],
     messageEntryIds: [],
-    pinnedAt: undefined,
+    taskId: task.id,
     createdAt: timestamp,
     updatedAt: timestamp,
   };
   db.insert(sessions).values(toSessionRow(session)).run();
-  attachTaskSession(task.id, session.id);
-
-  const created = await loadSession(session.id);
-  return created ? { record: created } : { error: "Could not create the task's session." };
+  return loadSession(session.id);
 }
 
 function maxConcurrent() {

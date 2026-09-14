@@ -1,7 +1,7 @@
 import type { StoreApi } from "zustand";
 import { ApiError, api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
-import { canUserSeeAgent, resetState, resolveBootstrapState, upsertById } from "@/store/harness-state";
+import { canUserSeeAgent, isListedSession, resetState, resolveBootstrapState, upsertById } from "@/store/harness-state";
 import type { HarnessState } from "@/store/harness-types";
 
 type SetState = StoreApi<HarnessState>["setState"];
@@ -51,7 +51,7 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
     },
     setActiveUser: (userId) => {
       const state = get();
-      const session = state.sessions.find((item) => item.userId === userId);
+      const session = state.sessions.find((item) => item.userId === userId && isListedSession(item));
       const agent = state.agents.find((item) => item.id === session?.agentId && canUserSeeAgent(item, userId))
         ?? state.agents.find((item) => item.ownerUserId === userId || item.shared);
       set({ activeUserId: userId, activeAgentId: agent?.id ?? "", activeSessionId: session?.agentId === agent?.id ? (session?.id ?? "") : "" });
@@ -60,7 +60,9 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
       const state = get();
       const agent = state.agents.find((item) => item.id === agentId && canUserSeeAgent(item, state.activeUserId));
       if (!agent) return;
-      const session = state.sessions.find((item) => item.agentId === agentId && item.userId === state.activeUserId);
+      const session = state.sessions.find(
+        (item) => item.agentId === agentId && item.userId === state.activeUserId && isListedSession(item),
+      );
       set({ activeAgentId: agentId, activeSessionId: session?.id ?? "" });
     },
     setActiveSession: (sessionId) => {

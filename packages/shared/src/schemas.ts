@@ -200,6 +200,8 @@ export const sessionPatchRequestSchema = z.object({
   thinkingLevel: thinkingLevelSchema.optional(),
   pinnedAt: z.number().finite().nullable().optional(),
   archivedAt: z.number().finite().nullable().optional(),
+  /** Only ever cleared: moves a task run's session into the session list. */
+  taskId: z.null().optional(),
 }).strict();
 export const forkSessionRequestSchema = z.object({ entryId: z.string().min(1) }).strict();
 export const sessionTruncateRequestSchema = z.object({

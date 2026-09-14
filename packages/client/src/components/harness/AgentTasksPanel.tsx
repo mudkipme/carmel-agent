@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { PlayIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import type { AgentTask, AgentTaskCreateCommand } from "@carmel-agent/shared";
+import { HistoryIcon, MessageSquareIcon, PlayIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import type { AgentTask, AgentTaskCreateCommand, AgentTaskRun } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionHeader } from "@/components/harness/form-primitives";
+import { confirmAction } from "@/lib/action-dialogs";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
+import { useHarnessStore } from "@/store/harness-store";
 
 /**
  * Scheduled tasks for one agent.
@@ -23,6 +26,9 @@ export function AgentTasksPanel({ agentId }: { agentId: string }) {
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<AgentTaskCreateCommand | undefined>();
+  const [historyTaskId, setHistoryTaskId] = useState<string>();
+  /* Bumped after "run now", so an open history picks up the run it started. */
+  const [historyRevision, setHistoryRevision] = useState(0);
 
   const reload = useCallback(async () => {
     try {
@@ -54,7 +60,7 @@ export function AgentTasksPanel({ agentId }: { agentId: string }) {
     <section className="grid gap-4">
       <SectionHeader
         title="Scheduled tasks"
-        description="Each task prompts this agent on a schedule, in its own session, whether or not you have carmel open."
+        description="Each task prompts this agent on a schedule, whether or not you have carmel open. Every run gets a session of its own, opened from the task's run history."
       />
 
       {tasks === undefined ? (
@@ -76,9 +82,25 @@ export function AgentTasksPanel({ agentId }: { agentId: string }) {
                     size="sm"
                     disabled={busy}
                     title="Run now"
-                    onClick={() => void act(() => api.runAgentTaskNow(agentId, task.id), "Unable to run task")}
+                    onClick={() =>
+                      void act(async () => {
+                        const result = await api.runAgentTaskNow(agentId, task.id);
+                        if (result.outcome !== "running") throw new Error(result.detail ?? "The task did not run.");
+                        setHistoryTaskId(task.id);
+                        setHistoryRevision((revision) => revision + 1);
+                      }, "Unable to run task")
+                    }
                   >
                     <PlayIcon data-icon="inline-start" />
+                  </Button>
+                  <Button
+                    variant={historyTaskId === task.id ? "secondary" : "ghost"}
+                    size="sm"
+                    title="Run history"
+                    aria-expanded={historyTaskId === task.id}
+                    onClick={() => setHistoryTaskId((current) => (current === task.id ? undefined : task.id))}
+                  >
+                    <HistoryIcon data-icon="inline-start" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -100,13 +122,26 @@ export function AgentTasksPanel({ agentId }: { agentId: string }) {
                     variant="ghost"
                     size="sm"
                     disabled={busy}
-                    onClick={() => void act(() => api.deleteAgentTask(agentId, task.id), "Unable to delete task")}
+                    title="Delete task"
+                    onClick={() =>
+                      void confirmAction({
+                        title: `Delete “${task.name}”?`,
+                        description:
+                          "The task and the sessions of its runs will be permanently deleted. Runs you moved to your session list are kept.",
+                        actionLabel: "Delete task",
+                      }).then((confirmed) => {
+                        if (confirmed) void act(() => api.deleteAgentTask(agentId, task.id), "Unable to delete task");
+                      })
+                    }
                   >
                     <Trash2Icon data-icon="inline-start" />
                   </Button>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">{describeState(task)}</p>
+              {historyTaskId === task.id ? (
+                <TaskRunHistory agentId={agentId} task={task} revision={historyRevision} onRunFinished={reload} />
+              ) : null}
             </li>
           ))}
         </ul>
@@ -192,6 +227,102 @@ export function AgentTasksPanel({ agentId }: { agentId: string }) {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </section>
   );
+}
+
+const RUN_POLL_INTERVAL_MS = 3_000;
+
+/**
+ * The runs of one task, newest first, each linking to the session it ran in.
+ *
+ * Polls only while a run is still going, so a run started here can be watched
+ * through to its outcome without reopening the list.
+ */
+function TaskRunHistory({
+  agentId,
+  task,
+  revision,
+  onRunFinished,
+}: {
+  agentId: string;
+  task: AgentTask;
+  revision: number;
+  onRunFinished: () => unknown;
+}) {
+  const navigate = useNavigate();
+  /* Admins can list other people's tasks, but a run's session is private to the
+     task's owner, so only they get a link into it. */
+  const canOpenSessions = useHarnessStore((state) => state.activeUserId === task.userId);
+  const [runs, setRuns] = useState<AgentTaskRun[]>();
+  const [error, setError] = useState<string>();
+
+  const load = useCallback(async () => {
+    try {
+      setRuns(await api.listAgentTaskRuns(agentId, task.id));
+      setError(undefined);
+    } catch (loadError) {
+      setError(errorMessage(loadError, "Unable to load run history"));
+    }
+  }, [agentId, task.id]);
+
+  useEffect(() => {
+    void load();
+  }, [load, revision]);
+
+  const running = runs?.some((run) => run.outcome === "running") ?? false;
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => void load(), RUN_POLL_INTERVAL_MS);
+    return () => {
+      window.clearInterval(timer);
+      onRunFinished();
+    };
+  }, [load, onRunFinished, running]);
+
+  return (
+    <div className="mt-2 grid gap-1 border-t pt-2">
+      <p className="text-xs font-medium text-muted-foreground">Run history</p>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {runs === undefined ? (
+        error ? null : <p className="text-xs text-muted-foreground">Loading…</p>
+      ) : runs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No runs yet.</p>
+      ) : (
+        <ul className="grid gap-0.5">
+          {runs.map((run) => (
+            <li key={run.id} className="flex min-h-8 items-center justify-between gap-2 text-xs">
+              <div className="min-w-0">
+                <span>{formatTime(run.startedAt)}</span>
+                <span className={run.outcome === "failed" ? "text-destructive" : "text-muted-foreground"}>
+                  {" "}
+                  · {describeRunOutcome(run.outcome)}
+                </span>
+                {run.detail ? <p className="truncate text-muted-foreground">{run.detail}</p> : null}
+              </div>
+              {run.sessionId && canOpenSessions ? (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="shrink-0"
+                  onClick={() => navigate(`/agents/${agentId}/sessions/${run.sessionId}`)}
+                >
+                  <MessageSquareIcon data-icon="inline-start" />
+                  Open
+                </Button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function describeRunOutcome(outcome: AgentTaskRun["outcome"]) {
+  if (outcome === "running") return "Running…";
+  if (outcome === "succeeded") return "Finished";
+  if (outcome === "failed") return "Failed";
+  if (outcome === "missed") return "Missed";
+  return "Skipped";
 }
 
 function emptyDraft(): AgentTaskCreateCommand {

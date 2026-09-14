@@ -18,6 +18,8 @@ export type SessionMetadata = {
   forkedFrom?: SessionFork;
   pinnedAt?: number;
   archivedAt?: number;
+  /** Set on a task run's session, which stays out of the session list. */
+  taskId?: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -36,10 +38,11 @@ export type SessionImportResult = {
  * Anything the metadata projection can be built from: a `Session`, another
  * `SessionMetadata`, or a database row (which stores the optional columns as null).
  */
-export type SessionMetadataSource = Omit<SessionMetadata, "forkedFrom" | "pinnedAt" | "archivedAt"> & {
+export type SessionMetadataSource = Omit<SessionMetadata, "forkedFrom" | "pinnedAt" | "archivedAt" | "taskId"> & {
   forkedFrom?: SessionFork | null;
   pinnedAt?: number | null;
   archivedAt?: number | null;
+  taskId?: string | null;
 };
 
 /**
@@ -58,6 +61,7 @@ export function toSessionMetadata(session: SessionMetadataSource): SessionMetada
     forkedFrom: session.forkedFrom ?? undefined,
     pinnedAt: session.pinnedAt ?? undefined,
     archivedAt: session.archivedAt ?? undefined,
+    taskId: session.taskId ?? undefined,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
   };
@@ -70,5 +74,6 @@ export function toSessionRow(session: SessionMetadataSource) {
     forkedFrom: session.forkedFrom ?? null,
     pinnedAt: session.pinnedAt ?? null,
     archivedAt: session.archivedAt ?? null,
+    taskId: session.taskId ?? null,
   };
 }

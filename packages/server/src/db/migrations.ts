@@ -77,6 +77,11 @@ const migrations: Migration[] = [
     run: createAgentSecrets,
   },
   { id: "020_session_archive", description: "Add session archive metadata", run: addSessionArchive },
+  {
+    id: "021_task_run_sessions",
+    description: "Give every task run its own session, linked from the run log",
+    run: addTaskRunSessions,
+  },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -221,6 +226,15 @@ function addSessionPins(sqlite: Sqlite) {
 
 function addSessionArchive(sqlite: Sqlite) {
   addColumnIfMissing(sqlite, "sessions", "archived_at", "INTEGER");
+}
+
+// Tasks used to append every run to one session. Those sessions stay where they
+// are, as ordinary sessions in the list; only runs from here on get their own.
+function addTaskRunSessions(sqlite: Sqlite) {
+  addColumnIfMissing(sqlite, "sessions", "task_id", "TEXT");
+  addColumnIfMissing(sqlite, "agent_task_runs", "session_id", "TEXT");
+  dropColumnIfExists(sqlite, "agent_tasks", "session_id");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS sessions_task ON sessions (task_id)");
 }
 
 function addSessionRevisions(sqlite: Sqlite) {

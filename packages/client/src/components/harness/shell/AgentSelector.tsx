@@ -13,6 +13,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { isListedSession } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig, ModelRef, SessionMetadata } from "@carmel-agent/shared";
 import { AgentAvatar } from "./AgentAvatar";
@@ -87,9 +88,9 @@ export function AgentSelector({
   };
 
   const owned = activeAgent?.ownerUserId === activeUserId;
-  /* Anyone using an agent can reach its settings, but a shared agent's only
-     section for non-owners is their own archived sessions. */
-  const settingsSection = owned ? "general" : "archived";
+  /* Anyone using an agent can reach its settings, but on a shared agent a
+     non-owner only has their own tasks and archived sessions there. */
+  const settingsSection = owned ? "general" : "tasks";
 
   return (
     <section className="flex items-center gap-1">
@@ -189,7 +190,7 @@ export function AgentSelector({
 function buildEntries(agents: AgentConfig[], sessions: SessionMetadata[], activeUserId: string): AgentEntry[] {
   const counts = new Map<string, { sessionCount: number; lastActiveAt: number }>();
   for (const session of sessions) {
-    if (session.userId !== activeUserId) continue;
+    if (session.userId !== activeUserId || !isListedSession(session)) continue;
     const entry = counts.get(session.agentId) ?? { sessionCount: 0, lastActiveAt: 0 };
     entry.sessionCount += 1;
     entry.lastActiveAt = Math.max(entry.lastActiveAt, session.updatedAt);
