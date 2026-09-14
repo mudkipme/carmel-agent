@@ -276,6 +276,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ entryId }),
     }),
+  listArchivedSessions: (agentId: string) =>
+    request<SessionMetadata[]>(`/api/agents/${agentId}/archived-sessions`),
   deleteSession: (sessionId: string) =>
     request<{ ok: true }>(`/api/sessions/${sessionId}`, { method: "DELETE" }),
 };

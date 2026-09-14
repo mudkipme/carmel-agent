@@ -214,6 +214,8 @@ export const sessions = sqliteTable("sessions", {
   revision: integer("revision").notNull().default(0),
   forkedFrom: text("forked_from", { mode: "json" }).$type<Session["forkedFrom"]>(),
   pinnedAt: integer("pinned_at"),
+  /** Archived sessions leave the session list; they are restored or deleted from agent settings. */
+  archivedAt: integer("archived_at"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

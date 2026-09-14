@@ -7,7 +7,7 @@ import {
   updateUserMessageContent,
 } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -15,7 +15,7 @@ import { db } from "../db/index.ts";
 import { modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { importOpenWebuiSessions } from "../import/open-webui.ts";
-import { serializeSession } from "../serializers.ts";
+import { serializeSession, serializeSessionMetadata } from "../serializers.ts";
 import { canUseModel, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
 import { readActiveRunLeaseForSession } from "../services/active-run-lease.ts";
 import { deletePiSession, forkPiSession } from "../services/pi-session-storage.ts";
@@ -43,6 +43,19 @@ import {
 export function createSessionRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
 
+  // Archived sessions are left out of bootstrap, so agent settings reads them here.
+  route.get("/agents/:agentId/archived-sessions", (c) => {
+    const currentUserId = c.get("user").id;
+    const agent = readVisibleAgent(currentUserId, c.req.param("agentId"));
+    if (!agent) return c.json({ error: "Agent not found." }, 404);
+    const archived = db
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.userId, currentUserId), eq(sessions.agentId, agent.id), isNotNull(sessions.archivedAt)))
+      .orderBy(desc(sessions.archivedAt))
+      .all();
+    return c.json(archived.map(serializeSessionMetadata));
+  });
 
   route.get("/sessions/:id/images/:messageIndex/:imageIndex", async (c) => {
     const session = ownedSessionRecord(c);
@@ -172,7 +185,7 @@ export function createSessionRoutes() {
       const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, patch.modelRefId ?? current.modelRefId)).get();
       if (modelRef) thinkingLevel = resolveSupportedThinkingLevel(modelRef, thinkingLevel);
     }
-    // Switching model, thinking level, or pin state are preferences and must not
+    // Switching model, thinking level, pin, or archive state are preferences and must not
     // affect the session's update time or its sort order. Only a rename counts as
     // a meaningful edit here; conversation activity touches updatedAt elsewhere.
     const titleChanged = patch.title !== undefined && patch.title !== current.title;
@@ -182,6 +195,7 @@ export function createSessionRoutes() {
       thinkingLevel,
       forkedFrom: current.forkedFrom,
       pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
+      archivedAt: patch.archivedAt === null ? null : (patch.archivedAt ?? current.archivedAt ?? null),
       updatedAt: titleChanged ? now() : current.updatedAt,
     }));
   });
@@ -208,6 +222,7 @@ export function createSessionRoutes() {
       messageEntryIds: source.messageEntryIds.slice(0, messageIndex + 1),
       forkedFrom: { sessionId, entryId: body.entryId },
       pinnedAt: undefined,
+      archivedAt: undefined,
       revision: 0,
       createdAt: timestamp,
       updatedAt: timestamp,

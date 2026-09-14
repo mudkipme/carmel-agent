@@ -199,6 +199,7 @@ export const sessionPatchRequestSchema = z.object({
   modelRefId: z.string().optional(),
   thinkingLevel: thinkingLevelSchema.optional(),
   pinnedAt: z.number().finite().nullable().optional(),
+  archivedAt: z.number().finite().nullable().optional(),
 }).strict();
 export const forkSessionRequestSchema = z.object({ entryId: z.string().min(1) }).strict();
 export const sessionTruncateRequestSchema = z.object({

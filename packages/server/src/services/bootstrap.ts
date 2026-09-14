@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { sessions, users } from "../db/schema.ts";
 import {
@@ -23,12 +23,13 @@ export function readBootstrapPayload(userId: string) {
 }
 
 // Session rows only: bootstrap never needs a transcript, so it must not open a
-// Pi session per row to read one.
+// Pi session per row to read one. Archived sessions stay out of the session list;
+// agent settings lists them separately.
 function readSessionMetadataForUser(userId: string) {
   return db
     .select()
     .from(sessions)
-    .where(eq(sessions.userId, userId))
+    .where(and(eq(sessions.userId, userId), isNull(sessions.archivedAt)))
     .all()
     .sort(sortSessions)
     .map(serializeSessionMetadata);

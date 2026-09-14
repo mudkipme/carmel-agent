@@ -76,6 +76,7 @@ const migrations: Migration[] = [
     description: "Create per-agent sandbox environment secrets",
     run: createAgentSecrets,
   },
+  { id: "020_session_archive", description: "Add session archive metadata", run: addSessionArchive },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -216,6 +217,10 @@ function applyCurrentSchemaCompatibility(sqlite: Sqlite) {
 
 function addSessionPins(sqlite: Sqlite) {
   addColumnIfMissing(sqlite, "sessions", "pinned_at", "INTEGER");
+}
+
+function addSessionArchive(sqlite: Sqlite) {
+  addColumnIfMissing(sqlite, "sessions", "archived_at", "INTEGER");
 }
 
 function addSessionRevisions(sqlite: Sqlite) {

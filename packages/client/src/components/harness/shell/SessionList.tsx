@@ -1,6 +1,7 @@
-import { EllipsisIcon, PencilIcon, Pin, PinOff, Trash2Icon } from "lucide-react";
+import { ArchiveIcon, EllipsisIcon, PencilIcon, Pin, PinOff, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,10 +20,13 @@ import type { SessionMetadata } from "@carmel-agent/shared";
 export function SessionList({
   sessions,
   activeSessionId,
+  canArchive,
   onOpenSession,
 }: {
   sessions: SessionMetadata[];
   activeSessionId?: string;
+  /** Archived sessions are recovered from agent settings, which only the agent's owner can open. */
+  canArchive: boolean;
   onOpenSession: () => void;
 }) {
   const navigate = useNavigate();
@@ -51,6 +55,7 @@ export function SessionList({
           </button>
           <SessionActions
             session={session}
+            canArchive={canArchive}
             open={openSessionMenuId === session.id}
             onOpenChange={(open) => setOpenSessionMenuId(open ? session.id : null)}
           />
@@ -62,15 +67,18 @@ export function SessionList({
 
 function SessionActions({
   session,
+  canArchive,
   open,
   onOpenChange,
 }: {
   session: SessionMetadata;
+  canArchive: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const updateSession = useHarnessStore((state) => state.updateSession);
   const deleteSession = useHarnessStore((state) => state.deleteSession);
+  const archiveSession = useHarnessStore((state) => state.archiveSession);
 
   return (
     <div className="relative flex h-full w-8 shrink-0 items-center justify-end">
@@ -117,6 +125,18 @@ function SessionActions({
               <PencilIcon />
               Rename
             </DropdownMenuItem>
+            {canArchive ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  void archiveSession(session.id)
+                    .then(() => toast.success("Session archived", { description: "Restore it from Agent Settings." }))
+                    .catch((error) => showError("Unable to archive session", error));
+                }}
+              >
+                <ArchiveIcon />
+                Archive
+              </DropdownMenuItem>
+            ) : null}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>

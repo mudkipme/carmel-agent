@@ -1,5 +1,6 @@
 import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import {
+  ArchiveIcon,
   ArrowLeftIcon,
   CalendarClockIcon,
   FileTextIcon,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
+import { AgentArchivedSessionsSettings } from "@/components/harness/agent-settings/AgentArchivedSessionsSettings";
 import { AgentGeneralSettings } from "@/components/harness/agent-settings/AgentGeneralSettings";
 import { AgentPermissionsSettings } from "@/components/harness/agent-settings/AgentPermissionsSettings";
 import { AgentSecretsSettings } from "@/components/harness/agent-settings/AgentSecretsSettings";
@@ -28,6 +30,7 @@ const agentSettingsSections = [
   { id: "permissions", label: "Permissions", icon: ShieldIcon },
   { id: "secrets", label: "Secrets", icon: KeyRoundIcon },
   { id: "tasks", label: "Tasks", icon: CalendarClockIcon },
+  { id: "archived", label: "Archived", icon: ArchiveIcon },
 ] as const;
 type AgentSettingsSection = (typeof agentSettingsSections)[number]["id"];
 
@@ -223,13 +226,14 @@ export function AgentSettingsPage() {
                     <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
                   ) : null}
                   {activeSection === "tasks" ? <AgentTasksPanel agentId={agent.id} /> : null}
+                  {activeSection === "archived" ? <AgentArchivedSessionsSettings agentId={agent.id} /> : null}
                 </>
               ) : null}
             </div>
           </div>
-          {/* Tasks and secrets are their own resources and save themselves, so
-              the draft's save bar would only be a misleading no-op there. */}
-          {draft && activeSection !== "tasks" && activeSection !== "secrets" ? (
+          {/* Tasks, secrets, and archived sessions are their own resources and save
+              themselves, so the draft's save bar would only be a misleading no-op there. */}
+          {draft && activeSection !== "tasks" && activeSection !== "secrets" && activeSection !== "archived" ? (
             <footer className="flex shrink-0 items-center justify-end gap-3 border-t px-3 py-2 pb-[calc(0.5rem+var(--safe-bottom))]">
               {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
               {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}

@@ -8,7 +8,8 @@ import type { HarnessState } from "@/store/harness-types";
 type SetState = StoreApi<HarnessState>["setState"];
 type SessionActions = Pick<HarnessState,
   "createSession" | "importOpenWebuiSessions" | "updateSession" | "truncateSessionMessages" |
-  "editSessionMessage" | "connectSession" | "refreshSession" | "forkSession" | "deleteSession"
+  "editSessionMessage" | "connectSession" | "refreshSession" | "forkSession" | "deleteSession" |
+  "archiveSession" | "restoreSession"
 >;
 
 export function createSessionSlice(set: SetState): SessionActions {
@@ -59,15 +60,30 @@ export function createSessionSlice(set: SetState): SessionActions {
     },
     deleteSession: async (sessionId) => {
       await api.deleteSession(sessionId);
-      set((state) => {
-        const deleted = state.sessions.find((item) => item.id === sessionId);
-        const sessions = state.sessions.filter((item) => item.id !== sessionId);
-        const { [sessionId]: _deleted, ...sessionDetails } = state.sessionDetails;
-        const activeSessionId = state.activeSessionId === sessionId
-          ? (sessions.find((item) => item.userId === state.activeUserId && item.agentId === (deleted?.agentId ?? state.activeAgentId))?.id ?? "")
-          : state.activeSessionId;
-        return { sessions, sessionDetails, activeSessionId };
-      });
+      set((state) => removeSession(state, sessionId));
+    },
+    // Archived sessions are not part of the session list, so archiving drops the
+    // session from the store just as deleting does; restoring brings it back.
+    archiveSession: async (sessionId) => {
+      await api.updateSession(sessionId, { archivedAt: Date.now() });
+      set((state) => removeSession(state, sessionId));
+    },
+    restoreSession: async (sessionId) => {
+      const saved = await api.updateSession(sessionId, { archivedAt: null });
+      set((state) => ({
+        sessions: [toSessionMetadata(saved), ...state.sessions.filter((item) => item.id !== saved.id)],
+        sessionDetails: { ...state.sessionDetails, [saved.id]: saved },
+      }));
     },
   };
+}
+
+function removeSession(state: HarnessState, sessionId: string) {
+  const removed = state.sessions.find((item) => item.id === sessionId);
+  const sessions = state.sessions.filter((item) => item.id !== sessionId);
+  const { [sessionId]: _removed, ...sessionDetails } = state.sessionDetails;
+  const activeSessionId = state.activeSessionId === sessionId
+    ? (sessions.find((item) => item.userId === state.activeUserId && item.agentId === (removed?.agentId ?? state.activeAgentId))?.id ?? "")
+    : state.activeSessionId;
+  return { sessions, sessionDetails, activeSessionId };
 }

@@ -17,6 +17,7 @@ export type SessionMetadata = {
   revision: number;
   forkedFrom?: SessionFork;
   pinnedAt?: number;
+  archivedAt?: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -35,9 +36,10 @@ export type SessionImportResult = {
  * Anything the metadata projection can be built from: a `Session`, another
  * `SessionMetadata`, or a database row (which stores the optional columns as null).
  */
-export type SessionMetadataSource = Omit<SessionMetadata, "forkedFrom" | "pinnedAt"> & {
+export type SessionMetadataSource = Omit<SessionMetadata, "forkedFrom" | "pinnedAt" | "archivedAt"> & {
   forkedFrom?: SessionFork | null;
   pinnedAt?: number | null;
+  archivedAt?: number | null;
 };
 
 /**
@@ -55,6 +57,7 @@ export function toSessionMetadata(session: SessionMetadataSource): SessionMetada
     revision: session.revision,
     forkedFrom: session.forkedFrom ?? undefined,
     pinnedAt: session.pinnedAt ?? undefined,
+    archivedAt: session.archivedAt ?? undefined,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
   };
@@ -66,5 +69,6 @@ export function toSessionRow(session: SessionMetadataSource) {
     ...toSessionMetadata(session),
     forkedFrom: session.forkedFrom ?? null,
     pinnedAt: session.pinnedAt ?? null,
+    archivedAt: session.archivedAt ?? null,
   };
 }

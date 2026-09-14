@@ -9,7 +9,7 @@ const rowCount = (table: string) =>
 
 test("all versioned migrations apply and remove legacy session tables", () => {
   const applied = sqlite.prepare("SELECT id FROM schema_migrations ORDER BY id").all() as Array<{ id: string }>;
-  assert.equal(applied.at(-1)?.id, "019_agent_secrets");
+  assert.equal(applied.at(-1)?.id, "020_session_archive");
 
   const legacyTables = sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('session_messages', 'pi_session_entries')")
