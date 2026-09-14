@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
-import type { AgentRunEvent, AgentRunEventEnvelope, SessionConnection } from "@carmel-agent/shared";
+import type { AgentRunEvent, AgentRunEventEnvelope, AgentRunResult, SessionConnection } from "@carmel-agent/shared";
 import { RemoteAgent } from "./remote-agent.ts";
 
 const model = {
@@ -450,6 +450,57 @@ test("a run that fails after admission is still an accepted submission", async (
   }
 });
 
+test("a run that failed where no turn could say so reports the server's reason", async () => {
+  const originalFetch = globalThis.fetch;
+  const question = userMessage("question");
+  const answer = assistantMessage("answer");
+  let agent: RemoteAgent;
+  globalThis.fetch = async (input) => {
+    if (String(input).includes("/events?")) {
+      return eventResponse([
+        envelope(1, { type: "message_end", message: answer }),
+        envelope(2, { type: "turn_end" }),
+        envelope(3, agentEnd()),
+        envelope(4, runFinished({ outcome: "failed", detail: "The run's result could not be saved: disk I/O error" })),
+      ]);
+    }
+    return new Response(null, { status: 404 });
+  };
+  try {
+    agent = createAgent([question], async () => agent.setMessages([question, answer]));
+    await agent.attachToRun("run_unsaved", [question], 0);
+    assert.equal(agent.getSnapshot().errorMessage, "The run's result could not be saved: disk I/O error");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("a turn's own error wording is kept over the run's result, and a cancelled run adds nothing", async () => {
+  const originalFetch = globalThis.fetch;
+  const question = userMessage("question");
+  const streams = [
+    [
+      envelope(1, { type: "turn_end", errorMessage: "The provider rejected the API key." }),
+      envelope(2, runFinished({ outcome: "failed", detail: "Provider error." })),
+    ],
+    [envelope(1, agentEnd()), envelope(2, runFinished({ outcome: "cancelled" }))],
+  ];
+  let stream = 0;
+  globalThis.fetch = async (input) =>
+    String(input).includes("/events?") ? eventResponse(streams[stream++]!) : new Response(null, { status: 404 });
+  try {
+    const failed = createAgent([question]);
+    await failed.attachToRun("run_rejected", [question], 0);
+    assert.equal(failed.getSnapshot().errorMessage, "The provider rejected the API key.");
+
+    const cancelled = createAgent([question]);
+    await cancelled.attachToRun("run_cancelled", [question], 0);
+    assert.equal(cancelled.getSnapshot().errorMessage, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("dismissing an error clears it without touching the transcript", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response("nope", { status: 500 });
@@ -507,8 +558,8 @@ function agentEnd(): AgentRunEvent {
   return { type: "agent_end" };
 }
 
-function runFinished(): AgentRunEvent {
-  return { type: "run_finished" };
+function runFinished(result: AgentRunResult = { outcome: "succeeded" }): AgentRunEvent {
+  return { type: "run_finished", result };
 }
 
 function eventResponse(envelopes: AgentRunEventEnvelope[], headers?: Record<string, string>) {

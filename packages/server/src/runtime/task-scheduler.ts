@@ -6,7 +6,7 @@ import { id, now } from "../db/seed.ts";
 import { errorMessage } from "../errors.ts";
 import { computeNextRun, planTaskFiring } from "../effectors/task-schedule.ts";
 import {
-  failInterruptedTaskRuns,
+  markInterruptedTaskRuns,
   finishTaskRun,
   readDueTasks,
   recordTaskRun,
@@ -44,7 +44,7 @@ const running = new Set<string>();
 
 export function startTaskScheduler() {
   if (timer) return;
-  failInterruptedTaskRuns();
+  markInterruptedTaskRuns();
   timer = setInterval(() => void tick(), POLL_INTERVAL_MS);
   timer.unref?.();
 }
@@ -171,10 +171,10 @@ async function startTask(
   const runId = startTaskRun({ taskId: task.id, scheduledFor, startedAt, sessionId });
   const finished = (async (): Promise<TaskResult> => {
     try {
-      // The run reports its own failures into the session transcript, so
-      // reaching the end is the outcome this layer can honestly claim.
-      await whenRunFinished(startDetachedAgentRun(prepared.input));
-      return { outcome: "succeeded" };
+      // The run's own verdict: a provider rejection, a guard stop, or a result
+      // that could not be saved all end the run normally, so finishing is not
+      // the same as succeeding.
+      return await whenRunFinished(startDetachedAgentRun(prepared.input));
     } catch (error) {
       return { outcome: "failed", detail: errorMessage(error) };
     }

@@ -52,6 +52,8 @@ import type { TurnFailure } from "../effectors/failure-classifier.ts";
 import type { AgentDriver } from "../effectors/contracts/agent-driver.ts";
 import type { BranchEntry, SessionLog } from "../effectors/contracts/session-log.ts";
 import { RunGuard, RunGuardError } from "../effectors/run-guard.ts";
+import { RunOutcome, type RunAbortReason } from "../effectors/run-outcome.ts";
+import { formatTurnFailure } from "../effectors/failure-classifier.ts";
 import { runGuardLimits, providerRequestTimeoutMs, RUN_GUARD_POLL_MS } from "./run-limits.ts";
 import { errorMessage } from "../errors.ts";
 
@@ -111,6 +113,8 @@ export type AgentRunInput = {
 type AgentRun = AgentRunInput & {
   run: ActiveAgentRun;
   abort: HarnessAbortGate;
+  /** Collects how the run ended, since the run body reports failures rather than throwing them. */
+  outcome: RunOutcome;
   model: Model<Api>;
 };
 
@@ -134,11 +138,11 @@ export function startDetachedAgentRun(input: AgentRunInput): ActiveAgentRun {
     runId: randomId(),
     userId: input.session.userId,
     sessionId: input.session.id,
-    abort: () => abort.request(),
+    abort: (reason) => abort.request(reason),
   });
   const model = resolveServerModelRef(serializeModelRef(input.modelRef), input.providerConfig, input.modelRuntime);
 
-  queueMicrotask(() => void startAgentRun({ ...input, run, abort, model }));
+  queueMicrotask(() => void startAgentRun({ ...input, run, abort, outcome: new RunOutcome(), model }));
   return run;
 }
 
@@ -148,7 +152,7 @@ export function startDetachedAgentRun(input: AgentRunInput): ActiveAgentRun {
  * the `finally` is the only thing that can release the run and its resources.
  */
 async function startAgentRun(context: AgentRun) {
-  const { run, abort, agent, session, model, thinkingLevel, promptInput } = context;
+  const { run, abort, outcome, agent, session, model, thinkingLevel, promptInput } = context;
   if (run.started) return;
   run.started = true;
 
@@ -176,18 +180,25 @@ async function startAgentRun(context: AgentRun) {
     unsubscribe = observeHarnessEvents(harness, (event: HarnessEvent) => {
       retry.observe(event);
       turnFailure.observe(event);
+      if (event.type === "turn_end") {
+        const failure = classifyHarnessTurnFailure(event, model.contextWindow);
+        outcome.recordTurnEnd({
+          stopReason: event.message.stopReason,
+          detail: failure ? formatTurnFailure(failure) : event.message.errorMessage,
+        });
+      }
       // Every event is a sign of life; only finished tool calls count against
       // the ceiling. Aborting through the same gate the HTTP path uses means a
       // guard stop tears down exactly like a user stop.
       const stop = event.type === "tool_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
-      if (stop) abort.request();
+      if (stop) abort.request("guard");
       const projected = projectRunEvent(event);
       if (projected) emitRunEvent(run, projected);
     });
     // Catches what events cannot: a provider connection that opened and went
     // quiet, or a bash command the model launched without a timeout.
     guardTimer = setInterval(() => {
-      if (guard.poll()) abort.request();
+      if (guard.poll()) abort.request("guard");
     }, RUN_GUARD_POLL_MS);
     log = createPiSessionLog({ session: piSession, lane, context: runContext });
     const driver = createPiAgentDriver({ harness, lane, context: runContext, log, model });
@@ -259,6 +270,7 @@ async function startAgentRun(context: AgentRun) {
  */
 export class HarnessAbortGate {
   #requested = false;
+  #reason?: RunAbortReason;
   /** 0.85 moved `abort()` off the harness and onto the lane that owns the run. */
   #lane?: Pick<AgentLane, "abort">;
 
@@ -266,8 +278,14 @@ export class HarnessAbortGate {
     return this.#requested;
   }
 
-  request() {
+  /** Who asked first. A guard stop and a person pressing stop can race; the first one is what happened. */
+  get reason() {
+    return this.#reason;
+  }
+
+  request(reason: RunAbortReason = "user") {
     this.#requested = true;
+    this.#reason ??= reason;
     void this.#lane?.abort(runContext);
   }
 
@@ -377,12 +395,14 @@ async function reportRunFailure(
   }
 
   const errorEvent = createAgentError(error, context.model);
+  context.outcome.recordThrown(formatTurnFailure(errorEvent.failure));
   try {
     if (log) {
       for (const message of errorEvent.messages) await log.appendMessage(message);
     }
   } catch (persistenceError) {
     console.warn("Session error persistence failed:", errorMessage(persistenceError));
+    context.outcome.recordPersistenceFailure(errorMessage(persistenceError));
   }
   // The failure messages were just persisted, so observers pick them up from the
   // session refresh that follows `run_finished`; the event itself only has to
@@ -407,7 +427,7 @@ async function finalizeRun(
     unsubscribe?: () => void;
   },
 ) {
-  const { run, abort, session, modelRef, model, modelRuntime, thinkingLevel } = context;
+  const { run, abort, outcome, session, modelRef, model, modelRuntime, thinkingLevel } = context;
   const { piSession, harness, log, execution, unsubscribe } = state;
 
   let finalMessages: AgentMessage[] = [];
@@ -430,7 +450,10 @@ async function finalizeRun(
       await harness?.close(runContext);
       await (log ? log.close() : closePiSession(piSession));
     } catch (error) {
+      // Closing is what drains the session's pending writes, so a failure here
+      // can mean the transcript is short of what the run produced.
       console.warn("Pi session cleanup failed:", errorMessage(error));
+      outcome.recordPersistenceFailure(errorMessage(error));
     }
   }
 
@@ -444,6 +467,7 @@ async function finalizeRun(
     });
   } catch (error) {
     console.warn("Session persistence failed:", errorMessage(error));
+    outcome.recordPersistenceFailure(errorMessage(error));
   }
 
   unsubscribe?.();
@@ -455,8 +479,9 @@ async function finalizeRun(
     abort.release();
     // Sequenced terminal authority for observers: it follows every persistence
     // and title finalization attempt, and the execution cleanup.
-    emitRunEvent(run, { type: "run_finished" });
-    finishAgentRun(run);
+    const result = outcome.result(abort.reason);
+    emitRunEvent(run, { type: "run_finished", result });
+    finishAgentRun(run, result);
   }
 }
 

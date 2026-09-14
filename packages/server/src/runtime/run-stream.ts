@@ -1,4 +1,5 @@
-import type { AgentRunEvent, AgentRunEventEnvelope } from "@carmel-agent/shared";
+import type { AgentRunEvent, AgentRunEventEnvelope, AgentRunResult } from "@carmel-agent/shared";
+import { INTERRUPTED_DETAIL, type RunAbortReason } from "../effectors/run-outcome.ts";
 
 const maxReplayEvents = 1_000;
 
@@ -18,11 +19,14 @@ export type ActiveAgentRun = {
   runId: string;
   userId: string;
   sessionId: string;
-  abort: () => void;
+  /** Says who is stopping the run, which decides how its result reads. Defaults to a person. */
+  abort: (reason?: RunAbortReason) => void;
   events: AgentRunEventEnvelope[];
   subscribers: Set<RunSubscriber>;
   nextSequence: number;
   finished: boolean;
+  /** How the run ended. Set when it finishes. */
+  result?: AgentRunResult;
   started: boolean;
   /** Deltas accumulated since the last flush, not yet sequenced. */
   pendingDelta?: PendingDelta;
@@ -43,7 +47,7 @@ export function createActiveAgentRun(input: {
   runId: string;
   userId: string;
   sessionId: string;
-  abort: () => void;
+  abort: (reason?: RunAbortReason) => void;
 }) {
   const run: ActiveAgentRun = {
     ...input,
@@ -125,7 +129,7 @@ export async function shutdownActiveRuns(timeoutMs = 10_000) {
   if (runs.length === 0) return;
   for (const run of runs) {
     try {
-      run.abort();
+      run.abort("shutdown");
     } catch {
       // Best effort: a failing abort should not block the others.
     }
@@ -136,7 +140,8 @@ export async function shutdownActiveRuns(timeoutMs = 10_000) {
   }
 }
 
-export function finishAgentRun(run: ActiveAgentRun) {
+export function finishAgentRun(run: ActiveAgentRun, result?: AgentRunResult) {
+  run.result = result;
   if (run.flushTimer !== undefined) {
     clearTimeout(run.flushTimer);
     run.flushTimer = undefined;
@@ -150,15 +155,17 @@ export function finishAgentRun(run: ActiveAgentRun) {
 }
 
 /**
- * Resolve when a run has finished.
+ * Resolve with a run's result once it has finished.
  *
  * For callers with no stream to close, which is what "finished" otherwise means
  * here. Polled rather than event-driven because `finishAgentRun` is reached
  * from a `finally` on several paths, and adding a notification to each of them
  * would be more surface than a scheduler tick needs.
  */
-export async function whenRunFinished(run: ActiveAgentRun, pollMs = 200) {
+export async function whenRunFinished(run: ActiveAgentRun, pollMs = 200): Promise<AgentRunResult> {
   while (!run.finished) await new Promise((resolve) => setTimeout(resolve, pollMs));
+  // Only a run released without finalization -- a test's held lease -- has none.
+  return run.result ?? { outcome: "interrupted", detail: INTERRUPTED_DETAIL };
 }
 
 export function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder(), afterSequence = 0) {

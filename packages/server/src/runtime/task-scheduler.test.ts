@@ -48,8 +48,6 @@ test("every run gets its own session, kept out of the session list and linked fr
 
   const runs = runsFor(task.id);
   assert.equal(runs.length, 2);
-  // The run reports its provider failure into its transcript; reaching the end is success here.
-  assert.deepEqual(runs.map((run) => run.outcome), ["succeeded", "succeeded"]);
   const runSessionIds = runs.map((run) => run.sessionId);
   assert.ok(runSessionIds[0] && runSessionIds[1] && runSessionIds[0] !== runSessionIds[1], "runs shared a session");
   assert.deepEqual(new Set(sessionsFor(task.id).map((session) => session.id)), new Set(runSessionIds));
@@ -80,7 +78,29 @@ test("run now answers with the run's session while it is still going, and does n
 
   await waitFor(() => runsFor(task.id)[0]?.outcome !== "running");
   assert.equal(runsFor(task.id).length, 1);
-  assert.equal(runsFor(task.id)[0]?.outcome, "succeeded");
+});
+
+test("a run the provider fails is recorded as failed, with the reason, not as a success", async () => {
+  // The fixture's provider refuses the connection. The run still reaches its
+  // end normally -- the failure goes into the transcript -- which is exactly
+  // what used to be logged as "succeeded".
+  const { user, agentId } = runnableFixture();
+  const task = createAgentTask(user, agentId, {
+    name: "Doomed",
+    prompt: "Try.",
+    scheduleKind: "interval",
+    scheduleValue: String(60_000),
+  });
+
+  await tick(Date.now() + 120_000);
+
+  const [run] = runsFor(task.id);
+  assert.equal(run?.outcome, "failed");
+  assert.ok(run?.detail, "the run log has no reason");
+  assert.ok(run?.sessionId, "a run that started still links its session");
+  const stored = row(task.id);
+  assert.equal(stored.lastOutcome, "failed");
+  assert.equal(stored.lastError, run?.detail);
 });
 
 test("deleting a task deletes its run sessions but not ones moved to the session list", async () => {
@@ -193,7 +213,8 @@ function fixture() {
 /**
  * An agent whose model resolves, so runs really start. Ollama needs no
  * credentials, and nothing listens on the discard port, so each run fails fast
- * at the provider without leaving the machine.
+ * at the provider without leaving the machine. `run-result.test.ts` covers the
+ * other ways a run ends against a provider that answers.
  */
 function runnableFixture() {
   const userId = createUser();

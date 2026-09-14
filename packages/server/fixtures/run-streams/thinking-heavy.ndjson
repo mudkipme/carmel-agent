@@ -2,4 +2,4 @@
 {"sequence":2,"event":{"type":"message_delta","contentIndex":0,"field":"thinking","delta":"Checking constraints"}}
 {"sequence":3,"event":{"type":"message_delta","contentIndex":1,"field":"text","delta":"Done"}}
 {"sequence":4,"event":{"type":"message_end","message":{"role":"assistant","content":[{"type":"thinking","thinking":"Checking constraints"},{"type":"text","text":"Done"}]}}}
-{"sequence":5,"event":{"type":"run_finished"}}
+{"sequence":5,"event":{"type":"run_finished","result":{"outcome":"succeeded"}}}

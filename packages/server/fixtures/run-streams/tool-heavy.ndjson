@@ -3,4 +3,4 @@
 {"sequence":3,"event":{"type":"tool_execution_start","toolCallId":"call_1","toolName":"read"}}
 {"sequence":4,"event":{"type":"tool_execution_end","toolCallId":"call_1","toolName":"read","isError":false}}
 {"sequence":5,"event":{"type":"message_end","message":{"role":"assistant","content":[{"type":"toolCall","id":"call_1","name":"read","arguments":{"path":"README.md"}}]}}}
-{"sequence":6,"event":{"type":"run_finished"}}
+{"sequence":6,"event":{"type":"run_finished","result":{"outcome":"succeeded"}}}

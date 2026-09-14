@@ -58,6 +58,17 @@ Three things the loop protects against, each with a test:
   instant it finishes; from the clock alone, a one-shot whose instant is still a
   second away re-arms instead of completing.
 
+## Outcomes
+
+A run's outcome is the run's own verdict, not "it returned". Runs report
+failures into the transcript instead of throwing, and a provider rejection never
+throws at all, so the runtime collects how a run ended (`effectors/run-outcome.ts`)
+and `whenRunFinished` returns it: `succeeded`, `failed` (provider error, thrown
+error, run-guard stop, or a result that could not be saved), `cancelled` (a
+person pressed stop) or `interrupted` (shutdown). The same result travels on the
+chat stream's `run_finished` event. The run log and `lastOutcome`/`lastError`
+record it with its reason; `missed` and `skipped` are firings that never ran.
+
 ## Missed runs
 
 An occurrence more than five minutes late is recorded as `missed` and the

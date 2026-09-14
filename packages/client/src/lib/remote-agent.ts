@@ -503,6 +503,12 @@ export class RemoteAgent {
         this.runFinished = true;
         this.streamingMessage = undefined;
         this.pendingToolCalls = new Set();
+        // The server's verdict on the whole run. A failed turn has usually said
+        // so already, and its wording is the more specific; this covers what no
+        // turn reports -- a result that could not be saved, or a shutdown.
+        if ((event.result.outcome === "failed" || event.result.outcome === "interrupted") && !this.errorMessage) {
+          this.errorMessage = event.result.detail ?? "This run did not finish successfully.";
+        }
         break;
     }
     this.notify();

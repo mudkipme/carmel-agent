@@ -2,4 +2,4 @@
 {"sequence":2,"event":{"type":"turn_end","errorMessage":"Context overflow"}}
 {"sequence":3,"event":{"type":"run_recovered","message":"Older context was compacted and the run resumed."}}
 {"sequence":4,"event":{"type":"agent_end"}}
-{"sequence":5,"event":{"type":"run_finished"}}
+{"sequence":5,"event":{"type":"run_finished","result":{"outcome":"succeeded"}}}

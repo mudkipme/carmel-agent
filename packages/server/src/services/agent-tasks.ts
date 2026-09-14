@@ -4,6 +4,7 @@ import { db } from "../db/index.ts";
 import { agents, agentTasks, agentTaskRuns, modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { computeNextRun, validateSchedule, type TaskSchedule } from "../effectors/task-schedule.ts";
+import { INTERRUPTED_DETAIL } from "../effectors/run-outcome.ts";
 import { readActiveRunLeaseForSession } from "./active-run-lease.ts";
 import { canUseModel, readVisibleAgent } from "./agent-access.ts";
 import { deletePiSession } from "./pi-session-storage.ts";
@@ -253,11 +254,12 @@ export function finishTaskRun(runId: string, result: { outcome: AgentTaskOutcome
 
 /**
  * A run still marked running when the scheduler starts was cut off by the
- * process stopping. Nothing will ever finish it, so say so.
+ * process stopping before shutdown could record it. Nothing will ever finish
+ * it, so say so.
  */
-export function failInterruptedTaskRuns() {
+export function markInterruptedTaskRuns() {
   db.update(agentTaskRuns)
-    .set({ finishedAt: now(), outcome: "failed", detail: "The server stopped before this run finished." })
+    .set({ finishedAt: now(), outcome: "interrupted", detail: INTERRUPTED_DETAIL })
     .where(eq(agentTaskRuns.outcome, "running"))
     .run();
 }

@@ -292,7 +292,11 @@ function TaskRunHistory({
             <li key={run.id} className="flex min-h-8 items-center justify-between gap-2 text-xs">
               <div className="min-w-0">
                 <span>{formatTime(run.startedAt)}</span>
-                <span className={run.outcome === "failed" ? "text-destructive" : "text-muted-foreground"}>
+                <span
+                  className={
+                    run.outcome === "failed" || run.outcome === "interrupted" ? "text-destructive" : "text-muted-foreground"
+                  }
+                >
                   {" "}
                   · {describeRunOutcome(run.outcome)}
                 </span>
@@ -319,8 +323,10 @@ function TaskRunHistory({
 
 function describeRunOutcome(outcome: AgentTaskRun["outcome"]) {
   if (outcome === "running") return "Running…";
-  if (outcome === "succeeded") return "Finished";
+  if (outcome === "succeeded") return "Succeeded";
   if (outcome === "failed") return "Failed";
+  if (outcome === "cancelled") return "Cancelled";
+  if (outcome === "interrupted") return "Interrupted";
   if (outcome === "missed") return "Missed";
   return "Skipped";
 }
@@ -380,7 +386,8 @@ function describeState(task: AgentTask) {
   if (task.status === "disabled") return `Disabled — ${task.lastError ?? "the schedule could not be read"}`;
   const next = task.nextRunAt ? `Next ${formatTime(task.nextRunAt)}` : "Not scheduled";
   if (!task.lastRunAt) return next;
-  return `${next} · Last ${task.lastOutcome ?? "ran"} ${formatTime(task.lastRunAt)}`;
+  const last = `${next} · Last ${task.lastOutcome ?? "ran"} ${formatTime(task.lastRunAt)}`;
+  return task.lastError && task.lastOutcome !== "succeeded" ? `${last} — ${task.lastError}` : last;
 }
 
 function formatTime(value: number) {

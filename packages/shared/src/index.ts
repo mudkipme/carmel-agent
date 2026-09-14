@@ -73,9 +73,27 @@ export type SetupStatus = {
 
 export type AgentWorkingDirMode = "default" | "manual";
 
+/**
+ * How a run ended.
+ *
+ * - `succeeded`: the last turn ended without an error and its result was saved.
+ * - `failed`: the provider rejected the turn, the run threw, the run guard
+ *   stopped it, or its result could not be saved.
+ * - `cancelled`: a person stopped it.
+ * - `interrupted`: the server shut down before it finished.
+ */
+export type AgentRunOutcome = "succeeded" | "failed" | "cancelled" | "interrupted";
+
+export type AgentRunResult = {
+  outcome: AgentRunOutcome;
+  /** Why it did not succeed, in words a person can act on. */
+  detail?: string;
+};
+
 /** Emitted after server-side run finalization, including persistence and title work, has completed. */
 export type AgentRunFinishedEvent = {
   type: "run_finished";
+  result: AgentRunResult;
 };
 
 /**
@@ -217,7 +235,8 @@ export type AgentSecret = {
 export type TaskScheduleKind = "cron" | "interval" | "once";
 export type AgentTaskStatus = "active" | "paused" | "completed" | "disabled";
 /** `missed` and `skipped` are recorded like any other firing: not running is a result. */
-export type AgentTaskOutcome = "succeeded" | "failed" | "missed" | "skipped";
+/** A firing either ran, ending the way any run ends, or never ran at all. */
+export type AgentTaskOutcome = AgentRunOutcome | "missed" | "skipped";
 /** A run is logged when it starts, so the log can link its session while it is still going. */
 export type AgentTaskRunOutcome = AgentTaskOutcome | "running";
 
