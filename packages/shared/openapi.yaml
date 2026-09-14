@@ -31,6 +31,10 @@ paths:
     post: {operationId: logout, tags: [Auth], security: [], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
   /api/auth/setup:
     post: {operationId: setup, tags: [Auth], security: [], requestBody: {$ref: '#/components/requestBodies/Setup'}, responses: {'201': {description: Initial bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '400': {$ref: '#/components/responses/Error'}}}
+  /api/auth/oidc/login:
+    get: {operationId: startOidcLogin, tags: [Auth], security: [], description: Browser navigation only. Redirects to the configured OpenID Connect provider and sets a short-lived flow cookie., responses: {'302': {description: Redirect to the provider, or back to /?auth_error=<code> if it cannot be reached}, '404': {$ref: '#/components/responses/Error'}}}
+  /api/auth/oidc/callback:
+    get: {operationId: completeOidcLogin, tags: [Auth], security: [], description: Provider redirect target. Signs the browser in and redirects to /, or to /?auth_error=<code> when sign-in is refused., parameters: [{name: code, in: query, schema: {type: string}}, {name: state, in: query, schema: {type: string}}], responses: {'302': {description: Redirect into the app}, '404': {$ref: '#/components/responses/Error'}}}
   /api/auth/account:
     post: {operationId: updateAccount, tags: [Auth], requestBody: {$ref: '#/components/requestBodies/Account'}, responses: {'200': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}, '400': {$ref: '#/components/responses/Error'}}}
   /api/users:
@@ -214,13 +218,13 @@ components:
   schemas:
     Error: {type: object, required: [error], properties: {error: {type: string}}}
     OK: {type: object, required: [ok], properties: {ok: {type: boolean}}}
-    SetupStatus: {type: object, required: [needsSetup], properties: {needsSetup: {type: boolean}}}
+    SetupStatus: {type: object, required: [needsSetup, passwordLogin], properties: {needsSetup: {type: boolean}, passwordLogin: {type: boolean}, oidc: {type: object, required: [providerName], properties: {providerName: {type: string}}}}}
     ThinkingLevel: {type: string, enum: [off, minimal, low, medium, high, xhigh, max]}
     LoginRequest: {type: object, additionalProperties: false, properties: {username: {type: string}, password: {type: string}}}
     SetupRequest: {type: object, additionalProperties: false, required: [username, password], properties: {username: {type: string}, password: {type: string}, email: {type: string}, name: {type: string}}}
     AccountRequest: {type: object, additionalProperties: false, required: [email], properties: {currentPassword: {type: string}, email: {type: string}, newPassword: {type: string}}}
     CreateUserRequest: {type: object, additionalProperties: false, required: [username, email, password], properties: {username: {type: string}, email: {type: string}, password: {type: string}, name: {type: string}, role: {type: string, enum: [admin, user]}}}
-    User: {type: object, required: [id, name, email, role], properties: {id: {type: string}, username: {type: string}, name: {type: string}, email: {type: string}, role: {type: string, enum: [admin, user]}, fastTaskModelRefId: {type: string}}}
+    User: {type: object, required: [id, name, email, role], properties: {id: {type: string}, username: {type: string}, name: {type: string}, email: {type: string}, role: {type: string, enum: [admin, user]}, fastTaskModelRefId: {type: string}, hasPassword: {type: boolean}}}
     ModelRequest: {type: object, required: [shared, label, provider, modelId], additionalProperties: false, properties: {shared: {type: boolean}, label: {type: string}, provider: {type: string}, providerConfigId: {type: string}, modelId: {type: string}, api: {type: string}, baseUrl: {type: string}, contextWindow: {type: number}, maxTokens: {type: number}, reasoning: {type: boolean}, input: {type: array, items: {type: string, enum: [text, image]}}, thinkingLevelMap: {type: object, additionalProperties: true}}}
     ModelRef: {type: object, required: [id, ownerUserId, shared, label, provider, modelId], additionalProperties: false, properties: {id: {type: string}, ownerUserId: {type: string}, shared: {type: boolean}, label: {type: string}, provider: {type: string}, providerConfigId: {type: string}, modelId: {type: string}, api: {type: string}, baseUrl: {type: string}, contextWindow: {type: number}, maxTokens: {type: number}, reasoning: {type: boolean}, input: {type: array, items: {type: string, enum: [text, image]}}, thinkingLevelMap: {type: object, additionalProperties: true}}}
     ProviderRequest: {type: object, required: [label, provider], additionalProperties: false, properties: {label: {type: string}, provider: {type: string}, authType: {type: string, enum: [api_key, oauth]}, apiKey: {type: string}, baseUrl: {type: string}}}

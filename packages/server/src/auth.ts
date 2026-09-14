@@ -2,9 +2,9 @@ import { randomBytes, scrypt as scryptCallback, timingSafeEqual, createHash } fr
 import { promisify } from "node:util";
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { and, eq, gt, lte } from "drizzle-orm";
+import { and, eq, gt, isNotNull, lte } from "drizzle-orm";
 import { db } from "./db/index.ts";
-import { authSessions, users } from "./db/schema.ts";
+import { authSessions, userIdentities, users } from "./db/schema.ts";
 import { id, now } from "./db/seed.ts";
 
 const scrypt = promisify(scryptCallback);
@@ -14,6 +14,20 @@ const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
 export type AuthVariables = {
   user: typeof users.$inferSelect;
 };
+
+/**
+ * Whether anyone can sign in yet, by password or by a linked OIDC identity.
+ *
+ * "Needs setup" is the negation. A fresh database seeds a passwordless
+ * placeholder user that owns the default agent/model, so this keys off the
+ * credentials rather than the presence of any row.
+ */
+export function hasLoginCapableUser() {
+  return Boolean(
+    db.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash)).get() ??
+      db.select({ userId: userIdentities.userId }).from(userIdentities).get(),
+  );
+}
 
 export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("base64url");
@@ -130,7 +144,9 @@ function isPublicApiPath(path: string) {
     path === "/api/auth/login" ||
     path === "/api/auth/logout" ||
     path === "/api/auth/status" ||
-    path === "/api/auth/setup"
+    path === "/api/auth/setup" ||
+    path === "/api/auth/oidc/login" ||
+    path === "/api/auth/oidc/callback"
   );
 }
 

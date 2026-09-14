@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { hashPassword, requireAdmin, type AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
-import { agents, authSessions, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
+import { agents, authSessions, modelRefs, providerConfigs, sessions, userIdentities, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { serializeUser } from "../serializers.ts";
 import { canUseModel } from "../services/agent-access.ts";
@@ -99,6 +99,7 @@ export function createUserRoutes() {
       tx.update(providerConfigs).set({ userId: adminId, updatedAt: timestamp }).where(eq(providerConfigs.userId, targetId)).run();
       tx.delete(sessions).where(eq(sessions.userId, targetId)).run();
       tx.delete(authSessions).where(eq(authSessions.userId, targetId)).run();
+      tx.delete(userIdentities).where(eq(userIdentities.userId, targetId)).run();
       tx.delete(users).where(eq(users.id, targetId)).run();
     });
     return c.json({ ok: true });

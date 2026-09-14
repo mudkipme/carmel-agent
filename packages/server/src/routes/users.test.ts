@@ -44,7 +44,7 @@ test("first-run setup claims the seeded placeholder as admin and then blocks re-
     .values({ id: "user_self", name: "Local User", email: "user@local", role: "user", createdAt: timestamp, updatedAt: timestamp })
     .run();
 
-  assert.deepEqual(await (await app.request("/api/auth/status")).json(), { needsSetup: true });
+  assert.deepEqual(await (await app.request("/api/auth/status")).json(), { needsSetup: true, passwordLogin: true });
 
   const setup = await app.request("/api/auth/setup", {
     method: "POST",
@@ -59,7 +59,7 @@ test("first-run setup claims the seeded placeholder as admin and then blocks re-
   assert.equal(claimed?.role, "admin");
   assert.ok(claimed?.passwordHash);
 
-  assert.deepEqual(await (await app.request("/api/auth/status")).json(), { needsSetup: false });
+  assert.deepEqual(await (await app.request("/api/auth/status")).json(), { needsSetup: false, passwordLogin: true });
 
   const again = await app.request("/api/auth/setup", {
     method: "POST",

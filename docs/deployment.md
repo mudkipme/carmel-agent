@@ -66,6 +66,7 @@ Two Docker-specific things to keep in mind:
 - Prefer rootless Podman over a rootful Docker socket.
 - Set `CARMEL_ALLOWED_ORIGINS` if the browser UI is served from a different origin than the API.
 - Set `CARMEL_TRUSTED_PROXY` when a reverse proxy should be trusted for login rate-limit IP detection.
+- For single sign-on, set `CARMEL_PUBLIC_URL` and the `CARMEL_OIDC_*` variables, and register `<CARMEL_PUBLIC_URL>/api/auth/oidc/callback` with your provider. See [configuration.md](configuration.md#single-sign-on-openid-connect).
 
 ## Reverse Proxy Notes
 
@@ -121,7 +122,9 @@ For sandboxed bash locally, build the runner image and make sure your container 
 
 The first account is created in the browser on first run and becomes an administrator. After that, admins add and manage accounts under **Settings → Users**: create users, change roles, reset passwords, and remove accounts.
 
-The setup endpoint closes as soon as any account has a password, so it cannot be used to mint extra admins later.
+The setup endpoint closes as soon as any account has a password or a linked single sign-on identity, so it cannot be used to mint extra admins later.
+
+With OIDC configured, the welcome screen also offers "Continue with <provider>". The first person to sign in that way becomes the administrator. After that, people who sign in through the provider get accounts automatically, depending on the [account mapping settings](configuration.md#account-mapping).
 
 ### Creating An Admin From The CLI
 

@@ -61,6 +61,8 @@ export type User = {
   email: string;
   role: UserRole;
   fastTaskModelRefId?: string;
+  /** False for accounts that only sign in through OIDC. */
+  hasPassword?: boolean;
 };
 
 export type AuthUser = User & {
@@ -69,7 +71,24 @@ export type AuthUser = User & {
 
 export type SetupStatus = {
   needsSetup: boolean;
+  /** Whether username/password sign-in (and the setup form) is available. */
+  passwordLogin: boolean;
+  /** Present when OpenID Connect sign-in is configured. */
+  oidc?: { providerName: string };
 };
+
+/**
+ * Why an OIDC sign-in was refused. Sent back to the login page as
+ * `?auth_error=<code>`; the page owns the wording.
+ */
+export type OidcLoginErrorCode =
+  | "not_allowed"
+  | "not_linked"
+  | "ambiguous_account"
+  | "already_linked"
+  | "expired"
+  | "denied"
+  | "failed";
 
 export type AgentWorkingDirMode = "default" | "manual";
 

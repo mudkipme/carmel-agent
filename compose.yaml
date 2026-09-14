@@ -27,6 +27,15 @@ services:
       # CARMEL_BASH_GPU: nvidia.com/gpu=all
       # Set a stable secret to encrypt provider credentials at rest:
       # CARMEL_SECRET_KEY: change-me
+      # Single sign-on through an OIDC provider such as Pocket ID
+      # (see docs/configuration.md#single-sign-on-openid-connect):
+      # CARMEL_PUBLIC_URL: https://carmel.example.com
+      # CARMEL_OIDC_ISSUER: https://id.example.com
+      # CARMEL_OIDC_CLIENT_ID: your-client-id
+      # CARMEL_OIDC_CLIENT_SECRET: your-client-secret
+      # CARMEL_OIDC_PROVIDER_NAME: Pocket ID
+      # Link first sign-ins to existing accounts (default email,username):
+      # CARMEL_OIDC_MATCH_BY: email,username
     volumes:
       - ./data:/data
       # Mount the host's rootless Podman socket so the server can create per-agent

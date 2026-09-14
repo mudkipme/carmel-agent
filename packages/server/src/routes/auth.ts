@@ -1,26 +1,24 @@
 import { getConnInfo } from "@hono/node-server/conninfo";
-import { eq, isNotNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import {
   clearAuthSession,
   createAuthSession,
+  hasLoginCapableUser,
   hashPassword,
   verifyPassword,
   type AuthVariables,
 } from "../auth.ts";
 import { db } from "../db/index.ts";
+import { isPasswordLoginEnabled, readOidcConfig } from "../oidc/config.ts";
 import { users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { serializeUser } from "../serializers.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import { accountUpdateRequestSchema, jsonValidator, loginRequestSchema, setupRequestSchema } from "../validation.ts";
+import { createOidcAuthRoutes } from "./auth-oidc.ts";
 
-// "Needs setup" means no account can log in yet. A fresh database seeds a
-// passwordless placeholder user that owns the default agent/model, so we key off
-// the presence of a password rather than the presence of any row.
-function hasLoginCapableUser() {
-  return Boolean(db.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash)).get());
-}
+const passwordLoginDisabled = { error: "Password sign-in is disabled on this server." };
 
 const maxLoginFailures = 5;
 const loginFailureWindowMs = 15 * 60 * 1000;
@@ -29,7 +27,10 @@ const loginFailures = new Map<string, { count: number; resetAt: number }>();
 export function createAuthRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
 
+  route.route("/oidc", createOidcAuthRoutes());
+
   route.post("/login", jsonValidator(loginRequestSchema), async (c) => {
+    if (!isPasswordLoginEnabled()) return c.json(passwordLoginDisabled, 403);
     const body = c.req.valid("json");
     const username = body.username?.trim();
     if (!username || !body.password) return c.json({ error: "Username and password are required." }, 400);
@@ -56,12 +57,18 @@ export function createAuthRoutes() {
   });
 
   route.get("/status", (c) => {
-    return c.json({ needsSetup: !hasLoginCapableUser() });
+    const oidc = readOidcConfig();
+    return c.json({
+      needsSetup: !hasLoginCapableUser(),
+      passwordLogin: isPasswordLoginEnabled(),
+      ...(oidc ? { oidc: { providerName: oidc.providerName } } : {}),
+    });
   });
 
   // First-run: create the initial administrator. Only allowed while no account can
   // log in yet, so it cannot be used to mint admins after setup.
   route.post("/setup", jsonValidator(setupRequestSchema), async (c) => {
+    if (!isPasswordLoginEnabled()) return c.json(passwordLoginDisabled, 403);
     if (hasLoginCapableUser()) return c.json({ error: "Setup has already been completed." }, 403);
 
     const username = c.req.valid("json").username.trim();

@@ -15,6 +15,7 @@ It runs on your machine or your server. Nothing leaves your host except the call
 - **Your own skills.** Drop skills into `.agents/skills` in an agent's workspace and they show up as slash commands in the chat.
 - **Conversation control.** Fork a session from any earlier message, edit your own messages, truncate a branch, pin the sessions you keep coming back to, attach images.
 - **Multiple people, one instance.** Admins manage provider credentials and accounts; everyone gets their own sessions and can share agents and model entries with the rest of the instance.
+- **Single sign-on.** Sign in with Pocket ID or any other OpenID Connect provider. You can link people to existing accounts by username or email, and use provider groups to decide who may sign in and who is an admin.
 - **Your providers.** Anthropic, OpenAI, and other providers supported by Pi (API key or OAuth login), any OpenAI-compatible endpoint, and local Ollama.
 - **Bring your history.** Import Open WebUI JSON chat exports into an agent.
 

@@ -58,7 +58,7 @@ test("representative response fixtures satisfy every response component", async 
   const fixtures: Record<string, unknown> = {
     Error: { error: "Nope" },
     OK: { ok: true },
-    SetupStatus: { needsSetup: false },
+    SetupStatus: { needsSetup: false, passwordLogin: true, oidc: { providerName: "Pocket ID" } },
     ThinkingLevel: "off",
     User: user,
     ModelRef: model,

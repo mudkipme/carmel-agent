@@ -36,6 +36,29 @@ export const authSessions = sqliteTable("auth_sessions", {
   createdAt: integer("created_at").notNull(),
 });
 
+/**
+ * An OpenID Connect identity linked to a local account.
+ *
+ * Keyed by (issuer, subject) because `sub` is the only claim a provider
+ * promises never to reassign: usernames and emails are only consulted once,
+ * to find the account a brand-new identity belongs to. After that the link is
+ * what signs the person in, so renaming them at the provider cannot move them
+ * onto somebody else's account.
+ */
+export const userIdentities = sqliteTable(
+  "user_identities",
+  {
+    issuer: text("issuer").notNull(),
+    subject: text("subject").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: integer("created_at").notNull(),
+    lastLoginAt: integer("last_login_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.issuer, table.subject] })],
+);
+
 export const modelRefs = sqliteTable("model_refs", {
   id: text("id").primaryKey(),
   ownerUserId: text("owner_user_id")

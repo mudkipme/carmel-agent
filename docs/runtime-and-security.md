@@ -17,7 +17,13 @@ Everyone can:
 - use any agent or model entry that is shared with the instance
 - change their own name, password, theme, and fast task model
 
-The first account is created in the browser on first run and is an administrator. The setup endpoint refuses to run once any account has a password, so it cannot be reused to create more admins later.
+The first account is created in the browser on first run and is an administrator. The setup endpoint refuses to run once any account has a password or a linked single sign-on identity, so it cannot be reused to create more admins later.
+
+### Single sign-on
+
+With OpenID Connect configured, people can sign in through an external provider such as Pocket ID. Carmel uses the authorization code flow with PKCE, state, and nonce. Token and ID token validation is done by [openid-client](https://github.com/panva/openid-client). A sign-in that is started in one browser can only be finished in that same browser, and each attempt can be used only once. Once someone is signed in, they get the same session cookie as a password login.
+
+An identity is linked to its account by issuer and `sub`. Username or email is used only once, to find the right account for a brand-new identity, and only when `CARMEL_OIDC_MATCH_BY` allows it. An email is used for matching only if the provider marks it verified. An account that is already linked is never picked by email, and a username match on an account linked to a different identity is refused. Refusals send the browser back to the login page with a fixed error code, and the page chooses the wording. A crafted link therefore cannot put its own text on the sign-in page. When `CARMEL_OIDC_ADMIN_GROUPS` is set, the provider's groups decide who is an administrator. Deleting a user also removes their linked identities.
 
 ## Runtime Model
 

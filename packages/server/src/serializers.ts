@@ -14,6 +14,7 @@ export function serializeUser(user: typeof users.$inferSelect): User {
     email: user.email,
     role: user.role ?? "user",
     fastTaskModelRefId: user.fastTaskModelRefId ?? undefined,
+    hasPassword: Boolean(user.passwordHash),
   };
 }
 

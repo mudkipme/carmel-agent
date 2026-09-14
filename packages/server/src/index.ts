@@ -10,6 +10,20 @@ import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
 import { loadInstalledExtensions } from "./runtime/extension-registry.ts";
 import { startTaskScheduler } from "./runtime/task-scheduler.ts";
 import { errorMessage } from "./errors.ts";
+import { assertOidcConfig } from "./oidc/config.ts";
+
+// Before anything else: a mistyped auth variable should stop the boot, not
+// surface later as a sign-in button that fails for everyone.
+const oidcConfig = assertOidcConfig();
+if (oidcConfig) {
+  console.log(`OIDC sign-in enabled via ${oidcConfig.issuer.href} (redirect URI ${oidcConfig.redirectUri})`);
+  console.log(
+    oidcConfig.matchBy.length
+      ? `OIDC: first sign-ins link to existing accounts by ${oidcConfig.matchBy.join(", then ")}.`
+      : "OIDC: CARMEL_OIDC_MATCH_BY=none, so first sign-ins never link to existing accounts.",
+  );
+  if (oidcConfig.issuer.protocol === "http:") console.warn("OIDC issuer uses plain HTTP; use HTTPS outside local testing.");
+}
 
 migrate();
 seed();

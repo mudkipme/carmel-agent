@@ -1,5 +1,6 @@
 import type { StoreApi } from "zustand";
 import { ApiError, api } from "@/lib/api";
+import { oidcErrorMessage, takeOidcErrorCode } from "@/lib/auth-errors";
 import { errorMessage } from "@/lib/errors";
 import { canUserSeeAgent, isListedSession, resetState, resolveBootstrapState, upsertById } from "@/store/harness-state";
 import type { HarnessState } from "@/store/harness-types";
@@ -14,12 +15,17 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
   return {
     bootstrap: async () => {
       set({ status: "loading", error: undefined });
+      const oidcErrorCode = takeOidcErrorCode();
       try {
         set(resolveBootstrapState(await api.bootstrap(), get()));
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
-          const needsSetup = await api.setupStatus().then((status) => status.needsSetup).catch(() => false);
-          set((state) => resetState({ status: needsSetup ? "setup" : "unauthenticated" }, state));
+          const authOptions = await api.setupStatus().catch(() => undefined);
+          set((state) => ({
+            ...resetState({ status: authOptions?.needsSetup ? "setup" : "unauthenticated" }, state),
+            authOptions,
+            error: oidcErrorCode ? oidcErrorMessage(oidcErrorCode, authOptions?.oidc?.providerName) : undefined,
+          }));
           return;
         }
         set({ status: "error", error: errorMessage(error, "Something went wrong while loading your workspace.") });
@@ -43,7 +49,8 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
     },
     logout: async () => {
       await api.logout();
-      set(resetState({ status: "unauthenticated" }));
+      const authOptions = await api.setupStatus().catch(() => undefined);
+      set({ ...resetState({ status: "unauthenticated" }), authOptions });
     },
     updateAccount: async (currentPassword, email, newPassword) => {
       const saved = await api.updateAccount(currentPassword, email, newPassword);

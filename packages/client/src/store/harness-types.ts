@@ -10,6 +10,7 @@ import type {
   SessionDraft,
   SessionMetadata,
   SessionPatch,
+  SetupStatus,
   User,
 } from "@carmel-agent/shared";
 
@@ -18,6 +19,8 @@ export type HarnessStatus = "idle" | "loading" | "ready" | "unauthenticated" | "
 export type HarnessState = {
   status: HarnessStatus;
   error?: string;
+  /** How this server lets people sign in. Loaded whenever the app is signed out. */
+  authOptions?: SetupStatus;
   users: User[];
   activeUserId: string;
   agents: AgentConfig[];

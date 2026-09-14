@@ -26,7 +26,70 @@ The `data/` directory stays sensitive even with encryption enabled: it contains 
 - `CARMEL_ALLOWED_ORIGINS` — comma-separated extra browser origins allowed to make mutating API requests with cookies.
 - `CARMEL_TRUSTED_PROXY` — comma-separated IPs of trusted reverse proxies. `X-Forwarded-For` is honored for the login rate limiter only when the connection comes from one of these addresses.
 
-The server applies secure headers, CORS for `/api/*`, cross-origin mutation checks, and cookie-based authentication. Repeated failed logins for the same username and source are rate limited.
+The server applies secure headers, CORS for `/api/*`, cross-origin mutation checks, and cookie-based authentication (for password and single sign-on logins alike). Repeated failed logins for the same username and source are rate limited.
+
+## Single Sign-On (OpenID Connect)
+
+Carmel can sign people in through any OpenID Connect provider. It is tested against [Pocket ID](https://pocket-id.org), and anything that serves a standard discovery document (Authelia, Authentik, Keycloak, Zitadel, and so on) works the same way. OIDC is off until `CARMEL_OIDC_ISSUER` is set, and it is configured only through environment variables. A misconfigured variable stops the server at startup with a message naming it.
+
+### Required
+
+- `CARMEL_OIDC_ISSUER` — the provider's issuer URL, for example `https://id.example.com`. Carmel reads `<issuer>/.well-known/openid-configuration`.
+- `CARMEL_OIDC_CLIENT_ID` — the client ID from the provider.
+- `CARMEL_PUBLIC_URL` — the URL people open Carmel at, for example `https://carmel.example.com`. The redirect URI to register with the provider is `<CARMEL_PUBLIC_URL>/api/auth/oidc/callback`, and the server logs it at startup.
+
+### Optional
+
+- `CARMEL_OIDC_CLIENT_SECRET` — the client secret. Leave it unset for a public client, which then authenticates with PKCE only. PKCE (S256) is used either way.
+- `CARMEL_OIDC_PROVIDER_NAME` — the name on the sign-in button ("Sign in with …"). Defaults to `SSO`.
+- `CARMEL_OIDC_SCOPES` — space- or comma-separated scopes. Defaults to `openid profile email`, and `groups` is added when either group setting below is set. If you set this variable, your value is used exactly as given, so include `groups` yourself if you need it.
+- `CARMEL_PASSWORD_LOGIN` — set to `false` to turn off username/password sign-in and the first-run setup form, so SSO is the only way in. Defaults to `true`. It can only be turned off when OIDC is configured.
+
+### Account mapping
+
+The first time someone signs in, Carmel decides which account they get. It links their provider identity (the issuer plus the `sub` claim) to that account. Every later sign-in uses that link, so changing a username or email at the provider cannot move them onto someone else's account.
+
+- `CARMEL_OIDC_MATCH_BY` — how a first-time identity is matched to an **existing** Carmel account: `username`, `email`, `username,email`, or `email,username` (tried in that order), or `none` to never link to existing accounts. Defaults to `email,username`.
+  - `username` compares the username claim with the Carmel username, ignoring case (Pocket ID only allows lowercase usernames).
+  - `email` compares emails case-insensitively. It only uses an email the provider marks as verified (see below), and it never picks an account that is already linked to another identity.
+  - If more than one account matches, or the username matches an account already linked to a different identity, sign-in is refused and nothing is guessed.
+  - Matching trusts the provider's usernames and emails. If people can change their own username at the provider, someone could take a name that belongs to an existing, not-yet-linked Carmel account (an admin's, for example) before its owner first signs in with SSO. If that's a concern, turn off self-service account editing at the provider, or use `email` (verified only) or `none`.
+  - With `none`, or a single field, a person who already has an account can end up with a second one. When a new account is created even though an unlinked account has the same username or email, the server logs a warning that names the variable to set. To fix an account created this way, delete it under **Settings → Users** (which also removes its SSO link), adjust the variable, and sign in again.
+- `CARMEL_OIDC_AUTO_CREATE` — create a new account when nothing matches. Defaults to `true`. Set it to `false` to allow only accounts an administrator has created in advance (matched by username or email).
+- `CARMEL_OIDC_REQUIRE_VERIFIED_EMAIL` — only match by email when the `email_verified` claim is true. Defaults to `true`. This applies to matching only: the email is still stored and shown either way.
+- `CARMEL_OIDC_USERNAME_CLAIM`, `CARMEL_OIDC_EMAIL_CLAIM`, `CARMEL_OIDC_NAME_CLAIM`, `CARMEL_OIDC_GROUPS_CLAIM` — which claims to read. The defaults are `preferred_username`, `email`, `name`, and `groups`.
+
+On every sign-in, the account's name and email are updated from the provider. The username is set once, when the account is created, and never changed afterwards, because it is also the password login name. If that username is already taken by a local account, the new account is created without one.
+
+When nobody can sign in yet, the first account to sign in through OIDC is created as the administrator (unless `CARMEL_OIDC_ADMIN_GROUPS` is set). It takes over the default agent and model, exactly as the setup form does.
+
+### Groups
+
+- `CARMEL_OIDC_ALLOWED_GROUPS` — comma-separated. When set, only members of at least one of these groups can sign in.
+- `CARMEL_OIDC_ADMIN_GROUPS` — comma-separated. When set, the provider controls roles: members are admins and everyone else is a regular user, checked again on every sign-in. Changing a role under **Settings → Users** only lasts until that person's next sign-in. The very first account also follows this rule, so make sure you are in one of these groups before you sign in.
+
+### Pocket ID example
+
+In Pocket ID, open **OIDC Clients → Add OIDC Client**, set the callback URL to `https://carmel.example.com/api/auth/oidc/callback`, and create a client secret. To use groups, create them under **User Groups** and add people to them.
+
+```yaml
+environment:
+  CARMEL_PUBLIC_URL: https://carmel.example.com
+  CARMEL_OIDC_ISSUER: https://id.example.com
+  CARMEL_OIDC_CLIENT_ID: 00000000-0000-0000-0000-000000000000
+  CARMEL_OIDC_CLIENT_SECRET: from-pocket-id
+  CARMEL_OIDC_PROVIDER_NAME: Pocket ID
+  CARMEL_OIDC_ADMIN_GROUPS: carmel-admins
+```
+
+Pocket ID reports `email_verified: false` until a user verifies their email in Pocket ID, so with the default settings Pocket ID users are matched by username. If your Pocket ID emails are admin-managed and trustworthy, set `CARMEL_OIDC_REQUIRE_VERIFIED_EMAIL=false` to match by email as well.
+
+### Operational notes
+
+- A sign-in in progress is remembered in server memory for up to 10 minutes. A restart during that window only means clicking the button again.
+- An issuer on plain `http://` is accepted, but the server logs a warning. Use HTTPS for anything other than local testing.
+- Signing out ends the Carmel session only. It does not sign you out of the provider.
+- Accounts that only use SSO have no password. If one also needs password login and has a username, an administrator can set a password for it under **Settings → Users**.
 
 ## Providers And Models
 

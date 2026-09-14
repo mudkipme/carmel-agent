@@ -82,6 +82,11 @@ const migrations: Migration[] = [
     description: "Give every task run its own session, linked from the run log",
     run: addTaskRunSessions,
   },
+  {
+    id: "022_user_identities",
+    description: "Link OpenID Connect identities to local accounts",
+    run: createUserIdentities,
+  },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -235,6 +240,20 @@ function addTaskRunSessions(sqlite: Sqlite) {
   addColumnIfMissing(sqlite, "agent_task_runs", "session_id", "TEXT");
   dropColumnIfExists(sqlite, "agent_tasks", "session_id");
   sqlite.exec("CREATE INDEX IF NOT EXISTS sessions_task ON sessions (task_id)");
+}
+
+function createUserIdentities(sqlite: Sqlite) {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS user_identities (
+      issuer TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      created_at INTEGER NOT NULL,
+      last_login_at INTEGER NOT NULL,
+      PRIMARY KEY (issuer, subject)
+    );
+    CREATE INDEX IF NOT EXISTS user_identities_user ON user_identities (user_id);
+  `);
 }
 
 function addSessionRevisions(sqlite: Sqlite) {
