@@ -37,10 +37,13 @@ export function HarnessHeader({
   return (
     <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-3 border-b bg-background px-3 pt-[var(--safe-top)]">
       <div className="flex min-w-0 items-center gap-2">
+        {/* An open sidebar carries its own collapse button; on desktop it sits
+            beside this header, so the toggle here would be a duplicate. */}
         <Button
           size="icon-sm"
           variant="ghost"
-          title={sidebarOpen ? "Collapse sidebar" : "Show sidebar"}
+          title="Show sidebar"
+          className={sidebarOpen ? "lg:hidden" : undefined}
           onClick={onToggleSidebar}
         >
           <PanelLeftIcon />

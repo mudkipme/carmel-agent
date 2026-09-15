@@ -29,10 +29,10 @@ export function HarnessSkeleton() {
 
       <section className="flex min-w-0 flex-1 flex-col pr-[var(--safe-right)]">
         <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-3 border-b bg-background px-3 pt-[var(--safe-top)]">
-          <Button size="icon-sm" variant="ghost" disabled>
+          <Button size="icon-sm" variant="ghost" className="lg:hidden" disabled>
             <PanelLeftIcon />
           </Button>
-          <Button size="icon-sm" variant="ghost" disabled>
+          <Button size="icon-sm" variant="ghost" className="ml-auto" disabled>
             <SettingsIcon />
           </Button>
         </header>
