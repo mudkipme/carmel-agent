@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { agents } from "../../db/schema.ts";
-import { sandboxEnv } from "./bash-operations.ts";
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { readWorkspaceDotEnv, sandboxEnv } from "./bash-operations.ts";
 import { createStreamDemuxer, parseImageRef } from "./podman.ts";
 import {
   buildBinds,
@@ -151,6 +154,46 @@ test("a malformed secret name is dropped rather than emitted as a broken entry",
     { name: "GOOD", value: "y" },
   ]);
   assert.deepEqual(env.filter((entry) => entry.startsWith("GOOD") || entry.includes("not a name")), ["GOOD=y"]);
+});
+
+function withTempDir(run: (dir: string) => void) {
+  const dir = mkdtempSync(join(tmpdir(), "carmel-dotenv-"));
+  try {
+    run(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("the workspace .env is parsed into exec variables", () => {
+  withTempDir((dir) => {
+    writeFileSync(join(dir, ".env"), '# comment\nPLAIN=one\nexport QUOTED="two words"\nMULTI="a\nb"\n');
+    assert.deepEqual(readWorkspaceDotEnv(dir), { PLAIN: "one", QUOTED: "two words", MULTI: "a\nb" });
+  });
+});
+
+test("a missing workspace .env contributes nothing", () => {
+  withTempDir((dir) => assert.deepEqual(readWorkspaceDotEnv(dir), {}));
+});
+
+test("a workspace .env symlink is not followed out to a host file", () => {
+  // The agent can write its own working directory; following the link would
+  // hand it whatever host file it pointed at, the server's own .env included.
+  withTempDir((dir) => {
+    const hostFile = join(dir, "host.env");
+    writeFileSync(hostFile, "HOST_SECRET=leaked\n");
+    symlinkSync(hostFile, join(dir, ".env"));
+    assert.deepEqual(readWorkspaceDotEnv(dir), {});
+  });
+});
+
+test("a caller variable wins over .env, and a secret wins over both", () => {
+  const env = sandboxEnv({ ...{ A: "dotenv", B: "dotenv", C: "dotenv" }, ...{ B: "caller", C: "caller" } }, [
+    { name: "C", value: "secret" },
+  ]);
+  assert.ok(env.includes("A=dotenv"));
+  assert.ok(env.includes("B=caller"));
+  assert.ok(env.includes("C=secret"));
 });
 
 test("a held container is exempt from the idle reaper until every hold is released", () => {
