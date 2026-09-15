@@ -4,6 +4,7 @@ import type { ChatInputHandle } from "@/components/chat/ChatInput";
 import { ChatErrorNotice } from "@/components/chat/ChatErrorNotice";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { ContextPressureNotice } from "@/components/chat/ContextPressureNotice";
+import { WorkspaceFileLinkAgentContext } from "@/components/chat/workspace-file-links";
 import { MessageEditDialog } from "@/components/chat/MessageEditDialog";
 import { ModelCommandDialog } from "@/components/chat/ModelCommandDialog";
 import { useMessageMutations } from "@/hooks/use-message-mutations";
@@ -48,7 +49,7 @@ export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConf
   };
 
   return (
-    <>
+    <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
         {snapshot.errorMessage ? (
           <ChatErrorNotice message={snapshot.errorMessage} onDismiss={() => agent?.dismissError()} />
@@ -102,6 +103,6 @@ export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConf
           else await mutations.saveUserMessage(edit.message, edit.draft, submit, removals);
         }}
       />
-    </>
+    </WorkspaceFileLinkAgentContext>
   );
 }

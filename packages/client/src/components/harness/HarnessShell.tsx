@@ -32,14 +32,10 @@ import {
   sortSessions,
   type ContentView,
 } from "@/components/harness/shell/sidebar-utils";
+import { agentFilesPath } from "@/lib/file-links";
 import { cn } from "@/lib/utils";
 import { isListedSession } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";
-
-/** Workspace-relative path as URL segments: names carry spaces, #, and ?. */
-function encodeFilePath(path: string) {
-  return path.split("/").map(encodeURIComponent).join("/");
-}
 
 export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const navigate = useNavigate();
@@ -147,7 +143,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
        switch, or a shell this agent may not open, falls back to the chat. */
     const targetPath =
       view === "files" && activeAgent
-        ? `/agents/${activeAgent.id}/files${selectedFilePath ? `/${encodeFilePath(selectedFilePath)}` : ""}`
+        ? agentFilesPath(activeAgent.id, selectedFilePath)
         : view === "terminal" && activeAgent && canOpenTerminal
           ? `/agents/${activeAgent.id}/terminal`
           : onNewSessionPage && activeAgent
@@ -195,8 +191,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
 
   const openFile = (path: string) => {
     if (!activeAgent) return;
-    const filesPath = `/agents/${activeAgent.id}/files`;
-    navigate(path ? `${filesPath}/${encodeFilePath(path)}` : filesPath);
+    navigate(agentFilesPath(activeAgent.id, path));
   };
 
   const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {

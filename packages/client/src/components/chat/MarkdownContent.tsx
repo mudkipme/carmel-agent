@@ -1,9 +1,12 @@
-import { isValidElement, memo, useMemo, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { isValidElement, memo, useContext, useMemo, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import Markdown, { type Components } from "react-markdown";
+import { Link } from "react-router-dom";
 import remarkGfm from "remark-gfm";
+import { agentFilesPath, workspaceFileFromHref } from "@/lib/file-links";
 import { cn } from "@/lib/utils";
 import { preserveSoftLineBreaks } from "@/lib/markdown";
 import { CodeBlock } from "./CodeBlock";
+import { WorkspaceFileLinkAgentContext } from "./workspace-file-links";
 
 type MarkdownContentProps = {
   content: string;
@@ -11,11 +14,7 @@ type MarkdownContentProps = {
 };
 
 const components: Components = {
-  a: ({ children, ...props }) => (
-    <a {...props} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  ),
+  a: MarkdownLink,
   table: ({ children, ...props }) => (
     <div className="my-4 overflow-x-auto">
       <table {...props}>{children}</table>
@@ -46,6 +45,23 @@ export const MarkdownContent = memo(function MarkdownContent({ content, thinking
     </div>
   );
 });
+
+function MarkdownLink({ children, href, node: _node, ...props }: ComponentPropsWithoutRef<"a"> & { node?: unknown }) {
+  const agentId = useContext(WorkspaceFileLinkAgentContext);
+  const filePath = agentId ? workspaceFileFromHref(href) : undefined;
+  if (agentId && filePath) {
+    return (
+      <Link {...props} to={agentFilesPath(agentId, filePath)}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <a {...props} href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
+}
 
 function languageFromClassName(className?: string) {
   const match = /language-(\w+)/.exec(className ?? "");
