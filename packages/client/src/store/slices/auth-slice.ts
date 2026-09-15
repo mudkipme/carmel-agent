@@ -61,16 +61,15 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
       const session = state.sessions.find((item) => item.userId === userId && isListedSession(item));
       const agent = state.agents.find((item) => item.id === session?.agentId && canUserSeeAgent(item, userId))
         ?? state.agents.find((item) => item.ownerUserId === userId || item.shared);
-      set({ activeUserId: userId, activeAgentId: agent?.id ?? "", activeSessionId: session?.agentId === agent?.id ? (session?.id ?? "") : "" });
+      set({ activeUserId: userId, activeAgentId: agent?.id ?? "", activeSessionId: "" });
     },
     setActiveAgent: (agentId) => {
       const state = get();
       const agent = state.agents.find((item) => item.id === agentId && canUserSeeAgent(item, state.activeUserId));
       if (!agent) return;
-      const session = state.sessions.find(
-        (item) => item.agentId === agentId && item.userId === state.activeUserId && isListedSession(item),
-      );
-      set({ activeAgentId: agentId, activeSessionId: session?.id ?? "" });
+      // An agent opens on a blank composer; a session is only created once the
+      // first message is sent, so there is no session to select here.
+      set({ activeAgentId: agentId, activeSessionId: "" });
     },
     setActiveSession: (sessionId) => {
       const state = get();

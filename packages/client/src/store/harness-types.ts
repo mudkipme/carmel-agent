@@ -70,4 +70,6 @@ export type HarnessState = {
   deletePromptTemplate: (agentId: string, templateId: string) => Promise<void>;
 };
 
-export type HarnessPersistedState = Pick<HarnessState, "activeUserId" | "activeAgentId" | "activeSessionId">;
+/* The open session lives in the URL, not in storage: reopening the app lands on
+   the agent's new-session composer rather than on whatever was open last. */
+export type HarnessPersistedState = Pick<HarnessState, "activeUserId" | "activeAgentId">;

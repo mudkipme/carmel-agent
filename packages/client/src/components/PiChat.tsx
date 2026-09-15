@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import type { ChatInputHandle } from "@/components/chat/ChatInput";
 import { ChatErrorNotice } from "@/components/chat/ChatErrorNotice";
@@ -9,6 +9,7 @@ import { ModelCommandDialog } from "@/components/chat/ModelCommandDialog";
 import { useMessageMutations } from "@/hooks/use-message-mutations";
 import { useModelSelection } from "@/hooks/use-model-selection";
 import { useSessionAgent } from "@/hooks/use-session-agent";
+import { takePendingPrompt } from "@/lib/pending-prompts";
 import type { AgentConfig, ModelRef, ProviderConfig, Session } from "@carmel-agent/shared";
 
 type PiChatProps = {
@@ -26,6 +27,20 @@ export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConf
   const { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot } = useSessionAgent(agentConfig, session, modelRef);
   const mutations = useMessageMutations(agentRef, sessionRef);
   const modelSelection = useModelSelection({ agent, agentRef, modelRef, resolvedModel, session, snapshot });
+
+  /* A session made from the new-session composer arrives with its first
+     message still to send. A rejection puts the text back in the composer, as
+     a failed send from the composer itself would. */
+  useEffect(() => {
+    if (!agent) return;
+    const pending = takePendingPrompt(session.id);
+    if (!pending) return;
+    void sendMessage(pending.text, pending.images).then((outcome) => {
+      if (outcome.status !== "rejected" || inputDraftRef.current.length > 0) return;
+      inputDraftRef.current = pending.text;
+      chatInputRef.current?.insertText(pending.text);
+    });
+  }, [agent, sendMessage, session.id]);
 
   const insertCommandText = (text: string) => {
     inputDraftRef.current = text;

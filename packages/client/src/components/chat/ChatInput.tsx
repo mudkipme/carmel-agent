@@ -38,6 +38,9 @@ export type ChatInputHandle = {
 type ChatInputProps = {
   ref?: Ref<ChatInputHandle>;
   leadingActions?: ReactNode;
+  /** Focuses the composer on mount, except where that would pop a touch keyboard. */
+  autoFocus?: boolean;
+  textareaClassName?: string;
   currentModel: Model<Api>;
   thinkingLevel: ThinkingLevel;
   isStreaming: boolean;
@@ -60,6 +63,8 @@ type ChatInputProps = {
 export function ChatInput({
   ref,
   leadingActions,
+  autoFocus,
+  textareaClassName,
   currentModel,
   thinkingLevel,
   isStreaming,
@@ -218,9 +223,10 @@ export function ChatInput({
         ref={textareaRef}
         value={value}
         rows={2}
+        autoFocus={autoFocus && !isTouchPrimaryInput()}
         enterKeyHint="enter"
         placeholder="Type a message..."
-        className="max-h-60 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+        className={cn("max-h-60 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0", textareaClassName)}
         onChange={(event) => updateValue(event.target.value)}
         onPaste={(event) => {
           if (!supportsImages) return;

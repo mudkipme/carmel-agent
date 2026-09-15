@@ -69,7 +69,7 @@ export function resetState(
     modelCatalog: { providers: [] },
     sessions: [],
     sessionDetails: {},
-    activeSessionId: preserveSelection?.activeSessionId ?? "",
+    activeSessionId: "",
   };
 }
 
@@ -89,10 +89,7 @@ export function resolveBootstrapState(
     agents.find((agent) => agent.id === current.activeAgentId) ??
     agents.find((agent) => agent.id === activeSession?.agentId) ??
     agents.find((agent) => agent.ownerUserId === activeUserId || agent.shared);
-  const nextActiveSession =
-    activeSession?.agentId === activeAgent?.id
-      ? activeSession
-      : sessions.find((session) => session.agentId === activeAgent?.id && isListedSession(session));
+  const nextActiveSession = activeSession?.agentId === activeAgent?.id ? activeSession : undefined;
   const sessionDetails = Object.fromEntries(
     sessions.flatMap((metadata) => {
       const detail = current.sessionDetails[metadata.id];

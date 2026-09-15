@@ -31,9 +31,13 @@ export const useHarnessStore = create<HarnessState>()(
       partialize: (state) => ({
         activeUserId: state.activeUserId,
         activeAgentId: state.activeAgentId,
-        activeSessionId: state.activeSessionId,
       }),
-      version: 1,
+      version: 2,
+      // Version 1 also stored the open session; drop it so it is not restored.
+      migrate: (persisted) => {
+        const { activeUserId = "", activeAgentId = "" } = (persisted ?? {}) as Partial<HarnessPersistedState>;
+        return { activeUserId, activeAgentId };
+      },
     },
   ),
 );

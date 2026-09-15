@@ -1,7 +1,6 @@
 import { MessageSquarePlusIcon, UploadIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useHarnessStore } from "@/store/harness-store";
 import type { AgentConfig } from "@carmel-agent/shared";
 
 export function SidebarSessionsToolbar({
@@ -14,7 +13,6 @@ export function SidebarSessionsToolbar({
   onOpenImport: () => void;
 }) {
   const navigate = useNavigate();
-  const createSession = useHarnessStore((state) => state.createSession);
 
   return (
     <div className="flex h-[var(--input-height)] items-center gap-2 px-2">
@@ -26,13 +24,8 @@ export function SidebarSessionsToolbar({
         disabled={!activeAgent}
         onClick={() => {
           if (!activeAgent) return;
-          void createSession({
-            agentId: activeAgent.id,
-            modelRefId: activeAgent.defaultModelRefId,
-            thinkingLevel: activeAgent.defaultThinkingLevel ?? "off",
-          }).then((session) => {
-            navigate(`/agents/${session.agentId}/sessions/${session.id}`);
-          });
+          // The session itself is created when the composer's first message is sent.
+          navigate(`/agents/${activeAgent.id}`);
           onOpenSession();
         }}
       >

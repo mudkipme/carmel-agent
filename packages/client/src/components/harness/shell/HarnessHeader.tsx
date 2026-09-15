@@ -25,7 +25,7 @@ export function HarnessHeader({
   /* Files and the terminal replace the session in the main column, so the
      title names the pane you are actually looking at. */
   const title =
-    contentView === "files" ? "Files" : contentView === "terminal" ? "Terminal" : (activeSession?.title ?? "No session");
+    contentView === "files" ? "Files" : contentView === "terminal" ? "Terminal" : (activeSession?.title ?? "New session");
   /* The subtitle carries only what nothing else on screen says: the model is
      already named in the composer, and the working directory is worth the room
      just when the agent runs somewhere other than its own default. */

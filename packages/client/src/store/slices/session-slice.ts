@@ -1,7 +1,7 @@
 import type { StoreApi } from "zustand";
 import { api } from "@/lib/api";
 import { readSessionConnection } from "@/lib/session-connection";
-import { cacheSession, isListedSession } from "@/store/harness-state";
+import { cacheSession } from "@/store/harness-state";
 import { toSessionMetadata } from "@carmel-agent/shared";
 import type { HarnessState } from "@/store/harness-types";
 
@@ -90,11 +90,8 @@ export function createSessionSlice(set: SetState): SessionActions {
 }
 
 function removeSession(state: HarnessState, sessionId: string) {
-  const removed = state.sessions.find((item) => item.id === sessionId);
   const sessions = state.sessions.filter((item) => item.id !== sessionId);
   const { [sessionId]: _removed, ...sessionDetails } = state.sessionDetails;
-  const activeSessionId = state.activeSessionId === sessionId
-    ? (sessions.find((item) => item.userId === state.activeUserId && item.agentId === (removed?.agentId ?? state.activeAgentId) && isListedSession(item))?.id ?? "")
-    : state.activeSessionId;
+  const activeSessionId = state.activeSessionId === sessionId ? "" : state.activeSessionId;
   return { sessions, sessionDetails, activeSessionId };
 }

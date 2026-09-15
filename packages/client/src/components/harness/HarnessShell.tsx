@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
+import { NewSessionView } from "@/components/harness/NewSessionView";
 
 const FileEditorView = lazy(() =>
   import("@/components/harness/files/FileEditorView").then((module) => ({
@@ -60,8 +61,11 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const visibleAgents = store.agents.filter((agent) => agent.shared || agent.ownerUserId === store.activeUserId);
   const selectedAgent = visibleAgents.find((agent) => agent.id === store.activeAgentId);
   const activeAgent = selectedAgent ?? visibleAgents.find((agent) => agent.id === selectedSession?.agentId);
+  /* The chat opens a session only when the URL names one; an agent's own path
+     is its new-session composer, whatever session was open before. */
+  const onNewSessionPage = view === "chat" && !routeSessionId;
   const activeSessionMetadata =
-    selectedSession?.userId === store.activeUserId && selectedSession.agentId === activeAgent?.id
+    !onNewSessionPage && selectedSession?.userId === store.activeUserId && selectedSession.agentId === activeAgent?.id
       ? selectedSession
       : undefined;
   const activeSession = activeSessionMetadata
@@ -109,10 +113,21 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
       }
       return;
     }
-    if (routeAgent && store.activeAgentId !== routeAgent.id) {
+    /* Landing on the composer also lets go of the previous session, so leaving
+       for files or the terminal and back returns here rather than to it. */
+    if (routeAgent && (store.activeAgentId !== routeAgent.id || (onNewSessionPage && store.activeSessionId))) {
       setActiveAgent(routeAgent.id);
     }
-  }, [routeAgent, routeSession, routeSessionId, setActiveAgent, setActiveSession, store.activeAgentId, store.activeSessionId]);
+  }, [
+    onNewSessionPage,
+    routeAgent,
+    routeSession,
+    routeSessionId,
+    setActiveAgent,
+    setActiveSession,
+    store.activeAgentId,
+    store.activeSessionId,
+  ]);
 
   useEffect(() => {
     if (!routeSessionId || routeSession || routeSessionLookup?.sessionId === routeSessionId) return;
@@ -135,7 +150,9 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
         ? `/agents/${activeAgent.id}/files${selectedFilePath ? `/${encodeFilePath(selectedFilePath)}` : ""}`
         : view === "terminal" && activeAgent && canOpenTerminal
           ? `/agents/${activeAgent.id}/terminal`
-          : chatPath;
+          : onNewSessionPage && activeAgent
+            ? `/agents/${activeAgent.id}`
+            : chatPath;
     if (location.pathname !== targetPath) {
       navigate(targetPath, { replace: true });
     }
@@ -146,6 +163,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     location.pathname,
     lookingUpRouteSession,
     navigate,
+    onNewSessionPage,
     routeAgent,
     routeAgentId,
     routeSession,
@@ -289,6 +307,13 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
                 />
               ) : null}
             </Suspense>
+          ) : onNewSessionPage && activeAgent ? (
+            <NewSessionView
+              key={activeAgent.id}
+              agent={activeAgent}
+              modelRefs={store.modelRefs}
+              providerConfigs={store.providerConfigs}
+            />
           ) : activeSession && activeAgent && activeModel ? (
             <PiChat
               key={activeSession.id}
@@ -300,7 +325,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
             />
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-              Create a session to start chatting.
+              {activeAgent ? "Loading session..." : "Create an agent to start chatting."}
             </div>
           )}
         </div>
