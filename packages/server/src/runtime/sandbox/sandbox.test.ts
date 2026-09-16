@@ -188,7 +188,9 @@ test("a workspace .env symlink is not followed out to a host file", () => {
 });
 
 test("a caller variable wins over .env, and a secret wins over both", () => {
-  const env = sandboxEnv({ ...{ A: "dotenv", B: "dotenv", C: "dotenv" }, ...{ B: "caller", C: "caller" } }, [
+  const dotEnv = { A: "dotenv", B: "dotenv", C: "dotenv" };
+  const callerEnv = { B: "caller", C: "caller" };
+  const env = sandboxEnv({ ...dotEnv, ...callerEnv }, [
     { name: "C", value: "secret" },
   ]);
   assert.ok(env.includes("A=dotenv"));
