@@ -1,7 +1,8 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage as AssistantMessageType, ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
-import { AlertCircleIcon } from "lucide-react";
-import { memo, useMemo } from "react";
+import { AlertCircleIcon, ChevronRightIcon, Loader2Icon } from "lucide-react";
+import { memo, useMemo, useState, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { MessageActions } from "./MessageActions";
 import { MarkdownContent } from "./MarkdownContent";
 import { ToolCallView } from "./ToolCallView";
@@ -21,10 +22,20 @@ type ChatMessagesProps = {
   streamingMessage?: AgentMessage;
   pendingToolCalls: ReadonlySet<string>;
   isStreaming: boolean;
+  /**
+   * Fold each run's working -- thinking, tool calls, and the remarks the agent
+   * made along the way -- behind one row, leaving the answer it ended on.
+   */
+  collapseRunDetails?: boolean;
   onEditMessage: (message: AgentMessage) => void;
   onRetryMessage: (message: AgentMessage) => void;
   onForkMessage: (message: AgentMessage) => void;
 };
+
+/** A user message, or everything the agent did in answer to one. */
+type MessageSegment =
+  | { kind: "message"; message: AgentMessage; index: number }
+  | { kind: "run"; messages: Array<{ message: AgentMessage; index: number }> };
 
 type DisplayAssistantContentPart = AssistantMessageType["content"][number] | {
   type: "image";
@@ -41,6 +52,7 @@ export const ChatMessages = memo(function ChatMessages({
   streamingMessage,
   pendingToolCalls,
   isStreaming,
+  collapseRunDetails = false,
   onEditMessage,
   onRetryMessage,
   onForkMessage,
@@ -51,28 +63,185 @@ export const ChatMessages = memo(function ChatMessages({
       ? [...messages, streamingMessage]
       : messages;
 
+  const renderMessage = (message: AgentMessage, index: number) => {
+    if (message.role === "artifact" || message.role === "toolResult") return null;
+    const streaming = isStreaming && message === streamingMessage;
+    return (
+      <MessageItem
+        key={`${message.role}:${message.timestamp ?? index}:${index}`}
+        message={message}
+        toolResultsById={toolResultsById}
+        pendingToolCalls={pendingToolCalls}
+        streaming={streaming}
+        hidePendingToolCalls={!streaming && isStreaming}
+        onEditMessage={onEditMessage}
+        onRetryMessage={onRetryMessage}
+        onForkMessage={onForkMessage}
+      />
+    );
+  };
+
+  if (!collapseRunDetails) {
+    return <div className="flex min-w-0 flex-col gap-4">{renderMessages.map(renderMessage)}</div>;
+  }
+
+  const segments = segmentByRun(renderMessages);
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      {renderMessages.map((message, index) => {
-        if (message.role === "artifact" || message.role === "toolResult") return null;
-        const streaming = isStreaming && message === streamingMessage;
-        return (
-          <MessageItem
-            key={`${message.role}:${message.timestamp ?? index}:${index}`}
-            message={message}
-            toolResultsById={toolResultsById}
-            pendingToolCalls={pendingToolCalls}
-            streaming={streaming}
-            hidePendingToolCalls={!streaming && isStreaming}
+      {segments.map((segment, segmentIndex) =>
+        segment.kind === "message" ? (
+          renderMessage(segment.message, segment.index)
+        ) : (
+          <CollapsedRun
+            key={`run:${segment.messages[0]!.index}`}
+            messages={segment.messages}
+            active={isStreaming && segmentIndex === segments.length - 1}
+            renderMessage={renderMessage}
             onEditMessage={onEditMessage}
-            onRetryMessage={onRetryMessage}
             onForkMessage={onForkMessage}
           />
-        );
-      })}
+        ),
+      )}
     </div>
   );
 });
+
+function segmentByRun(messages: AgentMessage[]): MessageSegment[] {
+  const segments: MessageSegment[] = [];
+  messages.forEach((message, index) => {
+    if (message.role === "user" || message.role === "user-with-attachments") {
+      segments.push({ kind: "message", message, index });
+      return;
+    }
+    const last = segments.at(-1);
+    if (last?.kind === "run") last.messages.push({ message, index });
+    else segments.push({ kind: "run", messages: [{ message, index }] });
+  });
+  return segments;
+}
+
+/**
+ * One run, folded down to the answer it ended on. The row above the answer
+ * says how much work is folded away and opens it in place, as the full chat
+ * would have shown it. A run with nothing to fold renders as it is.
+ */
+function CollapsedRun({
+  messages,
+  active,
+  renderMessage,
+  onEditMessage,
+  onForkMessage,
+}: {
+  messages: Array<{ message: AgentMessage; index: number }>;
+  /** The agent is still working on this run. */
+  active: boolean;
+  renderMessage: (message: AgentMessage, index: number) => ReactNode;
+  onEditMessage: (message: AgentMessage) => void;
+  onForkMessage: (message: AgentMessage) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const assistants = messages.filter(
+    (entry): entry is { message: AssistantMessageType; index: number } => entry.message.role === "assistant",
+  );
+  const answer = [...assistants].reverse().find((entry) => hasText(entry.message));
+  const last = assistants.at(-1);
+  const toolCalls = assistants.reduce(
+    (count, entry) => count + entry.message.content.filter((part) => part.type === "toolCall").length,
+    0,
+  );
+  const thought = assistants.some((entry) =>
+    entry.message.content.some((part) => part.type === "thinking" && part.thinking.trim()),
+  );
+  const remarks = assistants.filter((entry) => entry !== answer && hasText(entry.message)).length;
+  const folded = toolCalls > 0 || thought || remarks > 0;
+
+  if (!folded && !active) return <>{messages.map((entry) => renderMessage(entry.message, entry.index))}</>;
+
+  const summary = [
+    toolCalls > 0 ? `${toolCalls} tool call${toolCalls === 1 ? "" : "s"}` : "",
+    thought ? "thinking" : "",
+  ].filter(Boolean).join(" · ");
+  const currentTool = active ? runningToolName(last?.message) : undefined;
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        className="mx-4 flex w-fit max-w-[calc(100%-2rem)] items-center gap-1.5 rounded-md py-0.5 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
+        onClick={() => setExpanded((value) => !value)}
+      >
+        {active ? (
+          <Loader2Icon className="size-3.5 shrink-0 animate-spin" />
+        ) : (
+          <ChevronRightIcon className={cn("size-3.5 shrink-0 transition-transform", expanded && "rotate-90")} />
+        )}
+        <span className="truncate">
+          {active ? (currentTool ? `Working · ${currentTool}` : "Working") : expanded ? "Hide work" : "Show work"}
+          {summary ? ` · ${summary}` : ""}
+        </span>
+      </button>
+      {expanded ? (
+        <div className="flex min-w-0 flex-col gap-4 border-l-2 border-border/60 pl-1">
+          {messages.map((entry) => renderMessage(entry.message, entry.index))}
+        </div>
+      ) : (
+        <>
+          {answer ? (
+            <AnswerOnly message={answer.message} onEditMessage={active ? undefined : onEditMessage} onForkMessage={onForkMessage} />
+          ) : null}
+          {last ? <RunEnding message={last.message} /> : null}
+        </>
+      )}
+    </div>
+  );
+}
+
+function hasText(message: AssistantMessageType) {
+  return message.content.some((part) => part.type === "text" && part.text.trim());
+}
+
+function runningToolName(message?: AssistantMessageType) {
+  return message?.content.filter((part): part is ToolCall => part.type === "toolCall").at(-1)?.name;
+}
+
+/** An assistant message's prose, with its working and its usage line left out. */
+function AnswerOnly({
+  message,
+  onEditMessage,
+  onForkMessage,
+}: {
+  message: AssistantMessageType;
+  onEditMessage?: (message: AgentMessage) => void;
+  onForkMessage: (message: AgentMessage) => void;
+}) {
+  const text = message.content
+    .filter((part) => part.type === "text" && part.text.trim())
+    .map((part) => (part as { text: string }).text)
+    .join("\n\n");
+  return (
+    <div className="group flex min-w-0 flex-col gap-1 px-4 text-sm">
+      <MarkdownContent content={text} />
+      <div className="-mt-1">
+        <MessageActions message={message} onEdit={onEditMessage} onFork={onForkMessage} />
+      </div>
+    </div>
+  );
+}
+
+/** How a run ended, when that was not an answer: an error or a stop. */
+function RunEnding({ message }: { message: AssistantMessageType }) {
+  if (message.stopReason === "error" && message.errorMessage) {
+    return (
+      <div className="mx-4 flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        <AlertCircleIcon />
+        <span>{message.errorMessage}</span>
+      </div>
+    );
+  }
+  if (message.stopReason === "aborted") return <div className="px-4 text-sm italic text-destructive">Interrupted</div>;
+  return null;
+}
 
 const MessageItem = memo(function MessageItem({
   message,

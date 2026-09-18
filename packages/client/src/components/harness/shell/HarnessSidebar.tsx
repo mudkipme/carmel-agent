@@ -1,21 +1,26 @@
 import { PanelLeftCloseIcon } from "lucide-react";
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { IssueList } from "@/components/harness/issues/IssueList";
+import { describeIssue, sortIssues } from "@/components/harness/issues/issue-state";
 import { Button } from "@/components/ui/button";
 import { showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
-import type { AgentConfig, SessionMetadata, User } from "@carmel-agent/shared";
+import type { AgentConfig, Issue, SessionMetadata, User } from "@carmel-agent/shared";
 import { AgentSelector } from "./AgentSelector";
 import { SessionList } from "./SessionList";
 import { SidebarSessionsToolbar } from "./SidebarSessionsToolbar";
-import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "./sidebar-utils";
+import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH, type ContentView, type SidebarList } from "./sidebar-utils";
 
 export function HarnessSidebar({
   activeUser,
   activeAgent,
   activeSession,
+  activeIssueId,
+  contentView,
   visibleAgents,
   visibleSessions,
+  visibleIssues,
   sidebarOpen,
   sidebarWidth,
   sidebarResizing,
@@ -28,8 +33,11 @@ export function HarnessSidebar({
   activeUser?: User;
   activeAgent?: AgentConfig;
   activeSession?: SessionMetadata;
+  activeIssueId?: string;
+  contentView: ContentView;
   visibleAgents: AgentConfig[];
   visibleSessions: SessionMetadata[];
+  visibleIssues: Issue[];
   sidebarOpen: boolean;
   sidebarWidth: number;
   sidebarResizing: boolean;
@@ -40,6 +48,14 @@ export function HarnessSidebar({
   onOpenImport: () => void;
 }) {
   const store = useHarnessStore();
+  /* The list follows the main column when it moves between a session and an
+     issue, and is otherwise the reader's to switch. */
+  const [list, setList] = useState<SidebarList>(contentView === "issues" ? "issues" : "sessions");
+  useEffect(() => {
+    if (contentView === "issues") setList("issues");
+    else if (contentView === "chat") setList("sessions");
+  }, [contentView]);
+  const attentionCount = visibleIssues.filter((issue) => describeIssue(issue).attention === "blocking").length;
 
   const createSidebarAgent = async (): Promise<AgentConfig | undefined> => {
     try {
@@ -90,15 +106,26 @@ export function HarnessSidebar({
           <div className="flex min-h-0 flex-1 flex-col gap-2">
             <SidebarSessionsToolbar
               activeAgent={activeAgent}
+              list={list}
+              attentionCount={attentionCount}
+              onListChange={setList}
               onOpenSession={onOpenSession}
               onOpenImport={onOpenImport}
             />
             <div className="min-h-0 flex-1 overflow-hidden">
-              <SessionList
-                sessions={visibleSessions}
-                activeSessionId={activeSession?.id}
-                onOpenSession={onOpenSession}
-              />
+              {list === "issues" ? (
+                <IssueList
+                  issues={visibleIssues.slice().sort(sortIssues)}
+                  activeIssueId={activeIssueId}
+                  onOpenIssue={onOpenSession}
+                />
+              ) : (
+                <SessionList
+                  sessions={visibleSessions}
+                  activeSessionId={activeSession?.id}
+                  onOpenSession={onOpenSession}
+                />
+              )}
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import {
   AgentHarness,
   BACKGROUND_CONTEXT,
+  type AgentHarnessTool,
   formatSkillsForSystemPrompt,
   type AgentLane,
   type Context as PiContext,
@@ -24,7 +25,6 @@ import { loadAgentResources, resolveAgentWorkingDirPath } from "./resources.ts";
 import { classifyHarnessTurnFailure, projectRunEvent } from "./run-events.ts";
 import {
   createActiveAgentRun,
-  createRunStream,
   emitRunEvent,
   finishAgentRun,
   type ActiveAgentRun,
@@ -107,6 +107,18 @@ export type AgentRunInput = {
   modelRuntime: ModelRuntime;
   thinkingLevel: Session["thinkingLevel"];
   promptInput?: PromptInput;
+  /**
+   * What the session the run is in adds to the agent: tools and instructions
+   * that only make sense there, like an issue's `report_issue`. Offered on top
+   * of the agent's own tools, and not gated by its permissions, which are about
+   * reaching the outside world -- these only ever reach Carmel's own state.
+   */
+  sessionAddons?: SessionRunAddons;
+};
+
+export type SessionRunAddons = {
+  tools: AgentHarnessTool<ExecutionToolContext>[];
+  instructions: string;
 };
 
 /** Everything the run body and its finalization share, fixed at run startup. */
@@ -117,10 +129,6 @@ type AgentRun = AgentRunInput & {
   outcome: RunOutcome;
   model: Model<Api>;
 };
-
-export function createAgentRunResponse(input: AgentRunInput) {
-  return createRunStream(startDetachedAgentRun(input), new TextEncoder());
-}
 
 /**
  * Start a run with no observer attached.
@@ -333,9 +341,12 @@ export class RetryBranch {
 async function openRunHarness(
   context: AgentRun & { piSession: PiSession; execution: ServerExecution },
 ): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[] }> {
-  const { agent, piSession, execution, model, modelRuntime, thinkingLevel } = context;
+  const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } = context;
   const resources = await loadAgentResources(agent, execution.env);
-  const tools = execution.tools;
+  // A session's own tools replace any agent tool that claims the same name, so
+  // an extension cannot stand in for the tool the session depends on.
+  const addonNames = new Set(sessionAddons?.tools.map((tool) => tool.name));
+  const tools = [...execution.tools.filter((tool) => !addonNames.has(tool.name)), ...(sessionAddons?.tools ?? [])];
   const activeToolNames = tools.map((tool) => tool.name);
   // 0.85 replaced the constructor with a factory: it restores durable lane and
   // operation state from the session, and reports what it found still open.
@@ -350,6 +361,7 @@ async function openRunHarness(
       skills: resources.skills,
       contextFiles: resources.contextFiles,
       includeSkills: activeToolNames.includes("read"),
+      sessionInstructions: sessionAddons?.instructions,
     }),
     resources: {
       skills: resources.skills,
@@ -713,6 +725,7 @@ function buildHarnessSystemPrompt(options: {
   skills: Parameters<typeof formatSkillsForSystemPrompt>[0];
   contextFiles: Array<{ path: string; content: string }>;
   includeSkills: boolean;
+  sessionInstructions?: string;
 }) {
   let prompt = options.base;
   if (options.contextFiles.length > 0) {
@@ -725,6 +738,7 @@ function buildHarnessSystemPrompt(options: {
   if (options.includeSkills && options.skills.length > 0) {
     prompt += `\n\n${formatSkillsForSystemPrompt(options.skills)}`;
   }
+  if (options.sessionInstructions) prompt += `\n\n${options.sessionInstructions}`;
   return `${prompt}\nCurrent working directory: ${options.cwd.replaceAll("\\", "/")}`;
 }
 

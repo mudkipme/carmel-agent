@@ -11,6 +11,7 @@ type ChatPanelProps = {
   streamingMessage?: AgentMessage;
   pendingToolCalls: ReadonlySet<string>;
   isStreaming: boolean;
+  collapseRunDetails?: boolean;
   currentModel: Model<Api>;
   thinkingLevel: ThinkingLevel;
   inputRef?: Ref<ChatInputHandle>;
@@ -32,6 +33,7 @@ export function ChatPanel({
   streamingMessage,
   pendingToolCalls,
   isStreaming,
+  collapseRunDetails,
   currentModel,
   thinkingLevel,
   inputRef,
@@ -99,6 +101,7 @@ export function ChatPanel({
             streamingMessage={streamingMessage}
             pendingToolCalls={pendingToolCalls}
             isStreaming={isStreaming}
+            collapseRunDetails={collapseRunDetails}
             onEditMessage={onEditMessage}
             onRetryMessage={onRetryMessage}
             onForkMessage={onForkMessage}

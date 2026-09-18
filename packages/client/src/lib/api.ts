@@ -13,6 +13,9 @@ import type {
   AgentTaskPatchCommand,
   AgentTaskRun,
   CreateUserRequest,
+  Issue,
+  IssueCreateCommand,
+  IssuePatchCommand,
   ModelCatalog,
   ModelRefCommand,
   OAuthLoginFlowState,
@@ -243,6 +246,18 @@ export const api = {
     }),
   listAgentTaskRuns: (agentId: string, taskId: string) =>
     request<AgentTaskRun[]>(`/api/agents/${agentId}/tasks/${taskId}/runs`),
+  listIssues: (agentId: string) => request<Issue[]>(`/api/agents/${agentId}/issues`),
+  getIssue: (agentId: string, issueId: string) => request<Issue>(`/api/agents/${agentId}/issues/${issueId}`),
+  createIssue: (agentId: string, input: IssueCreateCommand) =>
+    request<Issue>(`/api/agents/${agentId}/issues`, { method: "POST", body: JSON.stringify(input) }),
+  updateIssue: (agentId: string, issueId: string, patch: IssuePatchCommand) =>
+    request<Issue>(`/api/agents/${agentId}/issues/${issueId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  interruptIssue: (agentId: string, issueId: string) =>
+    request<Issue>(`/api/agents/${agentId}/issues/${issueId}/interrupt`, { method: "POST" }),
+  cancelIssue: (agentId: string, issueId: string) =>
+    request<Issue>(`/api/agents/${agentId}/issues/${issueId}/cancel`, { method: "POST" }),
+  deleteIssue: (agentId: string, issueId: string) =>
+    request<{ ok: true }>(`/api/agents/${agentId}/issues/${issueId}`, { method: "DELETE" }),
   deleteAgent: (agentId: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}`, { method: "DELETE" }),
   createSession: (draft: SessionDraft & { title?: string }) =>

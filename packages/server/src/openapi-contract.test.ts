@@ -74,6 +74,7 @@ test("representative response fixtures satisfy every response component", async 
     FileContent: { path: "README.md", content: "hello", updatedAt: 1 },
     FileBatchResult: { completed: ["a.txt"], failed: [{ path: "b.txt", error: "Nope" }] },
     AgentTask: task,
+    Issue: { id: "i1", agentId: "a1", userId: "u1", sessionId: "s1", title: "Fix it", description: "It is broken", status: "open", running: true, createdAt: 1, updatedAt: 1 },
     AgentSecret: { agentId: "a1", name: "GITHUB_TOKEN", updatedAt: 1 },
     BootstrapPayload: { users: [user], agents: [agent], providerConfigs: [provider], modelRefs: [model], modelCatalog: {}, sessions: [metadata] },
   };

@@ -7,6 +7,7 @@ export function HarnessHeader({
   sidebarOpen,
   activeAgent,
   activeSession,
+  issueTitle,
   contentView,
   canOpenTerminal,
   onToggleSidebar,
@@ -16,6 +17,8 @@ export function HarnessHeader({
   sidebarOpen: boolean;
   activeAgent?: AgentConfig;
   activeSession?: SessionMetadata;
+  /** The open issue's title, when the issues pane is showing one. */
+  issueTitle?: string;
   contentView: ContentView;
   canOpenTerminal: boolean;
   onToggleSidebar: () => void;
@@ -25,7 +28,13 @@ export function HarnessHeader({
   /* Files and the terminal replace the session in the main column, so the
      title names the pane you are actually looking at. */
   const title =
-    contentView === "files" ? "Files" : contentView === "terminal" ? "Terminal" : (activeSession?.title ?? "New session");
+    contentView === "files"
+      ? "Files"
+      : contentView === "terminal"
+        ? "Terminal"
+        : contentView === "issues"
+          ? (issueTitle ?? "New issue")
+          : (activeSession?.title ?? "New session");
   /* The subtitle carries only what nothing else on screen says: the model is
      already named in the composer, and the working directory is worth the room
      just when the agent runs somewhere other than its own default. */

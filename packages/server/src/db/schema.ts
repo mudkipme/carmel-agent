@@ -6,8 +6,11 @@ import type {
   AgentTaskOutcome,
   AgentTaskRunOutcome,
   AgentTaskStatus,
+  AgentRunOutcome,
   AgentThinkingLevel,
   AgentWorkingDirMode,
+  IssueStatus,
+  IssueVerdict,
   PromptTemplate,
   Session,
   TaskScheduleKind,
@@ -246,6 +249,36 @@ export const sessions = sqliteTable("sessions", {
    * the list, which clears this.
    */
   taskId: text("task_id"),
+  /** The issue this session works. Issue sessions are listed as issues, not as sessions. */
+  issueId: text("issue_id"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+/**
+ * Work handed to an agent to carry on with, in a session of its own.
+ *
+ * Whether a run is in progress is not stored: it is read from the live run
+ * registry, which a restart empties, so a stored flag could only ever be wrong
+ * in the direction of claiming work that is no longer happening.
+ */
+export const issues = sqliteTable("issues", {
+  id: text("id").primaryKey(),
+  agentId: text("agent_id")
+    .notNull()
+    .references(() => agents.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  sessionId: text("session_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  status: text("status").$type<IssueStatus>().notNull().default("open"),
+  lastRunOutcome: text("last_run_outcome").$type<AgentRunOutcome>(),
+  lastRunDetail: text("last_run_detail"),
+  verdict: text("verdict").$type<IssueVerdict>(),
+  verdictSummary: text("verdict_summary"),
+  closedAt: integer("closed_at"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

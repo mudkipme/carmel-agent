@@ -26,6 +26,7 @@ import { agentConfigRequestSchema, jsonValidator } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import { deleteAgentSecretsForAgent } from "../services/agent-secrets.ts";
 import { deleteAgentTasksForAgent } from "../services/agent-tasks.ts";
+import { deleteIssuesForAgent } from "../services/issues.ts";
 import { createAgentFilesRoute } from "./agent-files.ts";
 
 export function createAgentRoutes() {
@@ -106,6 +107,7 @@ export function createAgentRoutes() {
     // against an agent that no longer exists.
     closeAgentTerminals(agentId, "The agent was deleted.");
     deleteAgentTasksForAgent(agentId);
+    deleteIssuesForAgent(agentId);
     deleteAgentSecretsForAgent(agentId);
     const deletedSessions = db.select().from(sessions).where(eq(sessions.agentId, agentId)).all();
     await deletePiSessions(deletedSessions);

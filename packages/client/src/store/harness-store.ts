@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { createAuthSlice } from "@/store/slices/auth-slice";
 import { createResourceSlice } from "@/store/slices/resource-slice";
+import { createIssueSlice } from "@/store/slices/issue-slice";
 import { createSessionSlice } from "@/store/slices/session-slice";
 import type { HarnessPersistedState, HarnessState } from "@/store/harness-types";
 
@@ -21,9 +22,11 @@ export const useHarnessStore = create<HarnessState>()(
       sessions: [],
       sessionDetails: {},
       activeSessionId: "",
+      issues: [],
       ...createAuthSlice(set, get),
       ...createResourceSlice(set, get),
       ...createSessionSlice(set),
+      ...createIssueSlice(set),
     }),
     {
       name: "carmel-harness-ui",

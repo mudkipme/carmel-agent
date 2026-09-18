@@ -18,6 +18,7 @@ import { importOpenWebuiSessions } from "../import/open-webui.ts";
 import { serializeSession, serializeSessionMetadata } from "../serializers.ts";
 import { canUseModel, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
 import { readActiveRunLeaseForSession } from "../services/active-run-lease.ts";
+import { deleteIssueForSession } from "../services/issues.ts";
 import { deletePiSession, forkPiSession } from "../services/pi-session-storage.ts";
 import {
   editSessionMessageEntry,
@@ -227,6 +228,7 @@ export function createSessionRoutes() {
       // A fork is something you chose to continue, so it joins the session
       // list even when it comes from a task run.
       taskId: undefined,
+      issueId: undefined,
       revision: 0,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -294,6 +296,7 @@ export function createSessionRoutes() {
     if (leaseConflict) return leaseConflict;
     await deletePiSession(session);
     db.delete(sessions).where(eq(sessions.id, session.id)).run();
+    deleteIssueForSession(session);
     return c.json({ ok: true });
   });
 

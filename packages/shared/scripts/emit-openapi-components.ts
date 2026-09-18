@@ -16,6 +16,8 @@ const requestSchemas = {
   AgentSecretRequest: S.agentSecretWriteSchema,
   AgentTaskCreateRequest: S.agentTaskCreateSchema,
   AgentTaskPatchRequest: S.agentTaskPatchSchema,
+  IssueCreateRequest: S.issueCreateSchema,
+  IssuePatchRequest: S.issuePatchSchema,
   AgentRunRequest: S.agentRunRequestSchema,
   SessionDraftRequest: S.sessionDraftRequestSchema,
   SessionPatchRequest: S.sessionPatchRequestSchema,

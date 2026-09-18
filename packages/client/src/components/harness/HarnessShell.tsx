@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useState, type PointerEvent as ReactPointerE
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
 import { NewSessionView } from "@/components/harness/NewSessionView";
+import { IssueView } from "@/components/harness/issues/IssueView";
+import { NewIssueView } from "@/components/harness/issues/NewIssueView";
 
 const FileEditorView = lazy(() =>
   import("@/components/harness/files/FileEditorView").then((module) => ({
@@ -40,11 +42,17 @@ import { useHarnessStore } from "@/store/harness-store";
 export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { agentId: routeAgentId, sessionId: routeSessionId, "*": routeFilePath } = useParams();
+  const {
+    agentId: routeAgentId,
+    sessionId: routeSessionId,
+    issueId: routeIssueId,
+    "*": routeFilePath,
+  } = useParams();
   const store = useHarnessStore();
   const setActiveAgent = store.setActiveAgent;
   const setActiveSession = store.setActiveSession;
   const loadUnlistedSession = store.loadUnlistedSession;
+  const loadIssues = store.loadIssues;
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarResizing, setSidebarResizing] = useState(false);
@@ -87,6 +95,12 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     )
     .slice()
     .sort(sortSessions);
+  const visibleIssues = store.issues.filter((issue) => issue.agentId === activeAgent?.id && issue.userId === store.activeUserId);
+  /* An issue in the route belongs to the agent in the route; once another agent
+     is active, the issues pane falls back to that agent's composer. */
+  const activeIssueId = view === "issues" && activeAgent?.id === routeAgentId ? routeIssueId : undefined;
+  const activeIssue = visibleIssues.find((issue) => issue.id === activeIssueId);
+  const anyIssueRunning = visibleIssues.some((issue) => issue.running);
   const routeAgent = routeAgentId ? visibleAgents.find((agent) => agent.id === routeAgentId) : undefined;
   const routeSession = routeSessionId
     ? store.sessions.find((session) => session.id === routeSessionId && session.userId === store.activeUserId)
@@ -146,14 +160,17 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
         ? agentFilesPath(activeAgent.id, selectedFilePath)
         : view === "terminal" && activeAgent && canOpenTerminal
           ? `/agents/${activeAgent.id}/terminal`
-          : onNewSessionPage && activeAgent
-            ? `/agents/${activeAgent.id}`
-            : chatPath;
+          : view === "issues" && activeAgent
+            ? `/agents/${activeAgent.id}/issues${activeIssueId ? `/${activeIssueId}` : ""}`
+            : onNewSessionPage && activeAgent
+              ? `/agents/${activeAgent.id}`
+              : chatPath;
     if (location.pathname !== targetPath) {
       navigate(targetPath, { replace: true });
     }
   }, [
     activeAgent,
+    activeIssueId,
     canOpenTerminal,
     chatPath,
     location.pathname,
@@ -169,6 +186,17 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     store.activeSessionId,
     view,
   ]);
+
+  /* Issue runs go on without anyone watching, so their state is polled: often
+     while one is running, rarely otherwise. */
+  const activeAgentId = activeAgent?.id;
+  useEffect(() => {
+    if (!activeAgentId) return;
+    const load = () => void loadIssues(activeAgentId).catch(() => undefined);
+    load();
+    const timer = window.setInterval(load, anyIssueRunning ? 4_000 : 30_000);
+    return () => window.clearInterval(timer);
+  }, [activeAgentId, anyIssueRunning, loadIssues]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_SIDEBAR_QUERY);
@@ -242,8 +270,11 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
         activeUser={activeUser}
         activeAgent={activeAgent}
         activeSession={view === "chat" ? activeSessionMetadata : undefined}
+        activeIssueId={activeIssueId}
+        contentView={view}
         visibleAgents={visibleAgents}
         visibleSessions={visibleSessions}
+        visibleIssues={visibleIssues}
         sidebarOpen={sidebarOpen}
         sidebarWidth={sidebarWidth}
         sidebarResizing={sidebarResizing}
@@ -259,6 +290,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
           sidebarOpen={sidebarOpen}
           activeAgent={activeAgent}
           activeSession={activeSessionMetadata}
+          issueTitle={activeIssue?.title}
           contentView={view}
           canOpenTerminal={canOpenTerminal}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
@@ -302,6 +334,23 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
                 />
               ) : null}
             </Suspense>
+          ) : view === "issues" && activeAgent ? (
+            activeIssueId ? (
+              <IssueView
+                key={activeIssueId}
+                agent={activeAgent}
+                issueId={activeIssueId}
+                modelRefs={store.modelRefs}
+                providerConfigs={store.providerConfigs}
+              />
+            ) : (
+              <NewIssueView
+                key={activeAgent.id}
+                agent={activeAgent}
+                modelRefs={store.modelRefs}
+                providerConfigs={store.providerConfigs}
+              />
+            )
           ) : onNewSessionPage && activeAgent ? (
             <NewSessionView
               key={activeAgent.id}

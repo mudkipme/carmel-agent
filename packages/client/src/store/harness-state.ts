@@ -39,12 +39,13 @@ export function toProviderConfigCommand(providerConfig: ProviderConfig): Provide
 }
 
 /**
- * Whether a session belongs in the session list. A task run's session can be in
- * the store because it is open, but it is reached from the task's run history,
- * so it never counts as one of the agent's listed sessions.
+ * Whether a session belongs in the session list. A task run's or an issue's
+ * session can be in the store because it is open, but it is reached from the
+ * task's run history or the issue list, so it never counts as one of the
+ * agent's listed sessions.
  */
 export function isListedSession(session: SessionMetadata) {
-  return !session.taskId;
+  return !session.taskId && !session.issueId;
 }
 
 export function cacheSession(state: HarnessState, session: Session) {
@@ -70,6 +71,7 @@ export function resetState(
     sessions: [],
     sessionDetails: {},
     activeSessionId: "",
+    issues: [],
   };
 }
 

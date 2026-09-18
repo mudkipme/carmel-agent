@@ -178,6 +178,20 @@ export const agentTaskPatchSchema = z.object({
 export type AgentTaskCreateCommand = z.infer<typeof agentTaskCreateSchema>;
 export type AgentTaskPatchCommand = z.infer<typeof agentTaskPatchSchema>;
 
+export const issueCreateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().min(1),
+  modelRefId: optionalStringSchema,
+  thinkingLevel: thinkingLevelSchema.optional(),
+}).strict();
+/** Status changes other than cancelling: cancel has its own route, because it also stops the run. */
+export const issuePatchSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  status: z.enum(["open", "resolved"]).optional(),
+}).strict();
+export type IssueCreateCommand = z.infer<typeof issueCreateSchema>;
+export type IssuePatchCommand = z.infer<typeof issuePatchSchema>;
+
 export const promptInputSchema = z.object({
   text: z.string(),
   images: z.array(imageContentSchema).optional(),

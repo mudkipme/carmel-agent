@@ -33,6 +33,8 @@ export type ActiveAgentRun = {
   flushTimer?: ReturnType<typeof setTimeout>;
   /** Sequence of the `message_start` whose message is still streaming. */
   streamingSince?: number;
+  /** Called with the result as the run is released; see `onRunFinished`. */
+  finishListeners?: Array<(result: AgentRunResult) => void>;
 };
 
 type RunSubscriber = {
@@ -152,6 +154,36 @@ export function finishAgentRun(run: ActiveAgentRun, result?: AgentRunResult) {
   activeSessionRuns.delete(run.sessionId);
   for (const subscriber of run.subscribers) subscriber.close();
   run.subscribers.clear();
+  const listeners = run.finishListeners ?? [];
+  run.finishListeners = undefined;
+  for (const listener of listeners) {
+    try {
+      listener(runResultOf(run));
+    } catch (error) {
+      console.warn("A run finish listener failed:", error);
+    }
+  }
+}
+
+/**
+ * Call `listener` with the run's result in the same tick the run is released.
+ *
+ * For state that must never be read half-updated: anything derived from the
+ * active-run registry (is it running?) and anything this records (how did it
+ * end?) change together, where `whenRunFinished` would leave a poll-interval
+ * gap between the two.
+ */
+export function onRunFinished(run: ActiveAgentRun, listener: (result: AgentRunResult) => void) {
+  if (run.finished) {
+    listener(runResultOf(run));
+    return;
+  }
+  (run.finishListeners ??= []).push(listener);
+}
+
+function runResultOf(run: ActiveAgentRun): AgentRunResult {
+  // Only a run released without finalization -- a test's held lease -- has none.
+  return run.result ?? { outcome: "interrupted", detail: INTERRUPTED_DETAIL };
 }
 
 /**
@@ -164,8 +196,7 @@ export function finishAgentRun(run: ActiveAgentRun, result?: AgentRunResult) {
  */
 export async function whenRunFinished(run: ActiveAgentRun, pollMs = 200): Promise<AgentRunResult> {
   while (!run.finished) await new Promise((resolve) => setTimeout(resolve, pollMs));
-  // Only a run released without finalization -- a test's held lease -- has none.
-  return run.result ?? { outcome: "interrupted", detail: INTERRUPTED_DETAIL };
+  return runResultOf(run);
 }
 
 export function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder(), afterSequence = 0) {

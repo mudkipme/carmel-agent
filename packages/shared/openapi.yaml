@@ -18,6 +18,7 @@ tags:
   - {name: Sessions}
   - {name: Files}
   - {name: Tasks}
+  - {name: Issues}
 paths:
   /api/health:
     get: {operationId: health, tags: [Bootstrap], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
@@ -166,6 +167,21 @@ paths:
   /api/agents/{agentId}/tasks/{taskId}/run:
     parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/TaskID'}]
     post: {operationId: runAgentTask, tags: [Tasks], responses: {'200': {description: Outcome, content: {application/json: {schema: {type: object, additionalProperties: true}}}}}}
+  /api/agents/{agentId}/issues:
+    parameters: [{$ref: '#/components/parameters/AgentID'}]
+    get: {operationId: listIssues, tags: [Issues], description: The caller's own issues on this agent, most recently active first., responses: {'200': {description: Issues, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Issue'}}}}}, '404': {$ref: '#/components/responses/Error'}}}
+    post: {operationId: createIssue, tags: [Issues], description: Opens the issue and starts the agent working on it in a session of its own., requestBody: {$ref: '#/components/requestBodies/IssueCreate'}, responses: {'201': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/Issue'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{agentId}/issues/{issueId}:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    get: {operationId: getIssue, tags: [Issues], responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/Issue'}}}}, '404': {$ref: '#/components/responses/Error'}}}
+    patch: {operationId: updateIssue, tags: [Issues], description: Rename, resolve, or reopen. Resolving is refused while a run is in progress., requestBody: {$ref: '#/components/requestBodies/IssuePatch'}, responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/Issue'}}}}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}}
+    delete: {operationId: deleteIssue, tags: [Issues], description: Deletes the issue and its session. Refused while a run is in progress., responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{agentId}/issues/{issueId}/interrupt:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    post: {operationId: interruptIssue, tags: [Issues], description: Stops the current run. The issue stays open for a reply., responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/Issue'}}}}, '404': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{agentId}/issues/{issueId}/cancel:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    post: {operationId: cancelIssue, tags: [Issues], description: Stops any run and closes the issue as cancelled., responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/Issue'}}}}, '404': {$ref: '#/components/responses/Error'}}}
 components:
   securitySchemes:
     carmelSession: {type: apiKey, in: cookie, name: carmel_session}
@@ -174,6 +190,7 @@ components:
     AgentID: {name: agentId, in: path, required: true, schema: {type: string}}
     RunID: {name: runId, in: path, required: true, schema: {type: string}}
     TaskID: {name: taskId, in: path, required: true, schema: {type: string}}
+    IssueID: {name: issueId, in: path, required: true, schema: {type: string}}
     SecretName: {name: name, in: path, required: true, schema: {type: string}}
     EntryID: {name: entryId, in: path, required: true, schema: {type: string}}
     AttachmentID: {name: attachmentId, in: path, required: true, schema: {type: string}}
@@ -215,6 +232,8 @@ components:
     AgentSecret: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSecretRequest'}}}}
     TaskCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
     TaskPatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
+    IssueCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueCreateRequest'}}}}
+    IssuePatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssuePatchRequest'}}}}
   schemas:
     Error: {type: object, required: [error], properties: {error: {type: string}}}
     OK: {type: object, required: [ok], properties: {ok: {type: boolean}}}
@@ -237,7 +256,7 @@ components:
     SessionDraftRequest: {type: object, required: [agentId, modelRefId], additionalProperties: false, properties: {agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, title: {type: string}}}
     SessionPatchRequest: {type: object, additionalProperties: false, properties: {title: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, pinnedAt: {type: number, nullable: true}, archivedAt: {type: number, nullable: true}, taskId: {type: string, nullable: true, enum: [null]}}}
     MessageEditRequest: {type: object, required: [content], additionalProperties: false, properties: {content: {type: string}, truncate: {type: boolean}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, removedImageIndexes: {type: array, items: {type: integer, minimum: 0}}, removedAttachmentIds: {type: array, items: {type: string}}}}
-    SessionMetadata: {type: object, required: [id, title, userId, agentId, modelRefId, thinkingLevel, revision, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, title: {type: string}, userId: {type: string}, agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, revision: {type: integer}, pinnedAt: {type: number}, archivedAt: {type: number}, taskId: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
+    SessionMetadata: {type: object, required: [id, title, userId, agentId, modelRefId, thinkingLevel, revision, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, title: {type: string}, userId: {type: string}, agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, revision: {type: integer}, pinnedAt: {type: number}, archivedAt: {type: number}, taskId: {type: string}, issueId: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
     Session: {allOf: [{$ref: '#/components/schemas/SessionMetadata'}, {type: object, required: [messages, messageEntryIds], properties: {messages: {type: array, items: {type: object, additionalProperties: true}}, messageEntryIds: {type: array, items: {type: string}}}}]}
     SessionConnection: {type: object, required: [session, activeRun], properties: {session: {$ref: '#/components/schemas/Session'}, activeRun: {nullable: true, type: object, required: [runId, sessionId, eventCursor], properties: {runId: {type: string}, sessionId: {type: string}, eventCursor: {type: integer}}}}}
     FileEntry: {type: object, required: [name, path, type, updatedAt, hidden], properties: {name: {type: string}, path: {type: string}, type: {type: string, enum: [file, directory]}, size: {type: number}, updatedAt: {type: number}, hidden: {type: boolean}}}
@@ -249,4 +268,7 @@ components:
     AgentSecretRequest: {type: object, required: [value], additionalProperties: false, properties: {value: {type: string, minLength: 1, maxLength: 8192}}}
     AgentSecret: {type: object, required: [agentId, name, updatedAt], additionalProperties: false, properties: {agentId: {type: string}, name: {type: string}, updatedAt: {type: number}}}
     AgentTask: {type: object, required: [id, agentId, userId, name, prompt, scheduleKind, scheduleValue, status, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, agentId: {type: string}, userId: {type: string}, name: {type: string}, prompt: {type: string}, scheduleKind: {type: string}, scheduleValue: {type: string}, status: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
+    IssueCreateRequest: {type: object, required: [title, description], additionalProperties: false, properties: {title: {type: string, minLength: 1, maxLength: 200}, description: {type: string, minLength: 1}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}}}
+    IssuePatchRequest: {type: object, additionalProperties: false, properties: {title: {type: string, minLength: 1, maxLength: 200}, status: {type: string, enum: [open, resolved]}}}
+    Issue: {type: object, required: [id, agentId, userId, sessionId, title, description, status, running, createdAt, updatedAt], additionalProperties: false, properties: {id: {type: string}, agentId: {type: string}, userId: {type: string}, sessionId: {type: string}, title: {type: string}, description: {type: string}, status: {type: string, enum: [open, resolved, cancelled]}, running: {type: boolean}, lastRunOutcome: {type: string, enum: [succeeded, failed, cancelled, interrupted]}, lastRunDetail: {type: string}, verdict: {type: string, enum: [done, needs_input, blocked]}, verdictSummary: {type: string}, closedAt: {type: number}, createdAt: {type: number}, updatedAt: {type: number}}}
     BootstrapPayload: {type: object, required: [users, agents, providerConfigs, modelRefs, modelCatalog, sessions], properties: {users: {type: array, items: {$ref: '#/components/schemas/User'}}, agents: {type: array, items: {$ref: '#/components/schemas/AgentConfig'}}, providerConfigs: {type: array, items: {$ref: '#/components/schemas/ProviderConfig'}}, modelRefs: {type: array, items: {$ref: '#/components/schemas/ModelRef'}}, modelCatalog: {type: object, additionalProperties: true}, sessions: {type: array, items: {$ref: '#/components/schemas/SessionMetadata'}}}}

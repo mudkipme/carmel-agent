@@ -291,6 +291,47 @@ export type AgentTaskRun = {
   sessionId?: string;
 };
 
+/**
+ * Whether an issue still wants attention. Whether its agent is working on it
+ * right now is a separate question -- `Issue.running` -- because a run can be
+ * interrupted without the issue being settled.
+ */
+export type IssueStatus = "open" | "resolved" | "cancelled";
+
+/**
+ * The agent's own verdict on where an issue stands, reported through its
+ * `report_issue` tool. Separate from how the run ended: a run can succeed and
+ * end on a question, and only the agent can say which it was.
+ */
+export type IssueVerdict = "done" | "needs_input" | "blocked";
+
+/**
+ * A long-running piece of work handed to an agent: a title, a brief, and the
+ * session the agent works it in. Replies continue that session; resolving or
+ * cancelling closes the issue without deleting what was done.
+ */
+export type Issue = {
+  id: string;
+  agentId: string;
+  userId: string;
+  sessionId: string;
+  title: string;
+  description: string;
+  status: IssueStatus;
+  /** An agent run is in progress in the issue's session. */
+  running: boolean;
+  /** How the most recent run ended. Absent until one has. */
+  lastRunOutcome?: AgentRunOutcome;
+  lastRunDetail?: string;
+  /** What the agent reported at the end of its latest run. Cleared when a new run starts. */
+  verdict?: IssueVerdict;
+  /** The agent's summary with its verdict: what it did, or what it needs. */
+  verdictSummary?: string;
+  closedAt?: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type InstalledExtension = {
   /** Provider id, as used in `AgentConfig.enabledExtensions`. */
   id: string;

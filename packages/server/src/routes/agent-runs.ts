@@ -7,10 +7,12 @@ import { sessions } from "../db/schema.ts";
 import {
   abortAgentRun,
   createAgentRunEventStream,
-  createAgentRunResponse,
   getActiveAgentRunForSession,
   normalizePromptInput,
+  startDetachedAgentRun,
 } from "../runtime/agent-runtime.ts";
+import { createRunStream } from "../runtime/run-stream.ts";
+import { issueRunAddons, noteIssueRunStarted } from "../services/issues.ts";
 import { readVisibleAgent } from "../services/agent-access.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { readSessionConnection } from "../services/session-snapshot.ts";
@@ -93,7 +95,7 @@ export function createAgentRunRoutes() {
       return c.json({ error: "Session changed while preparing the agent run. Retry the request." }, 409);
     }
 
-    return createAgentRunResponse({
+    const run = startDetachedAgentRun({
       agent,
       session: currentSession,
       modelRef,
@@ -101,7 +103,10 @@ export function createAgentRunRoutes() {
       modelRuntime,
       thinkingLevel: body.thinkingLevel ?? currentSession.thinkingLevel,
       promptInput,
+      sessionAddons: issueRunAddons(currentSession.issueId),
     });
+    noteIssueRunStarted(currentSession, run);
+    return createRunStream(run);
   });
 
   return route;

@@ -5,7 +5,10 @@ export const MIN_SIDEBAR_WIDTH = 240;
 export const MAX_SIDEBAR_WIDTH = 520;
 
 /** Which pane fills the main column, and which route is showing it. */
-export type ContentView = "chat" | "files" | "terminal";
+export type ContentView = "chat" | "files" | "terminal" | "issues";
+
+/** Which list the sidebar shows under the agent selector. */
+export type SidebarList = "sessions" | "issues";
 
 export function getDefaultSidebarOpen() {
   return typeof window === "undefined" ? true : window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches;

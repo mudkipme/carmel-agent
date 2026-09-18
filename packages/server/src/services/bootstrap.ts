@@ -23,13 +23,13 @@ export function readBootstrapPayload(userId: string) {
 }
 
 // Session rows only: bootstrap never needs a transcript, so it must not open a
-// Pi session per row to read one. Archived sessions and task runs stay out of the
-// session list; agent settings lists them separately.
+// Pi session per row to read one. Archived sessions, task runs, and issues stay
+// out of the session list; each is listed where it belongs.
 function readSessionMetadataForUser(userId: string) {
   return db
     .select()
     .from(sessions)
-    .where(and(eq(sessions.userId, userId), isNull(sessions.archivedAt), isNull(sessions.taskId)))
+    .where(and(eq(sessions.userId, userId), isNull(sessions.archivedAt), isNull(sessions.taskId), isNull(sessions.issueId)))
     .all()
     .sort(sortSessions)
     .map(serializeSessionMetadata);

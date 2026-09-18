@@ -1,6 +1,9 @@
 import type { EditSessionMessageOptions } from "@/lib/api";
 import type {
   AgentConfig,
+  Issue,
+  IssueCreateCommand,
+  IssuePatchCommand,
   ModelRef,
   ModelCatalog,
   PromptTemplate,
@@ -31,6 +34,8 @@ export type HarnessState = {
   sessions: SessionMetadata[];
   sessionDetails: Record<string, Session>;
   activeSessionId: string;
+  /** Issues of the agents whose issue lists have been loaded; not part of bootstrap. */
+  issues: Issue[];
   bootstrap: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
   setup: (input: { username: string; password: string; email?: string; name?: string }) => Promise<void>;
@@ -66,6 +71,13 @@ export type HarnessState = {
   /** Bring a session that is not in the session list -- a task run's -- into the store so it can be opened. */
   loadUnlistedSession: (sessionId: string) => Promise<void>;
   moveSessionToList: (sessionId: string) => Promise<void>;
+  loadIssues: (agentId: string) => Promise<Issue[]>;
+  loadIssue: (agentId: string, issueId: string) => Promise<Issue>;
+  createIssue: (agentId: string, input: IssueCreateCommand) => Promise<Issue>;
+  updateIssue: (issue: Issue, patch: IssuePatchCommand) => Promise<Issue>;
+  interruptIssue: (issue: Issue) => Promise<Issue>;
+  cancelIssue: (issue: Issue) => Promise<Issue>;
+  deleteIssue: (issue: Issue) => Promise<void>;
   addPromptTemplate: (agentId: string, template: Omit<PromptTemplate, "id">) => Promise<void>;
   deletePromptTemplate: (agentId: string, templateId: string) => Promise<void>;
 };

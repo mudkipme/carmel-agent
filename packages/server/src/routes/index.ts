@@ -3,6 +3,7 @@ import type { AuthVariables } from "../auth.ts";
 import { createExtensionRoutes } from "./extensions.ts";
 import { createAgentSecretRoutes } from "./agent-secrets.ts";
 import { createAgentTaskRoutes } from "./agent-tasks.ts";
+import { createIssueRoutes } from "./issues.ts";
 import { createAgentRoutes } from "./agents.ts";
 import { createAgentRunRoutes } from "./agent-runs.ts";
 import { createAuthRoutes } from "./auth.ts";
@@ -24,6 +25,7 @@ export function createApiRoutes() {
   api.route("/", createExtensionRoutes());
   api.route("/", createAgentSecretRoutes());
   api.route("/", createAgentTaskRoutes());
+  api.route("/", createIssueRoutes());
   api.route("/", createAgentRunRoutes());
   api.route("/", createSessionRoutes());
 

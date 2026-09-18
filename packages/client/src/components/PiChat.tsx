@@ -19,9 +19,21 @@ type PiChatProps = {
   modelRef: ModelRef;
   modelRefs: ModelRef[];
   providerConfigs: ProviderConfig[];
+  /** See `ChatMessages`: folds each run's working away behind a row of its own. */
+  collapseRunDetails?: boolean;
+  /** Told when a run starts or ends, for views that show run state outside the chat. */
+  onStreamingChange?: (streaming: boolean) => void;
 };
 
-export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConfigs }: PiChatProps) {
+export function PiChat({
+  agentConfig,
+  session,
+  modelRef,
+  modelRefs,
+  providerConfigs,
+  collapseRunDetails,
+  onStreamingChange,
+}: PiChatProps) {
   const chatInputRef = useRef<ChatInputHandle | null>(null);
   const inputDraftRef = useRef("");
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
@@ -42,6 +54,10 @@ export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConf
       chatInputRef.current?.insertText(pending.text);
     });
   }, [agent, sendMessage, session.id]);
+
+  useEffect(() => {
+    onStreamingChange?.(snapshot.isStreaming);
+  }, [onStreamingChange, snapshot.isStreaming]);
 
   const insertCommandText = (text: string) => {
     inputDraftRef.current = text;
@@ -65,6 +81,7 @@ export function PiChat({ agentConfig, session, modelRef, modelRefs, providerConf
             streamingMessage={snapshot.streamingMessage}
             pendingToolCalls={snapshot.pendingToolCalls}
             isStreaming={snapshot.isStreaming}
+            collapseRunDetails={collapseRunDetails}
             currentModel={snapshot.model}
             thinkingLevel={snapshot.thinkingLevel}
             inputRef={chatInputRef}

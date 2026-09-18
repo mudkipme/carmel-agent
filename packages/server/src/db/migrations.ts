@@ -87,6 +87,7 @@ const migrations: Migration[] = [
     description: "Link OpenID Connect identities to local accounts",
     run: createUserIdentities,
   },
+  { id: "023_issues", description: "Create agent issues and link them to their sessions", run: createIssues },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -253,6 +254,30 @@ function createUserIdentities(sqlite: Sqlite) {
       PRIMARY KEY (issuer, subject)
     );
     CREATE INDEX IF NOT EXISTS user_identities_user ON user_identities (user_id);
+  `);
+}
+
+function createIssues(sqlite: Sqlite) {
+  addColumnIfMissing(sqlite, "sessions", "issue_id", "TEXT");
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS issues (
+      id TEXT PRIMARY KEY NOT NULL,
+      agent_id TEXT NOT NULL REFERENCES agents(id),
+      user_id TEXT NOT NULL REFERENCES users(id),
+      session_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      last_run_outcome TEXT,
+      last_run_detail TEXT,
+      verdict TEXT,
+      verdict_summary TEXT,
+      closed_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS issues_agent_user ON issues (agent_id, user_id);
+    CREATE INDEX IF NOT EXISTS sessions_issue ON sessions (issue_id);
   `);
 }
 
