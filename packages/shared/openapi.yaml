@@ -115,14 +115,14 @@ paths:
   /api/sessions/{id}/messages/{entryId}:
     parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/EntryID'}]
     patch: {operationId: editSessionMessage, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/MessageEdit'}, responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}}}
-  /api/sessions/{id}/images/{messageIndex}/{imageIndex}:
-    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/MessageIndex'}, {$ref: '#/components/parameters/ImageIndex'}]
+  /api/sessions/{id}/images/{entryId}/{imageIndex}:
+    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/EntryID'}, {$ref: '#/components/parameters/ImageIndex'}]
     get: {operationId: getSessionImage, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/Image'}}}
-  /api/sessions/{id}/tool-result-images/{messageIndex}/{partIndex}:
-    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/MessageIndex'}, {$ref: '#/components/parameters/PartIndex'}]
+  /api/sessions/{id}/tool-result-images/{entryId}/{partIndex}:
+    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/EntryID'}, {$ref: '#/components/parameters/PartIndex'}]
     get: {operationId: getToolResultImage, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/Image'}}}
-  /api/sessions/{id}/attachments/{messageIndex}/{attachmentId}:
-    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/MessageIndex'}, {$ref: '#/components/parameters/AttachmentID'}]
+  /api/sessions/{id}/attachments/{entryId}/{attachmentId}:
+    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/EntryID'}, {$ref: '#/components/parameters/AttachmentID'}]
     get: {operationId: getSessionAttachment, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/Image'}}}
   /api/agents/{id}/files:
     parameters: [{$ref: '#/components/parameters/ID'}]
@@ -194,7 +194,6 @@ components:
     SecretName: {name: name, in: path, required: true, schema: {type: string}}
     EntryID: {name: entryId, in: path, required: true, schema: {type: string}}
     AttachmentID: {name: attachmentId, in: path, required: true, schema: {type: string}}
-    MessageIndex: {name: messageIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
     ImageIndex: {name: imageIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
     PartIndex: {name: partIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
   responses:

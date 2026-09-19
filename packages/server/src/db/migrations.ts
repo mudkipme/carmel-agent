@@ -88,6 +88,11 @@ const migrations: Migration[] = [
     run: createUserIdentities,
   },
   { id: "023_issues", description: "Create agent issues and link them to their sessions", run: createIssues },
+  {
+    id: "024_task_dangling_models",
+    description: "Point tasks whose model was deleted back at their agent's default",
+    run: clearDanglingTaskModels,
+  },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -517,6 +522,15 @@ function createAgentSecrets(sqlite: Sqlite) {
 // retroactively arm agents that were created before it existed.
 function addAgentEnabledExtensions(sqlite: Sqlite) {
   addColumnIfMissing(sqlite, "agents", "enabled_extensions", "TEXT NOT NULL DEFAULT '[]'");
+}
+
+// Model deletion used to leave task references behind, and a task whose model
+// is gone failed on every firing. Null is the task's "use the agent's default".
+function clearDanglingTaskModels(sqlite: Sqlite) {
+  sqlite.exec(`
+    UPDATE agent_tasks SET model_ref_id = NULL
+    WHERE model_ref_id IS NOT NULL AND model_ref_id NOT IN (SELECT id FROM model_refs);
+  `);
 }
 
 function addColumnIfMissing(sqlite: Sqlite, table: string, column: string, type: string) {

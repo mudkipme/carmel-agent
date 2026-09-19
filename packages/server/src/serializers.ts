@@ -4,6 +4,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { agents, modelRefs, providerConfigs, sessions, users } from "./db/schema.ts";
 import { defaultAgentWorkingDir } from "./paths.ts";
 import type { SessionWithMessages } from "./services/session-store.ts";
+import { PENDING_ENTRY_ID_PREFIX } from "./services/pi-session-storage.ts";
 import { resolveServerModelRef } from "./runtime/model.ts";
 
 export function serializeUser(user: typeof users.$inferSelect): User {
@@ -97,7 +98,7 @@ export function serializeSession(session: Session | SessionWithMessages): Sessio
     messages: session.messages.map((message, messageIndex) =>
       serializeMessageForDisplay(message, {
         sessionId: session.id,
-        messageIndex,
+        entryId: session.messageEntryIds[messageIndex],
       }),
     ),
     messageEntryIds: session.messageEntryIds,
@@ -115,7 +116,12 @@ const MAX_OBJECT_KEYS = 30;
 
 type MessageDisplayContext = {
   sessionId: string;
-  messageIndex: number;
+  /**
+   * Addresses the message's images. Entries are immutable -- an edit writes a
+   * sibling -- so a URL built from one can be cached for good, where a position
+   * in the transcript is reused by whatever lands there after a truncate.
+   */
+  entryId: string | undefined;
 };
 
 function serializeMessageForDisplay(message: AgentMessage, context: MessageDisplayContext): AgentMessage {
@@ -170,7 +176,7 @@ function serializeUserContent(content: unknown, context: MessageDisplayContext) 
         {
           type: "image",
           mimeType: String(part.mimeType ?? "image/png"),
-          url: sessionImageUrl(context.sessionId, context.messageIndex, currentImageIndex),
+          url: sessionImageUrl(context, currentImageIndex),
         },
       ];
     }
@@ -187,7 +193,7 @@ function serializeAssistantContent(content: unknown[], context: MessageDisplayCo
         {
           type: "image",
           mimeType: String(part.mimeType ?? "image/png"),
-          url: sessionImageUrl(context.sessionId, context.messageIndex, currentImageIndex),
+          url: sessionImageUrl(context, currentImageIndex),
         },
       ];
     }
@@ -225,7 +231,7 @@ function serializeToolResultContentPart(part: unknown, context: MessageDisplayCo
     return {
       type: "image",
       mimeType: String(part.mimeType ?? "image/png"),
-      url: sessionToolResultImageUrl(context.sessionId, context.messageIndex, partIndex),
+      url: sessionToolResultImageUrl(context, partIndex),
     };
   }
   return part;
@@ -243,21 +249,27 @@ function serializeAttachmentForDisplay(attachment: unknown, context: MessageDisp
     size: attachment.size,
     url:
       type === "image" && id
-        ? sessionAttachmentUrl(context.sessionId, context.messageIndex, id)
+        ? sessionAttachmentUrl(context, id)
         : undefined,
   };
 }
 
-function sessionImageUrl(sessionId: string, messageIndex: number, imageIndex: number) {
-  return `/api/sessions/${encodeURIComponent(sessionId)}/images/${messageIndex}/${imageIndex}`;
+function sessionImageUrl(context: MessageDisplayContext, imageIndex: number) {
+  return sessionEntryUrl(context, "images", String(imageIndex));
 }
 
-function sessionToolResultImageUrl(sessionId: string, messageIndex: number, partIndex: number) {
-  return `/api/sessions/${encodeURIComponent(sessionId)}/tool-result-images/${messageIndex}/${partIndex}`;
+function sessionToolResultImageUrl(context: MessageDisplayContext, partIndex: number) {
+  return sessionEntryUrl(context, "tool-result-images", String(partIndex));
 }
 
-function sessionAttachmentUrl(sessionId: string, messageIndex: number, attachmentId: string) {
-  return `/api/sessions/${encodeURIComponent(sessionId)}/attachments/${messageIndex}/${encodeURIComponent(attachmentId)}`;
+function sessionAttachmentUrl(context: MessageDisplayContext, attachmentId: string) {
+  return sessionEntryUrl(context, "attachments", attachmentId);
+}
+
+function sessionEntryUrl(context: MessageDisplayContext, kind: string, key: string) {
+  // A pending entry is a reply still streaming; it gets a real id when it commits.
+  if (!context.entryId || context.entryId.startsWith(PENDING_ENTRY_ID_PREFIX)) return undefined;
+  return `/api/sessions/${encodeURIComponent(context.sessionId)}/${kind}/${encodeURIComponent(context.entryId)}/${encodeURIComponent(key)}`;
 }
 
 function summarizeValue(value: unknown, depth = 0): unknown {

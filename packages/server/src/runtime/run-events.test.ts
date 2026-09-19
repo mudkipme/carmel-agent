@@ -130,6 +130,18 @@ test("turn_end carries only the error the client renders", () => {
   });
 });
 
+test("turn_end reports a silent overflow when it knows the window, as the run does", () => {
+  // A provider that answers `stop` on a request already past the window: no
+  // error text at all, so only the window reveals the overflow.
+  const overran = assistantMessage();
+  overran.usage = { ...overran.usage, input: 9_000, totalTokens: 9_000 };
+  const event = laneEvent({ type: "turn_end", runId: "run_1", turnId: "turn_1", message: overran, toolResults: [] });
+
+  assert.deepEqual(projectRunEvent(event), { type: "turn_end" });
+  const projected = projectRunEvent(event, 8_192) as { errorMessage?: string };
+  assert.ok(projected.errorMessage, "the client must hear about the overflow the server is recovering from");
+});
+
 test("a real streamed turn reassembles byte-for-byte from the projected events", async () => {
   const { sessionId } = createSession();
   const faux = fauxProvider({ provider: `faux-stream-${crypto.randomUUID()}`, tokensPerSecond: 100_000 });

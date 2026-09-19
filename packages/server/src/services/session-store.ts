@@ -5,6 +5,7 @@ import { sessions } from "../db/schema.ts";
 import {
   movePiSessionToEntry,
   readPiSessionBranch,
+  readPiSessionMessageEntry,
   replacePiSessionMessages,
   rewritePiSessionMessage,
   withPiSession,
@@ -38,9 +39,8 @@ async function attachMessages(record: SessionRecord): Promise<SessionWithMessage
   };
 }
 
-export async function readSessionMessageAt(sessionId: string, index: number): Promise<AgentMessage | undefined> {
-  if (!Number.isInteger(index) || index < 0) return undefined;
-  return (await readSessionMessageEntries(sessionId))[index]?.message;
+export async function readSessionMessageByEntryId(sessionId: string, entryId: string): Promise<AgentMessage | undefined> {
+  return readPiSessionMessageEntry(sessionId, entryId);
 }
 
 export async function loadSession(sessionId: string): Promise<SessionWithMessages | undefined> {

@@ -61,7 +61,12 @@ export function classifyHarnessTurnFailure(
   });
 }
 
-export function projectRunEvent(event: HarnessEvent): AgentRunEvent | undefined {
+/**
+ * `contextWindow` must be the one the run classifies with, or a silent overflow
+ * -- a `stop` that overran the window -- is recovered on the server while the
+ * client is told nothing went wrong.
+ */
+export function projectRunEvent(event: HarnessEvent, contextWindow?: number): AgentRunEvent | undefined {
   switch (event.type) {
     case "message_start":
       // Only an assistant message seeds delta accumulation. Every other role is
@@ -93,7 +98,7 @@ export function projectRunEvent(event: HarnessEvent): AgentRunEvent | undefined 
       // own transient verdict rides along as a hint; this is the layer that is
       // allowed to know Pi, so the classifier itself stays free of it.
       {
-        const failure = classifyHarnessTurnFailure(event);
+        const failure = classifyHarnessTurnFailure(event, contextWindow);
         return failure ? { type: "turn_end", errorMessage: formatTurnFailure(failure) } : { type: "turn_end" };
       }
     case "run_end":

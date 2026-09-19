@@ -1,4 +1,4 @@
-import type { Session, SessionImportResult } from "@carmel-agent/shared";
+import type { Session, SessionImportResult, SessionPatch } from "@carmel-agent/shared";
 import { isRecord, toSessionRow } from "@carmel-agent/shared";
 import {
   isEditableAssistantMessage,
@@ -24,7 +24,7 @@ import {
   editSessionMessageEntry,
   loadOwnedSession,
   loadSession,
-  readSessionMessageAt,
+  readSessionMessageByEntryId,
   replaceSessionMessages,
   truncateSessionAtEntry,
   type SessionWithMessages,
@@ -58,43 +58,24 @@ export function createSessionRoutes() {
     return c.json(archived.map(serializeSessionMetadata));
   });
 
-  route.get("/sessions/:id/images/:messageIndex/:imageIndex", async (c) => {
-    const session = ownedSessionRecord(c);
-    if (!session) return c.json({ error: "Image not found" }, 404);
+  // Addressed by entry id, which is immutable, so the responses can be cached for good.
+  route.get("/sessions/:id/images/:entryId/:imageIndex", (c) =>
+    serveEntryImage(c, "Image not found", (message) => {
+      const imageIndex = parseIndex(c.req.param("imageIndex"));
+      return imageIndex === undefined ? undefined : readMessageImage(message, imageIndex);
+    }),
+  );
 
-    const messageIndex = parseIndex(c.req.param("messageIndex"));
-    const imageIndex = parseIndex(c.req.param("imageIndex"));
-    if (messageIndex === undefined || imageIndex === undefined) return c.json({ error: "Image not found" }, 404);
+  route.get("/sessions/:id/tool-result-images/:entryId/:partIndex", (c) =>
+    serveEntryImage(c, "Image not found", (message) => {
+      const partIndex = parseIndex(c.req.param("partIndex"));
+      return partIndex === undefined ? undefined : readToolResultImage(message, partIndex);
+    }),
+  );
 
-    const image = readMessageImage(await readSessionMessageAt(session.id, messageIndex), imageIndex);
-    if (!image) return c.json({ error: "Image not found" }, 404);
-    return imageResponse(image);
-  });
-
-  route.get("/sessions/:id/tool-result-images/:messageIndex/:partIndex", async (c) => {
-    const session = ownedSessionRecord(c);
-    if (!session) return c.json({ error: "Image not found" }, 404);
-
-    const messageIndex = parseIndex(c.req.param("messageIndex"));
-    const partIndex = parseIndex(c.req.param("partIndex"));
-    if (messageIndex === undefined || partIndex === undefined) return c.json({ error: "Image not found" }, 404);
-
-    const image = readToolResultImage(await readSessionMessageAt(session.id, messageIndex), partIndex);
-    if (!image) return c.json({ error: "Image not found" }, 404);
-    return imageResponse(image);
-  });
-
-  route.get("/sessions/:id/attachments/:messageIndex/:attachmentId", async (c) => {
-    const session = ownedSessionRecord(c);
-    if (!session) return c.json({ error: "Attachment not found" }, 404);
-
-    const messageIndex = parseIndex(c.req.param("messageIndex"));
-    if (messageIndex === undefined) return c.json({ error: "Attachment not found" }, 404);
-
-    const image = readImageAttachment(await readSessionMessageAt(session.id, messageIndex), c.req.param("attachmentId"));
-    if (!image) return c.json({ error: "Attachment not found" }, 404);
-    return imageResponse(image);
-  });
+  route.get("/sessions/:id/attachments/:entryId/:attachmentId", (c) =>
+    serveEntryImage(c, "Attachment not found", (message) => readImageAttachment(message, c.req.param("attachmentId"))),
+  );
 
   route.post("/sessions", jsonValidator(sessionDraftRequestSchema), async (c) => {
     const currentUserId = c.get("user").id;
@@ -174,6 +155,22 @@ export function createSessionRoutes() {
     // Row-only ownership check: nothing here needs the transcript before the commit.
     const current = ownedSessionRecord(c);
     if (!current) return c.json({ error: "Session not found" }, 404);
+
+    // Pin, archive, and leaving the task list only move the session around the
+    // sidebar. A run never writes them, so they go through while one is active,
+    // and without a revision bump -- that would make the run's own commit stale.
+    if (isPlacementOnlyPatch(patch)) {
+      db.update(sessions)
+        .set({
+          ...(patch.pinnedAt !== undefined ? { pinnedAt: patch.pinnedAt } : {}),
+          ...(patch.archivedAt !== undefined ? { archivedAt: patch.archivedAt } : {}),
+          ...(patch.taskId === null ? { taskId: null } : {}),
+        })
+        .where(eq(sessions.id, current.id))
+        .run();
+      return c.json(serializeSession((await loadSession(current.id))!));
+    }
+
     const leaseConflict = rejectActiveRunMutation(c, current.id);
     if (leaseConflict) return leaseConflict;
     if (patch.modelRefId && !canUseModel(c.get("user").id, patch.modelRefId)) {
@@ -303,6 +300,12 @@ export function createSessionRoutes() {
   return route;
 }
 
+/** Only fields a run never writes, so the patch cannot race one. */
+function isPlacementOnlyPatch(patch: SessionPatch) {
+  const keys = (Object.keys(patch) as (keyof SessionPatch)[]).filter((key) => patch[key] !== undefined);
+  return keys.length > 0 && keys.every((key) => key === "pinnedAt" || key === "archivedAt" || key === "taskId");
+}
+
 /** The loaded session's branch in the shape the cut-point check reads. */
 function branchOf(session: SessionWithMessages): BranchMessage[] {
   return session.messageEntryIds.map((entryId, index) => ({ entryId, message: session.messages[index]! }));
@@ -357,7 +360,20 @@ function ownedSessionRecord(c: Context<{ Variables: AuthVariables }>) {
   return record && record.userId === c.get("user").id ? record : undefined;
 }
 
-function parseIndex(value: string) {
+/** Answer with one image out of the `:entryId` message of a session the caller owns. */
+async function serveEntryImage(
+  c: Context<{ Variables: AuthVariables }>,
+  notFound: string,
+  pick: (message: AgentMessage | undefined) => { data: string; mimeType: string } | undefined,
+) {
+  const session = ownedSessionRecord(c);
+  const entryId = c.req.param("entryId");
+  const image = session && entryId ? pick(await readSessionMessageByEntryId(session.id, entryId)) : undefined;
+  return image ? imageResponse(image) : c.json({ error: notFound }, 404);
+}
+
+function parseIndex(value: string | undefined) {
+  if (value === undefined) return undefined;
   const index = Number(value);
   return Number.isInteger(index) && index >= 0 ? index : undefined;
 }

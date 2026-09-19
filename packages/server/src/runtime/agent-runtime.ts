@@ -177,6 +177,7 @@ async function startAgentRun(context: AgentRun) {
   let harness: RunHarness | undefined;
   let execution: ServerExecution | undefined;
   let unsubscribe: (() => void) | undefined;
+  let releaseLane: (() => void) | undefined;
 
   try {
     piSession = await openPiSession(session.id);
@@ -184,6 +185,7 @@ async function startAgentRun(context: AgentRun) {
     const opened = await openRunHarness({ ...context, piSession, execution });
     const { lane, activeToolNames } = opened;
     harness = opened.harness;
+    releaseLane = opened.releaseLane;
     abort.attach(lane);
     unsubscribe = observeHarnessEvents(harness, (event: HarnessEvent) => {
       retry.observe(event);
@@ -200,7 +202,7 @@ async function startAgentRun(context: AgentRun) {
       // guard stop tears down exactly like a user stop.
       const stop = event.type === "tool_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
       if (stop) abort.request("guard");
-      const projected = projectRunEvent(event);
+      const projected = projectRunEvent(event, model.contextWindow);
       if (projected) emitRunEvent(run, projected);
     });
     // Catches what events cannot: a provider connection that opened and went
@@ -266,7 +268,7 @@ async function startAgentRun(context: AgentRun) {
     await reportRunFailure(context, { log, retry, error });
   } finally {
     if (guardTimer) clearInterval(guardTimer);
-    await finalizeRun(context, { piSession, harness, log, execution, unsubscribe });
+    await finalizeRun(context, { piSession, harness, log, execution, unsubscribe, releaseLane });
   }
 }
 
@@ -340,7 +342,7 @@ export class RetryBranch {
 
 async function openRunHarness(
   context: AgentRun & { piSession: PiSession; execution: ServerExecution },
-): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[] }> {
+): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[]; releaseLane: () => void }> {
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } = context;
   const resources = await loadAgentResources(agent, execution.env);
   // A session's own tools replace any agent tool that claims the same name, so
@@ -388,8 +390,8 @@ async function openRunHarness(
   const lane = await harness.lane(PI_MAIN_BRANCH, runContext);
   // Reads of this session during the run follow the lane rather than the stored
   // branch tip, which 0.85 only publishes at operation boundaries.
-  registerPiSessionLane(piSession, lane);
-  return { harness, lane, activeToolNames };
+  const releaseLane = registerPiSessionLane(piSession, lane);
+  return { harness, lane, activeToolNames, releaseLane };
 }
 
 /** Restore an abandoned retry branch, then persist and emit the failure. */
@@ -437,10 +439,11 @@ async function finalizeRun(
     log?: SessionLog;
     execution?: ServerExecution;
     unsubscribe?: () => void;
+    releaseLane?: () => void;
   },
 ) {
   const { run, abort, outcome, session, modelRef, model, modelRuntime, thinkingLevel } = context;
-  const { piSession, harness, log, execution, unsubscribe } = state;
+  const { piSession, harness, log, execution, unsubscribe, releaseLane } = state;
 
   let finalMessages: AgentMessage[] = [];
   if (piSession) {
@@ -453,6 +456,10 @@ async function finalizeRun(
     } catch (error) {
       console.warn("Final transcript read failed:", errorMessage(error));
     }
+    // Before the harness closes: another holder of this session -- an HTTP read
+    // -- can outlive the run, and must go back to reading the stored branch
+    // rather than a lane that no longer exists.
+    releaseLane?.();
     try {
       // Order matters: `session.close()` seals the mutation line and waits for
       // it to drain, so a session whose harness is still open never finishes

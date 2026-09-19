@@ -1,7 +1,6 @@
-import { eq } from "drizzle-orm";
 import { toSessionRow, type AgentTaskOutcome, type Session } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { agents, sessions } from "../db/schema.ts";
+import { sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { errorMessage } from "../errors.ts";
 import { computeNextRun, planTaskFiring } from "../effectors/task-schedule.ts";
@@ -14,7 +13,7 @@ import {
   startTaskRun,
   updateTaskAfterRun,
 } from "../services/agent-tasks.ts";
-import { resolveSupportedThinkingLevel } from "../services/agent-access.ts";
+import { readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 
 import { startDetachedAgentRun, whenRunFinished } from "./agent-runtime.ts";
@@ -186,8 +185,10 @@ async function startTask(
 }
 
 async function prepareTaskRun(task: TaskRecord): Promise<{ input: Parameters<typeof startDetachedAgentRun>[0] } | { error: string }> {
-  const agent = db.select().from(agents).where(eq(agents.id, task.agentId)).get();
-  if (!agent) return { error: "The agent this task belongs to no longer exists." };
+  // Visibility, not just existence: a task on a shared agent must stop once
+  // the agent is no longer shared with the task's owner.
+  const agent = readVisibleAgent(task.userId, task.agentId);
+  if (!agent) return { error: "The agent this task belongs to is no longer available to its owner." };
 
   // Resolved before the session exists: a task that cannot run must not leave
   // an empty session behind every time it fires.

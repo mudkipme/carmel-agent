@@ -101,7 +101,7 @@ function SessionActions({
               onSelect={() => {
                 void updateSession(session.id, {
                   pinnedAt: session.pinnedAt ? null : Date.now(),
-                });
+                }).catch((error) => showError(session.pinnedAt ? "Unable to unpin session" : "Unable to pin session", error));
               }}
             >
               {session.pinnedAt ? <PinOff /> : <Pin />}

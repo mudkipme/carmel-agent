@@ -2,7 +2,7 @@ import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { AgentConfig, AgentThinkingLevel, UserRole } from "@carmel-agent/shared";
 import { asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index.ts";
-import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
+import { agentTasks, agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import { defaultAgentWorkingDir, ensureDir, normalizeDataRelativePath, resolveDataPath } from "../paths.ts";
 import { resolveServerModelRef } from "../runtime/model.ts";
@@ -122,6 +122,13 @@ export function reassignModelReferences(deletedModelIds: Set<string>) {
   db.update(users)
     .set({ fastTaskModelRefId: null, updatedAt: timestamp })
     .where(inArray(users.fastTaskModelRefId, ids))
+    .run();
+
+  // A task without a model of its own uses its agent's default when it fires,
+  // which is where the agent reassignment below leaves it.
+  db.update(agentTasks)
+    .set({ modelRefId: null, updatedAt: timestamp })
+    .where(inArray(agentTasks.modelRefId, ids))
     .run();
 
   const affectedAgents = db.select().from(agents).where(inArray(agents.defaultModelRefId, ids)).all();

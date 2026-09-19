@@ -12,7 +12,7 @@ import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "../effectors
 import {
   editSessionMessageEntry,
   loadSession,
-  readSessionMessageAt,
+  readSessionMessageByEntryId,
   readSessionMessages,
   replaceSessionMessages,
   truncateSessionAtEntry,
@@ -201,15 +201,16 @@ test("non-truncating entry edit preserves the message suffix and lane configurat
 });
 
 
-test("loadSession and display-index reads expose the active native branch", async () => {
+test("loadSession and entry reads expose the active native branch", async () => {
   const { sessionId, userId } = createSession();
   await replaceSessionMessages(sessionId, [userMessage("a"), userMessage("b"), userMessage("c")]);
   const session = await loadSession(sessionId);
   assert.ok(session);
   assert.equal(session.userId, userId);
   assert.equal(session.messages.length, 3);
-  assert.equal((await readSessionMessageAt(sessionId, 1) as { content: string }).content, "b");
-  assert.equal(await readSessionMessageAt(sessionId, 3), undefined);
+  const secondEntryId = session.messageEntryIds[1]!;
+  assert.equal((await readSessionMessageByEntryId(sessionId, secondEntryId) as { content: string }).content, "b");
+  assert.equal(await readSessionMessageByEntryId(sessionId, "missing-entry"), undefined);
   assert.equal(await loadSession("missing"), undefined);
 });
 

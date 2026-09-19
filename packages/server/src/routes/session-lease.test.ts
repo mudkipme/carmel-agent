@@ -9,6 +9,7 @@ import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
 import { loadSession, replaceSessionMessages } from "../services/session-store.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { createSessionRoutes } from "./sessions.ts";
+import { serializeSession } from "../serializers.ts";
 
 migrate();
 
@@ -73,6 +74,75 @@ test("active-run lease rejects every session mutation and exposes run authority"
   const saved = await allowed.json() as { title: string; revision: number };
   assert.equal(saved.title, "allowed");
   assert.equal(saved.revision, 1);
+});
+
+test("pinning and archiving go through during a run without staling its commit", async () => {
+  const fixture = createSession();
+  const app = createTestApp(fixture.userId);
+  const run = createActiveAgentRun({
+    runId: `run_placement_${fixture.sessionId}`,
+    userId: fixture.userId,
+    sessionId: fixture.sessionId,
+    abort: () => {},
+  });
+
+  try {
+    const pinnedAt = Date.now();
+    const pinned = await app.request(`/sessions/${fixture.sessionId}`, {
+      method: "PATCH",
+      headers: jsonHeaders,
+      body: JSON.stringify({ pinnedAt }),
+    });
+    assert.equal(pinned.status, 200);
+    const archived = await app.request(`/sessions/${fixture.sessionId}`, {
+      method: "PATCH",
+      headers: jsonHeaders,
+      body: JSON.stringify({ archivedAt: pinnedAt }),
+    });
+    assert.equal(archived.status, 200);
+
+    // Anything a run also writes still waits for it.
+    const renamed = await app.request(`/sessions/${fixture.sessionId}`, {
+      method: "PATCH",
+      headers: jsonHeaders,
+      body: JSON.stringify({ title: "blocked", pinnedAt: null }),
+    });
+    assert.equal(renamed.status, 409);
+
+    const stored = db.select().from(sessions).where(eq(sessions.id, fixture.sessionId)).get();
+    assert.equal(stored?.pinnedAt, pinnedAt);
+    assert.equal(stored?.archivedAt, pinnedAt);
+    assert.equal(stored?.title, "Test");
+    // The run commits against the revision it started with; a bump here would
+    // make it drop its model, thinking level and title.
+    assert.equal(stored?.revision, 0);
+  } finally {
+    finishAgentRun(run);
+  }
+});
+
+test("session images are addressed by entry, so an edit never reuses a cached URL", async () => {
+  const fixture = createSession();
+  const app = createTestApp(fixture.userId);
+  const image = (data: string) => ({ role: "user", content: [{ type: "image", data, mimeType: "image/png" }] }) as ReturnType<typeof userMessage>;
+  const urlOf = (session: { messages: unknown[] }) =>
+    ((session.messages[0] as { content: Array<{ url: string }> }).content[0]!).url;
+
+  await replaceSessionMessages(fixture.sessionId, [image(Buffer.from("first").toString("base64"))]);
+  const before = (await loadSession(fixture.sessionId))!;
+  const firstUrl = urlOf(serializeSession(before));
+  assert.ok(firstUrl.includes(encodeURIComponent(before.messageEntryIds[0]!)));
+
+  // The same position now holds a different image.
+  await replaceSessionMessages(fixture.sessionId, [image(Buffer.from("second").toString("base64"))]);
+  const secondUrl = urlOf(serializeSession((await loadSession(fixture.sessionId))!));
+  assert.notEqual(secondUrl, firstUrl);
+
+  const served = await app.request(secondUrl.replace(/^\/api/, ""));
+  assert.equal(served.status, 200);
+  assert.equal(await served.text(), "second");
+  const missing = await app.request(`/sessions/${fixture.sessionId}/images/no-such-entry/0`);
+  assert.equal(missing.status, 404);
 });
 
 function createTestApp(userId: string) {

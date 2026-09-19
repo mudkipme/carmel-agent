@@ -207,6 +207,14 @@ export async function replacePiSessionMessages(sessionId: string, messages: Agen
   });
 }
 
+/** One message entry by id, wherever it sits in the session tree. */
+export async function readPiSessionMessageEntry(sessionId: string, entryId: string): Promise<AgentMessage | undefined> {
+  return withPiSession(sessionId, async (session) => {
+    const entry = await session.getEntry(entryId, ctx);
+    return entry?.type === "message" ? entry.message : undefined;
+  });
+}
+
 export async function movePiSessionToEntry(sessionId: string, entryId: string) {
   await withPiSession(sessionId, async (session) => {
     const entry = await session.getEntry(entryId, ctx);

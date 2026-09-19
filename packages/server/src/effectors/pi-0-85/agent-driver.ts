@@ -163,7 +163,7 @@ export function createPiAgentDriver(options: PiDriverOptions): AgentDriver {
         if (event.type === "message_end" && event.message.role === "user") {
           observer.onUserMessagePersisted();
         }
-        const projected = projectRunEvent(event);
+        const projected = projectRunEvent(event, model.contextWindow);
         if (projected) observer.onRunEvent(projected);
       });
     },

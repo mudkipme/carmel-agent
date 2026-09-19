@@ -13,7 +13,7 @@ import {
 } from "../runtime/agent-runtime.ts";
 import { createRunStream } from "../runtime/run-stream.ts";
 import { issueRunAddons, noteIssueRunStarted } from "../services/issues.ts";
-import { readVisibleAgent } from "../services/agent-access.ts";
+import { readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { readSessionConnection } from "../services/session-snapshot.ts";
 import { agentRunRequestSchema, jsonValidator } from "../validation.ts";
@@ -101,7 +101,9 @@ export function createAgentRunRoutes() {
       modelRef,
       providerConfig,
       modelRuntime,
-      thinkingLevel: body.thinkingLevel ?? currentSession.thinkingLevel,
+      // Clamped like every other write path: the run commits this level back
+      // onto the session, so an unsupported one would otherwise stick.
+      thinkingLevel: resolveSupportedThinkingLevel(modelRef, body.thinkingLevel ?? currentSession.thinkingLevel),
       promptInput,
       sessionAddons: issueRunAddons(currentSession.issueId),
     });

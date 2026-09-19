@@ -2,10 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { db, migrate } from "../db/index.ts";
-import { agentTasks, agentTaskRuns, modelRefs, sessions } from "../db/schema.ts";
+import { agents, agentTasks, agentTaskRuns, modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createAgent, createModelRef, createProviderConfig, createUser } from "../test-support.ts";
 import { createAgentTask, deleteAgentTask, readAgentTasks } from "../services/agent-tasks.ts";
+import { reassignModelReferences } from "../services/agent-access.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import { runTaskNow, tick } from "./task-scheduler.ts";
 
@@ -200,6 +201,41 @@ test("tasks appear on the agent they belong to", async () => {
   const { user, agentId } = fixture();
   createAgentTask(user, agentId, { name: "A", prompt: "x", scheduleKind: "interval", scheduleValue: String(60_000) });
   assert.deepEqual(readAgentTasks(user, agentId).map((task) => task.name), ["A"]);
+});
+
+test("a task stops running once its agent is no longer shared with its owner", async () => {
+  const { agentId } = runnableFixture();
+  db.update(agents).set({ shared: true }).where(eq(agents.id, agentId)).run();
+  const other = { id: createUser(), role: "user" as const };
+  const task = createAgentTask(other, agentId, {
+    name: "Borrowed",
+    prompt: "Work on the shared agent.",
+    scheduleKind: "interval",
+    scheduleValue: String(60_000),
+  });
+
+  db.update(agents).set({ shared: false }).where(eq(agents.id, agentId)).run();
+  await tick(Date.now() + 120_000);
+
+  const stored = row(task.id);
+  assert.equal(stored.lastOutcome, "failed");
+  assert.match(stored.lastError ?? "", /no longer available/);
+  assert.deepEqual(sessionsFor(task.id), [], "the run must not start in the agent's container");
+});
+
+test("deleting a task's model hands the task back to its agent's default", () => {
+  const { user, agentId, modelRefId } = fixture();
+  const task = createAgentTask(user, agentId, {
+    name: "Pinned model",
+    prompt: "Summarise today.",
+    modelRefId,
+    scheduleKind: "interval",
+    scheduleValue: String(60_000),
+  });
+
+  reassignModelReferences(new Set([modelRefId]));
+
+  assert.equal(row(task.id).modelRefId, null);
 });
 
 function fixture() {
