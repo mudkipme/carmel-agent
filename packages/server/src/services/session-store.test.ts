@@ -236,3 +236,26 @@ function userMessageText(message: { content?: unknown } | undefined) {
     .map((part) => part.text)
     .join("\n");
 }
+
+/**
+ * Pi 0.85 reports an unprovisioned session with a bare `Error` and no code, so
+ * `isSessionMissing` matches its message text. These are the two paths that
+ * depend on that match; if a Pi upgrade rewords the error, they fail here
+ * instead of every new session failing to open in production.
+ */
+test("Pi contract: a never-provisioned session is recognised as missing", async () => {
+  const { sessionId } = createSession();
+  const record = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+  assert.ok(record);
+
+  // Deleting storage that was never created is tolerated, not an error.
+  await deletePiSession(record);
+
+  // Opening provisions it on first use rather than failing.
+  const session = await openPiSession(sessionId);
+  try {
+    assert.equal(session.metadata.id, sessionId);
+  } finally {
+    await closePiSession(session);
+  }
+});

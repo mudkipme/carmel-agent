@@ -11,32 +11,20 @@ import {
   type HarnessEventType,
 } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { errorMessage } from "../../errors.ts";
-import type { AgentDriver, DriverResources, PromptDispatcher } from "../contracts/agent-driver.ts";
-import {
-  decideCompaction,
-  PI_COMPACTION_SETTINGS,
-  type CompactionOutcome,
-  type CompactionSettings,
-} from "../compaction-policy.ts";
+import type { DriverResources, PromptDispatcher } from "../contracts/agent-driver.ts";
 import type { SessionLog } from "../contracts/session-log.ts";
 
 /**
- * `AgentDriver` over Pi 0.85's `AgentHarness`.
- *
- * This file is the blast radius, and 0.85 is what it was built for. The v2
- * harness split in two: `AgentHarness` keeps session-scoped configuration,
- * while everything that drives a conversation -- prompt, skill, template,
- * compact, abort -- moved onto `AgentLane`. Every method also gained a trailing
- * `Context`, `AgentHarnessEvent` stopped being exported, and `subscribe()`
- * became `events.on(type, listener)`. All of it stops here.
+ * The loop-facing half of the Pi 0.85 adapter: prompt dispatch, event
+ * subscription, and lane configuration. `AgentHarness` keeps session-scoped
+ * configuration; everything that drives a conversation lives on `AgentLane`.
  */
 
 /** The session-scoped surface actually used, so a type error names what moved. */
 export type PiHarness = Pick<AgentHarness<ExecutionToolContext>, "getResources" | "events">;
 
 /** The lane-scoped surface actually used. Everything that runs the loop is here now. */
-export type PiLane = Pick<AgentLane, "prompt" | "skill" | "promptFromTemplate" | "compact">;
+export type PiLane = Pick<AgentLane, "prompt" | "skill" | "promptFromTemplate">;
 
 /** The lane surface that carries per-run configuration, which 0.85 moved off the session tree. */
 export type PiConfigLane = Pick<
@@ -44,27 +32,8 @@ export type PiConfigLane = Pick<
   "getModel" | "setModel" | "getThinkingLevel" | "setThinkingLevel" | "getActiveTools" | "setActiveTools"
 >;
 
-export type PiDriverOptions = {
-  harness: PiHarness;
-  lane: PiLane;
-  /** The run's invocation context. Carries the abort signal the harness observes. */
-  context: Context;
-  /** Read for context pressure; the lane owns the compaction itself. */
-  log: Pick<SessionLog, "readBranch">;
-  model: Model<Api>;
-  /** Defaults to Pi's; overridden in tests to reach the edge cases cheaply. */
-  settings?: CompactionSettings;
-  /** Present only so tests can drive pressure without a real transcript. */
-  estimateTokens?: (log: Pick<SessionLog, "readBranch">) => Promise<number>;
-};
-
 export type PiDispatcherOptions = { harness: PiHarness; lane: PiLane; context: Context };
 
-/**
- * Dispatch-only slice. Separate from the full driver because it needs nothing
- * but the harness and its lane -- no model, no session log -- so every caller
- * that merely sends a prompt can be handed one without pretending to own a run.
- */
 export function createPiPromptDispatcher({ harness, lane, context }: PiDispatcherOptions): PromptDispatcher {
   return {
     async listResources(): Promise<DriverResources> {
@@ -144,63 +113,6 @@ export function observeHarnessEvents(
   };
 }
 
-export function createPiAgentDriver(options: PiDriverOptions): AgentDriver {
-  const { harness, lane, context, model } = options;
-  const estimate = options.estimateTokens ?? estimateFromBranch;
-
-  return {
-    ...createPiPromptDispatcher({ harness, lane, context }),
-
-    async relieveContextPressure({ force = false } = {}): Promise<CompactionOutcome> {
-      const settings = options.settings ?? PI_COMPACTION_SETTINGS;
-      const decision = decideCompaction({
-        tokens: await estimate(options.log),
-        contextWindow: model.contextWindow,
-        settings,
-      });
-
-      if (decision.action === "none" && !force) {
-        return { status: "not_needed", tokens: decision.tokens, headroom: decision.headroom };
-      }
-      if (decision.action === "impossible") {
-        return {
-          status: "impossible",
-          tokens: decision.tokens,
-          headroom: decision.headroom,
-          reason: decision.reason,
-        };
-      }
-
-      const tokensBefore = decision.tokens;
-      try {
-        await lane.compact(undefined, context);
-      } catch (error) {
-        // "Nothing to compact" is Pi telling us the branch has no history old
-        // enough to summarize, which is a state of the session and not a fault.
-        // It used to reach the log as a compaction failure.
-        if (isNothingToCompact(error)) {
-          return { status: "nothing_to_compact", tokens: tokensBefore, headroom: decision.headroom };
-        }
-        return {
-          status: "failed",
-          tokens: tokensBefore,
-          headroom: decision.headroom,
-          code: harnessErrorCode(error),
-          reason: errorMessage(error),
-        };
-      }
-
-      // Re-measure rather than trust the call. Pi returns `tokensBefore` and no
-      // "after", and a compaction that succeeds without buying enough room is
-      // the failure mode that repeats -- silently, once per turn, at the cost of
-      // a summarization call each time.
-      const tokensAfter = await estimate(options.log);
-      const status = tokensAfter > decision.headroom ? "ineffective" : "compacted";
-      return { status, tokensBefore, tokensAfter, headroom: decision.headroom };
-    },
-  };
-}
-
 /**
  * Write the run configuration onto the lane where it differs.
  *
@@ -231,17 +143,8 @@ function sameOrder(left: readonly string[], right: readonly string[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-/** Pi throws a compaction error carrying this message for an unsummarizable branch. */
-function isNothingToCompact(error: unknown) {
-  return /nothing to compact/i.test(errorMessage(error));
-}
-
-function harnessErrorCode(error: unknown) {
-  const code = (error as { code?: unknown } | null)?.code;
-  return typeof code === "string" ? code : "unknown";
-}
-
-async function estimateFromBranch(log: Pick<SessionLog, "readBranch">) {
+/** Pi's own estimate of the branch's size, for the pre-flight notice. */
+export async function estimateBranchTokens(log: Pick<SessionLog, "readBranch">) {
   const messages = (await log.readBranch()).flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
   return estimateContextTokens(messages).tokens;
 }

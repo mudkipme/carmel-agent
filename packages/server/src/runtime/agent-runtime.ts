@@ -1,6 +1,7 @@
 import {
   AgentHarness,
   BACKGROUND_CONTEXT,
+  DEFAULT_COMPACTION_SETTINGS,
   type AgentHarnessTool,
   formatSkillsForSystemPrompt,
   type AgentLane,
@@ -18,7 +19,7 @@ import { serializeModelRef } from "../serializers.ts";
 import { closePiSession, openPiSession, registerPiSessionLane } from "../services/pi-session-storage.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 
-import { type PromptInput, type Session } from "@carmel-agent/shared";
+import { type AgentRunEvent, type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { loadAgentResources, resolveAgentWorkingDirPath } from "./resources.ts";
@@ -34,23 +35,23 @@ import { mergeProviderAttributionHeaders } from "./provider-attribution.ts";
 import { createServerExecution } from "./tools.ts";
 import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
 import {
-  createPiAgentDriver,
   createPiPromptDispatcher,
+  estimateBranchTokens,
   observeHarnessEvents,
   reconcileLaneConfiguration,
   type PiDispatcherOptions,
 } from "../effectors/pi-0-85/agent-driver.ts";
 import { createPiSessionLog, PI_MAIN_BRANCH } from "../effectors/pi-0-85/session-log.ts";
-import { describeContextPressure, type CompactionOutcome } from "../effectors/compaction-policy.ts";
 import {
-  CONTINUATION_PROMPT,
-  planContextRecovery,
-  RECOVERED_BY_CONTINUATION,
-  RECOVERED_BY_RESEND,
-} from "../effectors/turn-recovery.ts";
+  compactionCannotHelp,
+  describeCompactionFailure,
+  describePreflightPressure,
+  describeUnrecoveredOverflow,
+  OVERFLOW_RECOVERED,
+  type ContextPressureNotice,
+} from "../effectors/compaction-policy.ts";
 import type { TurnFailure } from "../effectors/failure-classifier.ts";
-import type { AgentDriver } from "../effectors/contracts/agent-driver.ts";
-import type { BranchEntry, SessionLog } from "../effectors/contracts/session-log.ts";
+import type { SessionLog } from "../effectors/contracts/session-log.ts";
 import { RunGuard, RunGuardError } from "../effectors/run-guard.ts";
 import { RunOutcome, type RunAbortReason } from "../effectors/run-outcome.ts";
 import { formatTurnFailure } from "../effectors/failure-classifier.ts";
@@ -165,7 +166,7 @@ async function startAgentRun(context: AgentRun) {
   run.started = true;
 
   const retry = new RetryBranch();
-  const turnFailure = new TurnFailureWatch(model.contextWindow);
+  const contextReporter = new ContextReporter(model.contextWindow, (event) => emitRunEvent(run, event));
   const guard = new RunGuard(runGuardLimits());
   let guardTimer: ReturnType<typeof setInterval> | undefined;
   let piSession: PiSession | undefined;
@@ -189,9 +190,9 @@ async function startAgentRun(context: AgentRun) {
     abort.attach(lane);
     unsubscribe = observeHarnessEvents(harness, (event: HarnessEvent) => {
       retry.observe(event);
-      turnFailure.observe(event);
+      contextReporter.observe(event);
       if (event.type === "turn_end") {
-        const failure = classifyHarnessTurnFailure(event, model.contextWindow);
+        const failure = contextReporter.lastTurnFailure;
         outcome.recordTurnEnd({
           stopReason: event.message.stopReason,
           detail: failure ? formatTurnFailure(failure) : event.message.errorMessage,
@@ -211,7 +212,6 @@ async function startAgentRun(context: AgentRun) {
       if (guard.poll()) abort.request("guard");
     }, RUN_GUARD_POLL_MS);
     log = createPiSessionLog({ session: piSession, lane, context: runContext });
-    const driver = createPiAgentDriver({ harness, lane, context: runContext, log, model });
 
     // Abort can land at any moment; check wherever the run can still stop without
     // leaving the session branch half-rewound.
@@ -223,47 +223,20 @@ async function startAgentRun(context: AgentRun) {
     const prepared = await prepareAgentRunPrompt(log, promptInput);
     retry.arm(prepared.retryOriginalLeafId);
     await reconcileLaneConfiguration(lane, runContext, { model, thinkingLevel, activeToolNames });
+    await reportPreflightPressure(context, log);
     if (abort.requested) {
       await retry.restore(log);
       await lane.abort(runContext);
       return;
     }
 
-    // Pre-flight, and the only unconditional pressure check left.
-    //
-    // Pi 0.85 compacts on its own at every checkpoint inside `lane.prompt`
-    // (`prepareCompactionThreshold`, on by default), so the post-turn check this
-    // used to be paired with was measuring a session Pi had just compacted. What
-    // survives here is what Pi does not do: it reports the two states compaction
-    // cannot fix -- a window smaller than the reserve, and a retained tail larger
-    // than the headroom -- and tells the user before the turn is spent earning a
-    // provider rejection instead of after.
-    await relieveContextPressure(context, driver);
-    if (abort.requested) {
-      await retry.restore(log);
-      await lane.abort(runContext);
-      return;
-    }
-
-    // The leaf before the prompt: what a resend has to rewind to, and the line
-    // that separates this turn's entries from the history.
-    const attemptBaselineId = (await log.readBranch()).at(-1)?.id ?? null;
     await runHarnessPrompt({ harness, lane, context: runContext }, prepared.promptInput.text, prepared.promptInput.images);
     // Checked before the retry-abandonment test: a guard stop aborts mid-turn,
     // which is a plausible way to leave a retry unpersisted, and the guard is
     // the more useful of the two explanations.
     if (guard.stop) throw new RunGuardError(guard.stop);
     if (retry.isAbandoned) throw new Error("Retry completed without persisting the user message.");
-
-    await recoverFromContextOverflow(context, {
-      driver,
-      dispatch: { harness, lane, context: runContext },
-      log,
-      failure: turnFailure.last,
-      piAlreadyCompacted: turnFailure.piAlreadyCompactedForOverflow,
-      attemptBaselineId,
-      promptInput: prepared.promptInput,
-    });
+    contextReporter.reportUnrecoveredOverflow();
   } catch (error) {
     await reportRunFailure(context, { log, retry, error });
   } finally {
@@ -383,6 +356,12 @@ async function openRunHarness(
     // this, a transient provider error during summarization ended compaction for
     // the turn -- on the one call the session most needs to succeed.
     retry: { enabled: true, maxRetries: 2, baseDelayMs: 1_000 },
+    // Threshold compaction on a window it cannot work in buys a summarization
+    // call at every step and leaves the session over budget. Switched off there;
+    // Pi's overflow recovery does not read `enabled` and stays available.
+    compaction: compactionCannotHelp(model.contextWindow)
+      ? { ...DEFAULT_COMPACTION_SETTINGS, enabled: false }
+      : DEFAULT_COMPACTION_SETTINGS,
   }, runContext);
   // Acquiring the lane is what creates the conversation branch on a new session
   // and restores it on an existing one. Everything that runs the loop hangs off
@@ -536,11 +515,9 @@ export async function prepareAgentRunPrompt(
  * Dispatch composer text to the agent loop.
  *
  * The rule -- which slash commands exist and which wins when a name is
- * ambiguous -- now lives in `effectors/dispatch-prompt.ts` with no Pi imports,
- * and the Pi-shaped parts of it (invocation formatting, argument parsing, the
- * fact that a named invocation cannot carry an attachment) live in the 0.83
- * adapter. This is the seam: everything below it is what the harness rewrite
- * gets to change.
+ * ambiguous -- lives in `effectors/dispatch-prompt.ts` with no Pi imports; the
+ * Pi-shaped parts (invocation formatting, argument parsing, inlining a named
+ * invocation that carries an attachment) live in the `pi-0-85` adapter.
  */
 export async function runHarnessPrompt(
   dispatch: PiDispatcherOptions,
@@ -569,163 +546,83 @@ function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user
 }
 
 /**
- * Bring the session back under its context budget and report what happened.
- *
- * Runs twice per turn. Before the prompt, because a session can arrive over
- * budget without having grown -- moving it onto a smaller-window model is
- * enough, and Carmel allows that per session -- and after, because that is when
- * it has just grown. Everything except a clean result reaches the user: the
- * failure mode this replaces was a `console.warn` on a session that kept
- * accepting turns while heading for a wall nobody had been told about.
+ * Warn before the turn when the session is over budget on a model whose window
+ * compaction cannot work in -- Pi would find out from a provider rejection.
+ * Never ends the run: this is a measurement, and a notice is all it produces.
  */
-async function relieveContextPressure(context: AgentRun, driver: AgentDriver, options?: { force?: boolean }) {
-  let outcome: CompactionOutcome;
+async function reportPreflightPressure(context: AgentRun, log: SessionLog) {
   try {
-    outcome = await driver.relieveContextPressure(options);
+    const notice = describePreflightPressure({
+      tokens: await estimateBranchTokens(log),
+      contextWindow: context.model.contextWindow,
+    });
+    if (notice) emitContextPressure(context, notice);
   } catch (error) {
-    // The driver reports rather than throws, so reaching here means the
-    // measurement itself broke. Never let that end the run.
     console.warn("Context pressure check failed:", errorMessage(error));
-    return { status: "failed" } as const;
   }
+}
 
-  const notice = describeContextPressure(outcome);
-  if (notice) {
-    console.warn(`Context pressure (${outcome.status}) on session ${context.session.id}: ${notice.message}`);
-    emitRunEvent(context.run, { type: "context_pressure", level: notice.level, message: notice.message });
-  }
-  return outcome;
+function emitContextPressure(context: AgentRun, notice: ContextPressureNotice) {
+  console.warn(`Context pressure on session ${context.session.id}: ${notice.message}`);
+  emitRunEvent(context.run, { type: "context_pressure", level: notice.level, message: notice.message });
 }
 
 /**
- * Records the failure carried by the most recent turn, and whether Pi already
- * spent its own overflow recovery on this run.
+ * Reports Pi's own compaction to the user; Carmel does no compacting itself.
  *
- * The second part is what makes Carmel's recovery a second line rather than a
- * duplicate. Pi 0.85 compacts and retries an overflowed turn itself, once per
- * generation, and emits `compaction_end` with `reason: "overflow"` when it does.
- * Seeing that and *still* holding an overflow failure means the remedy Carmel
- * would reach for has already been tried and did not work.
+ * Pi 0.85 compacts at every checkpoint and, when a generation overflows,
+ * compacts and retries it once. The overflowed attempt's `turn_end` has already
+ * reached the client as an error by then, so a successful recovery has to be
+ * announced to clear it. What is left afterwards -- an overflow the run still
+ * ended on -- is only reportable: compaction was the whole remedy.
  */
-export class TurnFailureWatch {
-  #last?: TurnFailure;
-  #piCompactedForOverflow = false;
+export class ContextReporter {
+  #lastTurnFailure?: TurnFailure;
+  #overflowCompaction: "none" | "completed" | "failed" = "none";
   readonly #contextWindow?: number;
+  readonly #emit: (event: AgentRunEvent) => void;
 
   /** The model's window, so a silent overflow -- a `stop` that overran -- is seen. */
-  constructor(contextWindow?: number) {
+  constructor(contextWindow: number | undefined, emit: (event: AgentRunEvent) => void) {
     this.#contextWindow = contextWindow;
+    this.#emit = emit;
   }
 
   observe(event: HarnessEvent) {
-    if (event.type === "compaction_end" && event.reason === "overflow" && event.status === "completed") {
-      this.#piCompactedForOverflow = true;
+    if (event.type === "turn_end") {
+      // A clean turn clears the record: only the last turn decides the run.
+      this.#lastTurnFailure = classifyHarnessTurnFailure(event, this.#contextWindow);
       return;
     }
-    if (event.type !== "turn_end") return;
-    // A clean turn clears the record: only the last turn of a run decides
-    // whether the run needs recovering.
-    this.#last = classifyHarnessTurnFailure(event, this.#contextWindow);
+    if (event.type !== "compaction_end") return;
+    if (event.status === "failed") {
+      if (event.reason === "overflow") this.#overflowCompaction = "failed";
+      const notice = describeCompactionFailure(event.error.message);
+      this.#emit({ type: "context_pressure", level: notice.level, message: notice.message });
+    } else if (event.status === "completed" && event.reason === "overflow") {
+      this.#overflowCompaction = "completed";
+      this.#emit({ type: "run_recovered", message: OVERFLOW_RECOVERED });
+    }
   }
 
-  get last() {
-    return this.#last;
+  /** The failure the most recent turn ended with, if any. */
+  get lastTurnFailure() {
+    return this.#lastTurnFailure;
   }
 
-  /** Pi ran its own overflow compaction during this run. */
-  get piAlreadyCompactedForOverflow() {
-    return this.#piCompactedForOverflow;
+  /** Call once the prompt returns. A failed compaction already said its piece. */
+  reportUnrecoveredOverflow() {
+    if (this.#lastTurnFailure?.category !== "context_overflow" || this.#overflowCompaction === "failed") return;
+    const notice = describeUnrecoveredOverflow(this.#overflowCompaction === "completed");
+    this.#emit({ type: "context_pressure", level: notice.level, message: notice.message });
   }
 }
 
 /**
- * Repair a turn the provider rejected for context length -- second line only.
- *
- * Pi 0.85 recovers an overflow itself: `publishResponse` classifies the response,
- * compacts, and retries the generation once. When that works the turn ends clean
- * and `failure` is undefined, so this returns immediately. What is left for
- * Carmel is the cases Pi's single attempt does not cover -- an overflow it
- * declined to compact for, or one that survived the compaction it did -- plus
- * telling the user, which Pi never does.
- *
- * The one thing this must not do is spend a second summarization call on a
- * branch Pi just compacted for the same reason. `piAlreadyCompacted` is how that
- * is known, and it converts the recovery from a retry into a report.
+ * Mirrors the `customPrompt` branch of pi-coding-agent's `buildSystemPrompt`
+ * (project context, skills, working directory), which Pi does not export.
+ * Keep the layout in step with it when upgrading Pi.
  */
-export async function recoverFromContextOverflow(
-  context: AgentRun,
-  state: {
-    driver: AgentDriver;
-    /** Only the prompt surface: recovery re-sends, it does not run the harness. */
-    dispatch: PiDispatcherOptions;
-    log: SessionLog;
-    failure: TurnFailure | undefined;
-    /** Whether Pi already compacted for overflow during this run. */
-    piAlreadyCompacted?: boolean;
-    attemptBaselineId: string | null;
-    promptInput: PromptInput;
-  },
-) {
-  const { driver, dispatch, log, failure, piAlreadyCompacted, attemptBaselineId, promptInput } = state;
-
-  const branch = await log.readBranch();
-  // Called once per run. A second overflow after a successful compaction is
-  // something the user has to know about, not something to spend more tokens on.
-  const plan = planContextRecovery({
-    failure,
-    turnProducedToolResults: producedToolResultsSince(branch, attemptBaselineId),
-  });
-  if (plan.action === "none") return;
-  if (context.abort.requested) return;
-
-  // Pi compacted for this same overflow and the turn failed anyway. Compaction
-  // is the entire remedy on this path, so trying it again buys a summarization
-  // call and the same rejection. Say so instead.
-  if (piAlreadyCompacted) {
-    emitRunEvent(context.run, {
-      type: "context_pressure",
-      level: "critical",
-      message:
-        "This session filled its context window mid-turn and compaction did not recover it. Move to a model with a larger window, or start a new session.",
-    });
-    return;
-  }
-
-  // Forced: the provider has already rejected this context as too large, which
-  // outranks the local estimate that let the turn start. Compaction is the whole
-  // remedy -- if it did not actually free room, retrying would earn the same
-  // rejection at the user's expense, and the notice already emitted says why.
-  const outcome = await relieveContextPressure(context, driver, { force: true });
-  if (outcome.status !== "compacted") return;
-  if (context.abort.requested) return;
-
-  if (plan.action === "resend") {
-    // Rewind past the user message and the failed reply both, so the retry
-    // leaves one user turn and one answer rather than a visible false start.
-    await log.moveTo(attemptBaselineId);
-    await runHarnessPrompt(dispatch, promptInput.text, promptInput.images);
-  } else {
-    await driver.prompt(CONTINUATION_PROMPT);
-  }
-
-  emitRunEvent(context.run, {
-    type: "run_recovered",
-    message: plan.action === "resend" ? RECOVERED_BY_RESEND : RECOVERED_BY_CONTINUATION,
-  });
-}
-
-/**
- * Tool results are the durable, expensive part of a turn. Assistant text before
- * an overflow is usually a preamble the retry will produce again, so it does not
- * count as work worth keeping a false start for.
- */
-function producedToolResultsSince(branch: readonly BranchEntry[], baselineId: string | null) {
-  const start = baselineId === null ? 0 : branch.findIndex((entry) => entry.id === baselineId) + 1;
-  return branch
-    .slice(start)
-    .some((entry) => entry.type === "message" && (entry.message as { role?: unknown } | undefined)?.role === "toolResult");
-}
-
 function buildHarnessSystemPrompt(options: {
   base: string;
   cwd: string;

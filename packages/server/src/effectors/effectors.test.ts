@@ -8,8 +8,7 @@ import { reconcileLaneConfiguration, type PiConfigLane } from "./pi-0-85/agent-d
 import { FakeSessionLog } from "./testing/fake-session-log.ts";
 import { runSessionLogContract } from "./testing/session-log-contract.ts";
 import { dispatchPrompt } from "./dispatch-prompt.ts";
-import type { AgentDriver, DriverResources } from "./contracts/agent-driver.ts";
-import type { CompactionOutcome } from "./compaction-policy.ts";
+import type { DriverResources, PromptDispatcher } from "./contracts/agent-driver.ts";
 
 migrate();
 
@@ -129,7 +128,7 @@ test("images ride along with a named invocation rather than forcing plain text",
 
 function recordingDriver(resources: DriverResources = { skills: [], promptTemplates: [] }) {
   const calls: unknown[][] = [];
-  const driver: AgentDriver = {
+  const driver: PromptDispatcher = {
     listResources: async () => resources,
     async prompt(text, images) {
       calls.push(["prompt", text, images]);
@@ -140,7 +139,6 @@ function recordingDriver(resources: DriverResources = { skills: [], promptTempla
     async invokeTemplate(name, args, images) {
       calls.push(["invokeTemplate", name, args, images]);
     },
-    relieveContextPressure: async (): Promise<CompactionOutcome> => ({ status: "not_needed", tokens: 0, headroom: 1 }),
   };
   return { driver, calls };
 }

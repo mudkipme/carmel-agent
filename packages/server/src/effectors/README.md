@@ -17,8 +17,7 @@ path.
 Two ports, not one, because upstream reshapes the loop and the store on
 independent schedules:
 
-- **`AgentDriver`** — prompt dispatch and context-pressure relief, plus
-  `PromptDispatcher`, the four-method slice that slash-command dispatch needs.
+- **`PromptDispatcher`** — sending composer text as a prompt, skill, or template.
 - **`SessionLog`** — reading, rewinding and appending to the conversation branch.
 
 Run configuration (model, thinking level, active tools) is lane state, written
@@ -37,28 +36,36 @@ operation whose meaning changed.
 
 ## Compaction
 
-`compaction-policy.ts` decides whether compaction is worth attempting, as a pure
-function of tokens, the model's window, and the settings. It exists because
-Pi's `shouldCompact()` answers "is the context over the threshold?" and Carmel
-was reading it as "will compacting help?". Two configurations separate those:
+Pi 0.85 does all of it: it checks the threshold at every checkpoint of a run,
+and when a generation overflows it compacts and retries that generation once.
+Carmel compacts nothing itself. `compaction-policy.ts` covers the one thing Pi
+gets wrong, and the wording for what Pi reports.
+
+What Pi gets wrong: its `shouldCompact()` answers "is the context over the
+threshold?", not "will compacting help?". Two configurations separate those:
 
 - **`window_below_reserve`** — the window is smaller than the 16,384 tokens
   reserved for summarization, so the threshold is negative and even an empty
   session asks to be compacted.
 - **`retained_tail_exceeds_headroom`** — compaction retains ~20,000 tokens of
   recent history, so it cannot get below that. With Pi's defaults, any window at
-  or below **36,384 tokens** is in this state: compaction is requested, runs,
-  costs a summarization call, and leaves the session over the threshold, once
-  per turn, forever. Reachable through Settings -> Models by giving an Ollama
-  entry its real window.
+  or below **36,384 tokens** is in this state -- most locally-served Ollama
+  models given their real window.
 
-Both are now reported instead of attempted. Beyond that, the driver re-measures
-after compacting rather than trusting the call (`ineffective` vs `compacted`),
-distinguishes Pi's benign "Nothing to compact" from a real failure, and the run
-calls it *before* the prompt as well as after -- a session can be over budget at
-the start of a turn without having grown, because moving it onto a
-smaller-window model is enough. Outcomes the user can act on reach the client as
-a `context_pressure` run event.
+For either, the run opens its harness with threshold compaction disabled, so Pi
+stops paying for a summarization at every step that leaves the session over
+budget. Pi's overflow recovery ignores `enabled` and stays available. Before the
+prompt, the run warns (`context_pressure`) if such a session is already over
+budget.
+
+`ContextReporter` (`runtime/agent-runtime.ts`) turns Pi's compaction events into
+what the user sees:
+
+- **Overflow compacted** -> `run_recovered`. The overflowed attempt's `turn_end`
+  already reached the client as an error, so the recovery has to retract it.
+- **A compaction failed** -> a `context_pressure` warning with Pi's reason.
+- **The run still ended on an overflow** -> a critical `context_pressure`: either
+  compaction did not free enough room, or there was nothing to summarize.
 
 ## Branch integrity
 
@@ -101,44 +108,6 @@ retrying an exhausted quota just burns the turn.
 
 An unclassified failure keeps the provider's text verbatim: when the
 classification is worst is when the raw text is worth most.
-
-## Context recovery
-
-`turn-recovery.ts` decides whether a failed turn gets one more attempt.
-
-Only `context_overflow` is recovered: it is the one provider rejection Carmel
-can actually fix between attempts. Auth, quota, and a malformed tool history all
-need a person, and retrying them spends the user's tokens to reach the same
-answer.
-
-Compaction runs before every prompt, so an overflow means the turn started
-inside its budget and left it. Two causes, two repairs:
-
-- **The estimate was wrong.** `estimateContextTokens` is a character heuristic;
-  the provider's count is ground truth. Nothing durable happened, so the run
-  rewinds past the user message and the failed reply both and sends the message
-  again — the transcript ends up as though it never happened.
-- **A tool result ballooned the context mid-turn.** The turn *did* work, so
-  rewinding would discard the expensive part. The run keeps it and sends a
-  continuation prompt instead, at the cost of a visible extra turn.
-
-The rule is `turnProducedToolResults`: tool results are the durable part, while
-assistant text before an overflow is usually a preamble the retry produces
-again.
-
-Two things this needed that are worth remembering:
-
-- **The compaction is forced.** The provider has already rejected this context as
-  too large, which outranks the local estimate that let the turn start. Without
-  `force`, recovery would consult the estimate that was just proven wrong and
-  decline to act — the exact case the resend path exists for. `force` does not
-  override an `impossible` verdict, which is about the model, not the estimate.
-- **`run_recovered` clears the client's error.** The failing `turn_end` reached
-  the client before the server knew the failure was recoverable, so reporting
-  the recovery honestly means retracting what was already shown.
-
-One attempt per run. A second overflow after a successful compaction is
-information the user needs, not a reason to spend more tokens.
 
 ## Runtime limits
 
@@ -197,8 +166,8 @@ last user message -- so nothing else is needed there.
 
 Worth remembering when changing either: **every compaction is a full prefix
 invalidation**, since it rewrites the history. That is the link between the
-compaction work above and cache economics, and the reason the `impossible`
-detection matters beyond saving a model call.
+compaction work above and cache economics, and the reason disabling futile
+threshold compaction matters beyond saving a model call.
 
 ## What is still on the far side of the seam
 
