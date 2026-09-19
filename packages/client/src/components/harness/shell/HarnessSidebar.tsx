@@ -47,7 +47,9 @@ export function HarnessSidebar({
   onResetWidth: () => void;
   onOpenImport: () => void;
 }) {
-  const store = useHarnessStore();
+  const createAgent = useHarnessStore((state) => state.createAgent);
+  const modelRefs = useHarnessStore((state) => state.modelRefs);
+  const activeUserId = useHarnessStore((state) => state.activeUserId);
   /* The list follows the main column when it moves between a session and an
      issue, and is otherwise the reader's to switch. */
   const [list, setList] = useState<SidebarList>(contentView === "issues" ? "issues" : "sessions");
@@ -59,9 +61,9 @@ export function HarnessSidebar({
 
   const createSidebarAgent = async (): Promise<AgentConfig | undefined> => {
     try {
-      return await store.createAgent({
+      return await createAgent({
         name: `Agent ${visibleAgents.length + 1}`,
-        defaultModelRefId: store.modelRefs[0]?.id,
+        defaultModelRefId: modelRefs[0]?.id,
       });
     } catch (error) {
       showError("Unable to create agent", error);
@@ -99,8 +101,8 @@ export function HarnessSidebar({
           <AgentSelector
             activeAgent={activeAgent}
             visibleAgents={visibleAgents}
-            activeUserId={store.activeUserId}
-            modelRefs={store.modelRefs}
+            activeUserId={activeUserId}
+            modelRefs={modelRefs}
             onCreateAgent={createSidebarAgent}
           />
           <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -121,6 +123,7 @@ export function HarnessSidebar({
                 />
               ) : (
                 <SessionList
+                  key={activeAgent?.id}
                   sessions={visibleSessions}
                   activeSessionId={activeSession?.id}
                   onOpenSession={onOpenSession}

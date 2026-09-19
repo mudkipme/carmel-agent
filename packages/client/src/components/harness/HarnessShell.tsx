@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
 import { NewSessionView } from "@/components/harness/NewSessionView";
@@ -31,13 +31,21 @@ import {
   getDefaultSidebarWidth,
   resetSidebarWidth,
   SIDEBAR_WIDTH_STORAGE_KEY,
-  sortSessions,
   type ContentView,
 } from "@/components/harness/shell/sidebar-utils";
 import { agentFilesPath } from "@/lib/file-links";
+import { sortSessions } from "@/lib/session-groups";
+import { canOpenTerminal as canUserOpenTerminal, resolveShellRoute } from "@/lib/shell-route";
 import { cn } from "@/lib/utils";
 import { canUserSeeAgent, isListedSession } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";
+
+/**
+ * The chat path each agent was last on, so leaving for files or the terminal
+ * and toggling back returns to that session. Read only by the toggle; the open
+ * session is always whatever the URL names.
+ */
+const lastChatPathByAgent = new Map<string, string>();
 
 export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const navigate = useNavigate();
@@ -48,155 +56,118 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     issueId: routeIssueId,
     "*": routeFilePath,
   } = useParams();
-  const store = useHarnessStore();
-  const setActiveAgent = store.setActiveAgent;
-  const setActiveSession = store.setActiveSession;
-  const loadUnlistedSession = store.loadUnlistedSession;
-  const loadIssues = store.loadIssues;
+  // One selector per field: the shell re-renders when what it shows changes,
+  // not on every store write.
+  const userId = useHarnessStore((state) => state.activeUserId);
+  const activeUser = useHarnessStore((state) => state.users.find((user) => user.id === state.activeUserId));
+  const agents = useHarnessStore((state) => state.agents);
+  const sessions = useHarnessStore((state) => state.sessions);
+  const issues = useHarnessStore((state) => state.issues);
+  const modelRefs = useHarnessStore((state) => state.modelRefs);
+  const providerConfigs = useHarnessStore((state) => state.providerConfigs);
+  const lastAgentId = useHarnessStore((state) => state.lastAgentId);
+  const sessionDetail = useHarnessStore((state) => (routeSessionId ? state.sessionDetails[routeSessionId] : undefined));
+  const rememberAgent = useHarnessStore((state) => state.rememberAgent);
+  const loadUnlistedSession = useHarnessStore((state) => state.loadUnlistedSession);
+  const loadIssues = useHarnessStore((state) => state.loadIssues);
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [routeSessionLookup, setRouteSessionLookup] = useState<{ sessionId: string; done: boolean }>();
-  const activeUser = store.users.find((user) => user.id === store.activeUserId);
-  const selectedSession = store.sessions.find(
-    (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
-  );
-  const visibleAgents = store.agents.filter((agent) => canUserSeeAgent(agent, store.activeUserId));
-  const selectedAgent = visibleAgents.find((agent) => agent.id === store.activeAgentId);
-  const activeAgent = selectedAgent ?? visibleAgents.find((agent) => agent.id === selectedSession?.agentId);
-  /* The chat opens a session only when the URL names one; an agent's own path
-     is its new-session composer, whatever session was open before. */
-  const onNewSessionPage = view === "chat" && !routeSessionId;
-  const activeSessionMetadata =
-    !onNewSessionPage && selectedSession?.userId === store.activeUserId && selectedSession.agentId === activeAgent?.id
-      ? selectedSession
-      : undefined;
-  const activeSession = activeSessionMetadata
-    ? (store.sessionDetails[activeSessionMetadata.id] ?? {
-        ...activeSessionMetadata,
-        messages: [],
-        messageEntryIds: [],
-      })
+  const [lookedUpSessionId, setLookedUpSessionId] = useState<string>();
+
+  const visibleAgents = useMemo(() => agents.filter((agent) => canUserSeeAgent(agent, userId)), [agents, userId]);
+  const routeSession = routeSessionId
+    ? sessions.find((session) => session.id === routeSessionId && session.userId === userId)
     : undefined;
-  const activeModel = store.modelRefs.find((model) => model.id === activeSessionMetadata?.modelRefId);
+  const route = resolveShellRoute({
+    view,
+    routeAgentId,
+    routeSessionId,
+    agents: visibleAgents,
+    lastAgentId,
+    routeSession,
+    routeSessionLookupDone: lookedUpSessionId === routeSessionId,
+    userId,
+  });
+  const activeAgent = route.kind === "ready" ? route.agent : undefined;
+  const activeSessionMetadata = route.kind === "ready" ? route.session : undefined;
+  const activeSession = useMemo(
+    () =>
+      activeSessionMetadata
+        ? (sessionDetail ?? { ...activeSessionMetadata, messages: [], messageEntryIds: [] })
+        : undefined,
+    [activeSessionMetadata, sessionDetail],
+  );
+  const activeModel = modelRefs.find((model) => model.id === activeSessionMetadata?.modelRefId);
+  const onNewSessionPage = view === "chat" && !routeSessionId;
   /* The open file rides in the route, so a reload — or a shared link — comes
      back to the same file rather than to the top of the workspace. */
   const selectedFilePath = routeFilePath ?? "";
-  /* Mirrors the server gate in terminal-socket.ts. Shown as "not offered"
-     rather than "offered then refused". */
-  const canOpenTerminal = Boolean(
-    activeAgent && activeAgent.ownerUserId === store.activeUserId && activeAgent.permissions.bash,
+  /* Shown as "not offered" rather than "offered then refused". */
+  const canOpenTerminal = Boolean(activeAgent && canUserOpenTerminal(activeAgent, userId));
+  const visibleSessions = useMemo(
+    () =>
+      sessions
+        .filter((session) => session.userId === userId && session.agentId === activeAgent?.id && isListedSession(session))
+        .sort(sortSessions),
+    [activeAgent?.id, sessions, userId],
   );
-  const visibleSessions = store.sessions
-    .filter(
-      (session) =>
-        session.userId === store.activeUserId && session.agentId === activeAgent?.id && isListedSession(session),
-    )
-    .slice()
-    .sort(sortSessions);
-  const visibleIssues = store.issues.filter((issue) => issue.agentId === activeAgent?.id && issue.userId === store.activeUserId);
-  /* An issue in the route belongs to the agent in the route; once another agent
-     is active, the issues pane falls back to that agent's composer. */
-  const activeIssueId = view === "issues" && activeAgent?.id === routeAgentId ? routeIssueId : undefined;
+  const visibleIssues = useMemo(
+    () => issues.filter((issue) => issue.agentId === activeAgent?.id && issue.userId === userId),
+    [activeAgent?.id, issues, userId],
+  );
+  const activeIssueId = view === "issues" ? routeIssueId : undefined;
   const activeIssue = visibleIssues.find((issue) => issue.id === activeIssueId);
   const anyIssueRunning = visibleIssues.some((issue) => issue.running);
-  const routeAgent = routeAgentId ? visibleAgents.find((agent) => agent.id === routeAgentId) : undefined;
-  const routeSession = routeSessionId
-    ? store.sessions.find((session) => session.id === routeSessionId && session.userId === store.activeUserId)
-    : undefined;
-  /* A task run's session is not in bootstrap, so a link to one -- or a reload
-     while it is open -- has to fetch it before the route can be judged stale. */
-  const lookingUpRouteSession = Boolean(
-    routeSessionId && !routeSession && !(routeSessionLookup?.sessionId === routeSessionId && routeSessionLookup.done),
-  );
-  const chatPath = activeSessionMetadata
-    ? `/agents/${activeSessionMetadata.agentId}/sessions/${activeSessionMetadata.id}`
-    : activeAgent
-      ? `/agents/${activeAgent.id}`
-      : "/";
+  const chatPath = activeAgent ? (lastChatPathByAgent.get(activeAgent.id) ?? `/agents/${activeAgent.id}`) : "/";
 
+  const redirectTo = route.kind === "redirect" ? route.to : undefined;
   useEffect(() => {
-    if (routeSessionId) {
-      if (routeSession && store.activeSessionId !== routeSession.id) {
-        setActiveSession(routeSession.id);
-      }
-      return;
-    }
-    /* Landing on the composer also lets go of the previous session, so leaving
-       for files or the terminal and back returns here rather than to it. */
-    if (routeAgent && (store.activeAgentId !== routeAgent.id || (onNewSessionPage && store.activeSessionId))) {
-      setActiveAgent(routeAgent.id);
-    }
-  }, [
-    onNewSessionPage,
-    routeAgent,
-    routeSession,
-    routeSessionId,
-    setActiveAgent,
-    setActiveSession,
-    store.activeAgentId,
-    store.activeSessionId,
-  ]);
+    if (redirectTo && redirectTo !== location.pathname) navigate(redirectTo, { replace: true });
+  }, [location.pathname, navigate, redirectTo]);
 
-  useEffect(() => {
-    if (!routeSessionId || routeSession || routeSessionLookup?.sessionId === routeSessionId) return;
-    setRouteSessionLookup({ sessionId: routeSessionId, done: false });
-    void loadUnlistedSession(routeSessionId)
-      .catch(() => undefined)
-      .finally(() => setRouteSessionLookup({ sessionId: routeSessionId, done: true }));
-  }, [loadUnlistedSession, routeSession, routeSessionId, routeSessionLookup?.sessionId]);
-
-  useEffect(() => {
-    if (lookingUpRouteSession) return;
-    if (routeSessionId && routeSession && store.activeSessionId !== routeSession.id) return;
-    if (routeAgentId && routeAgent && !routeSessionId && store.activeAgentId !== routeAgent.id) return;
-
-    /* Files and the terminal belong to the agent, not to a session, so they
-       hold their own URL for as long as that agent is the active one — an agent
-       switch, or a shell this agent may not open, falls back to the chat. */
-    const targetPath =
-      view === "files" && activeAgent
-        ? agentFilesPath(activeAgent.id, selectedFilePath)
-        : view === "terminal" && activeAgent && canOpenTerminal
-          ? `/agents/${activeAgent.id}/terminal`
-          : view === "issues" && activeAgent
-            ? `/agents/${activeAgent.id}/issues${activeIssueId ? `/${activeIssueId}` : ""}`
-            : onNewSessionPage && activeAgent
-              ? `/agents/${activeAgent.id}`
-              : chatPath;
-    if (location.pathname !== targetPath) {
-      navigate(targetPath, { replace: true });
-    }
-  }, [
-    activeAgent,
-    activeIssueId,
-    canOpenTerminal,
-    chatPath,
-    location.pathname,
-    lookingUpRouteSession,
-    navigate,
-    onNewSessionPage,
-    routeAgent,
-    routeAgentId,
-    routeSession,
-    routeSessionId,
-    selectedFilePath,
-    store.activeAgentId,
-    store.activeSessionId,
-    view,
-  ]);
-
-  /* Issue runs go on without anyone watching, so their state is polled: often
-     while one is running, rarely otherwise. */
   const activeAgentId = activeAgent?.id;
   useEffect(() => {
+    if (activeAgentId) rememberAgent(activeAgentId);
+  }, [activeAgentId, rememberAgent]);
+
+  useEffect(() => {
+    if (activeAgentId && view === "chat") lastChatPathByAgent.set(activeAgentId, location.pathname);
+  }, [activeAgentId, location.pathname, view]);
+
+  /* A task run's or an archived session is not in bootstrap, so a link to one
+     -- or a reload while it is open -- has to fetch it before the route can be
+     judged stale. */
+  useEffect(() => {
+    if (!routeSessionId || routeSession || lookedUpSessionId === routeSessionId) return;
+    let cancelled = false;
+    void loadUnlistedSession(routeSessionId)
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLookedUpSessionId(routeSessionId);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadUnlistedSession, lookedUpSessionId, routeSession, routeSessionId]);
+
+  /* Issue runs go on without anyone watching. The list is loaded once per
+     agent for the sidebar, then polled only while someone is looking at issues
+     or one is running: often while running, otherwise rarely. */
+  const pollIssues = view === "issues" || anyIssueRunning;
+  useEffect(() => {
     if (!activeAgentId) return;
-    const load = () => void loadIssues(activeAgentId).catch(() => undefined);
-    load();
-    const timer = window.setInterval(load, anyIssueRunning ? 4_000 : 30_000);
+    void loadIssues(activeAgentId).catch(() => undefined);
+  }, [activeAgentId, loadIssues]);
+  useEffect(() => {
+    if (!activeAgentId || !pollIssues) return;
+    const timer = window.setInterval(
+      () => void loadIssues(activeAgentId).catch(() => undefined),
+      anyIssueRunning ? 4_000 : 30_000,
+    );
     return () => window.clearInterval(timer);
-  }, [activeAgentId, anyIssueRunning, loadIssues]);
+  }, [activeAgentId, anyIssueRunning, loadIssues, pollIssues]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_SIDEBAR_QUERY);
@@ -227,6 +198,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     event.preventDefault();
     const startX = event.clientX;
     const startWidth = sidebarWidth;
+    let width = startWidth;
     const originalCursor = document.body.style.cursor;
     const originalUserSelect = document.body.style.userSelect;
     setSidebarResizing(true);
@@ -237,14 +209,15 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
       setSidebarResizing(false);
       document.body.style.cursor = originalCursor;
       document.body.style.userSelect = originalUserSelect;
+      // Saved once, when the drag ends, rather than on every pointer move.
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
       window.removeEventListener("pointermove", resize);
       window.removeEventListener("pointerup", finishResize);
       window.removeEventListener("pointercancel", finishResize);
     };
     const resize = (moveEvent: PointerEvent) => {
-      const nextWidth = clampSidebarWidth(startWidth + moveEvent.clientX - startX);
-      setSidebarWidth(nextWidth);
-      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(nextWidth));
+      width = clampSidebarWidth(startWidth + moveEvent.clientX - startX);
+      setSidebarWidth(width);
     };
 
     window.addEventListener("pointermove", resize);
@@ -340,23 +313,23 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
                 key={activeIssueId}
                 agent={activeAgent}
                 issueId={activeIssueId}
-                modelRefs={store.modelRefs}
-                providerConfigs={store.providerConfigs}
+                modelRefs={modelRefs}
+                providerConfigs={providerConfigs}
               />
             ) : (
               <NewIssueView
                 key={activeAgent.id}
                 agent={activeAgent}
-                modelRefs={store.modelRefs}
-                providerConfigs={store.providerConfigs}
+                modelRefs={modelRefs}
+                providerConfigs={providerConfigs}
               />
             )
           ) : onNewSessionPage && activeAgent ? (
             <NewSessionView
               key={activeAgent.id}
               agent={activeAgent}
-              modelRefs={store.modelRefs}
-              providerConfigs={store.providerConfigs}
+              modelRefs={modelRefs}
+              providerConfigs={providerConfigs}
             />
           ) : activeSession && activeAgent && activeModel ? (
             <PiChat
@@ -364,12 +337,12 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
               agentConfig={activeAgent}
               session={activeSession}
               modelRef={activeModel}
-              modelRefs={store.modelRefs}
-              providerConfigs={store.providerConfigs}
+              modelRefs={modelRefs}
+              providerConfigs={providerConfigs}
             />
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-              {activeAgent ? "Loading session..." : "Create an agent to start chatting."}
+              {route.kind === "empty" ? "Create an agent to start chatting." : "Loading session..."}
             </div>
           )}
         </div>
@@ -377,7 +350,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
       <ImportSessionsDialog
         open={importDialogOpen}
         activeAgent={activeAgent}
-        modelRefs={store.modelRefs}
+        modelRefs={modelRefs}
         onOpenChange={setImportDialogOpen}
         onAfterImport={closeSidebarOnMobile}
       />

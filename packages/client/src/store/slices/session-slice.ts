@@ -16,7 +16,7 @@ export function createSessionSlice(set: SetState): SessionActions {
   return {
     createSession: async (draft) => {
       const session = await api.createSession(draft);
-      set((state) => ({ sessions: [toSessionMetadata(session), ...state.sessions], sessionDetails: { ...state.sessionDetails, [session.id]: session }, activeSessionId: session.id, activeAgentId: session.agentId }));
+      set((state) => ({ sessions: [toSessionMetadata(session), ...state.sessions], sessionDetails: { ...state.sessionDetails, [session.id]: session } }));
       return session;
     },
     importOpenWebuiSessions: async (draft) => {
@@ -24,8 +24,6 @@ export function createSessionSlice(set: SetState): SessionActions {
       set((state) => ({
         sessions: [...imported.map(toSessionMetadata), ...state.sessions],
         sessionDetails: { ...state.sessionDetails, ...Object.fromEntries(imported.map((session) => [session.id, session])) },
-        activeSessionId: imported[0]?.id ?? state.activeSessionId,
-        activeAgentId: imported[0]?.agentId ?? state.activeAgentId,
       }));
       return imported;
     },
@@ -55,7 +53,7 @@ export function createSessionSlice(set: SetState): SessionActions {
     },
     forkSession: async (sessionId, entryId) => {
       const session = await api.forkSession(sessionId, entryId);
-      set((state) => ({ sessions: [toSessionMetadata(session), ...state.sessions], sessionDetails: { ...state.sessionDetails, [session.id]: session }, activeSessionId: session.id, activeAgentId: session.agentId }));
+      set((state) => ({ sessions: [toSessionMetadata(session), ...state.sessions], sessionDetails: { ...state.sessionDetails, [session.id]: session } }));
       return session;
     },
     deleteSession: async (sessionId) => {
@@ -92,6 +90,5 @@ export function createSessionSlice(set: SetState): SessionActions {
 function removeSession(state: HarnessState, sessionId: string) {
   const sessions = state.sessions.filter((item) => item.id !== sessionId);
   const { [sessionId]: _removed, ...sessionDetails } = state.sessionDetails;
-  const activeSessionId = state.activeSessionId === sessionId ? "" : state.activeSessionId;
-  return { sessions, sessionDetails, activeSessionId };
+  return { sessions, sessionDetails };
 }

@@ -18,7 +18,13 @@ export function createIssueSlice(set: SetState): IssueActions {
   return {
     loadIssues: async (agentId) => {
       const loaded = await api.listIssues(agentId);
-      set((state) => ({ issues: [...state.issues.filter((issue) => issue.agentId !== agentId), ...loaded] }));
+      set((state) => {
+        const current = state.issues.filter((issue) => issue.agentId === agentId);
+        // Polls mostly come back unchanged; keeping the array avoids re-rendering
+        // everything that reads it.
+        if (JSON.stringify(current) === JSON.stringify(loaded)) return state;
+        return { issues: [...state.issues.filter((issue) => issue.agentId !== agentId), ...loaded] };
+      });
       return loaded;
     },
     loadIssue: async (agentId, issueId) => cache(await api.getIssue(agentId, issueId)),

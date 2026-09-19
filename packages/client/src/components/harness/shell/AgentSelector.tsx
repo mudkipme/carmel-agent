@@ -38,7 +38,6 @@ export function AgentSelector({
   onCreateAgent: () => Promise<AgentConfig | undefined>;
 }) {
   const navigate = useNavigate();
-  const setActiveAgent = useHarnessStore((state) => state.setActiveAgent);
   const sessions = useHarnessStore((state) => state.sessions);
   const [switcherOpen, setSwitcherOpen] = useState(false);
 
@@ -63,10 +62,9 @@ export function AgentSelector({
     (agentId: string) => {
       setSwitcherOpen(false);
       if (agentId === activeAgent?.id) return;
-      setActiveAgent(agentId);
       navigate(`/agents/${agentId}`);
     },
-    [activeAgent?.id, navigate, setActiveAgent],
+    [activeAgent?.id, navigate],
   );
 
   const openAgentSettings = useCallback(
@@ -83,7 +81,6 @@ export function AgentSelector({
     setSwitcherOpen(false);
     const createdAgent = await onCreateAgent();
     if (!createdAgent) return;
-    setActiveAgent(createdAgent.id);
     openAgentSettings(createdAgent.id);
   };
 

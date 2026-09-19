@@ -58,7 +58,7 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
         updatedAt: timestamp,
       };
       const saved = await api.upsertAgent(agent.id, toAgentCommand(agent));
-      set((state) => ({ agents: [...state.agents, saved], activeAgentId: saved.id, activeSessionId: "" }));
+      set((state) => ({ agents: [...state.agents, saved] }));
       return saved;
     },
     deleteAgent: async (agentId) => {
@@ -68,8 +68,8 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
         const sessions = state.sessions.filter((item) => item.agentId !== agentId);
         const deletedSessionIds = new Set(state.sessions.filter((item) => item.agentId === agentId).map((item) => item.id));
         const sessionDetails = Object.fromEntries(Object.entries(state.sessionDetails).filter(([id]) => !deletedSessionIds.has(id)));
-        const activeAgentId = state.activeAgentId === agentId ? (agents[0]?.id ?? "") : state.activeAgentId;
-        return { agents, sessions, sessionDetails, activeAgentId, activeSessionId: state.activeAgentId === agentId ? "" : state.activeSessionId };
+        const lastAgentId = state.lastAgentId === agentId ? "" : state.lastAgentId;
+        return { agents, sessions, sessionDetails, lastAgentId };
       });
     },
     upsertProviderConfig: async (providerConfig) => {

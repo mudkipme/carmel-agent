@@ -15,13 +15,12 @@ export const useHarnessStore = create<HarnessState>()(
       users: [],
       activeUserId: "",
       agents: [],
-      activeAgentId: "",
+      lastAgentId: "",
       providerConfigs: [],
       modelRefs: [],
       modelCatalog: { providers: [] },
       sessions: [],
       sessionDetails: {},
-      activeSessionId: "",
       issues: [],
       ...createAuthSlice(set, get),
       ...createResourceSlice(set, get),
@@ -31,15 +30,12 @@ export const useHarnessStore = create<HarnessState>()(
     {
       name: "carmel-harness-ui",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        activeUserId: state.activeUserId,
-        activeAgentId: state.activeAgentId,
-      }),
-      version: 2,
-      // Version 1 also stored the open session; drop it so it is not restored.
+      partialize: (state) => ({ lastAgentId: state.lastAgentId }),
+      version: 3,
+      // Versions 1 and 2 stored a selection; only the agent survives, as a memory.
       migrate: (persisted) => {
-        const { activeUserId = "", activeAgentId = "" } = (persisted ?? {}) as Partial<HarnessPersistedState>;
-        return { activeUserId, activeAgentId };
+        const stored = (persisted ?? {}) as Partial<HarnessPersistedState> & { activeAgentId?: string };
+        return { lastAgentId: stored.lastAgentId ?? stored.activeAgentId ?? "" };
       },
     },
   ),

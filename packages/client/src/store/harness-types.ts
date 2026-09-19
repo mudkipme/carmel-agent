@@ -25,15 +25,19 @@ export type HarnessState = {
   /** How this server lets people sign in. Loaded whenever the app is signed out. */
   authOptions?: SetupStatus;
   users: User[];
+  /** The signed-in user. */
   activeUserId: string;
   agents: AgentConfig[];
-  activeAgentId: string;
+  /**
+   * The agent opened most recently, remembered so `/` lands on it. Not a
+   * selection: the open agent and session are whatever the URL names.
+   */
+  lastAgentId: string;
   providerConfigs: ProviderConfig[];
   modelRefs: ModelRef[];
   modelCatalog: ModelCatalog;
   sessions: SessionMetadata[];
   sessionDetails: Record<string, Session>;
-  activeSessionId: string;
   /** Issues of the agents whose issue lists have been loaded; not part of bootstrap. */
   issues: Issue[];
   bootstrap: () => Promise<void>;
@@ -41,9 +45,7 @@ export type HarnessState = {
   setup: (input: { username: string; password: string; email?: string; name?: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateAccount: (currentPassword: string, email: string, newPassword?: string) => Promise<void>;
-  setActiveUser: (userId: string) => void;
-  setActiveAgent: (agentId: string) => void;
-  setActiveSession: (sessionId: string) => void;
+  rememberAgent: (agentId: string) => void;
   upsertUser: (user: User) => Promise<void>;
   upsertAgent: (agent: AgentConfig) => Promise<void>;
   createAgent: (draft?: Partial<AgentConfig>) => Promise<AgentConfig>;
@@ -82,6 +84,4 @@ export type HarnessState = {
   deletePromptTemplate: (agentId: string, templateId: string) => Promise<void>;
 };
 
-/* The open session lives in the URL, not in storage: reopening the app lands on
-   the agent's new-session composer rather than on whatever was open last. */
-export type HarnessPersistedState = Pick<HarnessState, "activeUserId" | "activeAgentId">;
+export type HarnessPersistedState = Pick<HarnessState, "lastAgentId">;

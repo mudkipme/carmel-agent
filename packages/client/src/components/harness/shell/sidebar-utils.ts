@@ -4,8 +4,7 @@ export const DEFAULT_SIDEBAR_WIDTH = 298;
 export const MIN_SIDEBAR_WIDTH = 240;
 export const MAX_SIDEBAR_WIDTH = 520;
 
-/** Which pane fills the main column, and which route is showing it. */
-export type ContentView = "chat" | "files" | "terminal" | "issues";
+export type { ContentView } from "@/lib/shell-route";
 
 /** Which list the sidebar shows under the agent selector. */
 export type SidebarList = "sessions" | "issues";
@@ -24,13 +23,6 @@ export function clampSidebarWidth(width: number) {
   return Number.isFinite(width)
     ? Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, Math.round(width)))
     : DEFAULT_SIDEBAR_WIDTH;
-}
-
-export function sortSessions<T extends { pinnedAt?: number; updatedAt: number }>(a: T, b: T) {
-  if (a.pinnedAt && b.pinnedAt) return b.pinnedAt - a.pinnedAt;
-  if (a.pinnedAt) return -1;
-  if (b.pinnedAt) return 1;
-  return b.updatedAt - a.updatedAt;
 }
 
 export function resetSidebarWidth(setSidebarWidth: (width: number) => void) {
