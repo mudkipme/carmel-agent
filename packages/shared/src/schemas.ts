@@ -71,6 +71,7 @@ export function agentSecretNameError(name: string) {
 }
 
 export const agentSecretWriteSchema = z.object({ value: z.string().min(1).max(8192) }).strict();
+export const apiKeyCreateSchema = z.object({ name: z.string().trim().min(1).max(100) }).strict();
 
 export const agentPermissionsSchema = z.object({
   read: z.boolean(),
@@ -262,6 +263,7 @@ export type AgentFileBatchCommand = z.infer<typeof fileBatchRequestSchema>;
 export type AgentFileBatchOperation = AgentFileBatchCommand["operation"];
 export type AgentMount = z.infer<typeof agentMountSchema>;
 export type AgentSecretWriteCommand = z.infer<typeof agentSecretWriteSchema>;
+export type ApiKeyCreateCommand = z.infer<typeof apiKeyCreateSchema>;
 export type AgentPermissions = z.infer<typeof agentPermissionsSchema>;
 export type AgentThinkingLevel = z.infer<typeof thinkingLevelSchema>;
 export type PromptTemplate = z.infer<typeof promptTemplateSchema>;

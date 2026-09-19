@@ -93,6 +93,7 @@ const migrations: Migration[] = [
     description: "Point tasks whose model was deleted back at their agent's default",
     run: clearDanglingTaskModels,
   },
+  { id: "025_api_keys", description: "Create per-user keys for the OpenAI-compatible API", run: createApiKeys },
 ];
 
 export function runMigrations(sqlite: Sqlite) {
@@ -515,6 +516,21 @@ function createAgentSecrets(sqlite: Sqlite) {
       updated_at INTEGER NOT NULL,
       PRIMARY KEY (agent_id, name)
     );
+  `);
+}
+
+function createApiKeys(sqlite: Sqlite) {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      prefix TEXT NOT NULL,
+      key_hash TEXT NOT NULL UNIQUE,
+      last_used_at INTEGER,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS api_keys_user ON api_keys (user_id);
   `);
 }
 

@@ -49,6 +49,12 @@ paths:
   /api/users/{id}/password:
     parameters: [{$ref: '#/components/parameters/ID'}]
     post: {operationId: resetUserPassword, tags: [Users], requestBody: {$ref: '#/components/requestBodies/Password'}, responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+  /api/api-keys:
+    get: {operationId: listApiKeys, tags: [Users], description: Keys for the OpenAI-compatible /v1 API. Never includes the key itself., responses: {'200': {description: API keys, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/ApiKey'}}}}}}}
+    post: {operationId: createApiKey, tags: [Users], description: The only response that carries the key; it cannot be read back later., requestBody: {$ref: '#/components/requestBodies/ApiKeyCreate'}, responses: {'201': {description: Created key, content: {application/json: {schema: {$ref: '#/components/schemas/ApiKeyCreated'}}}}, '400': {$ref: '#/components/responses/Error'}}}
+  /api/api-keys/{id}:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    delete: {operationId: deleteApiKey, tags: [Users], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '404': {$ref: '#/components/responses/Error'}}}
   /api/models/{id}:
     parameters: [{$ref: '#/components/parameters/ID'}]
     put: {operationId: upsertModel, tags: [Models], requestBody: {$ref: '#/components/requestBodies/Model'}, responses: {'200': {description: Model, content: {application/json: {schema: {$ref: '#/components/schemas/ModelRef'}}}}, '409': {$ref: '#/components/responses/Error'}}}
@@ -229,6 +235,7 @@ components:
     FileUpload: {required: true, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
     FileBatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/FileBatchRequest'}}}}
     AgentSecret: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSecretRequest'}}}}
+    ApiKeyCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ApiKeyCreateRequest'}}}}
     TaskCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
     TaskPatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
     IssueCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueCreateRequest'}}}}
@@ -265,6 +272,9 @@ components:
     FileBatchResult: {type: object, required: [completed, failed], properties: {completed: {type: array, items: {type: string}}, failed: {type: array, items: {type: object, required: [path, error], properties: {path: {type: string}, error: {type: string}}}}}}
     TaskWrite: {type: object, additionalProperties: false, properties: {name: {type: string}, prompt: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, scheduleKind: {type: string, enum: [cron, interval, once]}, scheduleValue: {type: string}, timezone: {type: string}, status: {type: string, enum: [active, paused]}}}
     AgentSecretRequest: {type: object, required: [value], additionalProperties: false, properties: {value: {type: string, minLength: 1, maxLength: 8192}}}
+    ApiKeyCreateRequest: {type: object, required: [name], additionalProperties: false, properties: {name: {type: string, minLength: 1, maxLength: 100}}}
+    ApiKey: {type: object, required: [id, name, prefix, createdAt], additionalProperties: false, properties: {id: {type: string}, name: {type: string}, prefix: {type: string}, lastUsedAt: {type: number}, createdAt: {type: number}}}
+    ApiKeyCreated: {type: object, required: [id, name, prefix, createdAt, key], additionalProperties: false, properties: {id: {type: string}, name: {type: string}, prefix: {type: string}, lastUsedAt: {type: number}, createdAt: {type: number}, key: {type: string}}}
     AgentSecret: {type: object, required: [agentId, name, updatedAt], additionalProperties: false, properties: {agentId: {type: string}, name: {type: string}, updatedAt: {type: number}}}
     AgentTask: {type: object, required: [id, agentId, userId, name, prompt, scheduleKind, scheduleValue, status, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, agentId: {type: string}, userId: {type: string}, name: {type: string}, prompt: {type: string}, scheduleKind: {type: string}, scheduleValue: {type: string}, status: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
     IssueCreateRequest: {type: object, required: [title, description], additionalProperties: false, properties: {title: {type: string, minLength: 1, maxLength: 200}, description: {type: string, minLength: 1}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}}}

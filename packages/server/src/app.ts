@@ -9,6 +9,7 @@ import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { requireAuth, type AuthVariables } from "./auth.ts";
 import { createApiRoutes } from "./routes/index.ts";
+import { createOpenAIRoutes } from "./routes/openai.ts";
 import { allowedCorsOrigin, rejectCrossOriginMutations } from "./security.ts";
 import { isValidationError, validationErrorMessage } from "./validation.ts";
 
@@ -60,6 +61,11 @@ export function createApp() {
   app.use("/api/*", requireAuth);
   app.route("/api", createApiRoutes());
 
+  // Bearer-key auth, not cookies, so any origin may call it: a browser holding
+  // the key already has everything the key grants.
+  app.use("/v1/*", cors({ origin: "*", allowHeaders: ["authorization", "content-type", "x-session-id"] }));
+  app.route("/v1", createOpenAIRoutes());
+
   mountClient(app);
   return app;
 }
@@ -70,7 +76,7 @@ function mountClient(app: Hono<{ Variables: AuthVariables }>) {
 
   app.use("*", serveStatic({ root: clientDistDir }));
   app.get("*", async (c) => {
-    if (c.req.path.startsWith("/api/")) return c.notFound();
+    if (c.req.path.startsWith("/api/") || c.req.path.startsWith("/v1/")) return c.notFound();
     return c.html(await readFile(join(clientDistDir, "index.html"), "utf-8"));
   });
 }

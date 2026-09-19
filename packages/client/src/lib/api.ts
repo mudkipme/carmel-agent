@@ -12,6 +12,8 @@ import type {
   AgentTaskCreateCommand,
   AgentTaskPatchCommand,
   AgentTaskRun,
+  ApiKey,
+  ApiKeyCreated,
   CreateUserRequest,
   Issue,
   IssueCreateCommand,
@@ -160,6 +162,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ currentPassword, email, newPassword }),
     }),
+  listApiKeys: () => request<ApiKey[]>("/api/api-keys"),
+  createApiKey: (name: string) =>
+    request<ApiKeyCreated>("/api/api-keys", { method: "POST", body: JSON.stringify({ name }) }),
+  deleteApiKey: (apiKeyId: string) => request<{ ok: true }>(`/api/api-keys/${apiKeyId}`, { method: "DELETE" }),
   upsertUser: (userId: string, input: UserUpdateRequest) =>
     request<User>(`/api/users/${userId}`, { method: "PUT", body: JSON.stringify(input) }),
   upsertModelRef: (modelId: string, input: ModelRefCommand) =>

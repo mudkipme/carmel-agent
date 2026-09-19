@@ -62,6 +62,27 @@ export const userIdentities = sqliteTable(
   (table) => [primaryKey({ columns: [table.issuer, table.subject] })],
 );
 
+/**
+ * A per-user bearer token for the OpenAI-compatible `/v1` endpoint.
+ *
+ * Only a SHA-256 of the key is stored: the plaintext is shown once, when the
+ * key is created. Keys are random 32-byte values, so a fast unsalted hash is
+ * enough -- there is no low-entropy secret here for a slow hash to protect.
+ * `prefix` is the start of the plaintext, kept so a list of keys can say which
+ * one is which.
+ */
+export const apiKeys = sqliteTable("api_keys", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  prefix: text("prefix").notNull(),
+  keyHash: text("key_hash").notNull().unique(),
+  lastUsedAt: integer("last_used_at"),
+  createdAt: integer("created_at").notNull(),
+});
+
 export const modelRefs = sqliteTable("model_refs", {
   id: text("id").primaryKey(),
   ownerUserId: text("owner_user_id")

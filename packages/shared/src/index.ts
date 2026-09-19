@@ -251,6 +251,21 @@ export type AgentSecret = {
   updatedAt: number;
 };
 
+/**
+ * A key for the OpenAI-compatible `/v1` API as a list shows it. The key itself
+ * is returned exactly once, on creation, as `ApiKeyCreated.key`.
+ */
+export type ApiKey = {
+  id: string;
+  name: string;
+  /** The first characters of the key, enough to tell keys apart. */
+  prefix: string;
+  lastUsedAt?: number;
+  createdAt: number;
+};
+
+export type ApiKeyCreated = ApiKey & { key: string };
+
 export type TaskScheduleKind = "cron" | "interval" | "once";
 export type AgentTaskStatus = "active" | "paused" | "completed" | "disabled";
 /** `missed` and `skipped` are recorded like any other firing: not running is a result. */

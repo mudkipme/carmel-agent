@@ -76,6 +76,8 @@ test("representative response fixtures satisfy every response component", async 
     AgentTask: task,
     Issue: { id: "i1", agentId: "a1", userId: "u1", sessionId: "s1", title: "Fix it", description: "It is broken", status: "open", running: true, createdAt: 1, updatedAt: 1 },
     AgentSecret: { agentId: "a1", name: "GITHUB_TOKEN", updatedAt: 1 },
+    ApiKey: { id: "k1", name: "laptop", prefix: "carmel-abc123", createdAt: 1 },
+    ApiKeyCreated: { id: "k1", name: "laptop", prefix: "carmel-abc123", createdAt: 1, key: "carmel-abc123secret" },
     BootstrapPayload: { users: [user], agents: [agent], providerConfigs: [provider], modelRefs: [model], modelCatalog: {}, sessions: [metadata] },
   };
 

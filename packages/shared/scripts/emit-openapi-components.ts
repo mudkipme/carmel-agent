@@ -14,6 +14,7 @@ const requestSchemas = {
   OAuthInputRequest: S.oauthInputRequestSchema,
   AgentRequest: S.agentConfigRequestSchema,
   AgentSecretRequest: S.agentSecretWriteSchema,
+  ApiKeyCreateRequest: S.apiKeyCreateSchema,
   AgentTaskCreateRequest: S.agentTaskCreateSchema,
   AgentTaskPatchRequest: S.agentTaskPatchSchema,
   IssueCreateRequest: S.issueCreateSchema,

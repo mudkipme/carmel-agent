@@ -1,6 +1,7 @@
 import {
   ArrowLeftIcon,
   DatabaseIcon,
+  KeySquareIcon,
   KeyRoundIcon,
   MonitorIcon,
   UserIcon,
@@ -9,6 +10,7 @@ import {
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { AccountSettings } from "@/components/harness/settings/AccountSettings";
+import { ApiKeySettings } from "@/components/harness/settings/ApiKeySettings";
 import { AppearanceSettings } from "@/components/harness/settings/AppearanceSettings";
 import { ModelSettings } from "@/components/harness/settings/ModelSettings";
 import { ProviderSettings } from "@/components/harness/settings/ProviderSettings";
@@ -24,6 +26,7 @@ import { errorMessage } from "@/lib/errors";
 const allSettingsSections = [
   { id: "models", label: "Models", icon: DatabaseIcon, adminOnly: false },
   { id: "providers", label: "Providers", icon: KeyRoundIcon, adminOnly: true },
+  { id: "api-keys", label: "API Keys", icon: KeySquareIcon, adminOnly: false },
   { id: "appearance", label: "Appearance", icon: MonitorIcon, adminOnly: false },
   { id: "users", label: "Users", icon: UsersIcon, adminOnly: true },
   { id: "account", label: "Account", icon: UserIcon, adminOnly: false },
@@ -167,6 +170,7 @@ export function SettingsPage() {
                 saveMessage={appearanceSaveMessage}
               />
             ) : null}
+            {activeSection === "api-keys" ? <ApiKeySettings /> : null}
             {activeSection === "users" ? <UserSettings /> : null}
             {activeSection === "account" ? (
               <AccountSettings />
