@@ -28,6 +28,7 @@ import { deleteAgentSecretsForAgent } from "../services/agent-secrets.ts";
 import { deleteAgentTasksForAgent } from "../services/agent-tasks.ts";
 import { deleteIssuesForAgent } from "../services/issues.ts";
 import { createAgentFilesRoute } from "./agent-files.ts";
+import { createAgentGitRoute } from "./agent-git.ts";
 
 export function createAgentRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -162,6 +163,7 @@ export function createAgentRoutes() {
   });
 
   route.route("/agents", createAgentFilesRoute(readVisibleAgent));
+  route.route("/agents", createAgentGitRoute(readVisibleAgent));
 
   return route;
 }

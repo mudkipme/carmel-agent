@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
 import { NewSessionView } from "@/components/harness/NewSessionView";
 import { IssueView } from "@/components/harness/issues/IssueView";
@@ -13,6 +13,11 @@ const FileEditorView = lazy(() =>
 const FileManagerView = lazy(() =>
   import("@/components/harness/files/FileManagerView").then((module) => ({
     default: module.FileManagerView,
+  })),
+);
+const ChangesView = lazy(() =>
+  import("@/components/harness/changes/ChangesView").then((module) => ({
+    default: module.ChangesView,
   })),
 );
 const TerminalPanel = lazy(() =>
@@ -39,6 +44,7 @@ import { canOpenTerminal as canUserOpenTerminal, resolveShellRoute } from "@/lib
 import { cn } from "@/lib/utils";
 import { canUserSeeAgent, isListedSession } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";
+import type { GitChangeArea } from "@carmel-agent/shared";
 
 /**
  * The chat path each agent was last on, so leaving for files or the terminal
@@ -50,6 +56,7 @@ const lastChatPathByAgent = new Map<string, string>();
 export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const {
     agentId: routeAgentId,
     sessionId: routeSessionId,
@@ -284,6 +291,21 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
                   own shell rather than reusing the mounted one. */}
               <TerminalPanel key={activeAgent.id} agent={activeAgent} />
             </Suspense>
+          ) : view === "changes" && activeAgent ? (
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+                  Loading changes...
+                </div>
+              }
+            >
+              <ChangesView
+                key={activeAgent.id}
+                agent={activeAgent}
+                changePath={routeFilePath || undefined}
+                area={changeArea(searchParams.get("area"))}
+              />
+            </Suspense>
           ) : view === "files" && activeAgent ? (
             <Suspense
               fallback={
@@ -356,4 +378,8 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
       />
     </main>
   );
+}
+
+function changeArea(value: string | null): GitChangeArea | undefined {
+  return value === "staged" || value === "unstaged" || value === "untracked" || value === "conflicted" ? value : undefined;
 }

@@ -374,6 +374,53 @@ export type AgentFileContent = {
   updatedAt: number;
 };
 
+/** Where a change sits: in the index, only in the working tree, new, or mid-merge. */
+export type GitChangeArea = "staged" | "unstaged" | "untracked" | "conflicted";
+
+export type GitChangeKind = "added" | "modified" | "deleted" | "renamed" | "copied" | "type_changed" | "untracked" | "conflicted";
+
+export type GitChange = {
+  /** Relative to the repository root. */
+  path: string;
+  /** The path before a rename or copy. */
+  originalPath?: string;
+  /** Workspace-relative, for opening the file; absent when the repository root is outside the workspace. */
+  workspacePath?: string;
+  area: GitChangeArea;
+  kind: GitChangeKind;
+};
+
+export type GitStatus =
+  | { repository: false }
+  | {
+      repository: true;
+      /** The branch, or undefined on a detached HEAD. */
+      branch?: string;
+      /** The commit HEAD points at; absent before the first commit. */
+      head?: string;
+      ahead?: number;
+      behind?: number;
+      changes: GitChange[];
+      /** The change list was cut off at the server's limit. */
+      truncated: boolean;
+    };
+
+/** One side of a file diff. The client computes the diff itself from the two texts. */
+export type GitDiffSide =
+  | { kind: "text"; text: string }
+  /** The file does not exist on this side: added, deleted, or untracked. */
+  | { kind: "absent" }
+  | { kind: "binary" }
+  | { kind: "too_large"; bytes: number };
+
+export type GitFileDiff = {
+  path: string;
+  originalPath?: string;
+  area: GitChangeArea;
+  original: GitDiffSide;
+  modified: GitDiffSide;
+};
+
 /**
  * Batch operations are best-effort per path: one unreadable entry must not
  * cancel the rest of the selection, so both halves are reported.

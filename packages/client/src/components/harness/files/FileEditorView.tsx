@@ -1,7 +1,8 @@
 import { ArrowLeftIcon, DownloadIcon, RotateCcwIcon, SaveIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentConfig } from "@carmel-agent/shared";
-import { CodeEditor, type EditorLanguage } from "@/components/harness/files/CodeEditor";
+import { CodeEditor } from "@/components/harness/files/CodeEditor";
+import { inferLanguage, isDarkTheme } from "@/components/harness/files/editor-extensions";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { useThemePreference } from "@/lib/theme";
@@ -168,48 +169,6 @@ function ImagePreview({ agentId, filePath }: { agentId: string; filePath: string
       />
     </div>
   );
-}
-
-function isDarkTheme(themePreference: string) {
-  if (themePreference === "dark") return true;
-  if (themePreference === "light") return false;
-  return document.documentElement.dataset.theme === "dark";
-}
-
-function inferLanguage(filePath: string): EditorLanguage {
-  const extension = filePath.split(".").pop()?.toLowerCase();
-  switch (extension) {
-    case "css":
-      return "css";
-    case "html":
-      return "html";
-    case "js":
-    case "mjs":
-    case "cjs":
-      return "javascript";
-    case "jsx":
-      return "jsx";
-    case "json":
-      return "json";
-    case "md":
-    case "markdown":
-      return "markdown";
-    case "py":
-      return "python";
-    case "ts":
-    case "mts":
-    case "cts":
-      return "typescript";
-    case "tsx":
-      return "tsx";
-    case "xml":
-      return "xml";
-    case "yaml":
-    case "yml":
-      return "yaml";
-    default:
-      return "plaintext";
-  }
 }
 
 function isImageFile(filePath: string) {

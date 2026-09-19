@@ -152,6 +152,12 @@ paths:
   /api/agents/{id}/files/batch:
     parameters: [{$ref: '#/components/parameters/ID'}]
     post: {operationId: batchAgentFileOperation, tags: [Files], requestBody: {$ref: '#/components/requestBodies/FileBatch'}, responses: {'200': {description: Per-path outcome, content: {application/json: {schema: {$ref: '#/components/schemas/FileBatchResult'}}}}, '400': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{id}/git/status:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: getAgentGitStatus, tags: [Files], description: Read-only working-tree status of the repository containing the agent's working directory. Runs git in the agent's sandbox., responses: {'200': {description: Status, content: {application/json: {schema: {$ref: '#/components/schemas/GitStatus'}}}}, '403': {$ref: '#/components/responses/Error'}, '502': {$ref: '#/components/responses/Error'}, '503': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{id}/git/diff:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: getAgentGitDiff, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}, {name: area, in: query, required: true, schema: {type: string, enum: [staged, unstaged, untracked, conflicted]}}, {name: originalPath, in: query, schema: {type: string}}], responses: {'200': {description: Both sides of one file's change, content: {application/json: {schema: {$ref: '#/components/schemas/GitFileDiff'}}}}, '400': {$ref: '#/components/responses/Error'}, '403': {$ref: '#/components/responses/Error'}, '502': {$ref: '#/components/responses/Error'}, '503': {$ref: '#/components/responses/Error'}}}
   /api/agents/{agentId}/secrets:
     parameters: [{$ref: '#/components/parameters/AgentID'}]
     get: {operationId: listAgentSecrets, tags: [Secrets], responses: {'200': {description: Secret names, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/AgentSecret'}}}}}, '403': {$ref: '#/components/responses/Error'}}}
@@ -266,6 +272,10 @@ components:
     Session: {allOf: [{$ref: '#/components/schemas/SessionMetadata'}, {type: object, required: [messages, messageEntryIds], properties: {messages: {type: array, items: {type: object, additionalProperties: true}}, messageEntryIds: {type: array, items: {type: string}}}}]}
     SessionConnection: {type: object, required: [session, activeRun], properties: {session: {$ref: '#/components/schemas/Session'}, activeRun: {nullable: true, type: object, required: [runId, sessionId, eventCursor], properties: {runId: {type: string}, sessionId: {type: string}, eventCursor: {type: integer}}}}}
     FileEntry: {type: object, required: [name, path, type, updatedAt, hidden], properties: {name: {type: string}, path: {type: string}, type: {type: string, enum: [file, directory]}, size: {type: number}, updatedAt: {type: number}, hidden: {type: boolean}}}
+    GitChange: {type: object, required: [path, area, kind], properties: {path: {type: string}, originalPath: {type: string}, workspacePath: {type: string}, area: {type: string, enum: [staged, unstaged, untracked, conflicted]}, kind: {type: string, enum: [added, modified, deleted, renamed, copied, type_changed, untracked, conflicted]}}}
+    GitStatus: {type: object, required: [repository], properties: {repository: {type: boolean}, branch: {type: string}, head: {type: string}, ahead: {type: integer}, behind: {type: integer}, changes: {type: array, items: {$ref: '#/components/schemas/GitChange'}}, truncated: {type: boolean}}}
+    GitDiffSide: {type: object, required: [kind], properties: {kind: {type: string, enum: [text, absent, binary, too_large]}, text: {type: string}, bytes: {type: integer}}}
+    GitFileDiff: {type: object, required: [path, area, original, modified], properties: {path: {type: string}, originalPath: {type: string}, area: {type: string, enum: [staged, unstaged, untracked, conflicted]}, original: {$ref: '#/components/schemas/GitDiffSide'}, modified: {$ref: '#/components/schemas/GitDiffSide'}}}
     FileList: {type: object, required: [path, entries], properties: {path: {type: string}, entries: {type: array, items: {$ref: '#/components/schemas/FileEntry'}}}}
     FileContent: {type: object, required: [path, content, updatedAt], properties: {path: {type: string}, content: {type: string}, updatedAt: {type: number}}}
     FileBatchRequest: {type: object, required: [operation, paths], additionalProperties: false, properties: {operation: {type: string, enum: [delete, move, copy]}, paths: {type: array, minItems: 1, maxItems: 500, items: {type: string}}, destination: {type: string}}}

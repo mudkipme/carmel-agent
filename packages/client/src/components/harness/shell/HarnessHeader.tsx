@@ -1,4 +1,4 @@
-import { FolderIcon, PanelLeftIcon, SettingsIcon, SquareTerminalIcon } from "lucide-react";
+import { FolderIcon, GitCompareIcon, PanelLeftIcon, SettingsIcon, SquareTerminalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
 import type { ContentView } from "./sidebar-utils";
@@ -30,11 +30,13 @@ export function HarnessHeader({
   const title =
     contentView === "files"
       ? "Files"
-      : contentView === "terminal"
-        ? "Terminal"
-        : contentView === "issues"
-          ? (issueTitle ?? "New issue")
-          : (activeSession?.title ?? "New session");
+      : contentView === "changes"
+        ? "Changes"
+        : contentView === "terminal"
+          ? "Terminal"
+          : contentView === "issues"
+            ? (issueTitle ?? "New issue")
+            : (activeSession?.title ?? "New session");
   /* The subtitle carries only what nothing else on screen says: the model is
      already named in the composer, and the working directory is worth the room
      just when the agent runs somewhere other than its own default. */
@@ -77,6 +79,17 @@ export function HarnessHeader({
             onClick={() => onContentViewChange(contentView === "files" ? "chat" : "files")}
           >
             <FolderIcon />
+          </Button>
+        ) : null}
+        {activeAgent?.permissions.read ? (
+          <Button
+            variant={contentView === "changes" ? "secondary" : "ghost"}
+            size="icon-sm"
+            title={contentView === "changes" ? "Close changes" : "Uncommitted changes"}
+            aria-pressed={contentView === "changes"}
+            onClick={() => onContentViewChange(contentView === "changes" ? "chat" : "changes")}
+          >
+            <GitCompareIcon />
           </Button>
         ) : null}
         {canOpenTerminal ? (

@@ -1,5 +1,8 @@
 import type {
   AgentCommandPayload,
+  GitChangeArea,
+  GitFileDiff,
+  GitStatus,
   AgentConfig,
   AgentConfigCommand,
   AgentFileBatchCommand,
@@ -199,6 +202,15 @@ export const api = {
   listAgentFiles: (agentId: string, path = "", showHidden = false) =>
     request<AgentFileList>(
       `/api/agents/${agentId}/files?${new URLSearchParams({ path, showHidden: String(showHidden) })}`,
+    ),
+  getAgentGitStatus: (agentId: string) => request<GitStatus>(`/api/agents/${agentId}/git/status`),
+  getAgentGitDiff: (agentId: string, change: { path: string; area: GitChangeArea; originalPath?: string }) =>
+    request<GitFileDiff>(
+      `/api/agents/${agentId}/git/diff?${new URLSearchParams({
+        path: change.path,
+        area: change.area,
+        ...(change.originalPath ? { originalPath: change.originalPath } : {}),
+      })}`,
     ),
   readAgentFile: (agentId: string, path: string) =>
     request<AgentFileContent>(`/api/agents/${agentId}/files/content?${new URLSearchParams({ path })}`),

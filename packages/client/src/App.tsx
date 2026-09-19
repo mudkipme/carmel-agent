@@ -83,6 +83,8 @@ export default function App() {
         {/* The splat carries the file being edited, and matches the bare
             /files path too, so the manager and the editor share one route. */}
         <Route path="/agents/:agentId/files/*" element={<HarnessShell view="files" />} />
+        {/* Like files, the splat is the open file: here, the one whose diff shows. */}
+        <Route path="/agents/:agentId/changes/*" element={<HarnessShell view="changes" />} />
         <Route path="/agents/:agentId/terminal" element={<HarnessShell view="terminal" />} />
         <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
         {/* Like an agent's own path, the bare issues path is the composer for a new one. */}
