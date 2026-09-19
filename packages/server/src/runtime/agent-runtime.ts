@@ -766,7 +766,7 @@ async function persistSessionRun(
   // Messages are persisted incrementally during the run. Commit the session
   // record only if it still has the revision leased at run startup, so a stale
   // run can never overwrite a newer mutation that bypassed the HTTP lease.
-  const committedRevision = commitSessionRunState(session.id, session.revision, {
+  const committedRevision = commitSessionAtRevision(session.id, session.revision, {
     modelRefId: patch.modelRefId,
     thinkingLevel: patch.thinkingLevel,
     updatedAt: now(),
@@ -795,7 +795,7 @@ async function persistSessionRun(
       messages: patch.messages,
     });
     if (!title) return;
-    if (commitSessionRunTitle(session.id, committedRevision, title) === undefined) {
+    if (commitSessionAtRevision(session.id, committedRevision, { title, updatedAt: now() }) === undefined) {
       console.warn(`Skipped stale title update for session ${session.id}.`);
     }
   } catch (error) {
@@ -806,29 +806,20 @@ async function persistSessionRun(
   }
 }
 
-export function commitSessionRunState(
+/**
+ * Write to the session row only if it still has `expectedRevision`, advancing
+ * it by one. Returns the new revision, or undefined when a newer mutation got
+ * there first and this write was dropped.
+ */
+export function commitSessionAtRevision(
   sessionId: string,
   expectedRevision: number,
-  patch: {
-    modelRefId: string;
-    thinkingLevel: Session["thinkingLevel"];
-    updatedAt: number;
-  },
+  patch: Partial<Pick<SessionRecord, "modelRefId" | "thinkingLevel" | "title" | "updatedAt">>,
 ) {
   const revision = expectedRevision + 1;
   const result = db
     .update(sessions)
     .set({ ...patch, revision })
-    .where(and(eq(sessions.id, sessionId), eq(sessions.revision, expectedRevision)))
-    .run();
-  return result.changes === 1 ? revision : undefined;
-}
-
-export function commitSessionRunTitle(sessionId: string, expectedRevision: number, title: string) {
-  const revision = expectedRevision + 1;
-  const result = db
-    .update(sessions)
-    .set({ title, revision, updatedAt: now() })
     .where(and(eq(sessions.id, sessionId), eq(sessions.revision, expectedRevision)))
     .run();
   return result.changes === 1 ? revision : undefined;
@@ -842,21 +833,10 @@ async function resolveTitleModelContext(
   const fastTaskModelRefId = user?.fastTaskModelRefId;
   if (!fastTaskModelRefId) return fallback;
 
-  const result = await resolveModelContext(userId, fastTaskModelRefId, { canUse: canUserUseTitleModel });
+  const result = await resolveModelContext(userId, fastTaskModelRefId);
   if (!result.ok) return fallback;
   return {
     model: result.value.model,
     modelRuntime: result.value.modelRuntime,
   };
-}
-
-function canUserUseTitleModel(userId: string, modelRef: ModelRefRecord) {
-  if (modelRef.ownerUserId === userId || modelRef.shared || !modelRef.providerConfigId) return true;
-  return Boolean(
-    db
-      .select()
-      .from(providerConfigs)
-      .where(eq(providerConfigs.id, modelRef.providerConfigId))
-      .get()?.userId === userId,
-  );
 }

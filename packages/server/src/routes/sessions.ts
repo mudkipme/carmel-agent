@@ -1,8 +1,17 @@
-import type { Session, SessionImportResult, SessionPatch } from "@carmel-agent/shared";
-import { isRecord, toSessionRow } from "@carmel-agent/shared";
 import {
+  forkSessionRequestSchema,
   isEditableAssistantMessage,
+  isRecord,
   isUserMessage,
+  openWebuiImportRequestSchema,
+  type Session,
+  sessionDraftRequestSchema,
+  type SessionImportResult,
+  sessionMessageEditRequestSchema,
+  type SessionPatch,
+  sessionPatchRequestSchema,
+  sessionTruncateRequestSchema,
+  toSessionRow,
   updateAssistantMessageContent,
   updateUserMessageContent,
 } from "@carmel-agent/shared";
@@ -16,30 +25,22 @@ import { modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { importOpenWebuiSessions } from "../import/open-webui.ts";
 import { serializeSession, serializeSessionMetadata } from "../serializers.ts";
-import { canUseModel, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
+import { readUsableModelRef, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
+import { insertSession } from "../services/session-launch.ts";
 import { readActiveRunLeaseForSession } from "../services/active-run-lease.ts";
 import { deleteIssueForSession } from "../services/issues.ts";
-import { deletePiSession, forkPiSession } from "../services/pi-session-storage.ts";
 import {
-  editSessionMessageEntry,
-  loadOwnedSession,
-  loadSession,
-  readSessionMessageByEntryId,
-  replaceSessionMessages,
-  truncateSessionAtEntry,
-  type SessionWithMessages,
-} from "../services/session-store.ts";
+  deletePiSession,
+  forkPiSession,
+  movePiSessionToEntry,
+  readPiSessionMessageEntry,
+  replacePiSessionMessages,
+  rewritePiSessionMessage,
+} from "../services/pi-session-storage.ts";
+import { loadOwnedSession, loadSession, type SessionWithMessages } from "../services/session-store.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import { checkCutPoint, describeCutPointRejection, type BranchMessage } from "../effectors/branch-integrity.ts";
-import {
-  forkSessionRequestSchema,
-  jsonValidator,
-  openWebuiImportRequestSchema,
-  sessionMessageEditRequestSchema,
-  sessionDraftRequestSchema,
-  sessionPatchRequestSchema,
-  sessionTruncateRequestSchema,
-} from "../validation.ts";
+import { jsonValidator } from "../validation.ts";
 
 export function createSessionRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -82,25 +83,16 @@ export function createSessionRoutes() {
     const draft = c.req.valid("json");
     const agent = readVisibleAgent(currentUserId, draft.agentId);
     if (!agent) return c.json({ error: "Agent not found." }, 404);
-    const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, draft.modelRefId)).get();
-    if (!modelRef || !canUseModel(currentUserId, modelRef)) return c.json({ error: "Model not found." }, 404);
-    const timestamp = now();
-    const session: Session = {
-      id: id("session"),
+    const modelRef = readUsableModelRef(currentUserId, draft.modelRefId);
+    if (!modelRef) return c.json({ error: "Model not found." }, 404);
+    const session = insertSession({
       title: draft.title ?? "Untitled session",
       userId: currentUserId,
-      agentId: draft.agentId,
-      modelRefId: draft.modelRefId,
+      agentId: agent.id,
+      modelRefId: modelRef.id,
       thinkingLevel: resolveSupportedThinkingLevel(modelRef, draft.thinkingLevel ?? agent.defaultThinkingLevel ?? "off"),
-      revision: 0,
-      messages: [],
-      messageEntryIds: [],
-      pinnedAt: undefined,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
-    db.insert(sessions).values(toSessionRow(session)).run();
-    return c.json(serializeSession(session), 201);
+    });
+    return c.json(serializeSession({ ...session, messages: [], messageEntryIds: [] }), 201);
   });
 
   route.post("/sessions/import/open-webui", jsonValidator(openWebuiImportRequestSchema), async (c) => {
@@ -108,8 +100,8 @@ export function createSessionRoutes() {
     const body = c.req.valid("json");
     const agent = readVisibleAgent(currentUserId, body.agentId);
     if (!agent) return c.json({ error: "Agent not found." }, 404);
-    const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, body.modelRefId)).get();
-    if (!modelRef || !canUseModel(currentUserId, modelRef)) return c.json({ error: "Model not found." }, 404);
+    const modelRef = readUsableModelRef(currentUserId, body.modelRefId);
+    if (!modelRef) return c.json({ error: "Model not found." }, 404);
 
     const thinkingLevel = resolveSupportedThinkingLevel(
       modelRef,
@@ -132,7 +124,7 @@ export function createSessionRoutes() {
     });
     try {
       for (const session of imported.sessions) {
-        if (session.messages.length > 0) await replaceSessionMessages(session.id, session.messages);
+        if (session.messages.length > 0) await replacePiSessionMessages(session.id, session.messages);
       }
     } catch (error) {
       for (const session of imported.sessions) {
@@ -173,14 +165,13 @@ export function createSessionRoutes() {
 
     const leaseConflict = rejectActiveRunMutation(c, current.id);
     if (leaseConflict) return leaseConflict;
-    if (patch.modelRefId && !canUseModel(c.get("user").id, patch.modelRefId)) {
-      return c.json({ error: "Model not found." }, 404);
-    }
+    const nextModelRef = patch.modelRefId ? readUsableModelRef(c.get("user").id, patch.modelRefId) : undefined;
+    if (patch.modelRefId && !nextModelRef) return c.json({ error: "Model not found." }, 404);
     // Clamp the thinking level to what the (possibly newly selected) model supports,
     // matching the create/import write paths so PATCH can't persist an unsupported level.
     let thinkingLevel = patch.thinkingLevel ?? current.thinkingLevel;
-    if (patch.thinkingLevel !== undefined || patch.modelRefId !== undefined) {
-      const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, patch.modelRefId ?? current.modelRefId)).get();
+    if (patch.thinkingLevel !== undefined || nextModelRef) {
+      const modelRef = nextModelRef ?? db.select().from(modelRefs).where(eq(modelRefs.id, current.modelRefId)).get();
       if (modelRef) thinkingLevel = resolveSupportedThinkingLevel(modelRef, thinkingLevel);
     }
     // Switching model, thinking level, pin, or archive state are preferences and must not
@@ -251,7 +242,7 @@ export function createSessionRoutes() {
       return c.json({ error: describeCutPointRejection(cut), safeEntryId: cut.safeEntryId }, 409);
     }
 
-    await truncateSessionAtEntry(current.id, body.entryId);
+    await movePiSessionToEntry(current.id, body.entryId);
     return c.json(await commitSessionChange(current.id, {
       thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
       updatedAt: now(),
@@ -279,7 +270,7 @@ export function createSessionRoutes() {
       : updateAssistantMessageContent(target, body.content);
     // Pi entries are immutable: create a sibling branch at this entry ID and
     // preserve the native suffix unless this is an explicit edit-and-rerun.
-    await editSessionMessageEntry(current.id, entryId, editedMessage, editableUser && Boolean(body.truncate));
+    await rewritePiSessionMessage(current.id, entryId, editedMessage, editableUser && Boolean(body.truncate));
     return c.json(await commitSessionChange(current.id, {
       thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
       updatedAt: now(),
@@ -368,7 +359,7 @@ async function serveEntryImage(
 ) {
   const session = ownedSessionRecord(c);
   const entryId = c.req.param("entryId");
-  const image = session && entryId ? pick(await readSessionMessageByEntryId(session.id, entryId)) : undefined;
+  const image = session && entryId ? pick(await readPiSessionMessageEntry(session.id, entryId)) : undefined;
   return image ? imageResponse(image) : c.json({ error: notFound }, 404);
 }
 

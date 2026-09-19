@@ -60,7 +60,7 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
       const state = get();
       const session = state.sessions.find((item) => item.userId === userId && isListedSession(item));
       const agent = state.agents.find((item) => item.id === session?.agentId && canUserSeeAgent(item, userId))
-        ?? state.agents.find((item) => item.ownerUserId === userId || item.shared);
+        ?? state.agents.find((item) => canUserSeeAgent(item, userId));
       set({ activeUserId: userId, activeAgentId: agent?.id ?? "", activeSessionId: "" });
     },
     setActiveAgent: (agentId) => {

@@ -4,13 +4,12 @@ import { parseSlashCommand, skillCommandName, slashCommandText } from "@carmel-a
 import { eq } from "drizzle-orm";
 import { db, migrate } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
-import { openPiSession } from "../services/pi-session-storage.ts";
+import { openPiSession, replacePiSessionMessages } from "../services/pi-session-storage.ts";
 import { attachTestHarness, fauxHarnessModels } from "../effectors/testing/pi-harness.ts";
-import { loadSession, replaceSessionMessages } from "../services/session-store.ts";
+import { loadSession } from "../services/session-store.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import {
-  commitSessionRunState,
-  commitSessionRunTitle,
+  commitSessionAtRevision,
   HarnessAbortGate,
   prepareAgentRunPrompt,
   RetryBranch,
@@ -25,7 +24,7 @@ test("run finalization compare-and-swap cannot overwrite a newer session revisio
     .where(eq(sessions.id, fixture.sessionId))
     .run();
 
-  const committed = commitSessionRunState(fixture.sessionId, 0, {
+  const committed = commitSessionAtRevision(fixture.sessionId, 0, {
     modelRefId: fixture.modelRefId,
     thinkingLevel: "off",
     updatedAt: 123,
@@ -41,14 +40,14 @@ test("run finalization compare-and-swap cannot overwrite a newer session revisio
 test("run state and generated title commits advance the leased revision", () => {
   const fixture = createSession();
 
-  const runRevision = commitSessionRunState(fixture.sessionId, 0, {
+  const runRevision = commitSessionAtRevision(fixture.sessionId, 0, {
     modelRefId: fixture.modelRefId,
     thinkingLevel: "off",
     updatedAt: 123,
   });
   assert.equal(runRevision, 1);
-  assert.equal(commitSessionRunTitle(fixture.sessionId, 0, "stale title"), undefined);
-  assert.equal(commitSessionRunTitle(fixture.sessionId, runRevision!, "generated title"), 2);
+  assert.equal(commitSessionAtRevision(fixture.sessionId, 0, { title: "stale title" }), undefined);
+  assert.equal(commitSessionAtRevision(fixture.sessionId, runRevision!, { title: "generated title" }), 2);
 
   const stored = db.select().from(sessions).where(eq(sessions.id, fixture.sessionId)).get();
   assert.equal(stored?.title, "generated title");
@@ -116,7 +115,7 @@ test("an armed retry branch is abandoned until its replacement user message land
 
 test("restoring an abandoned retry returns the session to the original leaf", async () => {
   const { sessionId } = createSession();
-  await replaceSessionMessages(sessionId, [userMessage("kept"), userMessage("retried")]);
+  await replacePiSessionMessages(sessionId, [userMessage("kept"), userMessage("retried")]);
   const before = await loadSession(sessionId);
   const originalLeafId = before!.messageEntryIds.at(-1)!;
 

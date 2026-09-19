@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { migrate } from "../db/index.ts";
 import { createActiveAgentRun, emitRunEvent, finishAgentRun } from "../runtime/run-stream.ts";
-import { replaceSessionMessages } from "../services/session-store.ts";
+import { replacePiSessionMessages } from "../services/pi-session-storage.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { readSessionConnection } from "../services/session-snapshot.ts";
 
@@ -10,7 +10,7 @@ migrate();
 
 test("session connection snapshot is user-scoped and carries the active run", async () => {
   const fixture = createSession();
-  await replaceSessionMessages(fixture.sessionId, [userMessage("persisted before reconnect")]);
+  await replacePiSessionMessages(fixture.sessionId, [userMessage("persisted before reconnect")]);
   const run = createActiveAgentRun({
     runId: "run_connection_active",
     userId: fixture.userId,
@@ -37,7 +37,7 @@ test("finished run snapshot returns the final persisted transcript with no stale
     abort: () => {},
   });
 
-  await replaceSessionMessages(fixture.sessionId, [userMessage("final authoritative message")]);
+  await replacePiSessionMessages(fixture.sessionId, [userMessage("final authoritative message")]);
   finishAgentRun(run);
 
   const connection = await readSessionConnection(fixture.userId, fixture.sessionId);
@@ -48,7 +48,7 @@ test("finished run snapshot returns the final persisted transcript with no stale
 test("connection snapshots replace raw image data with the shared authenticated URL projection", async () => {
   const fixture = createSession();
   const rawImageData = "connection-raw-image-data";
-  await replaceSessionMessages(fixture.sessionId, [
+  await replacePiSessionMessages(fixture.sessionId, [
     {
       role: "user",
       content: [{ type: "image", data: rawImageData, mimeType: "image/png" }],

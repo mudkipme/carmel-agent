@@ -2,14 +2,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
-import {
-  movePiSessionToEntry,
-  readPiSessionBranch,
-  readPiSessionMessageEntry,
-  replacePiSessionMessages,
-  rewritePiSessionMessage,
-  withPiSession,
-} from "./pi-session-storage.ts";
+import { readPiSessionBranch, withPiSession } from "./pi-session-storage.ts";
 
 type SessionRecord = typeof sessions.$inferSelect;
 export type SessionMessageEntry = { entryId: string; message: AgentMessage };
@@ -39,10 +32,6 @@ async function attachMessages(record: SessionRecord): Promise<SessionWithMessage
   };
 }
 
-export async function readSessionMessageByEntryId(sessionId: string, entryId: string): Promise<AgentMessage | undefined> {
-  return readPiSessionMessageEntry(sessionId, entryId);
-}
-
 export async function loadSession(sessionId: string): Promise<SessionWithMessages | undefined> {
   const record = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   return record ? attachMessages(record) : undefined;
@@ -52,22 +41,3 @@ export async function loadOwnedSession(userId: string, sessionId: string): Promi
   const session = await loadSession(sessionId);
   return session?.userId === userId ? session : undefined;
 }
-
-/** Import/setup helper. Runtime mutations should navigate by immutable entry ID. */
-export async function replaceSessionMessages(sessionId: string, messages: AgentMessage[]) {
-  await replacePiSessionMessages(sessionId, messages);
-}
-
-export async function truncateSessionAtEntry(sessionId: string, entryId: string) {
-  await movePiSessionToEntry(sessionId, entryId);
-}
-
-export async function editSessionMessageEntry(
-  sessionId: string,
-  entryId: string,
-  message: AgentMessage,
-  truncate: boolean,
-) {
-  return rewritePiSessionMessage(sessionId, entryId, message, truncate);
-}
-

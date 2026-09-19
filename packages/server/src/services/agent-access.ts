@@ -31,6 +31,17 @@ export function readVisibleAgent(userId: string, agentId: string) {
   return agent;
 }
 
+/**
+ * The agent a user may run tasks on: any agent they can see, and every agent
+ * for an admin -- the operator holding the API keys can find and run what is
+ * spending them. Creating a task and firing it both go through this, so a task
+ * runs exactly as long as its owner could still create it.
+ */
+export function readTaskAgent(user: { id: string; role: UserRole }, agentId: string) {
+  if (user.role !== "admin") return readVisibleAgent(user.id, agentId);
+  return db.select().from(agents).where(eq(agents.id, agentId)).get();
+}
+
 export function readVisibleModelRefs(userId: string) {
   return db
     .select()
@@ -39,10 +50,11 @@ export function readVisibleModelRefs(userId: string) {
     .all();
 }
 
-export function canUseModel(userId: string, model: string | ModelRefRecord) {
-  const modelRef = typeof model === "string" ? db.select().from(modelRefs).where(eq(modelRefs.id, model)).get() : model;
-  if (!modelRef) return false;
-  return modelRef.ownerUserId === userId || modelRef.shared || !modelRef.providerConfigId;
+/** The model entry, if this user may run it: their own, a shared one, or one bound to no provider config. */
+export function readUsableModelRef(userId: string, modelRefId: string): ModelRefRecord | undefined {
+  const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, modelRefId)).get();
+  if (!modelRef) return undefined;
+  return modelRef.ownerUserId === userId || modelRef.shared || !modelRef.providerConfigId ? modelRef : undefined;
 }
 
 export function resolveSupportedThinkingLevel(modelRef: ModelRefRecord, thinkingLevel: AgentThinkingLevel) {

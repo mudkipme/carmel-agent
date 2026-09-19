@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import type { SessionLog } from "../contracts/session-log.ts";
-import { reconcileSessionState } from "../contracts/session-log.ts";
 import type { SessionMessage } from "../contracts/messages.ts";
 
 /**
@@ -9,8 +8,8 @@ import type { SessionMessage } from "../contracts/messages.ts";
  * This is the artefact the whole decomposition exists to produce. When the v2
  * adapter is written, it is not reviewed into correctness -- it is pointed at
  * this suite, and the suite either passes or names the operation that changed
- * meaning. Cases assert on branch arithmetic and change detection because those
- * are what the run body depends on and what 0.84's renames put at risk.
+ * meaning. Cases assert on branch arithmetic because that is what the run body
+ * depends on.
  */
 
 export type SessionLogFactory = {
@@ -18,30 +17,16 @@ export type SessionLogFactory = {
   /** A fresh, empty log. Disposal is the caller's. */
   create(): Promise<SessionLog> | SessionLog;
   dispose?(log: SessionLog): Promise<void> | void;
-  /**
-   * A model this log can actually store, if it is fussy about which.
-   *
-   * Pi 0.85 resolves a lane's model through the harness's model registry rather
-   * than storing whatever string it was handed, so a Pi-backed log reads back
-   * `null` for a model its registry has never heard of. An in-memory log stores
-   * anything. The contract asks each implementation for a name it can honour so
-   * the round-trip it is testing is the round-trip and not the registry.
-   */
-  readonly model?: { readonly provider: string; readonly modelId: string };
 };
 
-type Case = { readonly name: string; run(log: SessionLog, factory: SessionLogFactory): Promise<void> };
-
-const DEFAULT_MODEL = { provider: "anthropic", modelId: "claude-opus-5" } as const;
-
-const modelOf = (factory: SessionLogFactory) => factory.model ?? DEFAULT_MODEL;
+type Case = { readonly name: string; run(log: SessionLog): Promise<void> };
 
 export async function runSessionLogContract(factory: SessionLogFactory, register: RegisterCase) {
   for (const testCase of cases) {
     register(`${factory.name}: ${testCase.name}`, async () => {
       const log = await factory.create();
       try {
-        await testCase.run(log, factory);
+        await testCase.run(log);
       } finally {
         await factory.dispose?.(log);
       }
@@ -101,50 +86,6 @@ const cases: readonly Case[] = [
       await log.moveTo(first);
       await log.appendMessage(user("replacement"));
       assert.deepEqual((await log.readBranch()).map(text), ["first", "replacement"]);
-    },
-  },
-  {
-    name: "state reads back what was written",
-    async run(log, factory) {
-      // No assertion about the *initial* state: it stopped being a shared
-      // property in Pi 0.85. Configuration used to be entries appended to the
-      // session tree, so a fresh session genuinely had none; it is now lane
-      // state, and a lane is created already configured with the model and
-      // thinking level its harness was opened with. The fake still starts empty,
-      // the Pi adapter starts configured, and both round-trip -- which is the
-      // part every caller above the port actually depends on.
-      const model = modelOf(factory);
-      await log.appendModelChange(model.provider, model.modelId);
-      await log.appendThinkingLevelChange("medium");
-      await log.appendActiveToolsChange(["read", "bash"]);
-      const state = await log.readState();
-      assert.deepEqual(state.model, { provider: model.provider, modelId: model.modelId });
-      assert.equal(state.thinkingLevel, "medium");
-      assert.deepEqual([...(state.activeToolNames ?? [])], ["read", "bash"]);
-    },
-  },
-  {
-    name: "reconcile writes nothing when the state already matches",
-    async run(log, factory) {
-      const desired = {
-        model: modelOf(factory),
-        thinkingLevel: "medium" as const,
-        activeToolNames: ["read", "bash"],
-      };
-      await reconcileSessionState(log, desired);
-      const afterFirst = (await log.readBranch()).length;
-      await reconcileSessionState(log, desired);
-      assert.equal((await log.readBranch()).length, afterFirst, "second reconcile must be a no-op");
-    },
-  },
-  {
-    name: "reconcile treats tool order as significant",
-    // Order is part of the cached prompt prefix, so a reorder is a real change.
-    async run(log, factory) {
-      const base = { model: modelOf(factory), thinkingLevel: "off" as const };
-      await reconcileSessionState(log, { ...base, activeToolNames: ["read", "bash"] });
-      await reconcileSessionState(log, { ...base, activeToolNames: ["bash", "read"] });
-      assert.deepEqual([...((await log.readState()).activeToolNames ?? [])], ["bash", "read"]);
     },
   },
   {

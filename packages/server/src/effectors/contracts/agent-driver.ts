@@ -1,15 +1,9 @@
-import type { AgentRunEvent, PromptInput } from "@carmel-agent/shared";
+import type { PromptInput } from "@carmel-agent/shared";
 import type { CompactionOutcome } from "../compaction-policy.ts";
 
 /**
  * What Carmel needs an agent loop to do, expressed without naming one.
- *
- * Pi's `AgentHarness` is the only implementation today (`../pi-0-85`). The
- * rewrite this port was written against has now landed: v2 made `AgentHarness`
- * an interface, threaded an explicit `Context` through every method, moved the
- * whole conversation surface onto `AgentLane`, unexported `AgentHarnessEvent`,
- * and replaced `subscribe()` with `events.on()`. Exactly one line here changed
- * as a result -- `listResources` became async -- which is what the port was for.
+ * Pi's `AgentHarness` is the only implementation (`../pi-0-85`).
  */
 
 export type PromptImages = PromptInput["images"];
@@ -19,26 +13,6 @@ export type DriverResources = {
   readonly skills: readonly { readonly name: string }[];
   readonly promptTemplates: readonly { readonly name: string }[];
 };
-
-/**
- * Compaction reports rather than throws, and its outcome type lives in
- * `../compaction-policy.ts` because deciding what an outcome means is policy,
- * not something an adapter should each get its own opinion about.
- */
-/**
- * The two things Carmel reads off the event stream. Anything else Pi emits is
- * the adapter's business.
- *
- * `onUserMessagePersisted` exists for the retry path: a retry rewinds the branch
- * before re-sending, so until the replacement user message lands the original
- * branch is the only copy. That signal is the difference between "restore the
- * old branch" and "leave it rewound", and it must not depend on Pi's event
- * union staying exported.
- */
-export interface AgentRunObserver {
-  onRunEvent(event: AgentRunEvent): void;
-  onUserMessagePersisted(): void;
-}
 
 export interface AgentDriver {
   /**
@@ -60,19 +34,14 @@ export interface AgentDriver {
   invokeSkill(name: string, instructions: string | undefined, images?: PromptImages): Promise<void>;
   invokeTemplate(name: string, args: string, images?: PromptImages): Promise<void>;
 
-  /** Returns the unsubscribe handle. Safe to call after the run has finished. */
-  observe(observer: AgentRunObserver): () => void;
-
-  abort(): Promise<void>;
-
   /**
    * Bring the session back under its context budget if it is over it.
    *
-   * Called before a prompt as well as after one. The pre-flight call is not
-   * redundant: a session can be over budget at the start of a turn without
-   * having grown -- switching it onto a model with a smaller window is enough,
-   * and Carmel lets that happen per session -- and discovering it after the
-   * prompt has already been rejected is too late to do anything about.
+   * Called before a prompt -- a session can be over budget at the start of a
+   * turn without having grown, since switching it onto a model with a smaller
+   * window is enough -- and again, forced, when recovering from an overflow.
+   * Reports rather than throws; what an outcome means is policy, in
+   * `../compaction-policy.ts`.
    *
    * `force` compacts even when the local estimate says there is room. It exists
    * for the case where the provider has already rejected the request as too

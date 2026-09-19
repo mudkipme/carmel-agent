@@ -1,12 +1,12 @@
 import { and, desc, eq, lte } from "drizzle-orm";
 import type { AgentTask, AgentTaskOutcome, AgentTaskRun, UserRole } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { agents, agentTasks, agentTaskRuns, modelRefs, sessions } from "../db/schema.ts";
+import { agentTasks, agentTaskRuns, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { computeNextRun, validateSchedule, type TaskSchedule } from "../effectors/task-schedule.ts";
 import { INTERRUPTED_DETAIL } from "../effectors/run-outcome.ts";
 import { readActiveRunLeaseForSession } from "./active-run-lease.ts";
-import { canUseModel, readVisibleAgent } from "./agent-access.ts";
+import { readTaskAgent, readUsableModelRef } from "./agent-access.ts";
 import { deletePiSession } from "./pi-session-storage.ts";
 
 type TaskRecord = typeof agentTasks.$inferSelect;
@@ -40,13 +40,7 @@ export function readAgentTasks(user: { id: string; role: UserRole }, agentId: st
  * manage every user and hold the provider credentials.
  */
 function assertAgentVisible(user: { id: string; role: UserRole }, agentId: string) {
-  if (user.role === "admin") {
-    if (!db.select().from(agents).where(eq(agents.id, agentId)).get()) {
-      throw new AgentTaskError("Agent not found.", 404);
-    }
-    return;
-  }
-  if (!readVisibleAgent(user.id, agentId)) throw new AgentTaskError("Agent not found.", 404);
+  if (!readTaskAgent(user, agentId)) throw new AgentTaskError("Agent not found.", 404);
 }
 
 export function readAgentTask(user: { id: string; role: UserRole }, agentId: string, taskId: string): TaskRecord {
@@ -291,8 +285,7 @@ export function scheduleOf(task: {
 
 function assertUsableModel(userId: string, modelRefId: string | undefined) {
   if (!modelRefId) return;
-  const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, modelRefId)).get();
-  if (!modelRef || !canUseModel(userId, modelRef)) throw new AgentTaskError("Model not found.", 404);
+  if (!readUsableModelRef(userId, modelRefId)) throw new AgentTaskError("Model not found.", 404);
 }
 
 function valueOrNull(next: ReturnType<typeof computeNextRun>) {

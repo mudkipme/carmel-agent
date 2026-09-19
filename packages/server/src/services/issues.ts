@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { toSessionRow, type Issue, type IssueVerdict, type Session } from "@carmel-agent/shared";
+import type { Issue, IssueVerdict, Session } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { issues, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
@@ -11,10 +11,10 @@ import {
   onRunFinished,
   type ActiveAgentRun,
 } from "../runtime/run-stream.ts";
-import { readVisibleAgent, resolveSupportedThinkingLevel } from "./agent-access.ts";
-import { resolveModelContext } from "./model-context.ts";
+import { readVisibleAgent } from "./agent-access.ts";
+import { NO_PROVIDER_AUTH_MESSAGE } from "./model-context.ts";
 import { deletePiSession } from "./pi-session-storage.ts";
-import { loadSession } from "./session-store.ts";
+import { prepareSessionRun } from "./session-launch.ts";
 
 type IssueRecord = typeof issues.$inferSelect;
 type SessionRecord = typeof sessions.$inferSelect;
@@ -62,40 +62,30 @@ export type IssueDraft = {
  * Open an issue and set the agent to work on it straight away.
  *
  * The model is resolved before anything is written, so an issue that cannot
- * run is a 400 the author sees rather than an issue with an empty session.
+ * run is an error the author sees rather than an issue with an empty session.
  */
 export async function createIssue(userId: string, agentId: string, draft: IssueDraft): Promise<Issue> {
   const agent = assertAgentVisible(userId, agentId);
-  const context = await resolveModelContext(userId, draft.modelRefId ?? agent.defaultModelRefId);
-  if (!context.ok) {
-    throw context.reason === "not_found"
+  const issueId = id("issue");
+  const prepared = await prepareSessionRun({
+    agent,
+    userId,
+    modelRefId: draft.modelRefId,
+    thinkingLevel: draft.thinkingLevel,
+    session: { title: draft.title, issueId },
+  });
+  if (!prepared.ok) {
+    throw prepared.reason === "not_found"
       ? new IssueError("Model not found.", 404)
-      : new IssueError("No API key or OAuth login configured for this model provider.", 400);
+      : new IssueError(NO_PROVIDER_AUTH_MESSAGE, 400);
   }
-  const { modelRef, providerConfig, modelRuntime } = context.value;
-  const thinkingLevel = resolveSupportedThinkingLevel(modelRef, draft.thinkingLevel ?? agent.defaultThinkingLevel ?? "off");
 
   const timestamp = now();
-  const issueId = id("issue");
-  const session: Session = {
-    id: id("session"),
-    title: draft.title,
-    userId,
-    agentId,
-    modelRefId: modelRef.id,
-    thinkingLevel,
-    revision: 0,
-    messages: [],
-    messageEntryIds: [],
-    issueId,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
   const row: IssueRecord = {
     id: issueId,
     agentId,
     userId,
-    sessionId: session.id,
+    sessionId: prepared.value.session.id,
     title: draft.title,
     description: draft.description,
     status: "open",
@@ -107,18 +97,10 @@ export async function createIssue(userId: string, agentId: string, draft: IssueD
     createdAt: timestamp,
     updatedAt: timestamp,
   };
-  db.insert(sessions).values(toSessionRow(session)).run();
   db.insert(issues).values(row).run();
 
-  const sessionRecord = await loadSession(session.id);
-  if (!sessionRecord) throw new Error("Could not create a session for this issue.");
   const run = startDetachedAgentRun({
-    agent,
-    session: sessionRecord,
-    modelRef,
-    providerConfig,
-    modelRuntime,
-    thinkingLevel,
+    ...prepared.value,
     promptInput: { text: issuePrompt(draft) },
     sessionAddons: issueRunAddons(issueId),
   });

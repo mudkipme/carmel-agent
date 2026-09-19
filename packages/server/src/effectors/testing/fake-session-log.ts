@@ -1,5 +1,4 @@
-import type { AgentThinkingLevel } from "@carmel-agent/shared";
-import type { BranchEntry, SessionLog, SessionState } from "../contracts/session-log.ts";
+import type { BranchEntry, SessionLog } from "../contracts/session-log.ts";
 import type { SessionMessage } from "../contracts/messages.ts";
 
 type Entry = BranchEntry & { readonly seq: number };
@@ -14,7 +13,6 @@ type Entry = BranchEntry & { readonly seq: number };
 export class FakeSessionLog implements SessionLog {
   #entries: Entry[] = [];
   #leafId: string | null = null;
-  #state: SessionState = { model: null, thinkingLevel: "off", activeToolNames: null };
   #nextId = 1;
   closeCount = 0;
 
@@ -41,32 +39,13 @@ export class FakeSessionLog implements SessionLog {
     return this.#append({ type: "message", message });
   }
 
-  async readState() {
-    return this.#state;
-  }
-
-  async appendModelChange(provider: string, modelId: string) {
-    await this.#append({ type: "other" });
-    this.#state = { ...this.#state, model: { provider, modelId } };
-  }
-
-  async appendThinkingLevelChange(level: AgentThinkingLevel) {
-    await this.#append({ type: "other" });
-    this.#state = { ...this.#state, thinkingLevel: level };
-  }
-
-  async appendActiveToolsChange(names: readonly string[]) {
-    await this.#append({ type: "other" });
-    this.#state = { ...this.#state, activeToolNames: [...names] };
-  }
-
   async close() {
     this.closeCount += 1;
   }
 
-  async #append(body: { type: "message"; message: SessionMessage } | { type: "other" }) {
+  async #append(body: { type: "message"; message: SessionMessage }) {
     const id = `entry-${this.#nextId++}`;
-    this.#entries.push({ ...body, id, parentId: this.#leafId, seq: this.#entries.length } as Entry);
+    this.#entries.push({ ...body, id, parentId: this.#leafId, seq: this.#entries.length });
     this.#leafId = id;
     return id;
   }

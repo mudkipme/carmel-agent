@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
-import { modelRefRequestSchema, providerConfigRequestSchema } from "./validation.ts";
+import { modelRefRequestSchema, providerConfigRequestSchema } from "@carmel-agent/shared";
 import { db, migrate } from "./db/index.ts";
 import { modelRefs, providerConfigs } from "./db/schema.ts";
 import { serializeModelRef, serializeProviderConfig } from "./serializers.ts";

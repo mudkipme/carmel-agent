@@ -1,4 +1,9 @@
-import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER } from "@carmel-agent/shared";
+import {
+  DEFAULT_OLLAMA_BASE_URL,
+  oauthInputRequestSchema,
+  OLLAMA_PROVIDER,
+  providerConfigRequestSchema,
+} from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { requireAdmin, type AuthVariables } from "../auth.ts";
@@ -22,7 +27,7 @@ import { readBootstrapPayload } from "../services/bootstrap.ts";
 import { listOllamaModels } from "../services/provider-auth.ts";
 import { readProviderModels } from "../services/model-catalog.ts";
 import { readActiveRunLeaseForProviderConfig } from "../services/active-run-lease.ts";
-import { jsonValidator, oauthInputRequestSchema, providerConfigRequestSchema } from "../validation.ts";
+import { jsonValidator } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import { errorMessage } from "../errors.ts";
 

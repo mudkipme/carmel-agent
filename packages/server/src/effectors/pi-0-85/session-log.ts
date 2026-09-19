@@ -1,23 +1,9 @@
 import type { AgentLane, Context, Entry, Session } from "@earendil-works/pi-agent-core";
 import { closePiSession, PI_MAIN_BRANCH } from "../../services/pi-session-storage.ts";
-import type { AgentThinkingLevel } from "@carmel-agent/shared";
-import type { BranchEntry, SessionLog, SessionState } from "../contracts/session-log.ts";
+import type { BranchEntry, SessionLog } from "../contracts/session-log.ts";
 import type { SessionMessage } from "../contracts/messages.ts";
-import type { PiConfigLane } from "./agent-driver.ts";
 
-/**
- * `SessionLog` over Pi 0.85's `Session`.
- *
- * The port held: every method below is one 0.85 renamed, moved or deleted, and
- * the ~90 lines here are the whole cost of that above this file.
- *
- * Two of those are more than renames. Branch traversal moved onto a named
- * `Branch` object, and per-lane configuration -- model, thinking level, active
- * tools -- stopped being entries in the session tree and became lane state, so
- * `readState` and the three `append*Change` methods now read and write a lane
- * rather than appending to a branch. They keep their names because the port
- * describes what Carmel wants, not how Pi stores it.
- */
+/** `SessionLog` over Pi 0.85's `Session`, read and written through the open lane. */
 
 export { PI_MAIN_BRANCH };
 
@@ -29,11 +15,10 @@ export { PI_MAIN_BRANCH };
  * its back is silently orphaned the next time the lane runs. The lane is the
  * only correct writer while one is open.
  */
-export type PiLogLane = PiConfigLane & Pick<AgentLane, "navigateTree" | "findEntries" | "appendMessage">;
+export type PiLogLane = Pick<AgentLane, "navigateTree" | "findEntries" | "appendMessage">;
 
 export type PiSessionLogOptions = {
   session: Session;
-  /** The open lane. Configuration lives here in 0.85, not in the session tree. */
   lane: PiLogLane;
   context: Context;
 };
@@ -58,27 +43,6 @@ export function createPiSessionLog({ session, lane, context }: PiSessionLogOptio
 
     async appendMessage(message: SessionMessage) {
       return lane.appendMessage(message, context);
-    },
-
-    async readState(): Promise<SessionState> {
-      const model = await lane.getModel(context);
-      return {
-        model: model ? { provider: model.provider, modelId: model.id } : null,
-        thinkingLevel: (await lane.getThinkingLevel(context)) as AgentThinkingLevel,
-        activeToolNames: await lane.getActiveTools(context),
-      };
-    },
-
-    async appendModelChange(provider, modelId) {
-      await lane.setModel({ provider, modelId }, context);
-    },
-
-    async appendThinkingLevelChange(level) {
-      await lane.setThinkingLevel(level, context);
-    },
-
-    async appendActiveToolsChange(names) {
-      await lane.setActiveTools([...names], context);
     },
 
     async close() {

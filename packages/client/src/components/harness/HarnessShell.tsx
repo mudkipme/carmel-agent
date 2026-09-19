@@ -36,7 +36,7 @@ import {
 } from "@/components/harness/shell/sidebar-utils";
 import { agentFilesPath } from "@/lib/file-links";
 import { cn } from "@/lib/utils";
-import { isListedSession } from "@/store/harness-state";
+import { canUserSeeAgent, isListedSession } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";
 
 export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
@@ -62,7 +62,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const selectedSession = store.sessions.find(
     (session) => session.id === store.activeSessionId && session.userId === store.activeUserId,
   );
-  const visibleAgents = store.agents.filter((agent) => agent.shared || agent.ownerUserId === store.activeUserId);
+  const visibleAgents = store.agents.filter((agent) => canUserSeeAgent(agent, store.activeUserId));
   const selectedAgent = visibleAgents.find((agent) => agent.id === store.activeAgentId);
   const activeAgent = selectedAgent ?? visibleAgents.find((agent) => agent.id === selectedSession?.agentId);
   /* The chat opens a session only when the URL names one; an agent's own path

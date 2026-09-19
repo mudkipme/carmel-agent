@@ -1,10 +1,10 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/pi-agent-core";
-import { skillCommandName, slashCommandText } from "@carmel-agent/shared";
+import { agentConfigRequestSchema, skillCommandName, slashCommandText } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
-import { agents, modelRefs, sessions } from "../db/schema.ts";
+import { agents, sessions } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
 import { loadAgentResources } from "../runtime/resources.ts";
@@ -16,13 +16,13 @@ import {
   AgentHostPathAccessError,
   assertAgentExtensionAccess,
   assertAgentHostPathAccess,
-  canUseModel,
+  readUsableModelRef,
   readVisibleAgent,
   resolveAgentWorkingDir,
   resolveSupportedThinkingLevel,
 } from "../services/agent-access.ts";
 import { readActiveRunLeaseForAgent } from "../services/active-run-lease.ts";
-import { agentConfigRequestSchema, jsonValidator } from "../validation.ts";
+import { jsonValidator } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import { deleteAgentSecretsForAgent } from "../services/agent-secrets.ts";
 import { deleteAgentTasksForAgent } from "../services/agent-tasks.ts";
@@ -48,8 +48,8 @@ export function createAgentRoutes() {
       if (error instanceof AgentHostPathAccessError) return c.json({ error: error.message }, 403);
       throw error;
     }
-    const defaultModelRef = db.select().from(modelRefs).where(eq(modelRefs.id, agent.defaultModelRefId)).get();
-    if (!defaultModelRef || !canUseModel(currentUserId, defaultModelRef)) {
+    const defaultModelRef = readUsableModelRef(currentUserId, agent.defaultModelRefId);
+    if (!defaultModelRef) {
       return c.json({ error: "Model not found." }, 404);
     }
     const defaultThinkingLevel = resolveSupportedThinkingLevel(defaultModelRef, agent.defaultThinkingLevel ?? "off");

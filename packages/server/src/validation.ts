@@ -1,6 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
 import { z, ZodError } from "zod";
-export * from "@carmel-agent/shared";
 
 export function jsonValidator<TSchema extends z.ZodType>(schema: TSchema) {
   return zValidator("json", schema, (result, c) => {

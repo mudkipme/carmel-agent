@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { migrate } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
-import { attachTestHarness, fauxHarnessModels } from "./testing/pi-harness.ts";
+import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "./testing/pi-harness.ts";
+import { reconcileLaneConfiguration, type PiConfigLane } from "./pi-0-85/agent-driver.ts";
 import { FakeSessionLog } from "./testing/fake-session-log.ts";
 import { runSessionLogContract } from "./testing/session-log-contract.ts";
 import { dispatchPrompt } from "./dispatch-prompt.ts";
@@ -25,9 +26,6 @@ await runSessionLogContract({ name: "FakeSessionLog", create: () => new FakeSess
 await runSessionLogContract(
   {
     name: "PiSessionLog",
-    // Declared because a lane resolves its model through the harness registry,
-    // so the only model this log can read back is one the faux provider offers.
-    model: { provider: piModel.provider, modelId: piModel.id },
     async create() {
       const { sessionId } = createSession();
       // 0.85 keeps per-lane configuration off the session tree, so the adapter
@@ -39,6 +37,51 @@ await runSessionLogContract(
   },
   (name, run) => test(name, run),
 );
+
+test("lane configuration round-trips through a real lane, tool order included", async () => {
+  const { sessionId } = createSession();
+  const pi = await attachTestHarness(await openPiSession(sessionId), piHarnessOptions);
+  try {
+    await reconcileLaneConfiguration(pi.lane, pi.context, {
+      model: piModel,
+      thinkingLevel: "medium",
+      activeToolNames: ["read", "bash"],
+    });
+    const model = await pi.lane.getModel(pi.context);
+    assert.deepEqual([model?.provider, model?.id], [piModel.provider, piModel.id]);
+    assert.equal(await pi.lane.getThinkingLevel(pi.context), "medium");
+    assert.deepEqual(await pi.lane.getActiveTools(pi.context), ["read", "bash"]);
+
+    // Order is part of the cached prompt prefix, so a reorder is a real change.
+    await reconcileLaneConfiguration(pi.lane, pi.context, {
+      model: piModel,
+      thinkingLevel: "medium",
+      activeToolNames: ["bash", "read"],
+    });
+    assert.deepEqual(await pi.lane.getActiveTools(pi.context), ["bash", "read"]);
+  } finally {
+    await pi.close();
+  }
+});
+
+test("lane reconciliation writes only what differs", async () => {
+  const writes: string[] = [];
+  const state = { model: { provider: piModel.provider, id: piModel.id }, thinkingLevel: "off", tools: ["read"] };
+  const lane = {
+    getModel: async () => state.model,
+    setModel: async () => void writes.push("model"),
+    getThinkingLevel: async () => state.thinkingLevel,
+    setThinkingLevel: async () => void writes.push("thinking"),
+    getActiveTools: async () => state.tools,
+    setActiveTools: async () => void writes.push("tools"),
+  } as unknown as PiConfigLane;
+
+  await reconcileLaneConfiguration(lane, TEST_CONTEXT, { model: piModel, thinkingLevel: "off", activeToolNames: ["read"] });
+  assert.deepEqual(writes, [], "matching configuration must not be rewritten");
+
+  await reconcileLaneConfiguration(lane, TEST_CONTEXT, { model: piModel, thinkingLevel: "high", activeToolNames: ["read"] });
+  assert.deepEqual(writes, ["thinking"]);
+});
 
 test("plain text goes straight to prompt", async () => {
   const { driver, calls } = recordingDriver();
@@ -97,8 +140,6 @@ function recordingDriver(resources: DriverResources = { skills: [], promptTempla
     async invokeTemplate(name, args, images) {
       calls.push(["invokeTemplate", name, args, images]);
     },
-    observe: () => () => {},
-    abort: async () => {},
     relieveContextPressure: async (): Promise<CompactionOutcome> => ({ status: "not_needed", tokens: 0, headroom: 1 }),
   };
   return { driver, calls };

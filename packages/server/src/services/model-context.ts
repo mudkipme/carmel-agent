@@ -1,13 +1,14 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { modelRefs, providerConfigs, providerKeys } from "../db/schema.ts";
+import type { AgentThinkingLevel } from "@carmel-agent/shared";
 import { createProviderConfigCredentialStore } from "../runtime/auth-storage.ts";
 import { bindResolvedModel, createCarmelModelRuntime } from "../runtime/model-runtime.ts";
 import { withProviderAttribution } from "../runtime/provider-attribution.ts";
 import { resolveServerModelRef } from "../runtime/model.ts";
 import { revealSecret } from "../security.ts";
 import { serializeModelRef } from "../serializers.ts";
-import { canUseModel } from "./agent-access.ts";
+import { readUsableModelRef, resolveSupportedThinkingLevel } from "./agent-access.ts";
 import { ensureOptionalProviderAuth, hasProviderAuth } from "./provider-auth.ts";
 
 type ModelRefRecord = typeof modelRefs.$inferSelect;
@@ -23,13 +24,11 @@ export type ModelContextResult =
   | { ok: true; value: ResolvedModelContext }
   | { ok: false; reason: "not_found" | "no_auth" };
 
-export async function resolveModelContext(
-  userId: string,
-  modelRefId: string,
-  options?: { canUse?: (userId: string, modelRef: ModelRefRecord) => boolean },
-): Promise<ModelContextResult> {
-  const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, modelRefId)).get();
-  if (!modelRef || !(options?.canUse ?? canUseModel)(userId, modelRef)) {
+export const NO_PROVIDER_AUTH_MESSAGE = "No API key or OAuth login configured for this model provider.";
+
+export async function resolveModelContext(userId: string, modelRefId: string): Promise<ModelContextResult> {
+  const modelRef = readUsableModelRef(userId, modelRefId);
+  if (!modelRef) {
     return { ok: false, reason: "not_found" };
   }
   const providerConfig = modelRef.providerConfigId
@@ -69,5 +68,26 @@ export async function resolveModelContext(
       modelRuntime: withProviderAttribution(bindResolvedModel(modelRuntime, model)),
       model,
     },
+  };
+}
+
+export type RunModelResult =
+  | { ok: true; value: ResolvedModelContext & { thinkingLevel: AgentThinkingLevel } }
+  | { ok: false; reason: "not_found" | "no_auth" };
+
+/**
+ * Everything a run needs from its model: the resolved context, and the
+ * requested thinking level clamped to what that model supports.
+ */
+export async function resolveRunModel(
+  userId: string,
+  modelRefId: string,
+  thinkingLevel: AgentThinkingLevel,
+): Promise<RunModelResult> {
+  const context = await resolveModelContext(userId, modelRefId);
+  if (!context.ok) return context;
+  return {
+    ok: true,
+    value: { ...context.value, thinkingLevel: resolveSupportedThinkingLevel(context.value.modelRef, thinkingLevel) },
   };
 }

@@ -5,10 +5,10 @@ import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
 import { migrate } from "../db/index.ts";
 import { createSession, userMessage } from "../test-support.ts";
-import { openPiSession } from "../services/pi-session-storage.ts";
+import { openPiSession, replacePiSessionMessages } from "../services/pi-session-storage.ts";
 import { createPiAgentDriver } from "../effectors/pi-0-85/agent-driver.ts";
 import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
-import { replaceSessionMessages, readSessionMessages } from "../services/session-store.ts";
+import { readSessionMessages } from "../services/session-store.ts";
 import { createActiveAgentRun, finishAgentRun } from "./run-stream.ts";
 import { classifyTurnFailure } from "../effectors/failure-classifier.ts";
 import { recoverFromContextOverflow, TurnFailureWatch, HarnessAbortGate } from "./agent-runtime.ts";
@@ -173,7 +173,7 @@ test("an overflow after tool results keeps them and asks the agent to continue",
 async function setupScene(respond: (callCount: number) => AgentMessage) {
   const { sessionId, userId } = createSession();
   // Prior history, so compaction has something to summarize.
-  await replaceSessionMessages(sessionId, [
+  await replacePiSessionMessages(sessionId, [
     userMessage("earlier question"),
     fauxAssistantMessage("earlier answer"),
   ]);

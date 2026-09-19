@@ -4,13 +4,17 @@ import { cp, mkdir, rename as renameFile, rm } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, relative } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import type {
-  AgentFileBatchCommand,
-  AgentFileBatchResult,
-  AgentFileContent,
-  AgentFileEntry,
-  AgentFileList,
-  AgentPermissions,
+import {
+  type AgentFileBatchCommand,
+  type AgentFileBatchResult,
+  type AgentFileContent,
+  type AgentFileEntry,
+  type AgentFileList,
+  type AgentPermissions,
+  createFileEntryRequestSchema,
+  fileBatchRequestSchema,
+  fileContentRequestSchema,
+  renameFileEntryRequestSchema,
 } from "@carmel-agent/shared";
 import { BACKGROUND_CONTEXT, FileError, type Result } from "@earendil-works/pi-agent-core";
 import { agents } from "../db/schema.ts";
@@ -18,13 +22,7 @@ import type { AuthVariables } from "../auth.ts";
 import { errorMessage } from "../errors.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
 import { zipArchive, type ZipEntry } from "../runtime/zip.ts";
-import {
-  createFileEntryRequestSchema,
-  fileBatchRequestSchema,
-  fileContentRequestSchema,
-  jsonValidator,
-  renameFileEntryRequestSchema,
-} from "../validation.ts";
+import { jsonValidator } from "../validation.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 

@@ -5,16 +5,16 @@ import { db } from "../db/index.ts";
 import { agents, authSessions, modelRefs, providerConfigs, sessions, userIdentities, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { serializeUser } from "../serializers.ts";
-import { canUseModel } from "../services/agent-access.ts";
+import { readUsableModelRef } from "../services/agent-access.ts";
 import { readActiveRunLeaseForUser } from "../services/active-run-lease.ts";
 import { deletePiSessions } from "../services/pi-session-storage.ts";
+import { jsonValidator } from "../validation.ts";
 import {
   adminPasswordResetRequestSchema,
   createUserRequestSchema,
-  jsonValidator,
   updateUserRoleRequestSchema,
   userRequestSchema,
-} from "../validation.ts";
+} from "@carmel-agent/shared";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 
 export function createUserRoutes() {
@@ -113,7 +113,7 @@ export function createUserRoutes() {
     if (c.req.param("id") !== currentUser.id) return c.json({ error: "You can only update your own profile." }, 403);
     const user = c.req.valid("json");
     const fastTaskModelRefId = user.fastTaskModelRefId?.trim() || null;
-    if (fastTaskModelRefId && !canUseModel(currentUser.id, fastTaskModelRefId)) {
+    if (fastTaskModelRefId && !readUsableModelRef(currentUser.id, fastTaskModelRefId)) {
       return c.json({ error: "Fast task model not found." }, 404);
     }
     const timestamp = now();

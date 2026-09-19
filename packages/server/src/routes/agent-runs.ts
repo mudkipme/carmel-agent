@@ -1,6 +1,6 @@
-import type { PromptInput } from "@carmel-agent/shared";
+import { type ActiveAgentRunSummary, agentRunRequestSchema, type PromptInput } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
@@ -13,10 +13,10 @@ import {
 } from "../runtime/agent-runtime.ts";
 import { createRunStream } from "../runtime/run-stream.ts";
 import { issueRunAddons, noteIssueRunStarted } from "../services/issues.ts";
-import { readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
-import { resolveModelContext } from "../services/model-context.ts";
+import { readVisibleAgent } from "../services/agent-access.ts";
+import { NO_PROVIDER_AUTH_MESSAGE, resolveRunModel } from "../services/model-context.ts";
 import { readSessionConnection } from "../services/session-snapshot.ts";
-import { agentRunRequestSchema, jsonValidator } from "../validation.ts";
+import { jsonValidator } from "../validation.ts";
 import { errorMessage } from "../errors.ts";
 
 export function createAgentRunRoutes() {
@@ -57,21 +57,21 @@ export function createAgentRunRoutes() {
       return c.json({ error: "Session not found" }, 404);
     }
     const activeRun = getActiveAgentRunForSession(currentUserId, session.id);
-    if (activeRun) {
-      c.header("x-agent-run-id", activeRun.runId);
-      return c.json({ error: "Session already has an active agent run.", ...activeRun }, 409);
-    }
+    if (activeRun) return alreadyRunning(c, activeRun);
 
-    const modelContext = await resolveModelContext(
+    // The thinking level is clamped to the model: the run commits it back onto
+    // the session, so an unsupported one would otherwise stick.
+    const model = await resolveRunModel(
       currentUserId,
       body.modelRefId ?? session.modelRefId,
+      body.thinkingLevel ?? session.thinkingLevel,
     );
-    if (!modelContext.ok) {
-      return modelContext.reason === "not_found"
+    if (!model.ok) {
+      return model.reason === "not_found"
         ? c.json({ error: "Model not found" }, 404)
-        : c.json({ error: "No API key or OAuth login configured for this model provider." }, 400);
+        : c.json({ error: NO_PROVIDER_AUTH_MESSAGE }, 400);
     }
-    const { modelRef, providerConfig, modelRuntime } = modelContext.value;
+    const { modelRef, providerConfig, modelRuntime, thinkingLevel } = model.value;
 
     let promptInput: PromptInput | undefined;
     try {
@@ -87,10 +87,7 @@ export function createAgentRunRoutes() {
       return c.json({ error: "Session not found" }, 404);
     }
     const currentActiveRun = getActiveAgentRunForSession(currentUserId, currentSession.id);
-    if (currentActiveRun) {
-      c.header("x-agent-run-id", currentActiveRun.runId);
-      return c.json({ error: "Session already has an active agent run.", ...currentActiveRun }, 409);
-    }
+    if (currentActiveRun) return alreadyRunning(c, currentActiveRun);
     if (currentSession.revision !== session.revision) {
       return c.json({ error: "Session changed while preparing the agent run. Retry the request." }, 409);
     }
@@ -101,9 +98,7 @@ export function createAgentRunRoutes() {
       modelRef,
       providerConfig,
       modelRuntime,
-      // Clamped like every other write path: the run commits this level back
-      // onto the session, so an unsupported one would otherwise stick.
-      thinkingLevel: resolveSupportedThinkingLevel(modelRef, body.thinkingLevel ?? currentSession.thinkingLevel),
+      thinkingLevel,
       promptInput,
       sessionAddons: issueRunAddons(currentSession.issueId),
     });
@@ -112,4 +107,10 @@ export function createAgentRunRoutes() {
   });
 
   return route;
+}
+
+/** The run summary rides at the top level, where clients fall back to it when the header is missing. */
+function alreadyRunning(c: Context<{ Variables: AuthVariables }>, run: ActiveAgentRunSummary) {
+  c.header("x-agent-run-id", run.runId);
+  return c.json({ error: "Session already has an active agent run.", ...run }, 409);
 }

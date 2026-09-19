@@ -90,7 +90,7 @@ export function resolveBootstrapState(
   const activeAgent =
     agents.find((agent) => agent.id === current.activeAgentId) ??
     agents.find((agent) => agent.id === activeSession?.agentId) ??
-    agents.find((agent) => agent.ownerUserId === activeUserId || agent.shared);
+    agents[0];
   const nextActiveSession = activeSession?.agentId === activeAgent?.id ? activeSession : undefined;
   const sessionDetails = Object.fromEntries(
     sessions.flatMap((metadata) => {

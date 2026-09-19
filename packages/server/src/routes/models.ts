@@ -13,7 +13,8 @@ import {
 } from "../services/agent-access.ts";
 import { thinkingLevelOverrides } from "../runtime/model.ts";
 import { readActiveRunLeaseForModels } from "../services/active-run-lease.ts";
-import { jsonValidator, modelRefRequestSchema } from "../validation.ts";
+import { jsonValidator } from "../validation.ts";
+import { modelRefRequestSchema } from "@carmel-agent/shared";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 
 export function createModelRoutes() {

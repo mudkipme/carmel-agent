@@ -7,16 +7,17 @@ import { db, migrate, sqlite } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { prepareAgentRunPrompt, runHarnessPrompt } from "../runtime/agent-runtime.ts";
-import { closePiSession, deletePiSession, openPiSession } from "./pi-session-storage.ts";
-import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import {
-  editSessionMessageEntry,
-  loadSession,
-  readSessionMessageByEntryId,
-  readSessionMessages,
-  replaceSessionMessages,
-  truncateSessionAtEntry,
-} from "./session-store.ts";
+  closePiSession,
+  deletePiSession,
+  movePiSessionToEntry,
+  openPiSession,
+  readPiSessionMessageEntry,
+  replacePiSessionMessages,
+  rewritePiSessionMessage,
+} from "./pi-session-storage.ts";
+import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
+import { loadSession, readSessionMessages } from "./session-store.ts";
 
 migrate();
 
@@ -33,7 +34,7 @@ test("Carmel metadata database has no session-content tables", () => {
 
 test("replace then read preserves message order and exposes native entry IDs", async () => {
   const { sessionId } = createSession();
-  await replaceSessionMessages(sessionId, [userMessage("a"), userMessage("b"), userMessage("c")]);
+  await replacePiSessionMessages(sessionId, [userMessage("a"), userMessage("b"), userMessage("c")]);
   assert.deepEqual(await contents(sessionId), ["a", "b", "c"]);
   const loaded = await loadSession(sessionId);
   assert.equal(loaded?.messageEntryIds.length, 3);
@@ -42,8 +43,8 @@ test("replace then read preserves message order and exposes native entry IDs", a
 
 test("replacing a transcript moves the native leaf but retains the abandoned branch", async () => {
   const { sessionId } = createSession();
-  await replaceSessionMessages(sessionId, [userMessage("a"), userMessage("b"), userMessage("c")]);
-  await replaceSessionMessages(sessionId, [userMessage("a")]);
+  await replacePiSessionMessages(sessionId, [userMessage("a"), userMessage("b"), userMessage("c")]);
+  await replacePiSessionMessages(sessionId, [userMessage("a")]);
 
   assert.deepEqual(await contents(sessionId), ["a"]);
   const session = await openPiSession(sessionId);
@@ -62,7 +63,7 @@ test("Pi native SQLite storage persists entries and lane configuration", async (
     await pi.log.appendMessage(userMessage("a"));
     // 0.85 moved the thinking level out of the transcript and onto lane state,
     // so this is a lane write rather than a third entry on the branch.
-    await pi.log.appendThinkingLevelChange("high");
+    await pi.lane.setThinkingLevel("high", pi.context);
     await pi.log.appendMessage(userMessage("b"));
 
     const messages = (await pi.branch()).flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
@@ -70,7 +71,7 @@ test("Pi native SQLite storage persists entries and lane configuration", async (
       messages.map((message) => (message as { content: string }).content),
       ["a", "b"],
     );
-    assert.equal((await pi.log.readState()).thinkingLevel, "high");
+    assert.equal(await pi.lane.getThinkingLevel(pi.context), "high");
     assert.equal(pi.session.metadata.id, sessionId);
   } finally {
     await pi.close();
@@ -102,7 +103,7 @@ test("AgentHarness persists a complete turn directly into Pi SQLite", async () =
 
 test("retrying a stored user entry does not persist an empty message", async () => {
   const { sessionId } = createSession();
-  await replaceSessionMessages(sessionId, [
+  await replacePiSessionMessages(sessionId, [
     userMessage("first question"),
     fauxAssistantMessage("first reply"),
     userMessage("retry this question"),
@@ -157,10 +158,10 @@ test("native harness commands expand file prompts and skills", async () => {
 
 test("entry-ID leaf navigation retains the abandoned branch", async () => {
   const { sessionId } = createSession();
-  await replaceSessionMessages(sessionId, [userMessage("a"), userMessage("b"), userMessage("c")]);
+  await replacePiSessionMessages(sessionId, [userMessage("a"), userMessage("b"), userMessage("c")]);
   const loaded = await loadSession(sessionId);
   assert.ok(loaded);
-  await truncateSessionAtEntry(sessionId, loaded.messageEntryIds[0]!);
+  await movePiSessionToEntry(sessionId, loaded.messageEntryIds[0]!);
 
   const pi = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
@@ -178,13 +179,13 @@ test("non-truncating entry edit preserves the message suffix and lane configurat
   let firstId: string;
   try {
     firstId = await pi.log.appendMessage(userMessage("a"));
-    await pi.log.appendThinkingLevelChange("high");
+    await pi.lane.setThinkingLevel("high", pi.context);
     await pi.log.appendMessage(userMessage("b"));
   } finally {
     await pi.close();
   }
 
-  await editSessionMessageEntry(sessionId, firstId!, userMessage("edited"), false);
+  await rewritePiSessionMessage(sessionId, firstId!, userMessage("edited"), false);
 
   // In 0.83 the thinking level was an entry on the branch, so this test was
   // about the edit cloning it onto the new branch. 0.85 stores it as lane state
@@ -192,7 +193,7 @@ test("non-truncating entry edit preserves the message suffix and lane configurat
   // putting configuration in the transcript in the first place.
   const edited = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
-    assert.equal((await edited.log.readState()).thinkingLevel, "high");
+    assert.equal(await edited.lane.getThinkingLevel(edited.context), "high");
     const messages = (await edited.branch()).flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
     assert.deepEqual(messages.map((message) => userMessageText(message as { content?: unknown })), ["edited", "b"]);
   } finally {
@@ -203,20 +204,20 @@ test("non-truncating entry edit preserves the message suffix and lane configurat
 
 test("loadSession and entry reads expose the active native branch", async () => {
   const { sessionId, userId } = createSession();
-  await replaceSessionMessages(sessionId, [userMessage("a"), userMessage("b"), userMessage("c")]);
+  await replacePiSessionMessages(sessionId, [userMessage("a"), userMessage("b"), userMessage("c")]);
   const session = await loadSession(sessionId);
   assert.ok(session);
   assert.equal(session.userId, userId);
   assert.equal(session.messages.length, 3);
   const secondEntryId = session.messageEntryIds[1]!;
-  assert.equal((await readSessionMessageByEntryId(sessionId, secondEntryId) as { content: string }).content, "b");
-  assert.equal(await readSessionMessageByEntryId(sessionId, "missing-entry"), undefined);
+  assert.equal((await readPiSessionMessageEntry(sessionId, secondEntryId) as { content: string }).content, "b");
+  assert.equal(await readPiSessionMessageEntry(sessionId, "missing-entry"), undefined);
   assert.equal(await loadSession("missing"), undefined);
 });
 
 test("deleting a session removes native storage", async () => {
   const { sessionId } = createSession();
-  await replaceSessionMessages(sessionId, [userMessage("a"), userMessage("b")]);
+  await replacePiSessionMessages(sessionId, [userMessage("a"), userMessage("b")]);
   const record = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   assert.ok(record);
   await deletePiSession(record);

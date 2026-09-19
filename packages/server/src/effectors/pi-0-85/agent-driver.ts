@@ -12,13 +12,7 @@ import {
 } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { errorMessage } from "../../errors.ts";
-import { projectRunEvent } from "../../runtime/run-events.ts";
-import type {
-  AgentDriver,
-  AgentRunObserver,
-  DriverResources,
-  PromptDispatcher,
-} from "../contracts/agent-driver.ts";
+import type { AgentDriver, DriverResources, PromptDispatcher } from "../contracts/agent-driver.ts";
 import {
   decideCompaction,
   PI_COMPACTION_SETTINGS,
@@ -42,7 +36,7 @@ import type { SessionLog } from "../contracts/session-log.ts";
 export type PiHarness = Pick<AgentHarness<ExecutionToolContext>, "getResources" | "events">;
 
 /** The lane-scoped surface actually used. Everything that runs the loop is here now. */
-export type PiLane = Pick<AgentLane, "prompt" | "skill" | "promptFromTemplate" | "compact" | "abort">;
+export type PiLane = Pick<AgentLane, "prompt" | "skill" | "promptFromTemplate" | "compact">;
 
 /** The lane surface that carries per-run configuration, which 0.85 moved off the session tree. */
 export type PiConfigLane = Pick<
@@ -56,7 +50,7 @@ export type PiDriverOptions = {
   /** The run's invocation context. Carries the abort signal the harness observes. */
   context: Context;
   /** Read for context pressure; the lane owns the compaction itself. */
-  log: Pick<SessionLog, "readState" | "readBranch">;
+  log: Pick<SessionLog, "readBranch">;
   model: Model<Api>;
   /** Defaults to Pi's; overridden in tests to reach the edge cases cheaply. */
   settings?: CompactionSettings;
@@ -138,8 +132,7 @@ const OBSERVED_EVENTS = [
  *
  * 0.85 replaced `harness.subscribe(fn)` with `events.on(type, fn)` and offers no
  * wildcard, so a caller that wants the stream has to name the types and unwind
- * a list of unsubscribes. Both the driver and the run body want exactly this
- * set, so it lives here rather than twice.
+ * a list of unsubscribes.
  */
 export function observeHarnessEvents(
   harness: PiHarness,
@@ -157,20 +150,6 @@ export function createPiAgentDriver(options: PiDriverOptions): AgentDriver {
 
   return {
     ...createPiPromptDispatcher({ harness, lane, context }),
-
-    observe(observer: AgentRunObserver) {
-      return observeHarnessEvents(harness, (event) => {
-        if (event.type === "message_end" && event.message.role === "user") {
-          observer.onUserMessagePersisted();
-        }
-        const projected = projectRunEvent(event, model.contextWindow);
-        if (projected) observer.onRunEvent(projected);
-      });
-    },
-
-    async abort() {
-      await lane.abort(context);
-    },
 
     async relieveContextPressure({ force = false } = {}): Promise<CompactionOutcome> {
       const settings = options.settings ?? PI_COMPACTION_SETTINGS;

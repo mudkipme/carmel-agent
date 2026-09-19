@@ -15,7 +15,8 @@ import { users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { serializeUser } from "../serializers.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
-import { accountUpdateRequestSchema, jsonValidator, loginRequestSchema, setupRequestSchema } from "../validation.ts";
+import { jsonValidator } from "../validation.ts";
+import { accountUpdateRequestSchema, loginRequestSchema, setupRequestSchema } from "@carmel-agent/shared";
 import { createOidcAuthRoutes } from "./auth-oidc.ts";
 
 const passwordLoginDisabled = { error: "Password sign-in is disabled on this server." };

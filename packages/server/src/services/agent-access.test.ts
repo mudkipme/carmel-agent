@@ -7,7 +7,7 @@ import { createAgent, createModelRef, createProviderConfig, createSession, creat
 import {
   assertAgentExtensionAccess,
   assertAgentHostPathAccess,
-  canUseModel,
+  readUsableModelRef,
   reassignModelReferences,
   readVisibleAgent,
   readVisibleAgents,
@@ -61,16 +61,17 @@ test("readVisibleModelRefs includes own, shared, and config-less models (provide
   assert.ok(!visible.has(bobPrivateModel));
 });
 
-test("canUseModel enforces ownership/sharing", () => {
+test("readUsableModelRef enforces ownership/sharing", () => {
   const alice = createUser();
   const bob = createUser();
   const bobConfig = createProviderConfig(bob);
   const bobPrivateModel = createModelRef({ ownerUserId: bob, providerConfigId: bobConfig });
   const sharedModel = createModelRef({ ownerUserId: bob, shared: true });
 
-  assert.equal(canUseModel(alice, bobPrivateModel), false);
-  assert.equal(canUseModel(alice, sharedModel), true);
-  assert.equal(canUseModel(bob, bobPrivateModel), true);
+  assert.equal(readUsableModelRef(alice, bobPrivateModel), undefined);
+  assert.equal(readUsableModelRef(alice, sharedModel)?.id, sharedModel);
+  assert.equal(readUsableModelRef(bob, bobPrivateModel)?.id, bobPrivateModel);
+  assert.equal(readUsableModelRef(bob, "missing"), undefined);
 });
 
 test("regular users cannot configure manual host paths or mounts", () => {

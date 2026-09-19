@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { db, migrate } from "../db/index.ts";
-import { agents, agentTasks, agentTaskRuns, modelRefs, sessions } from "../db/schema.ts";
+import { agents, agentTasks, agentTaskRuns, modelRefs, sessions, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createAgent, createModelRef, createProviderConfig, createUser } from "../test-support.ts";
 import { createAgentTask, deleteAgentTask, readAgentTasks } from "../services/agent-tasks.ts";
@@ -221,6 +221,23 @@ test("a task stops running once its agent is no longer shared with its owner", a
   assert.equal(stored.lastOutcome, "failed");
   assert.match(stored.lastError ?? "", /no longer available/);
   assert.deepEqual(sessionsFor(task.id), [], "the run must not start in the agent's container");
+});
+
+test("an admin's task on another user's private agent keeps running, as creating it was allowed", async () => {
+  const { agentId } = runnableFixture();
+  const adminId = createUser();
+  db.update(users).set({ role: "admin" }).where(eq(users.id, adminId)).run();
+  const task = createAgentTask({ id: adminId, role: "admin" }, agentId, {
+    name: "Operator check",
+    prompt: "Report.",
+    scheduleKind: "interval",
+    scheduleValue: String(60_000),
+  });
+
+  await tick(Date.now() + 120_000);
+
+  assert.doesNotMatch(row(task.id).lastError ?? "", /no longer available/);
+  assert.equal(sessionsFor(task.id).length, 1, "the run should have started in a session of its own");
 });
 
 test("deleting a task's model hands the task back to its agent's default", () => {

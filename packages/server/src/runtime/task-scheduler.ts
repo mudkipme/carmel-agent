@@ -1,7 +1,8 @@
-import { toSessionRow, type AgentTaskOutcome, type Session } from "@carmel-agent/shared";
+import type { AgentTaskOutcome } from "@carmel-agent/shared";
+import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
-import { sessions } from "../db/schema.ts";
-import { id, now } from "../db/seed.ts";
+import { users } from "../db/schema.ts";
+import { now } from "../db/seed.ts";
 import { errorMessage } from "../errors.ts";
 import { computeNextRun, planTaskFiring } from "../effectors/task-schedule.ts";
 import {
@@ -13,11 +14,9 @@ import {
   startTaskRun,
   updateTaskAfterRun,
 } from "../services/agent-tasks.ts";
-import { readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
-import { resolveModelContext } from "../services/model-context.ts";
-
-import { startDetachedAgentRun, whenRunFinished } from "./agent-runtime.ts";
-import { loadSession } from "../services/session-store.ts";
+import { readTaskAgent } from "../services/agent-access.ts";
+import { prepareSessionRun } from "../services/session-launch.ts";
+import { startDetachedAgentRun, whenRunFinished, type AgentRunInput } from "./agent-runtime.ts";
 
 type TaskRecord = typeof import("../db/schema.ts").agentTasks.$inferSelect;
 
@@ -184,67 +183,28 @@ async function startTask(
   return { sessionId, finished };
 }
 
-async function prepareTaskRun(task: TaskRecord): Promise<{ input: Parameters<typeof startDetachedAgentRun>[0] } | { error: string }> {
-  // Visibility, not just existence: a task on a shared agent must stop once
-  // the agent is no longer shared with the task's owner.
-  const agent = readVisibleAgent(task.userId, task.agentId);
+async function prepareTaskRun(task: TaskRecord): Promise<{ input: AgentRunInput } | { error: string }> {
+  // Checked on every firing with the rule that let the task be created, so a
+  // task stops once its owner could no longer create it -- an agent un-shared,
+  // or an admin demoted.
+  const owner = db.select().from(users).where(eq(users.id, task.userId)).get();
+  const agent = owner ? readTaskAgent(owner, task.agentId) : undefined;
   if (!agent) return { error: "The agent this task belongs to is no longer available to its owner." };
 
-  // Resolved before the session exists: a task that cannot run must not leave
-  // an empty session behind every time it fires.
-  const context = await resolveModelContext(task.userId, task.modelRefId ?? agent.defaultModelRefId);
-  if (!context.ok) {
-    return { error: "The model this task uses is no longer available to its owner." };
-  }
-  const { modelRef } = context.value;
-  const thinkingLevel = resolveSupportedThinkingLevel(modelRef, task.thinkingLevel ?? agent.defaultThinkingLevel ?? "off");
-
-  const session = await createRunSession(task, modelRef.id, thinkingLevel);
-  if (!session) return { error: "Could not create a session for this run." };
-
-  return {
-    input: {
-      agent,
-      session,
-      modelRef,
-      providerConfig: context.value.providerConfig,
-      modelRuntime: context.value.modelRuntime,
-      thinkingLevel,
-      promptInput: { text: task.prompt },
-    },
-  };
-}
-
-/**
- * Every run gets a fresh session.
- *
- * One thread per task used to be the rule, for the prompt cache -- but the
- * cache lives an hour at most, so a daily task started cold anyway while paying
- * for an ever-longer context. The system prompt and tools are identical across
- * runs, so what can be cached still is. A fresh session also keeps one bad run
- * from steering the next, and makes each result readable on its own.
- *
- * The session carries the task's id, which keeps it out of the session list;
- * the run log links to it.
- */
-async function createRunSession(task: TaskRecord, modelRefId: string, thinkingLevel: Session["thinkingLevel"]) {
-  const timestamp = now();
-  const session: Session = {
-    id: id("session"),
-    title: task.name,
+  // Every run gets a fresh session. One thread per task used to be the rule,
+  // for the prompt cache -- but the cache lives an hour at most, so a daily task
+  // started cold anyway while paying for an ever-longer context. A fresh
+  // session also keeps one bad run from steering the next. The task id keeps it
+  // out of the session list; the run log links to it.
+  const prepared = await prepareSessionRun({
+    agent,
     userId: task.userId,
-    agentId: task.agentId,
-    modelRefId,
-    thinkingLevel,
-    revision: 0,
-    messages: [],
-    messageEntryIds: [],
-    taskId: task.id,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  db.insert(sessions).values(toSessionRow(session)).run();
-  return loadSession(session.id);
+    modelRefId: task.modelRefId ?? undefined,
+    thinkingLevel: task.thinkingLevel ?? undefined,
+    session: { title: task.name, taskId: task.id },
+  });
+  if (!prepared.ok) return { error: "The model this task uses is no longer available to its owner." };
+  return { input: { ...prepared.value, promptInput: { text: task.prompt } } };
 }
 
 function maxConcurrent() {

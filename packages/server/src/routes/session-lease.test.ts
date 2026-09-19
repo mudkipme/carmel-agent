@@ -6,7 +6,8 @@ import type { AuthVariables } from "../auth.ts";
 import { db, migrate } from "../db/index.ts";
 import { sessions, users } from "../db/schema.ts";
 import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
-import { loadSession, replaceSessionMessages } from "../services/session-store.ts";
+import { loadSession } from "../services/session-store.ts";
+import { replacePiSessionMessages } from "../services/pi-session-storage.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { createSessionRoutes } from "./sessions.ts";
 import { serializeSession } from "../serializers.ts";
@@ -17,7 +18,7 @@ const jsonHeaders = { "content-type": "application/json" };
 
 test("active-run lease rejects every session mutation and exposes run authority", async () => {
   const fixture = createSession();
-  await replaceSessionMessages(fixture.sessionId, [userMessage("original")]);
+  await replacePiSessionMessages(fixture.sessionId, [userMessage("original")]);
   const storedSession = await loadSession(fixture.sessionId);
   const entryId = storedSession?.messageEntryIds[0];
   assert.ok(entryId);
@@ -128,13 +129,13 @@ test("session images are addressed by entry, so an edit never reuses a cached UR
   const urlOf = (session: { messages: unknown[] }) =>
     ((session.messages[0] as { content: Array<{ url: string }> }).content[0]!).url;
 
-  await replaceSessionMessages(fixture.sessionId, [image(Buffer.from("first").toString("base64"))]);
+  await replacePiSessionMessages(fixture.sessionId, [image(Buffer.from("first").toString("base64"))]);
   const before = (await loadSession(fixture.sessionId))!;
   const firstUrl = urlOf(serializeSession(before));
   assert.ok(firstUrl.includes(encodeURIComponent(before.messageEntryIds[0]!)));
 
   // The same position now holds a different image.
-  await replaceSessionMessages(fixture.sessionId, [image(Buffer.from("second").toString("base64"))]);
+  await replacePiSessionMessages(fixture.sessionId, [image(Buffer.from("second").toString("base64"))]);
   const secondUrl = urlOf(serializeSession((await loadSession(fixture.sessionId))!));
   assert.notEqual(secondUrl, firstUrl);
 

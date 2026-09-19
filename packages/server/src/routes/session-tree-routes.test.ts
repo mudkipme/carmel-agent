@@ -7,7 +7,8 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AuthVariables } from "../auth.ts";
 import { db, migrate } from "../db/index.ts";
 import { users } from "../db/schema.ts";
-import { loadSession, replaceSessionMessages } from "../services/session-store.ts";
+import { loadSession } from "../services/session-store.ts";
+import { replacePiSessionMessages } from "../services/pi-session-storage.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { createSessionRoutes } from "./sessions.ts";
 
@@ -16,7 +17,7 @@ const json = { "content-type": "application/json" };
 
 test("session routes fork, edit, and truncate by native Pi entry ID", async () => {
   const fixture = createSession();
-  await replaceSessionMessages(fixture.sessionId, [
+  await replacePiSessionMessages(fixture.sessionId, [
     userMessage("question"),
     fauxAssistantMessage("answer"),
     userMessage("follow-up"),
@@ -65,7 +66,7 @@ test("truncate and fork refuse a cut that would strand a tool call", async () =>
   // ending a branch on an unanswered tool call makes the session unpromptable,
   // and the provider -- not Carmel -- is where the user would find out.
   const fixture = createSession();
-  await replaceSessionMessages(fixture.sessionId, [
+  await replacePiSessionMessages(fixture.sessionId, [
     userMessage("run ls"),
     assistantToolCall("call-1", "bash"),
     toolResultMessage("call-1", "bash"),
