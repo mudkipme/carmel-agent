@@ -1,3 +1,5 @@
+import { DEFAULT_COMPACTION_SETTINGS } from "@earendil-works/pi-agent-core";
+
 /**
  * What Carmel tells the user about compaction, and the one thing it tells Pi.
  *
@@ -17,11 +19,8 @@ export type CompactionSettings = {
   readonly keepRecentTokens: number;
 };
 
-/** Pi's defaults (unchanged through 0.85), restated so the arithmetic below has no hidden inputs. */
-export const PI_COMPACTION_SETTINGS: CompactionSettings = {
-  reserveTokens: 16_384,
-  keepRecentTokens: 20_000,
-};
+/** Use the same defaults as the harness that performs compaction. */
+export const PI_COMPACTION_SETTINGS: CompactionSettings = DEFAULT_COMPACTION_SETTINGS;
 
 export type ImpossibleReason = "window_below_reserve" | "retained_tail_exceeds_headroom";
 

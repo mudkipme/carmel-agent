@@ -68,6 +68,17 @@ test("a catalog level map reaches the caller when the ref defines none", () => {
   assert.ok(getSupportedThinkingLevels(resolved).includes("max"));
 });
 
+test("Pi catalog model metadata reaches the resolved model unchanged", () => {
+  const catalogModel = {
+    ...resolveModelRef(reasoningRef),
+    inputLimits: { images: { resize: { maxWidth: 1024, maxHeight: 768 } } },
+    promptCache: { short: 300, long: 3600 },
+  };
+  const resolved = resolveModelRef(reasoningRef, { catalogModel });
+  assert.equal(resolved.inputLimits, catalogModel.inputLimits);
+  assert.equal(resolved.promptCache, catalogModel.promptCache);
+});
+
 test("the stored entry overrides the catalog per level, keeping unrelated keys", () => {
   const resolved = resolveModelRef(
     { ...reasoningRef, thinkingLevelMap: { max: "ultra" } },

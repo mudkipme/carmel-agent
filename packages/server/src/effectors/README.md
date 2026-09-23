@@ -10,7 +10,7 @@ path.
 | Path | Rule |
 | --- | --- |
 | `contracts/` | What Carmel needs, named in Carmel's terms. No Pi imports, with one documented exception in `contracts/messages.ts`. |
-| `pi-0-85/` | Adapters onto the Pi we ship today. |
+| `pi-0-87/` | Adapters onto the Pi we ship today. |
 | `testing/` | Fakes, plus contract suites that any implementation must pass. |
 | `dispatch-prompt.ts` | Policy over a port. Pi-free by construction. |
 
@@ -25,7 +25,7 @@ by `reconcileLaneConfiguration` in the adapter.
 
 ## Porting to a new Pi
 
-1. Copy `pi-0-85/` to `pi-<version>/` and fix it until it compiles.
+1. Copy `pi-0-87/` to `pi-<version>/` and fix it until it compiles.
 2. Add a factory for it to `effectors.test.ts`. The existing contract suite runs
    against it unchanged.
 3. Ship when it is green.
@@ -36,7 +36,7 @@ operation whose meaning changed.
 
 ## Compaction
 
-Pi 0.85 does all of it: it checks the threshold at every checkpoint of a run,
+Pi 0.87 does all of it: it checks the threshold at every checkpoint of a run,
 and when a generation overflows it compacts and retries that generation once.
 Carmel compacts nothing itself. `compaction-policy.ts` covers the one thing Pi
 gets wrong, and the wording for what Pi reports.

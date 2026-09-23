@@ -15,7 +15,7 @@ import type { DriverResources, PromptDispatcher } from "../contracts/agent-drive
 import type { SessionLog } from "../contracts/session-log.ts";
 
 /**
- * The loop-facing half of the Pi 0.85 adapter: prompt dispatch, event
+ * The loop-facing half of the Pi 0.87 adapter: prompt dispatch, event
  * subscription, and lane configuration. `AgentHarness` keeps session-scoped
  * configuration; everything that drives a conversation lives on `AgentLane`.
  */

@@ -1,21 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_COMPACTION_SETTINGS } from "@earendil-works/pi-agent-core";
 import {
   compactionCannotHelp,
   describePreflightPressure,
-  PI_COMPACTION_SETTINGS,
   type CompactionSettings,
 } from "./compaction-policy.ts";
 
 const SETTINGS: CompactionSettings = { reserveTokens: 100, keepRecentTokens: 200 };
-
-test("the restated settings are Pi's shipped defaults", () => {
-  // The arithmetic here predicts what Pi will do, so a changed default must
-  // fail here rather than quietly mispredict in production.
-  assert.equal(PI_COMPACTION_SETTINGS.reserveTokens, DEFAULT_COMPACTION_SETTINGS.reserveTokens);
-  assert.equal(PI_COMPACTION_SETTINGS.keepRecentTokens, DEFAULT_COMPACTION_SETTINGS.keepRecentTokens);
-});
 
 test("a window with room past the retained tail can be compacted", () => {
   assert.equal(compactionCannotHelp(1_000, SETTINGS), undefined);

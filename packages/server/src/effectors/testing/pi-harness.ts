@@ -17,12 +17,12 @@ import {
   readPiSessionBranch,
   registerPiSessionLane,
 } from "../../services/pi-session-storage.ts";
-import { createPiSessionLog, PI_MAIN_BRANCH } from "../pi-0-85/session-log.ts";
-import { observeHarnessEvents } from "../pi-0-85/agent-driver.ts";
+import { createPiSessionLog, PI_MAIN_BRANCH } from "../pi-0-87/session-log.ts";
+import { observeHarnessEvents } from "../pi-0-87/agent-driver.ts";
 import type { SessionLog } from "../contracts/session-log.ts";
 
 /**
- * Opening a Pi 0.85 harness, for tests.
+ * Opening a Pi 0.87 harness, for tests.
  *
  * `new AgentHarness({...})` became `AgentHarness.create({...}, context)` plus a
  * lane acquisition, and every call takes a `Context`. That is three lines of

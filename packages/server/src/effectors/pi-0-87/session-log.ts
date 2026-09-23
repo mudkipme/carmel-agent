@@ -3,7 +3,7 @@ import { closePiSession, PI_MAIN_BRANCH } from "../../services/pi-session-storag
 import type { BranchEntry, SessionLog } from "../contracts/session-log.ts";
 import type { SessionMessage } from "../contracts/messages.ts";
 
-/** `SessionLog` over Pi 0.85's `Session`, read and written through the open lane. */
+/** `SessionLog` over Pi 0.87's `Session`, read and written through the open lane. */
 
 export { PI_MAIN_BRANCH };
 

@@ -7,7 +7,7 @@ import { join } from "node:path";
 import {
   createExtensionToolContext,
   loadExtensionToolProviders,
-} from "./pi-0-85/extension-tools.ts";
+} from "./pi-0-87/extension-tools.ts";
 import { collectAgentTools, type ToolProvisionContext } from "./contracts/tool-provider.ts";
 
 const EXTENSION_SOURCE = `

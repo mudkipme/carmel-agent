@@ -103,6 +103,10 @@ export class AgentExecutionEnv implements ExecutionEnv {
     return this.delegatePath(path, "read", context, (resolved) => this.node.readTextFile(resolved, context));
   }
 
+  async openTextLineReader(path: string, context: Context) {
+    return this.delegatePath(path, "read", context, (resolved) => this.node.openTextLineReader(resolved, context));
+  }
+
   async readTextLines(
     path: string,
     options: { maxLines?: number } | undefined,

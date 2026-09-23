@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import type { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
@@ -51,6 +51,35 @@ test("resource discovery cannot follow a skill symlink outside readable roots", 
     const resources = await loadAgentResources(env.agent, env);
     assert.deepEqual(resources.skills, []);
     assert.ok(resources.diagnostics.some((diagnostic) => /outside the agent working directory/.test(diagnostic.message)));
+  } finally {
+    await env.cleanup(TEST_CONTEXT);
+  }
+});
+
+test("Pi's text line reader preserves line endings and respects agent read roots", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-reader-"));
+  const outsideDir = mkdtempSync(join(tmpdir(), "carmel-agent-outside-"));
+  writeFileSync(join(workingDir, "session.jsonl"), "complete\npartial");
+  writeFileSync(join(outsideDir, "secret.jsonl"), "secret\n");
+  symlinkSync(join(outsideDir, "secret.jsonl"), join(workingDir, "escape.jsonl"));
+  const env = new AgentExecutionEnv(makeAgent(workingDir));
+
+  try {
+    const opened = await env.openTextLineReader("session.jsonl", TEST_CONTEXT);
+    if (!opened.ok) assert.fail(opened.error.message);
+    try {
+      assert.deepEqual(await opened.value.readLine(TEST_CONTEXT), { ok: true, value: { text: "complete", terminated: true } });
+      assert.deepEqual(await opened.value.readLine(TEST_CONTEXT), { ok: true, value: { text: "partial", terminated: false } });
+      assert.deepEqual(await opened.value.readLine(TEST_CONTEXT), { ok: true, value: undefined });
+    } finally {
+      await opened.value.close(TEST_CONTEXT);
+    }
+
+    for (const path of [relative(workingDir, join(outsideDir, "secret.jsonl")), "escape.jsonl"]) {
+      const denied = await env.openTextLineReader(path, TEST_CONTEXT);
+      assert.equal(denied.ok, false);
+      if (!denied.ok) assert.equal(denied.error.code, "permission_denied");
+    }
   } finally {
     await env.cleanup(TEST_CONTEXT);
   }

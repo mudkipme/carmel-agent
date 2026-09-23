@@ -13,6 +13,7 @@ import {
   type TextContent,
   type ThinkingLevel,
   type Tool,
+  type ToolCall,
   type Usage,
 } from "@earendil-works/pi-ai";
 import { z } from "zod";
@@ -417,11 +418,12 @@ function parseDataUrl(url: string): ImageContent {
   return { type: "image", mimeType: match[1]!, data: match[2]! };
 }
 
-function parseToolArguments(raw: string | undefined): Record<string, unknown> {
+function parseToolArguments(raw: string | undefined): ToolCall["arguments"] {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+    // JSON.parse guarantees JSON-compatible nested values once the root is an object.
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as ToolCall["arguments"]) : {};
   } catch {
     throw new OpenAICompatError("tool_calls[].function.arguments must be a JSON object.");
   }

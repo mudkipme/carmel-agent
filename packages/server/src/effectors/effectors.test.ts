@@ -4,7 +4,7 @@ import { migrate } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
 import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "./testing/pi-harness.ts";
-import { reconcileLaneConfiguration, type PiConfigLane } from "./pi-0-85/agent-driver.ts";
+import { reconcileLaneConfiguration, type PiConfigLane } from "./pi-0-87/agent-driver.ts";
 import { FakeSessionLog } from "./testing/fake-session-log.ts";
 import { runSessionLogContract } from "./testing/session-log-contract.ts";
 import { dispatchPrompt } from "./dispatch-prompt.ts";

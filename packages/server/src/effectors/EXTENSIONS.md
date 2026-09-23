@@ -5,7 +5,7 @@ extension providers are Pi extensions an administrator installs on the server.
 
 ```
 effectors/contracts/tool-provider.ts     the port + `collectAgentTools`
-effectors/pi-0-85/extension-tools.ts     loads Pi extensions, synthesizes their context
+effectors/pi-0-87/extension-tools.ts     loads Pi extensions, synthesizes their context
 runtime/tool-providers/                  the built-in providers
 runtime/extension-registry.ts            loads once at startup, owns the provider list
 ```
@@ -88,7 +88,7 @@ enforcement that does not exist. Per-agent enablement is the real gate.
 
 ## Two reworks are coming
 
-Keep pi-facing extension code in `effectors/pi-0-85/`:
+Keep pi-facing extension code in `effectors/pi-0-87/`:
 
 1. **Pi v2** reshapes `ExtensionAPI` along with the harness.
 2. **Sandboxing** moves execution out of process. The registry, the admin API,

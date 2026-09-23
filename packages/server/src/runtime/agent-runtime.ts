@@ -40,8 +40,8 @@ import {
   observeHarnessEvents,
   reconcileLaneConfiguration,
   type PiDispatcherOptions,
-} from "../effectors/pi-0-85/agent-driver.ts";
-import { createPiSessionLog, PI_MAIN_BRANCH } from "../effectors/pi-0-85/session-log.ts";
+} from "../effectors/pi-0-87/agent-driver.ts";
+import { createPiSessionLog, PI_MAIN_BRANCH } from "../effectors/pi-0-87/session-log.ts";
 import {
   compactionCannotHelp,
   describeCompactionFailure,
@@ -90,7 +90,7 @@ type RunHarness = AgentHarness<ExecutionToolContext>;
 /**
  * The invocation context every Pi call in a run is made under.
  *
- * Deliberately not cancellable. Pi 0.85 requires a `Context` everywhere, and the
+ * Deliberately not cancellable. Pi requires a `Context` everywhere, and the
  * obvious move -- hanging the run's abort on it -- would be a behaviour change,
  * not a migration: 0.83 passed no signal at all, and the harness derives its own
  * cancellable child context around each provider and tool call from the gate
@@ -517,7 +517,7 @@ export async function prepareAgentRunPrompt(
  * The rule -- which slash commands exist and which wins when a name is
  * ambiguous -- lives in `effectors/dispatch-prompt.ts` with no Pi imports; the
  * Pi-shaped parts (invocation formatting, argument parsing, inlining a named
- * invocation that carries an attachment) live in the `pi-0-85` adapter.
+ * invocation that carries an attachment) live in the `pi-0-87` adapter.
  */
 export async function runHarnessPrompt(
   dispatch: PiDispatcherOptions,
