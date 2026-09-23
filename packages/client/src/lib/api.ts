@@ -287,6 +287,8 @@ export const api = {
     }),
   getSessionConnection: (sessionId: string, signal?: AbortSignal) =>
     request<SessionConnection>(`/api/sessions/${encodeURIComponent(sessionId)}/connection`, { signal }),
+  listActiveSessions: (agentId: string, signal?: AbortSignal) =>
+    request<{ sessionIds: string[] }>(`/api/agents/${encodeURIComponent(agentId)}/active-sessions`, { signal }),
   abortAgentRun: (runId: string) =>
     request<unknown>(`/api/agent-runs/${encodeURIComponent(runId)}/abort`, { method: "POST" }),
   updateSession: (sessionId: string, patch: SessionPatch) =>

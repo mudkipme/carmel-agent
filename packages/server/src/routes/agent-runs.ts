@@ -1,5 +1,5 @@
 import { type ActiveAgentRunSummary, agentRunRequestSchema, type PromptInput } from "@carmel-agent/shared";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
@@ -11,7 +11,7 @@ import {
   normalizePromptInput,
   startDetachedAgentRun,
 } from "../runtime/agent-runtime.ts";
-import { createRunStream } from "../runtime/run-stream.ts";
+import { createRunStream, getActiveSessionIdsForUser } from "../runtime/run-stream.ts";
 import { issueRunAddons, noteIssueRunStarted } from "../services/issues.ts";
 import { readVisibleAgent } from "../services/agent-access.ts";
 import { NO_PROVIDER_AUTH_MESSAGE, resolveRunModel } from "../services/model-context.ts";
@@ -21,6 +21,23 @@ import { errorMessage } from "../errors.ts";
 
 export function createAgentRunRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
+
+  route.get("/agents/:id/active-sessions", (c) => {
+    const userId = c.get("user").id;
+    const agent = readVisibleAgent(userId, c.req.param("id"));
+    if (!agent) return c.json({ error: "Agent not found" }, 404);
+    const activeSessionIds = getActiveSessionIdsForUser(userId);
+    if (activeSessionIds.length === 0) return c.json({ sessionIds: [] });
+    const listed = db.select({ id: sessions.id }).from(sessions).where(and(
+      inArray(sessions.id, activeSessionIds),
+      eq(sessions.userId, userId),
+      eq(sessions.agentId, agent.id),
+      isNull(sessions.archivedAt),
+      isNull(sessions.taskId),
+      isNull(sessions.issueId),
+    )).all();
+    return c.json({ sessionIds: listed.map((session) => session.id) });
+  });
 
   route.post("/agent-runs/:runId/abort", (c) => {
     const aborted = abortAgentRun(c.get("user").id, c.req.param("runId"));

@@ -103,6 +103,9 @@ paths:
   /api/agents/{agentId}/archived-sessions:
     parameters: [{$ref: '#/components/parameters/AgentID'}]
     get: {operationId: listArchivedSessions, tags: [Sessions], responses: {'200': {description: Archived sessions, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/SessionMetadata'}}}}}, '404': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{id}/active-sessions:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get: {operationId: listActiveSessions, tags: [Sessions], responses: {'200': {description: Active listed session IDs, content: {application/json: {schema: {type: object, required: [sessionIds], properties: {sessionIds: {type: array, items: {type: string}}}}}}}, '404': {$ref: '#/components/responses/Error'}}}
   /api/sessions/import/open-webui:
     post: {operationId: importOpenWebUISessions, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/OpenWebUIImport'}, responses: {'201': {description: Import result, content: {application/json: {schema: {type: object, additionalProperties: true}}}}}}
   /api/sessions/{id}:

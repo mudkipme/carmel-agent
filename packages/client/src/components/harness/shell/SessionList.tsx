@@ -1,4 +1,4 @@
-import { ArchiveIcon, EllipsisIcon, PencilIcon, Pin, PinOff, SearchIcon, Trash2Icon } from "lucide-react";
+import { ArchiveIcon, EllipsisIcon, LoaderCircleIcon, PencilIcon, Pin, PinOff, SearchIcon, Trash2Icon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -27,10 +27,14 @@ const SEARCH_THRESHOLD = 8;
 
 export function SessionList({
   sessions,
+  runningSessionIds,
+  runOverrides,
   activeSessionId,
   onOpenSession,
 }: {
   sessions: SessionMetadata[];
+  runningSessionIds: Set<string>;
+  runOverrides: Record<string, boolean>;
   activeSessionId?: string;
   onOpenSession: () => void;
 }) {
@@ -81,9 +85,13 @@ export function SessionList({
                 >
                   <span className="sr-only">Open session</span>
                   <span className="flex min-w-0 items-center gap-1.5">
+                    {(runOverrides[session.id] ?? runningSessionIds.has(session.id)) ? (
+                      <LoaderCircleIcon aria-hidden="true" className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none text-[var(--color-blue)]" />
+                    ) : null}
                     {session.pinnedAt ? <Pin className="size-3 shrink-0 text-faint" /> : null}
                     <span className="truncate text-[13px]">{session.title}</span>
                   </span>
+                  {(runOverrides[session.id] ?? runningSessionIds.has(session.id)) ? <span className="sr-only">Running</span> : null}
                 </button>
                 <SessionActions
                   session={session}

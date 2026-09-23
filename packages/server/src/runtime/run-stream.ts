@@ -90,6 +90,12 @@ export function getActiveAgentRunForSessionId(sessionId: string) {
   };
 }
 
+export function getActiveSessionIdsForUser(userId: string) {
+  return [...activeAgentRuns.values()]
+    .filter((run) => run.userId === userId)
+    .map((run) => run.sessionId);
+}
+
 /**
  * Where a client joining this run should start reading.
  *

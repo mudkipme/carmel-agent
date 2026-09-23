@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
 import { NewSessionView } from "@/components/harness/NewSessionView";
@@ -39,6 +39,7 @@ import {
   type ContentView,
 } from "@/components/harness/shell/sidebar-utils";
 import { agentFilesPath } from "@/lib/file-links";
+import { api } from "@/lib/api";
 import { sortSessions } from "@/lib/session-groups";
 import { canOpenTerminal as canUserOpenTerminal, resolveShellRoute } from "@/lib/shell-route";
 import { cn } from "@/lib/utils";
@@ -82,6 +83,9 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [lookedUpSessionId, setLookedUpSessionId] = useState<string>();
+  const [serverRunningSessionIds, setServerRunningSessionIds] = useState<Set<string>>(() => new Set());
+  const [runOverrides, setRunOverrides] = useState<Record<string, boolean>>({});
+  const runOverrideRevision = useRef(0);
 
   const visibleAgents = useMemo(() => agents.filter((agent) => canUserSeeAgent(agent, userId)), [agents, userId]);
   const routeSession = routeSessionId
@@ -135,6 +139,48 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   }, [location.pathname, navigate, redirectTo]);
 
   const activeAgentId = activeAgent?.id;
+  const openChatSessionId = view === "chat" ? activeSession?.id : undefined;
+
+  useEffect(() => {
+    if (!activeAgentId) return;
+    const controller = new AbortController();
+    let pending = false;
+    const refresh = async () => {
+      if (pending) return;
+      pending = true;
+      const revision = runOverrideRevision.current;
+      try {
+        const { sessionIds } = await api.listActiveSessions(activeAgentId, controller.signal);
+        if (controller.signal.aborted) return;
+        setServerRunningSessionIds(new Set(sessionIds));
+        if (runOverrideRevision.current === revision) {
+          // The open chat knows a prompt has started before the server registers
+          // its run. Keep that local signal until the chat reports completion.
+          setRunOverrides((current) => Object.fromEntries(
+            Object.entries(current).filter(([id, running]) => running && id === openChatSessionId),
+          ));
+        }
+      } catch {
+        // Keep the last known status until the next poll succeeds.
+      } finally {
+        pending = false;
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 4_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, [activeAgentId, openChatSessionId]);
+
+  const onActiveSessionStreamingChange = useCallback((streaming: boolean, hasStreamed: boolean) => {
+    const sessionId = activeSession?.id;
+    if (!sessionId || !hasStreamed) return;
+    runOverrideRevision.current += 1;
+    setRunOverrides((current) => ({ ...current, [sessionId]: streaming }));
+  }, [activeSession?.id]);
+
   useEffect(() => {
     if (activeAgentId) rememberAgent(activeAgentId);
   }, [activeAgentId, rememberAgent]);
@@ -254,6 +300,8 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
         contentView={view}
         visibleAgents={visibleAgents}
         visibleSessions={visibleSessions}
+        runningSessionIds={serverRunningSessionIds}
+        runOverrides={runOverrides}
         visibleIssues={visibleIssues}
         sidebarOpen={sidebarOpen}
         sidebarWidth={sidebarWidth}
@@ -361,6 +409,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
               modelRef={activeModel}
               modelRefs={modelRefs}
               providerConfigs={providerConfigs}
+              onStreamingChange={onActiveSessionStreamingChange}
             />
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">

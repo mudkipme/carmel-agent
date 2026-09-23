@@ -22,7 +22,7 @@ type PiChatProps = {
   /** See `ChatMessages`: folds each run's working away behind a row of its own. */
   collapseRunDetails?: boolean;
   /** Told when a run starts or ends, for views that show run state outside the chat. */
-  onStreamingChange?: (streaming: boolean) => void;
+  onStreamingChange?: (streaming: boolean, hasStreamed: boolean) => void;
 };
 
 export function PiChat({
@@ -35,6 +35,7 @@ export function PiChat({
   onStreamingChange,
 }: PiChatProps) {
   const chatInputRef = useRef<ChatInputHandle | null>(null);
+  const hasStreamedRef = useRef(false);
   const inputDraftRef = useRef("");
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot } = useSessionAgent(agentConfig, session, modelRef);
@@ -56,7 +57,8 @@ export function PiChat({
   }, [agent, sendMessage, session.id]);
 
   useEffect(() => {
-    onStreamingChange?.(snapshot.isStreaming);
+    if (snapshot.isStreaming) hasStreamedRef.current = true;
+    onStreamingChange?.(snapshot.isStreaming, hasStreamedRef.current);
   }, [onStreamingChange, snapshot.isStreaming]);
 
   const insertCommandText = (text: string) => {

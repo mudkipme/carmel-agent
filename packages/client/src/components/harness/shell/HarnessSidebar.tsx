@@ -20,6 +20,8 @@ export function HarnessSidebar({
   contentView,
   visibleAgents,
   visibleSessions,
+  runningSessionIds,
+  runOverrides,
   visibleIssues,
   sidebarOpen,
   sidebarWidth,
@@ -37,6 +39,8 @@ export function HarnessSidebar({
   contentView: ContentView;
   visibleAgents: AgentConfig[];
   visibleSessions: SessionMetadata[];
+  runningSessionIds: Set<string>;
+  runOverrides: Record<string, boolean>;
   visibleIssues: Issue[];
   sidebarOpen: boolean;
   sidebarWidth: number;
@@ -125,6 +129,8 @@ export function HarnessSidebar({
                 <SessionList
                   key={activeAgent?.id}
                   sessions={visibleSessions}
+                  runningSessionIds={runningSessionIds}
+                  runOverrides={runOverrides}
                   activeSessionId={activeSession?.id}
                   onOpenSession={onOpenSession}
                 />
