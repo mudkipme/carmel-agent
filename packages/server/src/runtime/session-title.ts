@@ -26,10 +26,10 @@ export async function generateSessionTitle({
 
   const supportedThinkingLevels = getSupportedThinkingLevels(model);
   const titleThinkingLevel = getTitleThinkingLevel(model, supportedThinkingLevels);
-  const titleModel: Model<Api> = titleThinkingLevel === "off" ? { ...model, reasoning: false } : model;
   const maxTokens = titleThinkingLevel === "off" ? 64 : 1024;
+  // Keep the model's reasoning metadata so Pi can send its configured off value.
   const response = await completeSimple(
-    titleModel,
+    model,
     {
       systemPrompt:
         "Generate a concise chat title. Return only the title, with no quotes, no markdown, and no punctuation suffix.",
