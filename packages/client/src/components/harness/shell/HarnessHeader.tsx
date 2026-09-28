@@ -28,7 +28,7 @@ export function HarnessHeader({
   /* Files and the terminal replace the session in the main column, so the
      title names the pane you are actually looking at. */
   const title =
-    contentView === "files"
+    contentView === "inbox" ? "Inbox" : contentView === "files"
       ? "Files"
       : contentView === "changes"
         ? "Changes"
@@ -62,8 +62,8 @@ export function HarnessHeader({
         <div className="min-w-0">
           <h2 className="truncate text-[13px] font-medium">{title}</h2>
           <p className="text-ui-smaller truncate text-muted-foreground">
-            {activeAgent?.name ?? "No agent"}
-            {customWorkingDir ? ` · ${customWorkingDir}` : ""}
+            {contentView === "inbox" ? "All agents · Your activity" : activeAgent?.name ?? "No agent"}
+            {customWorkingDir && contentView !== "inbox" ? ` · ${customWorkingDir}` : ""}
           </p>
         </div>
       </div>

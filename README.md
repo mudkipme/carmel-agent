@@ -7,6 +7,8 @@ It runs on your machine or your server. Nothing leaves your host except the call
 ## What You Get
 
 - **Chat with agents that keep working.** Sessions persist, runs continue on the server if you close the tab, and reopening a session reconnects to a run in progress.
+- **An inbox for your agents' work.** Find new replies, issue questions and review requests, and scheduled task results across agents. Read state is saved on the server; opening an update takes you to its conversation or task history.
+- **Answers with the work tucked away.** Sessions fold thinking, tool calls and intermediate commentary under a “Show work” row, keeping the final answer and errors visible.
 - **Agents you shape.** Each agent has its own workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
 - **Sandboxed shell.** When an agent is allowed to run commands, they execute in a per-agent container with CPU, memory, PID, mount, and network limits — not on your host shell.
 - **A terminal in the browser.** Open an interactive shell straight into an agent's container, with the same environment its own commands get. The shell lives on the server, so a reload reattaches instead of starting over.

@@ -56,6 +56,8 @@ test("representative response fixtures satisfy every response component", async 
   const file = { name: "README.md", path: "README.md", type: "file", size: 12, updatedAt: 1, hidden: false };
   const task = { id: "t1", agentId: "a1", userId: "u1", name: "Check", prompt: "Check", scheduleKind: "interval", scheduleValue: "3600", status: "active", createdAt: 1, updatedAt: 1 };
   const fixtures: Record<string, unknown> = {
+    ActivityItem: { id: 1, agentId: "a1", agentName: "Agent", sessionId: "s1", issueId: null, taskId: null, title: "Reply ready", summary: "A new reply", kind: "completed", createdAt: 1, readAt: null },
+    ActivityPage: { items: [], unreadCount: 0, nextCursor: null },
     Error: { error: "Nope" },
     OK: { ok: true },
     SetupStatus: { needsSetup: false, passwordLogin: true, oidc: { providerName: "Pocket ID" } },

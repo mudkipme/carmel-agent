@@ -52,7 +52,7 @@ export const ChatMessages = memo(function ChatMessages({
   streamingMessage,
   pendingToolCalls,
   isStreaming,
-  collapseRunDetails = false,
+  collapseRunDetails = true,
   onEditMessage,
   onRetryMessage,
   onForkMessage,
@@ -143,7 +143,7 @@ function CollapsedRun({
   const assistants = messages.filter(
     (entry): entry is { message: AssistantMessageType; index: number } => entry.message.role === "assistant",
   );
-  const answer = [...assistants].reverse().find((entry) => hasText(entry.message));
+  const answer = [...assistants].reverse().find((entry) => hasText(entry.message) || entry.message.content.some((part) => (part as { type: string }).type === "image"));
   const last = assistants.at(-1);
   const toolCalls = assistants.reduce(
     (count, entry) => count + entry.message.content.filter((part) => part.type === "toolCall").length,
@@ -222,6 +222,9 @@ function AnswerOnly({
   return (
     <div className="group flex min-w-0 flex-col gap-1 px-4 text-sm">
       <MarkdownContent content={text} />
+      {(message.content as DisplayAssistantContentPart[]).map((part, index) => part.type === "image" ? (
+        <ImagePreview key={index} data={part.data} url={part.url} mimeType={part.mimeType} label="Image" />
+      ) : null)}
       <div className="-mt-1">
         <MessageActions message={message} onEdit={onEditMessage} onFork={onForkMessage} />
       </div>

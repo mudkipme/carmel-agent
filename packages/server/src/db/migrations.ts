@@ -94,7 +94,40 @@ const migrations: Migration[] = [
     run: clearDanglingTaskModels,
   },
   { id: "025_api_keys", description: "Create per-user keys for the OpenAI-compatible API", run: createApiKeys },
+  { id: "026_activity_inbox", description: "Persist private run activity and read state", run: createActivityInbox },
 ];
+
+function createActivityInbox(sqlite: Sqlite) {
+  sqlite.exec(`
+    CREATE TABLE activity (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_key TEXT NOT NULL UNIQUE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
+      issue_id TEXT REFERENCES issues(id) ON DELETE CASCADE,
+      task_id TEXT REFERENCES agent_tasks(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      read_at INTEGER
+    );
+    CREATE INDEX activity_user_recent ON activity(user_id, id DESC);
+    CREATE INDEX activity_user_unread ON activity(user_id, read_at, id DESC);
+    INSERT INTO activity(event_key, user_id, agent_id, session_id, issue_id, title, summary, kind, created_at)
+    SELECT 'existing-issue:' || id, user_id, agent_id, session_id, id, title,
+      COALESCE(CASE WHEN last_run_outcome IN ('failed', 'interrupted') THEN last_run_detail ELSE verdict_summary END, 'Open the issue to review its last run.'),
+      CASE WHEN last_run_outcome = 'failed' THEN 'failed'
+        WHEN last_run_outcome IN ('interrupted', 'cancelled') THEN 'interrupted'
+        WHEN verdict = 'needs_input' THEN 'needs_input'
+        WHEN verdict = 'blocked' THEN 'blocked' ELSE 'review' END,
+      updated_at
+    FROM issues WHERE status = 'open' AND (last_run_outcome IS NOT NULL OR verdict IS NOT NULL)
+      AND session_id IN (SELECT id FROM sessions)
+    ORDER BY updated_at;
+  `);
+}
 
 export function runMigrations(sqlite: Sqlite) {
   sqlite.exec(`

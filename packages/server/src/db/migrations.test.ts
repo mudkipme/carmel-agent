@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import Database from "better-sqlite3";
+import { runMigrations } from "./migrations.ts";
+import { seedDatabase } from "./seed.ts";
 import { migrate, seed, sqlite } from "./index.ts";
 
 migrate();
@@ -9,7 +12,7 @@ const rowCount = (table: string) =>
 
 test("all versioned migrations apply and remove legacy session tables", () => {
   const applied = sqlite.prepare("SELECT id FROM schema_migrations ORDER BY id").all() as Array<{ id: string }>;
-  assert.equal(applied.at(-1)?.id, "025_api_keys");
+  assert.equal(applied.at(-1)?.id, "026_activity_inbox");
 
   const legacyTables = sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('session_messages', 'pi_session_entries')")
@@ -43,4 +46,24 @@ test("model identity constraints are migration-owned", () => {
   const indexes = sqlite.prepare("PRAGMA index_list(model_refs)").all() as Array<{ name: string }>;
   assert.ok(indexes.some(({ name }) => name === "model_refs_provider_config_model_unique"));
   assert.ok(indexes.some(({ name }) => name === "model_refs_provider_model_unique"));
+});
+
+test("inbox upgrade preserves open issue outcomes without reviving resolved work", () => {
+  const previous = new Database(":memory:");
+  previous.pragma("foreign_keys = ON");
+  try {
+    runMigrations(previous);
+    seedDatabase(previous);
+    previous.exec("DROP TABLE activity; DELETE FROM schema_migrations WHERE id = '026_activity_inbox'");
+    const session = previous.prepare("SELECT id, user_id AS userId, agent_id AS agentId FROM sessions LIMIT 1").get() as { id: string; userId: string; agentId: string };
+    const insert = previous.prepare(`INSERT INTO issues(id, user_id, agent_id, session_id, title, description, status, last_run_outcome, verdict, verdict_summary, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'Review this', 'Brief', ?, 'succeeded', 'needs_input', 'Which region?', 1, 2)`);
+    insert.run("open-issue", session.userId, session.agentId, session.id, "open");
+    insert.run("closed-issue", session.userId, session.agentId, session.id, "resolved");
+    runMigrations(previous);
+    runMigrations(previous);
+    const rows = previous.prepare("SELECT issue_id, kind, summary, read_at FROM activity").all();
+    assert.deepEqual(rows, [{ issue_id: "open-issue", kind: "needs_input", summary: "Which region?", read_at: null }]);
+    assert.deepEqual(previous.pragma("foreign_key_check"), []);
+  } finally { previous.close(); }
 });

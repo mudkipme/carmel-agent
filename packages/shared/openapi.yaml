@@ -19,7 +19,42 @@ tags:
   - {name: Files}
   - {name: Tasks}
   - {name: Issues}
+  - {name: Activity}
 paths:
+  /api/activity:
+    get:
+      operationId: listActivity
+      tags: [Activity]
+      parameters:
+        - {name: filter, in: query, schema: {type: string, enum: [unread, attention, all], default: unread}}
+        - {name: before, in: query, schema: {type: integer, minimum: 1}}
+      responses:
+        '200': {description: Private activity page, content: {application/json: {schema: {$ref: '#/components/schemas/ActivityPage'}}}}
+        '400': {$ref: '#/components/responses/Error'}
+  /api/activity/unread-count:
+    get:
+      operationId: getActivityUnreadCount
+      tags: [Activity]
+      responses:
+        '200': {description: Unread count across visible agents, content: {application/json: {schema: {type: object, required: [unreadCount], properties: {unreadCount: {type: integer, minimum: 0}}}}}}
+  /api/activity/read:
+    patch:
+      operationId: setActivityRead
+      tags: [Activity]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ids, read]
+              properties:
+                ids: {type: array, minItems: 1, maxItems: 500, items: {type: integer, minimum: 1}}
+                read: {type: boolean}
+      responses:
+        '200': {$ref: '#/components/responses/JSONSuccess'}
+        '400': {$ref: '#/components/responses/Error'}
   /api/health:
     get: {operationId: health, tags: [Bootstrap], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
   /api/bootstrap:
@@ -250,6 +285,28 @@ components:
     IssueCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueCreateRequest'}}}}
     IssuePatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssuePatchRequest'}}}}
   schemas:
+    ActivityItem:
+      type: object
+      required: [id, agentId, agentName, sessionId, issueId, taskId, title, summary, kind, createdAt, readAt]
+      properties:
+        id: {type: integer}
+        agentId: {type: string}
+        agentName: {type: string}
+        sessionId: {type: string, nullable: true}
+        issueId: {type: string, nullable: true}
+        taskId: {type: string, nullable: true}
+        title: {type: string}
+        summary: {type: string}
+        kind: {type: string, enum: [needs_input, blocked, failed, review, completed, interrupted, missed]}
+        createdAt: {type: integer}
+        readAt: {type: integer, nullable: true}
+    ActivityPage:
+      type: object
+      required: [items, unreadCount, nextCursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/ActivityItem'}}
+        unreadCount: {type: integer, minimum: 0}
+        nextCursor: {type: integer, nullable: true}
     Error: {type: object, required: [error], properties: {error: {type: string}}}
     OK: {type: object, required: [ok], properties: {ok: {type: boolean}}}
     SetupStatus: {type: object, required: [needsSetup, passwordLogin], properties: {needsSetup: {type: boolean}, passwordLogin: {type: boolean}, oidc: {type: object, required: [providerName], properties: {providerName: {type: string}}}}}

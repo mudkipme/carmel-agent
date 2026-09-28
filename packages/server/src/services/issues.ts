@@ -15,6 +15,7 @@ import { readVisibleAgent } from "./agent-access.ts";
 import { NO_PROVIDER_AUTH_MESSAGE } from "./model-context.ts";
 import { deletePiSession } from "./pi-session-storage.ts";
 import { prepareSessionRun } from "./session-launch.ts";
+import { acknowledgeIssueActivity } from "./activity.ts";
 
 type IssueRecord = typeof issues.$inferSelect;
 type SessionRecord = typeof sessions.$inferSelect;
@@ -118,6 +119,7 @@ export function noteIssueRunStarted(session: SessionRecord, run: ActiveAgentRun)
   if (!session.issueId) return;
   const issue = db.select().from(issues).where(eq(issues.id, session.issueId)).get();
   if (!issue) return;
+  acknowledgeIssueActivity(issue.id);
   db.update(issues)
     .set({ status: "open", closedAt: null, verdict: null, verdictSummary: null, updatedAt: now() })
     .where(eq(issues.id, issue.id))
@@ -237,6 +239,7 @@ export function updateIssue(
     updatedAt: timestamp,
   };
   db.update(issues).set(row).where(eq(issues.id, issueId)).run();
+  if (status !== "open") acknowledgeIssueActivity(issueId);
   if (patch.title !== undefined) {
     db.update(sessions).set({ title: patch.title }).where(eq(sessions.id, current.sessionId)).run();
   }
@@ -257,6 +260,7 @@ export function cancelIssue(userId: string, agentId: string, issueId: string): I
   const timestamp = now();
   const row: IssueRecord = { ...current, status: "cancelled", closedAt: timestamp, updatedAt: timestamp };
   db.update(issues).set(row).where(eq(issues.id, issueId)).run();
+  acknowledgeIssueActivity(issueId);
   return serializeIssue(row);
 }
 

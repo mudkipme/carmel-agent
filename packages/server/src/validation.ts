@@ -7,6 +7,12 @@ export function jsonValidator<TSchema extends z.ZodType>(schema: TSchema) {
   });
 }
 
+export function queryValidator<TSchema extends z.ZodType>(schema: TSchema) {
+  return zValidator("query", schema, (result, c) => {
+    if (!result.success) return c.json({ error: validationErrorMessage(result.error) }, 400);
+  });
+}
+
 export function isValidationError(error: unknown) {
   return error instanceof ZodError;
 }
