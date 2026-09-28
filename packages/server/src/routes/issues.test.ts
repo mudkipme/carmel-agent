@@ -2,188 +2,299 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import type { Issue } from "@carmel-agent/shared";
+import type { IssueDetail } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
 import { db, migrate } from "../db/index.ts";
-import { issues, modelRefs, sessions, users } from "../db/schema.ts";
+import { issues, issueAttempts, modelRefs, sessions, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
-import { issueRunAddons, noteIssueRunStarted } from "../services/issues.ts";
+import {
+  createIssue,
+  readIssueView,
+  runIssue,
+  finishIssueAttempt,
+  issueRunAddons,
+  recoverIssueAttempts,
+  interruptIssue,
+} from "../services/issues.ts";
+import { readActivity } from "../services/activity.ts";
 import { createAgent, createUser } from "../test-support.ts";
 import { createIssueRoutes } from "./issues.ts";
+import { createSessionRoutes } from "./sessions.ts";
+import { createAgentRunRoutes } from "./agent-runs.ts";
 
 migrate();
 const json = { "content-type": "application/json" };
 
-test("an issue starts a run in a session of its own, kept out of the session list", async () => {
-  const { userId, agentId } = runnableFixture();
-  const app = appAs(userId);
-
-  const created = await app.request(`/agents/${agentId}/issues`, {
+test("creating a brief and adding notes never starts work or requires a model", async () => {
+  const f = fixture();
+  const app = appAs(f.userId);
+  const response = await app.request(`/agents/${f.agentId}/issues`, {
     method: "POST",
     headers: json,
-    body: JSON.stringify({ title: "Tidy the README", description: "It is out of date." }),
+    body: JSON.stringify({
+      title: "Tidy README",
+      description: "Explain setup.",
+      criteria: ["Setup is reproducible"],
+      status: "backlog",
+    }),
   });
-  assert.equal(created.status, 201);
-  const issue = (await created.json()) as Issue;
-  assert.equal(issue.status, "open");
-  assert.equal(issue.running, true);
-
-  const session = db.select().from(sessions).where(eq(sessions.id, issue.sessionId)).get();
-  assert.equal(session?.issueId, issue.id);
-  assert.equal(session?.title, "Tidy the README");
-  assert.ok(!readBootstrapPayload(userId).sessions.some((listed) => listed.id === issue.sessionId));
-
-  // Nothing listens on the fixture's provider, so the run fails fast, and the
-  // issue has to record that on its own: nobody is watching the stream.
-  await waitFor(() => row(issue.id).lastRunOutcome !== null);
-  const finished = await read(app, agentId, issue.id);
-  assert.equal(finished.running, false);
-  assert.equal(finished.lastRunOutcome, "failed");
-  assert.equal(finished.status, "open", "a failed run leaves the issue for the user to decide");
-
-  const listed = (await (await app.request(`/agents/${agentId}/issues`)).json()) as Issue[];
-  assert.deepEqual(listed.map((entry) => entry.id), [issue.id]);
+  assert.equal(response.status, 201);
+  const issue = (await response.json()) as IssueDetail;
+  assert.equal(issue.status, "backlog");
+  assert.equal(issue.running, false);
+  assert.equal(issue.sessionId, undefined);
+  assert.deepEqual(issue.attempts, []);
+  assert.deepEqual(issue.criteria, ["Setup is reproducible"]);
+  const noted = await post(app, f.agentId, issue.id, "notes", {
+    body: "Keep the examples short.",
+  });
+  assert.equal(noted.status, 200);
+  const detail = (await noted.json()) as IssueDetail;
+  assert.equal(detail.notes.at(-1)?.body, "Keep the examples short.");
+  assert.equal(detail.attempts.length, 0);
+  assert.equal(detail.status, "backlog");
+  assert.equal(readActivity(f.userId).unreadCount, 0);
+  assert.equal((await post(app, f.agentId, issue.id, "notes", { body: "  " })).status, 400);
 });
 
-test("a running issue can be interrupted or cancelled, but not resolved or deleted", async () => {
-  const { userId, agentId, issueId, sessionId } = issueFixture();
-  const app = appAs(userId);
+test("explicit starts create separate agent-owned sessions; failures persist and reach the inbox", async () => {
+  const f = fixture();
+  const app = appAs(f.userId);
+  const issue = createIssue(f.userId, f.agentId, {
+    title: "Fix",
+    description: "Fix it",
+  });
+  const start = await post(app, f.agentId, issue.id, "runs", {});
+  assert.equal(start.status, 200);
+  const running = (await start.json()) as IssueDetail;
+  assert.equal(running.attempts.length, 1);
+  assert.ok(running.sessionId);
+  assert.equal(db.select().from(sessions).where(eq(sessions.id, running.sessionId)).get()?.agentId, f.agentId);
+  assert.ok(!readBootstrapPayload(f.userId).sessions.some((s) => s.id === running.sessionId));
+  await waitFor(() => !readIssueView(f.userId, f.agentId, issue.id).running);
+  const failed = readIssueView(f.userId, f.agentId, issue.id);
+  assert.equal(failed.status, "blocked");
+  assert.equal(failed.attempts[0]?.outcome, "failed");
+  assert.equal(readActivity(f.userId).items[0]?.issueId, issue.id);
+  assert.equal(
+    (
+      await post(app, f.agentId, issue.id, "runs", {
+        instructions: "Try again",
+      })
+    ).status,
+    200,
+  );
+  await waitFor(() => !readIssueView(f.userId, f.agentId, issue.id).running);
+  const retried = readIssueView(f.userId, f.agentId, issue.id);
+  assert.equal(retried.attempts.length, 2);
+  assert.notEqual(retried.attempts[0]?.sessionId, retried.attempts[1]?.sessionId);
+  assert.match(retried.attempts[0]!.brief, /Previous attempts/);
+});
+
+test("a start claim rejects concurrent starts and can be interrupted during credential resolution", async () => {
+  const f = fixture();
+  const issue = createIssue(f.userId, f.agentId, {
+    title: "Fix",
+    description: "Fix it",
+  });
+  const starting = runIssue(f.userId, f.agentId, issue.id, {});
+  await assert.rejects(runIssue(f.userId, f.agentId, issue.id, {}), /still working/);
+  await starting;
+  await waitFor(() => !readIssueView(f.userId, f.agentId, issue.id).running);
+  assert.equal(readIssueView(f.userId, f.agentId, issue.id).attempts.length, 1);
+  const pending = runIssue(f.userId, f.agentId, issue.id, {});
+  interruptIssue(f.userId, f.agentId, issue.id);
+  await assert.rejects(pending, /stopped before/);
+  const detail = readIssueView(f.userId, f.agentId, issue.id);
+  assert.equal(detail.attempts[0]?.outcome, "interrupted");
+  assert.equal(detail.attempts[0]?.sessionId, null);
+});
+
+test("preflight errors leave a durable failed attempt without a session", async () => {
+  const f = fixture();
+  const issue = createIssue(f.userId, f.agentId, {
+    title: "Fix",
+    description: "Fix it",
+  });
+  await assert.rejects(runIssue(f.userId, f.agentId, issue.id, { modelRefId: "missing" }), /Model not found/);
+  const detail = readIssueView(f.userId, f.agentId, issue.id);
+  assert.equal(detail.status, "blocked");
+  assert.equal(detail.attempts[0]?.sessionId, null);
+  assert.equal(detail.attempts[0]?.outcome, "failed");
+  assert.equal(readActivity(f.userId).items[0]?.kind, "failed");
+});
+
+test("agent delivery waits for human review; notes never reopen accepted work", async () => {
+  const f = activeFixture();
+  const app = appAs(f.userId);
+  await report(f, {
+    state: "done",
+    summary: "Updated the guide.",
+    evidence: "Checked all three setup commands.",
+  });
+  assert.equal((await post(app, f.agentId, f.issueId, "accept")).status, 409);
+  finishIssueAttempt(f.attemptId, { outcome: "succeeded" });
+  assert.equal(readIssueView(f.userId, f.agentId, f.issueId).status, "in_review");
+  assert.equal((await post(app, f.agentId, f.issueId, "runs", {})).status, 400);
+  const accepted = await post(app, f.agentId, f.issueId, "accept");
+  assert.equal(accepted.status, 200);
+  assert.equal(((await accepted.json()) as IssueDetail).status, "done");
+  await post(app, f.agentId, f.issueId, "notes", { body: "Thanks, shipped." });
+  const done = readIssueView(f.userId, f.agentId, f.issueId);
+  assert.equal(done.status, "done");
+  assert.equal(done.attempts.length, 1);
+  assert.equal(readActivity(f.userId).unreadCount, 0);
+  assert.equal((await post(app, f.agentId, f.issueId, "runs", { instructions: "More" })).status, 409);
+  const reopened = await post(app, f.agentId, f.issueId, "reopen");
+  assert.equal(((await reopened.json()) as IssueDetail).status, "todo");
+  assert.equal(readIssueView(f.userId, f.agentId, f.issueId).running, false);
+  await assert.rejects(report(f, { state: "done", summary: "Stale", evidence: "" }), /no longer active/);
+});
+
+test("needs-input, failed reports, and restart recovery preserve attempt evidence", async () => {
+  const f = activeFixture();
+  await report(f, {
+    state: "needs_input",
+    summary: "Which branch?",
+    evidence: "Inspected branches.",
+  });
+  finishIssueAttempt(f.attemptId, { outcome: "succeeded" });
+  assert.equal(readIssueView(f.userId, f.agentId, f.issueId).status, "needs_input");
+  const failure = activeFixture();
+  await report(failure, {
+    state: "done",
+    summary: "Done",
+    evidence: "Tests passed",
+  });
+  finishIssueAttempt(failure.attemptId, {
+    outcome: "failed",
+    detail: "Persistence failed",
+  });
+  const detail = readIssueView(failure.userId, failure.agentId, failure.issueId);
+  assert.equal(detail.status, "blocked");
+  assert.equal(detail.attempts[0]?.summary, "Persistence failed");
+  assert.equal(detail.attempts[0]?.evidence, "Tests passed");
+  assert.equal(detail.notes.at(-1)?.kind, "result");
+  assert.match(detail.notes.at(-1)!.body, /Persistence failed/);
+  const interrupted = activeFixture();
+  recoverIssueAttempts();
+  recoverIssueAttempts();
+  assert.equal(
+    readIssueView(interrupted.userId, interrupted.agentId, interrupted.issueId).attempts[0]?.outcome,
+    "interrupted",
+  );
+  assert.equal(readActivity(interrupted.userId).items.length, 1);
+});
+
+test("active work rejects edits and deletion; cancellation cannot be overwritten by late completion", async () => {
+  const f = activeFixture();
+  const app = appAs(f.userId);
   let aborts = 0;
-  const run = createActiveAgentRun({ runId: id("run"), userId, sessionId, abort: () => { aborts += 1; } });
-
-  assert.equal((await read(app, agentId, issueId)).running, true);
-  assert.equal((await patch(app, agentId, issueId, { status: "resolved" })).status, 409);
-  assert.equal((await app.request(`/agents/${agentId}/issues/${issueId}`, { method: "DELETE" })).status, 409);
-
-  const interrupted = (await (await app.request(`/agents/${agentId}/issues/${issueId}/interrupt`, { method: "POST" })).json()) as Issue;
+  const run = createActiveAgentRun({
+    runId: id("run"),
+    userId: f.userId,
+    sessionId: f.sessionId,
+    abort: () => {
+      aborts++;
+    },
+  });
+  assert.equal(
+    (
+      await app.request(`/agents/${f.agentId}/issues/${f.issueId}`, {
+        method: "PATCH",
+        headers: json,
+        body: JSON.stringify({ title: "new" }),
+      })
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await app.request(`/agents/${f.agentId}/issues/${f.issueId}`, {
+        method: "DELETE",
+      })
+    ).status,
+    409,
+  );
+  await post(app, f.agentId, f.issueId, "cancel");
   assert.equal(aborts, 1);
-  assert.equal(interrupted.status, "open", "interrupting pauses the work without settling the issue");
-
-  const cancelled = (await (await app.request(`/agents/${agentId}/issues/${issueId}/cancel`, { method: "POST" })).json()) as Issue;
-  assert.equal(aborts, 2);
-  assert.equal(cancelled.status, "cancelled");
-  assert.ok(cancelled.closedAt);
-
-  finishAgentRun(run, { outcome: "cancelled" });
-  assert.equal((await app.request(`/agents/${agentId}/issues/${issueId}`, { method: "DELETE" })).status, 200);
-  assert.equal(db.select().from(sessions).where(eq(sessions.id, sessionId)).get(), undefined);
-  assert.equal(db.select().from(issues).where(eq(issues.id, issueId)).get(), undefined);
-});
-
-test("resolving closes an issue, and a reply reopens it", async () => {
-  const { userId, agentId, issueId, sessionId } = issueFixture();
-  const app = appAs(userId);
-
-  const resolved = (await (await patch(app, agentId, issueId, { status: "resolved" })).json()) as Issue;
-  assert.equal(resolved.status, "resolved");
-  assert.ok(resolved.closedAt);
-
-  const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
-  const run = createActiveAgentRun({ runId: id("run"), userId, sessionId, abort: () => {} });
-  noteIssueRunStarted(session, run);
-  const reopened = await read(app, agentId, issueId);
-  assert.equal(reopened.status, "open");
-  assert.equal(reopened.closedAt, undefined);
-  assert.equal(reopened.running, true);
-
   finishAgentRun(run, { outcome: "succeeded" });
-  // Recorded as the run is released, not on a later poll: a read in between
-  // would otherwise see a stopped run still carrying the previous outcome.
-  assert.equal(row(issueId).lastRunOutcome, "succeeded");
+  finishIssueAttempt(f.attemptId, { outcome: "succeeded" });
+  assert.equal(readIssueView(f.userId, f.agentId, f.issueId).status, "cancelled");
+  assert.equal(
+    (
+      await app.request(`/agents/${f.agentId}/issues/${f.issueId}`, {
+        method: "DELETE",
+      })
+    ).status,
+    200,
+  );
+  assert.equal(db.select().from(sessions).where(eq(sessions.id, f.sessionId)).get(), undefined);
+  assert.equal(db.select().from(issueAttempts).where(eq(issueAttempts.id, f.attemptId)).get(), undefined);
 });
 
-test("the agent reports its verdict through report_issue, and a new run clears it", async () => {
-  const { userId, agentId, issueId, sessionId } = issueFixture();
-  const app = appAs(userId);
-  const tool = issueRunAddons(issueId)!.tools.find((candidate) => candidate.name === "report_issue")!;
-  const report = (params: unknown) => (tool.execute as (...args: unknown[]) => Promise<unknown>)("call_1", params);
-
-  await report({ state: "needs_input", summary: "Which branch should the fix go on?" });
-  const asking = await read(app, agentId, issueId);
-  assert.equal(asking.verdict, "needs_input");
-  assert.equal(asking.verdictSummary, "Which branch should the fix go on?");
-
-  await assert.rejects(report({ state: "finished", summary: "x" }), /state must be one of/);
-  await assert.rejects(report({ state: "done", summary: "  " }), /summary is required/);
-  assert.equal((await read(app, agentId, issueId)).verdict, "needs_input", "a rejected report changes nothing");
-
-  // The reply answers the question, so the question must not outlive it.
-  const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
-  const run = createActiveAgentRun({ runId: id("run"), userId, sessionId, abort: () => {} });
-  noteIssueRunStarted(session, run);
-  const replied = await read(app, agentId, issueId);
-  assert.equal(replied.verdict, undefined);
-  assert.equal(replied.verdictSummary, undefined);
-  finishAgentRun(run, { outcome: "succeeded" });
+test("issue attempt sessions cannot be reused, edited, forked, or deleted through chat APIs", async () => {
+  const f = activeFixture();
+  finishIssueAttempt(f.attemptId, { outcome: "succeeded" });
+  const app = appAs(f.userId);
+  for (const [method, path, body] of [
+    ["POST", `/agents/${f.agentId}/run`, { sessionId: f.sessionId, promptInput: { text: "Bypass" } }],
+    ["PATCH", `/sessions/${f.sessionId}`, { title: "Bypass" }],
+    ["DELETE", `/sessions/${f.sessionId}`, undefined],
+    ["POST", `/sessions/${f.sessionId}/fork`, { entryId: "entry" }],
+    ["POST", `/sessions/${f.sessionId}/messages/truncate`, { entryId: "entry" }],
+  ] as const)
+    assert.equal(
+      (
+        await app.request(path, {
+          method,
+          headers: json,
+          body: body ? JSON.stringify(body) : undefined,
+        })
+      ).status,
+      409,
+      path,
+    );
 });
 
-test("only issue sessions get the report tool and its instructions", () => {
-  assert.equal(issueRunAddons(null), undefined);
-  const addons = issueRunAddons("issue_x");
-  assert.deepEqual(addons?.tools.map((tool) => tool.name), ["report_issue"]);
-  assert.match(addons?.instructions ?? "", /report_issue/);
-});
-
-test("renaming an issue renames its session", async () => {
-  const { userId, agentId, issueId, sessionId } = issueFixture();
-  const renamed = (await (await patch(appAs(userId), agentId, issueId, { title: "Sharper title" })).json()) as Issue;
-  assert.equal(renamed.title, "Sharper title");
-  assert.equal(db.select().from(sessions).where(eq(sessions.id, sessionId)).get()?.title, "Sharper title");
-});
-
-test("another user cannot see or reach someone else's issue, even on a shared agent", async () => {
-  const { userId, agentId, issueId } = issueFixture({ shared: true });
+test("every issue action enforces both user and agent ownership", async () => {
+  const f = activeFixture({ shared: true });
   const stranger = appAs(createUser());
-  assert.deepEqual(await (await stranger.request(`/agents/${agentId}/issues`)).json(), []);
-  assert.equal((await stranger.request(`/agents/${agentId}/issues/${issueId}`)).status, 404);
-  assert.equal((await stranger.request(`/agents/${agentId}/issues/${issueId}/cancel`, { method: "POST" })).status, 404);
-  assert.equal(row(issueId).status, "open");
-  assert.equal((await appAs(userId).request(`/agents/${agentId}/issues/${issueId}`)).status, 200);
+  const owner = appAs(f.userId);
+  assert.deepEqual(await (await stranger.request(`/agents/${f.agentId}/issues`)).json(), []);
+  for (const action of ["runs", "notes", "accept", "reopen", "cancel", "interrupt"]) {
+    const body = action === "notes" ? { body: "Hello" } : {};
+    assert.equal((await post(stranger, f.agentId, f.issueId, action, body)).status, 404);
+    const otherAgent = createAgent({
+      ownerUserId: f.userId,
+      defaultModelRefId: f.modelRefId,
+    });
+    assert.equal((await post(owner, otherAgent, f.issueId, action, body)).status, 404);
+  }
+  finishIssueAttempt(f.attemptId, { outcome: "interrupted" });
 });
 
 function appAs(userId: string) {
-  const user = db.select().from(users).where(eq(users.id, userId)).get();
-  assert.ok(user);
   const app = new Hono<{ Variables: AuthVariables }>();
   app.use("*", async (c, next) => {
-    c.set("user", user);
+    c.set("user", db.select().from(users).where(eq(users.id, userId)).get()!);
     await next();
   });
   app.route("/", createIssueRoutes());
+  app.route("/", createSessionRoutes());
+  app.route("/", createAgentRunRoutes());
   return app;
 }
-
-async function read(app: Hono<{ Variables: AuthVariables }>, agentId: string, issueId: string) {
-  return (await (await app.request(`/agents/${agentId}/issues/${issueId}`)).json()) as Issue;
+function post(app: ReturnType<typeof appAs>, agentId: string, issueId: string, action: string, body: object = {}) {
+  return app.request(`/agents/${agentId}/issues/${issueId}/${action}`, {
+    method: "POST",
+    headers: json,
+    body: JSON.stringify(body),
+  });
 }
-
-function patch(app: Hono<{ Variables: AuthVariables }>, agentId: string, issueId: string, body: object) {
-  return app.request(`/agents/${agentId}/issues/${issueId}`, { method: "PATCH", headers: json, body: JSON.stringify(body) });
-}
-
-function row(issueId: string) {
-  return db.select().from(issues).where(eq(issues.id, issueId)).get()!;
-}
-
-/** An issue written straight to the database, with no run behind it. */
-function issueFixture(options?: { shared?: boolean }) {
-  const { userId, agentId, modelRefId } = runnableFixture(options);
-  const issueId = id("issue");
-  const sessionId = id("session");
-  const timestamp = now();
-  db.insert(sessions)
-    .values({ id: sessionId, title: "Issue", userId, agentId, modelRefId, thinkingLevel: "off", issueId, createdAt: timestamp, updatedAt: timestamp })
-    .run();
-  db.insert(issues)
-    .values({ id: issueId, agentId, userId, sessionId, title: "Issue", description: "Do it.", createdAt: timestamp, updatedAt: timestamp })
-    .run();
-  return { userId, agentId, issueId, sessionId };
-}
-
-/** Same idea as the scheduler tests: a model that resolves, served from a port nothing listens on. */
-function runnableFixture(options?: { shared?: boolean }) {
+function fixture(options?: { shared?: boolean }) {
   const userId = createUser();
   const modelRefId = id("model_ref");
   const timestamp = now();
@@ -202,14 +313,58 @@ function runnableFixture(options?: { shared?: boolean }) {
       updatedAt: timestamp,
     })
     .run();
-  const agentId = createAgent({ ownerUserId: userId, shared: options?.shared, defaultModelRefId: modelRefId });
-  return { userId, agentId, modelRefId };
+  return {
+    userId,
+    modelRefId,
+    agentId: createAgent({
+      ownerUserId: userId,
+      shared: options?.shared,
+      defaultModelRefId: modelRefId,
+    }),
+  };
 }
-
-async function waitFor(condition: () => boolean, timeoutMs = 15_000) {
-  const deadline = Date.now() + timeoutMs;
+function activeFixture(options?: { shared?: boolean }) {
+  const f = fixture(options);
+  const issue = createIssue(f.userId, f.agentId, {
+    title: "Issue",
+    description: "Do it",
+    criteria: ["Works"],
+  });
+  const sessionId = id("session");
+  const attemptId = id("attempt");
+  db.insert(sessions)
+    .values({
+      id: sessionId,
+      ...f,
+      title: "Issue",
+      issueId: issue.id,
+      thinkingLevel: "off",
+      createdAt: now(),
+      updatedAt: now(),
+    })
+    .run();
+  db.insert(issueAttempts)
+    .values({
+      id: attemptId,
+      issueId: issue.id,
+      sessionId,
+      instructions: "",
+      brief: "Do it",
+      outcome: "running",
+      createdAt: now(),
+    })
+    .run();
+  db.update(issues).set({ sessionId, status: "in_progress" }).where(eq(issues.id, issue.id)).run();
+  return { ...f, issueId: issue.id, sessionId, attemptId };
+}
+function report(f: ReturnType<typeof activeFixture>, params: unknown) {
+  const tool = issueRunAddons(f.issueId, f.attemptId).tools[0]!;
+  return (tool.execute as (...args: unknown[]) => Promise<unknown>)("call", params);
+}
+async function waitFor(condition: () => boolean) {
+  const deadline = Date.now() + 15000;
   while (!condition()) {
-    if (Date.now() > deadline) throw new Error("Timed out waiting for the run to finish.");
+    if (Date.now() > deadline) throw new Error("Run timed out");
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
 }

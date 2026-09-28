@@ -6,6 +6,7 @@ import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMessages } from "./ChatMessages";
 
 type ChatPanelProps = {
+  readOnly?: boolean;
   scrollResetKey: string;
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
@@ -28,6 +29,7 @@ type ChatPanelProps = {
 };
 
 export function ChatPanel({
+  readOnly,
   scrollResetKey,
   messages,
   streamingMessage,
@@ -102,13 +104,13 @@ export function ChatPanel({
             pendingToolCalls={pendingToolCalls}
             isStreaming={isStreaming}
             collapseRunDetails={collapseRunDetails}
-            onEditMessage={onEditMessage}
-            onRetryMessage={onRetryMessage}
-            onForkMessage={onForkMessage}
+            onEditMessage={readOnly ? undefined : onEditMessage}
+            onRetryMessage={readOnly ? undefined : onRetryMessage}
+            onForkMessage={readOnly ? undefined : onForkMessage}
           />
         </div>
       </div>
-      <div className="shrink-0 px-3 pb-[calc(0.75rem+var(--safe-bottom))]">
+      {!readOnly ? <div className="shrink-0 px-3 pb-[calc(0.75rem+var(--safe-bottom))]">
         <div className="mx-auto w-full max-w-[var(--line-width)] min-w-0">
           <ChatInput
             ref={inputRef}
@@ -124,7 +126,7 @@ export function ChatPanel({
             onModelSelect={onModelSelect}
           />
         </div>
-      </div>
+      </div> : null}
     </div>
   );
 }

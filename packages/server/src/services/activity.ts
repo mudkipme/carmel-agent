@@ -1,7 +1,7 @@
 import { and, count, desc, eq, inArray, isNull, lt, or } from "drizzle-orm";
 import type { ActivityFilter, ActivityKind, ActivityPage, AgentRunResult } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { activity, agents, agentTaskRuns, agentTasks, issues, sessions } from "../db/schema.ts";
+import { activity, agents, agentTaskRuns, agentTasks, issues, issueAttempts, sessions } from "../db/schema.ts";
 
 const attentionKinds: ActivityKind[] = ["needs_input", "blocked", "failed", "review", "interrupted", "missed"];
 
@@ -39,19 +39,11 @@ export function acknowledgeIssueActivity(issueId: string) {
 /** Called after persistence and issue finish listeners, even with no browser attached. */
 export function recordSessionActivity(sessionId: string, runId: string, result: AgentRunResult) {
   const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-  if (!session || session.taskId || result.outcome === "cancelled") return;
-  const issue = session.issueId ? db.select().from(issues).where(eq(issues.id, session.issueId)).get() : undefined;
-  if (issue && issue.status !== "open") return;
-  const kind: ActivityKind = result.outcome === "failed" ? "failed"
-    : result.outcome === "interrupted" ? "interrupted"
-    : issue?.verdict === "needs_input" ? "needs_input"
-    : issue?.verdict === "blocked" ? "blocked"
-    : issue ? "review" : "completed";
-  const summary = result.outcome !== "succeeded" ? result.detail
-    : issue?.verdictSummary ?? "A new reply is ready. Open the conversation to pick up where you left off.";
+  if (!session || session.taskId || session.issueId || result.outcome === "cancelled") return;
+  const kind: ActivityKind = result.outcome === "failed" ? "failed" : result.outcome === "interrupted" ? "interrupted" : "completed";
   writeActivity({ eventKey: `run:${runId}`, userId: session.userId, agentId: session.agentId,
-    sessionId, issueId: issue?.id, title: issue?.title ?? session.title, kind,
-    summary: summary ?? "The run stopped before it could finish." });
+    sessionId, title: session.title, kind,
+    summary: result.detail ?? "A new reply is ready. Open the conversation to pick up where you left off." });
 }
 
 /** Includes failures before a session exists, missed schedules, and restart recovery. */
@@ -69,4 +61,15 @@ export function recordTaskActivity(runId: string) {
 function writeActivity(input: Omit<typeof activity.$inferInsert, "id" | "createdAt" | "readAt">) {
   db.insert(activity).values({ ...input, summary: input.summary.slice(0, 4_000), createdAt: Date.now() })
     .onConflictDoNothing({ target: activity.eventKey }).run();
+}
+
+export function recordIssueActivity(issueId: string, attemptId: string) {
+  const issue = db.select().from(issues).where(eq(issues.id, issueId)).get();
+  const attempt = db.select().from(issueAttempts).where(eq(issueAttempts.id, attemptId)).get();
+  if (!issue || !attempt || issue.status === "cancelled" || issue.status === "done" || attempt.outcome === "running") return;
+  const kind: ActivityKind = attempt.outcome === "failed" ? "failed" : attempt.outcome !== "succeeded" ? "interrupted"
+    : issue.status === "needs_input" ? "needs_input" : issue.status === "blocked" ? "blocked" : "review";
+  writeActivity({ eventKey: `issue-attempt:${attemptId}`, userId: issue.userId, agentId: issue.agentId,
+    sessionId: attempt.sessionId, issueId, title: issue.title, kind,
+    summary: attempt.summary ?? "The attempt finished without a report. Review its conversation before accepting." });
 }

@@ -1,3 +1,4 @@
+import { recoverIssueAttempts } from "./services/issues.ts";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { pruneExpiredAuthSessions } from "./auth.ts";
@@ -26,6 +27,7 @@ if (oidcConfig) {
 }
 
 migrate();
+recoverIssueAttempts();
 seed();
 pruneExpiredAuthSessions();
 // Remove any sandbox containers left behind by a previous process.

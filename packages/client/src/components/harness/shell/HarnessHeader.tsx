@@ -28,14 +28,14 @@ export function HarnessHeader({
   /* Files and the terminal replace the session in the main column, so the
      title names the pane you are actually looking at. */
   const title =
-    contentView === "inbox" ? "Inbox" : contentView === "files"
+    contentView === "inbox" ? "Inbox" : contentView === "tasks" ? "Tasks" : contentView === "files"
       ? "Files"
       : contentView === "changes"
         ? "Changes"
         : contentView === "terminal"
           ? "Terminal"
           : contentView === "issues"
-            ? (issueTitle ?? "New issue")
+            ? (issueTitle ?? "Issues")
             : (activeSession?.title ?? "New session");
   /* The subtitle carries only what nothing else on screen says: the model is
      already named in the composer, and the working directory is worth the room

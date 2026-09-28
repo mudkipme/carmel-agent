@@ -21,6 +21,8 @@ import type {
   ApiKeyCreated,
   CreateUserRequest,
   Issue,
+  IssueDetail,
+  IssueRunCommand,
   IssueCreateCommand,
   IssuePatchCommand,
   ModelCatalog,
@@ -272,8 +274,16 @@ export const api = {
     }),
   listAgentTaskRuns: (agentId: string, taskId: string) =>
     request<AgentTaskRun[]>(`/api/agents/${agentId}/tasks/${taskId}/runs`),
+  runIssue: (agentId: string, issueId: string, input: IssueRunCommand) =>
+    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/runs`, { method: "POST", body: JSON.stringify(input) }),
+  addIssueNote: (agentId: string, issueId: string, body: string) =>
+    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/notes`, { method: "POST", body: JSON.stringify({ body }) }),
+  acceptIssue: (agentId: string, issueId: string) =>
+    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/accept`, { method: "POST" }),
+  reopenIssue: (agentId: string, issueId: string) =>
+    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/reopen`, { method: "POST" }),
   listIssues: (agentId: string) => request<Issue[]>(`/api/agents/${agentId}/issues`),
-  getIssue: (agentId: string, issueId: string) => request<Issue>(`/api/agents/${agentId}/issues/${issueId}`),
+  getIssue: (agentId: string, issueId: string) => request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}`),
   createIssue: (agentId: string, input: IssueCreateCommand) =>
     request<Issue>(`/api/agents/${agentId}/issues`, { method: "POST", body: JSON.stringify(input) }),
   updateIssue: (agentId: string, issueId: string, patch: IssuePatchCommand) =>

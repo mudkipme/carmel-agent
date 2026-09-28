@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import type { ChatInputHandle } from "@/components/chat/ChatInput";
@@ -46,7 +48,7 @@ export function PiChat({
      message still to send. A rejection puts the text back in the composer, as
      a failed send from the composer itself would. */
   useEffect(() => {
-    if (!agent) return;
+    if (!agent || session.issueId) return;
     const pending = takePendingPrompt(session.id);
     if (!pending) return;
     void sendMessage(pending.text, pending.images).then((outcome) => {
@@ -54,7 +56,7 @@ export function PiChat({
       inputDraftRef.current = pending.text;
       chatInputRef.current?.insertText(pending.text);
     });
-  }, [agent, sendMessage, session.id]);
+  }, [agent, sendMessage, session.id, session.issueId]);
 
   useEffect(() => {
     if (snapshot.isStreaming) hasStreamedRef.current = true;
@@ -69,6 +71,10 @@ export function PiChat({
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
+        {session.issueId ? <div className="flex items-center justify-between gap-3 border-b px-4 py-2 text-sm text-muted-foreground">
+          <span>Issue attempt · Read-only history</span>
+          <Button asChild variant="outline" size="sm"><Link to={`/agents/${session.agentId}/issues/${session.issueId}`}>Back to issue</Link></Button>
+        </div> : null}
         {snapshot.errorMessage ? (
           <ChatErrorNotice message={snapshot.errorMessage} onDismiss={() => agent?.dismissError()} />
         ) : null}
@@ -78,6 +84,7 @@ export function PiChat({
         <div className="min-h-0 flex-1">
         {agent ? (
           <ChatPanel
+            readOnly={Boolean(session.issueId)}
             scrollResetKey={session.id}
             messages={snapshot.messages}
             streamingMessage={snapshot.streamingMessage}

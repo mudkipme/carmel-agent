@@ -12,7 +12,7 @@ const rowCount = (table: string) =>
 
 test("all versioned migrations apply and remove legacy session tables", () => {
   const applied = sqlite.prepare("SELECT id FROM schema_migrations ORDER BY id").all() as Array<{ id: string }>;
-  assert.equal(applied.at(-1)?.id, "026_activity_inbox");
+  assert.equal(applied.at(-1)?.id, "027_issue_workflow");
 
   const legacyTables = sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('session_messages', 'pi_session_entries')")
@@ -64,6 +64,32 @@ test("inbox upgrade preserves open issue outcomes without reviving resolved work
     runMigrations(previous);
     const rows = previous.prepare("SELECT issue_id, kind, summary, read_at FROM activity").all();
     assert.deepEqual(rows, [{ issue_id: "open-issue", kind: "needs_input", summary: "Which region?", read_at: null }]);
+    assert.deepEqual(previous.pragma("foreign_key_check"), []);
+  } finally { previous.close(); }
+});
+
+test("issue workflow upgrade preserves legacy sessions and inbox records", () => {
+  const previous = new Database(":memory:");
+  previous.pragma("foreign_keys = ON");
+  try {
+    runMigrations(previous); seedDatabase(previous);
+    previous.exec("DROP TABLE issue_attempts; DROP TABLE issue_notes; DELETE FROM schema_migrations WHERE id = '027_issue_workflow'");
+    const session = previous.prepare("SELECT id, user_id AS userId, agent_id AS agentId FROM sessions LIMIT 1").get() as { id: string; userId: string; agentId: string };
+    const insert = previous.prepare(`INSERT INTO issues(id, user_id, agent_id, session_id, title, description, status, last_run_outcome, verdict, verdict_summary, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'Legacy issue', 'Original brief', ?, ?, ?, 'Original report', 1, 2)`);
+    for (const [name, status, outcome, verdict] of [
+      ["review", "open", "succeeded", "done"], ["done", "resolved", "succeeded", "done"],
+      ["question", "open", "succeeded", "needs_input"], ["failure", "open", "failed", "done"], ["abandoned", "cancelled", null, null],
+    ]) insert.run(name, session.userId, session.agentId, session.id, status, outcome, verdict);
+    previous.prepare(`INSERT INTO activity (event_key, user_id, agent_id, issue_id, title, summary, kind, created_at) VALUES ('preserved', ?, ?, 'review', 'Review', 'Evidence', 'review', 2)`).run(session.userId, session.agentId);
+    runMigrations(previous); runMigrations(previous);
+    assert.deepEqual(previous.prepare("SELECT id, status FROM issues ORDER BY id").all(), [
+      { id: "abandoned", status: "cancelled" }, { id: "done", status: "done" }, { id: "failure", status: "blocked" }, { id: "question", status: "needs_input" }, { id: "review", status: "in_review" },
+    ]);
+    const attempts = previous.prepare("SELECT session_id, brief FROM issue_attempts").all();
+    assert.equal(attempts.length, 5);
+    assert.ok(attempts.every((a) => (a as { session_id: string; brief: string }).session_id === session.id));
+    assert.equal((previous.prepare("SELECT COUNT(*) AS count FROM activity").get() as { count: number }).count, 1);
     assert.deepEqual(previous.pragma("foreign_key_check"), []);
   } finally { previous.close(); }
 });

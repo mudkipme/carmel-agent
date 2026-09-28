@@ -277,13 +277,7 @@ export const sessions = sqliteTable("sessions", {
   updatedAt: integer("updated_at").notNull(),
 });
 
-/**
- * Work handed to an agent to carry on with, in a session of its own.
- *
- * Whether a run is in progress is not stored: it is read from the live run
- * registry, which a restart empties, so a stored flag could only ever be wrong
- * in the direction of claiming work that is no longer happening.
- */
+/** Durable agent-owned brief. Running claims live in issue_attempts and are reconciled on boot. */
 export const issues = sqliteTable("issues", {
   id: text("id").primaryKey(),
   agentId: text("agent_id")
@@ -295,7 +289,9 @@ export const issues = sqliteTable("issues", {
   sessionId: text("session_id").notNull(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  status: text("status").$type<IssueStatus>().notNull().default("open"),
+  status: text("status").$type<IssueStatus>().notNull().default("todo"),
+  criteria: text("criteria", { mode: "json" }).$type<string[]>().notNull().default([]),
+  priority: text("priority").$type<import("@carmel-agent/shared").IssuePriority>().notNull().default("normal"),
   lastRunOutcome: text("last_run_outcome").$type<AgentRunOutcome>(),
   lastRunDetail: text("last_run_detail"),
   verdict: text("verdict").$type<IssueVerdict>(),
@@ -303,6 +299,26 @@ export const issues = sqliteTable("issues", {
   closedAt: integer("closed_at"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
+});
+
+export const issueAttempts = sqliteTable("issue_attempts", {
+  id: text("id").primaryKey(),
+  issueId: text("issue_id").notNull().references(() => issues.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").references(() => sessions.id, { onDelete: "set null" }),
+  instructions: text("instructions").notNull(),
+  brief: text("brief").notNull(),
+  outcome: text("outcome").$type<AgentRunOutcome | "running">().notNull(),
+  summary: text("summary"),
+  evidence: text("evidence"),
+  createdAt: integer("created_at").notNull(),
+  finishedAt: integer("finished_at"),
+});
+export const issueNotes = sqliteTable("issue_notes", {
+  id: text("id").primaryKey(),
+  issueId: text("issue_id").notNull().references(() => issues.id, { onDelete: "cascade" }),
+  kind: text("kind").$type<"note" | "action" | "result">().notNull(),
+  body: text("body").notNull(),
+  createdAt: integer("created_at").notNull(),
 });
 
 export const activity = sqliteTable("activity", {

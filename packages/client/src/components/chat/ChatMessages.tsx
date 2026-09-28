@@ -27,9 +27,9 @@ type ChatMessagesProps = {
    * made along the way -- behind one row, leaving the answer it ended on.
    */
   collapseRunDetails?: boolean;
-  onEditMessage: (message: AgentMessage) => void;
-  onRetryMessage: (message: AgentMessage) => void;
-  onForkMessage: (message: AgentMessage) => void;
+  onEditMessage?: (message: AgentMessage) => void;
+  onRetryMessage?: (message: AgentMessage) => void;
+  onForkMessage?: (message: AgentMessage) => void;
 };
 
 /** A user message, or everything the agent did in answer to one. */
@@ -136,8 +136,8 @@ function CollapsedRun({
   /** The agent is still working on this run. */
   active: boolean;
   renderMessage: (message: AgentMessage, index: number) => ReactNode;
-  onEditMessage: (message: AgentMessage) => void;
-  onForkMessage: (message: AgentMessage) => void;
+  onEditMessage?: (message: AgentMessage) => void;
+  onForkMessage?: (message: AgentMessage) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const assistants = messages.filter(
@@ -213,7 +213,7 @@ function AnswerOnly({
 }: {
   message: AssistantMessageType;
   onEditMessage?: (message: AgentMessage) => void;
-  onForkMessage: (message: AgentMessage) => void;
+  onForkMessage?: (message: AgentMessage) => void;
 }) {
   const text = message.content
     .filter((part) => part.type === "text" && part.text.trim())
@@ -261,9 +261,9 @@ const MessageItem = memo(function MessageItem({
   pendingToolCalls: ReadonlySet<string>;
   streaming: boolean;
   hidePendingToolCalls: boolean;
-  onEditMessage: (message: AgentMessage) => void;
-  onRetryMessage: (message: AgentMessage) => void;
-  onForkMessage: (message: AgentMessage) => void;
+  onEditMessage?: (message: AgentMessage) => void;
+  onRetryMessage?: (message: AgentMessage) => void;
+  onForkMessage?: (message: AgentMessage) => void;
 }) {
   if (message.role === "assistant") {
     return (
@@ -375,8 +375,8 @@ function AssistantMessage({
   pendingToolCalls: ReadonlySet<string>;
   streaming: boolean;
   hidePendingToolCalls: boolean;
-  onEditMessage: (message: AgentMessage) => void;
-  onForkMessage: (message: AgentMessage) => void;
+  onEditMessage?: (message: AgentMessage) => void;
+  onForkMessage?: (message: AgentMessage) => void;
 }) {
   const usageText = !streaming ? formatUsage(message.usage) : "";
   const assistantContent = message.content.filter((part) => part.type !== "toolCall") as DisplayAssistantContentPart[];

@@ -95,6 +95,7 @@ const migrations: Migration[] = [
   },
   { id: "025_api_keys", description: "Create per-user keys for the OpenAI-compatible API", run: createApiKeys },
   { id: "026_activity_inbox", description: "Persist private run activity and read state", run: createActivityInbox },
+  { id: "027_issue_workflow", description: "Separate issue briefs, notes, and execution attempts", run: createIssueWorkflow },
 ];
 
 function createActivityInbox(sqlite: Sqlite) {
@@ -590,4 +591,36 @@ function addColumnIfMissing(sqlite: Sqlite, table: string, column: string, type:
 function dropColumnIfExists(sqlite: Sqlite, table: string, column: string) {
   const columns = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   if (columns.some((item) => item.name === column)) sqlite.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
+}
+
+function createIssueWorkflow(sqlite: Sqlite) {
+  addColumnIfMissing(sqlite, "issues", "criteria", "TEXT NOT NULL DEFAULT '[]'");
+  addColumnIfMissing(sqlite, "issues", "priority", "TEXT NOT NULL DEFAULT 'normal'");
+  sqlite.exec(`
+    CREATE TABLE issue_attempts (
+      id TEXT PRIMARY KEY, issue_id TEXT NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+      session_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,
+      instructions TEXT NOT NULL, brief TEXT NOT NULL, outcome TEXT NOT NULL,
+      summary TEXT, evidence TEXT, created_at INTEGER NOT NULL, finished_at INTEGER
+    );
+    CREATE UNIQUE INDEX issue_attempts_running ON issue_attempts(issue_id) WHERE outcome = 'running';
+    CREATE INDEX issue_attempts_issue ON issue_attempts(issue_id, created_at);
+    CREATE TABLE issue_notes (
+      id TEXT PRIMARY KEY, issue_id TEXT NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL, body TEXT NOT NULL, created_at INTEGER NOT NULL
+    );
+    CREATE INDEX issue_notes_issue ON issue_notes(issue_id, created_at);
+    INSERT INTO issue_attempts (id, issue_id, session_id, instructions, brief, outcome, summary, created_at, finished_at)
+      SELECT 'legacy_' || i.id, i.id, s.id, 'Original issue conversation', i.description,
+        COALESCE(i.last_run_outcome, 'interrupted'), COALESCE(i.last_run_detail, i.verdict_summary), i.created_at, i.updated_at
+      FROM issues i JOIN sessions s ON s.id = i.session_id;
+    UPDATE issues SET status = CASE
+      WHEN status = 'resolved' THEN 'done'
+      WHEN status = 'cancelled' THEN 'cancelled'
+      WHEN last_run_outcome IN ('failed', 'interrupted', 'cancelled') THEN 'blocked'
+      WHEN verdict = 'needs_input' THEN 'needs_input'
+      WHEN verdict = 'blocked' THEN 'blocked'
+      WHEN last_run_outcome = 'succeeded' THEN 'in_review'
+      ELSE 'todo' END;
+  `);
 }

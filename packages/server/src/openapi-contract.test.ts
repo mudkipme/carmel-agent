@@ -55,7 +55,13 @@ test("representative response fixtures satisfy every response component", async 
   const session = { ...metadata, messages: [], messageEntryIds: [] };
   const file = { name: "README.md", path: "README.md", type: "file", size: 12, updatedAt: 1, hidden: false };
   const task = { id: "t1", agentId: "a1", userId: "u1", name: "Check", prompt: "Check", scheduleKind: "interval", scheduleValue: "3600", status: "active", createdAt: 1, updatedAt: 1 };
+  const issue = { id: "i1", agentId: "a1", userId: "u1", title: "Fix it", description: "It is broken", status: "todo", criteria: [], priority: "normal", running: false, createdAt: 1, updatedAt: 1 };
+  const attempt = { id: "r1", issueId: "i1", sessionId: null, instructions: "", brief: "Fix", outcome: "failed", summary: "No model", evidence: null, createdAt: 1, finishedAt: 2 };
+  const note = { id: "n1", issueId: "i1", kind: "note", body: "Context", createdAt: 1 };
   const fixtures: Record<string, unknown> = {
+    IssueDetail: { ...issue, attempts: [attempt], notes: [note] },
+    IssueAttempt: attempt,
+    IssueNote: note,
     ActivityItem: { id: 1, agentId: "a1", agentName: "Agent", sessionId: "s1", issueId: null, taskId: null, title: "Reply ready", summary: "A new reply", kind: "completed", createdAt: 1, readAt: null },
     ActivityPage: { items: [], unreadCount: 0, nextCursor: null },
     Error: { error: "Nope" },
@@ -76,7 +82,7 @@ test("representative response fixtures satisfy every response component", async 
     FileContent: { path: "README.md", content: "hello", updatedAt: 1 },
     FileBatchResult: { completed: ["a.txt"], failed: [{ path: "b.txt", error: "Nope" }] },
     AgentTask: task,
-    Issue: { id: "i1", agentId: "a1", userId: "u1", sessionId: "s1", title: "Fix it", description: "It is broken", status: "open", running: true, createdAt: 1, updatedAt: 1 },
+    Issue: { id: "i1", agentId: "a1", userId: "u1", sessionId: "s1", title: "Fix it", description: "It is broken", status: "in_progress", criteria: [], priority: "normal", running: true, createdAt: 1, updatedAt: 1 },
     AgentSecret: { agentId: "a1", name: "GITHUB_TOKEN", updatedAt: 1 },
     ApiKey: { id: "k1", name: "laptop", prefix: "carmel-abc123", createdAt: 1 },
     ApiKeyCreated: { id: "k1", name: "laptop", prefix: "carmel-abc123", createdAt: 1, key: "carmel-abc123secret" },

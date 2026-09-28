@@ -12,7 +12,6 @@ import {
   startDetachedAgentRun,
 } from "../runtime/agent-runtime.ts";
 import { createRunStream, getActiveSessionIdsForUser } from "../runtime/run-stream.ts";
-import { issueRunAddons, noteIssueRunStarted } from "../services/issues.ts";
 import { readVisibleAgent } from "../services/agent-access.ts";
 import { NO_PROVIDER_AUTH_MESSAGE, resolveRunModel } from "../services/model-context.ts";
 import { readSessionConnection } from "../services/session-snapshot.ts";
@@ -73,6 +72,7 @@ export function createAgentRunRoutes() {
     if (!session || session.userId !== currentUserId || session.agentId !== agent.id) {
       return c.json({ error: "Session not found" }, 404);
     }
+    if (session.issueId) return c.json({ error: "Start a new attempt from the issue." }, 409);
     const activeRun = getActiveAgentRunForSession(currentUserId, session.id);
     if (activeRun) return alreadyRunning(c, activeRun);
 
@@ -117,9 +117,7 @@ export function createAgentRunRoutes() {
       modelRuntime,
       thinkingLevel,
       promptInput,
-      sessionAddons: issueRunAddons(currentSession.issueId),
     });
-    noteIssueRunStarted(currentSession, run);
     return createRunStream(run);
   });
 

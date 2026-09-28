@@ -1,8 +1,12 @@
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
-import { issueCreateSchema, issuePatchSchema } from "@carmel-agent/shared";
+import { issueCreateSchema, issuePatchSchema, issueRunSchema, issueNoteSchema } from "@carmel-agent/shared";
 import { jsonValidator } from "../validation.ts";
 import {
+  addIssueNote,
+  runIssue,
+  acceptIssue,
+  reopenIssue,
   cancelIssue,
   createIssue,
   deleteIssue,
@@ -13,11 +17,6 @@ import {
   updateIssue,
 } from "../services/issues.ts";
 
-/**
- * Issues are addressed under their agent, like tasks. Replies are not here:
- * they are ordinary runs in the issue's session, through `/agents/:id/run`,
- * so the chat client streams them exactly as it streams any other turn.
- */
 export function createIssueRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
 
@@ -52,6 +51,19 @@ export function createIssueRoutes() {
 
   route.post("/agents/:agentId/issues/:issueId/cancel", (c) =>
     respond(c, () => cancelIssue(c.get("user").id, c.req.param("agentId"), c.req.param("issueId"))),
+  );
+
+  route.post("/agents/:agentId/issues/:issueId/runs", jsonValidator(issueRunSchema), (c) =>
+    respond(c, () => runIssue(c.get("user").id, c.req.param("agentId"), c.req.param("issueId"), c.req.valid("json"))),
+  );
+  route.post("/agents/:agentId/issues/:issueId/notes", jsonValidator(issueNoteSchema), (c) =>
+    respond(c, () => addIssueNote(c.get("user").id, c.req.param("agentId"), c.req.param("issueId"), c.req.valid("json").body)),
+  );
+  route.post("/agents/:agentId/issues/:issueId/accept", (c) =>
+    respond(c, () => acceptIssue(c.get("user").id, c.req.param("agentId"), c.req.param("issueId"))),
+  );
+  route.post("/agents/:agentId/issues/:issueId/reopen", (c) =>
+    respond(c, () => reopenIssue(c.get("user").id, c.req.param("agentId"), c.req.param("issueId"))),
   );
 
   return route;

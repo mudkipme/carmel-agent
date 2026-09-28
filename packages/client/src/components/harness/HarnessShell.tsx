@@ -1,3 +1,5 @@
+import { IssuesOverview } from "./issues/IssuesOverview";
+import { AgentTasksPanel } from "./AgentTasksPanel";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
@@ -323,7 +325,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
           sidebarOpen={sidebarOpen}
           activeAgent={activeAgent}
           activeSession={activeSessionMetadata}
-          issueTitle={activeIssue?.title}
+          issueTitle={activeIssueId === "new" ? "New issue" : activeIssue?.title}
           contentView={view}
           canOpenTerminal={canOpenTerminal}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
@@ -384,23 +386,12 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
                 />
               ) : null}
             </Suspense>
+          ) : view === "tasks" && activeAgent ? (
+            <div className="h-full overflow-y-auto p-5"><AgentTasksPanel key={activeAgent.id} agentId={activeAgent.id} /></div>
           ) : view === "issues" && activeAgent ? (
-            activeIssueId ? (
-              <IssueView
-                key={activeIssueId}
-                agent={activeAgent}
-                issueId={activeIssueId}
-                modelRefs={modelRefs}
-                providerConfigs={providerConfigs}
-              />
-            ) : (
-              <NewIssueView
-                key={activeAgent.id}
-                agent={activeAgent}
-                modelRefs={modelRefs}
-                providerConfigs={providerConfigs}
-              />
-            )
+            activeIssueId === "new" ? <NewIssueView key={activeAgent.id} agent={activeAgent} />
+              : activeIssueId ? <IssueView key={activeIssueId} agent={activeAgent} issueId={activeIssueId} />
+              : <IssuesOverview key={activeAgent.id} agent={activeAgent} issues={visibleIssues} />
           ) : onNewSessionPage && activeAgent ? (
             <NewSessionView
               key={activeAgent.id}

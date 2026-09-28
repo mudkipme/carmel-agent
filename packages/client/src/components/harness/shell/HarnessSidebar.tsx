@@ -1,4 +1,4 @@
-import { InboxIcon, PanelLeftCloseIcon } from "lucide-react";
+import { InboxIcon, PanelLeftCloseIcon, CalendarClockIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
@@ -119,6 +119,7 @@ export function HarnessSidebar({
             modelRefs={modelRefs}
             onCreateAgent={createSidebarAgent}
           />
+          {activeAgent ? <Button asChild variant={contentView === "tasks" ? "secondary" : "ghost"} className="justify-start"><Link to={`/agents/${activeAgent.id}/tasks`} onClick={onOpenSession}><CalendarClockIcon data-icon="inline-start" />Tasks</Link></Button> : null}
           <div className="flex min-h-0 flex-1 flex-col gap-2">
             <SidebarSessionsToolbar
               activeAgent={activeAgent}

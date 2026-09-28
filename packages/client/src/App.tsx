@@ -88,7 +88,7 @@ export default function App() {
         <Route path="/agents/:agentId/changes/*" element={<HarnessShell view="changes" />} />
         <Route path="/agents/:agentId/terminal" element={<HarnessShell view="terminal" />} />
         <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
-        {/* Like an agent's own path, the bare issues path is the composer for a new one. */}
+        <Route path="/agents/:agentId/tasks" element={<HarnessShell view="tasks" />} />
         <Route path="/agents/:agentId/issues" element={<HarnessShell view="issues" />} />
         <Route path="/agents/:agentId/issues/:issueId" element={<HarnessShell view="issues" />} />
         <Route path="/settings" element={<Navigate to="/settings/models" replace />} />

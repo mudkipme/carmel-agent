@@ -220,18 +220,48 @@ paths:
   /api/agents/{agentId}/issues:
     parameters: [{$ref: '#/components/parameters/AgentID'}]
     get: {operationId: listIssues, tags: [Issues], description: The caller's own issues on this agent, most recently active first., responses: {'200': {description: Issues, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Issue'}}}}}, '404': {$ref: '#/components/responses/Error'}}}
-    post: {operationId: createIssue, tags: [Issues], description: Opens the issue and starts the agent working on it in a session of its own., requestBody: {$ref: '#/components/requestBodies/IssueCreate'}, responses: {'201': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/Issue'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}}}
+    post: {operationId: createIssue, tags: [Issues], description: Saves an agent-owned brief without starting work., requestBody: {$ref: '#/components/requestBodies/IssueCreate'}, responses: {'201': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}}}
   /api/agents/{agentId}/issues/{issueId}:
     parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
-    get: {operationId: getIssue, tags: [Issues], responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/Issue'}}}}, '404': {$ref: '#/components/responses/Error'}}}
-    patch: {operationId: updateIssue, tags: [Issues], description: Rename, resolve, or reopen. Resolving is refused while a run is in progress., requestBody: {$ref: '#/components/requestBodies/IssuePatch'}, responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/Issue'}}}}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}}
-    delete: {operationId: deleteIssue, tags: [Issues], description: Deletes the issue and its session. Refused while a run is in progress., responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}}
+    get: {operationId: getIssue, tags: [Issues], responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '404': {$ref: '#/components/responses/Error'}}}
+    patch: {operationId: updateIssue, tags: [Issues], description: Edit an idle brief or move unstarted work between backlog and todo., requestBody: {$ref: '#/components/requestBodies/IssuePatch'}, responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}}
+    delete: {operationId: deleteIssue, tags: [Issues], description: Deletes the issue and all attempt sessions. Refused while a run is in progress., responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}}
   /api/agents/{agentId}/issues/{issueId}/interrupt:
     parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
-    post: {operationId: interruptIssue, tags: [Issues], description: Stops the current run. The issue stays open for a reply., responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/Issue'}}}}, '404': {$ref: '#/components/responses/Error'}}}
+    post: {operationId: interruptIssue, tags: [Issues], description: Stops the current run. The issue stays open for a reply., responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '404': {$ref: '#/components/responses/Error'}}}
   /api/agents/{agentId}/issues/{issueId}/cancel:
     parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
-    post: {operationId: cancelIssue, tags: [Issues], description: Stops any run and closes the issue as cancelled., responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/Issue'}}}}, '404': {$ref: '#/components/responses/Error'}}}
+    post: {operationId: cancelIssue, tags: [Issues], description: Stops any run and closes the issue as cancelled., responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '404': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{agentId}/issues/{issueId}/runs:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    post:
+      operationId: runIssue
+      tags: [Issues]
+      description: Explicitly start a fresh attempt with the brief and recent activity.
+      requestBody: {$ref: '#/components/requestBodies/IssueRun'}
+      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
+  /api/agents/{agentId}/issues/{issueId}/notes:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    post:
+      operationId: addIssueNote
+      tags: [Issues]
+      description: Save a note without triggering execution or changing status.
+      requestBody: {$ref: '#/components/requestBodies/IssueNote'}
+      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
+  /api/agents/{agentId}/issues/{issueId}/accept:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    post:
+      operationId: acceptIssue
+      tags: [Issues]
+      description: Accept a result in review and mark the issue done.
+      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
+  /api/agents/{agentId}/issues/{issueId}/reopen:
+    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    post:
+      operationId: reopenIssue
+      tags: [Issues]
+      description: Reopen a closed issue without starting work.
+      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
 components:
   securitySchemes:
     carmelSession: {type: apiKey, in: cookie, name: carmel_session}
@@ -255,6 +285,8 @@ components:
     Download: {description: File bytes or a zip archive, headers: {content-disposition: {schema: {type: string}}}, content: {application/octet-stream: {schema: {type: string, format: binary}}, application/zip: {schema: {type: string, format: binary}}}}
     Image: {description: Binary image, content: {image/png: {schema: {type: string, format: binary}}, image/jpeg: {schema: {type: string, format: binary}}, image/webp: {schema: {type: string, format: binary}}}}
   requestBodies:
+    IssueRun: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueRunRequest'}}}}
+    IssueNote: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueNoteRequest'}}}}
     Login: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LoginRequest'}}}}
     Setup: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SetupRequest'}}}}
     Account: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AccountRequest'}}}}
@@ -347,7 +379,17 @@ components:
     ApiKeyCreated: {type: object, required: [id, name, prefix, createdAt, key], additionalProperties: false, properties: {id: {type: string}, name: {type: string}, prefix: {type: string}, lastUsedAt: {type: number}, createdAt: {type: number}, key: {type: string}}}
     AgentSecret: {type: object, required: [agentId, name, updatedAt], additionalProperties: false, properties: {agentId: {type: string}, name: {type: string}, updatedAt: {type: number}}}
     AgentTask: {type: object, required: [id, agentId, userId, name, prompt, scheduleKind, scheduleValue, status, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, agentId: {type: string}, userId: {type: string}, name: {type: string}, prompt: {type: string}, scheduleKind: {type: string}, scheduleValue: {type: string}, status: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
-    IssueCreateRequest: {type: object, required: [title, description], additionalProperties: false, properties: {title: {type: string, minLength: 1, maxLength: 200}, description: {type: string, minLength: 1}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}}}
-    IssuePatchRequest: {type: object, additionalProperties: false, properties: {title: {type: string, minLength: 1, maxLength: 200}, status: {type: string, enum: [open, resolved]}}}
-    Issue: {type: object, required: [id, agentId, userId, sessionId, title, description, status, running, createdAt, updatedAt], additionalProperties: false, properties: {id: {type: string}, agentId: {type: string}, userId: {type: string}, sessionId: {type: string}, title: {type: string}, description: {type: string}, status: {type: string, enum: [open, resolved, cancelled]}, running: {type: boolean}, lastRunOutcome: {type: string, enum: [succeeded, failed, cancelled, interrupted]}, lastRunDetail: {type: string}, verdict: {type: string, enum: [done, needs_input, blocked]}, verdictSummary: {type: string}, closedAt: {type: number}, createdAt: {type: number}, updatedAt: {type: number}}}
+    IssueCreateRequest: {"type":"object","additionalProperties":false,"required":["title","description"],"properties":{"title":{"type":"string","minLength":1,"maxLength":200},"description":{"type":"string","minLength":1,"maxLength":40000},"criteria":{"type":"array","maxItems":50,"items":{"type":"string","minLength":1,"maxLength":2000}},"priority":{"type":"string","enum":["low","normal","high","urgent"]},"status":{"type":"string","enum":["backlog","todo"]}}}
+    IssuePatchRequest: {"type":"object","additionalProperties":false,"required":[],"properties":{"title":{"type":"string","minLength":1,"maxLength":200},"description":{"type":"string","minLength":1,"maxLength":40000},"criteria":{"type":"array","maxItems":50,"items":{"type":"string","minLength":1,"maxLength":2000}},"priority":{"type":"string","enum":["low","normal","high","urgent"]},"status":{"type":"string","enum":["backlog","todo"]}}}
+    Issue: {"type":"object","additionalProperties":false,"required":["id","agentId","userId","title","description","criteria","priority","status","running","createdAt","updatedAt"],"properties":{"id":{"type":"string"},"agentId":{"type":"string"},"userId":{"type":"string"},"sessionId":{"type":"string"},"title":{"type":"string"},"description":{"type":"string"},"lastRunDetail":{"type":"string"},"verdictSummary":{"type":"string"},"criteria":{"type":"array","maxItems":50,"items":{"type":"string","minLength":1,"maxLength":2000}},"priority":{"type":"string","enum":["low","normal","high","urgent"]},"status":{"type":"string","enum":["backlog","todo","in_progress","needs_input","blocked","in_review","done","cancelled"]},"running":{"type":"boolean"},"lastRunOutcome":{"type":"string","enum":["succeeded","failed","cancelled","interrupted"]},"verdict":{"type":"string","enum":["done","needs_input","blocked"]},"closedAt":{"type":"number"},"createdAt":{"type":"number"},"updatedAt":{"type":"number"}}}
     BootstrapPayload: {type: object, required: [users, agents, providerConfigs, modelRefs, modelCatalog, sessions], properties: {users: {type: array, items: {$ref: '#/components/schemas/User'}}, agents: {type: array, items: {$ref: '#/components/schemas/AgentConfig'}}, providerConfigs: {type: array, items: {$ref: '#/components/schemas/ProviderConfig'}}, modelRefs: {type: array, items: {$ref: '#/components/schemas/ModelRef'}}, modelCatalog: {type: object, additionalProperties: true}, sessions: {type: array, items: {$ref: '#/components/schemas/SessionMetadata'}}}}
+
+    IssueRunRequest: {"type":"object","additionalProperties":false,"required":[],"properties":{"instructions":{"type":"string","maxLength":20000},"modelRefId":{"type":"string"},"thinkingLevel":{"$ref":"#/components/schemas/ThinkingLevel"}}}
+
+    IssueNoteRequest: {"type":"object","additionalProperties":false,"required":["body"],"properties":{"body":{"type":"string","minLength":1,"maxLength":20000}}}
+
+    IssueAttempt: {"type":"object","additionalProperties":false,"required":["id","issueId","instructions","brief","sessionId","summary","evidence","outcome","createdAt","finishedAt"],"properties":{"id":{"type":"string"},"issueId":{"type":"string"},"instructions":{"type":"string"},"brief":{"type":"string"},"sessionId":{"type":"string","nullable":true},"summary":{"type":"string","nullable":true},"evidence":{"type":"string","nullable":true},"outcome":{"type":"string","enum":["running","succeeded","failed","cancelled","interrupted"]},"createdAt":{"type":"number"},"finishedAt":{"type":"number","nullable":true}}}
+
+    IssueDetail: {"type":"object","additionalProperties":false,"required":["id","agentId","userId","title","description","criteria","priority","status","running","createdAt","updatedAt","attempts","notes"],"properties":{"id":{"type":"string"},"agentId":{"type":"string"},"userId":{"type":"string"},"sessionId":{"type":"string"},"title":{"type":"string"},"description":{"type":"string"},"lastRunDetail":{"type":"string"},"verdictSummary":{"type":"string"},"criteria":{"type":"array","maxItems":50,"items":{"type":"string","minLength":1,"maxLength":2000}},"priority":{"type":"string","enum":["low","normal","high","urgent"]},"status":{"type":"string","enum":["backlog","todo","in_progress","needs_input","blocked","in_review","done","cancelled"]},"running":{"type":"boolean"},"lastRunOutcome":{"type":"string","enum":["succeeded","failed","cancelled","interrupted"]},"verdict":{"type":"string","enum":["done","needs_input","blocked"]},"closedAt":{"type":"number"},"createdAt":{"type":"number"},"updatedAt":{"type":"number"},"attempts":{"type":"array","items":{"$ref":"#/components/schemas/IssueAttempt"}},"notes":{"type":"array","items":{"$ref":"#/components/schemas/IssueNote"}}}}
+
+    IssueNote: {"type":"object","additionalProperties":false,"required":["id","issueId","body","kind","createdAt"],"properties":{"id":{"type":"string"},"issueId":{"type":"string"},"body":{"type":"string"},"kind":{"type":"string","enum":["note","action","result"]},"createdAt":{"type":"number"}}}

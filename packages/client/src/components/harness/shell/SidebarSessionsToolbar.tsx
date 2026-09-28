@@ -27,10 +27,10 @@ export function SidebarSessionsToolbar({
   return (
     <div className="flex h-[var(--input-height)] items-center gap-2 px-2">
       <div role="tablist" aria-label="Sidebar list" className="flex flex-1 items-center gap-3">
-        <ListTab selected={list === "sessions"} onSelect={() => onListChange("sessions")}>
+        <ListTab selected={list === "sessions"} onSelect={() => { onListChange("sessions"); if (activeAgent) navigate(`/agents/${activeAgent.id}`); onOpenSession(); }}>
           Sessions
         </ListTab>
-        <ListTab selected={list === "issues"} onSelect={() => onListChange("issues")}>
+        <ListTab selected={list === "issues"} onSelect={() => { onListChange("issues"); if (activeAgent) navigate(`/agents/${activeAgent.id}/issues`); onOpenSession(); }}>
           Issues
           {attentionCount > 0 ? (
             <span className="ml-1 rounded-full bg-[var(--ui2)] px-1.5 text-[10px] tracking-normal text-foreground">
@@ -67,7 +67,7 @@ export function SidebarSessionsToolbar({
           disabled={!activeAgent}
           onClick={() => {
             if (!activeAgent) return;
-            navigate(`/agents/${activeAgent.id}/issues`);
+            navigate(`/agents/${activeAgent.id}/issues/new`);
             onOpenSession();
           }}
         >

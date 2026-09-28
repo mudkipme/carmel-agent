@@ -179,19 +179,31 @@ export const agentTaskPatchSchema = z.object({
 export type AgentTaskCreateCommand = z.infer<typeof agentTaskCreateSchema>;
 export type AgentTaskPatchCommand = z.infer<typeof agentTaskPatchSchema>;
 
-export const issueCreateSchema = z.object({
+const issueBriefFields = {
   title: z.string().trim().min(1).max(200),
-  description: z.string().trim().min(1),
+  description: z.string().trim().min(1).max(40_000),
+  criteria: z.array(z.string().trim().min(1).max(2_000)).max(50),
+  priority: z.enum(["low", "normal", "high", "urgent"]),
+};
+export const issueCreateSchema = z.object({
+  ...issueBriefFields,
+  criteria: issueBriefFields.criteria.optional(),
+  priority: issueBriefFields.priority.optional(),
+  status: z.enum(["backlog", "todo"]).optional(),
+}).strict();
+export const issuePatchSchema = z.object({
+  ...issueBriefFields,
+  status: z.enum(["backlog", "todo"]).optional(),
+}).partial().strict();
+export const issueRunSchema = z.object({
+  instructions: z.string().trim().max(20_000).optional(),
   modelRefId: optionalStringSchema,
   thinkingLevel: thinkingLevelSchema.optional(),
 }).strict();
-/** Status changes other than cancelling: cancel has its own route, because it also stops the run. */
-export const issuePatchSchema = z.object({
-  title: z.string().trim().min(1).max(200).optional(),
-  status: z.enum(["open", "resolved"]).optional(),
-}).strict();
+export const issueNoteSchema = z.object({ body: z.string().trim().min(1).max(20_000) }).strict();
 export type IssueCreateCommand = z.infer<typeof issueCreateSchema>;
 export type IssuePatchCommand = z.infer<typeof issuePatchSchema>;
+export type IssueRunCommand = z.infer<typeof issueRunSchema>;
 
 export const promptInputSchema = z.object({
   text: z.string(),

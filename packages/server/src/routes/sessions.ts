@@ -28,7 +28,6 @@ import { serializeSession, serializeSessionMetadata } from "../serializers.ts";
 import { readUsableModelRef, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
 import { insertSession } from "../services/session-launch.ts";
 import { readActiveRunLeaseForSession } from "../services/active-run-lease.ts";
-import { deleteIssueForSession } from "../services/issues.ts";
 import {
   deletePiSession,
   forkPiSession,
@@ -147,6 +146,7 @@ export function createSessionRoutes() {
     // Row-only ownership check: nothing here needs the transcript before the commit.
     const current = ownedSessionRecord(c);
     if (!current) return c.json({ error: "Session not found" }, 404);
+    if (current.issueId) return c.json({ error: "Issue attempt history is read-only." }, 409);
 
     // Pin, archive, and leaving the task list only move the session around the
     // sidebar. A run never writes them, so they go through while one is active,
@@ -280,11 +280,11 @@ export function createSessionRoutes() {
   route.delete("/sessions/:id", async (c) => {
     const session = ownedSessionRecord(c);
     if (!session) return c.json({ error: "Session not found" }, 404);
+    if (session.issueId) return c.json({ error: "Delete the issue to remove its attempt history." }, 409);
     const leaseConflict = rejectActiveRunMutation(c, session.id);
     if (leaseConflict) return leaseConflict;
     await deletePiSession(session);
     db.delete(sessions).where(eq(sessions.id, session.id)).run();
-    deleteIssueForSession(session);
     return c.json({ ok: true });
   });
 
@@ -317,6 +317,7 @@ async function guardSessionMutation(
 ): Promise<{ session: SessionWithMessages; conflict?: undefined } | { session?: undefined; conflict: Response }> {
   const session = await ownedSession(c);
   if (!session) return { conflict: c.json({ error: "Session not found" }, 404) };
+  if (session.issueId) return { conflict: c.json({ error: "Issue attempt history is read-only." }, 409) };
   const leaseConflict = rejectActiveRunMutation(c, session.id);
   if (leaseConflict) return { conflict: leaseConflict };
   return { session };
