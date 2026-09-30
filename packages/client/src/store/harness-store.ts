@@ -25,7 +25,7 @@ export const useHarnessStore = create<HarnessState>()(
       ...createAuthSlice(set, get),
       ...createResourceSlice(set, get),
       ...createSessionSlice(set),
-      ...createIssueSlice(set),
+      ...createIssueSlice(set, get),
     }),
     {
       name: "carmel-harness-ui",

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { PlusIcon, ArrowUpIcon, ArrowDownIcon } from "lucide-react";
 import type { AgentConfig, Issue } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
@@ -15,19 +15,39 @@ import {
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
-import { useHarnessStore } from "@/store/harness-store";
+import {
+  issueFilters,
+  issueListSearch,
+  readIssueFilter,
+} from "@/lib/issue-navigation";
+import { ResourceError, ResourceLoading } from "../ResourceFeedback";
 import { describeIssue, issueGroup, sortIssues } from "./issue-state";
 export function IssuesOverview({
   agent,
   issues,
+  loading,
+  error,
+  onRefresh,
 }: {
   agent: AgentConfig;
   issues: Issue[];
+  loading: boolean;
+  error?: string;
+  onRefresh: () => Promise<unknown>;
 }) {
-  const [filter, setFilter] = useState("queue");
-  const [query, setQuery] = useState("");
+  const [params, setParams] = useSearchParams();
+  const filter = readIssueFilter(params);
+  const query = params.get("q") ?? "";
+  const listSearch = issueListSearch(params);
+  const updateParams = (name: string, value: string, replace = false) => {
+    // BrowserRouter writes history before its next render. Use that current
+    // URL so fast typing cannot overwrite a just-selected tab with stale params.
+    const next = new URLSearchParams(window.location.search);
+    if (!value || (name === "filter" && value === "queue")) next.delete(name);
+    else next.set(name, value);
+    setParams(next, { replace });
+  };
   const [busy, setBusy] = useState(false);
-  const loadIssues = useHarnessStore((s) => s.loadIssues);
   const groupForFilter =
     {
       queue: ["Working", "Queued"],
@@ -51,7 +71,7 @@ export function IssuesOverview({
     setBusy(true);
     try {
       await api.moveQueuedIssue(agent.id, issueId, direction);
-      await loadIssues(agent.id);
+      await onRefresh();
     } catch (error) {
       showError("Unable to reorder queue", error);
     } finally {
@@ -68,7 +88,7 @@ export function IssuesOverview({
             className="flex min-w-0 items-center border-b last:border-0"
           >
             <Link
-              to={`/agents/${agent.id}/issues/${issue.id}`}
+              to={`/agents/${agent.id}/issues/${issue.id}${listSearch}`}
               className="flex min-w-0 flex-1 items-start gap-3 px-4 py-4 hover:bg-muted/50"
             >
               <state.Icon
@@ -155,7 +175,7 @@ export function IssuesOverview({
             </p>
           </div>
           <Button asChild>
-            <Link to={`/agents/${agent.id}/issues/new`}>
+            <Link to={`/agents/${agent.id}/issues/new${listSearch}`}>
               <PlusIcon data-icon="inline-start" />
               New issue
             </Link>
@@ -163,7 +183,7 @@ export function IssuesOverview({
         </div>
         <Tabs
           value={filter}
-          onValueChange={setFilter}
+          onValueChange={(value) => updateParams("filter", value)}
           className="flex flex-col gap-4"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -178,12 +198,25 @@ export function IssuesOverview({
               aria-label="Search issues"
               placeholder="Search issues…"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => updateParams("q", e.target.value, true)}
             />
           </div>
-          {(["queue", "attention", "backlog", "done"] as const).map((value) => (
+          {error ? (
+            <ResourceError
+              error={error}
+              title="Unable to load issues"
+              onRetry={onRefresh}
+            />
+          ) : null}
+          {issueFilters.map((value) => (
             <TabsContent key={value} value={value}>
-              {filter === value ? rows : null}
+              {filter === value ? (
+                loading ? (
+                  <ResourceLoading label="Loading issues" />
+                ) : error && !issues.length ? null : (
+                  rows
+                )
+              ) : null}
             </TabsContent>
           ))}
         </Tabs>

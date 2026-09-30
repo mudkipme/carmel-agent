@@ -1,5 +1,7 @@
 import { IssuesOverview } from "./issues/IssuesOverview";
-import { AgentTasksPanel } from "./AgentTasksPanel";
+import { AgentTasksPage } from "./AgentTasksPage";
+import { useRemoteResource } from "@/hooks/use-remote-resource";
+import { ResourceError } from "./ResourceFeedback";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
@@ -132,7 +134,6 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   );
   const activeIssueId = view === "issues" ? routeIssueId : undefined;
   const activeIssue = visibleIssues.find((issue) => issue.id === activeIssueId);
-  const anyIssueRunning = visibleIssues.some((issue) => issue.running || issue.status === "queued");
   const chatPath = activeAgent ? (lastChatPathByAgent.get(activeAgent.id) ?? `/agents/${activeAgent.id}`) : "/";
 
   const redirectTo = route.kind === "redirect" ? route.to : undefined;
@@ -143,38 +144,26 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const activeAgentId = activeAgent?.id;
   const openChatSessionId = view === "chat" ? activeSession?.id : undefined;
 
-  useEffect(() => {
-    if (!activeAgentId) return;
-    const controller = new AbortController();
-    let pending = false;
-    const refresh = async () => {
-      if (pending) return;
-      pending = true;
+  const activity = useRemoteResource({
+    key: `activity:${activeAgentId}`,
+    enabled: Boolean(activeAgentId),
+    load: async (signal) => {
       const revision = runOverrideRevision.current;
-      try {
-        const { sessionIds } = await api.listActiveSessions(activeAgentId, controller.signal);
-        if (controller.signal.aborted) return;
-        setServerRunningSessionIds(new Set(sessionIds));
-        if (runOverrideRevision.current === revision) {
-          // The open chat knows a prompt has started before the server registers
-          // its run. Keep that local signal until the chat reports completion.
-          setRunOverrides((current) => Object.fromEntries(
-            Object.entries(current).filter(([id, running]) => running && id === openChatSessionId),
-          ));
-        }
-      } catch {
-        // Keep the last known status until the next poll succeeds.
-      } finally {
-        pending = false;
-      }
-    };
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 4_000);
-    return () => {
-      controller.abort();
-      window.clearInterval(timer);
-    };
-  }, [activeAgentId, openChatSessionId]);
+      const { sessionIds } = await api.listActiveSessions(activeAgentId!, signal);
+      return { sessionIds, revision };
+    },
+    pollInterval: 4_000,
+    refreshKey: openChatSessionId,
+  });
+  useEffect(() => {
+    if (!activity.data) return;
+    setServerRunningSessionIds(new Set(activity.data.sessionIds));
+    if (runOverrideRevision.current === activity.data.revision) {
+      setRunOverrides((current) => Object.fromEntries(
+        Object.entries(current).filter(([id, running]) => running && id === openChatSessionId),
+      ));
+    }
+  }, [activity.data, openChatSessionId]);
 
   const onActiveSessionStreamingChange = useCallback((streaming: boolean, hasStreamed: boolean) => {
     const sessionId = activeSession?.id;
@@ -207,22 +196,14 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     };
   }, [loadUnlistedSession, lookedUpSessionId, routeSession, routeSessionId]);
 
-  /* Issue runs go on without anyone watching. The list is loaded once per
-     agent to detect ongoing work, then polled only while someone is looking at issues
-     or one is running: often while running, otherwise rarely. */
-  const pollIssues = view === "issues" || anyIssueRunning;
-  useEffect(() => {
-    if (!activeAgentId) return;
-    void loadIssues(activeAgentId).catch(() => undefined);
-  }, [activeAgentId, loadIssues]);
-  useEffect(() => {
-    if (!activeAgentId || !pollIssues) return;
-    const timer = window.setInterval(
-      () => void loadIssues(activeAgentId).catch(() => undefined),
-      anyIssueRunning ? 4_000 : 30_000,
-    );
-    return () => window.clearInterval(timer);
-  }, [activeAgentId, anyIssueRunning, loadIssues, pollIssues]);
+  const issueList = useRemoteResource({
+    key: `issues:${activeAgentId}`,
+    enabled: Boolean(activeAgentId),
+    load: (signal) => loadIssues(activeAgentId!, signal),
+    refreshKey: view,
+    pollInterval: (data) => data?.some((issue) => issue.running || issue.status === "queued")
+      ? 4_000 : view === "issues" ? 30_000 : false,
+  });
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_SIDEBAR_QUERY);
@@ -329,6 +310,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
           onContentViewChange={showContentView}
           onOpenSettings={() => navigate("/settings/models")}
         />
+        {view === "chat" && activity.error ? <div className="p-3"><ResourceError error={activity.error} title="Unable to refresh session status" onRetry={activity.refresh} /></div> : null}
         {view === "chat" && activeSessionMetadata?.taskId ? <TaskRunBanner session={activeSessionMetadata} /> : null}
         <div className="min-h-0 flex-1">
           {view === "terminal" && canOpenTerminal && activeAgent ? (
@@ -382,11 +364,11 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
               ) : null}
             </Suspense>
           ) : view === "tasks" && activeAgent ? (
-            <div className="h-full overflow-y-auto p-5"><AgentTasksPanel key={activeAgent.id} agentId={activeAgent.id} /></div>
+            <AgentTasksPage key={activeAgent.id} agent={activeAgent} />
           ) : view === "issues" && activeAgent ? (
             activeIssueId === "new" ? <NewIssueView key={activeAgent.id} agent={activeAgent} />
-              : activeIssueId ? <IssueView key={activeIssueId} agent={activeAgent} issueId={activeIssueId} />
-              : <IssuesOverview key={activeAgent.id} agent={activeAgent} issues={visibleIssues} />
+              : activeIssueId ? <IssueView key={activeIssueId} agent={activeAgent} issueId={activeIssueId} onIssuesChanged={issueList.refresh} />
+              : <IssuesOverview key={activeAgent.id} agent={activeAgent} issues={visibleIssues} loading={issueList.loading} error={issueList.error} onRefresh={issueList.refresh} />
           ) : onNewSessionPage && activeAgent ? (
             <NewSessionView
               key={activeAgent.id}

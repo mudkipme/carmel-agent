@@ -13,6 +13,7 @@
     "build": "pnpm -r build",
     "lint": "oxlint .",
     "test": "pnpm --filter @carmel-agent/server test && pnpm --filter @carmel-agent/client test",
+    "test:browser": "pnpm --filter @carmel-agent/client test:browser",
     "check": "pnpm lint && pnpm test && pnpm build",
     "preview": "pnpm --filter @carmel-agent/client preview"
   },

@@ -1,18 +1,26 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { AgentConfig, IssueCreateCommand } from "@carmel-agent/shared";
 import { useHarnessStore } from "@/store/harness-store";
+import { draftStorageKey, clearSessionDraft } from "@/lib/session-draft";
+import { issueListSearch } from "@/lib/issue-navigation";
 import { showError } from "@/lib/errors";
 import { IssueBriefForm } from "./IssueBriefForm";
 export function NewIssueView({ agent }: { agent: AgentConfig }) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const search = issueListSearch(params);
+  const listPath = `/agents/${agent.id}/issues${search}`;
+  const userId = useHarnessStore((s) => s.activeUserId);
+  const draftKey = draftStorageKey(userId, agent.id, "new-issue");
   const createIssue = useHarnessStore((s) => s.createIssue);
   const [busy, setBusy] = useState(false);
   const save = async (draft: IssueCreateCommand) => {
     setBusy(true);
     try {
       const issue = await createIssue(agent.id, draft);
-      navigate(`/agents/${agent.id}/issues/${issue.id}`);
+      clearSessionDraft(draftKey);
+      navigate(`/agents/${agent.id}/issues/${issue.id}${search}`);
     } catch (error) {
       showError("Unable to create issue", error);
       setBusy(false);
@@ -23,7 +31,7 @@ export function NewIssueView({ agent }: { agent: AgentConfig }) {
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <Link
           className="text-sm text-muted-foreground hover:underline"
-          to={`/agents/${agent.id}/issues`}
+          to={listPath}
         >
           {agent.name} / Issues
         </Link>
@@ -36,8 +44,12 @@ export function NewIssueView({ agent }: { agent: AgentConfig }) {
         </div>
         <IssueBriefForm
           busy={busy}
+          draftKey={draftKey}
           onSave={(draft) => void save(draft)}
-          onCancel={() => navigate(`/agents/${agent.id}/issues`)}
+          onCancel={() => {
+            clearSessionDraft(draftKey);
+            navigate(listPath);
+          }}
         />
       </div>
     </div>

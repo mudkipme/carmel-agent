@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type {
   AgentConfig,
   IssueNote,
@@ -9,6 +9,8 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { api } from "@/lib/api";
 import { useHarnessStore } from "@/store/harness-store";
 import { useSessionAgent } from "@/hooks/use-session-agent";
+import { useRemoteResource } from "@/hooks/use-remote-resource";
+import { ResourceError, ResourceLoading } from "../ResourceFeedback";
 import { ChatMessages } from "@/components/chat/ChatMessages";
 import { ContextPressureNotice } from "@/components/chat/ContextPressureNotice";
 
@@ -16,35 +18,33 @@ export function IssueConversation({
   agent,
   sessionId,
   notes,
+  running,
 }: {
   agent: AgentConfig;
   sessionId: string;
   notes: IssueNote[];
+  running: boolean;
 }) {
-  const [session, setSession] = useState<Session>();
-  const [error, setError] = useState(false);
   const modelRefs = useHarnessStore((s) => s.modelRefs);
-  useEffect(() => {
-    const controller = new AbortController();
-    void api
-      .getSessionConnection(sessionId, controller.signal)
-      .then((connection) => setSession(connection.session))
-      .catch(() => {
-        if (!controller.signal.aborted) setError(true);
-      });
-    return () => controller.abort();
-  }, [sessionId]);
+  const {
+    data: connection,
+    error,
+    refresh,
+  } = useRemoteResource({
+    key: `conversation:${sessionId}`,
+    load: (signal) => api.getSessionConnection(sessionId, signal),
+  });
+  const session = connection?.session;
   const modelRef = modelRefs.find((m) => m.id === session?.modelRefId);
   if (!session)
-    return (
-      <p
-        role={error ? "alert" : "status"}
-        className="text-sm text-muted-foreground"
-      >
-        {error
-          ? "Unable to load the conversation. Reopen this issue to retry."
-          : "Connecting to the conversation…"}
-      </p>
+    return error ? (
+      <ResourceError
+        error={error}
+        title="Unable to load conversation"
+        onRetry={refresh}
+      />
+    ) : (
+      <ResourceLoading label="Connecting to conversation" />
     );
   if (!modelRef)
     return (
@@ -60,6 +60,7 @@ export function IssueConversation({
       session={session}
       modelRef={modelRef}
       notes={notes}
+      running={running}
     />
   );
 }
@@ -69,45 +70,42 @@ function ConnectedConversation({
   session,
   modelRef,
   notes,
+  running,
 }: {
   agent: AgentConfig;
   session: Session;
   modelRef: ModelRef;
   notes: IssueNote[];
+  running: boolean;
 }) {
   const { agent, snapshot } = useSessionAgent(config, session, modelRef);
+  const connection = useRemoteResource({
+    key: `live-conversation:${session.id}`,
+    enabled: Boolean(agent) && !snapshot.isStreaming,
+    load: (signal) => api.getSessionConnection(session.id, signal),
+    pollInterval: running ? 2_000 : 30_000,
+    refreshKey: running,
+  });
   useEffect(() => {
-    if (!agent) return;
-    let disposed = false;
-    let attaching = false;
-    async function refresh() {
-      if (disposed || attaching || agent!.getSnapshot().isStreaming) return;
-      attaching = true;
-      try {
-        const connection = await api.getSessionConnection(session.id);
-        if (disposed) return;
-        if (connection.activeRun)
-          void agent!.attachToRun(
-            connection.activeRun.runId,
-            connection.session.messages,
-            connection.activeRun.eventCursor,
-          );
-        else agent!.setMessages(connection.session.messages);
-      } finally {
-        attaching = false;
-      }
-    }
-    const timer = window.setInterval(
-      () => void refresh().catch(() => undefined),
-      2000,
-    );
-    return () => {
-      disposed = true;
-      window.clearInterval(timer);
-    };
-  }, [agent, session.id]);
+    if (!agent || !connection.data || agent.getSnapshot().isStreaming) return;
+    const { activeRun, session: saved } = connection.data;
+    if (activeRun)
+      void agent.attachToRun(
+        activeRun.runId,
+        saved.messages,
+        activeRun.eventCursor,
+      );
+    else agent.setMessages(saved.messages);
+  }, [agent, connection.data]);
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      {connection.error && !snapshot.isStreaming ? (
+        <ResourceError
+          error={connection.error}
+          title="Unable to refresh conversation"
+          onRetry={connection.refresh}
+        />
+      ) : null}
       {snapshot.contextPressure ? (
         <ContextPressureNotice pressure={snapshot.contextPressure} />
       ) : null}

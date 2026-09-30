@@ -73,7 +73,7 @@ export type HarnessState = {
   /** Bring a session that is not in the session list -- a task run's -- into the store so it can be opened. */
   loadUnlistedSession: (sessionId: string) => Promise<void>;
   moveSessionToList: (sessionId: string) => Promise<void>;
-  loadIssues: (agentId: string) => Promise<Issue[]>;
+  loadIssues: (agentId: string, signal?: AbortSignal) => Promise<Issue[]>;
   loadIssue: (agentId: string, issueId: string) => Promise<Issue>;
   createIssue: (agentId: string, input: IssueCreateCommand) => Promise<Issue>;
   updateIssue: (issue: Issue, patch: IssuePatchCommand) => Promise<Issue>;

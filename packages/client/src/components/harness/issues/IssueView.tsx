@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeftIcon, CheckIcon, PlayIcon, SquareIcon } from "lucide-react";
-import type { AgentConfig, IssueDetail } from "@carmel-agent/shared";
+import type { AgentConfig } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useRemoteResource } from "@/hooks/use-remote-resource";
+import { useSessionDraft } from "@/hooks/use-session-draft";
+import { draftStorageKey, clearSessionDraft } from "@/lib/session-draft";
+import { issueListSearch } from "@/lib/issue-navigation";
+import { sessionPath } from "@/lib/shell-route";
+import { ResourceError, ResourceLoading } from "../ResourceFeedback";
 import { api } from "@/lib/api";
 import { confirmAction } from "@/lib/action-dialogs";
 import { showError } from "@/lib/errors";
@@ -23,56 +29,52 @@ import { IssueResult } from "./IssueResult";
 export function IssueView({
   agent,
   issueId,
+  onIssuesChanged,
 }: {
   agent: AgentConfig;
   issueId: string;
+  onIssuesChanged: () => Promise<unknown>;
 }) {
   const navigate = useNavigate();
-  const loadIssues = useHarnessStore((s) => s.loadIssues);
-  const [issue, setIssue] = useState<IssueDetail>();
-  const [error, setError] = useState(false);
+  const [params] = useSearchParams();
+  const listPath = `/agents/${agent.id}/issues${issueListSearch(params)}`;
+  const userId = useHarnessStore((s) => s.activeUserId);
+  const briefDraftKey = draftStorageKey(userId, agent.id, issueId, "brief");
+  const replyDraftKey = draftStorageKey(userId, agent.id, issueId, "reply");
+  const {
+    data: issue,
+    error,
+    loading,
+    refresh,
+  } = useRemoteResource({
+    key: `${agent.id}:${issueId}`,
+    load: (signal) => api.getIssue(agent.id, issueId, signal),
+    pollInterval: (data) =>
+      !data || data.running || data.status === "queued" ? 4_000 : 30_000,
+  });
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [fresh, setFresh] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useSessionDraft(
+    replyDraftKey,
+    "",
+    (value): value is string => typeof value === "string",
+  );
   const composer = useRef<HTMLTextAreaElement>(null);
-  const refresh = useCallback(async () => {
-    setIssue(await api.getIssue(agent.id, issueId));
-    setError(false);
-  }, [agent.id, issueId]);
-  useEffect(() => {
-    let disposed = false;
-    const poll = async () => {
-      try {
-        const next = await api.getIssue(agent.id, issueId);
-        if (!disposed) {
-          setIssue(next);
-          setError(false);
-        }
-      } catch {
-        if (!disposed) setError(true);
-      }
-    };
-    void poll();
-    const timer = window.setInterval(() => void poll(), 4000);
-    return () => {
-      disposed = true;
-      window.clearInterval(timer);
-    };
-  }, [agent.id, issueId]);
   const act = async (action: () => Promise<unknown>, clearMessage = false) => {
+    const sentMessage = message;
     setBusy(true);
     try {
       await action();
       if (clearMessage) {
-        setMessage("");
+        setMessage((current) => (current === sentMessage ? "" : current));
       }
       await refresh();
-      await loadIssues(agent.id);
+      await onIssuesChanged();
     } catch (cause) {
       showError("Unable to update issue", cause);
-      await refresh().catch(() => undefined);
-      await loadIssues(agent.id).catch(() => undefined);
+      await refresh();
+      await onIssuesChanged();
     } finally {
       setBusy(false);
     }
@@ -80,10 +82,17 @@ export function IssueView({
   const focusReply = () => composer.current?.focus();
   if (!issue)
     return (
-      <div className="p-8 text-sm text-muted-foreground" role="status">
-        {error ? "Unable to load issue." : "Loading issue…"}
+      <div className="flex flex-col gap-4 p-8">
+        {loading ? <ResourceLoading label="Loading issue" /> : null}
+        {error ? (
+          <ResourceError
+            error={error}
+            title="Unable to load issue"
+            onRetry={refresh}
+          />
+        ) : null}
         <Button asChild variant="link">
-          <Link to={`/agents/${agent.id}/issues`}>Back to issues</Link>
+          <Link to={listPath}>Back to issues</Link>
         </Button>
       </div>
     );
@@ -121,7 +130,7 @@ export function IssueView({
         <div className="mx-auto flex min-w-0 max-w-4xl flex-col gap-5">
           <Link
             className="flex items-center gap-2 text-sm text-muted-foreground hover:underline"
-            to={`/agents/${agent.id}/issues`}
+            to={listPath}
           >
             <ArrowLeftIcon className="size-4" />
             {agent.name} / Issues
@@ -207,7 +216,10 @@ export function IssueView({
                 <Button
                   variant="ghost"
                   disabled={busy}
-                  onClick={() => setEditing(!editing)}
+                  onClick={() => {
+                    if (editing) clearSessionDraft(briefDraftKey);
+                    setEditing(!editing);
+                  }}
                 >
                   {editing ? "Cancel editing" : "Edit brief"}
                 </Button>
@@ -215,12 +227,11 @@ export function IssueView({
             </div>
           </div>
           {error ? (
-            <Alert variant="destructive">
-              <AlertTitle>Connection lost</AlertTitle>
-              <AlertDescription>
-                Updates will resume when the connection returns.
-              </AlertDescription>
-            </Alert>
+            <ResourceError
+              error={error}
+              title="Connection lost"
+              onRetry={refresh}
+            />
           ) : null}
           {failed ||
           (!issue.running &&
@@ -259,6 +270,7 @@ export function IssueView({
           {editing ? (
             <div className="rounded-lg border p-4">
               <IssueBriefForm
+                draftKey={briefDraftKey}
                 busy={busy}
                 initial={{
                   title: issue.title,
@@ -269,10 +281,14 @@ export function IssueView({
                 onSave={(draft) =>
                   void act(async () => {
                     await api.updateIssue(agent.id, issueId, draft);
+                    clearSessionDraft(briefDraftKey);
                     setEditing(false);
                   })
                 }
-                onCancel={() => setEditing(false)}
+                onCancel={() => {
+                  clearSessionDraft(briefDraftKey);
+                  setEditing(false);
+                }}
               />
             </div>
           ) : (
@@ -310,6 +326,7 @@ export function IssueView({
                 key={issue.sessionId}
                 agent={agent}
                 sessionId={issue.sessionId}
+                running={issue.running}
                 notes={issue.notes}
               />
             ) : (
@@ -433,7 +450,10 @@ export function IssueView({
                       attempt.sessionId !== issue.sessionId ? (
                         <Button asChild variant="outline" size="sm">
                           <Link
-                            to={`/agents/${agent.id}/chat/${attempt.sessionId}`}
+                            to={sessionPath({
+                              agentId: agent.id,
+                              id: attempt.sessionId,
+                            })}
                           >
                             Earlier conversation
                           </Link>
@@ -506,8 +526,10 @@ export function IssueView({
                 setBusy(true);
                 try {
                   await api.deleteIssue(agent.id, issueId);
-                  await loadIssues(agent.id);
-                  navigate(`/agents/${agent.id}/issues`);
+                  clearSessionDraft(briefDraftKey);
+                  clearSessionDraft(replyDraftKey);
+                  await onIssuesChanged();
+                  navigate(listPath);
                 } catch (cause) {
                   showError("Unable to delete issue", cause);
                   setBusy(false);

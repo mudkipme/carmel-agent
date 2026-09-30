@@ -109,11 +109,14 @@ pnpm dev:client   # run only the Vite client
 pnpm build        # type-check and build all packages
 pnpm lint         # run oxlint
 pnpm test         # run server and client tests
+pnpm test:browser # browser regressions (requires agent-browser and its Chromium)
 pnpm check        # lint, test, and build
 pnpm serve        # run the built server entrypoint
 ```
 
 For sandboxed bash in development, build the runner image (`podman build -f Dockerfile.runner -t carmel-agent-runner:latest .`) and make sure your container socket is reachable.
+
+Browser regressions use the `agent-browser` CLI (`npm install -g agent-browser`, then `agent-browser install`). Set `AGENT_BROWSER_BIN` if the executable is outside your PATH. The suite builds the client and starts a fixture server on an ephemeral loopback port with an in-memory database, temporary data directory, and no schedulers or container socket. It does not use the running app or real provider credentials.
 
 ## Project Layout
 

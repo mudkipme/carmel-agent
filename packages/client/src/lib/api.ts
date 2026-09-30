@@ -257,7 +257,7 @@ export const api = {
     }),
   deleteAgentSecret: (agentId: string, name: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}/secrets/${encodeURIComponent(name)}`, { method: "DELETE" }),
-  listAgentTasks: (agentId: string) => request<AgentTask[]>(`/api/agents/${agentId}/tasks`),
+  listAgentTasks: (agentId: string, signal?: AbortSignal) => request<AgentTask[]>(`/api/agents/${agentId}/tasks`, { signal }),
   createAgentTask: (agentId: string, input: AgentTaskCreateCommand) =>
     request<AgentTask>(`/api/agents/${agentId}/tasks`, { method: "POST", body: JSON.stringify(input) }),
   updateAgentTask: (agentId: string, taskId: string, patch: AgentTaskPatchCommand) =>
@@ -268,8 +268,8 @@ export const api = {
     request<{ outcome: string; detail?: string; sessionId?: string }>(`/api/agents/${agentId}/tasks/${taskId}/run`, {
       method: "POST",
     }),
-  listAgentTaskRuns: (agentId: string, taskId: string) =>
-    request<AgentTaskRun[]>(`/api/agents/${agentId}/tasks/${taskId}/runs`),
+  listAgentTaskRuns: (agentId: string, taskId: string, signal?: AbortSignal) =>
+    request<AgentTaskRun[]>(`/api/agents/${agentId}/tasks/${taskId}/runs`, { signal }),
   runIssue: (agentId: string, issueId: string, input: IssueRunCommand) =>
     request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/runs`, { method: "POST", body: JSON.stringify(input) }),
   addIssueNote: (agentId: string, issueId: string, body: string) =>
@@ -296,8 +296,8 @@ export const api = {
     request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/accept`, { method: "POST" }),
   reopenIssue: (agentId: string, issueId: string) =>
     request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/reopen`, { method: "POST" }),
-  listIssues: (agentId: string) => request<Issue[]>(`/api/agents/${agentId}/issues`),
-  getIssue: (agentId: string, issueId: string) => request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}`),
+  listIssues: (agentId: string, signal?: AbortSignal) => request<Issue[]>(`/api/agents/${agentId}/issues`, { signal }),
+  getIssue: (agentId: string, issueId: string, signal?: AbortSignal) => request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}`, { signal }),
   createIssue: (agentId: string, input: IssueCreateCommand) =>
     request<Issue>(`/api/agents/${agentId}/issues`, { method: "POST", body: JSON.stringify(input) }),
   updateIssue: (agentId: string, issueId: string, patch: IssuePatchCommand) =>
