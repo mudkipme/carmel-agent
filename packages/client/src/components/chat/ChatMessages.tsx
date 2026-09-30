@@ -46,6 +46,8 @@ type DisplayAssistantContentPart = AssistantMessageType["content"][number] | {
   mimeType: string;
 };
 
+type MessagePresentation = { hideAnswer?: boolean; hideRunEnding?: boolean };
+
 // Memoized (along with MessageItem below) so re-renders above the chat panel —
 // and streaming deltas, which only touch the streaming message — don't re-render
 // and re-parse the entire history. Handler props must stay referentially stable.
@@ -66,7 +68,7 @@ export const ChatMessages = memo(function ChatMessages({
       ? [...messages, streamingMessage]
       : messages;
 
-  const renderMessage = (message: AgentMessage, index: number) => {
+  const renderMessage = (message: AgentMessage, index: number, presentation: MessagePresentation = {}) => {
     if (message.role === "artifact" || message.role === "toolResult") return null;
     const streaming = isStreaming && message === streamingMessage;
     return (
@@ -78,6 +80,8 @@ export const ChatMessages = memo(function ChatMessages({
         codemodeCalls={codemodeCalls}
         streaming={streaming}
         hidePendingToolCalls={!streaming && isStreaming}
+        hideAnswer={presentation.hideAnswer}
+        hideRunEnding={presentation.hideRunEnding}
         onEditMessage={onEditMessage}
         onRetryMessage={onRetryMessage}
         onForkMessage={onForkMessage}
@@ -86,7 +90,7 @@ export const ChatMessages = memo(function ChatMessages({
   };
 
   if (!collapseRunDetails) {
-    return <div className="flex min-w-0 flex-col gap-4">{renderMessages.map(renderMessage)}</div>;
+    return <div className="flex min-w-0 flex-col gap-4">{renderMessages.map((message, index) => renderMessage(message, index))}</div>;
   }
 
   const segments = segmentByRun(renderMessages);
@@ -126,8 +130,8 @@ function segmentByRun(messages: AgentMessage[]): MessageSegment[] {
 
 /**
  * One run, folded down to the answer it ended on. The row above the answer
- * says how much work is folded away and opens it in place, as the full chat
- * would have shown it. A run with nothing to fold renders as it is.
+ * says how much work is folded away and opens it above the answer. The answer
+ * stays outside the work details. A run with nothing to fold renders as it is.
  */
 function CollapsedRun({
   messages,
@@ -139,7 +143,7 @@ function CollapsedRun({
   messages: Array<{ message: AgentMessage; index: number }>;
   /** The agent is still working on this run. */
   active: boolean;
-  renderMessage: (message: AgentMessage, index: number) => ReactNode;
+  renderMessage: (message: AgentMessage, index: number, presentation?: MessagePresentation) => ReactNode;
   onEditMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
 }) {
@@ -187,16 +191,16 @@ function CollapsedRun({
       </button>
       {expanded ? (
         <div className="flex min-w-0 flex-col gap-4 border-l-2 border-border/60 pl-1">
-          {messages.map((entry) => renderMessage(entry.message, entry.index))}
+          {messages.map((entry) => renderMessage(entry.message, entry.index, {
+            hideAnswer: entry === answer,
+            hideRunEnding: entry === last,
+          }))}
         </div>
-      ) : (
-        <>
-          {answer ? (
-            <AnswerOnly message={answer.message} onEditMessage={active ? undefined : onEditMessage} onForkMessage={onForkMessage} />
-          ) : null}
-          {last ? <RunEnding message={last.message} /> : null}
-        </>
-      )}
+      ) : null}
+      {answer ? (
+        <AnswerOnly message={answer.message} onEditMessage={active ? undefined : onEditMessage} onForkMessage={onForkMessage} />
+      ) : null}
+      {last ? <RunEnding message={last.message} /> : null}
     </div>
   );
 }
@@ -257,6 +261,8 @@ const MessageItem = memo(function MessageItem({
   codemodeCalls,
   streaming,
   hidePendingToolCalls,
+  hideAnswer,
+  hideRunEnding,
   onEditMessage,
   onRetryMessage,
   onForkMessage,
@@ -267,6 +273,8 @@ const MessageItem = memo(function MessageItem({
   codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
   streaming: boolean;
   hidePendingToolCalls: boolean;
+  hideAnswer?: boolean;
+  hideRunEnding?: boolean;
   onEditMessage?: (message: AgentMessage) => void;
   onRetryMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
@@ -282,6 +290,8 @@ const MessageItem = memo(function MessageItem({
           codemodeCalls={codemodeCalls}
           streaming={streaming}
           hidePendingToolCalls={hidePendingToolCalls}
+          hideAnswer={hideAnswer}
+          hideRunEnding={hideRunEnding}
           onEditMessage={onEditMessage}
           onForkMessage={onForkMessage}
         />
@@ -374,6 +384,8 @@ function AssistantMessage({
   codemodeCalls,
   streaming,
   hidePendingToolCalls,
+  hideAnswer = false,
+  hideRunEnding = false,
   onEditMessage,
   onForkMessage,
 }: {
@@ -384,11 +396,15 @@ function AssistantMessage({
   codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
   streaming: boolean;
   hidePendingToolCalls: boolean;
+  hideAnswer?: boolean;
+  hideRunEnding?: boolean;
   onEditMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
 }) {
   const usageText = !streaming ? formatUsage(message.usage) : "";
-  const assistantContent = message.content.filter((part) => part.type !== "toolCall") as DisplayAssistantContentPart[];
+  const assistantContent = (message.content as DisplayAssistantContentPart[]).filter((part) =>
+    part.type !== "toolCall" && (!hideAnswer || (part.type !== "text" && part.type !== "image")),
+  );
   const toolCalls = message.content.filter((part) => part.type === "toolCall");
   const lastTextIndex = assistantContent.reduce(
     (lastIndex, part, index) => (part.type === "text" && part.text.trim() ? index : lastIndex),
@@ -451,13 +467,13 @@ function AssistantMessage({
         );
       })}
       {usageText ? <div className="text-xs text-muted-foreground">{usageText}</div> : null}
-      {message.stopReason === "error" && message.errorMessage ? (
+      {!hideRunEnding && message.stopReason === "error" && message.errorMessage ? (
         <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           <AlertCircleIcon />
           <span>{message.errorMessage}</span>
         </div>
       ) : null}
-      {message.stopReason === "aborted" ? <div className="text-sm italic text-destructive">Request aborted</div> : null}
+      {!hideRunEnding && message.stopReason === "aborted" ? <div className="text-sm italic text-destructive">Request aborted</div> : null}
     </div>
   );
 }
