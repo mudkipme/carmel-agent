@@ -1,5 +1,5 @@
 import type BetterSqlite3 from "better-sqlite3";
-import type { Api, Model, ModelsStore, ModelsStoreEntry } from "@earendil-works/pi-ai";
+import { isModelType, type AnyModel, type Api, type Model, type ModelsStore, type ModelsStoreEntry } from "@earendil-works/pi-ai";
 import { sqlite } from "../db/index.ts";
 
 type StoredCatalogRow = {
@@ -31,7 +31,7 @@ export class SqliteModelsStore implements ModelsStore {
       return undefined;
     }
     return {
-      models: models as Array<Model<Api>>,
+      models: models as AnyModel[],
       checkedAt: row.checkedAt ?? undefined,
       lastModified: row.lastModified ?? undefined,
       etag: row.etag ?? undefined,
@@ -82,8 +82,8 @@ function readCachedCatalog(providerId: string, database: BetterSqlite3.Database 
     try {
       const parsed = JSON.parse(row.models) as unknown;
       if (Array.isArray(parsed)) {
-        for (const model of parsed as Array<Model<Api>>) {
-          if (model?.id) models.set(model.id, model);
+        for (const model of parsed as AnyModel[]) {
+          if (model?.id && isModelType(model, "chat")) models.set(model.id, model);
         }
       }
     } catch {

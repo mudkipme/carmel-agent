@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { Api, Model } from "@earendil-works/pi-ai";
+import type { Api, ImageModel, Model } from "@earendil-works/pi-ai";
 import { migrate, sqlite } from "../db/index.ts";
-import { SqliteModelsStore } from "./model-store.ts";
+import { getCachedCatalogModel, SqliteModelsStore } from "./model-store.ts";
 
 migrate();
 
@@ -49,4 +49,21 @@ test("invalid cached catalogs are removed instead of breaking model discovery", 
     sqlite.prepare("SELECT provider_id FROM model_catalogs WHERE provider_id = ?").get("broken-provider"),
     undefined,
   );
+});
+
+test("mixed catalogs preserve image entries without replacing a chat model sharing its ID", async () => {
+  const image: ImageModel<"openai-images"> = {
+    ...cachedModel,
+    type: "image",
+    api: "openai-images",
+    output: ["image"],
+  };
+  const store = new SqliteModelsStore(sqlite);
+  await store.write("test-provider", { models: [cachedModel, image] });
+
+  assert.deepEqual((await store.read("test-provider"))?.models, [cachedModel, image]);
+  assert.deepEqual(getCachedCatalogModel("test-provider", cachedModel.id), cachedModel);
+
+  await store.write("test-provider", { models: [image] });
+  assert.equal(getCachedCatalogModel("test-provider", cachedModel.id), undefined);
 });

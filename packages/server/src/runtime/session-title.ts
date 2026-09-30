@@ -4,21 +4,20 @@ import {
   type Api,
   type Model,
   type ModelThinkingLevel,
-  type ProviderHeaders,
+  type Models,
   type ThinkingLevel,
 } from "@earendil-works/pi-ai";
-import { completeSimple } from "@earendil-works/pi-ai/compat";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 export async function generateSessionTitle({
   model,
-  apiKey,
-  headers,
+  modelRuntime,
+  timeoutMs = 60_000,
   messages,
 }: {
   model: Model<Api>;
-  apiKey: string;
-  headers?: ProviderHeaders;
+  modelRuntime: Pick<Models, "completeSimple">;
+  timeoutMs?: number;
   messages: AgentMessage[];
 }) {
   const transcript = buildTitleTranscript(messages);
@@ -28,7 +27,7 @@ export async function generateSessionTitle({
   const titleThinkingLevel = getTitleThinkingLevel(model, supportedThinkingLevels);
   const maxTokens = titleThinkingLevel === "off" ? 64 : 1024;
   // Keep the model's reasoning metadata so Pi can send its configured off value.
-  const response = await completeSimple(
+  const response = await modelRuntime.completeSimple(
     model,
     {
       systemPrompt:
@@ -42,8 +41,8 @@ export async function generateSessionTitle({
       ],
     },
     {
-      apiKey,
-      headers,
+      timeoutMs,
+      signal: AbortSignal.timeout(timeoutMs),
       maxTokens,
       reasoning: titleThinkingLevel === "off" ? undefined : titleThinkingLevel,
     },

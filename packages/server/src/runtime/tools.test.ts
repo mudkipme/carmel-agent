@@ -47,7 +47,6 @@ test("createServerToolDefinitions maps server runtime permissions to their tool 
         bash: true,
         network: true,
       },
-      enabledExtensions: [],
     }),
   );
 
@@ -279,7 +278,6 @@ function makeAgent(overrides: Partial<AgentRecord> & { permissions?: AgentRecord
     shared: false,
     name: "Agent",
     description: "",
-    enabledExtensions: [],
     workingDirMode: "manual",
     workingDir: mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-")),
     defaultWorkingDir: null,

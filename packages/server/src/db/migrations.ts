@@ -96,6 +96,11 @@ const migrations: Migration[] = [
   { id: "025_api_keys", description: "Create per-user keys for the OpenAI-compatible API", run: createApiKeys },
   { id: "026_activity_inbox", description: "Persist private run activity and read state", run: createActivityInbox },
   { id: "027_issue_workflow", description: "Separate issue briefs, notes, and execution attempts", run: createIssueWorkflow },
+  {
+    id: "028_drop_agent_enabled_extensions",
+    description: "Remove the unused per-agent extension allowlist",
+    run: (sqlite) => dropColumnIfExists(sqlite, "agents", "enabled_extensions"),
+  },
 ];
 
 function createActivityInbox(sqlite: Sqlite) {

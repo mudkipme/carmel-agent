@@ -44,11 +44,10 @@ function asHarnessTool(tool: AgentTool): ServerToolDefinition {
  * One provider rather than four, because these share the execution environment
  * that enforces the workspace boundary and they are meaningless apart from it.
  * The per-tool `requires` is what splits them, so an agent with read but not
- * write still gets exactly the set it did before this became a registry.
+ * write still gets only the tools its permissions allow.
  */
 export const filesystemToolProvider: ToolProvider = {
   id: "carmel.filesystem",
-  source: "builtin",
   label: "Workspace files",
   provide(context: ToolProvisionContext): ProvidedTool[] {
     const env = context.env as AgentExecutionEnv;
@@ -72,7 +71,6 @@ export const filesystemToolProvider: ToolProvider = {
 /** Shell access. Separate because it is the one that runs in a container. */
 export const bashToolProvider: ToolProvider = {
   id: "carmel.bash",
-  source: "builtin",
   label: "Sandboxed shell",
   provide(): ProvidedTool[] {
     return [{ providerId: bashToolProvider.id, requires: "bash", tool: createBashTool<ExecutionToolContext>() }];

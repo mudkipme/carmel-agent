@@ -151,8 +151,6 @@ export const agentConfigRequestSchema = z.object({
   permissions: agentPermissionsSchema,
   defaultModelRefId: z.string(),
   defaultThinkingLevel: thinkingLevelSchema.default("off"),
-  /** Admin-only; see `assertAgentExtensionAccess`. */
-  enabledExtensions: z.array(z.string()).default([]),
 }).strict();
 export const agentTaskScheduleSchema = z.object({
   scheduleKind: z.enum(["cron", "interval", "once"]),

@@ -50,7 +50,7 @@ test("representative response fixtures satisfy every response component", async 
   const model = { id: "m1", ownerUserId: "u1", shared: false, label: "Local", provider: "ollama", modelId: "qwen" };
   const provider = { id: "p1", userId: "u1", label: "Local", provider: "ollama", hasApiKey: false, hasOAuth: false, createdAt: 1, updatedAt: 1 };
   const permissions = { read: true, write: true, edit: true, bash: false, network: false };
-  const agent = { id: "a1", ownerUserId: "u1", shared: false, name: "Agent", description: "", workingDirMode: "default", workingDir: "/work", mounts: [], systemPrompt: "", promptTemplates: [], permissions, defaultModelRefId: "m1", defaultThinkingLevel: "off", enabledExtensions: [], createdAt: 1, updatedAt: 1 };
+  const agent = { id: "a1", ownerUserId: "u1", shared: false, name: "Agent", description: "", workingDirMode: "default", workingDir: "/work", mounts: [], systemPrompt: "", promptTemplates: [], permissions, defaultModelRefId: "m1", defaultThinkingLevel: "off", createdAt: 1, updatedAt: 1 };
   const metadata = { id: "s1", title: "Chat", userId: "u1", agentId: "a1", modelRefId: "m1", thinkingLevel: "off", revision: 1, createdAt: 1, updatedAt: 1 };
   const session = { ...metadata, messages: [], messageEntryIds: [] };
   const file = { name: "README.md", path: "README.md", type: "file", size: 12, updatedAt: 1, hidden: false };

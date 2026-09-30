@@ -75,7 +75,7 @@ test("PI_TELEMETRY=0 opts out the way it does in the CLI", () => {
  * survive the whole `pi-ai` request path and land on the socket, which is the
  * part that was actually broken.
  */
-test("attribution and Pi's User-Agent reach the wire", async (t) => {
+test("attribution, runtime auth, and caller headers reach the wire through every chat SDK method", async (t) => {
   let received: IncomingHttpHeaders | undefined;
   const server = createServer((request, response) => {
     received = request.headers;
@@ -94,14 +94,21 @@ test("attribution and Pi's User-Agent reach the wire", async (t) => {
   await runtime.setRuntimeApiKey("openrouter", "test-key");
   const attributed = withProviderAttribution(bindResolvedModel(runtime, model));
 
-  await attributed
-    .streamSimple(model, { messages: [{ role: "user", content: "hi", timestamp: Date.now() }] } as never, {})
-    .result();
-
-  assert.equal(received?.["http-referer"], "https://pi.dev");
-  assert.equal(received?.["x-openrouter-title"], "pi");
-  assert.equal(received?.["x-openrouter-categories"], "cli-agent");
-  // pi-ai stamps this itself; it is the half that was already correct, and the
-  // assertion is what keeps a future header merge from clobbering it.
-  assert.match(received?.["user-agent"] ?? "", /^pi \(/);
+  for (const method of ["stream", "streamSimple", "complete", "completeSimple"] as const) {
+    const response = attributed[method](model, {
+      messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+    }, {
+      headers: { "X-Caller": "caller" },
+      transformHeaders: (headers) => ({ ...headers, "HTTP-Referer": "https://caller.test" }),
+    });
+    const result = await ("result" in response ? response.result() : response);
+    assert.equal(result.stopReason, "stop", `${method}: ${result.errorMessage}`);
+    assert.equal(received?.["http-referer"], "https://caller.test", method);
+    assert.equal(received?.["x-openrouter-title"], "pi", method);
+    assert.equal(received?.["x-openrouter-categories"], "cli-agent", method);
+    assert.equal(received?.authorization, "Bearer test-key", method);
+    assert.equal(received?.["x-caller"], "caller", method);
+    // Pi stamps its own User-Agent; the merge must preserve it.
+    assert.match(received?.["user-agent"] ?? "", /^pi \(/);
+  }
 });

@@ -12,8 +12,8 @@
     "openapi:components": "node --import tsx scripts/emit-openapi-components.ts"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "^0.87.1",
-    "@earendil-works/pi-ai": "^0.87.1",
+    "@earendil-works/pi-agent-core": "^0.99.1",
+    "@earendil-works/pi-ai": "^0.99.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -37,7 +37,7 @@ logs a failure without leaving an empty session behind every time it fires.
 
 `startDetachedAgentRun` — the same path an interactive run takes, minus the SSE
 stream. Scheduled runs therefore inherit the run guard, compaction and context
-recovery, the failure classifier, extension tools, and branch integrity without
+recovery, the failure classifier, and branch integrity without
 any of it existing twice. Unattended runs are where the guard matters most.
 
 A poll loop, not a timer per task: tasks are edited, paused and deleted from

@@ -99,7 +99,6 @@ function makeAgent(workingDir: string): AgentRecord {
     systemPrompt: "",
     promptTemplates: [],
     permissions: { read: true, write: false, edit: false, bash: false, network: false },
-    enabledExtensions: [],
     defaultModelRefId: "model_1",
     defaultThinkingLevel: "off",
     createdAt: 0,

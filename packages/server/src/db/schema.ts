@@ -157,15 +157,6 @@ export const agents = sqliteTable("agents", {
   systemPrompt: text("system_prompt").notNull(),
   promptTemplates: text("prompt_templates", { mode: "json" }).$type<PromptTemplate[]>().notNull(),
   permissions: text("permissions", { mode: "json" }).$type<AgentPermissions>().notNull(),
-  /**
-   * Extension providers this agent may use, by provider id.
-   *
-   * Opt-in per agent, and only ever meaningful for extensions -- built-in tool
-   * providers ignore it, so an empty list is the safe default rather than an
-   * agent with no tools. An administrator installs an extension instance-wide;
-   * this is the second decision, made per agent.
-   */
-  enabledExtensions: text("enabled_extensions", { mode: "json" }).$type<string[]>().notNull().default([]),
   defaultModelRefId: text("default_model_ref_id")
     .notNull()
     .references(() => modelRefs.id),

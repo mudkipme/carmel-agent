@@ -32,7 +32,6 @@ import {
   type ActiveAgentRun,
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
-import { mergeProviderAttributionHeaders } from "./provider-attribution.ts";
 import { createServerExecution } from "./tools.ts";
 import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
 import {
@@ -41,8 +40,8 @@ import {
   observeHarnessEvents,
   reconcileLaneConfiguration,
   type PiDispatcherOptions,
-} from "../effectors/pi-0-87/agent-driver.ts";
-import { createPiSessionLog, PI_MAIN_BRANCH } from "../effectors/pi-0-87/session-log.ts";
+} from "../effectors/pi-0-99/agent-driver.ts";
+import { createPiSessionLog, PI_MAIN_BRANCH } from "../effectors/pi-0-99/session-log.ts";
 import {
   compactionCannotHelp,
   describeCompactionFailure,
@@ -319,8 +318,7 @@ async function openRunHarness(
 ): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[]; releaseLane: () => void }> {
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } = context;
   const resources = await loadAgentResources(agent, execution.env);
-  // A session's own tools replace any agent tool that claims the same name, so
-  // an extension cannot stand in for the tool the session depends on.
+  // A session's own tools take precedence over agent tools with the same name.
   const addonNames = new Set(sessionAddons?.tools.map((tool) => tool.name));
   const tools = [...execution.tools.filter((tool) => !addonNames.has(tool.name)), ...(sessionAddons?.tools ?? [])];
   const activeToolNames = tools.map((tool) => tool.name);
@@ -523,7 +521,7 @@ export async function prepareAgentRunPrompt(
  * The rule -- which slash commands exist and which wins when a name is
  * ambiguous -- lives in `effectors/dispatch-prompt.ts` with no Pi imports; the
  * Pi-shaped parts (invocation formatting, argument parsing, inlining a named
- * invocation that carries an attachment) live in the `pi-0-87` adapter.
+ * invocation that carries an attachment) live in the `pi-0-99` adapter.
  */
 export async function runHarnessPrompt(
   dispatch: PiDispatcherOptions,
@@ -686,15 +684,9 @@ async function persistSessionRun(
       model: patch.model,
       modelRuntime: patch.modelRuntime,
     });
-    const auth = await titleModelContext.modelRuntime.getAuth(titleModelContext.model);
-    if (!auth?.auth.apiKey) return;
     const title = await generateSessionTitle({
       model: titleModelContext.model,
-      apiKey: auth.auth.apiKey,
-      // Titles go straight to `completeSimple`, not through the runtime, so the
-      // attribution wrapper never sees them -- merge it here or this one request
-      // per session shows up unattributed.
-      headers: mergeProviderAttributionHeaders(titleModelContext.model, undefined, auth.auth.headers),
+      modelRuntime: titleModelContext.modelRuntime,
       messages: patch.messages,
     });
     if (!title) return;

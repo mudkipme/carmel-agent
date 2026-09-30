@@ -17,8 +17,8 @@ import {
   readPiSessionBranch,
   registerPiSessionLane,
 } from "../../services/pi-session-storage.ts";
-import { createPiSessionLog, PI_MAIN_BRANCH } from "../pi-0-87/session-log.ts";
-import { observeHarnessEvents } from "../pi-0-87/agent-driver.ts";
+import { createPiSessionLog, PI_MAIN_BRANCH } from "../pi-0-99/session-log.ts";
+import { observeHarnessEvents } from "../pi-0-99/agent-driver.ts";
 import type { SessionLog } from "../contracts/session-log.ts";
 
 /**

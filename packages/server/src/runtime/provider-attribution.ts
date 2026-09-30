@@ -1,4 +1,4 @@
-import type { Api, Model, ModelsSimpleStreamOptions, ProviderHeaders } from "@earendil-works/pi-ai";
+import type { Api, Model, ModelsApiStreamOptions, ModelsSimpleStreamOptions, ProviderHeaders } from "@earendil-works/pi-ai";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 
 /**
@@ -122,26 +122,46 @@ export function mergeProviderAttributionHeaders(
  * requests that do not come from a turn, compaction summaries above all.
  */
 export function withProviderAttribution(runtime: ModelRuntime): ModelRuntime {
+  // Completion methods call their own streams on `this`. Bind them explicitly
+  // here so the proxy's stream decoration also covers one-shot SDK calls.
+  const stream: ModelRuntime["stream"] = (model, context, options) =>
+    runtime.stream(model, context, {
+      ...options,
+      transformHeaders: attributionTransform(model, options),
+    } as ModelsApiStreamOptions<typeof model.api>);
+  const streamSimple: ModelRuntime["streamSimple"] = (model, context, options) =>
+    runtime.streamSimple(model, context, { ...options, transformHeaders: attributionTransform(model, options) });
+
   return new Proxy(runtime, {
     get(target, property) {
-      if (property === "streamSimple") {
-        return (
-          streamModel: Model<Api>,
-          context: Parameters<ModelRuntime["streamSimple"]>[1],
-          options?: ModelsSimpleStreamOptions,
-        ) =>
-          target.streamSimple(streamModel, context, {
-            ...options,
-            transformHeaders: async (headers) =>
-              mergeProviderAttributionHeaders(
-                streamModel,
-                options?.sessionId,
-                await options?.transformHeaders?.(headers) ?? headers,
-              ) ?? {},
-          });
+      switch (property) {
+        case "stream": return stream;
+        case "streamSimple": return streamSimple;
+        case "complete": {
+          const complete: ModelRuntime["complete"] = (model, context, options) =>
+            stream(model, context, options).result();
+          return complete;
+        }
+        case "completeSimple": {
+          const completeSimple: ModelRuntime["completeSimple"] = (model, context, options) =>
+            streamSimple(model, context, options).result();
+          return completeSimple;
+        }
       }
       const value = Reflect.get(target, property, target) as unknown;
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
+}
+
+function attributionTransform(
+  model: Model<Api>,
+  options: Pick<ModelsSimpleStreamOptions, "sessionId" | "transformHeaders"> | undefined,
+) {
+  return async (headers: ProviderHeaders) =>
+    mergeProviderAttributionHeaders(
+      model,
+      options?.sessionId,
+      await options?.transformHeaders?.(headers) ?? headers,
+    ) ?? {};
 }

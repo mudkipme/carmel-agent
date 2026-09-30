@@ -8,7 +8,6 @@ import { reapManagedContainers, shutdownContainerManager } from "./runtime/sandb
 import { shutdownTerminals } from "./runtime/sandbox/terminal-sessions.ts";
 import { attachTerminalSocket } from "./terminal-socket.ts";
 import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
-import { loadInstalledExtensions } from "./runtime/extension-registry.ts";
 import { startTaskScheduler } from "./runtime/task-scheduler.ts";
 import { errorMessage } from "./errors.ts";
 import { assertOidcConfig } from "./oidc/config.ts";
@@ -45,13 +44,6 @@ void refreshConfiguredModelCatalogs()
     );
   });
 
-// Awaited before the server accepts traffic: a run that started while
-// extensions were still loading would build its tool list from an incomplete
-// registry and silently omit tools the agent is configured for.
-await loadInstalledExtensions();
-
-// After extensions: a task firing before the registry is loaded would build its
-// tool list from an incomplete one.
 startTaskScheduler();
 
 const app = createApp();

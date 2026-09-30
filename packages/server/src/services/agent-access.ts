@@ -103,27 +103,6 @@ export function assertAgentHostPathAccess(role: UserRole, agent: Pick<AgentConfi
   }
 }
 
-/**
- * Extension enablement is administrator-only, including for the agent's owner.
- *
- * An extension is third-party code running in the server process with the
- * database and every user's sessions in reach. Carmel's other per-agent
- * switches are preferences; this one hands out the host, so owning the agent is
- * not enough to turn it on. Unchanged values pass, so a non-admin can still
- * save every other field of an agent that already has extensions enabled.
- */
-export function assertAgentExtensionAccess(
-  role: UserRole,
-  requested: readonly string[],
-  current: readonly string[] | undefined,
-) {
-  if (role === "admin") return;
-  const before = [...(current ?? [])].sort();
-  const after = [...requested].sort();
-  if (before.length === after.length && before.every((id, index) => id === after[index])) return;
-  throw new AgentHostPathAccessError("Enabling extensions is admin-only.");
-}
-
 export class AgentHostPathAccessError extends Error {}
 
 export function reassignModelReferences(deletedModelIds: Set<string>) {

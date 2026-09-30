@@ -29,7 +29,7 @@ type TaskRecord = typeof import("../db/schema.ts").agentTasks.$inferSelect;
  *
  * Firing goes through `startDetachedAgentRun`, the same path an interactive run
  * takes, so a scheduled run inherits the run guard, compaction and context
- * recovery, the failure classifier, and extension tools without any of it being
+ * recovery, and the failure classifier without any of it being
  * reimplemented here. Unattended runs are exactly where the guard matters most.
  */
 

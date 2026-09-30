@@ -12,7 +12,9 @@ const rowCount = (table: string) =>
 
 test("all versioned migrations apply and remove legacy session tables", () => {
   const applied = sqlite.prepare("SELECT id FROM schema_migrations ORDER BY id").all() as Array<{ id: string }>;
-  assert.equal(applied.at(-1)?.id, "027_issue_workflow");
+  assert.equal(applied.at(-1)?.id, "028_drop_agent_enabled_extensions");
+  const agentColumns = sqlite.pragma("table_info(agents)") as Array<{ name: string }>;
+  assert.ok(!agentColumns.some(({ name }) => name === "enabled_extensions"));
 
   const legacyTables = sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('session_messages', 'pi_session_entries')")
@@ -46,6 +48,29 @@ test("model identity constraints are migration-owned", () => {
   const indexes = sqlite.prepare("PRAGMA index_list(model_refs)").all() as Array<{ name: string }>;
   assert.ok(indexes.some(({ name }) => name === "model_refs_provider_config_model_unique"));
   assert.ok(indexes.some(({ name }) => name === "model_refs_provider_model_unique"));
+});
+
+test("extension removal preserves existing agents and sessions and is idempotent", () => {
+  const previous = new Database(":memory:");
+  previous.pragma("foreign_keys = ON");
+  try {
+    runMigrations(previous);
+    seedDatabase(previous);
+    const agentsBefore = previous.prepare("SELECT * FROM agents").all();
+    const sessionsBefore = previous.prepare("SELECT * FROM sessions").all();
+    previous.exec(`
+      ALTER TABLE agents ADD COLUMN enabled_extensions TEXT NOT NULL DEFAULT '[]';
+      UPDATE agents SET enabled_extensions = '["ext:weather"]';
+      DELETE FROM schema_migrations WHERE id = '028_drop_agent_enabled_extensions';
+    `);
+    runMigrations(previous);
+    runMigrations(previous);
+    assert.deepEqual(previous.prepare("SELECT * FROM agents").all(), agentsBefore);
+    assert.deepEqual(previous.prepare("SELECT * FROM sessions").all(), sessionsBefore);
+    assert.deepEqual(previous.pragma("foreign_key_check"), []);
+  } finally {
+    previous.close();
+  }
 });
 
 test("inbox upgrade preserves open issue outcomes without reviving resolved work", () => {

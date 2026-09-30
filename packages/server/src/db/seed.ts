@@ -75,7 +75,6 @@ export const defaultAgent: AgentConfig = {
   permissions: defaultPermissions,
   defaultModelRefId: defaultModelRef.id,
   defaultThinkingLevel: "off",
-  enabledExtensions: [],
   createdAt: now(),
   updatedAt: now(),
 };

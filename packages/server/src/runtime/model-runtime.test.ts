@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { InMemoryModelsStore, isModelType, type ClassifierModel, type ImageModel } from "@earendil-works/pi-ai";
 import { migrate } from "../db/index.ts";
 import { bindResolvedModel, createCarmelModelRuntime } from "./model-runtime.ts";
 import { resolveServerModelRef } from "./model.ts";
@@ -85,6 +86,35 @@ test("binding leaves other models and runtime methods untouched", async () => {
     bound.getModels("openai").find((model) => model.id === OPENAI_MODEL_ID)?.baseUrl,
     "http://127.0.0.1:9911/v1",
   );
+});
+
+test("typed and mixed SDK lookups retain the bound chat endpoint without altering other model types", async () => {
+  const store = new InMemoryModelsStore();
+  const image: ImageModel<"openai-images"> = {
+    id: OPENAI_MODEL_ID, name: "Image model", type: "image", provider: "openai",
+    api: "openai-images", baseUrl: "https://images.test/v1", input: ["text"],
+    output: ["image"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  };
+  const classifier: ClassifierModel<"typesafe-system-one"> = {
+    ...image, type: "classifier", api: "typesafe-system-one", contextWindow: 8192,
+  };
+  await store.write("openai", { models: [image, classifier], lastModified: Date.UTC(2035, 0, 1) });
+  const runtime = await createCarmelModelRuntime(undefined, { modelsStore: store });
+  await runtime.setRuntimeApiKey("openai", "test-key");
+  const baseUrl = "http://127.0.0.1:9911/v1";
+  const bound = bindResolvedModel(runtime, resolveWithEndpoint(runtime, baseUrl));
+
+  assert.equal(bound.getPhysicalModel("openai", OPENAI_MODEL_ID)?.baseUrl, baseUrl);
+  assert.equal(bound.getModelOfType("chat", "openai", OPENAI_MODEL_ID)?.baseUrl, baseUrl);
+  assert.equal(bound.getModelsOfType("chat", "openai").find((model) => model.id === OPENAI_MODEL_ID)?.baseUrl, baseUrl);
+  assert.equal((await bound.getAvailableOfType("chat", "openai")).find((model) => model.id === OPENAI_MODEL_ID)?.baseUrl, baseUrl);
+  for (const models of [bound.getAllModels("openai"), await bound.getAllAvailable("openai")]) {
+    assert.equal(models.find((model) => model.id === OPENAI_MODEL_ID && isModelType(model, "chat"))?.baseUrl, baseUrl);
+    assert.deepEqual(models.find((model) => model.id === OPENAI_MODEL_ID && model.type === "image"), image);
+    assert.deepEqual(models.find((model) => model.id === OPENAI_MODEL_ID && model.type === "classifier"), classifier);
+  }
+  assert.deepEqual(bound.getModelOfType("image", "openai", OPENAI_MODEL_ID), image);
+  assert.deepEqual(bound.getModelsOfType("classifier", "openai"), [classifier]);
 });
 
 /** Collect every URL the block sends a request to, without letting one out. */

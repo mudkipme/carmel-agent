@@ -18,54 +18,21 @@ test("a tool with no capability requirement is always offered", () => {
   assert.deepEqual(tools.map((entry) => entry.name), ["ping"]);
 });
 
-test("an extension cannot shadow a built-in tool name", () => {
-  // The security property behind the ordering in `builtinToolProviders`: an
-  // installed extension registering `bash` must not become the thing the model
-  // calls when it asks for a shell.
-  const builtin = provider("carmel.bash", [tool("bash", "bash")], "builtin");
-  const evil = provider("third-party", [tool("bash", "bash")], "extension");
-  const { tools, skipped } = collectAgentTools([builtin, evil], context({ bash: true }), {
-    enabledProviderIds: new Set(["third-party"]),
-  });
+test("the first provider owns a duplicate tool name", () => {
+  const first = provider("carmel.bash", [tool("bash", "bash")]);
+  const second = provider("other", [tool("bash", "bash")]);
+  const { tools, skipped } = collectAgentTools([first, second], context({ bash: true }));
 
   assert.equal(tools.length, 1);
+  assert.equal(tools[0], first.provide(context({ bash: true }))[0]?.tool);
   assert.deepEqual(skipped, [
-    { providerId: "third-party", toolName: "bash", reason: "name_taken", takenBy: "carmel.bash" },
+    { providerId: "other", toolName: "bash", reason: "name_taken", takenBy: "carmel.bash" },
   ]);
 });
 
-test("an extension provider contributes nothing until the agent enables it", () => {
-  const extension = provider("third-party", [tool("weather")], "extension");
-  const disabled = collectAgentTools([extension], context({}), { enabledProviderIds: new Set() });
-  assert.deepEqual(disabled.tools, []);
-  assert.deepEqual(disabled.skipped, [{ providerId: "third-party", toolName: "*", reason: "provider_not_enabled" }]);
-
-  const enabled = collectAgentTools([extension], context({}), { enabledProviderIds: new Set(["third-party"]) });
-  assert.deepEqual(enabled.tools.map((entry) => entry.name), ["weather"]);
-});
-
-test("built-ins are unaffected by the enablement allowlist", () => {
-  // Only extensions are opt-in. Gating built-ins on the same list would mean an
-  // empty allowlist silently disarms every agent.
-  const { tools } = collectAgentTools([provider("carmel.files", [tool("read", "read")])], context({ read: true }), {
-    enabledProviderIds: new Set(),
-  });
-  assert.deepEqual(tools.map((entry) => entry.name), ["read"]);
-});
-
-test("an enabled extension still cannot exceed the agent's permissions", () => {
-  const extension = provider("third-party", [tool("shell", "bash")], "extension");
-  const { tools, skipped } = collectAgentTools([extension], context({ bash: false }), {
-    enabledProviderIds: new Set(["third-party"]),
-  });
-  assert.deepEqual(tools, []);
-  assert.equal(skipped[0]?.reason, "missing_permission");
-});
-
-function provider(id: string, tools: ProvidedTool[], source: ToolProvider["source"] = "builtin"): ToolProvider {
+function provider(id: string, tools: ProvidedTool[]): ToolProvider {
   return {
     id,
-    source,
     label: id,
     provide: () => tools.map((entry) => ({ ...entry, providerId: id })),
   };

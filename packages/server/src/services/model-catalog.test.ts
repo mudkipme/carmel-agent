@@ -34,10 +34,10 @@ test("remote Pi catalogs are persisted across runtimes and retained after refres
   assert.ok(providerConfig);
 
   let failRefresh = false;
+  const requests: URL[] = [];
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
     if (failRefresh) throw new Error("catalog unavailable");
-    const url = input instanceof Request ? input.url : input.toString();
-    assert.equal(url, "https://catalog.test/api/models/providers/openai");
+    requests.push(new URL(input instanceof Request ? input.url : input.toString()));
     return new Response(JSON.stringify({ [remoteModel.id]: remoteModel }), {
       status: 200,
       headers: {
@@ -55,6 +55,7 @@ test("remote Pi catalogs are persisted across runtimes and retained after refres
     force: true,
     modelsStore: store,
   });
+  assert.ok(requests.some((url) => url.origin === catalogBaseUrl && url.pathname === "/api/models/providers/openai" && url.searchParams.get("types") === "chat,image,classifier"));
   assert.ok(refreshed.some((model) => model.id === remoteModel.id));
 
   const restored = await readProviderModels(providerConfig, {

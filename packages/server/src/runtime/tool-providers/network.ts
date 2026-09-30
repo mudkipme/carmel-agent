@@ -18,7 +18,6 @@ const USER_AGENT = "Mozilla/5.0 (compatible; CarmelAgent/0.1)";
  */
 export const networkToolProvider: ToolProvider = {
   id: "carmel.network",
-  source: "builtin",
   label: "Web search and fetch",
   provide(): ProvidedTool[] {
     return createNetworkToolDefinitions().map((tool) => ({
