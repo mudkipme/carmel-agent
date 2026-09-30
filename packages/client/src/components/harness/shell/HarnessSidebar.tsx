@@ -1,29 +1,25 @@
-import { PanelLeftCloseIcon, CalendarClockIcon } from "lucide-react";
+import { PanelLeftCloseIcon, CalendarClockIcon, ListTodoIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import { IssueList } from "@/components/harness/issues/IssueList";
-import { describeIssue, sortIssues } from "@/components/harness/issues/issue-state";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
-import type { AgentConfig, Issue, SessionMetadata, User } from "@carmel-agent/shared";
+import type { AgentConfig, SessionMetadata, User } from "@carmel-agent/shared";
 import { AgentSelector } from "./AgentSelector";
 import { SessionList } from "./SessionList";
 import { SidebarSessionsToolbar } from "./SidebarSessionsToolbar";
-import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH, type ContentView, type SidebarList } from "./sidebar-utils";
+import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH, type ContentView } from "./sidebar-utils";
 
 export function HarnessSidebar({
   activeUser,
   activeAgent,
   activeSession,
-  activeIssueId,
   contentView,
   visibleAgents,
   visibleSessions,
   runningSessionIds,
   runOverrides,
-  visibleIssues,
   sidebarOpen,
   sidebarWidth,
   sidebarResizing,
@@ -37,13 +33,11 @@ export function HarnessSidebar({
   activeUser?: User;
   activeAgent?: AgentConfig;
   activeSession?: SessionMetadata;
-  activeIssueId?: string;
   contentView: ContentView;
   visibleAgents: AgentConfig[];
   visibleSessions: SessionMetadata[];
   runningSessionIds: Set<string>;
   runOverrides: Record<string, boolean>;
-  visibleIssues: Issue[];
   sidebarOpen: boolean;
   sidebarWidth: number;
   sidebarResizing: boolean;
@@ -57,15 +51,6 @@ export function HarnessSidebar({
   const createAgent = useHarnessStore((state) => state.createAgent);
   const modelRefs = useHarnessStore((state) => state.modelRefs);
   const activeUserId = useHarnessStore((state) => state.activeUserId);
-  /* The list follows the main column when it moves between a session and an
-     issue, and is otherwise the reader's to switch. */
-  const [list, setList] = useState<SidebarList>(contentView === "issues" ? "issues" : "sessions");
-  useEffect(() => {
-    if (contentView === "issues") setList("issues");
-    else if (contentView === "chat") setList("sessions");
-  }, [contentView]);
-  const attentionCount = visibleIssues.filter((issue) => describeIssue(issue).attention !== "none").length;
-
   const createSidebarAgent = async (): Promise<AgentConfig | undefined> => {
     try {
       return await createAgent({
@@ -112,33 +97,45 @@ export function HarnessSidebar({
             modelRefs={modelRefs}
             onCreateAgent={createSidebarAgent}
           />
-          {activeAgent ? <Button asChild variant={contentView === "tasks" ? "secondary" : "ghost"} className="justify-start"><Link to={`/agents/${activeAgent.id}/tasks`} onClick={onOpenSession}><CalendarClockIcon data-icon="inline-start" />Tasks</Link></Button> : null}
+          {activeAgent ? (
+            <nav aria-label="Agent work" className="flex flex-col gap-1">
+              <Button asChild variant={contentView === "issues" ? "secondary" : "ghost"} className="justify-start">
+                <Link
+                  to={`/agents/${activeAgent.id}/issues`}
+                  aria-current={contentView === "issues" ? "page" : undefined}
+                  onClick={onOpenSession}
+                >
+                  <ListTodoIcon data-icon="inline-start" />
+                  Issues
+                </Link>
+              </Button>
+              <Button asChild variant={contentView === "tasks" ? "secondary" : "ghost"} className="justify-start">
+                <Link
+                  to={`/agents/${activeAgent.id}/tasks`}
+                  aria-current={contentView === "tasks" ? "page" : undefined}
+                  onClick={onOpenSession}
+                >
+                  <CalendarClockIcon data-icon="inline-start" />
+                  Tasks
+                </Link>
+              </Button>
+            </nav>
+          ) : null}
           <div className="flex min-h-0 flex-1 flex-col gap-2">
             <SidebarSessionsToolbar
               activeAgent={activeAgent}
-              list={list}
-              attentionCount={attentionCount}
-              onListChange={setList}
               onOpenSession={onOpenSession}
               onOpenImport={onOpenImport}
             />
             <div className="min-h-0 flex-1 overflow-hidden">
-              {list === "issues" ? (
-                <IssueList
-                  issues={visibleIssues.slice().sort(sortIssues)}
-                  activeIssueId={activeIssueId}
-                  onOpenIssue={onOpenSession}
-                />
-              ) : (
-                <SessionList
-                  key={activeAgent?.id}
-                  sessions={visibleSessions}
-                  runningSessionIds={runningSessionIds}
-                  runOverrides={runOverrides}
-                  activeSessionId={activeSession?.id}
-                  onOpenSession={onOpenSession}
-                />
-              )}
+              <SessionList
+                key={activeAgent?.id}
+                sessions={visibleSessions}
+                runningSessionIds={runningSessionIds}
+                runOverrides={runOverrides}
+                activeSessionId={activeSession?.id}
+                onOpenSession={onOpenSession}
+              />
             </div>
           </div>
         </div>

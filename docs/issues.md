@@ -8,7 +8,7 @@ Create an issue with a title and optional details, acceptance criteria, and prio
 
 An agent runs one issue at a time, including across users of a shared agent. Use the queue's up/down controls to reorder your jobs, or **Remove from queue** to return one to Backlog. Priority is descriptive; explicit queue order decides what runs next. Sharing an agent does not share issues, instructions, or conversations.
 
-The sidebar groups issues into Working, Queued, Needs you, and Backlog. Completed and cancelled issues fold under Done. Needs you includes questions, reported obstacles, execution failures, and work awaiting review.
+Open **Issues** beside **Tasks** in the agent navigation. The issue list provides Queue, Needs you, Backlog, and Done views; the sidebar keeps your sessions available. Needs you includes questions, reported obstacles, execution failures, and work awaiting review.
 
 ## Discuss and revise
 

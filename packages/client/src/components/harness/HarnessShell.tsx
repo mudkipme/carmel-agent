@@ -208,7 +208,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   }, [loadUnlistedSession, lookedUpSessionId, routeSession, routeSessionId]);
 
   /* Issue runs go on without anyone watching. The list is loaded once per
-     agent for the sidebar, then polled only while someone is looking at issues
+     agent to detect ongoing work, then polled only while someone is looking at issues
      or one is running: often while running, otherwise rarely. */
   const pollIssues = view === "issues" || anyIssueRunning;
   useEffect(() => {
@@ -298,13 +298,11 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
         activeUser={activeUser}
         activeAgent={activeAgent}
         activeSession={view === "chat" ? activeSessionMetadata : undefined}
-        activeIssueId={activeIssueId}
         contentView={view}
         visibleAgents={visibleAgents}
         visibleSessions={visibleSessions}
         runningSessionIds={serverRunningSessionIds}
         runOverrides={runOverrides}
-        visibleIssues={visibleIssues}
         sidebarOpen={sidebarOpen}
         sidebarWidth={sidebarWidth}
         sidebarResizing={sidebarResizing}

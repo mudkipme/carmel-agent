@@ -86,8 +86,8 @@ export function AgentSelector({
 
   const owned = activeAgent?.ownerUserId === activeUserId;
   /* Anyone using an agent can reach its settings, but on a shared agent a
-     non-owner only has their own tasks and archived sessions there. */
-  const settingsSection = owned ? "general" : "tasks";
+     non-owner only has their own archived sessions there. */
+  const settingsSection = owned ? "general" : "archived";
 
   return (
     <section className="flex items-center gap-1">

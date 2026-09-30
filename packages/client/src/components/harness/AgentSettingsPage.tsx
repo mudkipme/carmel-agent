@@ -2,7 +2,6 @@ import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/
 import {
   ArchiveIcon,
   ArrowLeftIcon,
-  CalendarClockIcon,
   CodeIcon,
   FileTextIcon,
   KeyRoundIcon,
@@ -19,7 +18,6 @@ import { AgentSecretsSettings } from "@/components/harness/agent-settings/AgentS
 import { AgentTemplatesSettings } from "@/components/harness/agent-settings/AgentTemplatesSettings";
 import { AgentMcpSettings } from "@/components/harness/agent-settings/AgentMcpSettings";
 import { AgentCodemodeSettings } from "@/components/harness/agent-settings/AgentCodemodeSettings";
-import { AgentTasksPanel } from "@/components/harness/AgentTasksPanel";
 import { Button } from "@/components/ui/button";
 import { confirmAction } from "@/lib/action-dialogs";
 import { api } from "@/lib/api";
@@ -35,14 +33,13 @@ const agentSettingsSections = [
   { id: "codemode", label: "Codemode", icon: CodeIcon },
   { id: "secrets", label: "Secrets", icon: KeyRoundIcon },
   { id: "mcp", label: "MCP", icon: PlugIcon },
-  { id: "tasks", label: "Tasks", icon: CalendarClockIcon },
   { id: "archived", label: "Archived", icon: ArchiveIcon },
 ] as const;
 type AgentSettingsSection = (typeof agentSettingsSections)[number]["id"];
 
-/* A shared agent's settings belong to its owner, but each user's tasks and
-   archived sessions are their own, so those are the sections everyone else gets. */
-const sharedAgentSettingsSections = agentSettingsSections.filter((item) => item.id === "tasks" || item.id === "archived");
+/* A shared agent's settings belong to its owner. Everyone can manage their
+   own archived sessions. */
+const sharedAgentSettingsSections = agentSettingsSections.filter((item) => item.id === "archived");
 
 export function AgentSettingsPage() {
   const navigate = useNavigate();
@@ -58,9 +55,9 @@ export function AgentSettingsPage() {
   const deleteAgent = useHarnessStore((state) => state.deleteAgent);
   const owned = agent?.ownerUserId === activeUserId;
   const sections = owned ? agentSettingsSections : sharedAgentSettingsSections;
-  const defaultSection: AgentSettingsSection = owned ? "general" : "tasks";
+  const defaultSection: AgentSettingsSection = owned ? "general" : "archived";
   const activeSection = sections.some((item) => item.id === section) ? (section as AgentSettingsSection) : defaultSection;
-  const callerSection = activeSection === "tasks" || activeSection === "archived";
+  const callerSection = activeSection === "archived";
   const [draft, setDraft] = useState<AgentConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -203,8 +200,7 @@ export function AgentSettingsPage() {
               data-settings-content
               className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-4 p-3 pb-[calc(0.75rem+var(--safe-bottom))] sm:p-4 sm:pb-[calc(1rem+var(--safe-bottom))] md:p-6 md:pb-[calc(1.5rem+var(--safe-bottom))]"
             >
-              {/* Tasks and archived sessions are the caller's own, not part of the owner-only draft. */}
-              {activeSection === "tasks" ? <AgentTasksPanel agentId={agent.id} /> : null}
+              {/* Archived sessions are the caller's own, not part of the owner-only draft. */}
               {activeSection === "archived" ? <AgentArchivedSessionsSettings agentId={agent.id} /> : null}
               {owned && !callerSection && loadError ? (
                 <p className="text-sm text-destructive">{loadError}</p>
@@ -253,7 +249,7 @@ export function AgentSettingsPage() {
               ) : null}
             </div>
           </div>
-          {/* Tasks, secrets, and archived sessions are their own resources and save
+          {/* Secrets and archived sessions are their own resources and save
               themselves, so the draft's save bar would only be a misleading no-op there. */}
           {draft && !callerSection && activeSection !== "secrets" ? (
             <footer className="flex shrink-0 items-center justify-end gap-3 border-t px-3 py-2 pb-[calc(0.5rem+var(--safe-bottom))]">

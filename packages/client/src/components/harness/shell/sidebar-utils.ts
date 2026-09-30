@@ -6,9 +6,6 @@ export const MAX_SIDEBAR_WIDTH = 520;
 
 export type { ContentView } from "@/lib/shell-route";
 
-/** Which list the sidebar shows under the agent selector. */
-export type SidebarList = "sessions" | "issues";
-
 export function getDefaultSidebarOpen() {
   return typeof window === "undefined" ? true : window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches;
 }

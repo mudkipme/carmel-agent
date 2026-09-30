@@ -17,6 +17,11 @@ function AgentSettingsRedirect() {
   return <Navigate to={`/agents/${agentId}/settings/general`} replace />;
 }
 
+function AgentTasksRedirect() {
+  const { agentId } = useParams();
+  return <Navigate to={`/agents/${agentId}/tasks`} replace />;
+}
+
 export default function App() {
   const status = useHarnessStore((state) => state.status);
   const error = useHarnessStore((state) => state.error);
@@ -79,6 +84,7 @@ export default function App() {
         <Route path="/" element={<HarnessShell />} />
         <Route path="/agents/:agentId" element={<HarnessShell />} />
         <Route path="/agents/:agentId/settings" element={<AgentSettingsRedirect />} />
+        <Route path="/agents/:agentId/settings/tasks" element={<AgentTasksRedirect />} />
         <Route path="/agents/:agentId/settings/:section" element={<AgentSettingsPage />} />
         {/* The splat carries the file being edited, and matches the bare
             /files path too, so the manager and the editor share one route. */}
