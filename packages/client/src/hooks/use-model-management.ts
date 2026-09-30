@@ -3,7 +3,8 @@ import { OLLAMA_PROVIDER, type ModelRef, type ProviderConfig, type ProviderModel
 import { api } from "@/lib/api";
 import { confirmAction } from "@/lib/action-dialogs";
 import { errorMessage, showError } from "@/lib/errors";
-import { getAppProviders, makeModelRef, useHarnessStore } from "@/store/harness-store";
+import { useHarnessStore } from "@/store/harness-store";
+import { makeModelRef } from "@/store/model-utils";
 
 export function useModelManagement(modelRefs: ModelRef[], providerConfigs: ProviderConfig[]) {
   const activeUserId = useHarnessStore((state) => state.activeUserId);
@@ -16,7 +17,7 @@ export function useModelManagement(modelRefs: ModelRef[], providerConfigs: Provi
   const [loadingProviderModels, setLoadingProviderModels] = useState(false);
   const [modelId, setModelId] = useState("");
   const selectedProviderConfig = providerConfigs.find((item) => item.id === providerConfigId);
-  const provider = selectedProviderConfig?.provider ?? getAppProviders(modelCatalog)[0] ?? "openai";
+  const provider = selectedProviderConfig?.provider ?? modelCatalog.providers[0]?.id ?? "openai";
   const selectedProviderConfigRecordId = selectedProviderConfig?.id;
   const isOllamaProvider = provider === OLLAMA_PROVIDER;
   const existingModel = modelRefs.find(

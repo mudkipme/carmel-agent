@@ -2,12 +2,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage, Usage } from "@earendil-works/pi-ai";
 import { type ChatAttachment, isUserMessage } from "@carmel-agent/shared";
 
-// Message inspection/editing helpers live in @carmel-agent/shared so the client
-// and server stay in lock-step; re-export them here for existing call sites.
-export { isEditableAssistantMessage, isUserMessage, updateAssistantMessageContent, updateUserMessageContent } from "@carmel-agent/shared";
-
-export type LocalChatAttachment = ChatAttachment;
-export type DisplayImageContent = ImageContent & {
+type DisplayImageContent = ImageContent & {
   data?: string;
   url?: string;
 };
@@ -154,7 +149,7 @@ export async function copyText(text: string) {
   textArea.remove();
 }
 
-export async function fileToImageAttachment(file: File): Promise<LocalChatAttachment> {
+export async function fileToImageAttachment(file: File): Promise<ChatAttachment> {
   if (!file.type.startsWith("image/")) throw new Error(`${file.name} is not an image.`);
   const dataUrl = await readFileAsDataUrl(file);
   const content = dataUrl.split(",", 2)[1] ?? "";
@@ -169,7 +164,7 @@ export async function fileToImageAttachment(file: File): Promise<LocalChatAttach
   };
 }
 
-export function attachmentToImageContent(attachment: LocalChatAttachment): ImageContent {
+export function attachmentToImageContent(attachment: ChatAttachment): ImageContent {
   if (!attachment.content) throw new Error(`${attachment.fileName} has no image content.`);
   return {
     type: "image",

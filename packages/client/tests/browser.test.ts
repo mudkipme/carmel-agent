@@ -180,6 +180,7 @@ test("returning from an issue preserves the selected tab and search", () => {
   browser("find", "label", "Search issues", "fill", "guide");
   click("link", "Review the deployment guide", false);
   click("link", "Browser test agent / Issues");
+  browser("wait", '[role="tab"][aria-selected="true"]');
   assert.match(snapshot(), /tab "Needs you" \[selected/);
   assert.equal(value('[aria-label="Search issues"]'), "guide");
   assert.match(

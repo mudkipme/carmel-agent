@@ -307,9 +307,7 @@ export function useFileBrowser({
   };
 }
 
-export type FileBrowser = ReturnType<typeof useFileBrowser>;
-
-export function joinPath(directoryPath: string, name: string) {
+function joinPath(directoryPath: string, name: string) {
   return [directoryPath, name].filter(Boolean).join("/");
 }
 

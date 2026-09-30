@@ -6,8 +6,6 @@ import { createIssueSlice } from "@/store/slices/issue-slice";
 import { createSessionSlice } from "@/store/slices/session-slice";
 import type { HarnessPersistedState, HarnessState } from "@/store/harness-types";
 
-export { defaultBaseUrlForProvider, getAppProviders, makeModelRef, resolveModelRef } from "@/store/model-utils";
-
 export const useHarnessStore = create<HarnessState>()(
   persist<HarnessState, [], [], HarnessPersistedState>(
     (set, get) => ({

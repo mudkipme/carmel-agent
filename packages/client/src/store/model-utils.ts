@@ -2,14 +2,9 @@ import { createClientId } from "@/lib/id";
 import {
   DEFAULT_OLLAMA_BASE_URL,
   OLLAMA_PROVIDER,
-  type ModelCatalog,
   type ModelRef,
   type ProviderModelSummary,
 } from "@carmel-agent/shared";
-
-// The ModelRef -> Pi `Model` mapping lives in @carmel-agent/shared so the client
-// and server resolve a model entry identically; re-export it for existing call sites.
-export { defaultBaseUrlForProvider, resolveModelRef } from "@carmel-agent/shared";
 
 export function makeModelRef(
   provider: string,
@@ -33,8 +28,4 @@ export function makeModelRef(
     input: modelSummary.input,
     thinkingLevelMap: modelSummary.thinkingLevelMap,
   };
-}
-
-export function getAppProviders(catalog: ModelCatalog) {
-  return catalog.providers.map((provider) => provider.id);
 }

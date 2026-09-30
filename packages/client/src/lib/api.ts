@@ -247,8 +247,6 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ path, newPath }),
     }),
-  deleteAgentFileEntry: (agentId: string, path: string) =>
-    request<{ ok: true }>(`/api/agents/${agentId}/files?${new URLSearchParams({ path })}`, { method: "DELETE" }),
   listAgentSecrets: (agentId: string) => request<AgentSecret[]>(`/api/agents/${agentId}/secrets`),
   writeAgentSecret: (agentId: string, name: string, value: string) =>
     request<AgentSecret>(`/api/agents/${agentId}/secrets/${encodeURIComponent(name)}`, {

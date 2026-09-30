@@ -3,8 +3,8 @@ import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type AgentSnapshot, type PromptOutcome, RemoteAgent } from "@/lib/remote-agent";
 import { errorMessage } from "@/lib/errors";
-import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
-import type { AgentConfig, ModelRef, Session } from "@carmel-agent/shared";
+import { useHarnessStore } from "@/store/harness-store";
+import { resolveModelRef, type AgentConfig, type ModelRef, type Session } from "@carmel-agent/shared";
 
 const EMPTY_SNAPSHOT: AgentSnapshot = {
   messages: [],

@@ -58,22 +58,6 @@ export function describeIssue(issue: Issue): IssueState {
         : "text-muted-foreground",
   };
 }
-export function issueVerdictSummary(issue: Issue) {
-  if (
-    !issue.running &&
-    issue.lastRunOutcome &&
-    issue.lastRunOutcome !== "succeeded"
-  )
-    return (
-      issue.lastRunDetail ??
-      (["interrupted", "cancelled"].includes(issue.lastRunOutcome)
-        ? "Run stopped. Queue work to continue."
-        : "Run failed. Queue a retry to continue.")
-    );
-  return issue.running
-    ? undefined
-    : (issue.lastRunDetail ?? issue.verdictSummary);
-}
 export function isClosedIssue(issue: Issue) {
   return issue.status === "done" || issue.status === "cancelled";
 }

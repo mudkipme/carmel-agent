@@ -1,7 +1,8 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { CopyIcon, GitForkIcon, PencilIcon, RotateCcwIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { copyText, getMessageText, isEditableAssistantMessage, isUserMessage } from "./chat-utils";
+import { copyText, getMessageText } from "./chat-utils";
+import { isEditableAssistantMessage, isUserMessage } from "@carmel-agent/shared";
 
 type MessageActionsProps = {
   message: AgentMessage;

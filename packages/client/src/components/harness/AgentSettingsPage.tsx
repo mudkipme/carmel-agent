@@ -23,8 +23,8 @@ import { confirmAction } from "@/lib/action-dialogs";
 import { api } from "@/lib/api";
 import { errorMessage, showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
-import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
-import type { AgentConfig, AgentThinkingLevel } from "@carmel-agent/shared";
+import { useHarnessStore } from "@/store/harness-store";
+import { resolveModelRef, type AgentConfig, type AgentThinkingLevel } from "@carmel-agent/shared";
 
 const agentSettingsSections = [
   { id: "general", label: "General", icon: SlidersHorizontalIcon },

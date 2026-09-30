@@ -40,12 +40,11 @@ import {
   getDefaultSidebarWidth,
   resetSidebarWidth,
   SIDEBAR_WIDTH_STORAGE_KEY,
-  type ContentView,
 } from "@/components/harness/shell/sidebar-utils";
 import { agentFilesPath } from "@/lib/file-links";
 import { api } from "@/lib/api";
 import { sortSessions } from "@/lib/session-groups";
-import { canOpenTerminal as canUserOpenTerminal, resolveShellRoute } from "@/lib/shell-route";
+import { canOpenTerminal as canUserOpenTerminal, resolveShellRoute, type ContentView } from "@/lib/shell-route";
 import { cn } from "@/lib/utils";
 import { canUserSeeAgent, isListedSession } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";

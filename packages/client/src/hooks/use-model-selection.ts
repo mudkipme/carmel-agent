@@ -3,8 +3,8 @@ import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import { useEffect } from "react";
 import { showError } from "@/lib/errors";
 import type { AgentSnapshot, RemoteAgent } from "@/lib/remote-agent";
-import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
-import type { ModelRef, Session } from "@carmel-agent/shared";
+import { useHarnessStore } from "@/store/harness-store";
+import { resolveModelRef, type ModelRef, type Session } from "@carmel-agent/shared";
 
 export function useModelSelection(options: {
   agent: RemoteAgent | null;

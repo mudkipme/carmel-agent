@@ -9,8 +9,8 @@ import { ModelCommandDialog } from "@/components/chat/ModelCommandDialog";
 import { errorMessage, showError } from "@/lib/errors";
 import { setPendingPrompt } from "@/lib/pending-prompts";
 import type { PromptOutcome } from "@/lib/remote-agent";
-import { resolveModelRef, useHarnessStore } from "@/store/harness-store";
-import type { AgentConfig, ModelRef, ProviderConfig } from "@carmel-agent/shared";
+import { useHarnessStore } from "@/store/harness-store";
+import { resolveModelRef, type AgentConfig, type ModelRef, type ProviderConfig } from "@carmel-agent/shared";
 
 type NewSessionViewProps = {
   agent: AgentConfig;

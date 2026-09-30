@@ -1,7 +1,7 @@
 import { FolderIcon, GitCompareIcon, PanelLeftIcon, SettingsIcon, SquareTerminalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
-import type { ContentView } from "./sidebar-utils";
+import type { ContentView } from "@/lib/shell-route";
 
 export function HarnessHeader({
   sidebarOpen,

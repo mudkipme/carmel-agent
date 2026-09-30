@@ -5,16 +5,19 @@ import {
   findMessageIndex,
   getEditableUserImages,
   getMessageText,
-  isEditableAssistantMessage,
-  isUserMessage,
-  updateAssistantMessageContent,
-  updateUserMessageContent,
 } from "@/components/chat/chat-utils";
 import type { MessageEditState } from "@/components/chat/MessageEditDialog";
 import type { RemoteAgent } from "@/lib/remote-agent";
 import { showError } from "@/lib/errors";
 import { useHarnessStore } from "@/store/harness-store";
-import type { Session, UserMessageEditOptions } from "@carmel-agent/shared";
+import {
+  isEditableAssistantMessage,
+  isUserMessage,
+  updateAssistantMessageContent,
+  updateUserMessageContent,
+  type Session,
+  type UserMessageEditOptions,
+} from "@carmel-agent/shared";
 
 export function useMessageMutations(
   agentRef: React.RefObject<RemoteAgent | null>,

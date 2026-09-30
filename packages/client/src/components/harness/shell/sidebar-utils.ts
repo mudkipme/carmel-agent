@@ -1,10 +1,8 @@
 export const DESKTOP_SIDEBAR_QUERY = "(min-width: 1024px)";
 export const SIDEBAR_WIDTH_STORAGE_KEY = "carmel-sidebar-width";
-export const DEFAULT_SIDEBAR_WIDTH = 298;
+const DEFAULT_SIDEBAR_WIDTH = 298;
 export const MIN_SIDEBAR_WIDTH = 240;
 export const MAX_SIDEBAR_WIDTH = 520;
-
-export type { ContentView } from "@/lib/shell-route";
 
 export function getDefaultSidebarOpen() {
   return typeof window === "undefined" ? true : window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches;

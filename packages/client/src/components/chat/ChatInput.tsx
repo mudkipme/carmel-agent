@@ -1,6 +1,7 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
+import type { ChatAttachment } from "@carmel-agent/shared";
 import { BrainIcon, Loader2Icon, PaperclipIcon, SendIcon, SparklesIcon, SquareIcon, XIcon } from "lucide-react";
 import {
   useEffect,
@@ -26,7 +27,7 @@ import { showError } from "@/lib/errors";
 import type { PromptOutcome } from "@/lib/remote-agent";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { attachmentToImageContent, fileToImageAttachment, imageSrc, type LocalChatAttachment } from "./chat-utils";
+import { attachmentToImageContent, fileToImageAttachment, imageSrc } from "./chat-utils";
 
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -81,7 +82,7 @@ export function ChatInput({
   // Read by the send path after an await, where `value` would be the state it
   // closed over rather than whatever the user has typed since.
   const valueRef = useRef(value);
-  const [attachments, setAttachments] = useState<LocalChatAttachment[]>([]);
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [processingFiles, setProcessingFiles] = useState(false);
   const [dragging, setDragging] = useState(false);
   const supportedThinkingLevels = useMemo(
@@ -146,7 +147,7 @@ export function ChatInput({
 
     setProcessingFiles(true);
     try {
-      const nextAttachments: LocalChatAttachment[] = [];
+      const nextAttachments: ChatAttachment[] = [];
       for (const file of imageFiles) {
         if (file.size > MAX_FILE_SIZE) {
           toast.error(`${file.name} exceeds the ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB limit.`);

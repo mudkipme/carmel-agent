@@ -9,7 +9,8 @@ import type { AgentConfig, SessionMetadata, User } from "@carmel-agent/shared";
 import { AgentSelector } from "./AgentSelector";
 import { SessionList } from "./SessionList";
 import { SidebarSessionsToolbar } from "./SidebarSessionsToolbar";
-import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH, type ContentView } from "./sidebar-utils";
+import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "./sidebar-utils";
+import type { ContentView } from "@/lib/shell-route";
 
 export function HarnessSidebar({
   activeUser,

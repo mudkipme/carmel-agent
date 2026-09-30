@@ -2,7 +2,6 @@ import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { StoreApi } from "zustand";
 import { api } from "@/lib/api";
 import { createClientId } from "@/lib/id";
-import { resolveModelRef } from "@/store/model-utils";
 import {
   resolveBootstrapState,
   toAgentCommand,
@@ -11,13 +10,13 @@ import {
   upsertById,
 } from "@/store/harness-state";
 import type { HarnessState } from "@/store/harness-types";
-import type { AgentConfig } from "@carmel-agent/shared";
+import { resolveModelRef, type AgentConfig } from "@carmel-agent/shared";
 
 type SetState = StoreApi<HarnessState>["setState"];
 type GetState = StoreApi<HarnessState>["getState"];
 type ResourceActions = Pick<HarnessState,
   "upsertUser" | "upsertAgent" | "createAgent" | "deleteAgent" | "upsertProviderConfig" |
-  "deleteProviderConfig" | "upsertModelRef" | "deleteModelRef" | "addPromptTemplate" | "deletePromptTemplate"
+  "deleteProviderConfig" | "upsertModelRef" | "deleteModelRef"
 >;
 
 export function createResourceSlice(set: SetState, get: GetState): ResourceActions {
@@ -88,14 +87,6 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
     deleteModelRef: async (id) => {
       const payload = await api.deleteModelRef(id);
       set((state) => resolveBootstrapState(payload, state));
-    },
-    addPromptTemplate: async (agentId, template) => {
-      const agent = get().agents.find((item) => item.id === agentId);
-      if (agent) await get().upsertAgent({ ...agent, promptTemplates: [...agent.promptTemplates, { ...template, id: createClientId("template") }] });
-    },
-    deletePromptTemplate: async (agentId, templateId) => {
-      const agent = get().agents.find((item) => item.id === agentId);
-      if (agent) await get().upsertAgent({ ...agent, promptTemplates: agent.promptTemplates.filter((template) => template.id !== templateId) });
     },
   };
 }

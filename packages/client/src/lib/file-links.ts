@@ -1,5 +1,5 @@
 /** Workspace-relative path as URL segments: names carry spaces, #, and ?. */
-export function encodeFilePath(path: string) {
+function encodeFilePath(path: string) {
   return path.split("/").map(encodeURIComponent).join("/");
 }
 

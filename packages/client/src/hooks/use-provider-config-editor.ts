@@ -1,9 +1,9 @@
 import { useState } from "react";
-import type { ModelRef, OAuthProviderSummary, ProviderConfig } from "@carmel-agent/shared";
+import { defaultBaseUrlForProvider, type ModelRef, type OAuthProviderSummary, type ProviderConfig } from "@carmel-agent/shared";
 import { confirmAction } from "@/lib/action-dialogs";
 import { createClientId } from "@/lib/id";
 import { showError } from "@/lib/errors";
-import { defaultBaseUrlForProvider, getAppProviders, useHarnessStore } from "@/store/harness-store";
+import { useHarnessStore } from "@/store/harness-store";
 import { useProviderOAuth } from "./use-provider-oauth";
 
 export function useProviderConfigEditor(
@@ -15,7 +15,7 @@ export function useProviderConfigEditor(
   const modelCatalog = useHarnessStore((state) => state.modelCatalog);
   const upsertProviderConfig = useHarnessStore((state) => state.upsertProviderConfig);
   const deleteProviderConfig = useHarnessStore((state) => state.deleteProviderConfig);
-  const providers = getAppProviders(modelCatalog);
+  const providers = modelCatalog.providers.map((provider) => provider.id);
   const [selectedConfigId, setSelectedConfigId] = useState("new");
   const [provider, setProvider] = useState(providers[0] ?? "openai");
   const [authType, setAuthType] = useState<"api_key" | "oauth">("api_key");
