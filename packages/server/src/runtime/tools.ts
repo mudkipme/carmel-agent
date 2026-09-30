@@ -1,7 +1,8 @@
-import type { AgentHarnessTool, ExecutionToolContext } from "@earendil-works/pi-agent-core";
+import type { AgentHarnessTool, Context, ExecutionToolContext } from "@earendil-works/pi-agent-core";
 import { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { builtinToolProviders } from "./tool-providers/index.ts";
+import { AgentMcpTools } from "./mcp-tools.ts";
 import {
   collectAgentTools,
   type ToolProvider,
@@ -13,10 +14,19 @@ type AgentRecord = typeof agents.$inferSelect;
 
 export function createServerExecution(agent: AgentRecord) {
   const env = new AgentExecutionEnv(agent);
+  const mcp = new AgentMcpTools(agent, env.cwd);
+  const tools = createServerToolDefinitions(agent, env);
   return {
     env,
     toolContext: { env } satisfies ExecutionToolContext,
-    tools: createServerToolDefinitions(agent, env),
+    tools,
+    async prepare(signal?: AbortSignal) {
+      await mcp.connect({ signal });
+      tools.push(...mcp.tools);
+    },
+    async cleanup(context: Context) {
+      try { await mcp.close(); } finally { await env.cleanup(context); }
+    },
   };
 }
 

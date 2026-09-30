@@ -25,6 +25,7 @@ export function serializePublicAgent(agent: typeof agents.$inferSelect): AgentCo
     ...settings,
     systemPrompt: "",
     promptTemplates: [],
+    mcpServers: [],
   };
 }
 

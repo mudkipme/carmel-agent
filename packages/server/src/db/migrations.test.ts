@@ -12,7 +12,7 @@ const rowCount = (table: string) =>
 
 test("all versioned migrations apply and remove legacy session tables", () => {
   const applied = sqlite.prepare("SELECT id FROM schema_migrations ORDER BY id").all() as Array<{ id: string }>;
-  assert.equal(applied.at(-1)?.id, "028_drop_agent_enabled_extensions");
+  assert.equal(applied.at(-1)?.id, "029_agent_mcp_servers");
   const agentColumns = sqlite.pragma("table_info(agents)") as Array<{ name: string }>;
   assert.ok(!agentColumns.some(({ name }) => name === "enabled_extensions"));
 
@@ -48,6 +48,21 @@ test("model identity constraints are migration-owned", () => {
   const indexes = sqlite.prepare("PRAGMA index_list(model_refs)").all() as Array<{ name: string }>;
   assert.ok(indexes.some(({ name }) => name === "model_refs_provider_config_model_unique"));
   assert.ok(indexes.some(({ name }) => name === "model_refs_provider_model_unique"));
+});
+
+test("MCP upgrade preserves existing agents and gives them an empty server configuration", () => {
+  const previous = new Database(":memory:");
+  previous.pragma("foreign_keys = ON");
+  try {
+    runMigrations(previous);
+    seedDatabase(previous);
+    previous.exec("ALTER TABLE agents DROP COLUMN mcp_servers; DELETE FROM schema_migrations WHERE id = '029_agent_mcp_servers'");
+    const before = previous.prepare("SELECT * FROM agents").all() as Array<Record<string, unknown>>;
+    runMigrations(previous);
+    runMigrations(previous);
+    assert.deepEqual(previous.prepare("SELECT * FROM agents").all(), before.map((agent) => ({ ...agent, mcp_servers: "[]" })));
+    assert.deepEqual(previous.pragma("foreign_key_check"), []);
+  } finally { previous.close(); }
 });
 
 test("extension removal preserves existing agents and sessions and is idempotent", () => {

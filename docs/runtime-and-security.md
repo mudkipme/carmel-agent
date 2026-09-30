@@ -37,9 +37,10 @@ An agent stores:
 - prompt templates
 - default model and thinking level
 - permissions for read, write, edit, bash, and network
-- secrets exported into its sandbox shell
+- secrets supplied to its sandbox and configured MCP connections
+- MCP server configuration and tool allowlists
 
-The server creates a Pi coding-agent session for each run, streams events to the browser as NDJSON, and persists messages when the run ends.
+The server opens a Pi `AgentHarness` and its SQLite-backed session for each run, streams events to the browser as NDJSON, and persists the transcript through Pi's session storage.
 
 Runs live on the server, not in the tab. Each event carries a sequence number, so a browser that reloads or reconnects resumes the stream from where it left off instead of losing the run. Runs can be aborted explicitly.
 
@@ -177,7 +178,9 @@ into its sandbox container — a `GITHUB_TOKEN` for `gh`, a registry password fo
 
 Where they go, and where they do not:
 
-- Secrets reach **sandbox bash only**. They are not given to `fetch_url` or
+- Secrets reach **sandbox commands and explicitly configured MCP connections**.
+  MCP headers, environment variables, and arguments may reference `${NAME}`.
+  They are not given to `fetch_url` or
   `exa_search`, are not substituted into the system prompt or prompt templates,
   and never enter model context except by way of something the agent itself runs.
 - They are read per command rather than baked into the container at creation, so
@@ -197,7 +200,7 @@ secret cannot change which binaries a command resolves to.
 Secrets are **owner-only**, and the API is write-only: no endpoint returns a
 value. The owner can add, replace, and delete a secret, and can see its name and
 when it was last set. A stored value leaves the database only on its way into a
-container.
+container or a configured MCP connection.
 
 ### Secrets On A Shared Agent
 

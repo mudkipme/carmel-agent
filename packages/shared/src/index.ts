@@ -1,6 +1,6 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { ImageContent, TextContent, ToolCall } from "@earendil-works/pi-ai";
-import type { AgentMount, AgentPermissions, AgentThinkingLevel, PromptTemplate } from "./schemas.ts";
+import type { AgentMcpServer, AgentMount, AgentPermissions, AgentThinkingLevel, PromptTemplate } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
 
 export type ChatAttachment = {
@@ -226,16 +226,19 @@ export type AgentConfig = {
   systemPrompt: string;
   promptTemplates: PromptTemplate[];
   permissions: AgentPermissions;
+  mcpServers?: AgentMcpServer[];
   defaultModelRefId: string;
   defaultThinkingLevel: AgentThinkingLevel;
   createdAt: number;
   updatedAt: number;
 };
 
+export type AgentMcpTestResult = { tools: Array<{ name: string; label: string }> };
+
 /**
  * A secret as the browser is allowed to see it: the name and when it changed,
- * never the value. Values leave the database only on their way into a sandbox
- * container, the same rule provider credentials already follow.
+ * never the value. Values are supplied only to the agent's sandbox or its
+ * configured MCP connections.
  */
 export type AgentSecret = {
   agentId: string;

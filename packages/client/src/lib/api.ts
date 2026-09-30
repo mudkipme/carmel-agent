@@ -199,6 +199,10 @@ export const api = {
   upsertAgent: (agentId: string, input: AgentConfigCommand) =>
     request<AgentConfig>(`/api/agents/${agentId}`, { method: "PUT", body: JSON.stringify(input) }),
   getAgentSettings: (agentId: string) => request<AgentConfig>(`/api/agents/${agentId}/settings`),
+  testAgentMcpServer: (agentId: string, server: import("@carmel-agent/shared").AgentMcpServer) =>
+    request<import("@carmel-agent/shared").AgentMcpTestResult>(`/api/agents/${agentId}/mcp/test`, {
+      method: "POST", body: JSON.stringify(server),
+    }),
   getOAuthProviders: () => request<OAuthProviderSummary[]>("/api/oauth/providers"),
   startProviderOAuthLogin: (providerConfigId: string) =>
     request<OAuthLoginFlowState>(`/api/provider-configs/${providerConfigId}/oauth/login`, { method: "POST" }),

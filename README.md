@@ -2,7 +2,7 @@
 
 Carmel Agent is a self-hosted, multi-user web app for running AI agents. You bring your own model provider keys, and Carmel Agent gives you a chat interface where agents can read and write files, run shell commands in a container, browse the web, and load your own skills.
 
-It runs on your machine or your server. Nothing leaves your host except the calls your agents make to the model providers you configure.
+It runs on your machine or your server. Agents contact the model providers, websites, and remote MCP servers you configure or permit.
 
 ## What You Get
 
@@ -13,7 +13,8 @@ It runs on your machine or your server. Nothing leaves your host except the call
 - **Sandboxed shell.** When an agent is allowed to run commands, they execute in a per-agent container with CPU, memory, PID, mount, and network limits — not on your host shell.
 - **A terminal in the browser.** Open an interactive shell straight into an agent's container, with the same environment its own commands get. The shell lives on the server, so a reload reattaches instead of starting over.
 - **Files in the browser.** A full file manager for an agent's workspace: browse, edit, upload (drag and drop, including folders), download files or a folder as a zip, and select several entries to move, copy, or delete — all under the same permissions the agent has.
-- **Per-agent secrets.** Give an agent a `GITHUB_TOKEN` or a registry password; it is exported into that agent's sandbox shell only, encrypted at rest, and redacted out of command output.
+- **Per-agent secrets.** Give an agent a `GITHUB_TOKEN` or a registry password; it is encrypted at rest, available to that agent's sandbox and configured MCP connections, and redacted out of tool output.
+- **MCP tools.** Connect each agent to remote HTTP servers or stdio servers inside its sandbox, with tool allowlists and credentials from agent secrets.
 - **Your own skills.** Drop skills into `.agents/skills` in an agent's workspace and they show up as slash commands in the chat.
 - **Conversation control.** Fork a session from any earlier message, edit your own messages, truncate a branch, pin the sessions you keep coming back to, attach images.
 - **Multiple people, one instance.** Admins manage provider credentials and accounts; everyone gets their own sessions and can share agents and model entries with the rest of the instance.
@@ -85,6 +86,7 @@ Select the agent you want the chats to land in, open the import dialog from the 
 - [Deployment](docs/deployment.md) — Compose, manual containers, reverse proxies, and the production checklist.
 - [Configuration](docs/configuration.md) — environment variables, secrets, provider setup, data paths, and sandbox settings.
 - [Runtime And Security](docs/runtime-and-security.md) — how agents, tools, file access, sandboxing, roles, and sharing actually work.
+- [MCP tools](docs/mcp.md) — configure remote and sandboxed servers, tool access, and authentication.
 - [Open WebUI Import](docs/open-webui-import.md) — supported import format and behavior.
 
 ## Development

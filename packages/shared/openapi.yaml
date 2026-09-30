@@ -119,6 +119,9 @@ paths:
   /api/agents/{id}/settings:
     parameters: [{$ref: '#/components/parameters/ID'}]
     get: {operationId: getAgentSettings, tags: [Agents], responses: {'200': {description: Owner settings, content: {application/json: {schema: {$ref: '#/components/schemas/AgentConfig'}}}}}}
+  /api/agents/{id}/mcp/test:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    post: {operationId: testAgentMcpServer, tags: [Agents], requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/McpServer'}}}}, responses: {'200': {description: Discovered MCP tools, content: {application/json: {schema: {type: object, required: [tools], properties: {tools: {type: array, items: {type: object, required: [name, label], properties: {name: {type: string}, label: {type: string}}}}}}}}}, '400': {$ref: '#/components/responses/Error'}, '403': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/ActiveRunConflict'}}}
   /api/agents/{id}/commands:
     parameters: [{$ref: '#/components/parameters/ID'}]
     get: {operationId: getAgentCommands, tags: [Agents], responses: {'200': {description: Commands, content: {application/json: {schema: {type: object, additionalProperties: true}}}}}}
@@ -352,8 +355,33 @@ components:
     ProviderConfig: {type: object, required: [id, userId, label, provider, createdAt, updatedAt], properties: {id: {type: string}, userId: {type: string}, label: {type: string}, provider: {type: string}, authType: {type: string}, hasApiKey: {type: boolean}, hasOAuth: {type: boolean}, baseUrl: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
     ProviderModel: {type: object, required: [id, name], additionalProperties: true, properties: {id: {type: string}, name: {type: string}}}
     OAuthFlow: {type: object, required: [id, providerConfigId, provider, providerName, status], additionalProperties: true, properties: {id: {type: string}, providerConfigId: {type: string}, provider: {type: string}, providerName: {type: string}, status: {type: string, enum: [pending, auth, input, success, error]}}}
-    AgentRequest: {type: object, required: [shared, name, description, workingDirMode, workingDir, mounts, systemPrompt, promptTemplates, permissions, defaultModelRefId, defaultThinkingLevel], additionalProperties: false, properties: {shared: {type: boolean}, name: {type: string}, description: {type: string}, workingDirMode: {type: string, enum: [default, manual]}, workingDir: {type: string}, defaultWorkingDir: {type: string}, mounts: {type: array, items: {type: object, additionalProperties: true}}, systemPrompt: {type: string}, promptTemplates: {type: array, items: {type: object, additionalProperties: true}}, permissions: {type: object, additionalProperties: {type: boolean}}, defaultModelRefId: {type: string}, defaultThinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}}}
-    AgentConfig: {type: object, required: [id, ownerUserId, shared, name, description, workingDirMode, workingDir, mounts, systemPrompt, promptTemplates, permissions, defaultModelRefId, defaultThinkingLevel, createdAt, updatedAt], additionalProperties: false, properties: {id: {type: string}, ownerUserId: {type: string}, shared: {type: boolean}, name: {type: string}, description: {type: string}, workingDirMode: {type: string, enum: [default, manual]}, workingDir: {type: string}, defaultWorkingDir: {type: string}, mounts: {type: array, items: {type: object, additionalProperties: true}}, systemPrompt: {type: string}, promptTemplates: {type: array, items: {type: object, additionalProperties: true}}, permissions: {type: object, additionalProperties: {type: boolean}}, defaultModelRefId: {type: string}, defaultThinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, createdAt: {type: number}, updatedAt: {type: number}}}
+    McpServer:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [id, transport, url]
+          properties:
+            id: {type: string, pattern: '^[A-Za-z0-9_-]{1,32}$'}
+            transport: {type: string, enum: [http]}
+            enabled: {type: boolean, default: true}
+            timeoutMs: {type: integer, minimum: 1000, maximum: 300000, default: 60000}
+            tools: {type: array, items: {type: string, minLength: 1}}
+            url: {type: string, description: 'HTTP(S) URL without embedded credentials.'}
+            headers: {type: object, additionalProperties: {type: string}, default: {}}
+        - type: object
+          additionalProperties: false
+          required: [id, transport, command]
+          properties:
+            id: {type: string, pattern: '^[A-Za-z0-9_-]{1,32}$'}
+            transport: {type: string, enum: [stdio]}
+            enabled: {type: boolean, default: true}
+            timeoutMs: {type: integer, minimum: 1000, maximum: 300000, default: 60000}
+            tools: {type: array, items: {type: string, minLength: 1}}
+            command: {type: string, minLength: 1}
+            args: {type: array, items: {type: string}, default: []}
+            env: {type: object, additionalProperties: {type: string}, default: {}}
+    AgentRequest: {type: object, required: [shared, name, description, workingDirMode, workingDir, mounts, systemPrompt, promptTemplates, permissions, defaultModelRefId, defaultThinkingLevel], additionalProperties: false, properties: {shared: {type: boolean}, name: {type: string}, description: {type: string}, workingDirMode: {type: string, enum: [default, manual]}, workingDir: {type: string}, defaultWorkingDir: {type: string}, mounts: {type: array, items: {type: object, additionalProperties: true}}, systemPrompt: {type: string}, promptTemplates: {type: array, items: {type: object, additionalProperties: true}}, permissions: {type: object, additionalProperties: {type: boolean}}, defaultModelRefId: {type: string}, mcpServers: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/McpServer'}}, defaultThinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}}}
+    AgentConfig: {type: object, required: [id, ownerUserId, shared, name, description, workingDirMode, workingDir, mounts, systemPrompt, promptTemplates, permissions, defaultModelRefId, defaultThinkingLevel, createdAt, updatedAt], additionalProperties: false, properties: {id: {type: string}, ownerUserId: {type: string}, shared: {type: boolean}, name: {type: string}, description: {type: string}, workingDirMode: {type: string, enum: [default, manual]}, workingDir: {type: string}, defaultWorkingDir: {type: string}, mounts: {type: array, items: {type: object, additionalProperties: true}}, systemPrompt: {type: string}, promptTemplates: {type: array, items: {type: object, additionalProperties: true}}, permissions: {type: object, additionalProperties: {type: boolean}}, defaultModelRefId: {type: string}, mcpServers: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/McpServer'}}, defaultThinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, createdAt: {type: number}, updatedAt: {type: number}}}
     AgentRunRequest: {type: object, additionalProperties: false, properties: {sessionId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, promptInput: {type: object, required: [text], properties: {text: {type: string}, images: {type: array, maxItems: 10, items: {type: object, required: [type, data, mimeType], properties: {type: {type: string, enum: [image]}, data: {type: string}, mimeType: {type: string}}}}}}}}
     SessionDraftRequest: {type: object, required: [agentId, modelRefId], additionalProperties: false, properties: {agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, title: {type: string}}}
     SessionPatchRequest: {type: object, additionalProperties: false, properties: {title: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, pinnedAt: {type: number, nullable: true}, archivedAt: {type: number, nullable: true}, taskId: {type: string, nullable: true, enum: [null]}}}

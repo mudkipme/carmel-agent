@@ -174,6 +174,9 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: ^0.99.1
         version: 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.29.0(supports-color@8.1.1)(zod@4.4.3))(@smithy/signature-v4@5.7.3)(supports-color@8.1.1)(ws@8.21.3)(zod@4.4.3)
+      '@earendil-works/pi-mcp':
+        specifier: ^0.99.1
+        version: 0.99.1
       '@earendil-works/pi-session-backend-sqlite-node':
         specifier: ^0.99.1
         version: 0.99.1(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.29.0(supports-color@8.1.1)(zod@4.4.3))(@smithy/signature-v4@5.7.3)(supports-color@8.1.1)(undici@8.10.2)(ws@8.21.3)(zod@4.4.3)

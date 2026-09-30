@@ -183,6 +183,7 @@ async function startAgentRun(context: AgentRun) {
   try {
     piSession = await openPiSession(session.id);
     execution = createServerExecution(agent);
+    await execution.prepare(abort.signal);
     const opened = await openRunHarness({ ...context, piSession, execution });
     const { lane, activeToolNames } = opened;
     harness = opened.harness;
@@ -252,6 +253,7 @@ async function startAgentRun(context: AgentRun) {
  * two variables the run body and the abort callback both reach into.
  */
 export class HarnessAbortGate {
+  readonly #controller = new AbortController();
   #requested = false;
   #reason?: RunAbortReason;
   /** 0.85 moved `abort()` off the harness and onto the lane that owns the run. */
@@ -259,6 +261,11 @@ export class HarnessAbortGate {
 
   get requested() {
     return this.#requested;
+  }
+
+  /** Cancels resource setup before the harness lane exists. */
+  get signal() {
+    return this.#controller.signal;
   }
 
   /** Who asked first. A guard stop and a person pressing stop can race; the first one is what happened. */
@@ -269,6 +276,7 @@ export class HarnessAbortGate {
   request(reason: RunAbortReason = "user") {
     this.#requested = true;
     this.#reason ??= reason;
+    this.#controller.abort();
     void this.#lane?.abort(runContext);
   }
 
@@ -469,7 +477,7 @@ async function finalizeRun(
 
   unsubscribe?.();
   try {
-    await execution?.env.cleanup(runContext);
+    await execution?.cleanup(runContext);
   } catch (error) {
     console.warn("Execution environment cleanup failed:", errorMessage(error));
   } finally {

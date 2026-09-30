@@ -5,6 +5,7 @@ import {
   CalendarClockIcon,
   FileTextIcon,
   KeyRoundIcon,
+  PlugIcon,
   ShieldIcon,
   SlidersHorizontalIcon,
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { AgentGeneralSettings } from "@/components/harness/agent-settings/AgentG
 import { AgentPermissionsSettings } from "@/components/harness/agent-settings/AgentPermissionsSettings";
 import { AgentSecretsSettings } from "@/components/harness/agent-settings/AgentSecretsSettings";
 import { AgentTemplatesSettings } from "@/components/harness/agent-settings/AgentTemplatesSettings";
+import { AgentMcpSettings } from "@/components/harness/agent-settings/AgentMcpSettings";
 import { AgentTasksPanel } from "@/components/harness/AgentTasksPanel";
 import { Button } from "@/components/ui/button";
 import { confirmAction } from "@/lib/action-dialogs";
@@ -29,6 +31,7 @@ const agentSettingsSections = [
   { id: "templates", label: "Templates", icon: FileTextIcon },
   { id: "permissions", label: "Permissions", icon: ShieldIcon },
   { id: "secrets", label: "Secrets", icon: KeyRoundIcon },
+  { id: "mcp", label: "MCP", icon: PlugIcon },
   { id: "tasks", label: "Tasks", icon: CalendarClockIcon },
   { id: "archived", label: "Archived", icon: ArchiveIcon },
 ] as const;
@@ -235,6 +238,10 @@ export function AgentSettingsPage() {
                   ) : null}
                   {activeSection === "secrets" ? (
                     <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
+                  ) : null}
+                  {activeSection === "mcp" ? (
+                    <AgentMcpSettings agentId={agent.id} servers={draft.mcpServers ?? []} permissions={draft.permissions}
+                      onChange={(mcpServers) => updateDraft({ mcpServers })} />
                   ) : null}
                 </>
               ) : null}

@@ -95,12 +95,13 @@ async function expectStatus(res: IncomingMessage, allowed: number[], context: st
 // Docker/Podman multiplexes stdout and stderr into a single stream when no TTY
 // is attached. Each frame is an 8-byte header [stream, 0, 0, 0, size(uint32 BE)]
 // followed by `size` payload bytes. Frames can span chunk boundaries.
-export function createStreamDemuxer(onPayload: (stream: number, chunk: Buffer) => void) {
+export function createStreamDemuxer(onPayload: (stream: number, chunk: Buffer) => void, maxPayloadBytes = Infinity) {
   let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
   return (chunk: Buffer) => {
     buffer = buffer.length === 0 ? chunk : Buffer.concat([buffer, chunk]);
     while (buffer.length >= 8) {
       const payloadLength = buffer.readUInt32BE(4);
+      if (payloadLength > maxPayloadBytes) throw new Error("Container stream frame exceeds its size limit.");
       if (buffer.length < 8 + payloadLength) break;
       onPayload(buffer[0] ?? 0, buffer.subarray(8, 8 + payloadLength));
       buffer = buffer.subarray(8 + payloadLength);
@@ -278,6 +279,24 @@ export async function attachExecTty(
   containerId: string,
   spec: { cmd: string[]; workingDir: string; env: string[] },
 ): Promise<{ execId: string; socket: Duplex }> {
+  return attachExec(containerId, spec, true);
+}
+
+/** Duplex stdin/stdout attach for sandboxed MCP servers; stderr stays separate. */
+export async function attachExecStdio(
+  containerId: string,
+  spec: { cmd: string[]; workingDir: string; env: string[] },
+  signal?: AbortSignal,
+): Promise<{ execId: string; socket: Duplex }> {
+  return attachExec(containerId, spec, false, signal);
+}
+
+async function attachExec(
+  containerId: string,
+  spec: { cmd: string[]; workingDir: string; env: string[] },
+  tty: boolean,
+  signal?: AbortSignal,
+): Promise<{ execId: string; socket: Duplex }> {
   const createRes = await podmanRequest({
     method: "POST",
     path: `/containers/${containerId}/exec`,
@@ -285,11 +304,12 @@ export async function attachExecTty(
       AttachStdin: true,
       AttachStdout: true,
       AttachStderr: true,
-      Tty: true,
+      Tty: tty,
       Cmd: spec.cmd,
       WorkingDir: spec.workingDir,
       Env: spec.env,
     },
+    signal,
   });
   await expectStatus(createRes, [201], "Creating terminal exec");
   const exec = await readJson<{ Id: string }>(createRes);
@@ -312,13 +332,17 @@ export async function attachExecTty(
         Connection: "Upgrade",
         Upgrade: "tcp",
       },
+      signal,
     });
-    req.on("upgrade", (_res, upgraded) => resolve(upgraded));
+    req.on("upgrade", (_res, upgraded, head) => {
+      if (head.length) upgraded.unshift(head);
+      resolve(upgraded);
+    });
     req.on("response", async (res) => {
       reject(new Error(`Terminal exec was not upgraded (${res.statusCode}): ${(await readBody(res)).slice(0, 300)}`));
     });
     req.on("error", reject);
-    req.write(JSON.stringify({ Detach: false, Tty: true }));
+    req.end(JSON.stringify({ Detach: false, Tty: tty }));
   });
 
   return { execId: exec.Id, socket };

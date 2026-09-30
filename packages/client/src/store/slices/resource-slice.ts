@@ -48,6 +48,7 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
         systemPrompt: draft?.systemPrompt ?? "You are a helpful agent.",
         promptTemplates: draft?.promptTemplates ?? [],
         permissions: draft?.permissions ?? { read: true, write: true, edit: true, bash: false, network: false },
+        mcpServers: draft?.mcpServers ?? [],
         defaultModelRefId,
         defaultThinkingLevel: defaultModelRef
           ? clampThinkingLevel(resolveModelRef(defaultModelRef), draft?.defaultThinkingLevel ?? "off")

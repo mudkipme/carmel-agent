@@ -138,6 +138,40 @@ export const providerConfigRequestSchema = z.object({
   baseUrl: optionalStringSchema,
 }).strict();
 export const oauthInputRequestSchema = z.object({ value: optionalStringSchema }).strict();
+const mcpServerBase = {
+  id: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/),
+  enabled: z.boolean().default(true),
+  timeoutMs: z.number().int().min(1000).max(300_000).default(60_000),
+  /** Omitted exposes all tools; an empty list exposes none. */
+  tools: z.array(z.string().min(1)).optional(),
+};
+const mcpStringMap = z.record(z.string().min(1), z.string().refine((value) => !value.includes("\0")));
+export const agentMcpServerSchema = z.discriminatedUnion("transport", [
+  z.object({
+    ...mcpServerBase,
+    transport: z.literal("http"),
+    url: z.url().refine((value) => {
+      const url = new URL(value);
+      return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
+    }, "Use an HTTP(S) URL without embedded credentials."),
+    headers: mcpStringMap.default({}),
+  }).strict(),
+  z.object({
+    ...mcpServerBase,
+    transport: z.literal("stdio"),
+    command: z.string().trim().min(1).refine((value) => !value.includes("\0")),
+    args: z.array(z.string().refine((value) => !value.includes("\0"))).default([]),
+    env: mcpStringMap.default({}),
+  }).strict(),
+]);
+export type AgentMcpServer = z.infer<typeof agentMcpServerSchema>;
+export const agentMcpServersSchema = z.array(agentMcpServerSchema).max(20).superRefine((servers, ctx) => {
+  const ids = new Set<string>();
+  servers.forEach((server, index) => {
+    if (ids.has(server.id)) ctx.addIssue({ code: "custom", path: [index, "id"], message: "Server IDs must be unique." });
+    ids.add(server.id);
+  });
+});
 export const agentConfigRequestSchema = z.object({
   shared: z.boolean().default(false),
   name: z.string(),
@@ -149,6 +183,7 @@ export const agentConfigRequestSchema = z.object({
   systemPrompt: z.string(),
   promptTemplates: z.array(promptTemplateSchema),
   permissions: agentPermissionsSchema,
+  mcpServers: agentMcpServersSchema.default([]),
   defaultModelRefId: z.string(),
   defaultThinkingLevel: thinkingLevelSchema.default("off"),
 }).strict();

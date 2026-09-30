@@ -360,6 +360,7 @@ function makeAgent(overrides: Partial<AgentRecord> & { permissions?: AgentRecord
     shared: false,
     name: "Agent",
     description: "",
+    mcpServers: [],
     workingDirMode: "manual",
     workingDir: mkdtempSync(join(tmpdir(), "carmel-agent-files-test-")),
     defaultWorkingDir: null,

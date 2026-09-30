@@ -101,6 +101,11 @@ const migrations: Migration[] = [
     description: "Remove the unused per-agent extension allowlist",
     run: (sqlite) => dropColumnIfExists(sqlite, "agents", "enabled_extensions"),
   },
+  {
+    id: "029_agent_mcp_servers",
+    description: "Add per-agent MCP server configuration",
+    run: (sqlite) => addColumnIfMissing(sqlite, "agents", "mcp_servers", "TEXT NOT NULL DEFAULT '[]'"),
+  },
 ];
 
 function createActivityInbox(sqlite: Sqlite) {

@@ -20,7 +20,7 @@ export function upsertById<T extends { id: string }>(items: T[], saved: T) {
 
 export function toAgentCommand(agent: AgentConfig): AgentConfigCommand {
   const { id: _id, ownerUserId: _ownerUserId, createdAt: _createdAt, updatedAt: _updatedAt, ...command } = agent;
-  return command;
+  return { ...command, mcpServers: command.mcpServers ?? [] };
 }
 
 export function toModelRefCommand(model: ModelRef): ModelRefCommand {

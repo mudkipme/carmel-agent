@@ -1,5 +1,5 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/pi-agent-core";
-import { agentConfigRequestSchema, skillCommandName, slashCommandText } from "@carmel-agent/shared";
+import { agentConfigRequestSchema, agentMcpServerSchema, skillCommandName, slashCommandText } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -7,7 +7,7 @@ import { db } from "../db/index.ts";
 import { agents, sessions } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
-import { loadAgentResources } from "../runtime/resources.ts";
+import { loadAgentResources, resolveAgentWorkingDirPath } from "../runtime/resources.ts";
 import { discardAgentContainer } from "../runtime/sandbox/container-manager.ts";
 import { closeAgentTerminals } from "../runtime/sandbox/terminal-sessions.ts";
 import { serializeAgentSettings, serializePublicAgent } from "../serializers.ts";
@@ -28,6 +28,8 @@ import { deleteAgentTasksForAgent } from "../services/agent-tasks.ts";
 import { deleteIssuesForAgent } from "../services/issues.ts";
 import { createAgentFilesRoute } from "./agent-files.ts";
 import { createAgentGitRoute } from "./agent-git.ts";
+import { AgentMcpTools } from "../runtime/mcp-tools.ts";
+import { errorMessage } from "../errors.ts";
 
 export function createAgentRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -81,6 +83,7 @@ export function createAgentRoutes() {
           systemPrompt: agent.systemPrompt,
           promptTemplates: agent.promptTemplates,
           permissions: agent.permissions,
+          mcpServers: agent.mcpServers,
           defaultModelRefId: agent.defaultModelRefId,
           defaultThinkingLevel,
           updatedAt: timestamp,
@@ -120,6 +123,27 @@ export function createAgentRoutes() {
     if (!agent) return c.json({ error: "Agent not found" }, 404);
     if (agent.ownerUserId !== c.get("user").id) return c.json({ error: "Agent settings are owner-only." }, 403);
     return c.json(serializeAgentSettings(agent));
+  });
+
+  route.post("/agents/:id/mcp/test", jsonValidator(agentMcpServerSchema), async (c) => {
+    const agent = db.select().from(agents).where(eq(agents.id, c.req.param("id"))).get();
+    if (!agent) return c.json({ error: "Agent not found." }, 404);
+    if (agent.ownerUserId !== c.get("user").id) return c.json({ error: "MCP settings are owner-only." }, 403);
+    const activeRun = readActiveRunLeaseForAgent(agent.id);
+    if (activeRun) return activeRunConflictResponse(c, activeRun);
+    const server = c.req.valid("json");
+    if (!agent.permissions[server.transport === "http" ? "network" : "bash"]) {
+      return c.json({ error: `Enable and save ${server.transport === "http" ? "network" : "bash"} permission before testing this server.` }, 403);
+    }
+    const mcp = new AgentMcpTools({ ...agent, mcpServers: [{ ...server, enabled: true, tools: undefined }] }, resolveAgentWorkingDirPath(agent));
+    try {
+      await mcp.connect({ signal: c.req.raw.signal });
+      return c.json({ tools: mcp.discoveredTools });
+    } catch (error) {
+      return c.json({ error: errorMessage(error) }, 400);
+    } finally {
+      await mcp.close();
+    }
   });
 
   route.get("/agents/:id/commands", async (c) => {

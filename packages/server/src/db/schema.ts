@@ -3,6 +3,7 @@ import type { ActivityKind } from "@carmel-agent/shared";
 import type { Api, Credential, Model, ThinkingLevelMap } from "@earendil-works/pi-ai";
 import type {
   AgentMount,
+  AgentMcpServer,
   AgentPermissions,
   AgentTaskOutcome,
   AgentTaskRunOutcome,
@@ -157,6 +158,7 @@ export const agents = sqliteTable("agents", {
   systemPrompt: text("system_prompt").notNull(),
   promptTemplates: text("prompt_templates", { mode: "json" }).$type<PromptTemplate[]>().notNull(),
   permissions: text("permissions", { mode: "json" }).$type<AgentPermissions>().notNull(),
+  mcpServers: text("mcp_servers", { mode: "json" }).$type<AgentMcpServer[]>().notNull().default([]),
   defaultModelRefId: text("default_model_ref_id")
     .notNull()
     .references(() => modelRefs.id),
