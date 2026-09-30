@@ -8,7 +8,6 @@ import { INTERRUPTED_DETAIL } from "../effectors/run-outcome.ts";
 import { readActiveRunLeaseForSession } from "./active-run-lease.ts";
 import { readTaskAgent, readUsableModelRef } from "./agent-access.ts";
 import { deletePiSession } from "./pi-session-storage.ts";
-import { recordTaskActivity } from "./activity.ts";
 
 type TaskRecord = typeof agentTasks.$inferSelect;
 
@@ -227,7 +226,6 @@ export function recordTaskRun(input: {
       sessionId: null,
     })
     .run();
-  recordTaskActivity(runId);
 }
 
 /**
@@ -247,7 +245,6 @@ export function finishTaskRun(runId: string, result: { outcome: AgentTaskOutcome
     .set({ finishedAt: now(), outcome: result.outcome, detail: result.detail ?? null })
     .where(eq(agentTaskRuns.id, runId))
     .run();
-  recordTaskActivity(runId);
 }
 
 /**
@@ -256,12 +253,10 @@ export function finishTaskRun(runId: string, result: { outcome: AgentTaskOutcome
  * it, so say so.
  */
 export function markInterruptedTaskRuns() {
-  const interrupted = db.select({ id: agentTaskRuns.id }).from(agentTaskRuns).where(eq(agentTaskRuns.outcome, "running")).all();
   db.update(agentTaskRuns)
     .set({ finishedAt: now(), outcome: "interrupted", detail: INTERRUPTED_DETAIL })
     .where(eq(agentTaskRuns.outcome, "running"))
     .run();
-  for (const run of interrupted) recordTaskActivity(run.id);
 }
 
 export function updateTaskAfterRun(

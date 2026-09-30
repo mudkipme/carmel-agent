@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { createActivityRoutes } from "./activity.ts";
 import type { AuthVariables } from "../auth.ts";
 import { createApiKeyRoutes } from "./api-keys.ts";
 import { createAgentSecretRoutes } from "./agent-secrets.ts";
@@ -27,7 +26,6 @@ export function createApiRoutes() {
   api.route("/", createAgentSecretRoutes());
   api.route("/", createAgentTaskRoutes());
   api.route("/", createIssueRoutes());
-  api.route("/", createActivityRoutes());
   api.route("/", createAgentRunRoutes());
   api.route("/", createSessionRoutes());
 

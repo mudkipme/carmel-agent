@@ -1,7 +1,7 @@
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
 
 /** Which pane fills the main column, and which route is showing it. */
-export type ContentView = "chat" | "files" | "changes" | "terminal" | "issues" | "inbox" | "tasks";
+export type ContentView = "chat" | "files" | "changes" | "terminal" | "issues" | "tasks";
 
 export type ShellRouteInput = {
   view: ContentView;
@@ -19,7 +19,6 @@ export type ShellRouteInput = {
 };
 
 export type ShellRoute =
-  | { kind: "inbox" }
   /** The URL is not a place this user can be; go here instead. */
   | { kind: "redirect"; to: string }
   /** Still finding out whether the URL's session exists. */
@@ -36,7 +35,6 @@ export type ShellRoute =
  * sync back and forth. `lastAgentId` is a memory used only when the URL is `/`.
  */
 export function resolveShellRoute(input: ShellRouteInput): ShellRoute {
-  if (input.view === "inbox") return { kind: "inbox" };
   const { agents, routeAgentId, routeSessionId } = input;
 
   if (!routeAgentId) {

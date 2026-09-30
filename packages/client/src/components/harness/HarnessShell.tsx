@@ -6,8 +6,6 @@ import { PiChat } from "@/components/PiChat";
 import { NewSessionView } from "@/components/harness/NewSessionView";
 import { IssueView } from "@/components/harness/issues/IssueView";
 import { NewIssueView } from "@/components/harness/issues/NewIssueView";
-import { ActivityInbox } from "@/components/harness/ActivityInbox";
-import { useActivityCount } from "@/hooks/use-activity-count";
 
 const FileEditorView = lazy(() =>
   import("@/components/harness/files/FileEditorView").then((module) => ({
@@ -71,7 +69,6 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   // One selector per field: the shell re-renders when what it shows changes,
   // not on every store write.
   const userId = useHarnessStore((state) => state.activeUserId);
-  const unreadActivityCount = useActivityCount(userId);
   const activeUser = useHarnessStore((state) => state.users.find((user) => user.id === state.activeUserId));
   const agents = useHarnessStore((state) => state.agents);
   const sessions = useHarnessStore((state) => state.sessions);
@@ -106,8 +103,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     routeSessionLookupDone: lookedUpSessionId === routeSessionId,
     userId,
   });
-  const activeAgent = route.kind === "ready" ? route.agent
-    : view === "inbox" ? visibleAgents.find((agent) => agent.id === lastAgentId) ?? visibleAgents[0] : undefined;
+  const activeAgent = route.kind === "ready" ? route.agent : undefined;
   const activeSessionMetadata = route.kind === "ready" ? route.session : undefined;
   const activeSession = useMemo(
     () =>
@@ -299,7 +295,6 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
         onClick={() => setSidebarOpen(false)}
       />
       <HarnessSidebar
-        unreadActivityCount={unreadActivityCount}
         activeUser={activeUser}
         activeAgent={activeAgent}
         activeSession={view === "chat" ? activeSessionMetadata : undefined}
@@ -334,9 +329,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
         />
         {view === "chat" && activeSessionMetadata?.taskId ? <TaskRunBanner session={activeSessionMetadata} /> : null}
         <div className="min-h-0 flex-1">
-          {view === "inbox" ? (
-            <ActivityInbox key={userId} />
-          ) : view === "terminal" && canOpenTerminal && activeAgent ? (
+          {view === "terminal" && canOpenTerminal && activeAgent ? (
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">

@@ -1,4 +1,3 @@
-import { recordSessionActivity } from "../services/activity.ts";
 import {
   AgentHarness,
   BACKGROUND_CONTEXT,
@@ -498,11 +497,6 @@ async function finalizeRun(
     const result = outcome.result(abort.reason);
     emitRunEvent(run, { type: "run_finished", result });
     finishAgentRun(run, result);
-    try {
-      recordSessionActivity(session.id, run.runId, result);
-    } catch (error) {
-      console.warn("Could not record session activity:", errorMessage(error));
-    }
   }
 }
 

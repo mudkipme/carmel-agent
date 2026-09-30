@@ -111,6 +111,11 @@ const migrations: Migration[] = [
     description: "Move codemode configuration from MCP servers to the agent",
     run: addAgentCodemode,
   },
+  {
+    id: "031_drop_activity_inbox",
+    description: "Remove the unused activity inbox and read state",
+    run: (sqlite) => sqlite.exec("DROP TABLE IF EXISTS activity"),
+  },
 ];
 
 function addAgentCodemode(sqlite: Sqlite) {

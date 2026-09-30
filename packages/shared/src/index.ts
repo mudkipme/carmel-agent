@@ -422,4 +422,3 @@ export type AgentFileBatchResult = {
   completed: string[];
   failed: { path: string; error: string }[];
 };
-export type { ActivityKind, ActivityFilter, ActivityItem, ActivityPage } from "./activity.ts";

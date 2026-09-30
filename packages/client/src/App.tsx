@@ -77,7 +77,6 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HarnessShell />} />
-        <Route path="/inbox" element={<HarnessShell view="inbox" />} />
         <Route path="/agents/:agentId" element={<HarnessShell />} />
         <Route path="/agents/:agentId/settings" element={<AgentSettingsRedirect />} />
         <Route path="/agents/:agentId/settings/:section" element={<AgentSettingsPage />} />

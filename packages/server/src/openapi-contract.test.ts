@@ -62,8 +62,6 @@ test("representative response fixtures satisfy every response component", async 
     IssueDetail: { ...issue, attempts: [attempt], notes: [note] },
     IssueAttempt: attempt,
     IssueNote: note,
-    ActivityItem: { id: 1, agentId: "a1", agentName: "Agent", sessionId: "s1", issueId: null, taskId: null, title: "Reply ready", summary: "A new reply", kind: "completed", createdAt: 1, readAt: null },
-    ActivityPage: { items: [], unreadCount: 0, nextCursor: null },
     Error: { error: "Nope" },
     OK: { ok: true },
     SetupStatus: { needsSetup: false, passwordLogin: true, oidc: { providerName: "Pocket ID" } },

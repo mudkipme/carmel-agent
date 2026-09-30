@@ -1,5 +1,4 @@
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import type { ActivityKind } from "@carmel-agent/shared";
 import type { Api, Credential, Model, ThinkingLevelMap } from "@earendil-works/pi-ai";
 import type {
   AgentMount,
@@ -313,19 +312,4 @@ export const issueNotes = sqliteTable("issue_notes", {
   kind: text("kind").$type<"note" | "action" | "result">().notNull(),
   body: text("body").notNull(),
   createdAt: integer("created_at").notNull(),
-});
-
-export const activity = sqliteTable("activity", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  eventKey: text("event_key").notNull().unique(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  agentId: text("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
-  sessionId: text("session_id").references(() => sessions.id, { onDelete: "cascade" }),
-  issueId: text("issue_id").references(() => issues.id, { onDelete: "cascade" }),
-  taskId: text("task_id").references(() => agentTasks.id, { onDelete: "cascade" }),
-  title: text("title").notNull(),
-  summary: text("summary").notNull(),
-  kind: text("kind").$type<ActivityKind>().notNull(),
-  createdAt: integer("created_at").notNull(),
-  readAt: integer("read_at"),
 });

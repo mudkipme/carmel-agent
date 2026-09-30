@@ -18,7 +18,6 @@ import {
   recoverIssueAttempts,
   interruptIssue,
 } from "../services/issues.ts";
-import { readActivity } from "../services/activity.ts";
 import { createAgent, createUser } from "../test-support.ts";
 import { createIssueRoutes } from "./issues.ts";
 import { createSessionRoutes } from "./sessions.ts";
@@ -55,11 +54,10 @@ test("creating a brief and adding notes never starts work or requires a model", 
   assert.equal(detail.notes.at(-1)?.body, "Keep the examples short.");
   assert.equal(detail.attempts.length, 0);
   assert.equal(detail.status, "backlog");
-  assert.equal(readActivity(f.userId).unreadCount, 0);
   assert.equal((await post(app, f.agentId, issue.id, "notes", { body: "  " })).status, 400);
 });
 
-test("explicit starts create separate agent-owned sessions; failures persist and reach the inbox", async () => {
+test("explicit starts create separate agent-owned sessions; failures persist in attempt history", async () => {
   const f = fixture();
   const app = appAs(f.userId);
   const issue = createIssue(f.userId, f.agentId, {
@@ -77,7 +75,6 @@ test("explicit starts create separate agent-owned sessions; failures persist and
   const failed = readIssueView(f.userId, f.agentId, issue.id);
   assert.equal(failed.status, "blocked");
   assert.equal(failed.attempts[0]?.outcome, "failed");
-  assert.equal(readActivity(f.userId).items[0]?.issueId, issue.id);
   assert.equal(
     (
       await post(app, f.agentId, issue.id, "runs", {
@@ -123,7 +120,6 @@ test("preflight errors leave a durable failed attempt without a session", async 
   assert.equal(detail.status, "blocked");
   assert.equal(detail.attempts[0]?.sessionId, null);
   assert.equal(detail.attempts[0]?.outcome, "failed");
-  assert.equal(readActivity(f.userId).items[0]?.kind, "failed");
 });
 
 test("agent delivery waits for human review; notes never reopen accepted work", async () => {
@@ -145,7 +141,6 @@ test("agent delivery waits for human review; notes never reopen accepted work", 
   const done = readIssueView(f.userId, f.agentId, f.issueId);
   assert.equal(done.status, "done");
   assert.equal(done.attempts.length, 1);
-  assert.equal(readActivity(f.userId).unreadCount, 0);
   assert.equal((await post(app, f.agentId, f.issueId, "runs", { instructions: "More" })).status, 409);
   const reopened = await post(app, f.agentId, f.issueId, "reopen");
   assert.equal(((await reopened.json()) as IssueDetail).status, "todo");
@@ -185,7 +180,6 @@ test("needs-input, failed reports, and restart recovery preserve attempt evidenc
     readIssueView(interrupted.userId, interrupted.agentId, interrupted.issueId).attempts[0]?.outcome,
     "interrupted",
   );
-  assert.equal(readActivity(interrupted.userId).items.length, 1);
 });
 
 test("active work rejects edits and deletion; cancellation cannot be overwritten by late completion", async () => {

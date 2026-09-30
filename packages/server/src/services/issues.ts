@@ -18,7 +18,6 @@ import { readVisibleAgent } from "./agent-access.ts";
 import { NO_PROVIDER_AUTH_MESSAGE, resolveRunModel } from "./model-context.ts";
 import { deletePiSession } from "./pi-session-storage.ts";
 import { insertSession } from "./session-launch.ts";
-import { acknowledgeIssueActivity, recordIssueActivity } from "./activity.ts";
 
 type IssueRecord = typeof issues.$inferSelect;
 export class IssueError extends Error {
@@ -124,7 +123,6 @@ export async function runIssue(
       .where(eq(issues.id, issueId))
       .run();
     addEvent(issueId, command.instructions ? `Sent to agent:\n${command.instructions}` : "Started work.");
-    acknowledgeIssueActivity(issueId);
   });
   try {
     const model = await resolveRunModel(
@@ -290,7 +288,6 @@ export function finishIssueAttempt(attemptId: string, result: AgentRunResult) {
       `Attempt ${result.outcome}: ${result.detail ?? attempt.summary ?? "No result report was provided."}`,
       "result",
     );
-    recordIssueActivity(issue.id, attemptId);
   });
 }
 
@@ -319,7 +316,6 @@ export function acceptIssue(userId: string, agentId: string, issueId: string): I
   if (current.status !== "in_review") throw new IssueError("Only work awaiting review can be accepted.", 409);
   db.update(issues).set({ status: "done", closedAt: now(), updatedAt: now() }).where(eq(issues.id, issueId)).run();
   addEvent(issueId, "Accepted the result and marked Done.");
-  acknowledgeIssueActivity(issueId);
   return readIssueView(userId, agentId, issueId);
 }
 export function reopenIssue(userId: string, agentId: string, issueId: string): IssueDetail {
@@ -348,7 +344,6 @@ export function cancelIssue(userId: string, agentId: string, issueId: string): I
   db.update(issues).set({ status: "cancelled", closedAt: now(), updatedAt: now() }).where(eq(issues.id, issueId)).run();
   interruptIssue(userId, agentId, issueId);
   addEvent(issueId, "Cancelled issue.");
-  acknowledgeIssueActivity(issueId);
   return readIssueView(userId, agentId, issueId);
 }
 export async function deleteIssue(userId: string, agentId: string, issueId: string) {

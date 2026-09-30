@@ -1,6 +1,4 @@
 import type {
-  ActivityFilter,
-  ActivityPage,
   AgentCommandPayload,
   GitChangeArea,
   GitFileDiff,
@@ -146,12 +144,6 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
 }
 
 export const api = {
-  listActivity: (filter: ActivityFilter, before?: number, signal?: AbortSignal) =>
-    request<ActivityPage>(`/api/activity?filter=${filter}${before ? `&before=${before}` : ""}`, { signal }),
-  activityUnreadCount: (signal?: AbortSignal) => request<{ unreadCount: number }>("/api/activity/unread-count", { signal }),
-  setActivityRead: (ids: number[], read: boolean) => request<{ ok: true }>("/api/activity/read", {
-    method: "PATCH", body: JSON.stringify({ ids, read }),
-  }),
   bootstrap: () => request<BootstrapPayload>("/api/bootstrap"),
   login: (username: string, password: string) =>
     request<BootstrapPayload>("/api/auth/login", {

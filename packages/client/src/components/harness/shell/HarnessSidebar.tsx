@@ -1,6 +1,5 @@
-import { InboxIcon, PanelLeftCloseIcon, CalendarClockIcon } from "lucide-react";
+import { PanelLeftCloseIcon, CalendarClockIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { IssueList } from "@/components/harness/issues/IssueList";
 import { describeIssue, sortIssues } from "@/components/harness/issues/issue-state";
@@ -15,7 +14,6 @@ import { SidebarSessionsToolbar } from "./SidebarSessionsToolbar";
 import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH, type ContentView, type SidebarList } from "./sidebar-utils";
 
 export function HarnessSidebar({
-  unreadActivityCount,
   activeUser,
   activeAgent,
   activeSession,
@@ -35,7 +33,6 @@ export function HarnessSidebar({
   onResetWidth,
   onOpenImport,
 }: {
-  unreadActivityCount: number;
   activeUser?: User;
   activeAgent?: AgentConfig;
   activeSession?: SessionMetadata;
@@ -106,12 +103,6 @@ export function HarnessSidebar({
           </Button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
-          <Button asChild variant={contentView === "inbox" ? "secondary" : "ghost"} className="justify-start">
-            <Link to="/inbox" onClick={onOpenSession} aria-current={contentView === "inbox" ? "page" : undefined}>
-              <InboxIcon data-icon="inline-start" />Inbox
-              {unreadActivityCount > 0 ? <Badge variant="secondary" className="ml-auto" aria-label={`${unreadActivityCount} unread updates`}>{unreadActivityCount}</Badge> : null}
-            </Link>
-          </Button>
           <AgentSelector
             activeAgent={activeAgent}
             visibleAgents={visibleAgents}

@@ -9,7 +9,6 @@ import { agents, modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { loadSession } from "../services/session-store.ts";
-import { readActivity } from "../services/activity.ts";
 import { createAgent, createUser } from "../test-support.ts";
 import { abortAgentRun, startDetachedAgentRun, whenRunFinished } from "./agent-runtime.ts";
 import { shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
@@ -92,12 +91,6 @@ async function finished(run: ActiveAgentRun): Promise<AgentRunResult> {
   const result = await whenRunFinished(run, 20);
   const terminal = run.events.at(-1)?.event;
   assert.deepEqual(terminal, { type: "run_finished", result });
-  const notifications = readActivity(run.userId).items.filter((item) => item.sessionId === run.sessionId);
-  if (result.outcome === "cancelled") assert.equal(notifications.length, 0);
-  else {
-    assert.equal(notifications.length, 1, "a detached run records one durable inbox update");
-    assert.equal(notifications[0]!.kind, result.outcome === "succeeded" ? "completed" : result.outcome);
-  }
   return result;
 }
 
