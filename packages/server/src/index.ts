@@ -1,4 +1,4 @@
-import { recoverIssueAttempts } from "./services/issues.ts";
+import { recoverIssueAttempts, startIssueQueue, stopIssueQueue, drainIssueResults } from "./services/issues.ts";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { pruneExpiredAuthSessions } from "./auth.ts";
@@ -45,6 +45,7 @@ void refreshConfiguredModelCatalogs()
   });
 
 startTaskScheduler();
+startIssueQueue();
 
 const app = createApp();
 const port = Number(process.env.PORT ?? 8797);
@@ -61,9 +62,11 @@ let shuttingDown = false;
 async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
+  stopIssueQueue();
   console.log(`Received ${signal}, draining active runs...`);
   try {
     await shutdownActiveRuns();
+    await drainIssueResults();
   } catch (error) {
     console.warn("Failed to drain active runs:", errorMessage(error));
   }

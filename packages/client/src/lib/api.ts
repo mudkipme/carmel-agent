@@ -274,6 +274,24 @@ export const api = {
     request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/runs`, { method: "POST", body: JSON.stringify(input) }),
   addIssueNote: (agentId: string, issueId: string, body: string) =>
     request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/notes`, { method: "POST", body: JSON.stringify({ body }) }),
+  sendIssueUpdate: (agentId: string, issueId: string, body: string) =>
+    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/updates`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+  removeIssueFromQueue: (agentId: string, issueId: string) =>
+    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/queue`, {
+      method: "DELETE",
+    }),
+  moveQueuedIssue: (
+    agentId: string,
+    issueId: string,
+    direction: "up" | "down",
+  ) =>
+    request<IssueDetail>(
+      `/api/agents/${agentId}/issues/${issueId}/queue/move`,
+      { method: "POST", body: JSON.stringify({ direction }) },
+    ),
   acceptIssue: (agentId: string, issueId: string) =>
     request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/accept`, { method: "POST" }),
   reopenIssue: (agentId: string, issueId: string) =>

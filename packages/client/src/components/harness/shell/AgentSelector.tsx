@@ -107,7 +107,7 @@ export function AgentSelector({
           </Badge>
         ) : null}
         <span className="ml-auto flex shrink-0 items-center gap-1.5 text-faint">
-          <kbd className="text-ui-smaller hidden rounded border px-1 font-sans sm:inline">{shortcutHint()}</kbd>
+          <kbd className="text-ui-smaller hidden rounded border px-1 font-sans text-muted-foreground sm:inline">{shortcutHint()}</kbd>
           <ChevronsUpDownIcon className="size-3.5" />
         </span>
       </button>

@@ -224,7 +224,7 @@ export type AgentTaskPatchCommand = z.infer<typeof agentTaskPatchSchema>;
 
 const issueBriefFields = {
   title: z.string().trim().min(1).max(200),
-  description: z.string().trim().min(1).max(40_000),
+  description: z.string().trim().max(40_000),
   criteria: z.array(z.string().trim().min(1).max(2_000)).max(50),
   priority: z.enum(["low", "normal", "high", "urgent"]),
 };
@@ -233,6 +233,7 @@ export const issueCreateSchema = z.object({
   criteria: issueBriefFields.criteria.optional(),
   priority: issueBriefFields.priority.optional(),
   status: z.enum(["backlog", "todo"]).optional(),
+  queue: z.boolean().optional(),
 }).strict();
 export const issuePatchSchema = z.object({
   ...issueBriefFields,
@@ -242,7 +243,9 @@ export const issueRunSchema = z.object({
   instructions: z.string().trim().max(20_000).optional(),
   modelRefId: optionalStringSchema,
   thinkingLevel: thinkingLevelSchema.optional(),
+  fresh: z.boolean().optional(),
 }).strict();
+export const issueQueueMoveSchema = z.object({ direction: z.enum(["up", "down"]) }).strict();
 export const issueNoteSchema = z.object({ body: z.string().trim().min(1).max(20_000) }).strict();
 export type IssueCreateCommand = z.infer<typeof issueCreateSchema>;
 export type IssuePatchCommand = z.infer<typeof issuePatchSchema>;

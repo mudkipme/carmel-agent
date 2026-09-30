@@ -132,7 +132,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   );
   const activeIssueId = view === "issues" ? routeIssueId : undefined;
   const activeIssue = visibleIssues.find((issue) => issue.id === activeIssueId);
-  const anyIssueRunning = visibleIssues.some((issue) => issue.running);
+  const anyIssueRunning = visibleIssues.some((issue) => issue.running || issue.status === "queued");
   const chatPath = activeAgent ? (lastChatPathByAgent.get(activeAgent.id) ?? `/agents/${activeAgent.id}`) : "/";
 
   const redirectTo = route.kind === "redirect" ? route.to : undefined;
@@ -312,6 +312,10 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
         onOpenSession={closeSidebarOnMobile}
         onStartResize={startSidebarResize}
         onResetWidth={() => resetSidebarWidth(setSidebarWidth)}
+        onResizeWidth={(width) => {
+          setSidebarWidth(width);
+          window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
+        }}
         onOpenImport={() => setImportDialogOpen(true)}
       />
 

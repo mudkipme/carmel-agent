@@ -57,7 +57,7 @@ test("creating a brief and adding notes never starts work or requires a model", 
   assert.equal((await post(app, f.agentId, issue.id, "notes", { body: "  " })).status, 400);
 });
 
-test("explicit starts create separate agent-owned sessions; failures persist in attempt history", async () => {
+test("replies reuse the conversation; failures persist in attempt history", async () => {
   const f = fixture();
   const app = appAs(f.userId);
   const issue = createIssue(f.userId, f.agentId, {
@@ -73,7 +73,7 @@ test("explicit starts create separate agent-owned sessions; failures persist in 
   assert.ok(!readBootstrapPayload(f.userId).sessions.some((s) => s.id === running.sessionId));
   await waitFor(() => !readIssueView(f.userId, f.agentId, issue.id).running);
   const failed = readIssueView(f.userId, f.agentId, issue.id);
-  assert.equal(failed.status, "blocked");
+  assert.equal(failed.status, "backlog");
   assert.equal(failed.attempts[0]?.outcome, "failed");
   assert.equal(
     (
@@ -86,7 +86,7 @@ test("explicit starts create separate agent-owned sessions; failures persist in 
   await waitFor(() => !readIssueView(f.userId, f.agentId, issue.id).running);
   const retried = readIssueView(f.userId, f.agentId, issue.id);
   assert.equal(retried.attempts.length, 2);
-  assert.notEqual(retried.attempts[0]?.sessionId, retried.attempts[1]?.sessionId);
+  assert.equal(retried.attempts[0]?.sessionId, retried.attempts[1]?.sessionId);
   assert.match(retried.attempts[0]!.brief, /Previous attempts/);
 });
 
@@ -117,7 +117,7 @@ test("preflight errors leave a durable failed attempt without a session", async 
   });
   await assert.rejects(runIssue(f.userId, f.agentId, issue.id, { modelRefId: "missing" }), /Model not found/);
   const detail = readIssueView(f.userId, f.agentId, issue.id);
-  assert.equal(detail.status, "blocked");
+  assert.equal(detail.status, "backlog");
   assert.equal(detail.attempts[0]?.sessionId, null);
   assert.equal(detail.attempts[0]?.outcome, "failed");
 });
@@ -143,7 +143,7 @@ test("agent delivery waits for human review; notes never reopen accepted work", 
   assert.equal(done.attempts.length, 1);
   assert.equal((await post(app, f.agentId, f.issueId, "runs", { instructions: "More" })).status, 409);
   const reopened = await post(app, f.agentId, f.issueId, "reopen");
-  assert.equal(((await reopened.json()) as IssueDetail).status, "todo");
+  assert.equal(((await reopened.json()) as IssueDetail).status, "backlog");
   assert.equal(readIssueView(f.userId, f.agentId, f.issueId).running, false);
   await assert.rejects(report(f, { state: "done", summary: "Stale", evidence: "" }), /no longer active/);
 });
@@ -168,7 +168,7 @@ test("needs-input, failed reports, and restart recovery preserve attempt evidenc
     detail: "Persistence failed",
   });
   const detail = readIssueView(failure.userId, failure.agentId, failure.issueId);
-  assert.equal(detail.status, "blocked");
+  assert.equal(detail.status, "backlog");
   assert.equal(detail.attempts[0]?.summary, "Persistence failed");
   assert.equal(detail.attempts[0]?.evidence, "Tests passed");
   assert.equal(detail.notes.at(-1)?.kind, "result");

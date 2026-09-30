@@ -120,7 +120,29 @@ export type AgentRunInput = {
 export type SessionRunAddons = {
   tools: AgentHarnessTool<ExecutionToolContext>[];
   instructions: string;
+  onQueueUpdate?: (entryIds: string[]) => void;
+  onRunSettling?: (lane: AgentLane, aborted: boolean) => Promise<void>;
 };
+
+const runningLanes = new Map<string, AgentLane>();
+/** Issue access is checked by the caller; Pi owns admission and delivery. */
+export async function steerAgentRun(sessionId: string, text: string) {
+  const lane = runningLanes.get(sessionId);
+  if (!lane) return undefined;
+  const result = await lane.steer(text, undefined, runContext);
+  if (!result.ok) return undefined;
+  const watch = await lane.watch(runContext);
+  try {
+    return {
+      entryId: result.value.entryId,
+      pending: watch.snapshot.queues.some(
+        (item) => item.entryId === result.value.entryId,
+      ),
+    };
+  } finally {
+    watch.unsubscribe();
+  }
+}
 
 /** Everything the run body and its finalization share, fixed at run startup. */
 type AgentRun = AgentRunInput & {
@@ -197,10 +219,13 @@ async function startAgentRun(context: AgentRun) {
     await execution.prepare(abort.signal);
     const opened = await openRunHarness({ ...context, piSession, execution });
     const { lane, activeToolNames } = opened;
+    runningLanes.set(session.id, lane);
     harness = opened.harness;
     releaseLane = opened.releaseLane;
     abort.attach(lane);
     unsubscribe = observeHarnessEvents(harness, (event: HarnessEvent) => {
+      if (event.type === "queue_update" && !abort.requested)
+        context.sessionAddons?.onQueueUpdate?.(event.queues.map((item) => item.entryId));
       retry.observe(event);
       contextReporter.observe(event);
       if (event.type === "turn_end") {
@@ -253,6 +278,12 @@ async function startAgentRun(context: AgentRun) {
     await reportRunFailure(context, { log, retry, error });
   } finally {
     if (guardTimer) clearInterval(guardTimer);
+    const lane = runningLanes.get(session.id);
+    runningLanes.delete(session.id);
+    if (lane && context.sessionAddons?.onRunSettling) {
+      try { await context.sessionAddons.onRunSettling(lane, abort.requested); }
+      catch (error) { console.warn("Unable to settle issue updates:", errorMessage(error)); }
+    }
     await finalizeRun(context, { piSession, harness, log, execution, unsubscribe, releaseLane });
   }
 }

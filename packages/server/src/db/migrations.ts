@@ -116,6 +116,18 @@ const migrations: Migration[] = [
     description: "Remove the unused activity inbox and read state",
     run: (sqlite) => sqlite.exec("DROP TABLE IF EXISTS activity"),
   },
+  {
+    id: "032_issue_queue",
+    description: "Add durable issue queues, live update delivery, and immutable run results",
+    run: (sqlite) => {
+      addColumnIfMissing(sqlite, "issues", "queue_position", "INTEGER");
+      addColumnIfMissing(sqlite, "issues", "queued_command", "TEXT");
+      addColumnIfMissing(sqlite, "issue_attempts", "snapshot", "TEXT");
+      addColumnIfMissing(sqlite, "issue_notes", "delivery", "TEXT");
+      addColumnIfMissing(sqlite, "issue_notes", "entry_id", "TEXT");
+      sqlite.exec("CREATE INDEX IF NOT EXISTS issues_queue ON issues(agent_id, status, queue_position)");
+    },
+  },
 ];
 
 function addAgentCodemode(sqlite: Sqlite) {

@@ -16,7 +16,7 @@ export function SidebarSessionsToolbar({
 }: {
   activeAgent?: AgentConfig;
   list: SidebarList;
-  /** Open issues the agent cannot go on with until the user answers, shown on the Issues tab. */
+  /** Issues awaiting an answer, error recovery, or human review. */
   attentionCount: number;
   onListChange: (list: SidebarList) => void;
   onOpenSession: () => void;

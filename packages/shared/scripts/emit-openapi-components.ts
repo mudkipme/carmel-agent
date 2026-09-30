@@ -20,6 +20,7 @@ const requestSchemas = {
   IssueCreateRequest: S.issueCreateSchema,
   IssuePatchRequest: S.issuePatchSchema,
   IssueRunRequest: S.issueRunSchema,
+  IssueQueueMoveRequest: S.issueQueueMoveSchema,
   IssueNoteRequest: S.issueNoteSchema,
   AgentRunRequest: S.agentRunRequestSchema,
   SessionDraftRequest: S.sessionDraftRequestSchema,

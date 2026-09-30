@@ -303,8 +303,8 @@ export type AgentTaskRun = {
   sessionId?: string;
 };
 
-/** Durable work owned by one agent; execution attempts have their own sessions. */
-export type IssueStatus = "backlog" | "todo" | "in_progress" | "needs_input" | "blocked" | "in_review" | "done" | "cancelled";
+/** Durable work owned by one agent; runs share a conversation unless explicitly started fresh. */
+export type IssueStatus = "backlog" | "todo" | "queued" | "in_progress" | "needs_input" | "blocked" | "in_review" | "done" | "cancelled";
 export type IssueVerdict = "done" | "needs_input" | "blocked";
 export type IssuePriority = "low" | "normal" | "high" | "urgent";
 export type Issue = {
@@ -318,6 +318,8 @@ export type Issue = {
   priority: IssuePriority;
   status: IssueStatus;
   running: boolean;
+  queuePosition?: number;
+  queuedInstructions?: string;
   lastRunOutcome?: AgentRunOutcome;
   lastRunDetail?: string;
   verdict?: IssueVerdict;
@@ -335,6 +337,7 @@ export type IssueAttempt = {
   outcome: AgentRunOutcome | "running";
   summary: string | null;
   evidence: string | null;
+  snapshot?: IssueResultSnapshot | null;
   createdAt: number;
   finishedAt: number | null;
 };
@@ -343,9 +346,16 @@ export type IssueNote = {
   issueId: string;
   kind: "note" | "action" | "result";
   body: string;
+  delivery?: "queued" | "delivered" | "not_delivered" | null;
+  entryId?: string | null;
   createdAt: number;
 };
 export type IssueDetail = Issue & { attempts: IssueAttempt[]; notes: IssueNote[] };
+export type IssueResultSnapshot = {
+  files: { path: string; change: "added" | "modified" | "deleted"; before: string | null; after: string | null; omitted?: boolean }[];
+  warning?: string;
+  capturedAt: number;
+};
 
 export type AgentFileEntry = {
   name: string;

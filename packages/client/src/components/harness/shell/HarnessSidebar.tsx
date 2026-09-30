@@ -31,6 +31,7 @@ export function HarnessSidebar({
   onOpenSession,
   onStartResize,
   onResetWidth,
+  onResizeWidth,
   onOpenImport,
 }: {
   activeUser?: User;
@@ -50,6 +51,7 @@ export function HarnessSidebar({
   onOpenSession: () => void;
   onStartResize: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onResetWidth: () => void;
+  onResizeWidth: (width: number) => void;
   onOpenImport: () => void;
 }) {
   const createAgent = useHarnessStore((state) => state.createAgent);
@@ -62,7 +64,7 @@ export function HarnessSidebar({
     if (contentView === "issues") setList("issues");
     else if (contentView === "chat") setList("sessions");
   }, [contentView]);
-  const attentionCount = visibleIssues.filter((issue) => describeIssue(issue).attention === "blocking").length;
+  const attentionCount = visibleIssues.filter((issue) => describeIssue(issue).attention !== "none").length;
 
   const createSidebarAgent = async (): Promise<AgentConfig | undefined> => {
     try {
@@ -143,6 +145,7 @@ export function HarnessSidebar({
       </div>
       <button
         type="button"
+        role="separator"
         aria-label="Resize sidebar"
         aria-orientation="vertical"
         aria-valuemin={MIN_SIDEBAR_WIDTH}
@@ -154,6 +157,13 @@ export function HarnessSidebar({
         )}
         onPointerDown={onStartResize}
         onDoubleClick={onResetWidth}
+        onKeyDown={(event) => {
+          const delta = event.key === "ArrowLeft" ? -16 : event.key === "ArrowRight" ? 16 : 0;
+          const edge = event.key === "Home" ? MIN_SIDEBAR_WIDTH : event.key === "End" ? MAX_SIDEBAR_WIDTH : undefined;
+          if (!delta && edge === undefined) return;
+          event.preventDefault();
+          onResizeWidth(Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, edge ?? sidebarWidth + delta)));
+        }}
       />
     </aside>
   );

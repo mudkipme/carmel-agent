@@ -289,6 +289,8 @@ export const issues = sqliteTable("issues", {
   lastRunDetail: text("last_run_detail"),
   verdict: text("verdict").$type<IssueVerdict>(),
   verdictSummary: text("verdict_summary"),
+  queuePosition: integer("queue_position"),
+  queuedCommand: text("queued_command", { mode: "json" }).$type<import("@carmel-agent/shared").IssueRunCommand>(),
   closedAt: integer("closed_at"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
@@ -303,6 +305,7 @@ export const issueAttempts = sqliteTable("issue_attempts", {
   outcome: text("outcome").$type<AgentRunOutcome | "running">().notNull(),
   summary: text("summary"),
   evidence: text("evidence"),
+  snapshot: text("snapshot", { mode: "json" }).$type<import("@carmel-agent/shared").IssueResultSnapshot>(),
   createdAt: integer("created_at").notNull(),
   finishedAt: integer("finished_at"),
 });
@@ -311,5 +314,7 @@ export const issueNotes = sqliteTable("issue_notes", {
   issueId: text("issue_id").notNull().references(() => issues.id, { onDelete: "cascade" }),
   kind: text("kind").$type<"note" | "action" | "result">().notNull(),
   body: text("body").notNull(),
+  delivery: text("delivery").$type<"queued" | "delivered" | "not_delivered">(),
+  entryId: text("entry_id"),
   createdAt: integer("created_at").notNull(),
 });

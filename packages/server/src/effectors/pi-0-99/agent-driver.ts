@@ -91,6 +91,9 @@ const OBSERVED_EVENTS = [
   "tool_end",
   "turn_end",
   "run_end",
+  // Durable issue updates need to distinguish queued instructions from ones
+  // already admitted by the lane; this event is not sent on the chat wire.
+  "queue_update",
   // Not projected onto the wire -- nothing renders it -- but the run needs to
   // know when Pi has spent its own overflow recovery, so that Carmel's does not
   // pay for the same compaction twice.

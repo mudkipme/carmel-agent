@@ -7,12 +7,46 @@ import { migrate, seed, sqlite } from "./index.ts";
 
 migrate();
 
+test("issue queue upgrade preserves briefs, conversations, reports, and notes without autoqueueing old work", () => {
+  const previous = new Database(":memory:");
+  previous.pragma("foreign_keys = ON");
+  try {
+    runMigrations(previous); seedDatabase(previous);
+    const session = previous.prepare("SELECT id, user_id, agent_id FROM sessions LIMIT 1").get() as { id: string; user_id: string; agent_id: string };
+    previous.prepare("INSERT INTO issues(id,user_id,agent_id,session_id,title,description,status,verdict,verdict_summary,created_at,updated_at) VALUES ('old',?,?,?,'Existing brief','Original criteria','in_review','done','Existing report',1,2)")
+      .run(session.user_id, session.agent_id, session.id);
+    previous.exec(`
+      INSERT INTO issue_attempts(id,issue_id,session_id,instructions,brief,outcome,summary,evidence,created_at,finished_at)
+        SELECT 'old-attempt','old',id,'Original instructions','Original brief','succeeded','Existing report','Checks passed',1,2 FROM sessions LIMIT 1;
+      INSERT INTO issue_notes(id,issue_id,kind,body,created_at) VALUES ('old-note','old','note','Original context',1);
+      DROP INDEX issues_queue;
+      ALTER TABLE issues DROP COLUMN queue_position;
+      ALTER TABLE issues DROP COLUMN queued_command;
+      ALTER TABLE issue_attempts DROP COLUMN snapshot;
+      ALTER TABLE issue_notes DROP COLUMN delivery;
+      ALTER TABLE issue_notes DROP COLUMN entry_id;
+      DELETE FROM schema_migrations WHERE id = '032_issue_queue';
+    `);
+    const tables = ["issues", "issue_attempts", "issue_notes", "sessions"];
+    const before = tables.map((table) => previous.prepare(`SELECT * FROM ${table}`).all());
+    runMigrations(previous);
+    const after = tables.map((table) => previous.prepare(`SELECT * FROM ${table}`).all().map((row) => {
+      const { queue_position: _position, queued_command: _command, snapshot: _snapshot, delivery: _delivery, entry_id: _entry, ...old } = row as Record<string, unknown>;
+      return old;
+    }));
+    assert.deepEqual(after, before);
+    assert.deepEqual(previous.prepare("SELECT status, queue_position, queued_command FROM issues").get(), { status: "in_review", queue_position: null, queued_command: null });
+    runMigrations(previous);
+    assert.deepEqual(previous.pragma("foreign_key_check"), []);
+  } finally { previous.close(); }
+});
+
 const rowCount = (table: string) =>
   (sqlite.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count;
 
 test("all versioned migrations apply and remove legacy session tables", () => {
   const applied = sqlite.prepare("SELECT id FROM schema_migrations ORDER BY id").all() as Array<{ id: string }>;
-  assert.equal(applied.at(-1)?.id, "031_drop_activity_inbox");
+  assert.equal(applied.at(-1)?.id, "032_issue_queue");
   const agentColumns = sqlite.pragma("table_info(agents)") as Array<{ name: string }>;
   assert.ok(!agentColumns.some(({ name }) => name === "enabled_extensions"));
 

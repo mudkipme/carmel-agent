@@ -72,7 +72,7 @@ export function PiChat({
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
         {session.issueId ? <div className="flex items-center justify-between gap-3 border-b px-4 py-2 text-sm text-muted-foreground">
-          <span>Issue attempt · Read-only history</span>
+          <span>Issue conversation · Read-only history</span>
           <Button asChild variant="outline" size="sm"><Link to={`/agents/${session.agentId}/issues/${session.issueId}`}>Back to issue</Link></Button>
         </div> : null}
         {snapshot.errorMessage ? (

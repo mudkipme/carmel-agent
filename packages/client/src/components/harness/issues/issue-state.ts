@@ -16,10 +16,14 @@ type IssueState = {
   className: string;
   attention: "blocking" | "review" | "none";
 };
-const states: Record<IssueStatus, [string, LucideIcon, IssueState["attention"]]> = {
+const states: Record<
+  IssueStatus,
+  [string, LucideIcon, IssueState["attention"]]
+> = {
   backlog: ["Backlog", CircleDashedIcon, "none"],
-  todo: ["To do", CircleDotIcon, "none"],
-  in_progress: ["In progress", LoaderCircleIcon, "none"],
+  todo: ["Backlog", CircleDotIcon, "none"],
+  queued: ["Queued", CircleDotIcon, "none"],
+  in_progress: ["Working", LoaderCircleIcon, "none"],
   needs_input: ["Needs input", MessageCircleQuestionMarkIcon, "blocking"],
   blocked: ["Blocked", OctagonAlertIcon, "blocking"],
   in_review: ["In review", ClipboardCheckIcon, "review"],
@@ -27,6 +31,21 @@ const states: Record<IssueStatus, [string, LucideIcon, IssueState["attention"]]>
   cancelled: ["Cancelled", CircleSlashIcon, "none"],
 };
 export function describeIssue(issue: Issue): IssueState {
+  if (
+    !isClosedIssue(issue) &&
+    !issue.running &&
+    issue.status !== "queued" &&
+    issue.lastRunOutcome &&
+    issue.lastRunOutcome !== "succeeded"
+  )
+    return {
+      label: ["interrupted", "cancelled"].includes(issue.lastRunOutcome)
+        ? "Stopped"
+        : "Run failed",
+      Icon: OctagonAlertIcon,
+      attention: "blocking",
+      className: "text-destructive",
+    };
   const [label, Icon, attention] = states[issue.status];
   return {
     label,
@@ -40,12 +59,36 @@ export function describeIssue(issue: Issue): IssueState {
   };
 }
 export function issueVerdictSummary(issue: Issue) {
-  return issue.running ? undefined : (issue.lastRunDetail ?? issue.verdictSummary);
+  if (
+    !issue.running &&
+    issue.lastRunOutcome &&
+    issue.lastRunOutcome !== "succeeded"
+  )
+    return (
+      issue.lastRunDetail ??
+      (["interrupted", "cancelled"].includes(issue.lastRunOutcome)
+        ? "Run stopped. Queue work to continue."
+        : "Run failed. Queue a retry to continue.")
+    );
+  return issue.running
+    ? undefined
+    : (issue.lastRunDetail ?? issue.verdictSummary);
 }
 export function isClosedIssue(issue: Issue) {
   return issue.status === "done" || issue.status === "cancelled";
 }
 export function sortIssues(a: Issue, b: Issue) {
+  if (a.status === "queued" && b.status === "queued")
+    return (a.queuePosition ?? 0) - (b.queuePosition ?? 0);
+  if (a.running !== b.running) return a.running ? -1 : 1;
   if (isClosedIssue(a) !== isClosedIssue(b)) return isClosedIssue(a) ? 1 : -1;
   return b.updatedAt - a.updatedAt;
+}
+export function issueGroup(
+  issue: Issue,
+): "Working" | "Queued" | "Needs you" | "Backlog" | "Done" {
+  if (issue.running) return "Working";
+  if (isClosedIssue(issue)) return "Done";
+  if (issue.status === "queued") return "Queued";
+  return describeIssue(issue).attention !== "none" ? "Needs you" : "Backlog";
 }

@@ -34,7 +34,7 @@ export function AgentAvatar({
         "flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-semibold tracking-tight tabular-nums",
         className,
       )}
-      style={{ backgroundColor: `color-mix(in oklab, ${accent} 20%, transparent)`, color: accent }}
+      style={{ backgroundColor: `color-mix(in oklab, ${accent} 20%, transparent)`, color: "var(--foreground)" }}
     >
       {agent ? agentInitials(agent.name) : "—"}
     </span>
