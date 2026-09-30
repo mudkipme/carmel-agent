@@ -67,12 +67,14 @@ export function AgentMcpSettings({ agentId, servers, permissions, onChange }: {
   };
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex min-w-0 flex-col gap-4">
       <SectionHeader title="MCP servers" description="Connect this agent to tools from Model Context Protocol servers. Save changes to apply them to the next run." />
       {servers.map((server) => (
-        <FieldSet key={server.id} className="rounded-md border p-3">
+        <FieldSet key={server.id} className="min-w-0 rounded-md border p-3">
           <FieldLegend>{server.id}</FieldLegend>
-          <FieldDescription>{server.transport === "http" ? server.url : [server.command, ...server.args].join(" ")}</FieldDescription>
+          <FieldDescription className="truncate" title={server.transport === "http" ? server.url : [server.command, ...server.args].join(" ")}>
+            {server.transport === "http" ? server.url : [server.command, ...server.args].join(" ")}
+          </FieldDescription>
           <FieldGroup>
             <Field orientation="horizontal">
               <Switch id={`mcp-enabled-${server.id}`} checked={server.enabled}

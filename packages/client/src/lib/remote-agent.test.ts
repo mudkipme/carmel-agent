@@ -516,6 +516,31 @@ test("dismissing an error clears it without touching the transcript", async () =
   }
 });
 
+test("codemode progress stays outside messages and is cleared when observation finishes", async () => {
+  const originalFetch = globalThis.fetch;
+  const codemodeCalls = [{ id: "nested", name: "mcp_echo", label: "MCP echo", status: "running" as const, durationMs: 0 }];
+  globalThis.fetch = async () => eventResponse([
+    envelope(1, { type: "tool_execution_start", toolCallId: "call", toolName: "codemode" }),
+    envelope(2, { type: "tool_execution_update", toolCallId: "call", codemodeCalls }),
+    envelope(3, { type: "tool_execution_end", toolCallId: "call", toolName: "codemode", isError: false }),
+    envelope(4, runFinished()),
+  ]);
+  try {
+    const agent = createAgent([]);
+    let sawProgress = false;
+    agent.subscribeStore(() => {
+      if (agent.getSnapshot().codemodeCalls?.get("call")) {
+        sawProgress = true;
+        assert.deepEqual(agent.getSnapshot().codemodeCalls?.get("call"), codemodeCalls);
+        assert.deepEqual(agent.getSnapshot().messages, []);
+      }
+    });
+    await agent.attachToRun("run_codemode", [], 0);
+    assert.equal(sawProgress, true);
+    assert.equal(agent.getSnapshot().codemodeCalls?.size, 0);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 function createAgent(messages: AgentMessage[], onRunComplete?: () => Promise<void> | void) {
   return new RemoteAgent({
     agentId: "agent_1",

@@ -1,4 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { CodemodeCallInfo } from "@carmel-agent/shared";
 import type { AssistantMessage as AssistantMessageType, ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
 import { AlertCircleIcon, ChevronRightIcon, Loader2Icon } from "lucide-react";
 import { memo, useMemo, useState, type ReactNode } from "react";
@@ -21,6 +22,7 @@ type ChatMessagesProps = {
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
   pendingToolCalls: ReadonlySet<string>;
+  codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
   isStreaming: boolean;
   /**
    * Fold each run's working -- thinking, tool calls, and the remarks the agent
@@ -51,6 +53,7 @@ export const ChatMessages = memo(function ChatMessages({
   messages,
   streamingMessage,
   pendingToolCalls,
+  codemodeCalls,
   isStreaming,
   collapseRunDetails = true,
   onEditMessage,
@@ -72,6 +75,7 @@ export const ChatMessages = memo(function ChatMessages({
         message={message}
         toolResultsById={toolResultsById}
         pendingToolCalls={pendingToolCalls}
+        codemodeCalls={codemodeCalls}
         streaming={streaming}
         hidePendingToolCalls={!streaming && isStreaming}
         onEditMessage={onEditMessage}
@@ -250,6 +254,7 @@ const MessageItem = memo(function MessageItem({
   message,
   toolResultsById,
   pendingToolCalls,
+  codemodeCalls,
   streaming,
   hidePendingToolCalls,
   onEditMessage,
@@ -259,6 +264,7 @@ const MessageItem = memo(function MessageItem({
   message: AgentMessage;
   toolResultsById: Map<string, ToolResultMessage>;
   pendingToolCalls: ReadonlySet<string>;
+  codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
   streaming: boolean;
   hidePendingToolCalls: boolean;
   onEditMessage?: (message: AgentMessage) => void;
@@ -273,6 +279,7 @@ const MessageItem = memo(function MessageItem({
           message={message as AssistantMessageType}
           toolResultsById={toolResultsById}
           pendingToolCalls={pendingToolCalls}
+          codemodeCalls={codemodeCalls}
           streaming={streaming}
           hidePendingToolCalls={hidePendingToolCalls}
           onEditMessage={onEditMessage}
@@ -364,6 +371,7 @@ function AssistantMessage({
   message,
   toolResultsById,
   pendingToolCalls,
+  codemodeCalls,
   streaming,
   hidePendingToolCalls,
   onEditMessage,
@@ -373,6 +381,7 @@ function AssistantMessage({
   message: AssistantMessageType;
   toolResultsById: Map<string, ToolResultMessage>;
   pendingToolCalls: ReadonlySet<string>;
+  codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
   streaming: boolean;
   hidePendingToolCalls: boolean;
   onEditMessage?: (message: AgentMessage) => void;
@@ -435,6 +444,7 @@ function AssistantMessage({
             key={toolCall.id}
             toolCall={toolCall}
             result={result}
+            codemodeCalls={codemodeCalls?.get(toolCall.id)}
             pending={pending}
             aborted={message.stopReason === "aborted" && !result}
           />

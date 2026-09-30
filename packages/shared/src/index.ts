@@ -1,6 +1,6 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { ImageContent, TextContent, ToolCall } from "@earendil-works/pi-ai";
-import type { AgentMcpServer, AgentMount, AgentPermissions, AgentThinkingLevel, PromptTemplate } from "./schemas.ts";
+import type { AgentMcpServer, AgentMount, AgentPermissions, AgentThinkingLevel, CodemodeCallInfo, PromptTemplate } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
 
 export type ChatAttachment = {
@@ -135,6 +135,7 @@ export type AgentRunEvent =
   | { type: "message_end"; message: AgentMessage }
   | { type: "tool_execution_start"; toolCallId: string; toolName: string }
   | { type: "tool_execution_end"; toolCallId: string; toolName: string; isError: boolean }
+  | { type: "tool_execution_update"; toolCallId: string; codemodeCalls: CodemodeCallInfo[] }
   | { type: "turn_end"; errorMessage?: string }
   /**
    * Automatic compaction could not keep the session inside its context budget.
@@ -226,6 +227,7 @@ export type AgentConfig = {
   systemPrompt: string;
   promptTemplates: PromptTemplate[];
   permissions: AgentPermissions;
+  codemodeEnabled?: boolean;
   mcpServers?: AgentMcpServer[];
   defaultModelRefId: string;
   defaultThinkingLevel: AgentThinkingLevel;

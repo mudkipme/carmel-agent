@@ -165,6 +165,15 @@ export const agentMcpServerSchema = z.discriminatedUnion("transport", [
   }).strict(),
 ]);
 export type AgentMcpServer = z.infer<typeof agentMcpServerSchema>;
+export const codemodeCallSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  label: z.string(),
+  status: z.enum(["running", "ok", "error", "cancelled"]),
+  durationMs: z.number().nonnegative(),
+});
+export const codemodeCallsSchema = z.array(codemodeCallSchema);
+export type CodemodeCallInfo = z.infer<typeof codemodeCallSchema>;
 export const agentMcpServersSchema = z.array(agentMcpServerSchema).max(20).superRefine((servers, ctx) => {
   const ids = new Set<string>();
   servers.forEach((server, index) => {
@@ -183,6 +192,7 @@ export const agentConfigRequestSchema = z.object({
   systemPrompt: z.string(),
   promptTemplates: z.array(promptTemplateSchema),
   permissions: agentPermissionsSchema,
+  codemodeEnabled: z.boolean().default(false),
   mcpServers: agentMcpServersSchema.default([]),
   defaultModelRefId: z.string(),
   defaultThinkingLevel: thinkingLevelSchema.default("off"),

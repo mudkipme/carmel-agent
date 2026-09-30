@@ -3,6 +3,7 @@ import {
   ArchiveIcon,
   ArrowLeftIcon,
   CalendarClockIcon,
+  CodeIcon,
   FileTextIcon,
   KeyRoundIcon,
   PlugIcon,
@@ -17,6 +18,7 @@ import { AgentPermissionsSettings } from "@/components/harness/agent-settings/Ag
 import { AgentSecretsSettings } from "@/components/harness/agent-settings/AgentSecretsSettings";
 import { AgentTemplatesSettings } from "@/components/harness/agent-settings/AgentTemplatesSettings";
 import { AgentMcpSettings } from "@/components/harness/agent-settings/AgentMcpSettings";
+import { AgentCodemodeSettings } from "@/components/harness/agent-settings/AgentCodemodeSettings";
 import { AgentTasksPanel } from "@/components/harness/AgentTasksPanel";
 import { Button } from "@/components/ui/button";
 import { confirmAction } from "@/lib/action-dialogs";
@@ -30,6 +32,7 @@ const agentSettingsSections = [
   { id: "general", label: "General", icon: SlidersHorizontalIcon },
   { id: "templates", label: "Templates", icon: FileTextIcon },
   { id: "permissions", label: "Permissions", icon: ShieldIcon },
+  { id: "codemode", label: "Codemode", icon: CodeIcon },
   { id: "secrets", label: "Secrets", icon: KeyRoundIcon },
   { id: "mcp", label: "MCP", icon: PlugIcon },
   { id: "tasks", label: "Tasks", icon: CalendarClockIcon },
@@ -238,6 +241,9 @@ export function AgentSettingsPage() {
                   ) : null}
                   {activeSection === "secrets" ? (
                     <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
+                  ) : null}
+                  {activeSection === "codemode" ? (
+                    <AgentCodemodeSettings enabled={draft.codemodeEnabled ?? false} onChange={(codemodeEnabled) => updateDraft({ codemodeEnabled })} />
                   ) : null}
                   {activeSection === "mcp" ? (
                     <AgentMcpSettings agentId={agent.id} servers={draft.mcpServers ?? []} permissions={draft.permissions}

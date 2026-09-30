@@ -1,5 +1,6 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
+import type { CodemodeCallInfo } from "@carmel-agent/shared";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode, type Ref } from "react";
 import type { PromptOutcome } from "@/lib/remote-agent";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
@@ -11,6 +12,7 @@ type ChatPanelProps = {
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
   pendingToolCalls: ReadonlySet<string>;
+  codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
   isStreaming: boolean;
   collapseRunDetails?: boolean;
   currentModel: Model<Api>;
@@ -34,6 +36,7 @@ export function ChatPanel({
   messages,
   streamingMessage,
   pendingToolCalls,
+  codemodeCalls,
   isStreaming,
   collapseRunDetails,
   currentModel,
@@ -102,6 +105,7 @@ export function ChatPanel({
             messages={messages}
             streamingMessage={streamingMessage}
             pendingToolCalls={pendingToolCalls}
+            codemodeCalls={codemodeCalls}
             isStreaming={isStreaming}
             collapseRunDetails={collapseRunDetails}
             onEditMessage={readOnly ? undefined : onEditMessage}

@@ -86,9 +86,9 @@ export class AgentMcpTools {
         }
         for (const definition of definitions) {
           if (server.tools && !server.tools.includes(definition.name)) continue;
-          this.tools.push({
+          const tool: Tool = {
             name: mcpToolName(server.id, definition.name),
-            label: `MCP · ${server.id} · ${definition.title ?? definition.name}`,
+            label: redact(`MCP · ${server.id} · ${definition.title ?? definition.name}`, secrets),
             description: redact(`MCP server ${server.id}: ${definition.description ?? definition.name}`, secrets),
             // Pi accepts a JSON schema; keep the server's schema rather than rebuilding it.
             parameters: { ...definition.inputSchema, type: "object", properties: definition.inputSchema.properties ?? {} } as Tool["parameters"],
@@ -114,7 +114,8 @@ export class AgentMcpTools {
                 throw new Error(redact(`MCP ${server.id}/${definition.name}: ${errorMessage(error)}`, secrets));
               }
             },
-          });
+          };
+          this.tools.push(tool);
         }
       } catch (error) {
         await this.close();

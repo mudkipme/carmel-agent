@@ -87,6 +87,7 @@ const OBSERVED_EVENTS = [
   "message_update",
   "message_end",
   "tool_start",
+  "tool_update",
   "tool_end",
   "turn_end",
   "run_end",

@@ -6,6 +6,7 @@ import type {
   AgentRunEventEnvelope,
   PromptInput,
   SessionConnection,
+  CodemodeCallInfo,
 } from "@carmel-agent/shared";
 import { applyStreamingEvent } from "@carmel-agent/shared";
 
@@ -22,6 +23,7 @@ export type AgentSnapshot = {
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
   pendingToolCalls: Set<string>;
+  codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
   isStreaming: boolean;
   model: Model<Api>;
   thinkingLevel: ThinkingLevel;
@@ -53,6 +55,7 @@ export class RemoteAgent {
   private messages: AgentMessage[];
   private streamingMessage?: AgentMessage;
   private pendingToolCalls = new Set<string>();
+  private codemodeCalls = new Map<string, CodemodeCallInfo[]>();
   private isStreaming = false;
   private model: Model<Api>;
   private thinkingLevel: ThinkingLevel;
@@ -108,6 +111,7 @@ export class RemoteAgent {
       messages: this.messages,
       streamingMessage: this.streamingMessage,
       pendingToolCalls: this.pendingToolCalls,
+      codemodeCalls: this.codemodeCalls,
       isStreaming: this.isStreaming,
       model: this.model,
       thinkingLevel: this.thinkingLevel,
@@ -304,6 +308,7 @@ export class RemoteAgent {
     this.isStreaming = false;
     this.streamingMessage = undefined;
     this.pendingToolCalls = new Set();
+    this.codemodeCalls = new Map();
     this.abortController = undefined;
     this.runId = undefined;
     this.detachRequested = false;
@@ -405,6 +410,7 @@ export class RemoteAgent {
     this.thinkingLevel = connection.session.thinkingLevel;
     this.streamingMessage = undefined;
     this.pendingToolCalls = new Set();
+    this.codemodeCalls = new Map();
     this.notify();
   }
 
@@ -478,6 +484,9 @@ export class RemoteAgent {
         this.pendingToolCalls = pendingToolCalls;
         break;
       }
+      case "tool_execution_update":
+        this.codemodeCalls = new Map(this.codemodeCalls).set(event.toolCallId, event.codemodeCalls);
+        break;
       case "turn_end":
         if (event.errorMessage) this.errorMessage = event.errorMessage;
         break;

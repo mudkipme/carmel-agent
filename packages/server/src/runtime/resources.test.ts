@@ -93,6 +93,7 @@ function makeAgent(workingDir: string): AgentRecord {
     name: "Agent",
     description: "",
     mcpServers: [],
+    codemodeEnabled: false,
     workingDirMode: "manual",
     workingDir,
     defaultWorkingDir: null,

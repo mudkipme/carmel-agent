@@ -158,6 +158,7 @@ export const agents = sqliteTable("agents", {
   systemPrompt: text("system_prompt").notNull(),
   promptTemplates: text("prompt_templates", { mode: "json" }).$type<PromptTemplate[]>().notNull(),
   permissions: text("permissions", { mode: "json" }).$type<AgentPermissions>().notNull(),
+  codemodeEnabled: integer("codemode_enabled", { mode: "boolean" }).notNull().default(false),
   mcpServers: text("mcp_servers", { mode: "json" }).$type<AgentMcpServer[]>().notNull().default([]),
   defaultModelRefId: text("default_model_ref_id")
     .notNull()

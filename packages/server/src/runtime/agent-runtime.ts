@@ -33,6 +33,7 @@ import {
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerExecution } from "./tools.ts";
+import { registerCodemodeResultHook } from "./codemode-tool.ts";
 import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
 import {
   createPiPromptDispatcher,
@@ -182,7 +183,18 @@ async function startAgentRun(context: AgentRun) {
 
   try {
     piSession = await openPiSession(session.id);
-    execution = createServerExecution(agent);
+    execution = createServerExecution(agent, {
+      signal: abort.signal,
+      beforeCall() {
+        if (guard.stop) throw new RunGuardError(guard.stop);
+        const stop = guard.recordToolCall();
+        if (stop) {
+          abort.request("guard");
+          throw new RunGuardError(stop);
+        }
+      },
+      onActivity: () => guard.recordActivity(),
+    });
     await execution.prepare(abort.signal);
     const opened = await openRunHarness({ ...context, piSession, execution });
     const { lane, activeToolNames } = opened;
@@ -326,9 +338,7 @@ async function openRunHarness(
 ): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[]; releaseLane: () => void }> {
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } = context;
   const resources = await loadAgentResources(agent, execution.env);
-  // A session's own tools take precedence over agent tools with the same name.
-  const addonNames = new Set(sessionAddons?.tools.map((tool) => tool.name));
-  const tools = [...execution.tools.filter((tool) => !addonNames.has(tool.name)), ...(sessionAddons?.tools ?? [])];
+  const tools = execution.resolveTools(sessionAddons?.tools);
   const activeToolNames = tools.map((tool) => tool.name);
   // 0.85 replaced the constructor with a factory: it restores durable lane and
   // operation state from the session, and reports what it found still open.
@@ -370,6 +380,7 @@ async function openRunHarness(
       ? { ...DEFAULT_COMPACTION_SETTINGS, enabled: false }
       : DEFAULT_COMPACTION_SETTINGS,
   }, runContext);
+  registerCodemodeResultHook(harness);
   // Acquiring the lane is what creates the conversation branch on a new session
   // and restores it on an existing one. Everything that runs the loop hangs off
   // this handle rather than off the harness.

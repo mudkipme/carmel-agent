@@ -48,6 +48,13 @@ test("events the client cannot use are dropped rather than forwarded", () => {
   );
 });
 
+test("codemode progress projects only validated nested call metadata", () => {
+  const codemodeCalls = [{ id: "nested", name: "mcp_echo", label: "MCP echo", status: "running", durationMs: 0 }];
+  const event = laneEvent({ type: "tool_update", runId: "run", turnId: "turn", toolCallId: "call", toolName: "codemode", partialResult: { content: [{ type: "text", text: "private output" }], details: { codemodeCalls, other: "not forwarded" } } });
+  assert.deepEqual(projectRunEvent(event), { type: "tool_execution_update", toolCallId: "call", codemodeCalls });
+  assert.equal(projectRunEvent(laneEvent({ ...event, partialResult: { content: [], details: { codemodeCalls: [{ status: "invalid" }] } } })), undefined);
+});
+
 test("tool calls arrive whole, without their streamed argument JSON", () => {
   const started = partial("");
   started.content = [{ type: "toolCall", id: "call_1", name: "read", arguments: {}, partialJson: "", index: 0 } as never];

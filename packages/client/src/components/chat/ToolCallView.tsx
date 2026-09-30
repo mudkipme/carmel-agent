@@ -1,4 +1,5 @@
 import type { ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
+import { codemodeCallsSchema, type CodemodeCallInfo } from "@carmel-agent/shared";
 import { ChevronDownIcon, CodeIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -11,13 +12,19 @@ type ToolCallViewProps = {
   result?: ToolResultMessage;
   pending?: boolean;
   aborted?: boolean;
+  codemodeCalls?: CodemodeCallInfo[];
 };
 
-export function ToolCallView({ toolCall, result, pending = false, aborted = false }: ToolCallViewProps) {
+export function ToolCallView({ toolCall, result, pending = false, aborted = false, codemodeCalls }: ToolCallViewProps) {
   const [open, setOpen] = useState(false);
   const isError = aborted || result?.isError;
   const state = pending && !result && !aborted ? "Running" : isError ? "Error" : "Complete";
   const images = getToolResultImages(result);
+  const details = result?.details as { codemodeCalls?: unknown } | undefined;
+  const savedCalls = codemodeCallsSchema.safeParse(details?.codemodeCalls);
+  const calls = (savedCalls.success ? savedCalls.data : codemodeCalls ?? []).map((call) =>
+    call.status === "running" && (aborted || result) ? { ...call, status: "cancelled" as const } : call,
+  );
 
   return (
     <div className="rounded-md border bg-card text-card-foreground">
@@ -38,6 +45,22 @@ export function ToolCallView({ toolCall, result, pending = false, aborted = fals
       {open ? (
         <div className="flex flex-col gap-3 border-t px-3 py-3">
           <CodePanel label="Input" value={formatJson(toolCall.arguments)} />
+          {calls.length > 0 ? (
+            <div className="flex min-w-0 flex-col gap-2">
+              <div className="text-xs font-medium text-muted-foreground">Nested tool calls ({calls.length})</div>
+              {calls.map((call) => (
+                <div key={call.id} className="flex min-w-0 items-center justify-between gap-2 text-sm">
+                  <span className="truncate" title={call.name}>{call.label}</span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{call.durationMs} ms</span>
+                    <Badge variant={call.status === "error" ? "destructive" : "secondary"}>
+                      {call.status === "running" ? "Running" : call.status === "ok" ? "Complete" : call.status === "cancelled" ? "Cancelled" : "Error"}
+                    </Badge>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <CodePanel label="Output" value={aborted ? "Tool call aborted." : formatToolResult(result)} />
           {images.length > 0 ? (
             <div className="flex min-w-0 flex-col gap-1">

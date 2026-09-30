@@ -89,6 +89,7 @@ export function PiChat({
             messages={snapshot.messages}
             streamingMessage={snapshot.streamingMessage}
             pendingToolCalls={snapshot.pendingToolCalls}
+            codemodeCalls={snapshot.codemodeCalls}
             isStreaming={snapshot.isStreaming}
             collapseRunDetails={collapseRunDetails}
             currentModel={snapshot.model}

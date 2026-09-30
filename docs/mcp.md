@@ -43,4 +43,8 @@ The stdio server is supervised inside the runner. Closing the MCP connection clo
 
 Tools receive stable, namespaced names within the model's 64-character tool-name limit. Their original schemas, text/image results, failure flags, progress updates, and structured outputs pass through Pi's public interfaces. Structured outputs are also included in persisted tool details because the harness transcript stores tool details rather than a separate structured-content field.
 
-This integration exposes MCP tools. Browser OAuth login, MCP resource/prompt interfaces, and codemode are not currently exposed in Carmel's UI.
+### Codemode
+
+[Codemode](codemode.md) is an independent agent setting under **Agent Settings → Codemode**. It can combine MCP calls with permitted workspace, shell, network, and session tools. MCP tools use the same connections, credentials, validation, redaction, cancellation, and allowlists as direct calls.
+
+Browser OAuth login and MCP resource/prompt interfaces are not currently exposed in Carmel's UI.

@@ -106,7 +106,25 @@ const migrations: Migration[] = [
     description: "Add per-agent MCP server configuration",
     run: (sqlite) => addColumnIfMissing(sqlite, "agents", "mcp_servers", "TEXT NOT NULL DEFAULT '[]'"),
   },
+  {
+    id: "030_agent_codemode",
+    description: "Move codemode configuration from MCP servers to the agent",
+    run: addAgentCodemode,
+  },
 ];
+
+function addAgentCodemode(sqlite: Sqlite) {
+  addColumnIfMissing(sqlite, "agents", "codemode_enabled", "INTEGER NOT NULL DEFAULT 0");
+  const agents = sqlite.prepare("SELECT id, mcp_servers FROM agents").all() as Array<{ id: string; mcp_servers: string }>;
+  for (const agent of agents) {
+    const servers = JSON.parse(agent.mcp_servers) as Array<Record<string, unknown>>;
+    if (!servers.some((server) => Object.hasOwn(server, "codemode"))) continue;
+    const enabled = servers.some((server) => server.codemode === true);
+    const cleaned = servers.map(({ codemode: _codemode, ...server }) => server);
+    sqlite.prepare("UPDATE agents SET codemode_enabled = ?, mcp_servers = ? WHERE id = ?")
+      .run(enabled ? 1 : 0, JSON.stringify(cleaned), agent.id);
+  }
+}
 
 function createActivityInbox(sqlite: Sqlite) {
   sqlite.exec(`

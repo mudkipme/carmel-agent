@@ -3,6 +3,7 @@ import { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { builtinToolProviders } from "./tool-providers/index.ts";
 import { AgentMcpTools } from "./mcp-tools.ts";
+import { createCodemodeTool, type CodemodeHooks } from "./codemode-tool.ts";
 import {
   collectAgentTools,
   type ToolProvider,
@@ -12,7 +13,7 @@ export { remapContainerPath } from "./execution-env.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
-export function createServerExecution(agent: AgentRecord) {
+export function createServerExecution(agent: AgentRecord, codemodeHooks?: CodemodeHooks) {
   const env = new AgentExecutionEnv(agent);
   const mcp = new AgentMcpTools(agent, env.cwd);
   const tools = createServerToolDefinitions(agent, env);
@@ -23,6 +24,13 @@ export function createServerExecution(agent: AgentRecord) {
     async prepare(signal?: AbortSignal) {
       await mcp.connect({ signal });
       tools.push(...mcp.tools);
+    },
+    /** Compose session overrides before exposing the same tool set to codemode. */
+    resolveTools(sessionTools: readonly AgentHarnessTool<ExecutionToolContext>[] = []) {
+      const overrides = new Set(sessionTools.map((tool) => tool.name));
+      const available = [...tools.filter((tool) => !overrides.has(tool.name)), ...sessionTools]
+        .filter((tool) => tool.name !== "codemode");
+      return agent.codemodeEnabled ? [...available, createCodemodeTool(available, codemodeHooks)] : available;
     },
     async cleanup(context: Context) {
       try { await mcp.close(); } finally { await env.cleanup(context); }

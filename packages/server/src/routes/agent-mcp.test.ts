@@ -32,7 +32,7 @@ test("MCP settings save and round-trip only through the owner's settings endpoin
   const row = db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!;
   const server = agentMcpServerSchema.parse({ id: "docs", transport: "http", url: "https://example.test/mcp", headers: { Authorization: "Bearer ${TOKEN}" } });
   const { id: _id, ownerUserId: _ownerUserId, createdAt: _createdAt, updatedAt: _updatedAt, ...settings } = serializeAgentSettings(row);
-  const input = agentConfigRequestSchema.parse({ ...settings, workingDirMode: "default", defaultWorkingDir: undefined, mcpServers: [server] });
+  const input = agentConfigRequestSchema.parse({ ...settings, workingDirMode: "default", defaultWorkingDir: undefined, mcpServers: [server], codemodeEnabled: true });
   const response = await app.request(`/agents/${fixture.agentId}`, {
     method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
   });
@@ -40,9 +40,12 @@ test("MCP settings save and round-trip only through the owner's settings endpoin
   assert.deepEqual((await response.json()).mcpServers, []);
   const saved = db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!;
   assert.deepEqual(saved.mcpServers, [server]);
+  assert.equal(saved.codemodeEnabled, true);
   assert.deepEqual(serializePublicAgent(saved).mcpServers, []);
   const ownerResponse = await app.request(`/agents/${fixture.agentId}/settings`);
-  assert.deepEqual((await ownerResponse.json()).mcpServers, [server]);
+  const ownerSettings = await ownerResponse.json();
+  assert.deepEqual(ownerSettings.mcpServers, [server]);
+  assert.equal(ownerSettings.codemodeEnabled, true);
   const otherResponse = await appFor(createUser()).request(`/agents/${fixture.agentId}/settings`);
   assert.equal(otherResponse.status, 403);
 });

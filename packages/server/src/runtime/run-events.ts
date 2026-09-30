@@ -6,7 +6,7 @@ import {
   type AssistantMessageEvent,
   type ToolCall,
 } from "@earendil-works/pi-ai";
-import type { AgentRunEvent } from "@carmel-agent/shared";
+import { codemodeCallsSchema, type AgentRunEvent } from "@carmel-agent/shared";
 import { classifyTurnFailure, formatTurnFailure, type TurnFailure } from "../effectors/failure-classifier.ts";
 
 /**
@@ -91,6 +91,11 @@ export function projectRunEvent(event: HarnessEvent, contextWindow?: number): Ag
         toolName: event.toolName,
         isError: event.isError,
       };
+    case "tool_update": {
+      const details = event.partialResult.details as { codemodeCalls?: unknown } | undefined;
+      const parsed = codemodeCallsSchema.safeParse(details?.codemodeCalls);
+      return parsed.success ? { type: "tool_execution_update", toolCallId: event.toolCallId, codemodeCalls: parsed.data } : undefined;
+    }
     case "turn_end":
       // The other failure path. A provider rejection does not throw -- Pi turns
       // it into an assistant message with `stopReason: "error"` -- so classifying
@@ -107,7 +112,6 @@ export function projectRunEvent(event: HarnessEvent, contextWindow?: number): Ag
       return { type: "agent_end" };
     default:
       // `run_start`/`turn_start` carry nothing the client renders,
-      // `tool_update.partialResult` can be megabytes of tool output it ignores,
       // and the harness's own lifecycle, config, usage and lane events -- most
       // of them new in 0.85 -- have no observer on the wire protocol.
       return undefined;

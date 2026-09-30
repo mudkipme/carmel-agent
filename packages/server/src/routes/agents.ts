@@ -83,6 +83,7 @@ export function createAgentRoutes() {
           systemPrompt: agent.systemPrompt,
           promptTemplates: agent.promptTemplates,
           permissions: agent.permissions,
+          codemodeEnabled: agent.codemodeEnabled,
           mcpServers: agent.mcpServers,
           defaultModelRefId: agent.defaultModelRefId,
           defaultThinkingLevel,

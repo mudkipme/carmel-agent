@@ -12,7 +12,7 @@ const rowCount = (table: string) =>
 
 test("all versioned migrations apply and remove legacy session tables", () => {
   const applied = sqlite.prepare("SELECT id FROM schema_migrations ORDER BY id").all() as Array<{ id: string }>;
-  assert.equal(applied.at(-1)?.id, "029_agent_mcp_servers");
+  assert.equal(applied.at(-1)?.id, "030_agent_codemode");
   const agentColumns = sqlite.pragma("table_info(agents)") as Array<{ name: string }>;
   assert.ok(!agentColumns.some(({ name }) => name === "enabled_extensions"));
 
@@ -63,6 +63,27 @@ test("MCP upgrade preserves existing agents and gives them an empty server confi
     assert.deepEqual(previous.prepare("SELECT * FROM agents").all(), before.map((agent) => ({ ...agent, mcp_servers: "[]" })));
     assert.deepEqual(previous.pragma("foreign_key_check"), []);
   } finally { previous.close(); }
+});
+
+test("codemode upgrade preserves agent settings and promotes legacy server opt-ins", () => {
+  for (const legacy of [[], [{ id: "enabled", codemode: true }, { id: "other", codemode: false }], [{ id: "disabled", enabled: false, codemode: true }], [{ id: "off", codemode: false }]]) {
+    const previous = new Database(":memory:");
+    try {
+      runMigrations(previous);
+      seedDatabase(previous);
+      previous.exec("ALTER TABLE agents DROP COLUMN codemode_enabled; DELETE FROM schema_migrations WHERE id = '030_agent_codemode'");
+      previous.prepare("UPDATE agents SET mcp_servers = ?").run(JSON.stringify(legacy));
+      const before = previous.prepare("SELECT * FROM agents").all() as Array<Record<string, unknown>>;
+      runMigrations(previous);
+      runMigrations(previous);
+      const expected = legacy.map(({ codemode: _codemode, ...server }) => server);
+      assert.deepEqual(previous.prepare("SELECT * FROM agents").all(), before.map((agent) => ({
+        ...agent, codemode_enabled: legacy.some((server) => server.codemode === true) ? 1 : 0,
+        mcp_servers: JSON.stringify(expected),
+      })));
+      assert.deepEqual(previous.pragma("foreign_key_check"), []);
+    } finally { previous.close(); }
+  }
 });
 
 test("extension removal preserves existing agents and sessions and is idempotent", () => {
