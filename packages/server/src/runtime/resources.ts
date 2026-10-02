@@ -11,6 +11,7 @@ import {
 import { resolve } from "node:path";
 import { agents } from "../db/schema.ts";
 import { resolveDataPath } from "../paths.ts";
+import { loadBuiltinSkills } from "./builtin-skills.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
@@ -31,13 +32,14 @@ export type AgentResources = {
   diagnostics: Array<SkillDiagnostic | PromptTemplateDiagnostic | ContextDiagnostic>;
 };
 
-/** Load every filesystem-backed resource through the agent's execution authority. */
+/** Workspace resources use agent authority; built-ins come from the application bundle. */
 export async function loadAgentResources(agent: AgentRecord, env: ExecutionEnv): Promise<AgentResources> {
   const cwd = resolveAgentWorkingDirPath(agent);
-  const [skillResult, promptResult, contextResult] = await Promise.all([
+  const [skillResult, promptResult, contextResult, builtins] = await Promise.all([
     loadSkills(env, resolve(cwd, ".agents", "skills"), ctx),
     loadPromptTemplates(env, resolve(cwd, ".pi", "prompts"), ctx),
     loadWorkspaceContext(env, cwd),
+    loadBuiltinSkills(agent),
   ]);
   return {
     // Sorted, because both of these reach the system prompt and Pi discovers
@@ -45,7 +47,8 @@ export async function loadAgentResources(agent: AgentRecord, env: ExecutionEnv):
     // usually stable on one filesystem, but nothing promises it -- and an order
     // that shifts silently invalidates the cached prompt prefix for the whole
     // session, which costs far more than the sort.
-    skills: sortByName(skillResult.skills),
+    // Carmel's workflow wins a name collision with a workspace copy of upstream.
+    skills: sortByName([...skillResult.skills.filter((skill) => !builtins.some((builtin) => builtin.name === skill.name)), ...builtins]),
     promptTemplates: sortByName(promptResult.promptTemplates),
     contextFiles: contextResult.contextFiles,
     diagnostics: [...skillResult.diagnostics, ...promptResult.diagnostics, ...contextResult.diagnostics],

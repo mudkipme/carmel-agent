@@ -7,6 +7,8 @@ import { shutdownActiveRuns } from "./runtime/run-stream.ts";
 import { reapManagedContainers, shutdownContainerManager } from "./runtime/sandbox/container-manager.ts";
 import { shutdownTerminals } from "./runtime/sandbox/terminal-sessions.ts";
 import { attachTerminalSocket } from "./terminal-socket.ts";
+import { attachBrowserSocket } from "./browser-socket.ts";
+import { shutdownBrowsers } from "./runtime/sandbox/browser-sessions.ts";
 import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
 import { startTaskScheduler } from "./runtime/task-scheduler.ts";
 import { errorMessage } from "./errors.ts";
@@ -57,6 +59,7 @@ const server = serve({ fetch: app.fetch, hostname, port }, (info) => {
 
 // The terminal upgrade is handled on the raw HTTP server; see terminal-socket.ts.
 attachTerminalSocket(server as unknown as import("node:http").Server);
+attachBrowserSocket(server as unknown as import("node:http").Server);
 
 let shuttingDown = false;
 async function shutdown(signal: string) {
@@ -74,6 +77,7 @@ async function shutdown(signal: string) {
   // teardown, so releasing them first lets the container manager actually stop.
   try {
     shutdownTerminals();
+    shutdownBrowsers();
   } catch (error) {
     console.warn("Failed to close terminal sessions:", errorMessage(error));
   }

@@ -102,6 +102,7 @@ export function sandboxEnv(overrides?: Record<string, string>, secrets: Readonly
     ["PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
     ["TERM", "xterm-256color"],
     ["LANG", "C.UTF-8"],
+    ["AGENT_BROWSER_SESSION", "carmel"],
   ]);
   const assign = (name: string, value: string) => {
     if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !value.includes("\0")) values.set(name, value);

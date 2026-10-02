@@ -2,6 +2,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { ImageContent, TextContent, ToolCall } from "@earendil-works/pi-ai";
 import type { AgentMcpServer, AgentMount, AgentPermissions, AgentThinkingLevel, CodemodeCallInfo, PromptTemplate } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
+export type { BrowserControlState, BrowserTab, BrowserFrame, BrowserClientMessage, BrowserServerMessage } from "./browser.ts";
 
 export type ChatAttachment = {
   id: string;

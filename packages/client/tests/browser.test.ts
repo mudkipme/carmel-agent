@@ -295,6 +295,35 @@ test("existing tasks can be edited without changing their paused state", () => {
   click("button", "Cancel");
 });
 
+test("browser handoff survives reload, supports navigation, and resumes explicitly", () => {
+  open(agentPath(""));
+  browser("wait", "--text", "Please sign in to the billing portal.");
+  // The assistance callout and header both open the same pane.
+  browser("click", 'header button[aria-label="Open browser"]');
+  browser("wait", "--fn", 'document.querySelector("#browser-address")?.value === "https://example.test/login?stream=live"');
+  browser("wait", "--fn", 'Array.from(document.querySelectorAll("button")).some(b => b.textContent === "Take control" && !b.disabled)');
+  click("button", "Take control");
+  browser("wait", "--text", "You have control");
+  browser("find", "label", "Browser address", "fill", "example.test/account");
+  click("button", "Go");
+  browser("wait", "--fn", 'document.querySelector("#browser-address").value === "https://example.test/account"');
+  browser("reload");
+  browser("wait", "--text", "Waiting for help");
+  click("button", "Take control");
+  browser("wait", "--text", "You have control");
+  click("button", "Resume agent");
+  browser("wait", "--text", "Agent has control");
+  click("button", "Expand browser");
+  assert.match(browser<{ url: string }>("get", "url").url, /browser=full/);
+  click("button", "Show conversation");
+  browser("set", "viewport", "390", "844");
+  assert.equal(evaluate<boolean>('document.documentElement.scrollWidth <= innerWidth'), true);
+  const audit = browser<{ violations: { id: string }[] }>("a11y", "--tags", "wcag2a,wcag2aa");
+  assert.deepEqual(audit.violations, []);
+  browser("click", 'header button[aria-label="Close browser"]');
+  browser("set", "viewport", "1440", "900");
+});
+
 test("a task conversation returns to its run history and keeps it open after reload", () => {
   open(agentPath(`sessions/${fixture.taskSessionId}`));
   click("link", "Run history");

@@ -160,6 +160,77 @@ Docker-compatible API, with a TTY attached. Terminals need the same container
 socket as the bash sandbox: without one, the button reports that the sandbox is
 unavailable.
 
+## Shared Browser
+
+The Browser button opens a live view beside the conversation, with an expanded
+view and a full-width mobile layout. Users can take control, navigate, switch
+tabs, click, scroll, type, or paste, then select **Resume agent**. The Keyboard
+control provides text entry on mobile. Shift+Escape leaves the remote keyboard
+surface. Closing the pane does not close Chromium.
+
+Browser access requires visibility of the agent and its `bash` permission.
+Unlike the owner-only terminal, a shared agent's browser is available to all
+users who can use that agent. Its `carmel` browser session and persistent profile
+at `/home/agent/.agent-browser/profile` belong to the **agent**, not a conversation
+or a user. Signing in grants that agent and its shared users access to the account.
+The agent's network permission still controls the runner's network access.
+
+Control is an agent-wide, server-owned lease for one WebSocket connection.
+Takeover closes admission to new agent tool calls, including entire codemode
+batches, and waits for in-flight calls to finish before accepting human input.
+Other viewers cannot send input or resume the agent. Disconnecting drops the
+input lease while leaving automation paused; any authorized viewer can then
+take control. The server persists the paused state and assistance reason outside
+the agent's mounted directories. A server restart preserves the pause, but active
+agent runs are interrupted under the normal server lifecycle; restarting a run
+after that remains explicit.
+
+Agents can call `request_browser_help` directly to ask for sign-in or verification.
+Agents with both `bash` and `network` permission also receive Carmel's built-in
+`agent-browser` skill. Its name and description appear in the model's skill
+catalog; `load_builtin_skill` loads the full guide on demand without requiring
+workspace read permission. Users can invoke it with `/skill:agent-browser`.
+The guide is bundled at `packages/server/skills/agent-browser/SKILL.md` and teaches
+CLI use, the shared profile, when to request help, and verification after resume.
+The built-in takes precedence over a workspace skill with the same name. Other
+workspace skills continue to load through the agent's normal filesystem authority.
+This discovery rule does not remove the Browser pane or manual takeover for
+agents that use bash to browse local pages without network permission.
+
+The assistance tool waits without a provider call or the normal idle-run timeout, and returns a
+fresh snapshot after the human resumes. Stale tool calls queued across a handoff
+are not executed. Tools and subsequent provider requests wait behind the gate.
+Foreground tool calls participate in this coordination; arbitrary background
+automation or commands typed into the owner's terminal do not. This is a
+collaboration mechanism, not an isolation boundary against sandbox code.
+
+The browser transport is `/api/browser`, an authenticated WebSocket with origin,
+agent visibility, and control checks. The server connects through a Docker exec
+stdio bridge to the loopback-only agent-browser stream. No browser/CDP ports are
+published. Input, frames, and console traffic are not stored in transcripts;
+only explicit agent snapshots/tool output enter the conversation. Authentication
+cookies remain available to the agent's sandbox as part of its profile.
+
+Frames use acknowledgement pacing with a 15 FPS cap; hidden tabs stop acknowledging
+frames until visible again. Open viewers and paused handoffs hold the runner
+against idle reclamation. Carmel owns browser lifetime, so the runner disables
+agent-browser's independent idle timer. Recreating the runner retains the profile,
+but may lose open pages and unfinished forms.
+
+The runner pins agent-browser 0.38.2. Rebuild `Dockerfile.runner` and restart the
+application to replace old runner containers. To test streaming, remote sign-in,
+and reconnect against an isolated real runner, build a test tag and run:
+
+```bash
+podman build -f Dockerfile.runner -t localhost/carmel-agent-runner:browser-test .
+CARMEL_BROWSER_TEST_IMAGE=localhost/carmel-agent-runner:browser-test pnpm --filter @carmel-agent/server test:browser-sandbox
+```
+
+The integration test creates its own temporary agent and container, uses a local
+fixture sign-in page, and removes its resources afterward. It never starts the
+production scheduler or reaps other containers. `pnpm test:browser` covers the
+pane, handoff, reload, navigation, and mobile accessibility without a container.
+
 ## Extra Mounts
 
 An agent can declare extra mounts in its settings. Each mount has:

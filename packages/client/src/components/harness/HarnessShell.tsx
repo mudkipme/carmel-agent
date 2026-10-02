@@ -2,6 +2,8 @@ import { IssuesOverview } from "./issues/IssuesOverview";
 import { AgentTasksPage } from "./AgentTasksPage";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { ResourceError } from "./ResourceFeedback";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
@@ -29,6 +31,7 @@ const TerminalPanel = lazy(() =>
     default: module.TerminalPanel,
   })),
 );
+const BrowserPanel = lazy(() => import("./BrowserPanel").then((module) => ({ default: module.BrowserPanel })));
 import { HarnessSidebar } from "@/components/harness/shell/HarnessSidebar";
 import { HarnessHeader } from "@/components/harness/shell/HarnessHeader";
 import { ImportSessionsDialog } from "@/components/harness/shell/ImportSessionsDialog";
@@ -60,7 +63,7 @@ const lastChatPathByAgent = new Map<string, string>();
 export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     agentId: routeAgentId,
     sessionId: routeSessionId,
@@ -141,6 +144,22 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   }, [location.pathname, navigate, redirectTo]);
 
   const activeAgentId = activeAgent?.id;
+  const browserOpen = Boolean(activeAgent?.permissions.bash && searchParams.has("browser"));
+  const browserExpanded = searchParams.get("browser") === "full";
+  const setBrowserMode = (mode: "split" | "full" | undefined) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (mode) next.set("browser", mode); else next.delete("browser");
+      return next;
+    }, { replace: true });
+  };
+  const browserStatus = useRemoteResource({
+    key: `browser:${activeAgentId}`,
+    enabled: Boolean(activeAgentId && activeAgent?.permissions.bash),
+    load: (signal) => api.browserStatus(activeAgentId!, signal),
+    pollInterval: 3000,
+  });
+  const browserNeedsHelp = Boolean(browserStatus.data && browserStatus.data.control.phase !== "agent");
   const openChatSessionId = view === "chat" ? activeSession?.id : undefined;
 
   const activity = useRemoteResource({
@@ -305,13 +324,18 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
           issueTitle={activeIssueId === "new" ? "New issue" : activeIssue?.title}
           contentView={view}
           canOpenTerminal={canOpenTerminal}
+          browserOpen={browserOpen}
+          browserNeedsHelp={browserNeedsHelp}
+          onToggleBrowser={() => setBrowserMode(browserOpen ? undefined : "split")}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
           onContentViewChange={showContentView}
           onOpenSettings={() => navigate("/settings/models")}
         />
         {view === "chat" && activity.error ? <div className="p-3"><ResourceError error={activity.error} title="Unable to refresh session status" onRetry={activity.refresh} /></div> : null}
         {view === "chat" && activeSessionMetadata?.taskId ? <TaskRunBanner session={activeSessionMetadata} /> : null}
-        <div className="min-h-0 flex-1">
+        {browserNeedsHelp && !browserOpen ? <div className="p-3"><Alert role="status"><AlertTitle>Browser assistance</AlertTitle><AlertDescription>{browserStatus.data?.control.reason ?? "Someone is helping in the browser."}<Button size="sm" variant="outline" onClick={() => setBrowserMode("split")}>Open browser</Button></AlertDescription></Alert></div> : null}
+        <div className="flex min-h-0 flex-1">
+        <div className={cn("min-h-0 min-w-0 flex-1", browserOpen && (browserExpanded ? "hidden" : "hidden lg:block"))}>
           {view === "terminal" && canOpenTerminal && activeAgent ? (
             <Suspense
               fallback={
@@ -390,6 +414,12 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
               {route.kind === "empty" ? "Create an agent to start chatting." : "Loading session..."}
             </div>
           )}
+        </div>
+        {browserOpen && activeAgent ? <aside className={cn("min-h-0 min-w-0 border-l", browserExpanded ? "flex-1" : "w-full lg:w-[55%]")}>
+          <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading browser…</div>}>
+            <BrowserPanel key={activeAgent.id} agent={activeAgent} expanded={browserExpanded} onExpand={() => setBrowserMode(browserExpanded ? "split" : "full")} onClose={() => setBrowserMode(undefined)} />
+          </Suspense>
+        </aside> : null}
         </div>
       </section>
       <ImportSessionsDialog

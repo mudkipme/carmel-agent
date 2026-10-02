@@ -159,6 +159,32 @@ paths:
   /api/agents/{id}/git/status:
     parameters: [{$ref: '#/components/parameters/ID'}]
     get: {operationId: getAgentGitStatus, tags: [Files], description: Read-only working-tree status of the repository containing the agent's working directory. Runs git in the agent's sandbox., responses: {'200': {description: Status, content: {application/json: {schema: {$ref: '#/components/schemas/GitStatus'}}}}, '403': {$ref: '#/components/responses/Error'}, '502': {$ref: '#/components/responses/Error'}, '503': {$ref: '#/components/responses/Error'}}}
+  /api/agents/{id}/browser:
+    parameters: [{$ref: '#/components/parameters/ID'}]
+    get:
+      operationId: getAgentBrowserStatus
+      tags: [Agents]
+      description: Shared browser control state. Requires visibility of the agent and bash permission. Does not launch a browser.
+      responses:
+        '200':
+          description: Browser availability and handoff state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [available, control]
+                properties:
+                  available: {type: boolean}
+                  control:
+                    type: object
+                    required: [phase, revision]
+                    properties:
+                      phase: {type: string, enum: [agent, pausing, waiting, human]}
+                      reason: {type: string}
+                      controllerName: {type: string}
+                      revision: {type: integer}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
   /api/agents/{id}/git/diff:
     parameters: [{$ref: '#/components/parameters/ID'}]
     get: {operationId: getAgentGitDiff, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}, {name: area, in: query, required: true, schema: {type: string, enum: [staged, unstaged, untracked, conflicted]}}, {name: originalPath, in: query, schema: {type: string}}], responses: {'200': {description: Both sides of one file's change, content: {application/json: {schema: {$ref: '#/components/schemas/GitFileDiff'}}}}, '400': {$ref: '#/components/responses/Error'}, '403': {$ref: '#/components/responses/Error'}, '502': {$ref: '#/components/responses/Error'}, '503': {$ref: '#/components/responses/Error'}}}

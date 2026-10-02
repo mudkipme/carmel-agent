@@ -18,6 +18,7 @@ import {
 } from "./pi-session-storage.ts";
 import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import { loadSession, readSessionMessages } from "./session-store.ts";
+import { loadBuiltinSkills } from "../runtime/builtin-skills.ts";
 
 migrate();
 
@@ -134,18 +135,20 @@ test("native harness commands expand file prompts and skills", async () => {
   const faux = fauxProvider({ provider: `faux-commands-${crypto.randomUUID()}` });
   const models = createModels();
   models.setProvider(faux.provider);
-  faux.setResponses([fauxAssistantMessage("first"), fauxAssistantMessage("second")]);
+  faux.setResponses([fauxAssistantMessage("first"), fauxAssistantMessage("second"), fauxAssistantMessage("third")]);
+  const builtins = await loadBuiltinSkills({ permissions: { read: false, write: false, edit: false, bash: true, network: true } });
   const pi = await attachTestHarness(await openPiSession(sessionId), {
     models,
     model: faux.getModel(),
     resources: {
       promptTemplates: [{ name: "review", content: "Review $1" }],
-      skills: [{ name: "inspect", description: "Inspect carefully", content: "Inspect the target carefully.", filePath: "/skills/inspect/SKILL.md" }],
+      skills: [{ name: "inspect", description: "Inspect carefully", content: "Inspect the target carefully.", filePath: "/skills/inspect/SKILL.md" }, ...builtins],
     },
   });
   try {
     await runHarnessPrompt(pi, '/review "some file"');
     await runHarnessPrompt(pi, "/skill:inspect focus on safety");
+    await runHarnessPrompt(pi, "/skill:agent-browser help me sign in");
   } finally {
     await pi.close();
   }
@@ -154,6 +157,8 @@ test("native harness commands expand file prompts and skills", async () => {
   assert.equal(userMessageText(userMessages[0]), "Review some file");
   assert.match(userMessageText(userMessages[1]), /<skill name="inspect"/);
   assert.match(userMessageText(userMessages[1]), /focus on safety/);
+  assert.ok(userMessageText(userMessages[2]).includes(builtins[0]!.content));
+  assert.match(userMessageText(userMessages[2]), /help me sign in/);
 });
 
 test("entry-ID leaf navigation retains the abandoned branch", async () => {

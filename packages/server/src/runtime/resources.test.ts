@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import type { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { loadAgentResources } from "./resources.ts";
+import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
@@ -134,4 +135,45 @@ test("PI_CACHE_RETENTION defaults to the 1-hour cache", () => {
   // The default that keeps a session's prefix cached across an ordinary human
   // pause instead of the 5 minutes Pi ships with.
   assert.equal(process.env.PI_CACHE_RETENTION, "long");
+});
+
+test("the browser skill is discoverable with both bash and network, even without workspace read permission", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-browser-skill-"));
+  try {
+    for (const read of [false, true]) for (const bash of [false, true]) for (const network of [false, true]) {
+      const agent = makeAgent(workingDir);
+      agent.permissions = { ...agent.permissions, read, bash, network };
+      const env = new AgentExecutionEnv(agent);
+      try {
+        const { skills } = await loadAgentResources(agent, env);
+        assert.deepEqual(skills.map((skill) => skill.name), bash && network ? ["agent-browser"] : []);
+        if (bash && network) {
+          assert.equal(isBuiltinSkill(skills[0]!), true);
+          const catalog = formatBuiltinSkillsForSystemPrompt(skills);
+          assert.ok(catalog.includes("load_builtin_skill"));
+          assert.ok(catalog.includes(skills[0]!.description));
+          assert.ok(!catalog.includes(skills[0]!.content), "the full guide loads on demand");
+        }
+      } finally { await env.cleanup(TEST_CONTEXT); }
+    }
+  } finally { rmSync(workingDir, { recursive: true, force: true }); }
+});
+
+test("the built-in browser workflow wins a workspace name collision without hiding other skills", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-browser-skill-"));
+  for (const name of ["agent-browser", "review"]) {
+    const directory = join(workingDir, ".agents", "skills", name);
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, "SKILL.md"), `---\nname: ${name}\ndescription: Workspace copy\n---\nWorkspace instructions.`);
+  }
+  const agent = makeAgent(workingDir);
+  agent.permissions.bash = true;
+  agent.permissions.network = true;
+  const env = new AgentExecutionEnv(agent);
+  try {
+    const { skills } = await loadAgentResources(agent, env);
+    assert.deepEqual(skills.map((skill) => skill.name), ["agent-browser", "review"]);
+    assert.ok(isBuiltinSkill(skills[0]!));
+    assert.equal(skills[1]!.content, "Workspace instructions.");
+  } finally { await env.cleanup(TEST_CONTEXT); rmSync(workingDir, { recursive: true, force: true }); }
 });

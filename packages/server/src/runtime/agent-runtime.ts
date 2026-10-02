@@ -57,6 +57,9 @@ import { RunOutcome, type RunAbortReason } from "../effectors/run-outcome.ts";
 import { formatTurnFailure } from "../effectors/failure-classifier.ts";
 import { runGuardLimits, providerRequestTimeoutMs, RUN_GUARD_POLL_MS } from "./run-limits.ts";
 import { errorMessage } from "../errors.ts";
+import { browserControl } from "./browser-control.ts";
+import { browserInstructions } from "./browser-tools.ts";
+import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
@@ -246,6 +249,10 @@ async function startAgentRun(context: AgentRun) {
     // Catches what events cannot: a provider connection that opened and went
     // quiet, or a bash command the model launched without a timeout.
     guardTimer = setInterval(() => {
+      if (agent.permissions.bash && browserControl(agent.id).isPaused && !browserControl(agent.id).isDraining) {
+        guard.recordActivity();
+        return;
+      }
       if (guard.poll()) abort.request("guard");
     }, RUN_GUARD_POLL_MS);
     log = createPiSessionLog({ session: piSession, lane, context: runContext });
@@ -383,7 +390,7 @@ async function openRunHarness(
       skills: resources.skills,
       contextFiles: resources.contextFiles,
       includeSkills: activeToolNames.includes("read"),
-      sessionInstructions: sessionAddons?.instructions,
+      sessionInstructions: [sessionAddons?.instructions, agent.permissions.bash ? browserInstructions : ""].filter(Boolean).join("\n"),
     }),
     resources: {
       skills: resources.skills,
@@ -411,6 +418,10 @@ async function openRunHarness(
       : DEFAULT_COMPACTION_SETTINGS,
   }, runContext);
   registerCodemodeResultHook(harness);
+  if (agent.permissions.bash) harness.hooks.on("before_request", async () => {
+    await browserControl(agent.id).wait(context.abort.signal);
+    return undefined;
+  });
   // Acquiring the lane is what creates the conversation branch on a new session
   // and restores it on an existing one. Everything that runs the loop hangs off
   // this handle rather than off the harness.
@@ -688,8 +699,10 @@ function buildHarnessSystemPrompt(options: {
     prompt += "</project_context>\n";
   }
   if (options.includeSkills && options.skills.length > 0) {
-    prompt += `\n\n${formatSkillsForSystemPrompt(options.skills)}`;
+    prompt += `\n\n${formatSkillsForSystemPrompt(options.skills.filter((skill) => !isBuiltinSkill(skill)))}`;
   }
+  const builtinCatalog = formatBuiltinSkillsForSystemPrompt(options.skills);
+  if (builtinCatalog) prompt += `\n\n${builtinCatalog}`;
   if (options.sessionInstructions) prompt += `\n\n${options.sessionInstructions}`;
   return `${prompt}\nCurrent working directory: ${options.cwd.replaceAll("\\", "/")}`;
 }

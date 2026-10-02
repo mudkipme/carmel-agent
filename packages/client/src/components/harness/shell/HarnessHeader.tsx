@@ -1,5 +1,6 @@
-import { FolderIcon, GitCompareIcon, PanelLeftIcon, SettingsIcon, SquareTerminalIcon } from "lucide-react";
+import { FolderIcon, GitCompareIcon, GlobeIcon, PanelLeftIcon, SettingsIcon, SquareTerminalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
 import type { ContentView } from "@/lib/shell-route";
 
@@ -10,6 +11,9 @@ export function HarnessHeader({
   issueTitle,
   contentView,
   canOpenTerminal,
+  browserOpen,
+  browserNeedsHelp,
+  onToggleBrowser,
   onToggleSidebar,
   onContentViewChange,
   onOpenSettings,
@@ -21,6 +25,9 @@ export function HarnessHeader({
   issueTitle?: string;
   contentView: ContentView;
   canOpenTerminal: boolean;
+  browserOpen: boolean;
+  browserNeedsHelp: boolean;
+  onToggleBrowser: () => void;
   onToggleSidebar: () => void;
   onContentViewChange: (view: ContentView) => void;
   onOpenSettings: () => void;
@@ -103,6 +110,9 @@ export function HarnessHeader({
             <SquareTerminalIcon />
           </Button>
         ) : null}
+        {activeAgent?.permissions.bash ? <Button variant={browserOpen ? "secondary" : "ghost"} size="sm" aria-label={browserOpen ? "Close browser" : "Open browser"} aria-pressed={browserOpen} onClick={onToggleBrowser}>
+          <GlobeIcon data-icon="inline-start" /><span className="hidden sm:inline">Browser</span>{browserNeedsHelp ? <Badge variant="secondary">!</Badge> : null}
+        </Button> : null}
         <Button variant="ghost" size="icon-sm" title="Settings" onClick={onOpenSettings}>
           <SettingsIcon />
         </Button>

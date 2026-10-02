@@ -7,6 +7,8 @@ import { withAbortSignal } from "@earendil-works/pi-agent-core";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import { createGrepOperations } from "./search-operations.ts";
 import { createServerExecution, createServerToolDefinitions, remapContainerPath } from "./tools.ts";
+import { builtinSkillTool, loadBuiltinSkills } from "./builtin-skills.ts";
+import { formatSkillInvocation } from "@earendil-works/pi-agent-core";
 import type { agents } from "../db/schema.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -54,6 +56,26 @@ test("createServerToolDefinitions maps server runtime permissions to their tool 
     tools.map((tool) => tool.name).sort(),
     ["bash", "edit", "exa_search", "fetch_url", "find", "grep", "ls", "read", "write"],
   );
+});
+
+test("the built-in skill loader is permission gated and returns the registered skill without file access", async () => {
+  for (const codemodeEnabled of [false, true]) for (const bash of [false, true]) for (const network of [false, true]) {
+    const agent = makeAgent({ codemodeEnabled, permissions: { ...allPermissions(false), bash, network } });
+    const execution = createServerExecution(agent);
+    try {
+      const tools = execution.resolveTools();
+      const loader = tools.find((tool) => tool.name === "load_builtin_skill");
+      assert.equal(Boolean(loader), bash && network);
+      assert.equal(tools.some((tool) => tool.name === "read"), false);
+      if (!loader) continue;
+      const result = await executeTool(loader, "load_browser", { name: "agent-browser" }, new AbortController().signal, execution.toolContext);
+      const [skill] = await loadBuiltinSkills(agent);
+      assert.equal(readToolText(result), formatSkillInvocation(skill!));
+      await assert.rejects(() => executeTool(loader, "load_path", { name: "../../etc/passwd" }, new AbortController().signal, execution.toolContext), /unavailable/);
+      agent.permissions.network = false;
+      await assert.rejects(() => executeTool(builtinSkillTool(agent), "load_revoked", { name: "agent-browser" }, new AbortController().signal, execution.toolContext), /unavailable/);
+    } finally { await execution.cleanup(TEST_CONTEXT); }
+  }
 });
 
 test("read tools reject paths outside the readable runtime roots", async () => {

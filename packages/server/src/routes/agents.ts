@@ -30,6 +30,9 @@ import { createAgentFilesRoute } from "./agent-files.ts";
 import { createAgentGitRoute } from "./agent-git.ts";
 import { AgentMcpTools } from "../runtime/mcp-tools.ts";
 import { errorMessage } from "../errors.ts";
+import { browserControl, deleteBrowserControl } from "../runtime/browser-control.ts";
+import { closeAgentBrowsers } from "../runtime/sandbox/browser-sessions.ts";
+import { isSandboxConfigured } from "../runtime/sandbox/podman.ts";
 
 export function createAgentRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -95,6 +98,8 @@ export function createAgentRoutes() {
     // shell. Rather than leave one running against the old configuration, close
     // it and let the next attach start from the saved agent.
     closeAgentTerminals(agentId, "The agent settings changed.");
+    closeAgentBrowsers(agentId);
+    if (!agent.permissions.bash) deleteBrowserControl(agentId);
     return c.json(serializePublicAgent(db.select().from(agents).where(eq(agents.id, agentId)).get()!));
   });
 
@@ -108,6 +113,8 @@ export function createAgentRoutes() {
     // Tasks first: they reference sessions, and a task left behind would fire
     // against an agent that no longer exists.
     closeAgentTerminals(agentId, "The agent was deleted.");
+    closeAgentBrowsers(agentId);
+    deleteBrowserControl(agentId);
     deleteAgentTasksForAgent(agentId);
     deleteIssuesForAgent(agentId);
     deleteAgentSecretsForAgent(agentId);
@@ -182,6 +189,13 @@ export function createAgentRoutes() {
         a.name.localeCompare(b.name),
       ),
     });
+  });
+
+  route.get("/agents/:id/browser", (c) => {
+    const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
+    if (!agent) return c.json({ error: "Agent not found." }, 404);
+    if (!agent.permissions.bash) return c.json({ error: "Browser access requires bash permission." }, 403);
+    return c.json({ control: browserControl(agent.id).state, available: isSandboxConfigured() });
   });
 
   route.route("/agents", createAgentFilesRoute(readVisibleAgent));

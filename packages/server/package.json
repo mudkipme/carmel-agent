@@ -10,6 +10,7 @@
     "test": "DATABASE_URL=:memory: node --import tsx --test src/*.test.ts src/*/*.test.ts src/*/*/*.test.ts",
     "fixtures:capture": "node --import tsx scripts/capture-run-fixture.ts",
     "fixtures:provider": "node --import tsx scripts/fake-ollama.ts",
+    "test:browser-sandbox": "node --import tsx scripts/test-browser-sandbox.ts",
     "user:create": "tsx src/cli/create-user.ts"
   },
   "dependencies": {

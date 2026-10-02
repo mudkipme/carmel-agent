@@ -27,6 +27,8 @@ const {
 } = await import("../src/db/schema.ts");
 const { createAgent, createSession } = await import("../src/test-support.ts");
 const { hashPassword } = await import("../src/auth.ts");
+const { attachBrowserSocket } = await import("../src/browser-socket.ts");
+const { browserControl } = await import("../src/runtime/browser-control.ts");
 const { createIssue, stopIssueQueue } = await import(
   "../src/services/issues.ts"
 );
@@ -47,7 +49,7 @@ db.update(users)
   .where(eq(users.id, fixture.userId))
   .run();
 db.update(agents)
-  .set({ name: "Browser test agent", workingDir: stateDir })
+  .set({ name: "Browser test agent", workingDir: stateDir, permissions: { read: true, write: true, edit: true, bash: true, network: false } })
   .where(eq(agents.id, fixture.agentId))
   .run();
 db.update(agents)
@@ -168,12 +170,35 @@ const server = serve(
     );
   },
 );
+// A deterministic stream fixture exercises the real gateway and handoff state without a container.
+const browserSockets = attachBrowserSocket(server as unknown as import("node:http").Server, async (_agent, onMessage) => {
+  const frame = (seq: number) => onMessage({ type: "frame", seq, data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII=", metadata: { deviceWidth: 1280, deviceHeight: 720 } });
+  let acknowledged = 0;
+  queueMicrotask(() => {
+    onMessage({ type: "ready" });
+    onMessage({ type: "url", url: "https://example.test/login" });
+    frame(1);
+  });
+  return { send: (message) => {
+    const command = message as { type: string; id: number; args: string[]; seq: number };
+    if (command.type === "ack" && command.seq > acknowledged) {
+      acknowledged = command.seq;
+      if (acknowledged === 1) frame(2); // Identical pixels still require a new acknowledgement.
+      if (acknowledged === 2) onMessage({ type: "url", url: "https://example.test/login?stream=live" });
+    }
+    if (command.type === "command") {
+      if (command.args[0] === "open") onMessage({ type: "url", url: command.args[1]! });
+      onMessage({ type: "command_done", id: command.id });
+    }
+  }, close: () => {} };
+});
+void browserControl(fixture.agentId).requestHelp("Please sign in to the billing portal.");
 const stop = () =>
-  server.close(
+  { for (const client of browserSockets.clients) client.terminate(); browserSockets.close(); server.close(
     () =>
       void rm(stateDir, { recursive: true, force: true }).finally(() =>
         process.exit(0),
       ),
-  );
+  ); };
 process.once("SIGTERM", stop);
 process.once("SIGINT", stop);

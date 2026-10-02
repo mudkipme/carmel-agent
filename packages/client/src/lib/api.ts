@@ -1,4 +1,5 @@
 import type {
+  BrowserControlState,
   AgentCommandPayload,
   GitChangeArea,
   GitFileDiff,
@@ -144,6 +145,8 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
 }
 
 export const api = {
+  browserStatus: (agentId: string, signal?: AbortSignal) =>
+    request<{ control: BrowserControlState; available: boolean }>(`/api/agents/${encodeURIComponent(agentId)}/browser`, { signal }),
   bootstrap: () => request<BootstrapPayload>("/api/bootstrap"),
   login: (username: string, password: string) =>
     request<BootstrapPayload>("/api/auth/login", {

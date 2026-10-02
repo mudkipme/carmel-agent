@@ -9,6 +9,7 @@ export default defineConfig({
       // The terminal upgrades to a WebSocket, which the default proxy entry
       // would not carry.
       "/api/terminal": { target: "ws://localhost:8797", ws: true },
+      "/api/browser": { target: "ws://localhost:8797", ws: true },
       "/api": "http://localhost:8797",
     },
     allowedHosts: ["porygon-z.lan"]

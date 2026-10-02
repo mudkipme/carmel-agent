@@ -132,7 +132,7 @@ test("the agent home bind is per-agent and independent of the workspace", () => 
 
 test("sandbox env starts from a fixed base and never inherits the server environment", () => {
   const env = sandboxEnv();
-  assert.deepEqual(env.map((entry) => entry.split("=")[0]).sort(), ["HOME", "LANG", "PATH", "TERM"]);
+  assert.deepEqual(env.map((entry) => entry.split("=")[0]).sort(), ["AGENT_BROWSER_SESSION", "HOME", "LANG", "PATH", "TERM"]);
 });
 
 test("agent secrets are exported into the exec environment", () => {

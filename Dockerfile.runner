@@ -8,6 +8,7 @@
 FROM node:24-trixie-slim
 
 ENV AGENT_BROWSER_CONFIG="/etc/agent-browser/config.json"
+ENV AGENT_BROWSER_SESSION="carmel"
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -51,7 +52,7 @@ RUN mkdir -p /etc/agent-browser && \
       '}' \
       > /etc/agent-browser/config.json
 
-RUN npm install -g agent-browser@0.27.0 @tobilu/qmd && \
+RUN npm install -g agent-browser@0.38.2 @tobilu/qmd && \
     agent-browser --version && \
     qmd --version
 
@@ -70,6 +71,8 @@ RUN mkdir -p /home/agent/.npm-global/bin /home/agent/.local/bin /usr/local/etc &
       > /etc/profile.d/carmel-home.sh
 
 ENV HOME="/home/agent"
+# Carmel owns idle reclamation and pins the runner during a human handoff.
+ENV AGENT_BROWSER_IDLE_TIMEOUT_MS="0"
 
 WORKDIR /workspace
 

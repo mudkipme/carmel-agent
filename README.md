@@ -11,6 +11,7 @@ It runs on your machine or your server. Agents contact the model providers, webs
 - **Agents you shape.** Each agent has its own workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
 - **Sandboxed shell.** When an agent is allowed to run commands, they execute in a per-agent container with CPU, memory, PID, mount, and network limits — not on your host shell.
 - **A terminal in the browser.** Open an interactive shell straight into an agent's container, with the same environment its own commands get. The shell lives on the server, so a reload reattaches instead of starting over.
+- **A shared live browser.** Watch the agent browse, take control to sign in, and explicitly resume it in the same browser. The profile and cookies belong to the agent and are shared across its users and conversations.
 - **Files in the browser.** A full file manager for an agent's workspace: browse, edit, upload (drag and drop, including folders), download files or a folder as a zip, and select several entries to move, copy, or delete — all under the same permissions the agent has.
 - **Per-agent secrets.** Give an agent a `GITHUB_TOKEN` or a registry password; it is encrypted at rest, available to that agent's sandbox and configured MCP connections, and redacted out of tool output.
 - **MCP tools.** Connect each agent to remote HTTP servers or stdio servers inside its sandbox, with tool allowlists and credentials from agent secrets.
