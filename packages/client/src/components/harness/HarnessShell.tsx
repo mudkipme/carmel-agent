@@ -314,6 +314,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
           window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
         }}
         onOpenImport={() => setImportDialogOpen(true)}
+        onOpenSettings={() => navigate("/settings/models")}
       />
 
       <section className="flex min-w-0 flex-1 flex-col pr-[var(--safe-right)]">
@@ -329,7 +330,11 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
           onToggleBrowser={() => setBrowserMode(browserOpen ? undefined : "split")}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
           onContentViewChange={showContentView}
-          onOpenSettings={() => navigate("/settings/models")}
+          onOpenAgentSettings={() => {
+            if (!activeAgent) return;
+            const section = activeAgent.ownerUserId === userId ? "general" : "archived";
+            navigate(`/agents/${activeAgent.id}/settings/${section}`);
+          }}
         />
         {view === "chat" && activity.error ? <div className="p-3"><ResourceError error={activity.error} title="Unable to refresh session status" onRetry={activity.refresh} /></div> : null}
         {view === "chat" && activeSessionMetadata?.taskId ? <TaskRunBanner session={activeSessionMetadata} /> : null}

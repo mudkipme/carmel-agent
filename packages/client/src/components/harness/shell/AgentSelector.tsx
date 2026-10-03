@@ -2,7 +2,6 @@ import { ChevronsUpDownIcon, PlusIcon, SettingsIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
   CommandEmpty,
@@ -111,17 +110,6 @@ export function AgentSelector({
           <ChevronsUpDownIcon className="size-3.5" />
         </span>
       </button>
-      {activeAgent ? (
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          className="shrink-0"
-          title="Agent settings"
-          onClick={() => openAgentSettings(activeAgent.id, settingsSection)}
-        >
-          <SettingsIcon />
-        </Button>
-      ) : null}
       <CommandDialog
         open={switcherOpen}
         onOpenChange={setSwitcherOpen}

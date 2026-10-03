@@ -1,7 +1,8 @@
-import { PanelLeftCloseIcon, CalendarClockIcon, ListTodoIcon } from "lucide-react";
+import { PanelLeftCloseIcon, CalendarClockIcon, ListTodoIcon, SettingsIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
@@ -30,6 +31,7 @@ export function HarnessSidebar({
   onResetWidth,
   onResizeWidth,
   onOpenImport,
+  onOpenSettings,
 }: {
   activeUser?: User;
   activeAgent?: AgentConfig;
@@ -48,6 +50,7 @@ export function HarnessSidebar({
   onResetWidth: () => void;
   onResizeWidth: (width: number) => void;
   onOpenImport: () => void;
+  onOpenSettings: () => void;
 }) {
   const createAgent = useHarnessStore((state) => state.createAgent);
   const modelRefs = useHarnessStore((state) => state.modelRefs);
@@ -82,10 +85,7 @@ export function HarnessSidebar({
       <div className="flex min-h-0 w-full flex-1 flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] lg:w-[var(--sidebar-width)] lg:pl-0">
         <div className="flex h-[var(--header-height)] shrink-0 items-center gap-2 px-3">
           <img src="/apple-touch-icon.png" alt="" className="size-6 rounded" draggable={false} />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[13px] font-medium">Carmel Agent</h1>
-            <p className="text-ui-smaller truncate text-muted-foreground">{activeUser?.email}</p>
-          </div>
+          <h1 className="min-w-0 flex-1 truncate text-[13px] font-medium">Carmel Agent</h1>
           <Button size="icon-sm" variant="ghost" title="Collapse sidebar" onClick={onClose}>
             <PanelLeftCloseIcon />
           </Button>
@@ -140,6 +140,16 @@ export function HarnessSidebar({
             </div>
           </div>
         </div>
+        <Separator />
+        <footer className="flex shrink-0 items-center gap-2 px-3 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-medium">{activeUser?.name}</p>
+            <p className="text-ui-smaller truncate text-muted-foreground" title={activeUser?.email}>{activeUser?.email}</p>
+          </div>
+          <Button variant="ghost" size="icon-sm" title="Settings" aria-label="Settings" onClick={onOpenSettings}>
+            <SettingsIcon />
+          </Button>
+        </footer>
       </div>
       <button
         type="button"

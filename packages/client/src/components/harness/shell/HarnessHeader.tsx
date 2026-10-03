@@ -16,7 +16,7 @@ export function HarnessHeader({
   onToggleBrowser,
   onToggleSidebar,
   onContentViewChange,
-  onOpenSettings,
+  onOpenAgentSettings,
 }: {
   sidebarOpen: boolean;
   activeAgent?: AgentConfig;
@@ -30,7 +30,7 @@ export function HarnessHeader({
   onToggleBrowser: () => void;
   onToggleSidebar: () => void;
   onContentViewChange: (view: ContentView) => void;
-  onOpenSettings: () => void;
+  onOpenAgentSettings: () => void;
 }) {
   /* Files and the terminal replace the session in the main column, so the
      title names the pane you are actually looking at. */
@@ -113,9 +113,11 @@ export function HarnessHeader({
         {activeAgent?.permissions.bash ? <Button variant={browserOpen ? "secondary" : "ghost"} size="sm" aria-label={browserOpen ? "Close browser" : "Open browser"} aria-pressed={browserOpen} onClick={onToggleBrowser}>
           <GlobeIcon data-icon="inline-start" /><span className="hidden sm:inline">Browser</span>{browserNeedsHelp ? <Badge variant="secondary">!</Badge> : null}
         </Button> : null}
-        <Button variant="ghost" size="icon-sm" title="Settings" onClick={onOpenSettings}>
-          <SettingsIcon />
-        </Button>
+        {activeAgent ? (
+          <Button variant="ghost" size="icon-sm" title="Agent settings" aria-label="Agent settings" onClick={onOpenAgentSettings}>
+            <SettingsIcon />
+          </Button>
+        ) : null}
       </div>
     </header>
   );
