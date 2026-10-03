@@ -32,7 +32,8 @@ recoverIssueAttempts();
 seed();
 pruneExpiredAuthSessions();
 // Remove any sandbox containers left behind by a previous process.
-void reapManagedContainers();
+// Finish removing old profile owners before accepting new sandbox requests.
+await reapManagedContainers();
 void refreshConfiguredModelCatalogs()
   .then((errors) => {
     for (const [provider, error] of errors) {

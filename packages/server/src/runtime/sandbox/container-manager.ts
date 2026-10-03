@@ -6,6 +6,7 @@ import { agentHomeDir, agentTmpDir, dataDir, ensureDir, resolveDataPath } from "
 import { resolveAgentWorkingDirPath } from "../resources.ts";
 import {
   createContainer,
+  execInContainer,
   imageExists,
   isContainerRunning,
   isSandboxConfigured,
@@ -16,6 +17,7 @@ import {
   startContainer,
 } from "./podman.ts";
 import { errorMessage } from "../../errors.ts";
+import { prepareBrowserProfileScript } from "./browser-profile.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
@@ -48,11 +50,14 @@ const containers = new Map<string, ContainerEntry>();
 // on the same shell are two holds, and the last one to leave releases it.
 const containerHolds = new Map<string, number>();
 const pendingStarts = new Map<string, Promise<string>>();
+const pendingStops = new Map<string, Promise<void>>();
 let imageReady: Promise<void> | undefined;
 let reaper: ReturnType<typeof setInterval> | undefined;
 
 export async function ensureAgentContainer(agent: AgentRecord, options: { network: boolean }): Promise<string> {
   if (!isSandboxConfigured()) throw new Error(sandboxUnavailableMessage());
+  const stopping = pendingStops.get(agent.id);
+  if (stopping) await stopping;
 
   const signature = containerSignature(agent, options);
   const existing = containers.get(agent.id);
@@ -60,11 +65,12 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
     // Reuse only if the bind configuration still matches; recreate when the
     // workspace dir or extra mounts changed so stale binds are not kept.
     if (existing.signature === signature && (await isContainerRunning(existing.containerId))) {
+      // A reaper/abort may have started teardown while the running check waited.
+      if (pendingStops.has(agent.id) || containers.get(agent.id) !== existing) return ensureAgentContainer(agent, options);
       existing.lastUsedAt = Date.now();
       return existing.containerId;
     }
-    containers.delete(agent.id);
-    await removeContainer(existing.containerId);
+    await stopTrackedContainer(agent.id, existing);
   }
 
   let pending = pendingStarts.get(agent.id);
@@ -122,8 +128,22 @@ export function isAgentContainerHeld(agentId: string) {
 export async function killAgentContainer(agentId: string) {
   const entry = containers.get(agentId);
   if (!entry) return;
-  containers.delete(agentId);
-  await removeContainer(entry.containerId);
+  await stopTrackedContainer(agentId, entry);
+}
+
+/** Keep the owner tracked and block replacement until removal is confirmed. */
+function stopTrackedContainer(agentId: string, entry: ContainerEntry, clearTmp = false): Promise<void> {
+  const pending = pendingStops.get(agentId);
+  if (pending) return pending;
+  const stopping = (async () => {
+    await removeContainerConfirmed(entry.containerId);
+    if (containers.get(agentId) === entry) {
+      containers.delete(agentId);
+      if (clearTmp) clearAgentTmp(agentId);
+    }
+  })().finally(() => pendingStops.delete(agentId));
+  pendingStops.set(agentId, stopping);
+  return stopping;
 }
 
 // Permanent teardown (agent deletion): also wipe the scratch /tmp directory.
@@ -208,12 +228,12 @@ export function buildBinds(
 
 export async function reapManagedContainers() {
   if (!isSandboxConfigured()) return;
-  try {
-    const stale = await listManagedContainers(`${managedLabel}=${managedLabelValue}`);
-    await Promise.all(stale.map((container) => removeContainer(container.Id)));
-  } catch (error) {
-    console.warn("Failed to reap sandbox containers:", errorMessage(error));
-  }
+  const stale = await listManagedContainers(`${managedLabel}=${managedLabelValue}`);
+  await Promise.all(stale.map((container) => removeContainerConfirmed(container.Id)));
+}
+
+async function removeContainerConfirmed(containerId: string) {
+  if (!await removeContainer(containerId)) throw new Error(`Could not remove sandbox ${containerId}; refusing to reuse its browser profile.`);
 }
 
 export async function shutdownContainerManager() {
@@ -249,6 +269,8 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
     Labels: { [managedLabel]: managedLabelValue, [agentLabel]: agent.id },
     Env: [`HOME=${containerHome}`, "TERM=xterm-256color"],
     HostConfig: {
+      // Reap Chromium descendants when a launch fails or its parent exits.
+      Init: true,
       Binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, agent.mounts),
       Memory: config.memoryBytes,
       NanoCpus: config.nanoCpus,
@@ -264,8 +286,20 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
         : {}),
     },
   });
-  await startContainer(containerId);
-  return containerId;
+  try {
+    await startContainer(containerId);
+    // This runs inside the sandbox, never against agent-controlled host paths.
+    // No browser can have started in this fresh container through Carmel yet.
+    const prepared = await execInContainer(containerId, {
+      cmd: ["node", "-e", prepareBrowserProfileScript, `${containerHome}/.agent-browser/profile`],
+      workingDir: mountPath, env: [],
+    }, { onStdout: () => {}, onStderr: () => {}, signal: AbortSignal.timeout(10000) });
+    if (prepared.exitCode !== 0) throw new Error("Unable to prepare the sandbox browser profile; saved profile data was retained.");
+    return containerId;
+  } catch (error) {
+    await removeContainer(containerId);
+    throw error;
+  }
 }
 
 function ensureImage() {
@@ -303,20 +337,11 @@ async function reapIdleContainers() {
     if (containerHolds.has(agentId)) continue;
     if (now - entry.lastUsedAt < config.idleTtlMs) continue;
     stale.push([agentId, entry]);
-    // Drop the entry up front so it cannot be reused while removal is in flight.
-    containers.delete(agentId);
   }
   await Promise.all(
     stale.map(async ([agentId, entry]) => {
-      if (!(await removeContainer(entry.containerId))) {
-        // Removal was not confirmed (e.g. a transient podman failure). Keep
-        // tracking so the next tick retries instead of leaking an orphan —
-        // unless a fresh container was started for this agent in the meantime.
-        if (!containers.has(agentId)) containers.set(agentId, entry);
-        return;
-      }
-      // An idle sandbox is done with its scratch; reclaim the /tmp directory.
-      clearAgentTmp(agentId);
+      try { await stopTrackedContainer(agentId, entry, true); }
+      catch (error) { console.warn("Failed to reap sandbox container:", errorMessage(error)); }
     }),
   );
   await reapUntrackedContainers();

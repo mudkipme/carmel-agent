@@ -5,17 +5,30 @@ const { createInterface } = require('node:readline');
 let stream, closed = false, refreshTimer;
 const children = new Set();
 const send = message => { if (!closed) process.stdout.write(JSON.stringify(message) + '\n'); };
+function commandError(args, error, stdout, stderr) {
+  // Never forward raw CLI output: it may contain page content or credentials.
+  let detail = stderr || '';
+  try { detail += JSON.parse(stdout).error || ''; } catch {}
+  if (/profile appears to be in use|ProcessSingleton|SingletonLock|user data directory is already in use/i.test(detail)) {
+    return new Error('The browser profile is locked by another Chromium process or a previous sandbox. Ask the administrator to recover this agent\'s stale profile lock; saved sign-ins should be retained.');
+  }
+  if (error?.code === 'ENOENT' || /unknown command.*stream|unrecognized.*stream/i.test(detail)) {
+    return new Error('The runner is missing compatible browser tooling. Rebuild it with agent-browser 0.38.2 and Chromium.');
+  }
+  if (error?.killed) return new Error('The browser command timed out (' + args.slice(0, 2).join(' ') + '). Reconnect to try again.');
+  return new Error('The browser command failed (' + args.slice(0, 2).join(' ') + '). Check this agent\'s sandbox browser process and profile.');
+}
 function cli(args) {
   return new Promise((resolve, reject) => {
     const child = execFile('/usr/local/bin/agent-browser', ['--session', 'carmel', '--json', ...args],
-      { timeout: 30000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout) => {
+      { timeout: 30000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
         children.delete(child);
         try {
           const result = JSON.parse(stdout);
           if (!result.success) throw new Error(result.error || 'Browser command failed.');
           if (error) throw error;
           resolve(result.data);
-        } catch { reject(new Error('Browser command failed. Check that the runner has agent-browser 0.38.2 and Chromium.')); }
+        } catch { reject(commandError(args, error, stdout, stderr)); }
       });
     children.add(child);
   });
@@ -88,5 +101,5 @@ lines.on('line', line => {
   });
   stream.addEventListener('error', () => { send({type:'error',message:'Browser stream disconnected.'}); stop(); });
   stream.addEventListener('close', stop);
-})().catch(() => { send({type:'error',message:'Unable to start the browser. Rebuild the sandbox runner with agent-browser 0.38.2.'}); stop(); });
+})().catch(error => { send({type:'error',message:'Unable to start the browser. ' + error.message}); stop(); });
 `;

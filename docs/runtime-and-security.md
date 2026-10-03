@@ -217,6 +217,15 @@ against idle reclamation. Carmel owns browser lifetime, so the runner disables
 agent-browser's independent idle timer. Recreating the runner retains the profile,
 but may lose open pages and unfinished forms.
 
+Chromium's `SingletonLock`, `SingletonCookie`, and `SingletonSocket` links identify
+a browser process in one container and must not carry over to its replacement.
+Carmel removes those links inside each fresh sandbox before exposing it to tools,
+leaving cookies and other profile files intact. Startup waits for old managed
+containers to be removed first; an unconfirmed removal blocks replacement rather
+than risking two browsers writing to the same profile. A container init process
+reaps orphaned browser processes. Profile-lock errors in the Browser pane are
+reported separately from missing or incompatible runner tooling.
+
 The runner pins agent-browser 0.38.2. Rebuild `Dockerfile.runner` and restart the
 application to replace old runner containers. To test streaming, remote sign-in,
 and reconnect against an isolated real runner, build a test tag and run:
@@ -227,7 +236,8 @@ CARMEL_BROWSER_TEST_IMAGE=localhost/carmel-agent-runner:browser-test pnpm --filt
 ```
 
 The integration test creates its own temporary agent and container, uses a local
-fixture sign-in page, and removes its resources afterward. It never starts the
+fixture sign-in page, and verifies cookie retention and browser startup after
+replacing a container with stale profile locks. It removes its resources afterward and never starts the
 production scheduler or reaps other containers. `pnpm test:browser` covers the
 pane, handoff, reload, navigation, and mobile accessibility without a container.
 

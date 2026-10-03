@@ -197,10 +197,7 @@ export async function listManagedContainers(label: string): Promise<ManagedConta
     path: "/containers/json",
     query: { all: true, filters: JSON.stringify({ label: [label] }) },
   });
-  if ((res.statusCode ?? 0) !== 200) {
-    await drain(res);
-    return [];
-  }
+  await expectStatus(res, [200], "Listing managed containers");
   return (await readJson<ManagedContainer[]>(res)) ?? [];
 }
 
