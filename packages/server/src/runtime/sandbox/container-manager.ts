@@ -15,9 +15,13 @@ import {
   removeContainer,
   sandboxUnavailableMessage,
   startContainer,
-} from "./podman.ts";
+} from "./runtime-client.ts";
 import { errorMessage } from "../../errors.ts";
 import { prepareBrowserProfileScript } from "./browser-profile.ts";
+import { resolveSandboxIdentity, type SandboxIdentity } from "./runtime-identity.ts";
+import { containerHome, prepareRunnerScript, runnerEnvironment } from "./environment.ts";
+import { prepareNestedMountpoints } from "./mountpoints.ts";
+export { containerHome } from "./environment.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
@@ -25,9 +29,6 @@ const managedLabel = "carmel.managed";
 const managedLabelValue = "1";
 const agentLabel = "carmel.agent";
 const containerWorkspace = "/workspace";
-// $HOME inside the runner. A fixed path (not the workspace mount) so tool state
-// stays out of the user's project files; see resolveAgentHomeDirPath.
-export const containerHome = "/home/agent";
 const reaperIntervalMs = 60_000;
 
 const config = {
@@ -59,7 +60,8 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
   const stopping = pendingStops.get(agent.id);
   if (stopping) await stopping;
 
-  const signature = containerSignature(agent, options);
+  const identity = await resolveSandboxIdentity();
+  const signature = containerSignature(agent, options, identity);
   const existing = containers.get(agent.id);
   if (existing) {
     // Reuse only if the bind configuration still matches; recreate when the
@@ -73,21 +75,25 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
     await stopTrackedContainer(agent.id, existing);
   }
 
-  let pending = pendingStarts.get(agent.id);
-  if (!pending) {
-    pending = createAgentContainer(agent, options).finally(() => pendingStarts.delete(agent.id));
-    pendingStarts.set(agent.id, pending);
+  const pending = pendingStarts.get(agent.id);
+  if (pending) {
+    await pending;
+    // The in-flight creation may have used different mounts or identity.
+    return ensureAgentContainer(agent, options);
   }
-  const containerId = await pending;
-  containers.set(agent.id, { containerId, lastUsedAt: Date.now(), signature });
-  startReaper();
-  return containerId;
+  const starting = createAgentContainer(agent, options, identity).then((containerId) => {
+    containers.set(agent.id, { containerId, lastUsedAt: Date.now(), signature });
+    startReaper();
+    return containerId;
+  }).finally(() => pendingStarts.delete(agent.id));
+  pendingStarts.set(agent.id, starting);
+  return starting;
 }
 
 // Identifies the bind-relevant inputs of a runner container. When this changes
 // for an agent (workspace dir, mount path, extra mounts, network), the existing
 // container is torn down and recreated on the next command.
-export function containerSignature(agent: AgentRecord, options: { network: boolean }) {
+export function containerSignature(agent: AgentRecord, options: { network: boolean }, identity?: SandboxIdentity) {
   const workspaceHostPath = toHostPath(resolveAgentWorkingDirPath(agent));
   const tmpHostPath = toHostPath(resolveAgentTmpDirPath(agent));
   const homeHostPath = toHostPath(resolveAgentHomeDirPath(agent));
@@ -95,6 +101,7 @@ export function containerSignature(agent: AgentRecord, options: { network: boole
   return JSON.stringify({
     binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, agent.mounts),
     network: options.network,
+    identity,
   });
 }
 
@@ -246,7 +253,7 @@ export async function shutdownContainerManager() {
   await Promise.all(entries.map((entry) => removeContainer(entry.containerId)));
 }
 
-async function createAgentContainer(agent: AgentRecord, options: { network: boolean }) {
+async function createAgentContainer(agent: AgentRecord, options: { network: boolean }, identity: SandboxIdentity) {
   await ensureImage();
 
   const workspacePath = resolveAgentWorkingDirPath(agent);
@@ -260,17 +267,29 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
   const tmpHostPath = toHostPath(tmpPath);
   const homeHostPath = toHostPath(homePath);
 
+  prepareNestedMountpoints([
+    { source: workspacePath, target: mountPath },
+    { source: tmpPath, target: "/tmp" },
+    { source: homePath, target: containerHome },
+    ...agent.mounts.filter((mount) => mount.source?.trim()).map((mount) => ({
+      source: toServerPath(mount.source.trim()), target: mount.target?.trim() || mount.source.trim(),
+      readOnly: mount.readOnly,
+    })),
+  ]);
+
   const name = `carmel-bash-${sanitizeName(agent.id)}-${Date.now().toString(36)}`;
   const containerId = await createContainer(name, {
     Image: config.image,
+    User: identity.user,
     Entrypoint: [],
     Cmd: ["sleep", "infinity"],
     WorkingDir: mountPath,
     Labels: { [managedLabel]: managedLabelValue, [agentLabel]: agent.id },
-    Env: [`HOME=${containerHome}`, "TERM=xterm-256color"],
+    Env: Object.entries(runnerEnvironment).map(([key, value]) => `${key}=${value}`),
     HostConfig: {
       // Reap Chromium descendants when a launch fails or its parent exits.
       Init: true,
+      UsernsMode: identity.usernsMode,
       Binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, agent.mounts),
       Memory: config.memoryBytes,
       NanoCpus: config.nanoCpus,
@@ -288,6 +307,15 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
   });
   try {
     await startContainer(containerId);
+    let setupError = "";
+    const initialized = await execInContainer(containerId, {
+      cmd: ["node", "-e", prepareRunnerScript, String(identity.uid), String(identity.gid), mountPath],
+      workingDir: mountPath, env: [],
+    }, {
+      onStdout: () => {}, onStderr: (chunk) => { setupError = (setupError + chunk.toString()).slice(-4000); },
+      signal: AbortSignal.timeout(60000),
+    });
+    if (initialized.exitCode !== 0) throw new Error(`Unable to initialize the non-root sandbox: ${setupError || "check runner image, host ownership, and UID/GID configuration"}`);
     // This runs inside the sandbox, never against agent-controlled host paths.
     // No browser can have started in this fresh container through Carmel yet.
     const prepared = await execInContainer(containerId, {
@@ -382,6 +410,13 @@ function toHostPath(absolutePath: string) {
   const rel = relative(dataDir, absolutePath);
   if (rel.startsWith("..") || isAbsolute(rel)) return absolutePath;
   return posix.join(hostDataDir.replace(/\/+$/, ""), rel.split(/[\\/]/).join("/"));
+}
+
+function toServerPath(hostPath: string) {
+  const hostDataDir = process.env.CARMEL_HOST_DATA_DIR?.trim();
+  if (!hostDataDir) return hostPath;
+  const rel = relative(hostDataDir, hostPath);
+  return rel === ".." || rel.startsWith(`..${posix.sep}`) || isAbsolute(rel) ? hostPath : resolve(dataDir, rel);
 }
 
 function sanitizeName(value: string) {

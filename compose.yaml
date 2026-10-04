@@ -1,25 +1,33 @@
 # Run carmel-agent with the bash sandbox.
 #
+#   export CARMEL_HOST_UID=$(id -u) CARMEL_HOST_GID=$(id -g)
+#   mkdir -p data
 #   # 1. Build the sandbox runner image referenced by CARMEL_BASH_IMAGE:
 #   podman compose --profile build build
 #   # 2. Start the server:
 #   podman compose up -d
 #
 # Written for the rootless Podman socket (systemctl --user enable --now
-# podman.socket), which is the recommended setup. Any Docker-API-compatible
-# runtime works: for Docker, replace the socket bind mount below with
-# /var/run/docker.sock:/run/podman/podman.sock and use `docker compose`.
+# podman.socket). For rootful Docker set CARMEL_USERNS_MODE=host,
+# CARMEL_RUNTIME_SOCKET=/var/run/docker.sock, and CARMEL_SOCKET_GID to that
+# socket's group ID. Rootless Docker and Docker userns-remap are unsupported.
 services:
   carmel-agent:
     build:
       context: .
       dockerfile: Dockerfile
     image: carmel-agent:latest
+    user: "${CARMEL_HOST_UID:?Set CARMEL_HOST_UID to id -u}:${CARMEL_HOST_GID:?Set CARMEL_HOST_GID to id -g}"
+    userns_mode: "${CARMEL_USERNS_MODE:-keep-id}"
+    group_add:
+      - "${CARMEL_SOCKET_GID:-${CARMEL_HOST_GID}}"
     ports:
       - "8797:8797"
     environment:
       CARMEL_PODMAN_SOCKET: /run/podman/podman.sock
       CARMEL_BASH_IMAGE: localhost/carmel-agent-runner:latest
+      CARMEL_HOST_UID: ${CARMEL_HOST_UID}
+      CARMEL_HOST_GID: ${CARMEL_HOST_GID}
       # The server runs in a container, so runner workspace bind mounts are
       # resolved by the host daemon: point this at the host path backing /data.
       CARMEL_HOST_DATA_DIR: ${PWD}/data
@@ -37,10 +45,10 @@ services:
       # Link first sign-ins to existing accounts (default email,username):
       # CARMEL_OIDC_MATCH_BY: email,username
     volumes:
-      - ./data:/data
+      - ./data:/data:z
       # Mount the host's rootless Podman socket so the server can create per-agent
       # runner containers. $XDG_RUNTIME_DIR is typically /run/user/<uid>.
-      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/run/podman/podman.sock
+      - ${CARMEL_RUNTIME_SOCKET:-${XDG_RUNTIME_DIR:-/run/user/1000}/podman/podman.sock}:/run/podman/podman.sock
     restart: unless-stopped
 
   # Build-only service: produces the sandbox runner image (CARMEL_BASH_IMAGE).

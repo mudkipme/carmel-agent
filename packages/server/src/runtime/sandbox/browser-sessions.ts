@@ -1,7 +1,7 @@
 import { StringDecoder } from "node:string_decoder";
 import type { Duplex } from "node:stream";
 import type { agents } from "../../db/schema.ts";
-import { attachExecStdio, createStreamDemuxer } from "./podman.ts";
+import { attachExecStdio, createStreamDemuxer } from "./runtime-client.ts";
 import { ensureAgentContainer, holdAgentContainer, releaseAgentContainer, toContainerWorkdir } from "./container-manager.ts";
 import { resolveAgentWorkingDirPath } from "../resources.ts";
 import { sandboxEnv } from "./bash-operations.ts";

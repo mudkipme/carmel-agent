@@ -90,7 +90,7 @@ test("Docker stdio attach preserves upgrade bytes and starts an exec without a T
   const { mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
-  const { attachExecStdio } = await import("./podman.ts");
+  const { attachExecStdio } = await import("./runtime-client.ts");
   const directory = await mkdtemp(join(tmpdir(), "carmel-mcp-socket-"));
   const path = join(directory, "podman.sock");
   const previous = process.env.CARMEL_PODMAN_SOCKET;

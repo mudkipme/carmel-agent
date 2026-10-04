@@ -8,7 +8,7 @@ import { join } from "node:path";
 // being present inside the carmel-agent container.
 const apiVersion = "v1.41";
 
-function resolvePodmanSocketPath(): string | undefined {
+export function resolveRuntimeSocketPath(): string | undefined {
   const explicit = process.env.CARMEL_PODMAN_SOCKET?.trim();
   if (explicit) return explicit;
 
@@ -24,7 +24,7 @@ function resolvePodmanSocketPath(): string | undefined {
 }
 
 export function isSandboxConfigured() {
-  const socketPath = resolvePodmanSocketPath();
+  const socketPath = resolveRuntimeSocketPath();
   return Boolean(socketPath && existsSync(socketPath));
 }
 
@@ -42,10 +42,11 @@ type RequestOptions = {
   query?: Record<string, string | number | boolean | undefined>;
   body?: unknown;
   signal?: AbortSignal;
+  apiVersion?: string;
 };
 
-function podmanRequest(options: RequestOptions): Promise<IncomingMessage> {
-  const socketPath = resolvePodmanSocketPath();
+function runtimeRequest(options: RequestOptions): Promise<IncomingMessage> {
+  const socketPath = resolveRuntimeSocketPath();
   if (!socketPath) return Promise.reject(new Error(sandboxUnavailableMessage()));
 
   const payload = options.body === undefined ? undefined : Buffer.from(JSON.stringify(options.body));
@@ -54,9 +55,9 @@ function podmanRequest(options: RequestOptions): Promise<IncomingMessage> {
       {
         socketPath,
         method: options.method,
-        path: `/${apiVersion}${buildPath(options.path, options.query)}`,
+        path: `/${options.apiVersion ?? apiVersion}${buildPath(options.path, options.query)}`,
         headers: {
-          host: "podman",
+          host: "localhost",
           ...(payload
             ? { "content-type": "application/json", "content-length": String(payload.length) }
             : {}),
@@ -92,6 +93,18 @@ async function expectStatus(res: IncomingMessage, allowed: number[], context: st
   throw new Error(`${context} failed with ${status}: ${(await readBody(res)).slice(0, 500)}`);
 }
 
+/** Read daemon metadata, including Podman's native info when requested. */
+export async function runtimeInfo<T>(path: "/version" | "/info" | "/libpod/info"): Promise<T> {
+  const res = await runtimeRequest({
+    method: "GET", path, signal: AbortSignal.timeout(10000),
+    ...(path === "/libpod/info" ? { apiVersion: "v4.0.0" } : {}),
+  });
+  await expectStatus(res, [200], "Inspecting sandbox runtime");
+  const info = await readJson<T>(res);
+  if (!info) throw new Error("Sandbox runtime returned empty metadata.");
+  return info;
+}
+
 // Docker/Podman multiplexes stdout and stderr into a single stream when no TTY
 // is attached. Each frame is an 8-byte header [stream, 0, 0, 0, size(uint32 BE)]
 // followed by `size` payload bytes. Frames can span chunk boundaries.
@@ -118,7 +131,7 @@ export function parseImageRef(image: string): { name: string; tag: string } {
 }
 
 export async function imageExists(image: string) {
-  const res = await podmanRequest({ method: "GET", path: `/images/${encodeURIComponent(image)}/json` });
+  const res = await runtimeRequest({ method: "GET", path: `/images/${encodeURIComponent(image)}/json` });
   const status = res.statusCode ?? 0;
   await drain(res);
   return status === 200;
@@ -126,7 +139,7 @@ export async function imageExists(image: string) {
 
 export async function pullImage(image: string) {
   const { name, tag } = parseImageRef(image);
-  const res = await podmanRequest({
+  const res = await runtimeRequest({
     method: "POST",
     path: "/images/create",
     query: { fromImage: name, tag },
@@ -139,7 +152,7 @@ export async function pullImage(image: string) {
 export type CreateContainerSpec = Record<string, unknown>;
 
 export async function createContainer(name: string, spec: CreateContainerSpec) {
-  const res = await podmanRequest({ method: "POST", path: "/containers/create", query: { name }, body: spec });
+  const res = await runtimeRequest({ method: "POST", path: "/containers/create", query: { name }, body: spec });
   await expectStatus(res, [201], "Creating container");
   const data = await readJson<{ Id: string }>(res);
   if (!data?.Id) throw new Error("Container create response did not include an id.");
@@ -147,12 +160,13 @@ export async function createContainer(name: string, spec: CreateContainerSpec) {
 }
 
 export async function startContainer(containerId: string) {
-  const res = await podmanRequest({ method: "POST", path: `/containers/${containerId}/start` });
+  const res = await runtimeRequest({ method: "POST", path: `/containers/${containerId}/start` });
   await expectStatus(res, [204, 304], "Starting container");
+  await drain(res);
 }
 
 export async function isContainerRunning(containerId: string) {
-  const res = await podmanRequest({ method: "GET", path: `/containers/${containerId}/json` });
+  const res = await runtimeRequest({ method: "GET", path: `/containers/${containerId}/json` });
   if (res.statusCode === 404) {
     await drain(res);
     return false;
@@ -166,13 +180,13 @@ export async function isContainerRunning(containerId: string) {
 // can keep tracking it and retry instead of silently leaking an orphan.
 export async function removeContainer(containerId: string): Promise<boolean> {
   try {
-    const stopRes = await podmanRequest({ method: "POST", path: `/containers/${containerId}/stop`, query: { t: 2 } });
+    const stopRes = await runtimeRequest({ method: "POST", path: `/containers/${containerId}/stop`, query: { t: 2 } });
     await drain(stopRes);
   } catch {
     // Already stopped or gone.
   }
   try {
-    const rmRes = await podmanRequest({
+    const rmRes = await runtimeRequest({
       method: "DELETE",
       path: `/containers/${containerId}`,
       query: { force: true, v: true },
@@ -192,7 +206,7 @@ export async function removeContainer(containerId: string): Promise<boolean> {
 export type ManagedContainer = { Id: string; Created: number };
 
 export async function listManagedContainers(label: string): Promise<ManagedContainer[]> {
-  const res = await podmanRequest({
+  const res = await runtimeRequest({
     method: "GET",
     path: "/containers/json",
     query: { all: true, filters: JSON.stringify({ label: [label] }) },
@@ -212,7 +226,7 @@ export async function execInContainer(
     signal?: AbortSignal;
   },
 ): Promise<ContainerExecResult> {
-  const createRes = await podmanRequest({
+  const createRes = await runtimeRequest({
     method: "POST",
     path: `/containers/${containerId}/exec`,
     body: {
@@ -228,7 +242,7 @@ export async function execInContainer(
   const exec = await readJson<{ Id: string }>(createRes);
   if (!exec?.Id) throw new Error("Exec create response did not include an id.");
 
-  const startRes = await podmanRequest({
+  const startRes = await runtimeRequest({
     method: "POST",
     path: `/exec/${exec.Id}/start`,
     body: { Detach: false, Tty: false },
@@ -258,7 +272,7 @@ export async function execInContainer(
   }
 
   const inspect = await readJson<{ ExitCode?: number | null }>(
-    await podmanRequest({ method: "GET", path: `/exec/${exec.Id}/json` }),
+    await runtimeRequest({ method: "GET", path: `/exec/${exec.Id}/json` }),
   );
   return { exitCode: typeof inspect?.ExitCode === "number" ? inspect.ExitCode : null };
 }
@@ -294,7 +308,7 @@ async function attachExec(
   tty: boolean,
   signal?: AbortSignal,
 ): Promise<{ execId: string; socket: Duplex }> {
-  const createRes = await podmanRequest({
+  const createRes = await runtimeRequest({
     method: "POST",
     path: `/containers/${containerId}/exec`,
     body: {
@@ -312,7 +326,7 @@ async function attachExec(
   const exec = await readJson<{ Id: string }>(createRes);
   if (!exec?.Id) throw new Error("Terminal exec create response did not include an id.");
 
-  const socketPath = resolvePodmanSocketPath();
+  const socketPath = resolveRuntimeSocketPath();
   if (!socketPath) throw new Error(sandboxUnavailableMessage());
 
   const socket = await new Promise<Duplex>((resolve, reject) => {
@@ -321,7 +335,7 @@ async function attachExec(
       method: "POST",
       path: `/${apiVersion}/exec/${exec.Id}/start`,
       headers: {
-        host: "podman",
+        host: "localhost",
         "content-type": "application/json",
         // Without these the daemon answers with a normal buffered response and
         // stdin is never connected, which looks like a terminal that accepts no
@@ -354,7 +368,7 @@ async function attachExec(
  * that is otherwise fine.
  */
 export async function resizeExec(execId: string, rows: number, cols: number) {
-  const res = await podmanRequest({
+  const res = await runtimeRequest({
     method: "POST",
     path: `/exec/${execId}/resize`,
     query: { h: Math.max(1, Math.floor(rows)), w: Math.max(1, Math.floor(cols)) },

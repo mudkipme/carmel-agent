@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readWorkspaceDotEnv, sandboxEnv } from "./bash-operations.ts";
-import { createStreamDemuxer, parseImageRef } from "./podman.ts";
+import { createStreamDemuxer, parseImageRef } from "./runtime-client.ts";
 import {
   buildBinds,
   containerSignature,
@@ -100,6 +100,11 @@ test("containerSignature changes when the workspace dir, mounts, or network chan
   assert.notEqual(base, containerSignature(manualAgent({ workingDir: "/srv/projects/other" }), { network: false }));
   assert.notEqual(base, containerSignature(manualAgent({ mounts: [{ source: "/srv/shared" }] }), { network: false }));
   assert.notEqual(base, containerSignature(manualAgent(), { network: true }));
+  const identity = { runtime: "podman", uid: 1000, gid: 1000, user: "1000:1000", usernsMode: "keep-id", socket: "/run/podman.sock" } as const;
+  const withIdentity = containerSignature(manualAgent(), { network: false }, identity);
+  assert.notEqual(withIdentity, containerSignature(manualAgent(), { network: false }, { ...identity, usernsMode: "host" }));
+  assert.notEqual(withIdentity, containerSignature(manualAgent(), { network: false }, { ...identity, uid: 2000, user: "2000:1000" }));
+  assert.notEqual(withIdentity, containerSignature(manualAgent(), { network: false }, { ...identity, socket: "/other.sock" }));
 });
 
 test("buildBinds adds the workspace, /tmp, $HOME, and extra mounts with SELinux relabel", () => {
@@ -132,7 +137,9 @@ test("the agent home bind is per-agent and independent of the workspace", () => 
 
 test("sandbox env starts from a fixed base and never inherits the server environment", () => {
   const env = sandboxEnv();
-  assert.deepEqual(env.map((entry) => entry.split("=")[0]).sort(), ["AGENT_BROWSER_SESSION", "HOME", "LANG", "PATH", "TERM"]);
+  assert.deepEqual(env.map((entry) => entry.split("=")[0]).sort(), ["AGENT_BROWSER_SESSION", "HOME", "LANG", "NPM_CONFIG_PREFIX", "PATH", "TERM", "VIRTUAL_ENV"]);
+  assert.ok(env.includes("VIRTUAL_ENV=/home/agent/.venvs/default"));
+  assert.ok(env.some((entry) => entry.startsWith("PATH=/home/agent/.venvs/default/bin:/home/agent/.npm-global/bin:")));
 });
 
 test("agent secrets are exported into the exec environment", () => {

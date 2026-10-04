@@ -26,7 +26,7 @@ It runs on your machine or your server. Agents contact the model providers, webs
 ## Requirements
 
 - A Linux host (other hosts work if they can run the container images and expose a container socket).
-- A container runtime with a Docker-compatible API socket — Podman or Docker both work. Rootless Podman is recommended.
+- Rootless Podman (recommended), or rootful Podman/Docker without user namespace remapping. Rootless Docker and Docker with `userns-remap` are unsupported.
 - Compose (`podman compose` or `docker compose`).
 
 The container socket is only needed for the bash sandbox. Without it, Carmel still runs — chat, files, and network tools all work, and bash commands return a "sandbox unavailable" error.
@@ -36,6 +36,9 @@ The container socket is only needed for the bash sandbox. Without it, Carmel sti
 Clone the repo, then build the server and sandbox runner images:
 
 ```sh
+export CARMEL_HOST_UID=$(id -u)
+export CARMEL_HOST_GID=$(id -g)
+mkdir -p data
 podman compose --profile build build
 ```
 
@@ -47,13 +50,15 @@ podman compose up -d
 
 Open `http://localhost:8797` and create your administrator account on the welcome screen. That first account is created in the browser — no CLI step needed.
 
-Using Docker instead? The compose file is written for the rootless Podman socket, so point the socket bind mount at Docker's socket and use `docker compose` for the two commands above:
+Using rootful Docker instead? Set these variables as well and use `docker compose` for the build/start commands above:
 
-```yaml
-    volumes:
-      - ./data:/data
-      - /var/run/docker.sock:/run/podman/podman.sock
+```sh
+export CARMEL_USERNS_MODE=host
+export CARMEL_RUNTIME_SOCKET=/var/run/docker.sock
+export CARMEL_SOCKET_GID=$(stat -c %g "$CARMEL_RUNTIME_SOCKET")
 ```
+
+Keep these variables in your shell or Compose `.env`. The server and runners use your host UID/GID so workspace and home files retain your ownership. See the [upgrade notes](docs/deployment.md#upgrading-an-existing-deployment) for existing installations.
 
 For anything beyond a local trial — a stable secret key, HTTPS, backups, reverse proxies — see [docs/deployment.md](docs/deployment.md).
 

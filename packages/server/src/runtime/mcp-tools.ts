@@ -13,7 +13,7 @@ import { readAgentSecretEnv } from "../services/agent-secrets.ts";
 import { errorMessage } from "../errors.ts";
 import { sandboxEnv } from "./sandbox/bash-operations.ts";
 import { ensureAgentContainer, holdAgentContainer, releaseAgentContainer, toContainerWorkdir } from "./sandbox/container-manager.ts";
-import { attachExecStdio } from "./sandbox/podman.ts";
+import { attachExecStdio } from "./sandbox/runtime-client.ts";
 import { SandboxMcpTransport, sandboxMcpCommand } from "./sandbox/mcp-transport.ts";
 import { createSecretRedactor } from "./sandbox/redaction.ts";
 
@@ -140,7 +140,7 @@ export class AgentMcpTools {
       const { socket } = await attachExecStdio(containerId, {
         cmd: sandboxMcpCommand(server.command, server.args.map((arg) => expandMcpSecrets(arg, secrets))),
         workingDir: toContainerWorkdir(agent, this.cwd),
-        env: sandboxEnv({ PATH: "/home/agent/.npm-global/bin:/home/agent/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", ...expand(server.env) }, secrets),
+        env: sandboxEnv(expand(server.env), secrets),
       }, signal);
       return socket;
     }, () => { if (held) { held = false; releaseAgentContainer(this.agent.id); } });

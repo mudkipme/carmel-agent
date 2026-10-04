@@ -9,7 +9,7 @@ import {
   releaseAgentContainer,
   toContainerWorkdir,
 } from "./container-manager.ts";
-import { attachExecTty, isSandboxConfigured, resizeExec, sandboxUnavailableMessage } from "./podman.ts";
+import { attachExecTty, isSandboxConfigured, resizeExec, sandboxUnavailableMessage } from "./runtime-client.ts";
 import { errorMessage } from "../../errors.ts";
 
 type AgentRecord = typeof agents.$inferSelect;

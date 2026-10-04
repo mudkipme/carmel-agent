@@ -106,11 +106,13 @@ Key properties:
 - The default workspace is mounted at `/workspace`. Manual workspaces are mounted at their absolute path, so paths match between host file tools and sandbox bash.
 - Each agent gets a private host-backed scratch directory mounted as `/tmp`.
 - Extra mounts can be added per agent with source, optional target, and read-only flag.
+- Bash, terminals, browser processes, and MCP servers run as the configured non-root host UID/GID. The Carmel server uses those same IDs so both sides can edit the mounted files.
+- A private, persistent home is mounted at `/home/agent`. Global npm packages and the default Python virtual environment live there; installs do not need root. System package installation belongs in the runner image.
 - Containers drop all capabilities, run with `no-new-privileges`, and apply memory, CPU, and PID limits.
 - The server's environment and SQLite databases are never mounted into a runner.
 - Runner containers are labeled `carmel.managed=1` and are removed on graceful shutdown and on startup.
 
-Carmel talks to the container runtime over its Docker-compatible REST API on a unix socket, so it never needs a `podman` or `docker` CLI inside its own image. Podman and Docker both work.
+Carmel talks to the container runtime over its Docker-compatible REST API on a unix socket, so it never needs a `podman` or `docker` CLI inside its own image. Rootless Podman uses `keep-id`; rootful Podman/Docker use an explicit numeric user without remapping. Rootless Docker and Docker with `userns-remap` are rejected. Startup checks the effective identity and mount access before running agent commands.
 
 Rootless Podman is the recommended runtime. A rootful Docker socket also works, but whoever can reach that socket effectively controls the host, which is a poor fit for untrusted agent workloads.
 

@@ -6,7 +6,7 @@ import type { agents } from "../db/schema.ts";
 import { errorMessage } from "../errors.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
 import { isGitRequestError, readGitFileDiff, readGitStatus } from "../runtime/git-workspace.ts";
-import { isSandboxConfigured } from "../runtime/sandbox/podman.ts";
+import { isSandboxConfigured } from "../runtime/sandbox/runtime-client.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ReadVisibleAgent = (userId: string, agentId: string) => AgentRecord | undefined;

@@ -26,7 +26,7 @@ import {
   resolveAgentTmpDirPath,
   resolveContainerWorkspace,
 } from "./sandbox/container-manager.ts";
-import { isSandboxConfigured, sandboxUnavailableMessage } from "./sandbox/podman.ts";
+import { isSandboxConfigured, sandboxUnavailableMessage } from "./sandbox/runtime-client.ts";
 import { errorMessage } from "../errors.ts";
 
 type AgentRecord = typeof agents.$inferSelect;

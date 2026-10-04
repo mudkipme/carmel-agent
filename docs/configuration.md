@@ -139,7 +139,8 @@ Network tools are only added to a run when the agent has the network permission.
 
 ## Bash Sandbox Settings
 
-- `CARMEL_PODMAN_SOCKET` — path to the container API socket. Podman and Docker both work; the name is historical. Auto-detected in order from `DOCKER_HOST` (when it is a `unix://` path), `$XDG_RUNTIME_DIR/podman/podman.sock`, `/run/podman/podman.sock`, then `/var/run/docker.sock`.
+- `CARMEL_PODMAN_SOCKET` — path to the container API socket. Supports rootless Podman and rootful Podman/Docker; the name is historical. Rootless Docker and Docker with `userns-remap` are unsupported. Auto-detected in order from `DOCKER_HOST` (when it is a `unix://` path), `$XDG_RUNTIME_DIR/podman/podman.sock`, `/run/podman/podman.sock`, then `/var/run/docker.sock`.
+- `CARMEL_HOST_UID` / `CARMEL_HOST_GID` — nonzero host UID/GID for runner commands and file ownership. Set both when the server is containerized; otherwise they default to the server process IDs. The server must also run as these IDs. Rootless Podman requires its daemon to run as this same host user and uses `keep-id` for runners.
 - `CARMEL_BASH_IMAGE` — image used for bash sessions. Defaults to `localhost/carmel-agent-runner:latest`. Non-`localhost/` images are pulled on first use.
 - `CARMEL_BASH_MEMORY_MB` — per-container memory cap in MB. Defaults to `512`.
 - `CARMEL_BASH_CPUS` — per-container CPU limit. Defaults to `1`.
@@ -150,6 +151,10 @@ Network tools are only added to a run when the agent has the network permission.
 - `CARMEL_HOST_DATA_DIR` — host path backing `CARMEL_AGENT_DATA_DIR`. Required only when Carmel Agent itself runs in a container, because runner bind mounts are resolved by the host's container runtime.
 
 The runner image defines the toolchain bash agents get. The default `Dockerfile.runner` includes bash, git, curl, wget, Python, ripgrep, Chromium, `agent-browser`, and `qmd`.
+
+Commands run without root, including terminal and MCP commands. npm global installs use the persistent agent home; Python/pip default to a persistent virtual environment there. Custom runner images must provide Node, `/usr/bin/python3`, and working `python3 -m venv`. Startup checks identity, mounted directory access/ownership, and initializes the virtual environment before agent execution.
+
+Compose-only settings: `CARMEL_USERNS_MODE` defaults to `keep-id`; use `host` for rootful runtimes. `CARMEL_RUNTIME_SOCKET` overrides the host socket bind, and `CARMEL_SOCKET_GID` adds its group to the server. These do not override runner runtime detection. See [deployment.md](deployment.md#using-docker).
 
 ## CLI Options
 

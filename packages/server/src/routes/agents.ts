@@ -32,7 +32,7 @@ import { AgentMcpTools } from "../runtime/mcp-tools.ts";
 import { errorMessage } from "../errors.ts";
 import { browserControl, deleteBrowserControl } from "../runtime/browser-control.ts";
 import { closeAgentBrowsers } from "../runtime/sandbox/browser-sessions.ts";
-import { isSandboxConfigured } from "../runtime/sandbox/podman.ts";
+import { isSandboxConfigured } from "../runtime/sandbox/runtime-client.ts";
 
 export function createAgentRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();

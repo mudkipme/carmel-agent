@@ -2,7 +2,9 @@
 
 This guide covers running Carmel Agent as a self-hosted app.
 
-Carmel needs a container runtime that exposes a Docker-compatible API socket, so it can start a sandbox container per agent when bash is enabled. Podman and Docker both provide one. **Rootless Podman is recommended**: handing an app access to a rootful Docker socket is effectively handing it root on the host.
+Carmel needs a container runtime that exposes a Docker-compatible API socket, so it can start a sandbox container per agent when bash is enabled. Supported configurations are **rootless Podman (recommended)** and rootful Podman/Docker without user namespace remapping. Rootless Docker and Docker with `userns-remap` are rejected because their mappings cannot preserve host ownership while running commands as the same non-root UID.
+
+The server and runners run as your host UID/GID. Rootless Podman uses `keep-id`; rootful runtimes use that numeric user directly. The API socket belongs only in the server: handing an app a rootful Docker socket is effectively handing it root on the host, even when its runners are non-root.
 
 The socket is optional. Without one, Carmel runs normally and only bash commands fail, with a "sandbox unavailable" message.
 
@@ -10,13 +12,21 @@ The socket is optional. Without one, Carmel runs normally and only bash commands
 
 Requirements:
 
-- A container runtime with a Docker-compatible socket (rootless Podman recommended; Docker works)
+- Rootless Podman, or rootful Podman/Docker without user namespace remapping
 - `podman compose` or `docker compose`
 
 With rootless Podman, enable the user socket first:
 
 ```sh
 systemctl --user enable --now podman.socket
+```
+
+Export your identity and create the bind directory as your normal user. Keep these variables in your shell or Compose `.env` for subsequent commands:
+
+```sh
+export CARMEL_HOST_UID=$(id -u)
+export CARMEL_HOST_GID=$(id -g)
+mkdir -p data
 ```
 
 Build both images:
@@ -35,27 +45,34 @@ Open `http://localhost:8797` and create the administrator account on the welcome
 
 The Compose file mounts:
 
-- `./data:/data` for the SQLite databases, agent workspaces, and runtime state.
+- `./data:/data:z` for the SQLite databases, agent workspaces, and runtime state.
 - `${XDG_RUNTIME_DIR}/podman/podman.sock:/run/podman/podman.sock` so the server can create runner containers.
 
 It also sets `CARMEL_HOST_DATA_DIR=${PWD}/data`. This is required whenever Carmel itself runs in a container: runner bind mounts are resolved by the host's container runtime, so Carmel has to know the host path backing `/data`.
 
 ### Using Docker
 
-`compose.yaml` is written for the rootless Podman socket. For Docker, change the host side of the socket bind mount and use `docker compose` for the same commands:
+`compose.yaml` defaults to rootless Podman and `keep-id`. For ordinary rootful Docker, set these variables in addition to the host UID/GID above, then use `docker compose` for the same build/start commands:
 
-```yaml
-    volumes:
-      - ./data:/data
-      - /var/run/docker.sock:/run/podman/podman.sock
+```sh
+export CARMEL_USERNS_MODE=host
+export CARMEL_RUNTIME_SOCKET=/var/run/docker.sock
+export CARMEL_SOCKET_GID=$(stat -c %g "$CARMEL_RUNTIME_SOCKET")
 ```
 
-The container-side path stays `/run/podman/podman.sock` so `CARMEL_PODMAN_SOCKET` needs no change. Carmel talks to the socket over the Docker-compatible REST API and never shells out to the `podman` or `docker` CLI.
+For rootful Podman, use the same settings with `CARMEL_RUNTIME_SOCKET=/run/podman/podman.sock`. The socket group is added only to the server, never to runners. Do not make the socket world-writable.
 
-Two Docker-specific things to keep in mind:
+The container-side path stays `/run/podman/podman.sock` so `CARMEL_PODMAN_SOCKET` needs no change. Carmel inspects the daemon through its API and never shells out to the `podman` or `docker` CLI. Setting the Compose namespace mode does not bypass the runner's rejection of unsupported Docker modes.
 
-- The daemon socket grants broad host control to anything that can reach it. Prefer rootless Podman, or rootless Docker, for untrusted agent workloads.
-- Runner containers are created by the daemon, so bind mount sources must exist on the host, not inside the Carmel container. That is what `CARMEL_HOST_DATA_DIR` is for.
+Runner bind sources must exist on the host. That is what `CARMEL_HOST_DATA_DIR` is for. With rootless Podman, the daemon must run as the configured host UID/GID.
+
+For nested bind mounts, Carmel prepares missing mount points as the server user so the runtime cannot leave root-owned directories in a workspace or private home/tmp. Both sources must be visible to the server for this preparation. Targets inside a read-only parent mount must already exist; symlinked mount-point paths are rejected.
+
+### Upgrading an existing deployment
+
+Rebuild both images and recreate the server with the identity settings above. Existing rootless Podman data already belongs to the host user in the usual setup. Data created by a rootful deployment may be root-owned: stop Carmel, back it up, and have the administrator correct ownership of the affected data directories before restarting. Carmel does not recursively chown workspaces or extra mounts.
+
+The runner keeps npm global installs in `/home/agent/.npm-global` and initializes a persistent Python virtual environment at `/home/agent/.venvs/default`. Both plain `pip install` and `npm install -g` work without root when network access is enabled. Packages requiring native system dependencies may need a custom runner image; `apt install` is not available to agent commands. If an image upgrade changes Python's major/minor version, move aside the old virtual environment and reinstall its packages; startup reports this instead of silently deleting it.
 
 ## Production Checklist
 
@@ -90,20 +107,24 @@ Build the runner image:
 podman build -f Dockerfile.runner -t carmel-agent-runner:latest .
 ```
 
-Run the server (swap `podman` for `docker` and the socket path if you use Docker):
+Run the server with rootless Podman:
 
 ```sh
-podman run --rm -p 8797:8797 \
-  -v carmel-agent-data:/data \
+mkdir -p data
+podman run --rm -p 8797:8797 --userns=keep-id --user "$(id -u):$(id -g)" \
+  -v "$PWD/data:/data:z" \
   -v "$XDG_RUNTIME_DIR/podman/podman.sock:/run/podman/podman.sock" \
+  -e CARMEL_HOST_UID="$(id -u)" -e CARMEL_HOST_GID="$(id -g)" \
   -e CARMEL_PODMAN_SOCKET=/run/podman/podman.sock \
   -e CARMEL_BASH_IMAGE=localhost/carmel-agent-runner:latest \
-  -e CARMEL_HOST_DATA_DIR=/path/on/host/backing/the/data/volume \
+  -e CARMEL_HOST_DATA_DIR="$PWD/data" \
   -e CARMEL_SECRET_KEY='change-this-to-a-stable-secret' \
   carmel-agent
 ```
 
-`CARMEL_HOST_DATA_DIR` is only needed when Carmel Agent itself runs in a container. Running the server directly on the host, the socket is auto-detected and host paths already line up.
+For rootful Docker, use `docker run --userns=host --user "$(id -u):$(id -g)"`, bind `/var/run/docker.sock` to the same container socket path, and add `--group-add "$(stat -c %g /var/run/docker.sock)"` to the server command.
+
+`CARMEL_HOST_DATA_DIR`, `CARMEL_HOST_UID`, and `CARMEL_HOST_GID` are needed when Carmel runs in a container. Running the server directly on the host as a normal user, the socket is auto-detected and IDs default to the server process UID/GID. Explicit IDs must match the server process IDs.
 
 ## Local Development
 
@@ -117,6 +138,15 @@ pnpm dev
 The API listens on `http://localhost:8797`; the Vite client on `http://localhost:5173`. Open the client and create the administrator account on the welcome screen.
 
 For sandboxed bash locally, build the runner image and make sure your container socket is reachable.
+
+To check non-root execution and ownership against an actual runtime using isolated temporary data and offline package fixtures:
+
+```sh
+CARMEL_SANDBOX_TEST_IMAGE=localhost/carmel-agent-runner:latest \
+  pnpm --filter @carmel-agent/server test:sandbox-identity
+```
+
+Run this as the normal host user against either a rootless Podman socket or a rootful Docker/Podman socket. It tests file ownership, pip/npm installs, direct and terminal execution, and persistence across runner recreation. The browser test remains available via `CARMEL_BROWSER_TEST_IMAGE=... pnpm --filter @carmel-agent/server test:browser-sandbox`.
 
 ## Accounts
 
@@ -142,7 +172,7 @@ In a Compose deployment:
 
 ```sh
 CARMEL_PASSWORD='choose-a-long-password' \
-  podman compose exec carmel-agent pnpm --filter @carmel-agent/server user:create --username admin
+  podman compose exec -e CARMEL_PASSWORD carmel-agent node --import tsx src/cli/create-user.ts --username admin
 ```
 
 The command runs migrations and seeds the database first, then creates or updates the account. It always grants the administrator role. Passwords must be at least 8 characters, and an existing user with the same username is updated in place — which is how you reset a forgotten admin password.

@@ -4,8 +4,9 @@ import { parseEnv } from "node:util";
 import type { agents } from "../../db/schema.ts";
 import { readAgentSecretEnv } from "../../services/agent-secrets.ts";
 import { resolveAgentWorkingDirPath } from "../resources.ts";
-import { containerHome, ensureAgentContainer, killAgentContainer, toContainerWorkdir } from "./container-manager.ts";
-import { execInContainer, isSandboxConfigured, sandboxUnavailableMessage } from "./podman.ts";
+import { ensureAgentContainer, killAgentContainer, toContainerWorkdir } from "./container-manager.ts";
+import { runnerEnvironment } from "./environment.ts";
+import { execInContainer, isSandboxConfigured, sandboxUnavailableMessage } from "./runtime-client.ts";
 import { createSecretRedactor } from "./redaction.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -97,13 +98,7 @@ export async function execSandboxCommand(
 // workspace `.env` folded into it -- cannot shadow a configured credential with
 // a value of its own choosing.
 export function sandboxEnv(overrides?: Record<string, string>, secrets: ReadonlyArray<{ name: string; value: string }> = []) {
-  const values = new Map([
-    ["HOME", containerHome],
-    ["PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
-    ["TERM", "xterm-256color"],
-    ["LANG", "C.UTF-8"],
-    ["AGENT_BROWSER_SESSION", "carmel"],
-  ]);
+  const values = new Map(Object.entries(runnerEnvironment));
   const assign = (name: string, value: string) => {
     if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !value.includes("\0")) values.set(name, value);
   };

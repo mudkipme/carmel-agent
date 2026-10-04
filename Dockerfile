@@ -54,12 +54,18 @@ ENV NODE_ENV="production"
 ENV HOST="0.0.0.0"
 ENV PORT="8797"
 ENV CARMEL_AGENT_DATA_DIR="/data"
+ENV CARMEL_CONTAINERIZED="1"
 
 COPY --from=build /app /app
 
-RUN mkdir -p /data
+RUN mkdir -p /data && chown node:node /data
+
+# Compose overrides the numeric identity to match the host user.
+USER node
 
 EXPOSE 8797
 VOLUME ["/data"]
 
-CMD ["pnpm", "serve"]
+# Start directly: a numeric host UID may have no writable package-manager home.
+WORKDIR /app/packages/server
+CMD ["node", "--import", "tsx", "src/index.ts"]

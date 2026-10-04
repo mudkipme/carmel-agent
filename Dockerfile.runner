@@ -24,6 +24,7 @@ RUN apt-get update && \
       libvulkan1 \
       python3 \
       python3-pip \
+      python3-venv \
       ripgrep \
       wget && \
     rm -rf /var/lib/apt/lists/* && \
@@ -67,14 +68,22 @@ RUN npm install -g agent-browser@0.38.2 @tobilu/qmd && \
 RUN mkdir -p /home/agent/.npm-global/bin /home/agent/.local/bin /usr/local/etc && \
     printf 'prefix=/home/agent/.npm-global\n' > /usr/local/etc/npmrc && \
     printf '%s\n' \
-      'export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"' \
+      'export VIRTUAL_ENV="${VIRTUAL_ENV:-$HOME/.venvs/default}"' \
+      'export PATH="$VIRTUAL_ENV/bin:$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"' \
       > /etc/profile.d/carmel-home.sh
 
 ENV HOME="/home/agent"
+ENV NPM_CONFIG_PREFIX="/home/agent/.npm-global"
+ENV VIRTUAL_ENV="/home/agent/.venvs/default"
+ENV PATH="/home/agent/.venvs/default/bin:/home/agent/.npm-global/bin:/home/agent/.local/bin:$PATH"
 # Carmel owns idle reclamation and pins the runner during a human handoff.
 ENV AGENT_BROWSER_IDLE_TIMEOUT_MS="0"
 
 WORKDIR /workspace
+
+# A safe default for manual runs; Carmel supplies the actual host UID:GID.
+RUN chown -R node:node /home/agent /workspace
+USER node
 
 # Overridden by carmel-agent (it runs the container as a long-lived sandbox);
 # this default just keeps the container alive for manual use.

@@ -11,6 +11,7 @@
     "fixtures:capture": "node --import tsx scripts/capture-run-fixture.ts",
     "fixtures:provider": "node --import tsx scripts/fake-ollama.ts",
     "test:browser-sandbox": "node --import tsx scripts/test-browser-sandbox.ts",
+    "test:sandbox-identity": "node --import tsx scripts/test-sandbox-identity.ts",
     "user:create": "tsx src/cli/create-user.ts"
   },
   "dependencies": {

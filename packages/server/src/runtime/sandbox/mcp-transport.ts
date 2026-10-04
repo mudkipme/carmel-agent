@@ -9,7 +9,7 @@ import {
   type McpTransportErrorListener,
   type McpTransportCloseListener,
 } from "@earendil-works/pi-mcp";
-import { createStreamDemuxer } from "./podman.ts";
+import { createStreamDemuxer } from "./runtime-client.ts";
 
 /** Bridge Docker's multiplexed exec socket to Pi's public MCP transport interface. */
 export class SandboxMcpTransport implements McpTransport {
