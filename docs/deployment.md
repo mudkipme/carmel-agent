@@ -72,7 +72,7 @@ For nested bind mounts, Carmel prepares missing mount points as the server user 
 
 Rebuild both images and recreate the server with the identity settings above. Existing rootless Podman data already belongs to the host user in the usual setup. Data created by a rootful deployment may be root-owned: stop Carmel, back it up, and have the administrator correct ownership of the affected data directories before restarting. Carmel does not recursively chown workspaces or extra mounts.
 
-The runner keeps npm global installs in `/home/agent/.npm-global` and initializes a persistent Python virtual environment at `/home/agent/.venvs/default`. Both plain `pip install` and `npm install -g` work without root when network access is enabled. Packages requiring native system dependencies may need a custom runner image; `apt install` is not available to agent commands. If an image upgrade changes Python's major/minor version, move aside the old virtual environment and reinstall its packages; startup reports this instead of silently deleting it.
+The runner keeps npm global installs in `/home/agent/.npm-global` and initializes a persistent Python virtual environment at `/home/agent/.venvs/default`. Both plain `pip install` and `npm install -g` work without root when network access is enabled. C/C++ compilers, make, pkg-config, and Python headers are included for native package builds; packages requiring additional system libraries may still need a custom runner image. `apt install` is not available to agent commands. If an image upgrade changes Python's major/minor version, move aside the old virtual environment and reinstall its packages; startup reports this instead of silently deleting it.
 
 ## Production Checklist
 

@@ -150,7 +150,16 @@ Network tools are only added to a run when the agent has the network permission.
 - `CARMEL_BASH_SELINUX_RELABEL` — relabel runner bind mounts for SELinux with `:z`. Defaults to `true`; set to `false` if relabeling is unwanted.
 - `CARMEL_HOST_DATA_DIR` — host path backing `CARMEL_AGENT_DATA_DIR`. Required only when Carmel Agent itself runs in a container, because runner bind mounts are resolved by the host's container runtime.
 
-The runner image defines the toolchain bash agents get. The default `Dockerfile.runner` includes bash, git, curl, wget, Python, ripgrep, Chromium, `agent-browser`, and `qmd`.
+The runner image defines the toolchain bash agents get. The default `Dockerfile.runner` includes:
+
+- Shell and file tools: bash, git, ripgrep, `fd` (also available as `fdfind`), jq, file, less, tree, patch, and rsync.
+- Network diagnostics and clients: curl, wget, `ip`, `ss`, netstat, dig, nslookup, `nc`, and the OpenSSH client.
+- Process inspection: ps, top, pgrep, and lsof.
+- Archives: tar, gzip, zip/unzip, xz, and zstd.
+- Development: Node.js/npm, Python/pip/venv, C/C++ compilers, make, pkg-config, and Python development headers for native package builds.
+- Browser and search: Chromium, `agent-browser`, and `qmd`.
+
+Network utilities use the agent's existing network permission. Diagnostic tools run with the same non-root identity and dropped capabilities as other commands.
 
 Commands run without root, including terminal and MCP commands. npm global installs use the persistent agent home; Python/pip default to a persistent virtual environment there. Custom runner images must provide Node, `/usr/bin/python3`, and working `python3 -m venv`. Startup checks identity, mounted directory access/ownership, and initializes the virtual environment before agent execution.
 
