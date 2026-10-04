@@ -462,6 +462,7 @@ function AssistantMessage({
             result={result}
             codemodeCalls={codemodeCalls?.get(toolCall.id)}
             pending={pending}
+            streaming={streaming}
             aborted={message.stopReason === "aborted" && !result}
           />
         );

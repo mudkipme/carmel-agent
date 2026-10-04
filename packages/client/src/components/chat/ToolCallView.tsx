@@ -11,14 +11,16 @@ type ToolCallViewProps = {
   toolCall: ToolCall;
   result?: ToolResultMessage;
   pending?: boolean;
+  streaming?: boolean;
   aborted?: boolean;
   codemodeCalls?: CodemodeCallInfo[];
 };
 
-export function ToolCallView({ toolCall, result, pending = false, aborted = false, codemodeCalls }: ToolCallViewProps) {
+export function ToolCallView({ toolCall, result, pending = false, streaming = false, aborted = false, codemodeCalls }: ToolCallViewProps) {
   const [open, setOpen] = useState(false);
   const isError = aborted || result?.isError;
-  const state = pending && !result && !aborted ? "Running" : isError ? "Error" : "Complete";
+  const state = isError ? "Error" : result ? "Complete" : pending ? "Running" : streaming ? "Preparing" : "Pending";
+  const active = state === "Preparing" || state === "Running";
   const images = getToolResultImages(result);
   const details = result?.details as { codemodeCalls?: unknown } | undefined;
   const savedCalls = codemodeCallsSchema.safeParse(details?.codemodeCalls);
@@ -34,7 +36,7 @@ export function ToolCallView({ toolCall, result, pending = false, aborted = fals
         onClick={() => setOpen((value) => !value)}
       >
         <span className="flex min-w-0 items-center gap-2">
-          {pending && !result ? <Loader2Icon className="animate-spin" /> : <CodeIcon />}
+          {active ? <Loader2Icon className="animate-spin" /> : <CodeIcon />}
           <span className="truncate">Tool Call: {toolCall.name}</span>
         </span>
         <span className="flex items-center gap-2">
