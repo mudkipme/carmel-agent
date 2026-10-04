@@ -6,14 +6,20 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { agents } from "../../db/schema.ts";
 
-test("container identity, initialization, and replacement fail safely", { timeout: 10000 }, async () => {
+test("container identity, initialization, and replacement fail safely", { timeout: 10000 }, async (t) => {
+  // The daemon is mocked, so model the server's identity too. CI may run this
+  // test as root; production must still reject a real root server or runner.
+  const uid = 1234, gid = 2345;
+  const unixProcess = process as Required<Pick<NodeJS.Process, "getuid" | "getgid">>;
+  t.mock.method(unixProcess, "getuid", () => uid);
+  t.mock.method(unixProcess, "getgid", () => gid);
   const directory = await mkdtemp(join(tmpdir(), "container-owner-"));
   const previousSocket = process.env.CARMEL_PODMAN_SOCKET;
   const previousData = process.env.CARMEL_AGENT_DATA_DIR;
   const previousUid = process.env.CARMEL_HOST_UID;
   const previousGid = process.env.CARMEL_HOST_GID;
-  process.env.CARMEL_HOST_UID = String(process.getuid!());
-  process.env.CARMEL_HOST_GID = String(process.getgid!());
+  process.env.CARMEL_HOST_UID = String(uid);
+  process.env.CARMEL_HOST_GID = String(gid);
   process.env.CARMEL_PODMAN_SOCKET = join(directory, "podman.sock");
   process.env.CARMEL_AGENT_DATA_DIR = directory;
   let creates = 0;
@@ -33,8 +39,8 @@ test("container identity, initialization, and replacement fail safely", { timeou
     const json = (value: unknown, status = 200) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(value)); };
     if (path.endsWith("/version")) return json({ Os: "linux", Components: [{ Name: runtime === "docker" ? "Engine" : "Podman Engine" }] });
     if (path.endsWith("/libpod/info")) return json({ host: { security: { rootless: true }, idMappings: {
-      uidmap: [{ container_id: 0, host_id: process.getuid!(), size: 1 }],
-      gidmap: [{ container_id: 0, host_id: process.getgid!(), size: 1 }],
+      uidmap: [{ container_id: 0, host_id: uid, size: 1 }],
+      gidmap: [{ container_id: 0, host_id: gid, size: 1 }],
     } } });
     if (path.endsWith("/info")) return json({ SecurityOptions: securityOptions });
     if (path.includes("/images/")) return json({});
@@ -79,7 +85,7 @@ test("container identity, initialization, and replacement fail safely", { timeou
     assert.equal(await ensureAgentContainer(agent, { network: false }), "container-2");
     assert.ok(specs.every((spec) => spec.HostConfig.Init === true));
     for (const spec of specs) {
-      assert.equal(spec.User, `${process.getuid!()}:${process.getgid!()}`);
+      assert.equal(spec.User, `${uid}:${gid}`);
       assert.equal(spec.HostConfig.UsernsMode, "host");
       assert.deepEqual(spec.HostConfig.CapDrop, ["ALL"]);
       assert.deepEqual(spec.HostConfig.SecurityOpt, ["no-new-privileges"]);
