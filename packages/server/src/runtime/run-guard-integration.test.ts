@@ -19,7 +19,7 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
   const models = createModels();
   models.setProvider(faux.provider);
   faux.setResponses(
-    Array.from({ length: 50 }, () => () => fauxAssistantMessage([fauxToolCall("spin", {})])) as never,
+    Array.from({ length: 50 }, () => () => fauxAssistantMessage([fauxToolCall("spin", {})], { stopReason: "toolUse" })) as never,
   );
 
   const piSession = await openPiSession(sessionId);

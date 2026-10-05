@@ -59,7 +59,7 @@ test("HTTP MCP tools run inside AgentHarness and persist results through the SQL
     const faux = fauxProvider({ provider: `faux-mcp-${crypto.randomUUID()}`, tokensPerSecond: 100_000 });
     const models = createModels(); models.setProvider(faux.provider);
     faux.setResponses([
-      () => fauxAssistantMessage([fauxToolCall(mcp.tools[0]!.name, { text: "hello" })]),
+      () => fauxAssistantMessage([fauxToolCall(mcp.tools[0]!.name, { text: "hello" })], { stopReason: "toolUse" }),
       () => fauxAssistantMessage([fauxText("Done")]),
     ] as never);
     const pi = await openTestHarness(sessionId, { models, model: faux.getModel(), tools: mcp.tools });

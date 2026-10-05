@@ -8,7 +8,7 @@ Carmel Agent reads `.env`, `.env.local`, `packages/server/.env`, and `packages/s
 - `PORT` — API port. Defaults to `8797`.
 - `NODE_ENV` — set to `production` in real deployments. Session cookies are marked secure only when it is.
 - `DATABASE_URL` — Carmel metadata/auth SQLite path. Defaults to `data/carmel-agent.sqlite`.
-- `CARMEL_PI_SESSION_DATABASE_URL` — path for Pi's native session-tree SQLite database. Defaults to `data/pi-sessions.sqlite`.
+- `CARMEL_PI_SESSION_DATABASE_URL` — legacy Pi SQLite path and base path for Durable storage. Defaults to `data/pi-sessions.sqlite`; native session databases live in its sibling `pi-sessions.sqlite.durable/` directory. See [Pi Durable storage](pi-durable.md).
 - `CARMEL_AGENT_DATA_DIR` — base data directory for databases and default agent workspaces. The container image sets `/data`.
 - `CARMEL_AGENT_DIR` — Pi agent runtime directory. Defaults to `data/pi-agent`.
 - `CLIENT_DIST_DIR` — override for the built web client directory.

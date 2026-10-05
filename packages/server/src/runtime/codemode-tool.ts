@@ -3,13 +3,12 @@ import {
   withAbortSignal,
   truncateHead,
   type AgentHarnessTool,
-  type AgentHarness,
   type AgentToolResult,
   type ExecutionToolContext,
   type JsonValue,
-} from "@earendil-works/pi-agent-core";
+} from "../effectors/pi-durable/index.ts";
 import { validateToolArguments } from "@earendil-works/pi-ai";
-import { CodemodeSandbox, renderDeclarations, type CodemodeJsonSchema, type CodemodeTool } from "@earendil-works/pi-codemode";
+import { CodemodeSandbox, parseCodemodeSource, renderDeclarations, type CodemodeJsonSchema, type CodemodeTool } from "@earendil-works/pi-codemode";
 import { errorMessage } from "../errors.ts";
 
 type Tool = AgentHarnessTool<ExecutionToolContext>;
@@ -21,14 +20,6 @@ export type CodemodeHooks = {
   timeoutMs?: number;
   maxCalls?: number;
 };
-
-/** Pi 0.99.1's harness needs an after-tool patch to retain a returned failure flag. */
-export function registerCodemodeResultHook(harness: Pick<AgentHarness<ExecutionToolContext>, "hooks">) {
-  return harness.hooks.on("after_tool", (event) => {
-    const details = event.details as { codemodeError?: boolean } | undefined;
-    return event.toolName === "codemode" && details?.codemodeError ? { isError: true } : undefined;
-  });
-}
 
 /** Expose the final permitted harness tools through Pi's VM; never expose codemode to itself. */
 export function createCodemodeTool(availableTools: readonly Tool[], hooks: CodemodeHooks = {}): Tool {
@@ -44,20 +35,12 @@ export function createCodemodeTool(availableTools: readonly Tool[], hooks: Codem
   return {
     name: "codemode",
     label: "Codemode",
-    description: `Run JavaScript to combine this agent's permitted tools, run independent calls with Promise.all, and filter results before returning them. Workspace, shell, network, MCP, and session tools are available only when listed below. Use await tools.<name>(args), text(value), return, or image(imageContent). Tools with an output schema return their structuredContent; other tools return {content, structuredContent?}. Failed tools throw and can be caught. Only the script output and return value enter the model context. No direct filesystem, network, shell, or imports: use the injected tools with their existing permissions and workspace boundaries. Each call uses a fresh sandbox; store/load are not persisted between calls. Execution is limited to ${hooks.timeoutMs ?? 60_000} ms, 64 MiB, and ${hooks.maxCalls ?? 250} nested calls.\n\n${renderDeclarations({ tools: declarations })}`,
+    description: `Run JavaScript to combine this agent's permitted tools, run independent calls with Promise.all, and filter results before returning them. Workspace, shell, network, MCP, and session tools are available only when listed below. Use await tools.<name>(args), text(value), return, or image("data:image/png;base64,..."). Check availability with "name" in tools; accessing an unknown tool throws. Tools with an output schema return their structuredContent; other tools return {content, structuredContent?}. Failed tools throw and can be caught. Only the script output and return value enter the model context. No direct filesystem, network, shell, or imports: use the injected tools with their existing permissions and workspace boundaries. An optional first line // @options: {"max_output_tokens": 1000, "timeout_ms": 10000} can lower the output and deadline limits. Each call uses a fresh sandbox; store/load are not persisted between calls. Execution is limited to ${hooks.timeoutMs ?? 60_000} ms, 64 MiB, and ${hooks.maxCalls ?? 250} nested calls.\n\n${renderDeclarations({ tools: declarations })}`,
     executionMode: "sequential",
+    replay: "unsafe",
     parameters: { type: "object", properties: { code: { type: "string", description: "JavaScript async function body; top-level await and return are supported." } }, required: ["code"], additionalProperties: false },
     async execute(toolCallId, { code }, onUpdate, toolContext, invocation, context) {
-      const previous = await invocation.getMemo("codemode");
-      if (previous && typeof previous === "object" && !Array.isArray(previous)) {
-        if (previous.state === "finished") return previous.result as unknown as AgentToolResult;
-        // A batch may have changed a remote service before interruption. Never replay it blindly.
-        return {
-          content: [{ type: "text", text: "This codemode execution was interrupted. Earlier tool calls may have completed; the batch was not automatically repeated. Check the affected files or services before retrying." }],
-          details: { codemodeCalls: previous.calls ?? [], codemodeError: true }, isError: true,
-        };
-      }
-
+      const source = parseCodemodeSource(code as string);
       const calls: CodemodeCallInfo[] = [];
       const pending = new Set<Promise<unknown>>();
       const controller = new AbortController();
@@ -73,19 +56,12 @@ export function createCodemodeTool(availableTools: readonly Tool[], hooks: Codem
         return effect;
       };
       const signal = AbortSignal.any([controller.signal, ...(context.abortSignal ? [context.abortSignal] : []), ...(hooks.signal ? [hooks.signal] : [])]);
-      let checkpoint = Promise.resolve();
       const snapshot = () => calls.map((call) => ({ ...call }));
-      const persist = () => {
-        const copy = snapshot();
-        checkpoint = checkpoint.then(() => invocation.setMemo("codemode", { state: "running", calls: copy }));
-        return checkpoint;
-      };
       const update = () => {
         hooks.onActivity?.();
         onUpdate({ content: [], details: { codemodeCalls: snapshot() } }, { checkpoint: true });
       };
       signal.throwIfAborted();
-      await persist();
 
       const sandbox = new CodemodeSandbox({
         timeoutMs: hooks.timeoutMs ?? 60_000,
@@ -105,17 +81,13 @@ export function createCodemodeTool(availableTools: readonly Tool[], hooks: Codem
               calls.push(call);
               try {
                 hooks.beforeCall?.();
-                // Persist intent before external effects. Parallel writes share one ordered queue.
-                await persist();
                 nestedContext.abortSignal?.throwIfAborted();
                 update();
                 const prepared = tool.prepareArguments ? tool.prepareArguments(args) : args;
                 if (!prepared || typeof prepared !== "object" || Array.isArray(prepared)) throw new Error("Tool arguments must be an object.");
                 const params = validateToolArguments(tool, { type: "toolCall", id: call.id, name: tool.name, arguments: prepared as Record<string, JsonValue> });
                 const childInvocation = {
-                  ...invocation, invocationId: `${invocation.invocationId}:${call.id}`,
-                  getMemo: (key: string) => invocation.getMemo(`${call.id}:${key}`),
-                  setMemo: (key: string, value: JsonValue | undefined) => invocation.setMemo(`${call.id}:${key}`, value),
+                  ...invocation, durableApi: undefined, invocationId: `${invocation.invocationId}:${call.id}`,
                 };
                 const result = await schedule(tool, async () => {
                   nestedContext.abortSignal?.throwIfAborted();
@@ -135,7 +107,6 @@ export function createCodemodeTool(availableTools: readonly Tool[], hooks: Codem
                 throw error;
               } finally {
                 call.durationMs = Math.round(performance.now() - startedAt);
-                await persist();
                 update();
               }
             })();
@@ -146,15 +117,14 @@ export function createCodemodeTool(availableTools: readonly Tool[], hooks: Codem
         })),
       });
       try {
-        const result = await sandbox.execute(code as string, { signal });
+        const result = await sandbox.execute(source.code, { signal, timeoutMs: Math.min(hooks.timeoutMs ?? 60_000, source.options.timeoutMs ?? Infinity) });
         // Pi aborts unfinished calls on timeout, cancellation, and script return. Drain their
         // host-side cleanup before finalizing details or releasing the execution environment.
         await Promise.allSettled(pending);
-        await checkpoint;
         const output = [...result.output];
         if (result.ok && result.value !== undefined) output.push({ type: "text", text: JSON.stringify(result.value) });
         if (!result.ok) output.push({ type: "text", text: result.error.stack ?? result.error.message });
-        const text = truncateHead(output.filter((part) => part.type === "text").map((part) => part.text).join("\n"));
+        const text = truncateHead(output.filter((part) => part.type === "text").map((part) => part.text).join("\n"), { maxBytes: Math.min(50 * 1024, (source.options.maxOutputTokens ?? Infinity) * 4) });
         const final: AgentToolResult = {
           content: [
             { type: "text", text: text.content + (text.truncated ? "\n[Output truncated. Return a smaller summary.]" : "") },
@@ -163,7 +133,6 @@ export function createCodemodeTool(availableTools: readonly Tool[], hooks: Codem
           details: { codemodeCalls: snapshot(), codemodeError: !result.ok }, isError: !result.ok,
           ...(terminate ? { terminate: true } : {}),
         };
-        await invocation.setMemo("codemode", { state: "finished", result: final as unknown as JsonValue });
         return final;
       } catch (error) {
         throw new Error(`Codemode: ${errorMessage(error)}`);

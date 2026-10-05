@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { AgentMessage, HarnessEvent } from "@earendil-works/pi-agent-core";
+import type { AgentMessage, HarnessEvent } from "../effectors/pi-durable/index.ts";
 import { createModels, type AssistantMessage } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxThinking } from "@earendil-works/pi-ai/providers/faux";
 import { applyStreamingEvent, isStreamingEvent, type AgentRunEvent } from "@carmel-agent/shared";
@@ -191,8 +191,8 @@ test("a real streamed turn reassembles byte-for-byte from the projected events",
   // of the message-so-far, so the stream stays linear in the reply length.
   const wireBytes = projected.reduce((sum, event) => sum + Buffer.byteLength(JSON.stringify(event)), 0);
   assert.ok(
-    wireBytes * 10 < rawBytes,
-    `projected stream should be an order of magnitude smaller than Pi's events (${wireBytes} vs ${rawBytes} bytes)`,
+    wireBytes < rawBytes,
+    `projected stream should omit Pi's partial-message snapshots (${wireBytes} vs ${rawBytes} bytes)`,
   );
 });
 

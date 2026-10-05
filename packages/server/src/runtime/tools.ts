@@ -1,4 +1,4 @@
-import type { AgentHarnessTool, Context, ExecutionToolContext } from "@earendil-works/pi-agent-core";
+import type { AgentHarnessTool, Context, ExecutionToolContext } from "../effectors/pi-durable/index.ts";
 import { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { builtinToolProviders } from "./tool-providers/index.ts";

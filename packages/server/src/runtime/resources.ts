@@ -7,7 +7,7 @@ import {
   type PromptTemplateDiagnostic,
   type Skill,
   type SkillDiagnostic,
-} from "@earendil-works/pi-agent-core";
+} from "../effectors/pi-durable/index.ts";
 import { resolve } from "node:path";
 import { agents } from "../db/schema.ts";
 import { resolveDataPath } from "../paths.ts";

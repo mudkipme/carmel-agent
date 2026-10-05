@@ -1,7 +1,6 @@
 import {
   AgentHarness,
   BACKGROUND_CONTEXT,
-  DEFAULT_COMPACTION_SETTINGS,
   type AgentHarnessTool,
   formatSkillsForSystemPrompt,
   type AgentLane,
@@ -9,14 +8,14 @@ import {
   type ExecutionToolContext,
   type HarnessEvent,
   type AgentMessage,
-} from "@earendil-works/pi-agent-core";
+} from "../effectors/pi-durable/index.ts";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
 import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { serializeModelRef } from "../serializers.ts";
-import { closePiSession, openPiSession, registerPiSessionLane } from "../services/pi-session-storage.ts";
+import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 
 import { type AgentRunEvent, type PromptInput, type Session } from "@carmel-agent/shared";
@@ -32,7 +31,6 @@ import {
 } from "./run-stream.ts";
 import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
 import { createServerExecution } from "./tools.ts";
-import { registerCodemodeResultHook } from "./codemode-tool.ts";
 import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
 import {
   createPiPromptDispatcher,
@@ -40,10 +38,10 @@ import {
   observeHarnessEvents,
   reconcileLaneConfiguration,
   type PiDispatcherOptions,
-} from "../effectors/pi-0-99/agent-driver.ts";
-import { createPiSessionLog, PI_MAIN_BRANCH } from "../effectors/pi-0-99/session-log.ts";
+} from "../effectors/pi-durable/agent-driver.ts";
+import { createPiSessionLog, PI_MAIN_BRANCH } from "../effectors/pi-durable/session-log.ts";
 import {
-  compactionCannotHelp,
+  compactionSettingsForWindow,
   describeCompactionFailure,
   describePreflightPressure,
   describeUnrecoveredOverflow,
@@ -93,12 +91,9 @@ type RunHarness = AgentHarness<ExecutionToolContext>;
 /**
  * The invocation context every Pi call in a run is made under.
  *
- * Deliberately not cancellable. Pi requires a `Context` everywhere, and the
- * obvious move -- hanging the run's abort on it -- would be a behaviour change,
- * not a migration: 0.83 passed no signal at all, and the harness derives its own
- * cancellable child context around each provider and tool call from the gate
- * that `lane.abort()` trips. Aborting the outer context instead would also break
- * the cleanup calls that have to run *after* an abort.
+ * Native conversation abort cancels its provider/tool invocations. Keep the
+ * outer context alive so its event stream can deliver settlement and cleanup
+ * can commit after cancellation.
  */
 const runContext: PiContext = BACKGROUND_CONTEXT;
 type ServerExecution = ReturnType<typeof createServerExecution>;
@@ -203,7 +198,6 @@ async function startAgentRun(context: AgentRun) {
   let harness: RunHarness | undefined;
   let execution: ServerExecution | undefined;
   let unsubscribe: (() => void) | undefined;
-  let releaseLane: (() => void) | undefined;
 
   try {
     piSession = await openPiSession(session.id);
@@ -224,7 +218,6 @@ async function startAgentRun(context: AgentRun) {
     const { lane, activeToolNames } = opened;
     runningLanes.set(session.id, lane);
     harness = opened.harness;
-    releaseLane = opened.releaseLane;
     abort.attach(lane);
     unsubscribe = observeHarnessEvents(harness, (event: HarnessEvent) => {
       if (event.type === "queue_update" && !abort.requested)
@@ -264,8 +257,6 @@ async function startAgentRun(context: AgentRun) {
       return;
     }
 
-    const prepared = await prepareAgentRunPrompt(log, promptInput);
-    retry.arm(prepared.retryOriginalLeafId);
     await reconcileLaneConfiguration(lane, runContext, { model, thinkingLevel, activeToolNames });
     await reportPreflightPressure(context, log);
     if (abort.requested) {
@@ -274,7 +265,14 @@ async function startAgentRun(context: AgentRun) {
       return;
     }
 
-    await runHarnessPrompt({ harness, lane, context: runContext }, prepared.promptInput.text, prepared.promptInput.images);
+    if (!promptInput && await lane.hasPending(runContext)) {
+      // A restart continues Durable's checkpoint instead of rewinding and resubmitting the user input.
+      await lane.resume(runContext);
+    } else {
+      const prepared = await prepareAgentRunPrompt(log, promptInput);
+      retry.arm(prepared.retryOriginalLeafId);
+      await runHarnessPrompt({ harness, lane, context: runContext }, prepared.promptInput.text, prepared.promptInput.images);
+    }
     // Checked before the retry-abandonment test: a guard stop aborts mid-turn,
     // which is a plausible way to leave a retry unpersisted, and the guard is
     // the more useful of the two explanations.
@@ -291,7 +289,7 @@ async function startAgentRun(context: AgentRun) {
       try { await context.sessionAddons.onRunSettling(lane, abort.requested); }
       catch (error) { console.warn("Unable to settle issue updates:", errorMessage(error)); }
     }
-    await finalizeRun(context, { piSession, harness, log, execution, unsubscribe, releaseLane });
+    await finalizeRun(context, { piSession, harness, log, execution, unsubscribe });
   }
 }
 
@@ -305,7 +303,7 @@ export class HarnessAbortGate {
   readonly #controller = new AbortController();
   #requested = false;
   #reason?: RunAbortReason;
-  /** 0.85 moved `abort()` off the harness and onto the lane that owns the run. */
+  /** Abort the selected native conversation once it is attached. */
   #lane?: Pick<AgentLane, "abort">;
 
   get requested() {
@@ -372,13 +370,12 @@ export class RetryBranch {
 
 async function openRunHarness(
   context: AgentRun & { piSession: PiSession; execution: ServerExecution },
-): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[]; releaseLane: () => void }> {
+): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[] }> {
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } = context;
   const resources = await loadAgentResources(agent, execution.env);
   const tools = execution.resolveTools(sessionAddons?.tools);
   const activeToolNames = tools.map((tool) => tool.name);
-  // 0.85 replaced the constructor with a factory: it restores durable lane and
-  // operation state from the session, and reports what it found still open.
+  // Install this run's credentials, resources, and permitted tools before native scheduling.
   const { harness } = await AgentHarness.create<ExecutionToolContext>({
     session: piSession,
     models: modelRuntime,
@@ -410,26 +407,15 @@ async function openRunHarness(
     // this, a transient provider error during summarization ended compaction for
     // the turn -- on the one call the session most needs to succeed.
     retry: { enabled: true, maxRetries: 2, baseDelayMs: 1_000 },
-    // Threshold compaction on a window it cannot work in buys a summarization
-    // call at every step and leaves the session over budget. Switched off there;
-    // Pi's overflow recovery does not read `enabled` and stays available.
-    compaction: compactionCannotHelp(model.contextWindow)
-      ? { ...DEFAULT_COMPACTION_SETTINGS, enabled: false }
-      : DEFAULT_COMPACTION_SETTINGS,
+    compaction: compactionSettingsForWindow(model.contextWindow),
   }, runContext);
-  registerCodemodeResultHook(harness);
   if (agent.permissions.bash) harness.hooks.on("before_request", async () => {
     await browserControl(agent.id).wait(context.abort.signal);
     return undefined;
   });
-  // Acquiring the lane is what creates the conversation branch on a new session
-  // and restores it on an existing one. Everything that runs the loop hangs off
-  // this handle rather than off the harness.
+  // The run handle follows the conversation selected in native storage.
   const lane = await harness.lane(PI_MAIN_BRANCH, runContext);
-  // Reads of this session during the run follow the lane rather than the stored
-  // branch tip, which 0.85 only publishes at operation boundaries.
-  const releaseLane = registerPiSessionLane(piSession, lane);
-  return { harness, lane, activeToolNames, releaseLane };
+  return { harness, lane, activeToolNames };
 }
 
 /** Restore an abandoned retry branch, then persist and emit the failure. */
@@ -477,11 +463,10 @@ async function finalizeRun(
     log?: SessionLog;
     execution?: ServerExecution;
     unsubscribe?: () => void;
-    releaseLane?: () => void;
   },
 ) {
   const { run, abort, outcome, session, modelRef, model, modelRuntime, thinkingLevel } = context;
-  const { piSession, harness, log, execution, unsubscribe, releaseLane } = state;
+  const { piSession, harness, log, execution, unsubscribe } = state;
 
   let finalMessages: AgentMessage[] = [];
   if (piSession) {
@@ -494,16 +479,9 @@ async function finalizeRun(
     } catch (error) {
       console.warn("Final transcript read failed:", errorMessage(error));
     }
-    // Before the harness closes: another holder of this session -- an HTTP read
-    // -- can outlive the run, and must go back to reading the stored branch
-    // rather than a lane that no longer exists.
-    releaseLane?.();
     try {
-      // Order matters: `session.close()` seals the mutation line and waits for
-      // it to drain, so a session whose harness is still open never finishes
-      // closing. The harness tears down its hooks, events and idle callbacks
-      // and closes the session itself; releasing the lease after that is
-      // idempotent and just drops this run's hold on the handle.
+      // Detach event delivery before releasing native storage. HTTP readers
+      // retain their own leases and continue reading committed progress.
       await harness?.close(runContext);
       await (log ? log.close() : closePiSession(piSession));
     } catch (error) {
@@ -576,7 +554,7 @@ export async function prepareAgentRunPrompt(
  * The rule -- which slash commands exist and which wins when a name is
  * ambiguous -- lives in `effectors/dispatch-prompt.ts` with no Pi imports; the
  * Pi-shaped parts (invocation formatting, argument parsing, inlining a named
- * invocation that carries an attachment) live in the `pi-0-99` adapter.
+ * invocation that carries an attachment) live in the `pi-durable` adapter.
  */
 export async function runHarnessPrompt(
   dispatch: PiDispatcherOptions,
@@ -614,6 +592,7 @@ async function reportPreflightPressure(context: AgentRun, log: SessionLog) {
     const notice = describePreflightPressure({
       tokens: await estimateBranchTokens(log),
       contextWindow: context.model.contextWindow,
+      settings: compactionSettingsForWindow(context.model.contextWindow),
     });
     if (notice) emitContextPressure(context, notice);
   } catch (error) {
@@ -629,7 +608,7 @@ function emitContextPressure(context: AgentRun, notice: ContextPressureNotice) {
 /**
  * Reports Pi's own compaction to the user; Carmel does no compacting itself.
  *
- * Pi 0.85 compacts at every checkpoint and, when a generation overflows,
+ * Pi Durable checks context before generation and, when a generation overflows,
  * compacts and retries it once. The overflowed attempt's `turn_end` has already
  * reached the client as an error by then, so a successful recovery has to be
  * announced to clear it. What is left afterwards -- an overflow the run still

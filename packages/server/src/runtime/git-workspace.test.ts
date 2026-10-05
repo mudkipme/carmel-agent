@@ -4,7 +4,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BACKGROUND_CONTEXT } from "@earendil-works/pi-agent-core";
+import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
 import { eq } from "drizzle-orm";
 import { db, migrate } from "../db/index.ts";
 import { agents } from "../db/schema.ts";

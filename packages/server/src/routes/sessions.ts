@@ -31,6 +31,7 @@ import { readActiveRunLeaseForSession } from "../services/active-run-lease.ts";
 import {
   deletePiSession,
   forkPiSession,
+  hasPendingPiSessionWork,
   movePiSessionToEntry,
   readPiSessionMessageEntry,
   replacePiSessionMessages,
@@ -320,6 +321,9 @@ async function guardSessionMutation(
   if (session.issueId) return { conflict: c.json({ error: "Issue attempt history is read-only." }, 409) };
   const leaseConflict = rejectActiveRunMutation(c, session.id);
   if (leaseConflict) return { conflict: leaseConflict };
+  if (await hasPendingPiSessionWork(session.id)) return { conflict: c.json({ error: "Resume or stop pending Durable work before changing this conversation." }, 409) };
+  const resumedLeaseConflict = rejectActiveRunMutation(c, session.id);
+  if (resumedLeaseConflict) return { conflict: resumedLeaseConflict };
   return { session };
 }
 

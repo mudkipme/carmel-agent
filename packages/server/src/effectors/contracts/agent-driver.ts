@@ -4,7 +4,7 @@ import type { PromptInput } from "@carmel-agent/shared";
  * What Carmel needs an agent loop to do, expressed without naming one: send
  * composer text, as a plain prompt or a named skill or template. Compaction is
  * not here -- Pi does it, and Carmel only reports on it.
- * Pi's `AgentHarness` is the only implementation (`../pi-0-99`).
+ * Pi Durable is the implementation (`../pi-durable`).
  */
 
 export type PromptImages = PromptInput["images"];

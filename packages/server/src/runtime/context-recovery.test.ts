@@ -127,7 +127,7 @@ async function setupScene(respond: (callCount: number) => AgentMessage) {
   faux.setResponses([step, step, step, step] as never);
 
   const model = faux.getModel();
-  const pi = await attachTestHarness(await openPiSession(sessionId), { models, model, systemPrompt: "Test assistant" });
+  const pi = await attachTestHarness(await openPiSession(sessionId), { models, model, systemPrompt: "Test assistant", compaction: { enabled: true, reserveTokens: 1_024, keepRecentTokens: 1, backgroundTokens: 0 } });
   const emitted: AgentRunEvent[] = [];
   const reporter = new ContextReporter(model.contextWindow, (event) => emitted.push(event));
   const unsubscribe = pi.observe((event) => reporter.observe(event));

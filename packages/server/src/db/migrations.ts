@@ -128,6 +128,23 @@ const migrations: Migration[] = [
       sqlite.exec("CREATE INDEX IF NOT EXISTS issues_queue ON issues(agent_id, status, queue_position)");
     },
   },
+  {
+    id: "033_pi_azure_provider",
+    description: "Rename Pi's Azure provider and preserve model and credential references",
+    run: (sqlite) => {
+      sqlite.exec(`
+        DROP INDEX model_refs_provider_model_unique;
+        UPDATE provider_configs SET provider = 'azure' WHERE provider = 'azure-openai-responses';
+        UPDATE model_refs SET provider = 'azure' WHERE provider = 'azure-openai-responses';
+        INSERT OR IGNORE INTO provider_keys(user_id, provider, api_key, created_at, updated_at)
+          SELECT user_id, 'azure', api_key, created_at, updated_at FROM provider_keys WHERE provider = 'azure-openai-responses';
+        DELETE FROM provider_keys WHERE provider = 'azure-openai-responses';
+        DELETE FROM model_catalogs WHERE provider_id IN ('azure-openai-responses', 'azure');
+      `);
+      deduplicateModelRefs(sqlite);
+      sqlite.exec("CREATE UNIQUE INDEX model_refs_provider_model_unique ON model_refs(provider, model_id) WHERE provider_config_id IS NULL");
+    },
+  },
 ];
 
 function addAgentCodemode(sqlite: Sqlite) {
@@ -541,6 +558,9 @@ function deduplicateModelRefs(sqlite: Sqlite) {
       const timestamp = migrationTimestamp();
       updateAgents.run(keeper.id, timestamp, model.id);
       updateSessions.run(keeper.id, timestamp, model.id);
+      sqlite.prepare("UPDATE users SET fast_task_model_ref_id = ? WHERE fast_task_model_ref_id = ?").run(keeper.id, model.id);
+      if (sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='agent_tasks'").get())
+        sqlite.prepare("UPDATE agent_tasks SET model_ref_id = ? WHERE model_ref_id = ?").run(keeper.id, model.id);
       remove.run(model.id);
     }
   }

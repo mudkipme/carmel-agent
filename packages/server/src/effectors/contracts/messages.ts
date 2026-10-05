@@ -12,4 +12,4 @@
  * Keeping the alias here means the exception is one import to audit rather than
  * a habit spread across the layer.
  */
-export type { AgentMessage as SessionMessage } from "@earendil-works/pi-agent-core";
+export type { AgentMessage as SessionMessage } from "../pi-durable/index.ts";

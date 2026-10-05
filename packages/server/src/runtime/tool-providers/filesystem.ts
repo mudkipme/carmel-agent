@@ -13,7 +13,7 @@ import {
   type AgentHarnessTool,
   type AgentTool,
   type ExecutionToolContext,
-} from "@earendil-works/pi-agent-core";
+} from "../../effectors/pi-durable/index.ts";
 import type { AgentExecutionEnv } from "../execution-env.ts";
 import { createGrepOperations, createLsOperations } from "../search-operations.ts";
 import type { ProvidedTool, ToolProvider, ToolProvisionContext } from "../../effectors/contracts/tool-provider.ts";
@@ -23,16 +23,14 @@ type ServerToolDefinition = AgentHarnessTool<ExecutionToolContext>;
 /**
  * Present an `Agent`-loop tool as a harness tool.
  *
- * 0.85 split the two shapes apart. Pi's own read/write/edit/bash take the
- * harness signature -- update callback third, then tool context, invocation and
- * `Context` -- while pi-coding-agent still builds grep/find/ls against the older
- * `Agent` one, which takes an abort signal third and knows nothing about the
- * rest. None of the harness's extra arguments mean anything to those three, so
- * this drops them and moves the signal over from the invocation context.
+ * Pi coding-agent's grep/find/ls take an abort signal third. Carmel's tool
+ * providers share an invocation context, so this adapter extracts the signal
+ * and passes the update callback in coding-agent's expected position.
  */
 function asHarnessTool(tool: AgentTool): ServerToolDefinition {
   return {
     ...tool,
+    replay: tool.replay === "safe" ? "safe" : "unsafe",
     execute: (toolCallId, params, onUpdate, _toolContext, _invocation, context) =>
       tool.execute(toolCallId, params, context.abortSignal, onUpdate),
   };

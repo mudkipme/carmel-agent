@@ -9,10 +9,9 @@ import {
   type Result,
   type ShellExecOptions,
   type ShellExecResult,
-  type ShellOutputTruncation,
-} from "@earendil-works/pi-agent-core";
-import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
-import { existsSync, lstatSync, realpathSync } from "node:fs";
+} from "../effectors/pi-durable/index.ts";
+import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
+import { appendFileSync, writeFileSync, existsSync, lstatSync, realpathSync } from "node:fs";
 import { mkdtemp, open, rename as renameFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import type { AgentMount } from "@carmel-agent/shared";
@@ -35,6 +34,7 @@ type PathMapping = { containerPath: string; hostPath: string };
 
 /** Single filesystem and shell authority for an agent. */
 export class AgentExecutionEnv implements ExecutionEnv {
+  readonly id: string;
   readonly cwd: string;
   readonly tmpDir: string;
   readonly homeDir: string;
@@ -44,6 +44,7 @@ export class AgentExecutionEnv implements ExecutionEnv {
   private readonly mappings: PathMapping[];
 
   constructor(readonly agent: AgentRecord) {
+    this.id = `carmel:${agent.id}`;
     this.cwd = resolve(resolveAgentWorkingDirPath(agent));
     this.tmpDir = resolve(resolveAgentTmpDirPath(agent));
     this.homeDir = resolve(resolveAgentHomeDirPath(agent));
@@ -117,6 +118,23 @@ export class AgentExecutionEnv implements ExecutionEnv {
 
   async readBinaryFile(path: string, context: Context): Promise<Result<Uint8Array, FileError>> {
     return this.delegatePath(path, "read", context, (resolved) => this.node.readBinaryFile(resolved, context));
+  }
+
+  async openBinaryReader(path: string, options: { noFollow?: boolean } | undefined, context: Context) {
+    return this.delegatePath(path, "read", context, resolved => this.node.openBinaryReader(resolved, options, context));
+  }
+  async openDirReader(path: string, context: Context) {
+    return this.delegatePath(path, "read", context, resolved => this.node.openDirReader(resolved, context));
+  }
+  async watch(targets: readonly import("@earendil-works/pi-durable/env").WatchTarget[], onChange: (change: import("@earendil-works/pi-durable/env").WatchChange) => void, context: Context): Promise<Result<import("@earendil-works/pi-durable/env").FileWatcher, FileError>> {
+    try { return await this.node.watch(targets.map(target => ({ ...target, path: this.resolveAuthorizedPath(target.path, "read") })), onChange, context); }
+    catch (error) { return err(toFileError(error, this.cwd)); }
+  }
+  async truncateFile(path: string, size: number, context: Context) {
+    return this.delegatePath(path, "write", context, resolved => this.node.truncateFile(resolved, size, context));
+  }
+  async flushFile(path: string, context: Context) {
+    return this.delegatePath(path, "write", context, resolved => this.node.flushFile(resolved, context));
   }
 
   async writeFile(path: string, content: string | Uint8Array, context: Context): Promise<Result<void, FileError>> {
@@ -221,62 +239,43 @@ export class AgentExecutionEnv implements ExecutionEnv {
     });
   }
 
-  /**
-   * Run a command in the agent's sandbox.
-   *
-   * 0.85 moved shell output off the result and onto `options.onUpdate`:
-   * `ShellExecResult` now carries only an exit code and truncation metadata.
-   * That suits this environment, which never buffered output in the first place
-   * -- it streamed through `onStdout`/`onStderr` and returned empty strings --
-   * so the two stderr/stdout streams are simply interleaved into one bounded
-   * view, which is the shape the harness renders anyway.
-   *
-   * No limits are applied here, so the reported totals are the real ones and
-   * nothing is ever marked truncated. Bounding is the caller's to request via
-   * `options.capture`, which this sandbox does not implement yet.
-   */
-  async exec(
-    command: string,
-    options: ShellExecOptions | undefined,
-    context: Context,
-  ): Promise<Result<ShellExecResult, ExecutionError>> {
+  /** Commands and streamed output stay in the agent's sandbox authority. */
+  async exec(command: string | readonly string[], options: ShellExecOptions | undefined, context: Context): Promise<Result<ShellExecResult, ExecutionError>> {
     if (!this.agent.permissions.bash) return err(new ExecutionError("shell_unavailable", "Bash permission is disabled for this agent."));
     if (context.abortSignal?.aborted) return err(new ExecutionError("aborted", "Operation aborted."));
     let callbackFailed = false;
-    let totalBytes = 0;
-    let totalLines = 0;
+    let buffered = "", bytes = 0, lines = 0, spillPath: string | undefined;
     try {
       const cwd = this.resolveAuthorizedPath(options?.cwd ?? this.cwd, "address");
       if (!isSandboxConfigured()) return err(new ExecutionError("shell_unavailable", sandboxUnavailableMessage()));
-      const emit = (chunk: string) => {
+      const emit = (chunk: string, stream: "stdout" | "stderr") => {
         if (!chunk) return;
-        totalBytes += Buffer.byteLength(chunk, "utf8");
-        totalLines += chunk.split("\n").length - 1;
-        try {
-          options?.onUpdate?.({ kind: "append", text: chunk, metadata: { truncation: untruncated(totalBytes, totalLines) } }, context);
-        } catch (error) {
-          callbackFailed = true;
-          throw error;
+        if (options?.spill) {
+          bytes += Buffer.byteLength(chunk); lines += chunk.split("\n").length - 1;
+          if (spillPath) appendFileSync(spillPath, chunk);
+          else {
+            buffered += chunk;
+            if (bytes > options.spill.afterBytes || lines > options.spill.afterLines) {
+              spillPath = resolve(this.tmpDir, `output-${crypto.randomUUID()}.txt`);
+              writeFileSync(spillPath, buffered, { mode: 0o600, flag: "wx" }); buffered = "";
+            }
+          }
         }
+        try { options?.onOutput?.(chunk, context, { stream }); }
+        catch (error) { callbackFailed = true; throw error; }
       };
-      const result = await execSandboxCommand(this.agent, command, cwd, {
-        onStdout: emit,
-        onStderr: emit,
-        signal: context.abortSignal,
-        timeout: options?.timeout,
-        env: options?.env,
+      const shellCommand = typeof command === "string" ? command : command.map(arg => "'" + arg.replaceAll("'", "'\"'\"'") + "'").join(" ");
+      const result = await execSandboxCommand(this.agent, shellCommand, cwd, {
+        onStdout: chunk => emit(chunk, "stdout"), onStderr: chunk => emit(chunk, "stderr"),
+        signal: context.abortSignal, timeout: options?.timeout, env: options?.env,
       });
-      return ok({ exitCode: result.exitCode ?? 1, truncation: untruncated(totalBytes, totalLines) });
+      return ok({ exitCode: result.exitCode ?? 1, ...(spillPath ? { spillPath } : {}) });
     } catch (error) {
       const message = errorMessage(error);
-      const code = context.abortSignal?.aborted
-        ? "aborted"
-        : message.startsWith("timeout:")
-          ? "timeout"
-          : callbackFailed
-            ? "callback_error"
-            : "spawn_error";
-      return err(new ExecutionError(code, message, error instanceof Error ? error : undefined));
+      const code = context.abortSignal?.aborted ? "aborted" : message.startsWith("timeout:") ? "timeout" : callbackFailed ? "callback_error" : "spawn_error";
+      const failure = new ExecutionError(code, message, error instanceof Error ? error : undefined);
+      failure.spillPath = spillPath;
+      return err(failure);
     }
   }
 
@@ -305,22 +304,6 @@ export class AgentExecutionEnv implements ExecutionEnv {
       return err(toFileError(error, path));
     }
   }
-}
-
-/** Truncation metadata for a stream that was never bounded, so nothing was dropped. */
-function untruncated(totalBytes: number, totalLines: number): ShellOutputTruncation {
-  return {
-    truncated: false,
-    truncatedBy: null,
-    totalLines,
-    totalBytes,
-    outputLines: totalLines,
-    outputBytes: totalBytes,
-    lastLinePartial: false,
-    firstLineExceedsLimit: false,
-    maxLines: Number.POSITIVE_INFINITY,
-    maxBytes: Number.POSITIVE_INFINITY,
-  };
 }
 
 export function remapContainerPath(filePath: string, mappings: PathMapping[]) {

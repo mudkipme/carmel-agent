@@ -1,17 +1,30 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { withAbortSignal } from "@earendil-works/pi-agent-core";
+import { withAbortSignal } from "../effectors/pi-durable/index.ts";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import { createGrepOperations } from "./search-operations.ts";
 import { createServerExecution, createServerToolDefinitions, remapContainerPath } from "./tools.ts";
 import { builtinSkillTool, loadBuiltinSkills } from "./builtin-skills.ts";
-import { formatSkillInvocation } from "@earendil-works/pi-agent-core";
+import { formatSkillInvocation } from "../effectors/pi-durable/index.ts";
 import type { agents } from "../db/schema.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
+
+test("Durable's text reader retains Pi image reading through the guarded environment", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-image-read-"));
+  const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==";
+  writeFileSync(join(workingDir, "pixel.png"), Buffer.from(png, "base64"));
+  const execution = createServerExecution(makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }));
+  try {
+    const tool = execution.tools.find(tool => tool.name === "read")!;
+    const result = await executeTool(tool, "image", { path: "pixel.png" }, new AbortController().signal, execution.toolContext) as { content: Array<{ type: string; mimeType?: string }> };
+    assert.ok(result.content.some(part => part.type === "image" && part.mimeType === "image/png"), JSON.stringify(result));
+    await assert.rejects(executeTool(tool, "outside", { path: "../outside.png" }, new AbortController().signal, execution.toolContext), /outside the agent working directory/);
+  } finally { await execution.cleanup(TEST_CONTEXT); rmSync(workingDir, { recursive: true, force: true }); }
+});
 
 test("remapContainerPath translates container paths to host paths", () => {
   const mappings = [

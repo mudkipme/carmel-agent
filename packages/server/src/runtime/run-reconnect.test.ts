@@ -105,12 +105,8 @@ async function streamTurnRecordingReconnects() {
 /**
  * The messages a reconnect's snapshot holds at `boundary`.
  *
- * Under Pi 0.83 this was exactly the set whose `message_end` had gone out,
- * because a message was persisted before it was announced. 0.85 commits an
- * assistant message when the *operation* settles rather than when the message
- * ends, so the snapshot is served from the lane instead -- its transcript plus
- * the reply still in flight -- and the one moment it can lag is between a
- * turn's final `message_end` and the settle that commits it.
+ * Pi Durable commits messages before announcing their `message_end`. Reads
+ * include committed live progress, so a reconnect also sees the reply in flight.
  */
 function snapshotAt(persistedAfter: Array<{ sequence: number; messages: AgentMessage[] }>, boundary: number) {
   let messages: AgentMessage[] = [];
@@ -144,29 +140,12 @@ async function transcript(sessionId: string): Promise<AgentMessage[]> {
 }
 
 /**
- * REGRESSION, recorded rather than hidden.
- *
- * 0.83 persisted a message before announcing its `message_end`, which is what
- * made a reconnect safe: a client landing between the two got a cursor past a
- * message the snapshot already contained. 0.85's durable execution commits the
- * assistant message when the operation settles, so for the final `message_end`
- * of a turn there is a window where the event has gone out and the entry has
- * not landed. Reading the snapshot from the lane closes this for every earlier
- * message -- the streaming reply is in the lane snapshot -- but not for the last
- * one, whose streaming state Pi has already cleared.
- *
- * The window is one settle away from closing on its own, so nothing is lost
- * permanently; a client reconnecting inside it renders the turn one message
- * short until the next event arrives. Closing it properly means not handing out
- * a cursor past what the snapshot contains, which is Carmel's protocol to change
- * and not part of this upgrade.
+ * A reconnect must never receive a cursor past a finished message absent from
+ * its snapshot, including the final message of a turn.
  */
-test("only a turn's final message_end can outrun its persistence", async () => {
+test("every message_end is persisted before it reaches a subscriber", async () => {
   const { lostBeforePersist } = await streamTurnRecordingReconnects();
-  assert.ok(
-    lostBeforePersist.length <= 1,
-    `at most the settling message may lag, got ${lostBeforePersist.length}: ${lostBeforePersist.join(", ")}`,
-  );
+  assert.deepEqual(lostBeforePersist, []);
 });
 
 test("reopening mid-stream shows exactly what a session that stayed open shows", async () => {

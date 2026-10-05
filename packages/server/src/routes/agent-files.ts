@@ -16,7 +16,7 @@ import {
   fileContentRequestSchema,
   renameFileEntryRequestSchema,
 } from "@carmel-agent/shared";
-import { BACKGROUND_CONTEXT, FileError, type Result } from "@earendil-works/pi-agent-core";
+import { BACKGROUND_CONTEXT, FileError, type Result } from "../effectors/pi-durable/index.ts";
 import { agents } from "../db/schema.ts";
 import type { AuthVariables } from "../auth.ts";
 import { errorMessage } from "../errors.ts";

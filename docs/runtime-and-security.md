@@ -40,7 +40,7 @@ An agent stores:
 - secrets supplied to its sandbox and configured MCP connections
 - MCP server configuration and tool allowlists
 
-The server opens a Pi `AgentHarness` and its SQLite-backed session for each run, streams events to the browser as NDJSON, and persists the transcript through Pi's session storage.
+The server runs Pi Durable with its native SQLite backend, streams committed events to the browser as NDJSON, and stores conversation history, live progress, and execution checkpoints through Pi. Each Carmel session has its own native storage and tool/credential registry. See [Pi Durable storage](pi-durable.md) for migration and recovery behavior.
 
 Runs live on the server, not in the tab. Each event carries a sequence number, so a browser that reloads or reconnects resumes the stream from where it left off instead of losing the run. Runs can be aborted explicitly.
 
@@ -334,15 +334,15 @@ Provider API keys, OAuth credentials, and custom headers are encrypted with `CAR
 
 ## Database And Migrations
 
-Carmel uses two SQLite databases: one for Carmel metadata and auth, one for Pi-native session trees. Drizzle manages only the Carmel database; its migrations run at startup and are recorded in `schema_migrations`.
+Carmel uses a SQLite database for metadata and auth, plus one Pi Durable SQLite file per conversation in the `.durable` storage directory. The legacy Pi database remains a read-only migration archive. Drizzle manages only the Carmel database; its migrations run at startup and are recorded in `schema_migrations`.
 
 New databases are created with the current schema; existing ones are upgraded through compatibility migrations. Session content is owned exclusively by Pi native storage.
 
 Runtime state lives under `data/` by default:
 
-- the two SQLite databases
+- the metadata database, legacy Pi archive, and Durable storage directory
 - default agent workspaces
 - the Pi agent runtime directory
 - per-agent sandbox `/tmp` directories
 
-Back up that directory.
+Back up that directory with the server stopped. See [Pi Durable storage](pi-durable.md) for upgrade and rollback details.

@@ -44,9 +44,37 @@ test("issue queue upgrade preserves briefs, conversations, reports, and notes wi
 const rowCount = (table: string) =>
   (sqlite.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count;
 
+test("Pi Azure rename preserves credentials and rewires colliding model references", () => {
+  const previous = new Database(":memory:");
+  previous.pragma("foreign_keys = ON");
+  try {
+    runMigrations(previous); seedDatabase(previous);
+    const user = previous.prepare("SELECT id FROM users LIMIT 1").get() as { id: string };
+    previous.prepare("UPDATE provider_configs SET provider='azure-openai-responses', api_key='configured-key'").run();
+    previous.prepare("INSERT INTO model_refs(id,owner_user_id,label,provider,model_id,input,created_at,updated_at) VALUES ('old-azure',?,'Old','azure-openai-responses','deployment','[\"text\"]',1,1),('new-azure',?,'New','azure','deployment','[\"text\"]',2,2)").run(user.id, user.id);
+    previous.exec(`
+      UPDATE sessions SET model_ref_id='old-azure';
+      UPDATE agents SET default_model_ref_id='new-azure';
+      UPDATE users SET fast_task_model_ref_id='new-azure';
+      INSERT INTO agent_tasks(id,agent_id,user_id,name,prompt,model_ref_id,schedule_kind,schedule_value,created_at,updated_at)
+        SELECT 'azure-task',id,owner_user_id,'Task','Prompt','new-azure','once','2026-10-05T00:00:00Z',1,1 FROM agents LIMIT 1;
+      INSERT INTO provider_keys(user_id,provider,api_key,created_at,updated_at) SELECT id,'azure-openai-responses','legacy-key',1,1 FROM users;
+      DELETE FROM schema_migrations WHERE id='033_pi_azure_provider';
+    `);
+    runMigrations(previous);
+    const model = previous.prepare("SELECT id FROM model_refs WHERE provider='azure' AND model_id='deployment'").get() as { id: string };
+    for (const [table, column] of [["sessions", "model_ref_id"], ["agents", "default_model_ref_id"], ["users", "fast_task_model_ref_id"], ["agent_tasks", "model_ref_id"]])
+      assert.equal((previous.prepare(`SELECT ${column} AS ref FROM ${table} LIMIT 1`).get() as { ref: string }).ref, model.id);
+    assert.deepEqual(previous.prepare("SELECT provider,api_key FROM provider_configs LIMIT 1").get(), { provider: "azure", api_key: "configured-key" });
+    assert.deepEqual(previous.prepare("SELECT provider,api_key FROM provider_keys LIMIT 1").get(), { provider: "azure", api_key: "legacy-key" });
+    runMigrations(previous);
+    assert.deepEqual(previous.pragma("foreign_key_check"), []);
+  } finally { previous.close(); }
+});
+
 test("all versioned migrations apply and remove legacy session tables", () => {
   const applied = sqlite.prepare("SELECT id FROM schema_migrations ORDER BY id").all() as Array<{ id: string }>;
-  assert.equal(applied.at(-1)?.id, "032_issue_queue");
+  assert.equal(applied.at(-1)?.id, "033_pi_azure_provider");
   const agentColumns = sqlite.pragma("table_info(agents)") as Array<{ name: string }>;
   assert.ok(!agentColumns.some(({ name }) => name === "enabled_extensions"));
 

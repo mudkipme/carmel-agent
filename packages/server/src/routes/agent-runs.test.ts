@@ -115,7 +115,7 @@ test("connection snapshots replace raw image data with the shared authenticated 
     {
       type: "image",
       mimeType: "image/png",
-      url: `/api/sessions/${fixture.sessionId}/images/${connection?.session.messageEntryIds[0]}/0`,
+      url: `/api/sessions/${fixture.sessionId}/images/${encodeURIComponent(connection!.session.messageEntryIds[0]!)}/0`,
     },
   ]);
   assert.doesNotMatch(JSON.stringify(connection), new RegExp(rawImageData));

@@ -1,15 +1,9 @@
-import { DEFAULT_COMPACTION_SETTINGS } from "@earendil-works/pi-agent-core";
+import { DEFAULT_COMPACTION_SETTINGS } from "./pi-durable/index.ts";
 
 /**
- * What Carmel tells the user about compaction, and the one thing it tells Pi.
- *
- * Pi 0.85 does the compacting: it checks the threshold at every checkpoint of a
- * run, and compacts and retries an overflowed generation once. What it does not
- * do is notice when compaction cannot help. Its predicate answers "is the
- * context over the threshold?", and for small windows the answer stays yes
- * after every summary -- so it pays for one per step, forever. Carmel detects
- * that configuration, switches Pi's threshold compaction off for it, and says
- * so; everything else here is wording for events Pi already emits.
+ * Pi Durable owns compaction. Carmel scales its defaults for small model
+ * windows and describes the native recovery and failure events to the user.
+ * Keep compaction enabled: Durable also uses that flag for overflow recovery.
  */
 
 export type CompactionSettings = {
@@ -21,6 +15,16 @@ export type CompactionSettings = {
 
 /** Use the same defaults as the harness that performs compaction. */
 export const PI_COMPACTION_SETTINGS: CompactionSettings = DEFAULT_COMPACTION_SETTINGS;
+
+/** Durable's enabled flag covers overflow recovery too; scale its policy for small model windows. */
+export function compactionSettingsForWindow(contextWindow: number) {
+  return {
+    ...DEFAULT_COMPACTION_SETTINGS,
+    reserveTokens: Math.min(DEFAULT_COMPACTION_SETTINGS.reserveTokens, Math.max(1, Math.floor(contextWindow / 4))),
+    keepRecentTokens: Math.min(DEFAULT_COMPACTION_SETTINGS.keepRecentTokens, Math.max(0, Math.floor(contextWindow / 3))),
+    backgroundTokens: Math.min(DEFAULT_COMPACTION_SETTINGS.backgroundTokens, Math.max(0, Math.floor(contextWindow / 10))),
+  };
+}
 
 export type ImpossibleReason = "window_below_reserve" | "retained_tail_exceeds_headroom";
 

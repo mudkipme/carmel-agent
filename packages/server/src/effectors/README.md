@@ -9,8 +9,8 @@ path.
 
 | Path | Rule |
 | --- | --- |
-| `contracts/` | What Carmel needs, named in Carmel's terms. No Pi imports, with one documented exception in `contracts/messages.ts`. |
-| `pi-0-99/` | Adapters onto the Pi we ship today. |
+| `contracts/` | Carmel's ports and shared message/tool types. Pi details are confined to their adapters. |
+| `pi-durable/` | Adapters onto Pi Durable's native harness, tools, and SQLite storage. |
 | `testing/` | Fakes, plus contract suites that any implementation must pass. |
 | `dispatch-prompt.ts` | Policy over a port. Pi-free by construction. |
 
@@ -25,10 +25,10 @@ by `reconcileLaneConfiguration` in the adapter.
 
 ## Porting to a new Pi
 
-1. Copy `pi-0-99/` to `pi-<version>/` and fix it until it compiles.
-2. Add a factory for it to `effectors.test.ts`. The existing contract suite runs
-   against it unchanged.
-3. Ship when it is green.
+1. Update `pi-durable/` against the pinned release's public APIs.
+2. Run the contracts in `effectors.test.ts` and the migration, recovery, and
+   streaming integration tests.
+3. Document storage or replay changes in [the migration guide](../../../../docs/pi-durable.md).
 
 The suite is the deliverable. A v2 adapter is not reviewed into correctness; it
 is pointed at `testing/session-log-contract.ts`, which either passes or names the
@@ -36,13 +36,10 @@ operation whose meaning changed.
 
 ## Compaction
 
-Pi 0.99 does all of it: it checks the threshold at every checkpoint of a run,
-and when a generation overflows it compacts and retries that generation once.
-Carmel compacts nothing itself. `compaction-policy.ts` covers the one thing Pi
-gets wrong, and the wording for what Pi reports.
-
-What Pi gets wrong: its `shouldCompact()` answers "is the context over the
-threshold?", not "will compacting help?". Two configurations separate those:
+Pi Durable owns threshold, background, and overflow compaction. Carmel compacts
+nothing itself. `compaction-policy.ts` scales Pi's reserve and retained history
+to the selected model's context window and supplies wording for Pi's events.
+Two configurations explain why small windows need scaled defaults:
 
 - **`window_below_reserve`** — the window is smaller than the 16,384 tokens
   reserved for summarization, so the threshold is negative and even an empty
@@ -52,11 +49,10 @@ threshold?", not "will compacting help?". Two configurations separate those:
   or below **36,384 tokens** is in this state -- most locally-served Ollama
   models given their real window.
 
-For either, the run opens its harness with threshold compaction disabled, so Pi
-stops paying for a summarization at every step that leaves the session over
-budget. Pi's overflow recovery ignores `enabled` and stays available. Before the
-prompt, the run warns (`context_pressure`) if such a session is already over
-budget.
+The reserve, retained tail, and background allowance are capped at a quarter,
+a third, and a tenth of the model window respectively. Compaction stays enabled:
+Durable's `enabled` flag controls overflow recovery as well as threshold checks.
+Preflight reporting uses the same settings as the native harness.
 
 `ContextReporter` (`runtime/agent-runtime.ts`) turns Pi's compaction events into
 what the user sees:
@@ -166,8 +162,8 @@ last user message -- so nothing else is needed there.
 
 Worth remembering when changing either: **every compaction is a full prefix
 invalidation**, since it rewrites the history. That is the link between the
-compaction work above and cache economics, and the reason disabling futile
-threshold compaction matters beyond saving a model call.
+compaction work above and cache economics, and the reason avoiding futile
+summaries matters beyond saving a model call.
 
 ## What is still on the far side of the seam
 

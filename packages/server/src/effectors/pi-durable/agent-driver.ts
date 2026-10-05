@@ -9,15 +9,14 @@ import {
   type ExecutionToolContext,
   type HarnessEvent,
   type HarnessEventType,
-} from "@earendil-works/pi-agent-core";
+} from "./index.ts";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { DriverResources, PromptDispatcher } from "../contracts/agent-driver.ts";
 import type { SessionLog } from "../contracts/session-log.ts";
 
 /**
- * The loop-facing half of the Pi 0.99 adapter: prompt dispatch, event
- * subscription, and lane configuration. `AgentHarness` keeps session-scoped
- * configuration; everything that drives a conversation lives on `AgentLane`.
+ * Prompt dispatch, wire-event subscription, and configuration of the selected
+ * Pi Durable conversation.
  */
 
 /** The session-scoped surface actually used, so a type error names what moved. */
@@ -26,7 +25,7 @@ export type PiHarness = Pick<AgentHarness<ExecutionToolContext>, "getResources" 
 /** The lane-scoped surface actually used. Everything that runs the loop is here now. */
 export type PiLane = Pick<AgentLane, "prompt" | "skill" | "promptFromTemplate">;
 
-/** The lane surface that carries per-run configuration, which 0.85 moved off the session tree. */
+/** The conversation configuration used by each Carmel run. */
 export type PiConfigLane = Pick<
   AgentLane,
   "getModel" | "setModel" | "getThinkingLevel" | "setThinkingLevel" | "getActiveTools" | "setActiveTools"
@@ -49,9 +48,7 @@ export function createPiPromptDispatcher({ harness, lane, context }: PiDispatche
     },
 
     async invokeSkill(name, instructions, images) {
-      // The native call takes text only, so an attachment forces the invocation
-      // to be inlined as a prompt instead. Pi's own formatter is used so the
-      // inlined form matches what `lane.skill` would have produced.
+      // Use the shared invocation formatter when an attachment accompanies the skill.
       if (images?.length) {
         const resources = await harness.getResources(context);
         const skill = resources.skills?.find((candidate) => candidate.name === name);
@@ -78,13 +75,13 @@ export function createPiPromptDispatcher({ harness, lane, context }: PiDispatche
 /**
  * The harness event types Carmel projects onto the wire.
  *
- * 0.85's event bus has no wildcard: `events.on` takes one type. Listing them is
- * the price, and the gain is that the run no longer receives -- and immediately
- * drops -- every config, usage, queue and lane event the harness emits.
+ * The adapter subscribes only to events the run needs, including its internal
+ * queue and compaction notifications.
  */
 const OBSERVED_EVENTS = [
   "message_start",
   "message_update",
+  "message_part",
   "message_end",
   "tool_start",
   "tool_update",
@@ -103,9 +100,7 @@ const OBSERVED_EVENTS = [
 /**
  * Subscribe to every harness event Carmel projects, as one handle.
  *
- * 0.85 replaced `harness.subscribe(fn)` with `events.on(type, fn)` and offers no
- * wildcard, so a caller that wants the stream has to name the types and unwind
- * a list of unsubscribes.
+ * One release handle covers every projected event type.
  */
 export function observeHarnessEvents(
   harness: PiHarness,
@@ -120,10 +115,8 @@ export function observeHarnessEvents(
 /**
  * Write the run configuration onto the lane where it differs.
  *
- * 0.85 moved model, thinking level and active tools out of the session tree and
- * onto lane state, so this is no longer an append. It still has to run: the
- * options handed to `AgentHarness.create` seed a *new* lane, but a restored one
- * keeps whatever it was last configured with and ignores them.
+ * Restored conversations retain their saved choices until the application
+ * reconciles the current model, thinking level, and permitted tools.
  */
 export async function reconcileLaneConfiguration(
   lane: PiConfigLane,

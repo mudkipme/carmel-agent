@@ -1,4 +1,4 @@
-import type { HarnessEvent } from "@earendil-works/pi-agent-core";
+import type { HarnessEvent } from "../effectors/pi-durable/index.ts";
 import {
   isContextOverflow,
   isRetryableAssistantError,
@@ -76,6 +76,8 @@ export function projectRunEvent(event: HarnessEvent, contextWindow?: number): Ag
       return event.message.role === "assistant" ? { type: "message_start", message: event.message } : undefined;
     case "message_update":
       return projectMessageUpdate(event.event);
+    case "message_part":
+      return { ...event, part: event.part.type === "toolCall" ? toolCallPart(event.part, event.part.arguments) : event.part };
     case "message_end":
       return { type: "message_end", message: event.message };
     case "tool_start":

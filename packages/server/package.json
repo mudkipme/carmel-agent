@@ -16,12 +16,13 @@
   },
   "dependencies": {
     "@carmel-agent/shared": "workspace:*",
-    "@earendil-works/pi-agent-core": "^0.99.1",
-    "@earendil-works/pi-ai": "^0.99.1",
-    "@earendil-works/pi-codemode": "^0.99.1",
-    "@earendil-works/pi-coding-agent": "^0.99.1",
-    "@earendil-works/pi-mcp": "^0.99.1",
-    "@earendil-works/pi-session-backend-sqlite-node": "^0.99.1",
+    "@earendil-works/chord": "1.0.3",
+    "@earendil-works/pi-agent-core": "1.0.3",
+    "@earendil-works/pi-ai": "1.0.3",
+    "@earendil-works/pi-codemode": "1.0.3",
+    "@earendil-works/pi-coding-agent": "1.0.3",
+    "@earendil-works/pi-durable": "1.0.3",
+    "@earendil-works/pi-mcp": "1.0.3",
     "@hono/node-server": "^2.0.3",
     "@hono/zod-validator": "^0.8.0",
     "better-sqlite3": "^12.11.1",
@@ -32,7 +33,8 @@
     "linkedom": "^0.18.13",
     "openid-client": "^6.8.8",
     "ws": "^8.21.3",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "yaml": "^2.8.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
@@ -40,7 +42,6 @@
     "@types/ws": "^8.18.1",
     "ajv": "^8.17.1",
     "tsx": "^4.22.3",
-    "typescript": "^7.0.2",
-    "yaml": "^2.8.1"
+    "typescript": "^7.0.2"
   }
 }

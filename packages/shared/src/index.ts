@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { ImageContent, TextContent, ToolCall } from "@earendil-works/pi-ai";
+import type { ImageContent, TextContent, ThinkingContent, ToolCall } from "@earendil-works/pi-ai";
 import type { AgentMcpServer, AgentMount, AgentPermissions, AgentThinkingLevel, CodemodeCallInfo, PromptTemplate } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
 export type { BrowserControlState, BrowserTab, BrowserFrame, BrowserClientMessage, BrowserServerMessage } from "./browser.ts";
@@ -132,7 +132,7 @@ export type AgentRunEvent =
   /** Append `delta` to the `text`/`thinking` of the content part at `contentIndex`. */
   | { type: "message_delta"; contentIndex: number; field: "text" | "thinking"; delta: string }
   /** Replace the whole content part at `contentIndex`. Tool calls arrive this way, not as deltas. */
-  | { type: "message_part"; contentIndex: number; part: ToolCall }
+  | { type: "message_part"; contentIndex: number; part: TextContent | ThinkingContent | ToolCall }
   | { type: "message_end"; message: AgentMessage }
   | { type: "tool_execution_start"; toolCallId: string; toolName: string }
   | { type: "tool_execution_end"; toolCallId: string; toolName: string; isError: boolean }

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import type { AgentMcpServer } from "@carmel-agent/shared";
-import type { AgentHarnessTool, ExecutionToolContext, JsonValue } from "@earendil-works/pi-agent-core";
+import type { AgentHarnessTool, ExecutionToolContext, JsonValue } from "../effectors/pi-durable/index.ts";
 import {
   McpClient,
   StreamableHttpTransport,

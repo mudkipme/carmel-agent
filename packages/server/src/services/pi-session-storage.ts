@@ -1,458 +1,234 @@
-import {
-  BACKGROUND_CONTEXT,
-  branchTip,
-  insertEntry,
-  setValue,
-  type AgentLane,
-  type AgentMessage,
-  type Branch,
-  type Context,
-  type Entry,
-  type NewEntry,
-  type Session,
-  type Write,
-} from "@earendil-works/pi-agent-core";
-import {
-  createNodeSqliteFactory,
-  SQLITE_STORAGE_VERSION,
-  SqliteSessionRepo,
-} from "@earendil-works/pi-session-backend-sqlite-node";
-import { mkdtempSync } from "node:fs";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import type { Context, JsonValue } from "@earendil-works/chord";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import { createModels, type Models, type Message } from "@earendil-works/pi-ai";
+import { AgentDoc, defineDoc, Harness, LiveDoc, createRegistry, type Conversation, type ConversationId, type Cursor, type EntryDraft, type EntryId, type EntryRecord, type HarnessSettings, type Registry, type Tx } from "@earendil-works/pi-durable";
+import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import { dataDir } from "../paths.ts";
+import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
+import { migrateLegacyPiSession } from "./pi-session-migration.ts";
 
-type SessionRecord = typeof sessions.$inferSelect;
-
-/**
- * Derived rather than imported: 0.85 moved this type into `sqlite/session/`
- * without re-exporting it, and the package publishes only its root entrypoint,
- * so the repo's own signature is the only place it is reachable from.
- */
-type SqliteSessionMetadata = Parameters<SqliteSessionRepo["open"]>[0];
-
-/**
- * The branch every Carmel conversation lives on.
- *
- * Pi 0.85 has no default: `harness.lane(name)` creates the branch tip on first
- * acquisition under whatever name it is given, and this module has to read and
- * move the same one. Both sides read this constant so they cannot drift.
- */
+const ctx = BACKGROUND_CONTEXT;
 export const PI_MAIN_BRANCH = "main";
-
-/**
- * Pi 0.85 threads a `Context` (abort signal + telemetry parent) through every
- * storage call. Nothing in this module is cancellable -- these are short local
- * SQLite operations, and abandoning one half-way buys nothing -- so they all run
- * on the background context. The run path builds its own cancellable context.
- */
-const ctx: Context = BACKGROUND_CONTEXT;
-
-const piDatabasePath = resolvePiDatabasePath();
-const piSessionRepo = new SqliteSessionRepo({
-  directory: dataDir,
-  databasePath: piDatabasePath,
-  databaseFactory: createNodeSqliteFactory(),
-});
-const creationPromises = new Map<string, Promise<void>>();
-
-type PiSession = Awaited<ReturnType<SqliteSessionRepo["open"]>>;
-/** The lane surface a live run registers so reads can follow it. */
-export type PiSessionLane = Pick<AgentLane, "watch" | "findEntries">;
-
-/**
- * Entry id given to the assistant message a lane is still streaming.
- *
- * It is not a real entry: 0.85 keeps an in-flight reply as operation state and
- * only commits it when the turn settles. Prefixed so nothing downstream mistakes
- * it for something it can edit, fork or navigate to.
- */
 export const PENDING_ENTRY_ID_PREFIX = "pending:";
-
-type SessionLease = { session: PiSession; holders: number; lane?: PiSessionLane };
-
-/**
- * Open sessions, by id, with a holder count.
- *
- * 0.85 made a session exclusive: `SqliteSessionRepo` refuses to open one that is
- * already open ("Session is already open: <id>"), where 0.83 handed out
- * independent handles. Carmel legitimately reaches the same session twice --
- * an HTTP read of the transcript while a run holds it, most obviously -- so the
- * second caller shares the first one's handle and the session closes when the
- * last holder lets go.
- *
- * Two maps rather than one: `opening` lets a concurrent opener wait for the
- * handle instead of racing the exclusivity check, while `leases` is resolved
- * and synchronous so releasing never has to await an open. That matters,
- * because provisioning a new session opens and closes a handle of its own from
- * inside the very open the second caller would be waiting on -- awaiting there
- * deadlocks the first use of every new session.
- */
+export const ActiveConversation = defineDoc({ kind: "carmel.active", version: 1, scope: "session", initial: () => ({ id: 0, legacyIds: {} as Record<string, number>, migrated: false as boolean }) });
+export type DisplayEntry = { id: string; parentId: string | null; seq: number; timestamp: number } & ({ type: "message"; message: AgentMessage } | { type: "other"; native: EntryRecord });
+export type PiSession = {
+  metadata: { id: string };
+  native: Harness;
+  registry: Registry;
+  settings: HarnessSettings;
+  models: Models;
+  env?: ExecutionEnv;
+  conversation: Conversation;
+  path: string;
+  findEntries(query: { type?: string }, context: Context): Promise<DisplayEntry[]>;
+};
+const basePath = resolvePiDatabasePath();
+const directory = `${basePath}.durable`;
+mkdirSync(directory, { recursive: true, mode: 0o700 });
+const leases = new Map<string, { session: PiSession; holders: number }>();
 const opening = new Map<string, Promise<PiSession>>();
-const leases = new Map<string, SessionLease>();
+const closing = new Map<string, Promise<void>>();
+export function durableSessionPath(id: string) { return join(directory, `${createHash("sha256").update(id).digest("hex")}.sqlite`); }
 
-/** Open an existing Pi-native session, provisioning new Carmel sessions on first use. */
 export async function openPiSession(sessionId: string): Promise<PiSession> {
+  if (closing.has(sessionId)) await closing.get(sessionId);
   const held = leases.get(sessionId);
-  if (held) {
-    held.holders += 1;
-    return held.session;
-  }
-
-  const inFlight = opening.get(sessionId);
-  if (inFlight) {
-    await inFlight;
-    return openPiSession(sessionId);
-  }
-
-  const attempt = openNativeSession(sessionId);
+  if (held) { held.holders++; return held.session; }
+  if (opening.has(sessionId)) { await opening.get(sessionId); return openPiSession(sessionId); }
+  if (!db.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, sessionId)).get()) throw new SessionEntryNotFoundError(`session ${sessionId}`);
+  const attempt = openNative(sessionId);
   opening.set(sessionId, attempt);
+  try { const session = await attempt; leases.set(sessionId, { session, holders: 1 }); return session; }
+  finally { opening.delete(sessionId); }
+}
+async function openNative(id: string): Promise<PiSession> {
+  const path = durableSessionPath(id);
+  const registry = createRegistry();
+  const state = { models: createModels() as Models, settings: {} as HarnessSettings, env: undefined as ExecutionEnv | undefined };
+  // A run installs its credentials and registry before starting native scheduling.
+  const models = new Proxy(state.models, { get(_target, key) { const value = Reflect.get(state.models, key, state.models); return typeof value === "function" ? value.bind(state.models) : value; } });
+  const settings = new Proxy({} as HarnessSettings, { get(_target, key) { return Reflect.get(state.settings, key); } });
+  const native = await Harness.open(await openNodeSqliteStorage(path), { models, registry, settings, env: () => state.env }, ctx);
   try {
-    const session = await attempt;
-    leases.set(sessionId, { session, holders: 1 });
+    const root = await native.root(ctx);
+    const session: PiSession = {
+      metadata: { id }, native, registry, conversation: root, path,
+      get models() { return state.models; }, set models(value) { state.models = value; },
+      get settings() { return state.settings; }, set settings(value) { state.settings = value; },
+      get env() { return state.env; }, set env(value) { state.env = value; },
+      async findEntries(query) {
+        const entries = new Map<number, EntryRecord>();
+        await native.commit(async tx => {
+          let cursor: Cursor | undefined;
+          do {
+            const page = await tx.scanConversations({}, 100, cursor);
+            for (const conversation of page.items) for (const entry of await scanEntries(tx, conversation.id)) entries.set(entry.id, entry);
+            cursor = page.next;
+          } while (cursor);
+        }, ctx);
+        return displayEntries([...entries.values()].sort((a,b) => a.id-b.id)).filter(e => !query.type || e.type === query.type);
+      },
+    };
+    const active = await native.snapshot(ActiveConversation, ctx);
+    if (!active?.migrated) await migrateLegacyPiSession(session, basePath);
+    const saved = await native.snapshot(ActiveConversation, ctx);
+    session.conversation = saved?.id ? (await native.conversation(saved.id as ConversationId, ctx))! : root;
     return session;
-  } finally {
-    opening.delete(sessionId);
-  }
+  } catch (error) { await native.close(ctx); throw error; }
 }
-
-async function openNativeSession(sessionId: string): Promise<PiSession> {
-  const record = readSessionRecord(sessionId);
-  const metadata = nativeMetadata(record);
-  try {
-    return await piSessionRepo.open(metadata, ctx);
-  } catch (error) {
-    if (!isSessionMissing(error)) throw error;
-  }
-
-  await createNativeSession(record);
-  return piSessionRepo.open(metadata, ctx);
-}
-
-/** Release one holder's claim. The session closes when the last one lets go. */
-export async function closePiSession(session: Session) {
-  const sessionId = session.metadata.id;
-  const lease = leases.get(sessionId);
-  if (lease?.session !== session) {
-    // A handle this module never leased out -- a fork's, or the short-lived one
-    // provisioning opens -- so it is this caller's to close outright.
-    await session.close(ctx);
-    return;
-  }
-  lease.holders -= 1;
-  if (lease.holders > 0) return;
-  leases.delete(sessionId);
-  await lease.session.close(ctx);
-}
-
-export async function withPiSession<T>(
-  sessionId: string,
-  operation: (session: Session<SqliteSessionMetadata>) => Promise<T>,
-) {
-  const session = await openPiSession(sessionId);
-  try {
-    return await operation(session);
-  } finally {
-    await closePiSession(session);
-  }
-}
-
-/**
- * Fork a session so the copy's conversation ends at `entryId`.
- *
- * Copies the whole tree and then re-points the branch, rather than asking for
- * 0.85's `scope: "branch"` fork, which does exactly this in one step but refuses
- * any branch that is not a *configured lane*. Carmel creates branches without
- * lanes all the time -- an imported transcript, or any session written to before
- * it has ever run -- and those must stay forkable. A tree fork preserves entry
- * ids, so re-pointing the tip afterwards lands on the same entry the caller
- * named. The cost is that sibling branches come along; the visible transcript is
- * identical either way.
- *
- * `parentSessionId` is no longer a fork input: 0.85 sets it from the source.
- * Carmel's own `forked_from` column stays the record of who forked what.
- */
-export async function forkPiSession(sourceSessionId: string, targetSessionId: string, entryId: string) {
-  const source = readSessionRecord(sourceSessionId);
-  await ensureNativeSession(source);
-  const fork = await piSessionRepo.fork(nativeMetadata(source), { scope: "tree", id: targetSessionId }, ctx);
-  try {
-    const entry = await fork.getEntry(entryId, ctx);
-    if (!entry) throw new SessionEntryNotFoundError(entryId);
-    await fork.setValue(branchTip(PI_MAIN_BRANCH), entryId, ctx);
-  } finally {
-    await closePiSession(fork);
-  }
-}
-
-export async function deletePiSession(session: SessionRecord) {
-  try {
-    await piSessionRepo.delete(nativeMetadata(session), ctx);
-  } catch (error) {
-    if (!isSessionMissing(error)) throw error;
-  }
-}
-
-export async function deletePiSessions(records: SessionRecord[]) {
-  for (const record of records) await deletePiSession(record);
-}
-
-export async function replacePiSessionMessages(sessionId: string, messages: AgentMessage[]) {
-  await withPiSession(sessionId, async (session) => {
-    const branch = await resetBranch(session);
-    for (const message of messages) await branch.appendMessage(message, ctx);
-  });
-}
-
-/** One message entry by id, wherever it sits in the session tree. */
-export async function readPiSessionMessageEntry(sessionId: string, entryId: string): Promise<AgentMessage | undefined> {
-  return withPiSession(sessionId, async (session) => {
-    const entry = await session.getEntry(entryId, ctx);
-    return entry?.type === "message" ? entry.message : undefined;
-  });
-}
-
-export async function movePiSessionToEntry(sessionId: string, entryId: string) {
-  await withPiSession(sessionId, async (session) => {
-    const entry = await session.getEntry(entryId, ctx);
-    if (!entry || entry.type !== "message") throw new SessionEntryNotFoundError(entryId);
-    await session.setValue(branchTip(PI_MAIN_BRANCH), entryId, ctx);
-  });
-}
-
-/**
- * Replace one immutable message entry by creating a sibling branch. When the
- * edit is non-truncating, clone the remaining entries onto that branch,
- * remapping all entry-ID references instead of flattening them to messages.
- *
- * The whole rewrite is one commit. Pi 0.85 replaced direct storage appends with
- * a transactional mutation line, which turns what used to be a loop of
- * individually-visible appends into a single atomic branch swap: a crash midway
- * can no longer leave a half-cloned branch behind.
- */
-export async function rewritePiSessionMessage(
-  sessionId: string,
-  entryId: string,
-  message: AgentMessage,
-  truncate: boolean,
-) {
-  return withPiSession(sessionId, async (session) => {
-    const branch = await requireBranch(session);
-    const entries = await branch.findEntries({ order: "oldestFirst" }, ctx);
-    const targetIndex = entries.findIndex((entry) => entry.id === entryId);
-    const target = entries[targetIndex];
-    if (!target || target.type !== "message") throw new SessionEntryNotFoundError(entryId);
-
-    const replacementId = session.idGenerator.next();
-    const writes: Write[] = [
-      insertEntry({ id: replacementId, parentId: target.parentId, type: "message", message }),
-    ];
-
-    let tipId = replacementId;
-    if (!truncate) {
-      const remappedIds = new Map([[target.id, replacementId]]);
-      for (const entry of entries.slice(targetIndex + 1)) {
-        const clone = cloneEntry(entry, session.idGenerator.next(), tipId, remappedIds);
-        writes.push(insertEntry(clone));
-        remappedIds.set(entry.id, clone.id);
-        tipId = clone.id;
-      }
-    }
-
-    writes.push(setValue(branchTip(PI_MAIN_BRANCH), tipId));
-    await session.mutate((mutator) => mutator.commit(writes, ctx), ctx);
-    return replacementId;
-  });
-}
-
-/**
- * Copy one entry onto a new parent.
- *
- * Only `branch_summary.fromId` still needs remapping. Pi 0.85 dropped the
- * `leaf` and `label` entry types -- branch tips are stored values now, and
- * labels are `session.setLabel` -- and `compaction` no longer carries
- * `firstKeptEntryId`, so those three remaps went away with them.
- */
-function cloneEntry(entry: Entry, id: string, parentId: string, remappedIds: Map<string, string>): NewEntry {
-  const { seq: _seq, timestamp: _timestamp, ...rest } = entry;
-  const clone = structuredClone(rest) as NewEntry;
-  clone.id = id;
-  clone.parentId = parentId;
-  if (clone.type === "branch_summary") {
-    clone.fromId = clone.fromId === null ? null : (remappedIds.get(clone.fromId) ?? clone.fromId);
-  }
-  return clone;
-}
-
-/**
- * Register the lane a run is driving, so reads of this session follow it.
- *
- * Necessary because 0.85 does not write the stored branch tip per message: a
- * lane advances a tip it holds in memory and only publishes it at operation
- * boundaries. Anything reading the branch from the stored value -- an HTTP
- * transcript fetch during a run, most of all -- would see the session as it was
- * when the turn started. Returns the deregistration handle.
- */
-export function registerPiSessionLane(session: Session, lane: PiSessionLane): () => void {
+export async function closePiSession(session: PiSession) {
   const lease = leases.get(session.metadata.id);
-  if (lease?.session !== session) return () => {};
-  lease.lane = lane;
-  return () => {
-    if (lease.lane === lane) lease.lane = undefined;
-  };
+  if (!lease || lease.session !== session) return;
+  if (--lease.holders > 0) return;
+  leases.delete(session.metadata.id);
+  const closed = session.native.close(ctx);
+  closing.set(session.metadata.id, closed);
+  try { await closed; } finally { closing.delete(session.metadata.id); }
 }
-
-/**
- * Read the conversation branch in transcript order.
- *
- * `session.getBranch()` is gone in 0.85: traversal moved onto a named `Branch`
- * whose scans default to `newestFirst`. Callers all want oldest-first, and a
- * session with no branch yet reads as empty rather than throwing.
- *
- * Prefers a registered lane, which is the only view that is current mid-run.
- */
-export async function readPiSessionBranch(session: Session): Promise<Entry[]> {
-  const lane = leases.get(session.metadata.id)?.lane;
-  if (lane) return readLaneTranscript(lane);
-  const branch = await session.branch(PI_MAIN_BRANCH, ctx);
-  if (!branch) return [];
-  return branch.findEntries({ order: "oldestFirst" }, ctx);
+export async function withPiSession<T>(sessionId: string, operation: (session: PiSession) => Promise<T>) {
+  const session = await openPiSession(sessionId);
+  try { return await operation(session); } finally { await closePiSession(session); }
 }
-
-/**
- * The live view of a lane: its committed transcript plus the reply in progress.
- *
- * A lane snapshot is the only complete answer while a turn is running. The
- * branch alone is not: 0.85 keeps the streaming assistant message in operation
- * state and commits it when the turn settles, so a client reconnecting mid-turn
- * would otherwise be handed a transcript that stops at its own prompt and stays
- * there until the reply finishes.
- */
-async function readLaneTranscript(lane: PiSessionLane): Promise<Entry[]> {
-  // The committed branch comes from the lane's own scan, not from the snapshot:
-  // `LaneSnapshot.transcript` is the model-facing window, which compaction can
-  // cut, and callers here want the whole conversation.
-  const committed = await lane.findEntries({ order: "oldestFirst" }, ctx);
-  const handle = await lane.watch(ctx);
-  let streaming;
-  let operationId;
-  try {
-    streaming = handle.snapshot.operation?.streamingMessage;
-    operationId = handle.snapshot.operation?.id;
-  } finally {
-    handle.unsubscribe();
-  }
-  if (!streaming) return committed;
-  const tip = committed.at(-1);
-  return [
-    ...committed,
-    {
-      id: `${PENDING_ENTRY_ID_PREFIX}${operationId ?? "run"}`,
-      parentId: tip?.id ?? null,
-      seq: (tip?.seq ?? 0) + 1,
-      timestamp: Date.now(),
-      type: "message",
-      message: streaming,
-    },
-  ];
+export async function scanEntries(tx: Tx, id: ConversationId): Promise<EntryRecord[]> {
+  const entries: EntryRecord[] = []; let cursor: Cursor | undefined;
+  do { const page = await tx.scanEntries({ conversationId: id }, 500, cursor); entries.push(...page.items); cursor = page.next; } while (cursor);
+  return entries.reverse();
 }
-
-/** The conversation branch, which must already exist for there to be anything to rewrite. */
-async function requireBranch(session: Session): Promise<Branch> {
-  const branch = await session.branch(PI_MAIN_BRANCH, ctx);
-  if (!branch) throw new SessionEntryNotFoundError(`branch ${PI_MAIN_BRANCH}`);
-  return branch;
+export function displayId(entry: EntryRecord): string {
+  const data = entry.data as { carmelEntryId?: string } | undefined;
+  return data?.carmelEntryId ?? `durable:${entry.id}`;
 }
-
-/** Point the conversation branch back at the root, creating it if this session has none yet. */
-async function resetBranch(session: Session): Promise<Branch> {
-  const branch = await session.branch(PI_MAIN_BRANCH, ctx);
-  if (!branch) return session.createBranch(PI_MAIN_BRANCH, null, ctx);
-  await session.setValue(branchTip(PI_MAIN_BRANCH), null, ctx);
-  return branch;
+export function displayEntries(entries: readonly EntryRecord[]): DisplayEntry[] {
+  return entries.map((entry, index) => {
+    const data = entry.data as { carmelMessage?: AgentMessage; timestamp?: number; legacy?: { type: string } } | undefined;
+    const message = data?.carmelMessage ?? ((!data?.legacy || data.legacy.type === "message") && entry.kind !== "pi.compaction" && entry.kind !== "pi.system" && entry.kind !== "pi.reset" ? entry.model?.[0] : undefined);
+    const base = { id: displayId(entry), parentId: index ? displayId(entries[index - 1]!) : null, seq: entry.id, timestamp: Number(data?.timestamp ?? (message && "timestamp" in message ? message.timestamp : 0)) };
+    return message ? { ...base, type: "message", message: message as AgentMessage } : { ...base, type: "other", native: entry };
+  });
 }
-
-export class SessionEntryNotFoundError extends Error {
-  constructor(what: string) {
-    super(`Message entry ${what} not found`);
-    this.name = "SessionEntryNotFoundError";
-  }
+export function messageDraft(message: AgentMessage): EntryDraft {
+  const safe = JSON.parse(JSON.stringify(message)) as AgentMessage;
+  return ["user", "assistant", "toolResult", "system"].includes(safe.role)
+    ? { kind: safe.role === "system" ? "carmel.system-message" : `pi.${safe.role === "toolResult" ? "tool-result" : safe.role}`, model: [safe as Message] }
+    : { kind: "carmel.message", data: { carmelMessage: safe as unknown as JsonValue } };
 }
-
-async function createNativeSession(record: SessionRecord) {
-  const existing = creationPromises.get(record.id);
-  if (existing) return existing;
-  const creation = createNativeSessionOnce(record).finally(() => creationPromises.delete(record.id));
-  creationPromises.set(record.id, creation);
-  return creation;
+export async function resolveEntryId(session: PiSession, id: string): Promise<EntryId> {
+  const legacy = (await session.native.snapshot(ActiveConversation, ctx))?.legacyIds[id];
+  const number = legacy ?? (/^durable:\d+$/.test(id) ? Number(id.slice(8)) : NaN);
+  if (!Number.isSafeInteger(number)) throw new SessionEntryNotFoundError(id);
+  return number as EntryId;
 }
-
-async function createNativeSessionOnce(record: SessionRecord) {
-  const created = await piSessionRepo.create(
-    { id: record.id, ...(record.forkedFrom ? { parentSessionId: record.forkedFrom.sessionId } : {}) },
-    ctx,
-  );
-  await closePiSession(created);
+export async function readPiSessionBranch(session: PiSession): Promise<DisplayEntry[]> {
+  // Read history and progress on one serialized commit line, preventing reconnect gaps.
+  const { entries, live } = await session.conversation.commit(async tx => {
+    const entries = await scanEntries(tx, session.conversation.id);
+    const live = JSON.parse(JSON.stringify(await tx.doc(LiveDoc, session.conversation.id))) as import("@earendil-works/pi-durable").LiveState;
+    return { entries, live };
+  }, ctx);
+  const displayed = displayEntries(entries);
+  const partial = live?.generation?.message;
+  if (partial) displayed.push({ id: `${PENDING_ENTRY_ID_PREFIX}${live.run?.taskId ?? session.conversation.id}`, parentId: displayed.at(-1)?.id ?? null, seq: (displayed.at(-1)?.seq ?? 0)+1, timestamp: partial.timestamp, type: "message", message: partial as unknown as AgentMessage });
+  return displayed;
 }
-
-async function ensureNativeSession(record: SessionRecord) {
-  try {
-    const existing = await piSessionRepo.open(nativeMetadata(record), ctx);
-    await closePiSession(existing);
-  } catch (error) {
-    if (!isSessionMissing(error)) throw error;
-    await createNativeSession(record);
-  }
+export async function appendPiMessage(session: PiSession, message: AgentMessage) {
+  return displayId(await session.conversation.commit(tx => tx.appendEntry(session.conversation.id, messageDraft(message)), ctx));
 }
-
-function readSessionRecord(sessionId: string) {
-  const record = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-  if (!record) throw new SessionEntryNotFoundError(`session ${sessionId}`);
-  return record;
+export async function navigatePiSession(session: PiSession, id: string | null) {
+  const entryId = id === null ? undefined : await resolveEntryId(session, id);
+  const agent = await session.native.snapshot(AgentDoc, session.conversation.id, ctx);
+  const conversationId = await session.native.commit(async tx => {
+    const entry = entryId === undefined ? undefined : await tx.entry(entryId);
+    if (entryId !== undefined && !entry) throw new SessionEntryNotFoundError(id!);
+    const next = entry ? await tx.forkConversation(entry.conversationId, entry.id, { ownership: { kind: "ownerless" } }) : await tx.createConversation({ ownership: { kind: "ownerless" } });
+    if (agent) Object.assign(await tx.doc(AgentDoc, next.id), structuredClone(agent));
+    (await tx.doc(ActiveConversation)).id = next.id;
+    return next.id;
+  }, ctx);
+  session.conversation = (await session.native.conversation(conversationId, ctx))!;
 }
-
-/**
- * Metadata is now an address, not a payload.
- *
- * 0.85 dropped `cwd` and the application-metadata bag from session metadata;
- * `open`/`delete` re-read the authoritative row from SQLite anyway, so only
- * `id` and `path` decide which session is reached. Carmel's `sessions` table
- * remains the only home for `userId`/`agentId`.
- */
-function nativeMetadata(record: SessionRecord): SqliteSessionMetadata {
-  return {
-    id: record.id,
-    createdAt: record.createdAt,
-    storageVersion: SQLITE_STORAGE_VERSION,
-    ...(record.forkedFrom ? { parentSessionId: record.forkedFrom.sessionId } : {}),
-    path: piDatabasePath,
-  };
+export async function replacePiSessionMessages(sessionId: string, messages: AgentMessage[]) {
+  await withPiSession(sessionId, async session => {
+    await navigatePiSession(session, null);
+    await session.conversation.commit(async tx => { for (const message of messages) await tx.appendEntry(session.conversation.id, messageDraft(message)); }, ctx);
+  });
 }
-
-/**
- * Whether an error means "this session was never provisioned".
- *
- * 0.85 removed `SessionError` and its `not_found` code without replacing them:
- * the SQLite backend throws a bare `Error` for an absent row, so the message is
- * the only signal left. Matching it is brittle by construction -- if a Pi
- * upgrade reworks this text, sessions silently get re-provisioned instead of
- * failing loudly -- so keep it in one place and revisit when Pi reintroduces
- * coded session errors.
- */
-function isSessionMissing(error: unknown) {
-  if (!(error instanceof Error)) return false;
-  if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
-  return /Unknown SQLite session/i.test(error.message);
+export async function readPiSessionMessageEntry(sessionId: string, id: string) {
+  return withPiSession(sessionId, async session => {
+    let nativeId: EntryId;
+    try { nativeId = await resolveEntryId(session, id); } catch (error) { if (error instanceof SessionEntryNotFoundError) return undefined; throw error; }
+    const entry = await session.native.commit(tx => tx.entry(nativeId), ctx);
+    const display = entry && displayEntries([entry])[0];
+    return display?.type === "message" ? display.message : undefined;
+  });
 }
-
+export async function movePiSessionToEntry(sessionId: string, id: string) { return withPiSession(sessionId, session => navigatePiSession(session, id)); }
+export async function rewritePiSessionMessage(sessionId: string, id: string, message: AgentMessage, truncate: boolean) {
+  return withPiSession(sessionId, async session => {
+    const targetId = await resolveEntryId(session, id);
+    const agent = await session.native.snapshot(AgentDoc, session.conversation.id, ctx);
+    const result = await session.native.commit(async tx => {
+      const entries = await scanEntries(tx, session.conversation.id);
+      const index = entries.findIndex(e => e.id === targetId);
+      if (index < 0 || displayEntries([entries[index]!])[0]?.type !== "message") throw new SessionEntryNotFoundError(id);
+      const next = index ? await tx.forkConversation(session.conversation.id, entries[index-1]!.id, { ownership: { kind: "ownerless" } }) : await tx.createConversation({ ownership: { kind: "ownerless" } });
+      if (agent) Object.assign(await tx.doc(AgentDoc, next.id), structuredClone(agent));
+      const replacement = await tx.appendEntry(next.id, messageDraft(message));
+      const remaps = new Map<number, EntryId>([[targetId, replacement.id]]);
+      if (!truncate) for (const entry of entries.slice(index + 1)) {
+        const { id: oldId, conversationId: _conversation, byTaskId: _task, ...draft } = entry;
+        let copy: EntryDraft = { ...draft, ...(draft.head ? { head: remaps.get(draft.head) ?? draft.head } : {}), ...(draft.edits ? { edits: draft.edits.map(edit => ({ ...edit, target: remaps.get(edit.target) ?? edit.target })) } : {}) };
+        if (copy.data && typeof copy.data === "object" && !Array.isArray(copy.data)) {
+          const { carmelEntryId: _oldDisplayId, ...data } = copy.data;
+          copy = { ...copy, data };
+        }
+        const appended = await tx.appendEntry(next.id, copy); remaps.set(oldId, appended.id);
+      }
+      (await tx.doc(ActiveConversation)).id = next.id;
+      return { conversation: next.id, entry: displayId(replacement) };
+    }, ctx);
+    session.conversation = (await session.native.conversation(result.conversation, ctx))!;
+    return result.entry;
+  });
+}
+export async function forkPiSession(sourceId: string, targetId: string, id: string) {
+  await withPiSession(sourceId, async source => {
+    await resolveEntryId(source, id);
+    const work = await source.native.inspect(ctx);
+    if (work.tasks.length || work.submissions.length) throw new Error("Resume or stop pending Durable work before forking this session.");
+    const targetPath = durableSessionPath(targetId);
+    if (existsSync(targetPath)) throw new Error("Fork target storage already exists.");
+    // SQLite makes a consistent snapshot including WAL; copying the file cannot do that.
+    const snapshot = new Database(source.path);
+    try { snapshot.prepare("VACUUM INTO ?").run(targetPath); } finally { snapshot.close(); }
+    try { await withPiSession(targetId, target => navigatePiSession(target, id)); }
+    catch (error) { rmSync(targetPath, { force: true }); throw error; }
+  });
+}
+export async function hasPendingPiSessionWork(sessionId: string) {
+  return withPiSession(sessionId, async session => {
+    const work = await session.native.inspect(ctx);
+    return Boolean(work.tasks.length || work.submissions.length);
+  });
+}
+export async function deletePiSession(session: typeof sessions.$inferSelect) {
+  if (leases.has(session.id)) throw new Error("Cannot delete an open Pi session.");
+  for (const suffix of ["", "-wal", "-shm"]) rmSync(`${durableSessionPath(session.id)}${suffix}`, { force: true });
+}
+export async function deletePiSessions(records: Array<typeof sessions.$inferSelect>) { for (const record of records) await deletePiSession(record); }
+export class SessionEntryNotFoundError extends Error { constructor(id: string) { super(`Message entry ${id} not found`); this.name = "SessionEntryNotFoundError"; } }
 function resolvePiDatabasePath() {
   const configured = process.env.CARMEL_PI_SESSION_DATABASE_URL;
   if (configured && configured !== ":memory:") return resolve(configured.replace(/^file:/, ""));
-  if (process.env.DATABASE_URL === ":memory:" || configured === ":memory:") {
-    return join(mkdtempSync(join(tmpdir(), "carmel-pi-sessions-")), "sessions.sqlite");
-  }
+  if (process.env.DATABASE_URL === ":memory:" || configured === ":memory:") return join(mkdtempSync(join(tmpdir(), "carmel-pi-sessions-")), "sessions.sqlite");
   return join(dataDir, "pi-sessions.sqlite");
 }

@@ -1,5 +1,5 @@
-import { BACKGROUND_CONTEXT, formatSkillInvocation, loadSkills, type AgentHarnessTool, type ExecutionToolContext, type Skill } from "@earendil-works/pi-agent-core";
-import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
+import { BACKGROUND_CONTEXT, formatSkillInvocation, loadSkills, type AgentHarnessTool, type ExecutionToolContext, type Skill } from "../effectors/pi-durable/index.ts";
+import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { fileURLToPath } from "node:url";
 import type { AgentPermissions } from "@carmel-agent/shared";
 

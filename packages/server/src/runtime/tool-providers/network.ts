@@ -1,4 +1,4 @@
-import type { AgentHarnessTool, ExecutionToolContext } from "@earendil-works/pi-agent-core";
+import type { AgentHarnessTool, ExecutionToolContext } from "../../effectors/pi-durable/index.ts";
 import type { ProvidedTool, ToolProvider } from "../../effectors/contracts/tool-provider.ts";
 import { extractArticleMarkdown, looksLikeHtml } from "./web-markdown.ts";
 

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { GitChangeArea } from "@carmel-agent/shared";
-import { BACKGROUND_CONTEXT } from "@earendil-works/pi-agent-core";
+import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
 import type { AuthVariables } from "../auth.ts";
 import type { agents } from "../db/schema.ts";
 import { errorMessage } from "../errors.ts";

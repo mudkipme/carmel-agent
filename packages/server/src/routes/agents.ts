@@ -1,4 +1,4 @@
-import { BACKGROUND_CONTEXT } from "@earendil-works/pi-agent-core";
+import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
 import { agentConfigRequestSchema, agentMcpServerSchema, skillCommandName, slashCommandText } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";

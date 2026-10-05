@@ -1,6 +1,6 @@
 import { open } from "node:fs/promises";
 import { posix } from "node:path";
-import { FileError } from "@earendil-works/pi-agent-core";
+import { FileError } from "../effectors/pi-durable/index.ts";
 import type {
   GitChange,
   GitChangeArea,

@@ -8,26 +8,20 @@ import {
   type ExecutionToolContext,
   type HarnessEvent,
   type Session,
-} from "@earendil-works/pi-agent-core";
+} from "../pi-durable/index.ts";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxProvider } from "@earendil-works/pi-ai/providers/faux";
 import {
   closePiSession,
   openPiSession,
   readPiSessionBranch,
-  registerPiSessionLane,
 } from "../../services/pi-session-storage.ts";
-import { createPiSessionLog, PI_MAIN_BRANCH } from "../pi-0-99/session-log.ts";
-import { observeHarnessEvents } from "../pi-0-99/agent-driver.ts";
+import { createPiSessionLog, PI_MAIN_BRANCH } from "../pi-durable/session-log.ts";
+import { observeHarnessEvents } from "../pi-durable/agent-driver.ts";
 import type { SessionLog } from "../contracts/session-log.ts";
 
 /**
- * Opening a Pi 0.87 harness, for tests.
- *
- * `new AgentHarness({...})` became `AgentHarness.create({...}, context)` plus a
- * lane acquisition, and every call takes a `Context`. That is three lines of
- * ceremony each of a dozen tests would otherwise repeat, so it lives here --
- * and when the next release moves it again, they move together.
+ * Open a Pi Durable harness and its selected conversation for integration tests.
  */
 
 /** Tests are not cancellable, so they run on the background context like the run path. */
@@ -60,10 +54,8 @@ export async function attachTestHarness(
 ): Promise<TestHarness> {
   const { harness } = await AgentHarness.create<ExecutionToolContext>(
     {
-      // 0.85 turned retry on by default (`{ enabled: true, maxRetries: 3 }`),
-      // which silently doubles the provider calls a scripted faux response makes
-      // when a turn ends in an error. Tests that count calls need the default
-      // off; the run path sets its own policy explicitly.
+      // Disable automatic retry for deterministic faux-provider call counts.
+      // The production run path sets its own policy explicitly.
       retry: { enabled: false, maxRetries: 0, baseDelayMs: 0 },
       ...options,
       session,
@@ -72,7 +64,6 @@ export async function attachTestHarness(
   );
   const lane = await harness.lane(PI_MAIN_BRANCH, TEST_CONTEXT);
   const log = createPiSessionLog({ session, lane, context: TEST_CONTEXT });
-  const deregisterLane = registerPiSessionLane(session, lane);
   return {
     session,
     harness,
@@ -90,7 +81,6 @@ export async function attachTestHarness(
      * the lease release afterwards is idempotent and drops the holder count.
      */
     async close() {
-      deregisterLane();
       await harness.close(TEST_CONTEXT);
       await closePiSession(session);
     },

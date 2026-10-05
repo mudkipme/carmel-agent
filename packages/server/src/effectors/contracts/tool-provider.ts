@@ -1,4 +1,4 @@
-import type { AgentHarnessTool, ExecutionToolContext } from "@earendil-works/pi-agent-core";
+import type { AgentHarnessTool, ExecutionToolContext } from "../pi-durable/index.ts";
 
 /** The agent capability a tool needs before it may be offered to the model. */
 export type ToolCapability = "read" | "write" | "edit" | "bash" | "network";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
-import type { AgentHarnessTool, ExecutionToolContext } from "@earendil-works/pi-agent-core";
+import type { AgentHarnessTool, ExecutionToolContext } from "../effectors/pi-durable/index.ts";
 import { guardBrowserHandoff } from "./browser-tools.ts";
 import { browserControl, deleteBrowserControl } from "./browser-control.ts";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";

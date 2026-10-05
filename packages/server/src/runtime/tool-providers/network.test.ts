@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
-import { withAbortSignal } from "@earendil-works/pi-agent-core";
+import { withAbortSignal } from "../../effectors/pi-durable/index.ts";
 import { TEST_CONTEXT } from "../../effectors/testing/pi-harness.ts";
 import { networkToolProvider } from "./network.ts";
 import { extractArticleMarkdown, looksLikeHtml } from "./web-markdown.ts";

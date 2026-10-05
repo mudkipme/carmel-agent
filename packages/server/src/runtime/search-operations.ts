@@ -2,7 +2,7 @@ import type {
   GrepOperations,
   LsOperations,
 } from "@earendil-works/pi-coding-agent";
-import { BACKGROUND_CONTEXT, getOrThrow, type ExecutionEnv, type FileInfo } from "@earendil-works/pi-agent-core";
+import { BACKGROUND_CONTEXT, getOrThrow, type ExecutionEnv, type FileInfo } from "../effectors/pi-durable/index.ts";
 
 /**
  * Pi 0.85 requires a `Context` on every filesystem call, but the grep and ls
