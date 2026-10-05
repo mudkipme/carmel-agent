@@ -11,7 +11,6 @@ import { ZoomableImage } from "./ZoomableImage";
 import {
   buildToolResultsById,
   formatUsage,
-  getMessageAttachments,
   getMessageImages,
   getMessageText,
   imageSrc,
@@ -117,7 +116,7 @@ export const ChatMessages = memo(function ChatMessages({
 function segmentByRun(messages: AgentMessage[]): MessageSegment[] {
   const segments: MessageSegment[] = [];
   messages.forEach((message, index) => {
-    if (message.role === "user" || message.role === "user-with-attachments") {
+    if (message.role === "user") {
       segments.push({ kind: "message", message, index });
       return;
     }
@@ -299,7 +298,7 @@ const MessageItem = memo(function MessageItem({
     );
   }
 
-  if (message.role === "user" || message.role === "user-with-attachments") {
+  if (message.role === "user") {
     return (
       <div className="group flex min-w-0 flex-col gap-1">
         <UserMessage message={message} />
@@ -322,7 +321,6 @@ function UserMessage({ message }: { message: AgentMessage }) {
   const text = getMessageText(message);
   const skill = parseSkillInvocation(text);
   const images = getMessageImages(message);
-  const attachments = getMessageAttachments(message);
 
   return (
     <div className="flex min-w-0 justify-start px-4">
@@ -343,7 +341,7 @@ function UserMessage({ message }: { message: AgentMessage }) {
         ) : text ? (
           <MarkdownContent content={text} />
         ) : null}
-        {images.length > 0 || attachments.length > 0 ? (
+        {images.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {images.map((image, index) => (
               <ImagePreview
@@ -354,21 +352,6 @@ function UserMessage({ message }: { message: AgentMessage }) {
                 label="Image"
               />
             ))}
-            {attachments.map((attachment) =>
-              attachment.type === "image" ? (
-                <ImagePreview
-                  key={attachment.id}
-                  data={attachment.preview ?? attachment.content}
-                  url={attachment.url}
-                  mimeType={attachment.mimeType}
-                  label={attachment.fileName}
-                />
-              ) : (
-                <div key={attachment.id} className="rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground">
-                  {attachment.fileName}
-                </div>
-              ),
-            )}
           </div>
         ) : null}
       </div>

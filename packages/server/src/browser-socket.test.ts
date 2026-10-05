@@ -5,7 +5,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { once } from "node:events";
 import { WebSocket } from "ws";
 import { eq } from "drizzle-orm";
-import { db, migrate } from "./db/index.ts";
+import { db, initialize } from "./db/index.ts";
 import { agents, authSessions } from "./db/schema.ts";
 import { createSession, createUser } from "./test-support.ts";
 import { attachBrowserSocket } from "./browser-socket.ts";
@@ -13,7 +13,7 @@ import { browserControl, deleteBrowserControl } from "./runtime/browser-control.
 import type { connectBrowser } from "./runtime/sandbox/browser-sessions.ts";
 import type { BrowserServerMessage } from "@carmel-agent/shared";
 
-migrate();
+initialize();
 const server = createServer((_request, response) => response.writeHead(404).end());
 const forwarded: unknown[] = [];
 const bridge: typeof connectBrowser = async (_agent, onMessage) => {

@@ -131,9 +131,6 @@ paths:
   /api/sessions/{id}/tool-result-images/{entryId}/{partIndex}:
     parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/EntryID'}, {$ref: '#/components/parameters/PartIndex'}]
     get: {operationId: getToolResultImage, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/Image'}}}
-  /api/sessions/{id}/attachments/{entryId}/{attachmentId}:
-    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/EntryID'}, {$ref: '#/components/parameters/AttachmentID'}]
-    get: {operationId: getSessionAttachment, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/Image'}}}
   /api/agents/{id}/files:
     parameters: [{$ref: '#/components/parameters/ID'}]
     get: {operationId: listAgentFiles, tags: [Files], parameters: [{name: path, in: query, schema: {type: string}}, {name: showHidden, in: query, schema: {type: boolean}}], responses: {'200': {description: Files, content: {application/json: {schema: {$ref: '#/components/schemas/FileList'}}}}}}
@@ -288,7 +285,6 @@ components:
     IssueID: {name: issueId, in: path, required: true, schema: {type: string}}
     SecretName: {name: name, in: path, required: true, schema: {type: string}}
     EntryID: {name: entryId, in: path, required: true, schema: {type: string}}
-    AttachmentID: {name: attachmentId, in: path, required: true, schema: {type: string}}
     ImageIndex: {name: imageIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
     PartIndex: {name: partIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
   responses:
@@ -377,7 +373,7 @@ components:
     AgentRunRequest: {type: object, additionalProperties: false, properties: {sessionId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, promptInput: {type: object, required: [text], properties: {text: {type: string}, images: {type: array, maxItems: 10, items: {type: object, required: [type, data, mimeType], properties: {type: {type: string, enum: [image]}, data: {type: string}, mimeType: {type: string}}}}}}}}
     SessionDraftRequest: {type: object, required: [agentId, modelRefId], additionalProperties: false, properties: {agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, title: {type: string}}}
     SessionPatchRequest: {type: object, additionalProperties: false, properties: {title: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, pinnedAt: {type: number, nullable: true}, archivedAt: {type: number, nullable: true}, taskId: {type: string, nullable: true, enum: [null]}}}
-    MessageEditRequest: {type: object, required: [content], additionalProperties: false, properties: {content: {type: string}, truncate: {type: boolean}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, removedImageIndexes: {type: array, items: {type: integer, minimum: 0}}, removedAttachmentIds: {type: array, items: {type: string}}}}
+    MessageEditRequest: {type: object, required: [content], additionalProperties: false, properties: {content: {type: string}, truncate: {type: boolean}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, removedImageIndexes: {type: array, items: {type: integer, minimum: 0}}}}
     SessionMetadata: {type: object, required: [id, title, userId, agentId, modelRefId, thinkingLevel, revision, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, title: {type: string}, userId: {type: string}, agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, revision: {type: integer}, pinnedAt: {type: number}, archivedAt: {type: number}, taskId: {type: string}, issueId: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
     Session: {allOf: [{$ref: '#/components/schemas/SessionMetadata'}, {type: object, required: [messages, messageEntryIds], properties: {messages: {type: array, items: {type: object, additionalProperties: true}}, messageEntryIds: {type: array, items: {type: string}}}}]}
     SessionConnection: {type: object, required: [session, activeRun], properties: {session: {$ref: '#/components/schemas/Session'}, activeRun: {nullable: true, type: object, required: [runId, sessionId, eventCursor], properties: {runId: {type: string}, sessionId: {type: string}, eventCursor: {type: integer}}}}}

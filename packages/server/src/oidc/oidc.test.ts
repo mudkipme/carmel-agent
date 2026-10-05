@@ -4,7 +4,7 @@ import { createHash, generateKeyPairSync, randomUUID, sign } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { hashPassword, requireAuth, type AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { userIdentities, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createAuthRoutes } from "../routes/auth.ts";
@@ -13,7 +13,7 @@ import { OidcLoginError, resolveOidcUser, type OidcProfile } from "./accounts.ts
 import { setOidcFetchForTests } from "./client.ts";
 import { assertOidcConfig, readOidcConfig } from "./config.ts";
 
-migrate();
+initialize();
 
 const issuer = "https://id.example.test";
 const baseEnv = {

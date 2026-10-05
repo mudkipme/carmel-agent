@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { ImageContent, TextContent, ThinkingContent, ToolCall } from "@earendil-works/pi-ai";
+import type { TextContent, ThinkingContent, ToolCall } from "@earendil-works/pi-ai";
 import type { AgentMcpServer, AgentMount, AgentPermissions, AgentThinkingLevel, CodemodeCallInfo, PromptTemplate } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
 export type { BrowserControlState, BrowserTab, BrowserFrame, BrowserClientMessage, BrowserServerMessage } from "./browser.ts";
@@ -16,13 +16,6 @@ export type ChatAttachment = {
   url?: string;
 };
 
-export type UserMessageWithAttachments = {
-  role: "user-with-attachments";
-  content: string | (TextContent | ImageContent)[];
-  timestamp: number;
-  attachments?: ChatAttachment[];
-};
-
 export type ArtifactMessage = {
   role: "artifact";
   action: "create" | "update" | "delete";
@@ -34,7 +27,6 @@ export type ArtifactMessage = {
 
 declare module "@earendil-works/pi-agent-core" {
   interface CustomAgentMessages {
-    "user-with-attachments": UserMessageWithAttachments;
     artifact: ArtifactMessage;
   }
 }
@@ -172,7 +164,6 @@ export type SessionConnection = {
   session: Session;
   activeRun: ActiveAgentRunSummary | null;
 };
-
 
 export type ProviderConfig = {
   id: string;

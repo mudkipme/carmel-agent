@@ -74,10 +74,6 @@ export function createSessionRoutes() {
     }),
   );
 
-  route.get("/sessions/:id/attachments/:entryId/:attachmentId", (c) =>
-    serveEntryImage(c, "Attachment not found", (message) => readImageAttachment(message, c.req.param("attachmentId"))),
-  );
-
   route.post("/sessions", jsonValidator(sessionDraftRequestSchema), async (c) => {
     const currentUserId = c.get("user").id;
     const draft = c.req.valid("json");
@@ -266,7 +262,6 @@ export function createSessionRoutes() {
     const editedMessage = editableUser
       ? updateUserMessageContent(target, body.content, {
           removedImageIndexes: body.removedImageIndexes,
-          removedAttachmentIds: body.removedAttachmentIds,
         })
       : updateAssistantMessageContent(target, body.content);
     // Pi entries are immutable: create a sibling branch at this entry ID and
@@ -394,18 +389,6 @@ function readToolResultImage(message: AgentMessage | undefined, partIndex: numbe
   const part = content[partIndex];
   if (!isRecord(part) || part.type !== "image") return undefined;
   return readImageContent(part);
-}
-
-function readImageAttachment(message: AgentMessage | undefined, attachmentId: string) {
-  if ((message as { role?: string } | undefined)?.role !== "user-with-attachments") return undefined;
-  const attachments = (message as { attachments?: unknown } | undefined)?.attachments;
-  if (!Array.isArray(attachments)) return undefined;
-  const attachment = attachments.find((item) => isRecord(item) && item.id === attachmentId);
-  if (!isRecord(attachment) || attachment.type !== "image") return undefined;
-
-  const data = typeof attachment.content === "string" ? attachment.content : undefined;
-  const mimeType = typeof attachment.mimeType === "string" ? attachment.mimeType : "image/png";
-  return data ? { data, mimeType } : undefined;
 }
 
 function readImageContent(part: Record<string, unknown>) {

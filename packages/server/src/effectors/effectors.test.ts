@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { migrate } from "../db/index.ts";
+import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
 import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "./testing/pi-harness.ts";
@@ -10,7 +10,7 @@ import { runSessionLogContract } from "./testing/session-log-contract.ts";
 import { dispatchPrompt } from "./dispatch-prompt.ts";
 import type { DriverResources, PromptDispatcher } from "./contracts/agent-driver.ts";
 
-migrate();
+initialize();
 
 // Both implementations answer to the same suite. That equivalence is what lets
 // tests above the port use the fake, and what will decide whether a v2 adapter
@@ -27,8 +27,6 @@ await runSessionLogContract(
     name: "PiSessionLog",
     async create() {
       const { sessionId } = createSession();
-      // 0.85 keeps per-lane configuration off the session tree, so the adapter
-      // needs an open lane -- and a lane needs a harness, faux provider and all.
       const pi = await attachTestHarness(await openPiSession(sessionId), piHarnessOptions);
       return pi.log;
     },

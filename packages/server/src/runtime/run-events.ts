@@ -48,8 +48,6 @@ export function classifyHarnessTurnFailure(
   event: HarnessEvent,
   contextWindow?: number,
 ): TurnFailure | undefined {
-  // 0.85 types `turn_end.message` as an `AssistantMessage` outright, so the
-  // role check the 0.83 union needed is gone with it.
   if (event.type !== "turn_end") return undefined;
   const overflowHint = isContextOverflow(event.message, contextWindow);
   if (!event.message.errorMessage && !overflowHint) return undefined;
@@ -109,13 +107,9 @@ export function projectRunEvent(event: HarnessEvent, contextWindow?: number): Ag
         return failure ? { type: "turn_end", errorMessage: formatTurnFailure(failure) } : { type: "turn_end" };
       }
     case "run_end":
-      // Formerly `agent_end`. Its payload is the whole transcript, which the
-      // client already holds.
+      // All committed messages have already been delivered to the client.
       return { type: "agent_end" };
     default:
-      // `run_start`/`turn_start` carry nothing the client renders,
-      // and the harness's own lifecycle, config, usage and lane events -- most
-      // of them new in 0.85 -- have no observer on the wire protocol.
       return undefined;
   }
 }

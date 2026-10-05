@@ -2,14 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
-import { migrate } from "../db/index.ts";
+import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
 import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
 import { RunGuard } from "../effectors/run-guard.ts";
 import { HarnessAbortGate } from "./agent-runtime.ts";
 
-migrate();
+initialize();
 
 test("a model that never stops calling tools is stopped at the ceiling", async () => {
   // Pi's agent loop has no iteration cap, so without the guard this prompt does

@@ -2,7 +2,7 @@ import { recoverIssueAttempts, startIssueQueue, stopIssueQueue, drainIssueResult
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { pruneExpiredAuthSessions } from "./auth.ts";
-import { migrate, seed, sqlite } from "./db/index.ts";
+import { initialize, seed, sqlite } from "./db/index.ts";
 import { shutdownActiveRuns } from "./runtime/run-stream.ts";
 import { reapManagedContainers, shutdownContainerManager } from "./runtime/sandbox/container-manager.ts";
 import { shutdownTerminals } from "./runtime/sandbox/terminal-sessions.ts";
@@ -27,7 +27,7 @@ if (oidcConfig) {
   if (oidcConfig.issuer.protocol === "http:") console.warn("OIDC issuer uses plain HTTP; use HTTPS outside local testing.");
 }
 
-migrate();
+initialize();
 recoverIssueAttempts();
 seed();
 pruneExpiredAuthSessions();

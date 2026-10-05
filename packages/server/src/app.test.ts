@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "./app.ts";
-import { migrate } from "./db/index.ts";
+import { initialize } from "./db/index.ts";
 
-migrate();
+initialize();
 
 test("responses carry the CSP and content-type-options security headers", async () => {
   const res = await createApp().request("/api/health");

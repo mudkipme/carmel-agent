@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryModelsStore, isModelType, type ClassifierModel, type ImageModel } from "@earendil-works/pi-ai";
-import { migrate } from "../db/index.ts";
+import { initialize } from "../db/index.ts";
 import { bindResolvedModel, createCarmelModelRuntime } from "./model-runtime.ts";
 import { resolveServerModelRef } from "./model.ts";
 
-migrate();
+initialize();
 
 const OPENAI_MODEL_ID = "gpt-4o-mini";
 

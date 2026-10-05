@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
-import { migrate } from "../db/index.ts";
+import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openTestHarness } from "../effectors/testing/pi-harness.ts";
 import type { AgentHarnessTool, ExecutionToolContext } from "../effectors/pi-durable/index.ts";
@@ -10,7 +10,7 @@ import { createCodemodeTool } from "./codemode-tool.ts";
 import { projectRunEvent } from "./run-events.ts";
 import type { AgentRunEvent } from "@carmel-agent/shared";
 
-migrate();
+initialize();
 const parameters = { type: "object", properties: {}, additionalProperties: false };
 const content = [{ type: "text" as const, text: "done" }];
 

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { parseSlashCommand, skillCommandName, slashCommandText } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import { openPiSession, replacePiSessionMessages } from "../services/pi-session-storage.ts";
 import { attachTestHarness, fauxHarnessModels } from "../effectors/testing/pi-harness.ts";
@@ -15,7 +15,7 @@ import {
   RetryBranch,
 } from "./agent-runtime.ts";
 
-migrate();
+initialize();
 
 test("run finalization compare-and-swap cannot overwrite a newer session revision", () => {
   const fixture = createSession();
@@ -120,8 +120,6 @@ test("restoring an abandoned retry returns the session to the original leaf", as
   const originalLeafId = before!.messageEntryIds.at(-1)!;
 
   const piSession = await openPiSession(sessionId);
-  // `prepareAgentRunPrompt` and `RetryBranch` both work through the session log
-  // now: 0.85 has no `session.moveTo`, and rewinding is a branch-tip write.
   const pi = await attachTestHarness(piSession, fauxHarnessModels());
   try {
     // Reproduce a retry that rewound the branch but never persisted a replacement.

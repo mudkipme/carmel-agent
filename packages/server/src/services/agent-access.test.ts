@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import { createAgent, createModelRef, createProviderConfig, createSession, createUser } from "../test-support.ts";
 import {
@@ -13,7 +13,7 @@ import {
   readVisibleModelRefs,
 } from "./agent-access.ts";
 
-migrate();
+initialize();
 
 test("readVisibleAgents returns own and shared agents but not other users' private ones", () => {
   const alice = createUser();

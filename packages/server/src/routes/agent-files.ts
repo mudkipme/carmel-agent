@@ -26,11 +26,6 @@ import { jsonValidator } from "../validation.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
-/**
- * Pi 0.85 requires a `Context` on every filesystem call. These routes never
- * passed an abort signal, so the background context is an exact translation.
- * Named `fsCtx` because `Context` here is Hono's request context.
- */
 const fsCtx = BACKGROUND_CONTEXT;
 type ReadVisibleAgent = (userId: string, agentId: string) => AgentRecord | undefined;
 

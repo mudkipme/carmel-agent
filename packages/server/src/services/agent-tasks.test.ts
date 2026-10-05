@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { migrate } from "../db/index.ts";
+import { initialize } from "../db/index.ts";
 import { createAgent, createModelRef, createUser } from "../test-support.ts";
 import {
   AgentTaskError,
@@ -12,7 +12,7 @@ import {
   updateAgentTask,
 } from "./agent-tasks.ts";
 
-migrate();
+initialize();
 
 test("a task is created armed with its next run", () => {
   const { user, agentId } = fixture();

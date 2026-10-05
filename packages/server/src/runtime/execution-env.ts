@@ -155,13 +155,6 @@ export class AgentExecutionEnv implements ExecutionEnv {
     });
   }
 
-  /**
-   * Atomic rename, new in the 0.85 `FileSystem` contract.
-   *
-   * Both ends are authorized independently: a rename is a write to the
-   * destination as much as it is one to the source, so neither is allowed to
-   * escape the agent's write roots.
-   */
   async renameFile(sourcePath: string, destinationPath: string, context: Context): Promise<Result<void, FileError>> {
     return this.fileResult(sourcePath, context, async () => {
       const from = this.resolveAuthorizedPath(sourcePath, "write");

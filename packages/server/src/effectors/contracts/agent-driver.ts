@@ -16,11 +16,7 @@ export type DriverResources = {
 };
 
 export interface PromptDispatcher {
-  /**
-   * Async since Pi 0.85, where reading the harness's resources became a call
-   * that takes an invocation `Context`. Dispatch was already async, so this
-   * costs one `await` at the single call site.
-   */
+
   listResources(): Promise<DriverResources>;
 
   prompt(text: string, images?: PromptImages): Promise<void>;

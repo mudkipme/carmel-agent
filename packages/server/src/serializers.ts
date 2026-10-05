@@ -130,13 +130,10 @@ function serializeMessageForDisplay(message: AgentMessage, context: MessageDispl
   const role = (message as { role?: string }).role;
   const record = message as Record<string, unknown>;
 
-  if (role === "user" || role === "user-with-attachments") {
+  if (role === "user") {
     return {
       ...message,
       content: serializeUserContent(record.content, context),
-      attachments: Array.isArray(record.attachments)
-        ? record.attachments.map((attachment) => serializeAttachmentForDisplay(attachment, context))
-        : record.attachments,
     } as unknown as AgentMessage;
   }
 
@@ -238,33 +235,12 @@ function serializeToolResultContentPart(part: unknown, context: MessageDisplayCo
   return part;
 }
 
-function serializeAttachmentForDisplay(attachment: unknown, context: MessageDisplayContext) {
-  if (!isRecord(attachment)) return attachment;
-  const id = typeof attachment.id === "string" ? attachment.id : "";
-  const type = typeof attachment.type === "string" ? attachment.type : undefined;
-  return {
-    id: attachment.id,
-    type,
-    fileName: attachment.fileName,
-    mimeType: attachment.mimeType,
-    size: attachment.size,
-    url:
-      type === "image" && id
-        ? sessionAttachmentUrl(context, id)
-        : undefined,
-  };
-}
-
 function sessionImageUrl(context: MessageDisplayContext, imageIndex: number) {
   return sessionEntryUrl(context, "images", String(imageIndex));
 }
 
 function sessionToolResultImageUrl(context: MessageDisplayContext, partIndex: number) {
   return sessionEntryUrl(context, "tool-result-images", String(partIndex));
-}
-
-function sessionAttachmentUrl(context: MessageDisplayContext, attachmentId: string) {
-  return sessionEntryUrl(context, "attachments", attachmentId);
 }
 
 function sessionEntryUrl(context: MessageDisplayContext, kind: string, key: string) {

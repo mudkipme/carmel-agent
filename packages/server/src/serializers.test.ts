@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { modelRefRequestSchema, providerConfigRequestSchema } from "@carmel-agent/shared";
-import { db, migrate } from "./db/index.ts";
+import { db, initialize } from "./db/index.ts";
 import { modelRefs, providerConfigs } from "./db/schema.ts";
 import { serializeModelRef, serializeProviderConfig } from "./serializers.ts";
 import { createModelRef, createProviderConfig, createUser } from "./test-support.ts";
 
-migrate();
+initialize();
 
 // Clients echo a serialized resource back on save, so anything the serializer
 // emits has to survive the strict command schema. Storage-only columns leaking

@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Hono } from "hono";
 import { hashPassword, readSessionCookie, requireAuth, verifyPassword, type AuthVariables } from "./auth.ts";
-import { db, migrate } from "./db/index.ts";
+import { db, initialize } from "./db/index.ts";
 import { users } from "./db/schema.ts";
 import { id, now } from "./db/seed.ts";
 import { createAuthRoutes } from "./routes/auth.ts";
 
-migrate();
+initialize();
 
 // A minimal app that mounts the real auth route plus an authenticated probe.
 // (We avoid createApp() because its transitive imports use TS parameter

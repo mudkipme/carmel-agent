@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { agents, sessions, users } from "../db/schema.ts";
 import { id } from "../db/seed.ts";
 import { createActiveAgentRun, emitRunEvent, finishAgentRun } from "../runtime/run-stream.ts";
@@ -12,7 +12,7 @@ import { createSession, createUser, userMessage } from "../test-support.ts";
 import { readSessionConnection } from "../services/session-snapshot.ts";
 import { createAgentRunRoutes } from "./agent-runs.ts";
 
-migrate();
+initialize();
 
 test("active session list includes only running listed sessions owned by the caller", async () => {
   const fixture = createSession();

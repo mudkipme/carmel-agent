@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
 import { eq } from "drizzle-orm";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { agents } from "../db/schema.ts";
 import { createAgent, createModelRef, createUser } from "../test-support.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
@@ -18,7 +18,7 @@ import {
   setGitExecutorForTests,
 } from "./git-workspace.ts";
 
-migrate();
+initialize();
 
 /**
  * The parser is checked against what git actually prints, from a throwaway

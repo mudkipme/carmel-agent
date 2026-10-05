@@ -92,7 +92,7 @@ export const defaultSession: Omit<Session, "messages" | "messageEntryIds"> = {
   updatedAt: now(),
 };
 
-/** Insert the initial object graph only; migrations own every repair and transform. */
+/** Insert the initial object graph only; existing data is left intact. */
 export function seedDatabase(sqlite: BetterSqlite3.Database) {
   const existing = (sqlite.prepare("SELECT COUNT(*) AS count FROM users").get() as { count: number }).count;
   if (existing > 0) return;

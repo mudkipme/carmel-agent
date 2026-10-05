@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { sessions, users } from "../db/schema.ts";
 import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
 import { loadSession } from "../services/session-store.ts";
@@ -12,7 +12,7 @@ import { createSession, userMessage } from "../test-support.ts";
 import { createSessionRoutes } from "./sessions.ts";
 import { serializeSession } from "../serializers.ts";
 
-migrate();
+initialize();
 
 const jsonHeaders = { "content-type": "application/json" };
 

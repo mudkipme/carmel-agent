@@ -8,7 +8,7 @@ import { isRecord } from "./records.ts";
 
 export function isUserMessage(message: AgentMessage): boolean {
   const role = (message as { role?: string }).role;
-  return role === "user" || role === "user-with-attachments";
+  return role === "user";
 }
 
 export function isEditableAssistantMessage(message: AgentMessage): message is AgentMessage & AssistantMessage {
@@ -25,12 +25,9 @@ export function isEditableAssistantMessage(message: AgentMessage): message is Ag
 
 // Editing a user message can also drop images: `removedImageIndexes` refers to
 // the position of an image among the inline image parts of `content` (in order),
-// and `removedAttachmentIds` to ids in the legacy `attachments` array. Both the
-// client (optimistic) and server recompute from the same stored message, so
-// index-based removal stays in sync.
+// and both the client and server recompute from the same stored message.
 export type UserMessageEditOptions = {
   removedImageIndexes?: number[];
-  removedAttachmentIds?: string[];
 };
 
 export function updateUserMessageContent(
@@ -43,7 +40,7 @@ export function updateUserMessageContent(
   const removedImages = new Set(options?.removedImageIndexes ?? []);
 
   if (typeof current.content === "string") {
-    return pruneAttachments({ ...message, content } as AgentMessage, options);
+    return { ...message, content } as AgentMessage;
   }
   if (!Array.isArray(current.content)) return message;
 
@@ -67,18 +64,7 @@ export function updateUserMessageContent(
   }
 
   if (!replacedText) nextContent.unshift({ type: "text", text: content });
-  return pruneAttachments({ ...message, content: nextContent } as AgentMessage, options);
-}
-
-function pruneAttachments(message: AgentMessage, options?: UserMessageEditOptions): AgentMessage {
-  const removedAttachments = new Set(options?.removedAttachmentIds ?? []);
-  if (removedAttachments.size === 0) return message;
-  const attachments = (message as { attachments?: unknown }).attachments;
-  if (!Array.isArray(attachments)) return message;
-  const nextAttachments = attachments.filter(
-    (attachment) => !(isRecord(attachment) && typeof attachment.id === "string" && removedAttachments.has(attachment.id)),
-  );
-  return { ...message, attachments: nextAttachments } as AgentMessage;
+  return { ...message, content: nextContent } as AgentMessage;
 }
 
 export function updateAssistantMessageContent(message: AgentMessage, content: string): AgentMessage {

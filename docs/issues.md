@@ -26,7 +26,7 @@ A successful run without a report asks for input instead of entering review. Exe
 
 Each run saves bounded before/after versions of changed text files before releasing its queue slot. The review panel shows these saved versions, so later jobs cannot replace them. Captures cover the agent's workspace, honor read permission, skip symlinks and common credential/cache paths, and redact configured agent secrets. Binary, large, unreadable, or excluded files may not be included; partial capture is labeled. Captures are limited to 2,000 entries, 256 KiB per file, and 2 MiB per workspace read. Artifact links in the report remain ordinary links; workspace links open the current workspace.
 
-Queue entries survive restarts. A run interrupted by a restart is recorded as interrupted and requires an explicit retry; remaining queued work continues automatically. Existing issues and conversations are preserved by the migration and are not automatically queued.
+Queue entries survive restarts. A run interrupted by a restart is recorded as interrupted and requires an explicit retry; remaining queued work continues automatically.
 
 ## API
 

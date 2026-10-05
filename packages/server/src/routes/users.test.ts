@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { requireAuth, type AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { agents, modelRefs, sessions, users } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import { createAgent, createModelRef, createSession } from "../test-support.ts";
@@ -11,7 +11,7 @@ import { createAuthRoutes } from "./auth.ts";
 import { createProviderConfigRoutes } from "./provider-configs.ts";
 import { createUserRoutes } from "./users.ts";
 
-migrate();
+initialize();
 
 function buildApp() {
   const app = new Hono<{ Variables: AuthVariables }>();

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { agentSecrets } from "../db/schema.ts";
 import { createAgent, createModelRef, createUser } from "../test-support.ts";
 import {
@@ -12,7 +12,7 @@ import {
   writeAgentSecret,
 } from "./agent-secrets.ts";
 
-migrate();
+initialize();
 
 function fixture() {
   const ownerUserId = createUser();

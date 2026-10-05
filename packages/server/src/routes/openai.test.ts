@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import { Hono } from "hono";
 import type { ApiKey, ApiKeyCreated } from "@carmel-agent/shared";
 import { requireAuth, type AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { modelRefs, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createApiKey } from "../services/api-keys.ts";
@@ -23,7 +23,7 @@ import { eq } from "drizzle-orm";
  * none of the caller's own headers.
  */
 
-migrate();
+initialize();
 
 type Upstream = { headers: IncomingHttpHeaders; body: Record<string, any> };
 type ProviderMode = "text" | "tool" | "reject";

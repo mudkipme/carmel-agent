@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { agentTasks, users } from "../db/schema.ts";
 import type { AgentTask } from "@carmel-agent/shared";
 import { createAgent, createModelRef, createUser } from "../test-support.ts";
 import { createAgentTaskRoutes } from "./agent-tasks.ts";
 
-migrate();
+initialize();
 const json = { "content-type": "application/json" };
 
 test("a task is created, listed, paused, and deleted through its agent", async () => {

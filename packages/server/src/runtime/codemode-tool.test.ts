@@ -9,7 +9,7 @@ import { BACKGROUND_CONTEXT, withAbortSignal, type AgentHarnessTool, type AgentH
 import { createModels } from "@earendil-works/pi-ai";
 import { toCodemodeIdentifier } from "@earendil-works/pi-codemode";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { agents } from "../db/schema.ts";
 import { createSession } from "../test-support.ts";
 import { startMcpTestServer } from "../test-mcp-server.ts";
@@ -20,7 +20,7 @@ import { createCodemodeTool, type CodemodeHooks } from "./codemode-tool.ts";
 import { createServerExecution } from "./tools.ts";
 import { projectRunEvent } from "./run-events.ts";
 
-migrate();
+initialize();
 type Tool = AgentHarnessTool<ExecutionToolContext>;
 const serverConfig = (url: string, patch = {}) => agentMcpServerSchema.parse({ id: "remote", transport: "http", url, ...patch });
 function agent(servers: AgentMcpServer[]) {
@@ -165,7 +165,7 @@ test("nested tools retain argument preparation, sequential scheduling, and termi
   const makeTool = (name: string, executionMode: "parallel" | "sequential", terminate = false): Tool => ({
     name, label: name, description: name, executionMode,
     parameters: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
-    prepareArguments: (args) => ({ text: (args as { legacy: string }).legacy }),
+    prepareArguments: (args) => ({ text: (args as { rawText: string }).rawText }),
     async execute(_id, { text }) {
       order.push(`${text}:start`);
       await new Promise<void>((resolve) => setImmediate(resolve));
@@ -174,11 +174,11 @@ test("nested tools retain argument preparation, sequential scheduling, and termi
     },
   });
   const result = await execute([makeTool("parallel", "parallel"), makeTool("serial", "sequential")], `await Promise.all([
-    tools.parallel({legacy:"first"}), tools.serial({legacy:"middle"}), tools.parallel({legacy:"last"})
+    tools.parallel({rawText:"first"}), tools.serial({rawText:"middle"}), tools.parallel({rawText:"last"})
   ]);`);
   assert.equal(result.isError, false);
   assert.deepEqual(order, ["first:start", "first:end", "middle:start", "middle:end", "last:start", "last:end"]);
-  const ended = await execute([makeTool("finish", "sequential", true)], 'await tools.finish({legacy:"done"});');
+  const ended = await execute([makeTool("finish", "sequential", true)], 'await tools.finish({rawText:"done"});');
   assert.equal(ended.terminate, true);
 });
 

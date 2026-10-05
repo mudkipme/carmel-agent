@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { agents, agentTasks, agentTaskRuns, modelRefs, sessions, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createAgent, createModelRef, createProviderConfig, createUser } from "../test-support.ts";
@@ -10,7 +10,7 @@ import { reassignModelReferences } from "../services/agent-access.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import { runTaskNow, tick } from "./task-scheduler.ts";
 
-migrate();
+initialize();
 
 test("a task that cannot run fails, re-arms, and leaves no session behind", async () => {
   const { user, agentId } = fixture();

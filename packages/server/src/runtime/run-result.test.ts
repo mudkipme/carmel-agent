@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { AddressInfo } from "node:net";
 import { eq } from "drizzle-orm";
 import type { AgentRunResult } from "@carmel-agent/shared";
-import { db, migrate, sqlite } from "../db/index.ts";
+import { db, initialize, sqlite } from "../db/index.ts";
 import { agents, modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { resolveModelContext } from "../services/model-context.ts";
@@ -20,7 +20,7 @@ import { shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
  * chat and the scheduler use.
  */
 
-migrate();
+initialize();
 
 type ProviderMode = "reply" | "reject" | "tool-loop" | "hang";
 const provider = await startFakeProvider();

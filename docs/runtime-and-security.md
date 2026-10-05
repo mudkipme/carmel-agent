@@ -40,7 +40,7 @@ An agent stores:
 - secrets supplied to its sandbox and configured MCP connections
 - MCP server configuration and tool allowlists
 
-The server runs Pi Durable with its native SQLite backend, streams committed events to the browser as NDJSON, and stores conversation history, live progress, and execution checkpoints through Pi. Each Carmel session has its own native storage and tool/credential registry. See [Pi Durable storage](pi-durable.md) for migration and recovery behavior.
+The server runs Pi Durable with its native SQLite backend, streams committed events to the browser as NDJSON, and stores conversation history, live progress, and execution checkpoints through Pi. Each Carmel session has its own native storage and tool/credential registry. See [Pi Durable storage](pi-durable.md) for storage and recovery behavior.
 
 Runs live on the server, not in the tab. Each event carries a sequence number, so a browser that reloads or reconnects resumes the stream from where it left off instead of losing the run. Runs can be aborted explicitly.
 
@@ -332,17 +332,17 @@ Deleting a model entry or provider config that agents or sessions depend on requ
 
 Provider API keys, OAuth credentials, and custom headers are encrypted with `CARMEL_SECRET_KEY` before they are written to the database. Set that key before adding credentials and keep it stable — rotating it makes existing secrets unreadable.
 
-## Database And Migrations
+## Database Initialization
 
-Carmel uses a SQLite database for metadata and auth, plus one Pi Durable SQLite file per conversation in the `.durable` storage directory. The legacy Pi database remains a read-only migration archive. Drizzle manages only the Carmel database; its migrations run at startup and are recorded in `schema_migrations`.
+Carmel uses a SQLite database for metadata and auth, plus one Pi Durable SQLite file per session in the native storage directory. Drizzle accesses the metadata database; startup initializes its current schema directly.
 
-New databases are created with the current schema; existing ones are upgraded through compatibility migrations. Session content is owned exclusively by Pi native storage.
+New databases are created with the current schema; existing tables and data are left intact. Historical schema upgrades are no longer supported. Session content is owned exclusively by Pi Durable.
 
 Runtime state lives under `data/` by default:
 
-- the metadata database, legacy Pi archive, and Durable storage directory
+- the metadata database and Durable storage directory
 - default agent workspaces
 - the Pi agent runtime directory
 - per-agent sandbox `/tmp` directories
 
-Back up that directory with the server stopped. See [Pi Durable storage](pi-durable.md) for upgrade and rollback details.
+Back up that directory with the server stopped. See [Pi Durable storage](pi-durable.md) for storage and recovery details.

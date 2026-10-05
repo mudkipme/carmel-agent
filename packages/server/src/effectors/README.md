@@ -26,9 +26,9 @@ by `reconcileLaneConfiguration` in the adapter.
 ## Porting to a new Pi
 
 1. Update `pi-durable/` against the pinned release's public APIs.
-2. Run the contracts in `effectors.test.ts` and the migration, recovery, and
+2. Run the contracts in `effectors.test.ts` and the storage, recovery, and
    streaming integration tests.
-3. Document storage or replay changes in [the migration guide](../../../../docs/pi-durable.md).
+3. Document storage or replay changes in [the storage guide](../../../../docs/pi-durable.md).
 
 The suite is the deliverable. A v2 adapter is not reviewed into correctness; it
 is pointed at `testing/session-log-contract.ts`, which either passes or names the

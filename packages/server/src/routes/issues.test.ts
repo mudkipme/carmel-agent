@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { IssueDetail } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { issues, issueAttempts, modelRefs, sessions, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
@@ -23,7 +23,7 @@ import { createIssueRoutes } from "./issues.ts";
 import { createSessionRoutes } from "./sessions.ts";
 import { createAgentRunRoutes } from "./agent-runs.ts";
 
-migrate();
+initialize();
 const json = { "content-type": "application/json" };
 
 test("creating a brief and adding notes never starts work or requires a model", async () => {

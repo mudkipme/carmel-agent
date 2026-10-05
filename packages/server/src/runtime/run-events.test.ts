@@ -4,14 +4,14 @@ import type { AgentMessage, HarnessEvent } from "../effectors/pi-durable/index.t
 import { createModels, type AssistantMessage } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxThinking } from "@earendil-works/pi-ai/providers/faux";
 import { applyStreamingEvent, isStreamingEvent, type AgentRunEvent } from "@carmel-agent/shared";
-import { migrate } from "../db/index.ts";
+import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
 import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
 import { classifyTurnFailure } from "../effectors/failure-classifier.ts";
 import { isOverflowMessage, projectRunEvent } from "./run-events.ts";
 
-migrate();
+initialize();
 
 test("streamed text and thinking are projected to deltas, not snapshots", () => {
   assert.deepEqual(
@@ -31,11 +31,11 @@ test("events the client cannot use are dropped rather than forwarded", () => {
     projectRunEvent(messageUpdate({ type: "text_end", contentIndex: 0, content: "Hello", partial: partial("Hello") })),
     undefined,
   );
-  assert.equal(projectRunEvent(laneEvent({ type: "run_start", runId: "run_1", startedAt: 1 })), undefined);
-  assert.equal(projectRunEvent(laneEvent({ type: "turn_start", runId: "run_1", turnId: "turn_1" })), undefined);
+  assert.equal(projectRunEvent(harnessEvent({ type: "run_start", runId: "run_1", startedAt: 1 })), undefined);
+  assert.equal(projectRunEvent(harnessEvent({ type: "turn_start", runId: "run_1", turnId: "turn_1" })), undefined);
   assert.equal(
     projectRunEvent(
-      laneEvent({
+      harnessEvent({
         type: "tool_update",
         runId: "run_1",
         turnId: "turn_1",
@@ -50,9 +50,9 @@ test("events the client cannot use are dropped rather than forwarded", () => {
 
 test("codemode progress projects only validated nested call metadata", () => {
   const codemodeCalls = [{ id: "nested", name: "mcp_echo", label: "MCP echo", status: "running", durationMs: 0 }];
-  const event = laneEvent({ type: "tool_update", runId: "run", turnId: "turn", toolCallId: "call", toolName: "codemode", partialResult: { content: [{ type: "text", text: "private output" }], details: { codemodeCalls, other: "not forwarded" } } });
+  const event = harnessEvent({ type: "tool_update", runId: "run", turnId: "turn", toolCallId: "call", toolName: "codemode", partialResult: { content: [{ type: "text", text: "private output" }], details: { codemodeCalls, other: "not forwarded" } } });
   assert.deepEqual(projectRunEvent(event), { type: "tool_execution_update", toolCallId: "call", codemodeCalls });
-  assert.equal(projectRunEvent(laneEvent({ ...event, partialResult: { content: [], details: { codemodeCalls: [{ status: "invalid" }] } } })), undefined);
+  assert.equal(projectRunEvent(harnessEvent({ ...event, partialResult: { content: [], details: { codemodeCalls: [{ status: "invalid" }] } } })), undefined);
 });
 
 test("tool calls arrive whole, without their streamed argument JSON", () => {
@@ -88,7 +88,7 @@ test("tool calls arrive whole, without their streamed argument JSON", () => {
 
 test("only an assistant message_start is forwarded", () => {
   const assistant = assistantMessage();
-  assert.deepEqual(projectRunEvent(laneEvent({ type: "message_start", message: assistant })), {
+  assert.deepEqual(projectRunEvent(harnessEvent({ type: "message_start", message: assistant })), {
     type: "message_start",
     message: assistant,
   });
@@ -103,8 +103,8 @@ test("only an assistant message_start is forwarded", () => {
     isError: false,
     timestamp: 1,
   } as unknown as AgentMessage;
-  assert.equal(projectRunEvent(laneEvent({ type: "message_start", message: toolResult })), undefined);
-  assert.deepEqual(projectRunEvent(laneEvent({ type: "message_end", message: toolResult })), {
+  assert.equal(projectRunEvent(harnessEvent({ type: "message_start", message: toolResult })), undefined);
+  assert.deepEqual(projectRunEvent(harnessEvent({ type: "message_end", message: toolResult })), {
     type: "message_end",
     message: toolResult,
   });
@@ -112,26 +112,26 @@ test("only an assistant message_start is forwarded", () => {
 
 test("bulk payloads are stripped from lifecycle events", () => {
   assert.deepEqual(
-    projectRunEvent(laneEvent({ type: "tool_start", runId: "run_1", turnId: "turn_1", toolCallId: "call_1", toolName: "write", args: { content: "x".repeat(50_000) } })),
+    projectRunEvent(harnessEvent({ type: "tool_start", runId: "run_1", turnId: "turn_1", toolCallId: "call_1", toolName: "write", args: { content: "x".repeat(50_000) } })),
     { type: "tool_execution_start", toolCallId: "call_1", toolName: "write" },
   );
   assert.deepEqual(
-    projectRunEvent(laneEvent({ type: "tool_end", runId: "run_1", turnId: "turn_1", toolCallId: "call_1", toolName: "write", result: { content: [{ type: "text", text: "x".repeat(50_000) }] }, isError: false, terminate: false })),
+    projectRunEvent(harnessEvent({ type: "tool_end", runId: "run_1", turnId: "turn_1", toolCallId: "call_1", toolName: "write", result: { content: [{ type: "text", text: "x".repeat(50_000) }] }, isError: false, terminate: false })),
     { type: "tool_execution_end", toolCallId: "call_1", toolName: "write", isError: false },
   );
   assert.deepEqual(
-    projectRunEvent(laneEvent({ type: "run_end", runId: "run_1", status: "completed", fromTipId: null, tipId: "e1", endedAt: 1 })),
+    projectRunEvent(harnessEvent({ type: "run_end", runId: "run_1", status: "completed", fromTipId: null, tipId: "e1", endedAt: 1 })),
     { type: "agent_end" },
   );
 });
 
 test("turn_end carries only the error the client renders", () => {
-  assert.deepEqual(projectRunEvent(laneEvent({ type: "turn_end", runId: "run_1", turnId: "turn_1", message: assistantMessage(), toolResults: [] })), {
+  assert.deepEqual(projectRunEvent(harnessEvent({ type: "turn_end", runId: "run_1", turnId: "turn_1", message: assistantMessage(), toolResults: [] })), {
     type: "turn_end",
   });
   const failed = assistantMessage();
   failed.errorMessage = "Provider failed";
-  assert.deepEqual(projectRunEvent(laneEvent({ type: "turn_end", runId: "run_1", turnId: "turn_1", message: failed, toolResults: [] })), {
+  assert.deepEqual(projectRunEvent(harnessEvent({ type: "turn_end", runId: "run_1", turnId: "turn_1", message: failed, toolResults: [] })), {
     type: "turn_end",
     errorMessage: "Provider failed",
   });
@@ -142,7 +142,7 @@ test("turn_end reports a silent overflow when it knows the window, as the run do
   // error text at all, so only the window reveals the overflow.
   const overran = assistantMessage();
   overran.usage = { ...overran.usage, input: 9_000, totalTokens: 9_000 };
-  const event = laneEvent({ type: "turn_end", runId: "run_1", turnId: "turn_1", message: overran, toolResults: [] });
+  const event = harnessEvent({ type: "turn_end", runId: "run_1", turnId: "turn_1", message: overran, toolResults: [] });
 
   assert.deepEqual(projectRunEvent(event), { type: "turn_end" });
   const projected = projectRunEvent(event, 8_192) as { errorMessage?: string };
@@ -196,9 +196,8 @@ test("a real streamed turn reassembles byte-for-byte from the projected events",
   );
 });
 
-/** 0.85 renamed the payload's `assistantMessageEvent` field to plain `event`. */
 function messageUpdate(event: unknown): HarnessEvent {
-  return laneEvent({ type: "message_update", runId: "run_1", message: assistantMessage(), event });
+  return harnessEvent({ type: "message_update", runId: "run_1", message: assistantMessage(), event });
 }
 
 function partial(text: string): AssistantMessage {
@@ -225,17 +224,9 @@ function assistantMessage(): AgentMessage & AssistantMessage {
   } as AgentMessage & AssistantMessage;
 }
 
-/**
- * Wrap a payload as the harness delivers it.
- *
- * 0.85 events are a payload plus an envelope: everything scoped to a lane
- * carries its name. The projector never reads it, but the union does not admit
- * a bare payload, so the tests build the same shape the bus emits.
- */
-function laneEvent(payload: { type: HarnessEvent["type"] } & Record<string, unknown>): HarnessEvent {
-  return { ...payload, lane: "main" } as unknown as HarnessEvent;
+function harnessEvent(payload: { type: HarnessEvent["type"] } & Record<string, unknown>): HarnessEvent {
+  return payload as unknown as HarnessEvent;
 }
-
 
 /**
  * The regression guard for delegating overflow detection to Pi.

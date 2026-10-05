@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { agentMcpServerSchema, agentConfigRequestSchema } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { agents, users } from "../db/schema.ts";
 import { createSession, createUser } from "../test-support.ts";
 import { startMcpTestServer } from "../test-mcp-server.ts";
@@ -12,7 +12,7 @@ import { createAgentRoutes } from "./agents.ts";
 import { serializeAgentSettings, serializePublicAgent } from "../serializers.ts";
 import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
 
-migrate();
+initialize();
 function appFor(userId: string) {
   const app = new Hono<{ Variables: AuthVariables }>();
   app.use("*", async (c, next) => {

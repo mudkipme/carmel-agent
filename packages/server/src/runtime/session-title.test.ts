@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getCurrentSystemPrompt } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
-import { migrate } from "../db/index.ts";
+import { initialize } from "../db/index.ts";
 import { createCarmelModelRuntime } from "./model-runtime.ts";
 import { generateSessionTitle } from "./session-title.ts";
 
-migrate();
+initialize();
 
 test("titles use the configured SDK provider, including providers without API keys", async () => {
   const runtime = await createCarmelModelRuntime();

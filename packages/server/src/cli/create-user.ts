@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db, migrate, seed } from "../db/index.ts";
+import { db, initialize, seed } from "../db/index.ts";
 import { users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { hashPassword } from "../auth.ts";
@@ -21,7 +21,7 @@ async function main() {
   if (!password) throw new Error("Missing --password or CARMEL_PASSWORD.");
   if (password.length < 8) throw new Error("Password must be at least 8 characters.");
 
-  migrate();
+  initialize();
   seed();
 
   const timestamp = now();

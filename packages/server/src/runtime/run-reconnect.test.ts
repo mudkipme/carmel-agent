@@ -4,14 +4,14 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxThinking } from "@earendil-works/pi-ai/providers/faux";
 import { applyStreamingEvent, isStreamingEvent, type AgentRunEvent } from "@carmel-agent/shared";
-import { migrate } from "../db/index.ts";
+import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { closePiSession, openPiSession, readPiSessionBranch } from "../services/pi-session-storage.ts";
 import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
 import { projectRunEvent } from "./run-events.ts";
 import { createActiveAgentRun, emitRunEvent, finishAgentRun, getActiveAgentRunForSessionId } from "./run-stream.ts";
 
-migrate();
+initialize();
 
 // What a client holds on screen: the same folding `RemoteAgent.processEvent` does.
 class ClientView {

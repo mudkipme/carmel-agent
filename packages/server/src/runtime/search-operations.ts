@@ -4,12 +4,6 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { BACKGROUND_CONTEXT, getOrThrow, type ExecutionEnv, type FileInfo } from "../effectors/pi-durable/index.ts";
 
-/**
- * Pi 0.85 requires a `Context` on every filesystem call, but the grep and ls
- * operation contracts it hands these adapters to do not carry one. Neither
- * search was cancellable before, so the background context is what they always
- * effectively used.
- */
 const ctx = BACKGROUND_CONTEXT;
 
 export function createGrepOperations(env: ExecutionEnv): GrepOperations {

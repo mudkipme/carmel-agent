@@ -4,14 +4,14 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { SessionMetadata } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { sessions, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import { createAgent, createModelRef, createSession, createUser } from "../test-support.ts";
 import { createSessionRoutes } from "./sessions.ts";
 
-migrate();
+initialize();
 
 const jsonHeaders = { "content-type": "application/json" };
 

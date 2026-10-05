@@ -14,12 +14,13 @@ import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import { dataDir } from "../paths.ts";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
-import { migrateLegacyPiSession } from "./pi-session-migration.ts";
 
 const ctx = BACKGROUND_CONTEXT;
 export const PI_MAIN_BRANCH = "main";
 export const PENDING_ENTRY_ID_PREFIX = "pending:";
-export const ActiveConversation = defineDoc({ kind: "carmel.active", version: 1, scope: "session", initial: () => ({ id: 0, legacyIds: {} as Record<string, number>, migrated: false as boolean }) });
+export const ActiveConversation = defineDoc({ kind: "carmel.active", version: 1, scope: "session", initial: () => ({ id: 0 }) });
+/** Stable public message IDs, scoped to this native session, for saved links. */
+export const EntryIndex = defineDoc({ kind: "carmel.entry-index", version: 1, scope: "session", initial: () => ({} as Record<string, number>) });
 export type DisplayEntry = { id: string; parentId: string | null; seq: number; timestamp: number } & ({ type: "message"; message: AgentMessage } | { type: "other"; native: EntryRecord });
 export type PiSession = {
   metadata: { id: string };
@@ -32,8 +33,7 @@ export type PiSession = {
   path: string;
   findEntries(query: { type?: string }, context: Context): Promise<DisplayEntry[]>;
 };
-const basePath = resolvePiDatabasePath();
-const directory = `${basePath}.durable`;
+const directory = resolvePiStorageDirectory();
 mkdirSync(directory, { recursive: true, mode: 0o700 });
 const leases = new Map<string, { session: PiSession; holders: number }>();
 const opening = new Map<string, Promise<PiSession>>();
@@ -79,8 +79,6 @@ async function openNative(id: string): Promise<PiSession> {
         return displayEntries([...entries.values()].sort((a,b) => a.id-b.id)).filter(e => !query.type || e.type === query.type);
       },
     };
-    const active = await native.snapshot(ActiveConversation, ctx);
-    if (!active?.migrated) await migrateLegacyPiSession(session, basePath);
     const saved = await native.snapshot(ActiveConversation, ctx);
     session.conversation = saved?.id ? (await native.conversation(saved.id as ConversationId, ctx))! : root;
     return session;
@@ -110,8 +108,8 @@ export function displayId(entry: EntryRecord): string {
 }
 export function displayEntries(entries: readonly EntryRecord[]): DisplayEntry[] {
   return entries.map((entry, index) => {
-    const data = entry.data as { carmelMessage?: AgentMessage; timestamp?: number; legacy?: { type: string } } | undefined;
-    const message = data?.carmelMessage ?? ((!data?.legacy || data.legacy.type === "message") && entry.kind !== "pi.compaction" && entry.kind !== "pi.system" && entry.kind !== "pi.reset" ? entry.model?.[0] : undefined);
+    const data = entry.data as { carmelMessage?: AgentMessage; timestamp?: number } | undefined;
+    const message = data?.carmelMessage ?? (["pi.user", "pi.assistant", "pi.tool-result", "carmel.system-message"].includes(entry.kind) ? entry.model?.[0] : undefined);
     const base = { id: displayId(entry), parentId: index ? displayId(entries[index - 1]!) : null, seq: entry.id, timestamp: Number(data?.timestamp ?? (message && "timestamp" in message ? message.timestamp : 0)) };
     return message ? { ...base, type: "message", message: message as AgentMessage } : { ...base, type: "other", native: entry };
   });
@@ -123,8 +121,9 @@ export function messageDraft(message: AgentMessage): EntryDraft {
     : { kind: "carmel.message", data: { carmelMessage: safe as unknown as JsonValue } };
 }
 export async function resolveEntryId(session: PiSession, id: string): Promise<EntryId> {
-  const legacy = (await session.native.snapshot(ActiveConversation, ctx))?.legacyIds[id];
-  const number = legacy ?? (/^durable:\d+$/.test(id) ? Number(id.slice(8)) : NaN);
+  const number = /^durable:\d+$/.test(id)
+    ? Number(id.slice(8))
+    : (await session.native.snapshot(EntryIndex, ctx))?.[id] ?? NaN;
   if (!Number.isSafeInteger(number)) throw new SessionEntryNotFoundError(id);
   return number as EntryId;
 }
@@ -226,9 +225,9 @@ export async function deletePiSession(session: typeof sessions.$inferSelect) {
 }
 export async function deletePiSessions(records: Array<typeof sessions.$inferSelect>) { for (const record of records) await deletePiSession(record); }
 export class SessionEntryNotFoundError extends Error { constructor(id: string) { super(`Message entry ${id} not found`); this.name = "SessionEntryNotFoundError"; } }
-function resolvePiDatabasePath() {
-  const configured = process.env.CARMEL_PI_SESSION_DATABASE_URL;
-  if (configured && configured !== ":memory:") return resolve(configured.replace(/^file:/, ""));
-  if (process.env.DATABASE_URL === ":memory:" || configured === ":memory:") return join(mkdtempSync(join(tmpdir(), "carmel-pi-sessions-")), "sessions.sqlite");
-  return join(dataDir, "pi-sessions.sqlite");
+function resolvePiStorageDirectory() {
+  const configured = process.env.CARMEL_PI_SESSION_DIR;
+  if (configured && configured !== ":memory:") return resolve(configured);
+  if (process.env.DATABASE_URL === ":memory:" || configured === ":memory:") return mkdtempSync(join(tmpdir(), "carmel-pi-sessions-"));
+  return join(dataDir, "pi-sessions.sqlite.durable");
 }

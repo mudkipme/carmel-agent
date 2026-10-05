@@ -111,11 +111,9 @@ export function MessageEditDialog({
 
 function computeImageRemovals(images: EditableUserImage[], removedKeys: Set<string>): UserMessageEditOptions {
   const removedImageIndexes: number[] = [];
-  const removedAttachmentIds: string[] = [];
   for (const image of images) {
     if (!removedKeys.has(image.key)) continue;
-    if (image.removal.kind === "content") removedImageIndexes.push(image.removal.index);
-    else removedAttachmentIds.push(image.removal.id);
+    removedImageIndexes.push(image.removal.index);
   }
-  return { removedImageIndexes, removedAttachmentIds };
+  return { removedImageIndexes };
 }

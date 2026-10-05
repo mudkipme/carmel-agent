@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
 import { eq } from "drizzle-orm";
-import { db, migrate, sqlite } from "../db/index.ts";
+import { db, initialize, sqlite } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { prepareAgentRunPrompt, runHarnessPrompt } from "../runtime/agent-runtime.ts";
@@ -20,7 +20,7 @@ import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "../effectors
 import { loadSession, readSessionMessages } from "./session-store.ts";
 import { loadBuiltinSkills } from "../runtime/builtin-skills.ts";
 
-migrate();
+initialize();
 
 const contents = async (sessionId: string) =>
   (await readSessionMessages(sessionId)).map((message) => (message as { content: string }).content);
@@ -31,7 +31,6 @@ test("Carmel metadata database has no session-content tables", () => {
     .all("table", "pi_session_entries", "session_messages");
   assert.deepEqual(tables, []);
 });
-
 
 test("replace then read preserves message order and exposes native entry IDs", async () => {
   const { sessionId } = createSession();
@@ -62,8 +61,6 @@ test("Pi native SQLite storage persists entries and lane configuration", async (
   const pi = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
     await pi.log.appendMessage(userMessage("a"));
-    // 0.85 moved the thinking level out of the transcript and onto lane state,
-    // so this is a lane write rather than a third entry on the branch.
     await pi.lane.setThinkingLevel("high", pi.context);
     await pi.log.appendMessage(userMessage("b"));
 
@@ -192,10 +189,6 @@ test("non-truncating entry edit preserves the message suffix and lane configurat
 
   await rewritePiSessionMessage(sessionId, firstId!, userMessage("edited"), false);
 
-  // In 0.83 the thinking level was an entry on the branch, so this test was
-  // about the edit cloning it onto the new branch. 0.85 stores it as lane state
-  // instead, which the edit does not touch -- the same guarantee, reached by not
-  // putting configuration in the transcript in the first place.
   const edited = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
     assert.equal(await edited.lane.getThinkingLevel(edited.context), "high");
@@ -205,7 +198,6 @@ test("non-truncating entry edit preserves the message suffix and lane configurat
     await edited.close();
   }
 });
-
 
 test("loadSession and entry reads expose the active native branch", async () => {
   const { sessionId, userId } = createSession();
@@ -242,13 +234,7 @@ function userMessageText(message: { content?: unknown } | undefined) {
     .join("\n");
 }
 
-/**
- * Pi 0.85 reports an unprovisioned session with a bare `Error` and no code, so
- * `isSessionMissing` matches its message text. These are the two paths that
- * depend on that match; if a Pi upgrade rewords the error, they fail here
- * instead of every new session failing to open in production.
- */
-test("Pi contract: a never-provisioned session is recognised as missing", async () => {
+test("Pi storage provisions an empty session on first open", async () => {
   const { sessionId } = createSession();
   const record = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   assert.ok(record);

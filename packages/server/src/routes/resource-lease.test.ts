@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { sessions, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
@@ -13,7 +13,7 @@ import { createModelRoutes } from "./models.ts";
 import { createProviderConfigRoutes } from "./provider-configs.ts";
 import { createUserRoutes } from "./users.ts";
 
-migrate();
+initialize();
 
 test("active-run lease blocks cascading agent, model, provider, and user deletion", async () => {
   const ownerId = createUser();

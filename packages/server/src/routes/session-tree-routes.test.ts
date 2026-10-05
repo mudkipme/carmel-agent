@@ -5,14 +5,14 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AuthVariables } from "../auth.ts";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { users } from "../db/schema.ts";
 import { loadSession } from "../services/session-store.ts";
 import { replacePiSessionMessages } from "../services/pi-session-storage.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { createSessionRoutes } from "./sessions.ts";
 
-migrate();
+initialize();
 const json = { "content-type": "application/json" };
 
 test("session routes fork, edit, and truncate by native Pi entry ID", async () => {

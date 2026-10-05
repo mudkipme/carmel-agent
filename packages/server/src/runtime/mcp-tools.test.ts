@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { agentMcpServerSchema, agentMcpServersSchema, type AgentMcpServer } from "@carmel-agent/shared";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { agents } from "../db/schema.ts";
 import { createSession } from "../test-support.ts";
 import { startMcpTestServer } from "../test-mcp-server.ts";
@@ -13,7 +13,7 @@ import { AgentMcpTools, expandMcpSecrets, mcpToolName } from "./mcp-tools.ts";
 import { createServerExecution } from "./tools.ts";
 import { HarnessAbortGate } from "./agent-runtime.ts";
 
-migrate();
+initialize();
 function agent(servers: AgentMcpServer[], permissions = { read: false, write: false, edit: false, bash: true, network: true }) {
   const fixture = createSession();
   const row = db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!;

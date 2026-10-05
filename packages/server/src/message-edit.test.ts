@@ -45,23 +45,6 @@ test("updateUserMessageContent can drop every image, leaving only text", () => {
   assert.equal(edited.content[0].type, "text");
 });
 
-test("updateUserMessageContent prunes legacy attachments by id", () => {
-  const message = {
-    role: "user-with-attachments",
-    content: [{ type: "text", text: "hi" }],
-    attachments: [
-      { id: "a", type: "image", fileName: "a.png", mimeType: "image/png", size: 1 },
-      { id: "b", type: "image", fileName: "b.png", mimeType: "image/png", size: 1 },
-    ],
-    timestamp: 1,
-  } as unknown as AgentMessage;
-
-  const edited = updateUserMessageContent(message, "hi", { removedAttachmentIds: ["a"] }) as unknown as {
-    attachments: Array<{ id: string }>;
-  };
-  assert.deepEqual(edited.attachments.map((attachment) => attachment.id), ["b"]);
-});
-
 test("updateUserMessageContent ignores removals on non-user messages", () => {
   const assistant = {
     role: "assistant",

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Api, ImageModel, Model } from "@earendil-works/pi-ai";
-import { migrate, sqlite } from "../db/index.ts";
+import { initialize, sqlite } from "../db/index.ts";
 import { getCachedCatalogModel, SqliteModelsStore } from "./model-store.ts";
 
-migrate();
+initialize();
 
 const cachedModel: Model<Api> = {
   id: "cached-model",

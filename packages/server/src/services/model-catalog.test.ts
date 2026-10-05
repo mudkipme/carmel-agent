@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { eq } from "drizzle-orm";
-import { db, migrate, sqlite } from "../db/index.ts";
+import { db, initialize, sqlite } from "../db/index.ts";
 import { providerConfigs } from "../db/schema.ts";
 import { SqliteModelsStore } from "../runtime/model-store.ts";
 import { createProviderConfig, createUser } from "../test-support.ts";
 import { readProviderModels } from "./model-catalog.ts";
 
-migrate();
+initialize();
 
 const remoteModel: Model<Api> = {
   id: "openai-future-test-model",

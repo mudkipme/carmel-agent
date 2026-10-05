@@ -175,4 +175,4 @@ CARMEL_PASSWORD='choose-a-long-password' \
   podman compose exec -e CARMEL_PASSWORD carmel-agent node --import tsx src/cli/create-user.ts --username admin
 ```
 
-The command runs migrations and seeds the database first, then creates or updates the account. It always grants the administrator role. Passwords must be at least 8 characters, and an existing user with the same username is updated in place — which is how you reset a forgotten admin password.
+The command initializes the current schema and seeds an empty database first, then creates or updates the account. It always grants the administrator role. Passwords must be at least 8 characters, and an existing user with the same username is updated in place — which is how you reset a forgotten admin password.

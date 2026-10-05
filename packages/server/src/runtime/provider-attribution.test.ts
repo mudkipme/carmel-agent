@@ -3,11 +3,11 @@ import { createServer, type IncomingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { migrate } from "../db/index.ts";
+import { initialize } from "../db/index.ts";
 import { bindResolvedModel, createCarmelModelRuntime } from "./model-runtime.ts";
 import { mergeProviderAttributionHeaders, withProviderAttribution } from "./provider-attribution.ts";
 
-migrate();
+initialize();
 
 /**
  * These headers are how OpenRouter decides which app a request belongs to.

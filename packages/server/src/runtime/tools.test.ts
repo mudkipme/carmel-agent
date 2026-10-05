@@ -262,13 +262,6 @@ test("bash stays unavailable when no container socket exists", async () => {
   }
 });
 
-/**
- * Call a tool the way the 0.85 harness does.
- *
- * The signature moved: the update callback took the abort signal's third
- * position, the tool context follows it, and the signal now rides on the
- * invocation `Context` at the end.
- */
 function executeTool(
   tool: { execute: unknown },
   toolCallId: string,

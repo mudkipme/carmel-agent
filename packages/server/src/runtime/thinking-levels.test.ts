@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import { OLLAMA_PROVIDER, resolveModelRef, type ModelRef } from "@carmel-agent/shared";
-import { migrate, sqlite } from "../db/index.ts";
+import { initialize, sqlite } from "../db/index.ts";
 import { modelCatalogStore, resetCatalogCache } from "./model-store.ts";
 import { thinkingLevelOverrides } from "./model.ts";
 
-migrate();
+initialize();
 
 // Pi gates "xhigh"/"max" on the model carrying a `thinkingLevelMap` entry for
 // them. Any step that rebuilds a Model without that map silently caps the

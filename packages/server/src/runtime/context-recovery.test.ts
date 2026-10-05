@@ -4,7 +4,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AgentRunEvent } from "@carmel-agent/shared";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
-import { migrate } from "../db/index.ts";
+import { initialize } from "../db/index.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import { openPiSession, replacePiSessionMessages } from "../services/pi-session-storage.ts";
 import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
@@ -12,16 +12,9 @@ import { readSessionMessages } from "../services/session-store.ts";
 import { OVERFLOW_RECOVERED } from "../effectors/compaction-policy.ts";
 import { ContextReporter } from "./agent-runtime.ts";
 
-migrate();
+initialize();
 
 const OVERFLOW = "400 prompt is too long: 213451 tokens > 200000 maximum";
-
-/**
- * Pi 0.85 does all the compacting: it compacts and retries an overflowed
- * generation once, inside `lane.prompt`. Carmel's part is what the user is
- * told, and these scenes drive a real harness to check that against what Pi
- * actually emits.
- */
 
 test("Pi's own overflow recovery is announced, so the client can clear the error it already showed", async () => {
   const scene = await setupScene((callCount) => {

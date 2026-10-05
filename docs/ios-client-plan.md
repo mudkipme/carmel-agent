@@ -251,7 +251,7 @@ enum ContentPart {
 
 Three rules for this file:
 
-- **Never fail the decode.** An unrecognised role or part becomes `.unknown` and renders as a neutral placeholder. Pi is pinned at 0.83 today and will move; one new content part must not blank a transcript.
+- **Never fail the decode.** An unrecognised role or part becomes `.unknown` and renders as a neutral placeholder. Pi is pinned at 1.0.3 today and will move; one new content part must not blank a transcript.
 - **Round-trip losslessly.** Message editing sends content back to the server. Keep the raw JSON alongside the parsed form so an edit rewrites only the text part, exactly as `updateUserMessageContent` does.
 - **Port the shared helpers verbatim.** `applyStreamingEvent`, `isEditableAssistantMessage`, `updateUserMessageContent`, `updateAssistantMessageContent`, and `resolveModelRef` live in `packages/shared` precisely because client and server must agree exactly. Port them with their tests, not from memory.
 
@@ -338,7 +338,7 @@ Everything the web client does, and where it lands. Nothing here is optional for
 | Chat | Context pressure banner, run recovered | Inline banner | Persists past run end; cleared on next run |
 | Chat | Abort a run | Stop button | 404 on abort is success |
 | Conversation | Fork from a message | Message context menu | 409 with `safeEntryId` when the cut point is invalid — offer to fork there instead |
-| Conversation | Edit user message (+ remove images) | Edit sheet | `removedImageIndexes` / `removedAttachmentIds` |
+| Conversation | Edit user message (+ remove images) | Edit sheet | `removedImageIndexes` |
 | Conversation | Edit assistant message | Edit sheet | Only when it has text and no tool calls |
 | Conversation | Retry from a message | Context menu | Edit with `truncate: true`, then run |
 | Conversation | Truncate a branch | Context menu | Same 409 cut-point rule |
@@ -501,7 +501,7 @@ Accessibility audit, Dynamic Type at every size, long-transcript performance, me
 | Risk | Mitigation |
 | --- | --- |
 | `swift-openapi-urlsession` buffers streaming responses | Settled in the Phase 0 spike; the plan already keeps both streams hand-written on `URLSession.bytes`, so a negative result costs nothing |
-| Pi's message shape changes on a version bump (pinned at 0.83 today) | `.unknown` cases in the codec; never fail a decode. Fixtures regenerated against each Pi bump |
+| Pi's message shape changes on a version bump (pinned at 1.0.3 today) | `.unknown` cases in the codec; never fail a decode. Fixtures regenerated against each Pi bump |
 | No CodeMirror equivalent for the file editor | Ship read-only syntax highlighting plus a plain monospaced `UITextView` editor first. Full editing affordances are a later, separable project; the web app remains available for heavy editing |
 | Whole-transcript fetch on open | Cache locally, render windowed, show the tail immediately. Pagination is the real fix if long sessions become common |
 | Self-signed TLS is the norm for self-hosters | Explicit fingerprint-confirmation flow with a Keychain-pinned SPKI, plus a local-networking ATS exception. Never a blanket "accept all" |

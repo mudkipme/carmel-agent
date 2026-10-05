@@ -6,7 +6,7 @@ import { mkdtemp, writeFile, readFile, rm, symlink } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { and, eq } from "drizzle-orm";
-import { db, migrate } from "../db/index.ts";
+import { db, initialize } from "../db/index.ts";
 import { agents, issueAttempts, issues, modelRefs } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createAgent, createUser } from "../test-support.ts";
@@ -33,7 +33,7 @@ import {
 } from "./issues.ts";
 import { shutdownActiveRuns } from "../runtime/run-stream.ts";
 
-migrate();
+initialize();
 
 test("the agent runs a reordered queue serially; review releases the slot and preserves each run's files", async () => {
   const f = await fixture();
