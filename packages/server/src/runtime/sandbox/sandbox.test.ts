@@ -14,7 +14,9 @@ import {
   isAgentContainerHeld,
   releaseAgentContainer,
   resolveAgentHomeDirPath,
+  resolveAgentTmpDirPath,
   resolveContainerWorkspace,
+  toContainerWorkdir,
 } from "./container-manager.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -87,6 +89,16 @@ test("containerWorkdir falls back to the mount root for outside paths", () => {
 
 test("containerWorkdir preserves an absolute mount path for manual workspaces", () => {
   assert.equal(containerWorkdir("/srv/projects/app", "/srv/projects/app/src", "/srv/projects/app"), "/srv/projects/app/src");
+});
+
+test("shell working directories follow workspace, tmp, home, and extra mount paths", () => {
+  const agent = manualAgent({ workingDirMode: "default", workingDir: "/data/agents/a/workspace", mounts: [{ source: "/srv/shared", target: "/refs" }] });
+  assert.equal(toContainerWorkdir(agent, agent.workingDir), "/workspace");
+  assert.equal(toContainerWorkdir(agent, join(agent.workingDir, "src")), "/workspace/src");
+  assert.equal(toContainerWorkdir(agent, join(resolveAgentTmpDirPath(agent), "output")), "/tmp/output");
+  assert.equal(toContainerWorkdir(agent, join(resolveAgentHomeDirPath(agent), "bin")), "/home/agent/bin");
+  assert.equal(toContainerWorkdir(agent, "/srv/shared/docs"), "/refs/docs");
+  assert.equal(toContainerWorkdir(agent, "/srv/shared-other"), "/workspace");
 });
 
 test("resolveContainerWorkspace keeps the absolute path for manual workspaces", () => {

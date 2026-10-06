@@ -78,7 +78,7 @@ test("file routes do not create files outside the working directory", async () =
 });
 
 test("write-only file routes can create and rename inside the workspace", async () => {
-  const agent = makeAgent({ permissions: { ...allPermissions(false), write: true } });
+  const agent = makeAgent({ workingDirMode: "default", permissions: { ...allPermissions(false), write: true } });
   const app = createTestApp(agent);
 
   const createResponse = await app.request("/agent_1/files", {
@@ -172,7 +172,7 @@ test("file routes omit symlinks outside the working directory from listings", as
 });
 
 test("file routes reject deleting the working directory root", async () => {
-  const agent = makeAgent({ permissions: { ...allPermissions(false), write: true } });
+  const agent = makeAgent({ workingDirMode: "default", permissions: { ...allPermissions(false), write: true } });
   const app = createTestApp(agent);
 
   const response = await app.request("/agent_1/files?path=", { method: "DELETE" });

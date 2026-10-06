@@ -1,5 +1,5 @@
 import { rmSync } from "node:fs";
-import { isAbsolute, posix, relative, resolve } from "node:path";
+import { isAbsolute, posix, relative, resolve, sep } from "node:path";
 import type { AgentMount } from "@carmel-agent/shared";
 import { agents } from "../../db/schema.ts";
 import { agentHomeDir, agentTmpDir, dataDir, ensureDir, resolveDataPath } from "../../paths.ts";
@@ -196,14 +196,31 @@ function agentTmpDirPath(agentId: string) {
 }
 
 export function toContainerWorkdir(agent: AgentRecord, cwd: string) {
-  return containerWorkdir(resolveAgentWorkingDirPath(agent), cwd, resolveContainerWorkspace(agent));
+  const workspaceRoot = resolveAgentWorkingDirPath(agent);
+  const mountPath = resolveContainerWorkspace(agent);
+  const mappings = [
+    { source: workspaceRoot, target: mountPath },
+    { source: resolveAgentTmpDirPath(agent), target: "/tmp" },
+    { source: resolveAgentHomeDirPath(agent), target: containerHome },
+    ...agent.mounts.flatMap(mount => {
+      const source = mount.source?.trim();
+      return source ? [{ source: resolve(source), target: resolve(mount.target?.trim() || source) }] : [];
+    }),
+  ].sort((left, right) => right.source.length - left.source.length);
+  for (const { source, target } of mappings) {
+    const rel = relative(resolve(source), resolve(cwd));
+    if (!rel || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))) {
+      return containerWorkdir(source, cwd, target);
+    }
+  }
+  return mountPath;
 }
 
 // Maps a host-side absolute working directory onto the workspace mount point
 // inside the container. Anything outside the workspace falls back to its root.
 export function containerWorkdir(workspaceRoot: string, cwd: string, mountPath: string) {
   const rel = relative(resolve(workspaceRoot), resolve(cwd));
-  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return mountPath;
+  if (!rel || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return mountPath;
   return posix.join(mountPath, rel.split(/[\\/]/).join("/"));
 }
 

@@ -139,7 +139,7 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
   route.delete("/:id/files", requireWrite, async (c) => {
     const env = c.get("agentEnv");
     const targetPath = env.resolveBrowserPath(c.req.query("path") ?? "", "write");
-    if (targetPath === env.cwd) return c.json({ error: "The working directory cannot be deleted." }, 400);
+    if (targetPath === env.hostCwd) return c.json({ error: "The working directory cannot be deleted." }, 400);
     unwrap(await env.remove(targetPath, { recursive: true }, fsCtx));
     return c.json({ ok: true });
   });
@@ -169,7 +169,7 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     }
 
     const entries = await collectArchiveEntries(env, targets.map((target) => target.absolutePath));
-    const archiveName = single ? `${single.absolutePath === env.cwd ? "workspace" : basename(single.absolutePath)}.zip` : "files.zip";
+    const archiveName = single ? `${single.absolutePath === env.hostCwd ? "workspace" : basename(single.absolutePath)}.zip` : "files.zip";
     return c.body(toWebStream(Readable.from(zipArchive(entries))), 200, {
       "content-type": "application/zip",
       "content-disposition": contentDisposition(archiveName),
@@ -190,7 +190,7 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
 
     const env = c.get("agentEnv");
     const targetPath = env.resolveBrowserPath(requestedPath, "write");
-    if (targetPath === env.cwd) return c.json({ error: "A file path is required." }, 400);
+    if (targetPath === env.hostCwd) return c.json({ error: "A file path is required." }, 400);
     if (unwrap(await env.exists(targetPath, fsCtx))) {
       if (c.req.query("overwrite") !== "true") return c.json({ error: "Path already exists." }, 409);
       if (unwrap(await env.fileInfo(targetPath, fsCtx)).kind !== "file") return c.json({ error: "Path is not a file." }, 400);
@@ -270,7 +270,7 @@ async function collectArchiveEntries(env: AgentExecutionEnv, roots: string[]) {
     }
   };
 
-  for (const root of roots) await visit(root, root === env.cwd ? "" : basename(root));
+  for (const root of roots) await visit(root, root === env.hostCwd ? "" : basename(root));
   return entries;
 }
 
@@ -306,7 +306,7 @@ async function applyBatchOperation(
 ) {
   const sourcePath = env.resolveBrowserPath(path, "write");
   const name = basename(sourcePath);
-  if (sourcePath === env.cwd) throw new FileError("invalid", "The working directory cannot be moved or deleted.", path);
+  if (sourcePath === env.hostCwd) throw new FileError("invalid", "The working directory cannot be moved or deleted.", path);
   if (operation === "delete") {
     unwrap(await env.remove(sourcePath, { recursive: true }, fsCtx));
     return;

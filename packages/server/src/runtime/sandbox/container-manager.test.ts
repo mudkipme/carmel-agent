@@ -33,6 +33,8 @@ test("container identity, initialization, and replacement fail safely", { timeou
   let execId = 0;
   let browserPreparations = 0;
   const executions = new Map<string, boolean>();
+  const fixtureExecutions = new Map<string, { command: string; cwd: string }>();
+  const fixtureOutput = `large fixture output from ${directory}\n`;
   const specs: Array<{ User: string; HostConfig: { Init: boolean; UsernsMode: string; CapDrop: string[]; SecurityOpt: string[] } }> = [];
   const server = createServer(async (req, res) => {
     const path = new URL(req.url!, "http://podman").pathname;
@@ -56,15 +58,24 @@ test("container identity, initialization, and replacement fail safely", { timeou
     if (path.includes("/containers/") && path.endsWith("/json")) return json({ State: { Running: true } });
     if (path.endsWith("/exec")) {
       let body = ""; for await (const chunk of req) body += chunk;
-      const spec = JSON.parse(body) as { Cmd: string[]; User?: string };
+      const spec = JSON.parse(body) as { Cmd: string[]; User?: string; WorkingDir: string };
       assert.equal(spec.User, undefined, "execs inherit the container's non-root identity");
       const initializing = spec.Cmd[2]!.includes("Sandbox user mapping");
       if (!initializing) browserPreparations++;
       const id = `exec-${++execId}`;
       executions.set(id, initializing);
+      if (spec.Cmd.at(-1)?.startsWith("fixture-output")) fixtureExecutions.set(id, { command: spec.Cmd.at(-1)!, cwd: spec.WorkingDir });
       return json({ Id: id }, 201);
     }
-    if (path.includes("/exec/") && path.endsWith("/json")) return json({ ExitCode: executions.get(path.split("/").at(-2)!) ? initializeExitCode : 0 });
+    if (path.includes("/exec/") && path.endsWith("/json")) {
+      const id = path.split("/").at(-2)!;
+      return json({ ExitCode: executions.get(id) ? initializeExitCode : fixtureExecutions.get(id)?.command === "fixture-output-timeout" ? 124 : 0 });
+    }
+    if (path.includes("/exec/") && path.endsWith("/start") && fixtureExecutions.has(path.split("/").at(-2)!)) {
+      const payload = Buffer.from(fixtureOutput);
+      const header = Buffer.alloc(8); header[0] = 1; header.writeUInt32BE(payload.length, 4);
+      res.writeHead(200); res.end(Buffer.concat([header, payload])); return;
+    }
     res.writeHead(path.includes("/exec/") ? 200 : 204); res.end();
   });
   await new Promise<void>((resolve) => server.listen(process.env.CARMEL_PODMAN_SOCKET, resolve));
@@ -106,6 +117,30 @@ test("container identity, initialization, and replacement fail safely", { timeou
     runtime = "podman";
     assert.equal(await ensureAgentContainer(agent, { network: false }), "container-4");
     assert.equal(specs.at(-1)!.HostConfig.UsernsMode, "keep-id");
+
+    // Real execution-env spill handling over the mocked daemon: returned paths
+    // must work in both bash and the server's guarded filesystem tools.
+    const { AgentExecutionEnv } = await import("../execution-env.ts");
+    const { BACKGROUND_CONTEXT, getOrThrow } = await import("../../effectors/pi-durable/index.ts");
+    const { initialize } = await import("../../db/index.ts");
+    initialize();
+    const env = new AgentExecutionEnv({ ...agent, workingDirMode: "default", permissions: { read: true, write: true, edit: true, bash: true, network: false } });
+    try {
+      for (const command of ["fixture-output", "fixture-output-timeout"]) {
+        const result = await env.exec(command, { cwd: "/tmp", timeout: 1, spill: { afterBytes: 4, afterLines: 100 } }, BACKGROUND_CONTEXT);
+        const spillPath = result.ok ? result.value.spillPath : result.error.spillPath;
+        assert.ok(spillPath, result.ok ? JSON.stringify(result.value) : result.error.message);
+        assert.match(spillPath, /^\/tmp\/output-/);
+        assert.equal(getOrThrow(await env.readTextFile(spillPath, BACKGROUND_CONTEXT)), fixtureOutput);
+        if (command === "fixture-output") assert.ok(result.ok);
+        else {
+          assert.equal(result.ok, false);
+          if (!result.ok) assert.equal(result.error.code, "timeout");
+        }
+        assert.equal([...fixtureExecutions.values()].at(-1)?.cwd, "/tmp");
+        assert.equal([...fixtureExecutions.values()].at(-1)?.command, command);
+      }
+    } finally { await env.cleanup(BACKGROUND_CONTEXT); }
   } finally {
     holdDelete = false; delayedDelete?.end();
     await shutdownContainerManager();

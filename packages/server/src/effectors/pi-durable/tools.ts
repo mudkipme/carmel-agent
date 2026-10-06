@@ -25,7 +25,7 @@ function adapt<T extends ExecutionToolContext>(native: ToolRegistration): AgentH
     },
   };
 }
-export function createReadTool<T extends ExecutionToolContext>(): AgentHarnessTool<T> {
+export function createReadTool<T extends ExecutionToolContext>(options?: { resolveImagePath: (path: string) => string }): AgentHarnessTool<T> {
   const native = adapt<T>(read());
   return { ...native, replay: "safe", description: native.description + " Images can also be read.",
     async execute(id, args, update, tools, invocation, context) {
@@ -35,7 +35,10 @@ export function createReadTool<T extends ExecutionToolContext>(): AgentHarnessTo
       const imageReader = codingRead(tools.env.cwd, { operations: {
         readFile: async path => Buffer.from(getOrThrow(await tools.env.readBinaryFile(path, context))),
         access: async path => { getOrThrow(await tools.env.readBinaryFile(path, context)); },
-        detectImageMimeType: async path => detectSupportedImageMimeTypeFromFile(getOrThrow(await tools.env.canonicalPath(path, context))),
+        detectImageMimeType: async path => {
+          const canonical = getOrThrow(await tools.env.canonicalPath(path, context));
+          return detectSupportedImageMimeTypeFromFile(options?.resolveImagePath(canonical) ?? canonical);
+        },
       } });
       return imageReader.execute(id, args, context.abortSignal, update);
     },

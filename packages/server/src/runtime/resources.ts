@@ -34,7 +34,7 @@ export type AgentResources = {
 
 /** Workspace resources use agent authority; built-ins come from the application bundle. */
 export async function loadAgentResources(agent: AgentRecord, env: ExecutionEnv): Promise<AgentResources> {
-  const cwd = resolveAgentWorkingDirPath(agent);
+  const cwd = env.cwd;
   const [skillResult, promptResult, contextResult, builtins] = await Promise.all([
     loadSkills(env, resolve(cwd, ".agents", "skills"), ctx),
     loadPromptTemplates(env, resolve(cwd, ".pi", "prompts"), ctx),

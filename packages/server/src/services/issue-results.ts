@@ -75,7 +75,7 @@ export async function captureIssueWorkspace(
         }
         if (!entry.isFile()) continue;
         const authorized = env.resolveBrowserPath(file);
-        if (relative(env.cwd, authorized).startsWith("..")) continue;
+        if (relative(env.hostCwd, authorized).startsWith("..")) continue;
         const handle = await open(
           authorized,
           constants.O_RDONLY | constants.O_NOFOLLOW,

@@ -56,7 +56,7 @@ export const filesystemToolProvider: ToolProvider = {
     });
 
     return [
-      own("read", createReadTool<ExecutionToolContext>()),
+      own("read", createReadTool<ExecutionToolContext>({ resolveImagePath: path => env.resolveAuthorizedPath(path, "read") })),
       own("read", createAuthorizedGrepTool(env)),
       own("read", createAuthorizedFindTool(env)),
       own("read", asHarnessTool(createPiLsTool(env.cwd, { operations: createLsOperations(env) }))),
@@ -76,13 +76,15 @@ export const bashToolProvider: ToolProvider = {
 };
 
 function createAuthorizedFindTool(env: AgentExecutionEnv): ServerToolDefinition {
-  const tool = createPiFindTool(env.cwd);
+  // Pi spawns fd/rg in the server. Only their structured search paths use host storage.
+  const tool = createPiFindTool(env.hostCwd);
   return asHarnessTool({
     ...tool,
     async execute(toolCallId, params, signal, onUpdate) {
       const args = params as FindToolInput;
       const path = env.resolveAuthorizedPath(args.path || ".", "read");
-      return tool.execute(toolCallId, { ...args, path }, signal, onUpdate);
+      try { return await tool.execute(toolCallId, { ...args, path }, signal, onUpdate); }
+      catch (error) { throw env.toAgentError(error); }
     },
   });
 }
@@ -91,13 +93,14 @@ function createAuthorizedFindTool(env: AgentExecutionEnv): ServerToolDefinition 
 // original search path to its host rg process. Resolve it first so container
 // mount aliases are remapped and rg never receives an unauthorized host path.
 function createAuthorizedGrepTool(env: AgentExecutionEnv): ServerToolDefinition {
-  const tool = createPiGrepTool(env.cwd, { operations: createGrepOperations(env) });
+  const tool = createPiGrepTool(env.hostCwd, { operations: createGrepOperations(env) });
   return asHarnessTool({
     ...tool,
     async execute(toolCallId, params, signal, onUpdate) {
       const args = params as GrepToolInput;
       const path = env.resolveAuthorizedPath(args.path || ".", "read");
-      return tool.execute(toolCallId, { ...args, path }, signal, onUpdate);
+      try { return await tool.execute(toolCallId, { ...args, path }, signal, onUpdate); }
+      catch (error) { throw env.toAgentError(error); }
     },
   });
 }

@@ -25,7 +25,7 @@ export async function loadBuiltinSkills(agent: AgentCapabilities): Promise<Skill
       return result.skills;
     } finally { await env.cleanup(BACKGROUND_CONTEXT); }
   })();
-  return (await bundled).map((skill) => ({ ...skill }));
+  return (await bundled).map((skill) => ({ ...skill, source: "builtin" }));
 }
 
 export function isBuiltinSkill(skill: Skill) {

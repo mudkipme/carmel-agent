@@ -21,7 +21,7 @@ import { resolveModelContext } from "../services/model-context.ts";
 import { type AgentRunEvent, type PromptInput, type Session } from "@carmel-agent/shared";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
-import { loadAgentResources, resolveAgentWorkingDirPath } from "./resources.ts";
+import { loadAgentResources } from "./resources.ts";
 import { classifyHarnessTurnFailure, projectRunEvent } from "./run-events.ts";
 import {
   createActiveAgentRun,
@@ -383,7 +383,7 @@ async function openRunHarness(
     thinkingLevel,
     systemPrompt: buildHarnessSystemPrompt({
       base: agent.systemPrompt.trim() || "You are a helpful assistant.",
-      cwd: resolveAgentWorkingDirPath(agent),
+      cwd: execution.env.cwd,
       skills: resources.skills,
       contextFiles: resources.contextFiles,
       includeSkills: activeToolNames.includes("read"),

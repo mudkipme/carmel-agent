@@ -19,7 +19,7 @@ type AgentRecord = typeof agents.$inferSelect;
 export function createServerExecution(agent: AgentRecord, codemodeHooks?: CodemodeHooks) {
   const browserRevision = { revision: agent.permissions.bash ? browserControl(agent.id).state.revision : 0 };
   const env = new AgentExecutionEnv(agent);
-  const mcp = new AgentMcpTools(agent, env.cwd);
+  const mcp = new AgentMcpTools(agent, env.hostCwd);
   const tools = createServerToolDefinitions(agent, env);
   return {
     env,

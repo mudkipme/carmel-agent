@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { withAbortSignal } from "../effectors/pi-durable/index.ts";
+import { getOrThrow, withAbortSignal } from "../effectors/pi-durable/index.ts";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import { createGrepOperations } from "./search-operations.ts";
 import { createServerExecution, createServerToolDefinitions, remapContainerPath } from "./tools.ts";
@@ -41,6 +41,116 @@ test("remapContainerPath translates container paths to host paths", () => {
   // relative paths and unmapped absolute paths pass through unchanged
   assert.equal(remapContainerPath("notes/todo.md", mappings), "notes/todo.md");
   assert.equal(remapContainerPath("/etc/passwd", mappings), "/etc/passwd");
+  assert.equal(remapContainerPath("/workspace-other/file.txt", mappings), "/workspace-other/file.txt");
+});
+
+test("server filesystem tools accept runner paths across workspace, tmp, home, and mounts", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-container-paths-"));
+  const references = mkdtempSync(join(tmpdir(), "carmel-container-refs-"));
+  const execution = createServerExecution(makeAgent({
+    id: `agent_paths_${crypto.randomUUID()}`, workingDir, workingDirMode: "default",
+    mounts: [{ source: references, target: "/refs", readOnly: true }],
+    permissions: { ...allPermissions(true), bash: false, network: false },
+  }));
+  const { env } = execution;
+  const call = (name: string, args: Record<string, unknown>) => executeTool(
+    execution.tools.find(tool => tool.name === name)!, name, args, new AbortController().signal, execution.toolContext,
+  );
+  try {
+    assert.equal(env.cwd, "/workspace");
+    assert.equal(env.hostCwd, workingDir);
+    for (const [root, storage] of [["/workspace", workingDir], ["/tmp", env.tmpDir], ["/home/agent", env.homeDir], ["/refs", references]]) {
+      mkdirSync(join(storage!, "src"), { recursive: true });
+      // Actual file contents must never be rewritten just because they contain storage paths.
+      const content = `needle ${workingDir}\nsecond line\n`;
+      writeFileSync(join(storage!, "src", "notes.txt"), content);
+      assert.equal(readToolText(await call("read", { path: `${root}/src/notes.txt` })), content);
+      assert.match(readToolText(await call("ls", { path: `${root}/src` })), /^notes\.txt$/m);
+      assert.match(readToolText(await call("find", { path: root, pattern: "**/*.txt" })), /^src\/notes\.txt$/m);
+      assert.equal(readToolText(await call("grep", { path: `${root}/src`, pattern: "needle" })), `notes.txt:1: needle ${workingDir}`);
+      assert.match(readToolText(await call("grep", { path: `${root}/src/notes.txt`, pattern: "needle", context: 1 })), /second line/);
+      assert.equal(getOrThrow(await env.absolutePath(join(storage!, "src", "notes.txt"), TEST_CONTEXT)), `${root}/src/notes.txt`);
+      assert.equal(getOrThrow(await env.canonicalPath(`${root}/src/notes.txt`, TEST_CONTEXT)), `${root}/src/notes.txt`);
+      assert.equal(getOrThrow(await env.fileInfo(`${root}/src/notes.txt`, TEST_CONTEXT)).path, `${root}/src/notes.txt`);
+      assert.equal(getOrThrow(await env.listDir(`${root}/src`, TEST_CONTEXT))[0]?.path, `${root}/src/notes.txt`);
+    }
+    assert.match(readToolText(await call("read", { path: "src/notes.txt" })), /^needle/);
+    await call("write", { path: "/workspace/new.txt", content: "before" });
+    await call("edit", { path: "/workspace/new.txt", edits: [{ oldText: "before", newText: "after" }] });
+    assert.equal(readFileSync(join(workingDir, "new.txt"), "utf8"), "after");
+    await assert.rejects(call("write", { path: "/refs/new.txt", content: "denied" }), /outside the agent working directory/);
+    for (const name of ["read", "ls", "find", "grep", "write"]) {
+      await assert.rejects(call(name, { path: "/workspace/../etc/passwd", pattern: "needle", content: "denied" }), /outside the agent working directory/);
+    }
+    const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==";
+    writeFileSync(join(workingDir, "pixel.png"), Buffer.from(png, "base64"));
+    const image = await call("read", { path: "/workspace/pixel.png" }) as { content: Array<{ type: string }> };
+    assert.ok(image.content.some(part => part.type === "image"));
+
+    const manual = createServerExecution(makeAgent({
+      id: `agent_nested_${crypto.randomUUID()}`, workingDir, workingDirMode: "manual",
+      mounts: [{ source: references, target: join(workingDir, "refs"), readOnly: true }],
+      permissions: { ...allPermissions(false), read: true, write: true },
+    }));
+    try {
+      const path = join(workingDir, "refs", "src", "notes.txt");
+      assert.equal(manual.env.resolveAuthorizedPath(path), join(references, "src", "notes.txt"));
+      assert.match(getOrThrow(await manual.env.readTextFile(path, TEST_CONTEXT)), /^needle/);
+      const denied = await manual.env.writeFile(path, "denied", TEST_CONTEXT);
+      assert.equal(denied.ok, false);
+    } finally {
+      await manual.cleanup(TEST_CONTEXT);
+      for (const directory of [manual.env.tmpDir, manual.env.homeDir]) rmSync(directory, { recursive: true, force: true });
+    }
+  } finally {
+    await execution.cleanup(TEST_CONTEXT);
+    for (const directory of [workingDir, references, env.tmpDir, env.homeDir]) rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("generated paths and filesystem errors use runner paths", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-container-output-"));
+  const execution = createServerExecution(makeAgent({
+    id: `agent_output_${crypto.randomUUID()}`, workingDir, workingDirMode: "default",
+    permissions: { ...allPermissions(true), bash: false, network: false },
+  }));
+  const { env } = execution;
+  try {
+    const file = getOrThrow(await env.createTempFile({ prefix: "output-", suffix: ".txt" }, TEST_CONTEXT));
+    assert.match(file, /^\/tmp\/output-.*\/file\.txt$/);
+    getOrThrow(await env.writeFile(file, "saved output", TEST_CONTEXT));
+    assert.equal(readFileSync(env.resolveAuthorizedPath(file), "utf8"), "saved output");
+    assert.match(getOrThrow(await env.createTempDir("task-", TEST_CONTEXT)), /^\/tmp\/task-/);
+    const reader = getOrThrow(await env.openBinaryReader(file, undefined, TEST_CONTEXT));
+    assert.equal(getOrThrow(await reader.info(TEST_CONTEXT)).path, file);
+    await reader.close(TEST_CONTEXT);
+    const closed = await reader.read(0, 1, TEST_CONTEXT);
+    assert.equal(closed.ok, false);
+    if (!closed.ok) assert.equal(closed.error.path, file);
+    const listing = getOrThrow(await env.openDirReader("/workspace", TEST_CONTEXT));
+    writeFileSync(join(workingDir, "file.txt"), "data");
+    assert.equal(getOrThrow(await listing.next(10, TEST_CONTEXT)).entries[0]?.path, "/workspace/file.txt");
+    await listing.close(TEST_CONTEXT);
+    const missing = await env.readTextFile("/workspace/missing.txt", TEST_CONTEXT);
+    assert.equal(missing.ok, false);
+    if (!missing.ok) {
+      assert.equal(missing.error.path, "/workspace/missing.txt");
+      assert.ok(missing.error.message.includes("/workspace/missing.txt"));
+      assert.ok(!missing.error.message.includes(workingDir));
+    }
+    for (const name of ["grep", "find"]) {
+      const tool = execution.tools.find(tool => tool.name === name)!;
+      await assert.rejects(executeTool(tool, "missing", { path: "/workspace/missing", pattern: "needle" }, new AbortController().signal, execution.toolContext), error => {
+        assert.ok(error instanceof Error);
+        assert.ok(error.message.includes("/workspace/missing"), error.message);
+        assert.ok(!error.message.includes(workingDir), error.message);
+        return true;
+      });
+    }
+  } finally {
+    await execution.cleanup(TEST_CONTEXT);
+    for (const directory of [workingDir, env.tmpDir, env.homeDir]) rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("createServerToolDefinitions exposes no tools when every runtime permission is disabled", () => {
@@ -84,6 +194,7 @@ test("the built-in skill loader is permission gated and returns the registered s
       const result = await executeTool(loader, "load_browser", { name: "agent-browser" }, new AbortController().signal, execution.toolContext);
       const [skill] = await loadBuiltinSkills(agent);
       assert.equal(readToolText(result), formatSkillInvocation(skill!));
+      assert.ok(!readToolText(result).includes(skill!.filePath));
       await assert.rejects(() => executeTool(loader, "load_path", { name: "../../etc/passwd" }, new AbortController().signal, execution.toolContext), /unavailable/);
       agent.permissions.network = false;
       await assert.rejects(() => executeTool(builtinSkillTool(agent), "load_revoked", { name: "agent-browser" }, new AbortController().signal, execution.toolContext), /unavailable/);

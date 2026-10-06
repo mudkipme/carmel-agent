@@ -3,7 +3,7 @@ import { basename, dirname, join } from "node:path";
 import type { Context } from "@earendil-works/chord";
 import { getOrThrow, type ExecutionEnv } from "@earendil-works/pi-durable/env";
 import { formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
-export type Skill = { name: string; description: string; content: string; filePath: string; disableModelInvocation?: boolean };
+export type Skill = { name: string; description: string; content: string; filePath: string; disableModelInvocation?: boolean; source?: "builtin" };
 export type PromptTemplate = { name: string; content: string; description?: string };
 export type SkillDiagnostic = { type: "warning"; message: string; path: string };
 export type PromptTemplateDiagnostic = SkillDiagnostic;
@@ -55,7 +55,9 @@ export function formatSkillsForSystemPrompt(skills: Skill[]) {
   return formatSkillsForPrompt(skills.map(skill => ({ ...skill, baseDir: dirname(skill.filePath), disableModelInvocation: skill.disableModelInvocation ?? false, sourceInfo: { path: skill.filePath, source: "local", scope: "project", origin: "top-level" } })));
 }
 export function formatSkillInvocation(skill: Skill, instructions = "") {
-  return `<skill name="${escape(skill.name)}" location="${escape(skill.filePath)}">\nBase directory: ${dirname(skill.filePath)}\n${skill.content}\n</skill>${instructions ? `\n\n${instructions}` : ""}`;
+  const location = skill.source === "builtin" ? ' source="builtin"' : ` location="${escape(skill.filePath)}"`;
+  const base = skill.source === "builtin" ? "" : `Base directory: ${dirname(skill.filePath)}\n`;
+  return `<skill name="${escape(skill.name)}"${location}>\n${base}${skill.content}\n</skill>${instructions ? `\n\n${instructions}` : ""}`;
 }
 export function parseCommandArgs(text: string): string[] {
   const args: string[] = [];

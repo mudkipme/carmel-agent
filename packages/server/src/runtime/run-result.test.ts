@@ -2,6 +2,9 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import type { AgentRunResult } from "@carmel-agent/shared";
 import { db, initialize, sqlite } from "../db/index.ts";
@@ -29,6 +32,27 @@ after(() => provider.close());
 test("a run that gets its reply succeeds", async () => {
   const run = await startRun("reply");
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
+});
+
+test("the model sees runner paths for its cwd, project instructions, and workspace skills", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-run-paths-"));
+  mkdirSync(join(workingDir, ".agents", "skills", "review"), { recursive: true });
+  writeFileSync(join(workingDir, "AGENTS.md"), "Review the project.");
+  writeFileSync(join(workingDir, ".agents", "skills", "review", "SKILL.md"), "---\nname: review\ndescription: Review changes\n---\nRead the source.");
+  const firstRequest = provider.systemPrompts.length;
+  try {
+    const run = await startRun("reply", sessionId => {
+      const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
+      db.update(agents).set({ workingDirMode: "default", workingDir }).where(eq(agents.id, session.agentId)).run();
+    });
+    assert.equal((await finished(run)).outcome, "succeeded");
+    const prompt = provider.systemPrompts.slice(firstRequest).find(text => text.includes("Current working directory:"));
+    assert.ok(prompt);
+    assert.ok(prompt.includes("Current working directory: /workspace"));
+    assert.ok(prompt.includes('path="/workspace/AGENTS.md"'));
+    assert.ok(prompt.includes("/workspace/.agents/skills/review/SKILL.md"));
+    assert.ok(!prompt.includes(workingDir));
+  } finally { rmSync(workingDir, { recursive: true, force: true }); }
 });
 
 test("a provider rejection fails the run and says why", async () => {
@@ -139,12 +163,16 @@ async function startRun(mode: ProviderMode, beforeStart?: (sessionId: string) =>
 async function startFakeProvider() {
   let waiters: Array<() => void> = [];
   const state = { mode: "reply" as ProviderMode };
-  const server = createServer((request, response) => {
+  const systemPrompts: string[] = [];
+  const server = createServer(async (request, response) => {
     if (request.method !== "POST" || !request.url?.endsWith("/chat/completions")) {
       response.writeHead(404).end();
       return;
     }
-    request.resume();
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const payload = JSON.parse(body) as { messages: Array<{ role: string; content: string }> };
+    systemPrompts.push(...payload.messages.filter(message => message.role === "system").map(message => message.content));
     for (const resolve of waiters) resolve();
     waiters = [];
     respond(state.mode, request, response);
@@ -153,6 +181,7 @@ async function startFakeProvider() {
   const { port } = server.address() as AddressInfo;
   return {
     url: `http://127.0.0.1:${port}`,
+    systemPrompts,
     get mode() {
       return state.mode;
     },

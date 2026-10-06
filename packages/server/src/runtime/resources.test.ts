@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
+import { formatSkillInvocation } from "../effectors/pi-durable/index.ts";
 import type { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { loadAgentResources } from "./resources.ts";
@@ -24,7 +25,7 @@ test("filesystem resources load through AgentExecutionEnv with Pi-native parsing
     "---\ndescription: Summarize this\n---\nSummarize $ARGUMENTS",
   );
   writeFileSync(join(workingDir, "AGENTS.md"), "Project instructions");
-  const env = new AgentExecutionEnv(makeAgent(workingDir));
+  const env = new AgentExecutionEnv({ ...makeAgent(workingDir), workingDirMode: "default" });
 
   try {
     const resources = await loadAgentResources(env.agent, env);
@@ -35,6 +36,11 @@ test("filesystem resources load through AgentExecutionEnv with Pi-native parsing
       { name: "summarize", description: "Summarize this", content: "Summarize $ARGUMENTS" },
     ]);
     assert.equal(resources.contextFiles[0]?.content, "Project instructions");
+    assert.equal(resources.contextFiles[0]?.path, "/workspace/AGENTS.md");
+    assert.equal(resources.skills[0]?.filePath, "/workspace/.agents/skills/review/SKILL.md");
+    const invocation = formatSkillInvocation(resources.skills[0]!);
+    assert.ok(invocation.includes("Base directory: /workspace/.agents/skills/review"));
+    assert.ok(!invocation.includes(workingDir));
   } finally {
     await env.cleanup(TEST_CONTEXT);
   }
