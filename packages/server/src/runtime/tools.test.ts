@@ -127,10 +127,11 @@ test("generated paths and filesystem errors use runner paths", async () => {
     const closed = await reader.read(0, 1, TEST_CONTEXT);
     assert.equal(closed.ok, false);
     if (!closed.ok) assert.equal(closed.error.path, file);
-    const listing = getOrThrow(await env.openDirReader("/workspace", TEST_CONTEXT));
     writeFileSync(join(workingDir, "file.txt"), "data");
-    assert.equal(getOrThrow(await listing.next(10, TEST_CONTEXT)).entries[0]?.path, "/workspace/file.txt");
-    await listing.close(TEST_CONTEXT);
+    const listing = getOrThrow(await env.openDirReader("/workspace", TEST_CONTEXT));
+    try {
+      assert.equal(getOrThrow(await listing.next(10, TEST_CONTEXT)).entries[0]?.path, "/workspace/file.txt");
+    } finally { await listing.close(TEST_CONTEXT); }
     const missing = await env.readTextFile("/workspace/missing.txt", TEST_CONTEXT);
     assert.equal(missing.ok, false);
     if (!missing.ok) {
