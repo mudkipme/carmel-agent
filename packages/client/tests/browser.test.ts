@@ -137,7 +137,8 @@ before(
         }
       });
     });
-    browser("open", fixture.url);
+    // Device emulation sets the user agent but does not enable a coarse pointer.
+    browser("--args", "--blink-settings=primaryPointerType=2", "open", fixture.url);
     browser("wait", "--text", "Username");
     browser("find", "label", "Username", "fill", "browser-test");
     browser("find", "label", "Password", "fill", "browser-test-password");
@@ -165,7 +166,9 @@ test("earlier issue conversations open the correct persisted session", () => {
   open(agentPath(`issues/${fixture.reviewIssueId}`));
   browser("wait", "--text", "Run history & issue events");
   browser("find", "text", "Run history & issue events", "click");
-  browser("find", "text", "Run 1 · succeeded", "click");
+  // A text locator can match the enclosing details and click another summary.
+  evaluate(`Array.from(document.querySelectorAll('summary'))
+    .find(element => element.textContent.startsWith('Run 1 · succeeded')).click()`);
   click("link", "Earlier conversation");
   browser("wait", "--url", `**/sessions/${fixture.previousSessionId}`);
   assert.equal(
@@ -416,4 +419,51 @@ test("failed task loading can be retried and successful edits are not reported a
   click("button", `Edit ${fixture.taskName}`);
   assert.equal(value("#task-prompt"), "An edit accepted before refresh fails.");
   click("button", "Cancel");
+});
+
+test("chat controls fit narrow touch screens with reasoning and long model names", () => {
+  assert.equal(evaluate<boolean>('matchMedia("(pointer: coarse)").matches'), true);
+  for (const path of [agentPath(""), agentPath(`sessions/${fixture.taskSessionId}`)]) {
+    open(path);
+    browser("wait", '.agent-chat-host textarea');
+    for (const [width, height] of [[320, 740], [390, 844], [430, 932], [844, 390], [1440, 900]]) {
+      browser("set", "viewport", String(width), String(height));
+      const failures = evaluate<string[]>(`(() => {
+        const failures = [];
+        const composer = document.querySelector('.agent-chat-host textarea').parentElement;
+        const bounds = composer.getBoundingClientRect();
+        const controls = [...composer.querySelectorAll('button, [role="combobox"]')]
+          .filter(element => element.getClientRects().length)
+          .map(element => ({ element, rect: element.getBoundingClientRect(), label: element.getAttribute('aria-label') || element.title }));
+        if (controls.length < 5) failures.push('Missing composer controls');
+        for (const [index, control] of controls.entries()) {
+          const { rect, label, element } = control;
+          if (rect.left < bounds.left || rect.right > bounds.right || rect.top < bounds.top || rect.bottom > bounds.bottom) failures.push(label + ' outside composer');
+          if (rect.height < 40) failures.push(label + ' below touch height');
+          for (const child of element.querySelectorAll('svg, span')) {
+            const childRect = child.getBoundingClientRect();
+            if (childRect.width && (childRect.left < rect.left || childRect.right > rect.right)) failures.push(label + ' has overflowing content');
+          }
+          for (const other of controls.slice(index + 1)) {
+            if (rect.left < other.rect.right && rect.right > other.rect.left && rect.top < other.rect.bottom && rect.bottom > other.rect.top) failures.push(label + ' overlaps ' + other.label);
+          }
+        }
+        if (innerWidth === 1440 && controls.some(control => control.rect.top !== controls[0].rect.top)) failures.push('Desktop toolbar wraps');
+        if (document.documentElement.scrollWidth > innerWidth) failures.push('Page overflows horizontally');
+        if (document.querySelector('header h2').getBoundingClientRect().width < 40) failures.push('Header title is squeezed out');
+        return failures;
+      })()`);
+      assert.deepEqual(failures, [], `${path} at ${width}×${height}`);
+    }
+    browser("set", "viewport", "320", "740");
+    click("combobox", "Thinking level");
+    click("option", "high");
+    assert.match(snapshot(), /combobox "Thinking level".*high/);
+    browser("click", '.agent-chat-host button[aria-label^="Choose model"]');
+    browser("wait", '[role="dialog"]');
+    assert.match(browser<{ snapshot: string }>("snapshot").snapshot, /Select Model/);
+    browser("press", "Escape");
+    browser("find", "placeholder", "Type a message...", "fill", "A mobile draft");
+    assert.equal(browser<{ enabled: boolean }>("is", "enabled", 'button[aria-label="Send"]').enabled, true);
+  }
 });

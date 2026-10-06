@@ -53,7 +53,7 @@ export function HarnessHeader({
       : "";
 
   return (
-    <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-3 border-b bg-background px-3 pt-[var(--safe-top)]">
+    <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-2 border-b bg-background px-2 pt-[var(--safe-top)] sm:gap-3 sm:px-3">
       <div className="flex min-w-0 items-center gap-2">
         {/* An open sidebar carries its own collapse button; on desktop it sits
             beside this header, so the toggle here would be a duplicate. */}
@@ -74,7 +74,7 @@ export function HarnessHeader({
           </p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-0 sm:gap-2">
         {/* Each pane has its own route and the main column shows one at a
             time, so pressing the active one navigates back to the chat. */}
         {activeAgent ? (
@@ -110,8 +110,8 @@ export function HarnessHeader({
             <SquareTerminalIcon />
           </Button>
         ) : null}
-        {activeAgent?.permissions.bash ? <Button variant={browserOpen ? "secondary" : "ghost"} size="sm" aria-label={browserOpen ? "Close browser" : "Open browser"} aria-pressed={browserOpen} onClick={onToggleBrowser}>
-          <GlobeIcon data-icon="inline-start" /><span className="hidden sm:inline">Browser</span>{browserNeedsHelp ? <Badge variant="secondary">!</Badge> : null}
+        {activeAgent?.permissions.bash ? <Button variant={browserOpen ? "secondary" : "ghost"} size="sm" className="relative w-10 sm:w-auto" aria-label={browserOpen ? "Close browser" : "Open browser"} aria-pressed={browserOpen} onClick={onToggleBrowser}>
+          <GlobeIcon data-icon="inline-start" /><span className="hidden sm:inline">Browser</span>{browserNeedsHelp ? <Badge variant="secondary" className="absolute top-0 right-0 sm:static">!</Badge> : null}
         </Button> : null}
         {activeAgent ? (
           <Button variant="ghost" size="icon-sm" title="Agent settings" aria-label="Agent settings" onClick={onOpenAgentSettings}>

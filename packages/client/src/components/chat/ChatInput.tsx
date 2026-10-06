@@ -166,7 +166,7 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        "relative rounded-lg border bg-background transition-colors focus-within:border-[var(--border-hover)]",
+        "@container relative min-w-0 rounded-lg border bg-background transition-colors focus-within:border-[var(--border-hover)]",
         dragging && "border-primary bg-primary/5",
       )}
       onDragOver={(event) => {
@@ -259,8 +259,9 @@ export function ChatInput({
           event.currentTarget.value = "";
         }}
       />
-      <div className="flex items-center justify-between gap-2 px-2 pt-1 pb-2">
-        <div className="flex min-w-0 items-center gap-2">
+      {/* Use the composer's width so this also fits beside an open workspace pane. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 pt-1 pb-2">
+        <div className="col-start-1 row-start-2 flex items-center gap-2 @[28rem]:row-start-1">
           {leadingActions}
           {supportsImages ? (
             <Button
@@ -275,13 +276,15 @@ export function ChatInput({
               {processingFiles ? <Loader2Icon className="animate-spin" /> : <PaperclipIcon />}
             </Button>
           ) : null}
+        </div>
+        <div className="col-span-3 col-start-1 row-start-1 flex min-w-0 items-center gap-2 @[28rem]:col-span-1 @[28rem]:col-start-2 @[28rem]:justify-end">
           {supportsThinking ? (
             <Select
               value={selectedThinkingLevel}
               disabled={isStreaming}
               onValueChange={(level) => onThinkingLevelChange(level as ThinkingLevel)}
             >
-              <SelectTrigger size="sm" className="max-w-28 shrink-0 border-0 shadow-none">
+              <SelectTrigger size="sm" aria-label="Thinking level" className="shrink-0 border-0 shadow-none">
                 <BrainIcon />
                 <SelectValue />
               </SelectTrigger>
@@ -296,12 +299,21 @@ export function ChatInput({
               </SelectContent>
             </Select>
           ) : null}
-        </div>
-        <div className="flex min-w-0 items-center gap-2">
-          <Button type="button" variant="ghost" size="sm" className="min-w-0 shrink" disabled={isStreaming} onClick={onModelSelect}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="min-w-0 flex-1 justify-start @[28rem]:flex-initial"
+            aria-label={`Choose model (${currentModel.id})`}
+            title={currentModel.id}
+            disabled={isStreaming}
+            onClick={onModelSelect}
+          >
             <SparklesIcon data-icon="inline-start" />
             <span className="truncate">{currentModel.id}</span>
           </Button>
+        </div>
+        <div className="col-start-3 row-start-2 @[28rem]:row-start-1">
           {isStreaming ? (
             <Button type="button" variant="ghost" size="icon-sm" aria-label="Abort" title="Abort" onClick={onAbort}>
               <SquareIcon />

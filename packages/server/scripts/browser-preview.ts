@@ -15,13 +15,14 @@ process.env.CLIENT_DIST_DIR = new URL(
 const { serve } = await import("@hono/node-server");
 const { eq } = await import("drizzle-orm");
 const { createApp } = await import("../src/app.ts");
-const { db, migrate } = await import("../src/db/index.ts");
+const { db, initialize } = await import("../src/db/index.ts");
 const {
   agents,
   agentTasks,
   agentTaskRuns,
   issues,
   issueAttempts,
+  modelRefs,
   sessions,
   users,
 } = await import("../src/db/schema.ts");
@@ -33,8 +34,13 @@ const { createIssue, stopIssueQueue } = await import(
   "../src/services/issues.ts"
 );
 stopIssueQueue();
-migrate();
+initialize();
 const fixture = createSession();
+// Exercise the complete composer toolbar, including long model names.
+db.update(modelRefs)
+  .set({ modelId: "deepseek/deepseek-v4-a-deliberately-long-model-name", input: ["text", "image"], reasoning: true })
+  .where(eq(modelRefs.id, fixture.modelRefId))
+  .run();
 const secondAgentId = createAgent({
   ownerUserId: fixture.userId,
   defaultModelRefId: fixture.modelRefId,
