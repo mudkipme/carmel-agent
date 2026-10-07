@@ -18,9 +18,8 @@
     "preview": "pnpm --filter @carmel-agent/client preview"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
-    "oxlint": "^1.68.0",
-    "shadcn": "^4.7.0",
+    "concurrently": "^10.0.5",
+    "oxlint": "^1.87.0",
     "typescript": "^7.0.2"
   },
   "packageManager": "pnpm@11.20.0"

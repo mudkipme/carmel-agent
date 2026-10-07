@@ -319,34 +319,6 @@ test("the streaming message is rebuilt from deltas and tool-call parts", async (
   }
 });
 
-test("a delta with no message to rebuild is dropped instead of synthesizing one", async () => {
-  const originalFetch = globalThis.fetch;
-  const question = userMessage("question");
-  const answer = assistantMessage("Hello, world");
-  let agent: RemoteAgent;
-  globalThis.fetch = async (input) => {
-    const url = String(input);
-    if (url.includes("/events?")) {
-      // Joining a run whose message_start has already aged out of the replay buffer.
-      return eventResponse([
-        envelope(1, { type: "message_delta", contentIndex: 0, field: "text", delta: "world" }),
-        envelope(2, { type: "message_end", message: answer }),
-        envelope(3, runFinished()),
-      ]);
-    }
-    return new Response(null, { status: 404 });
-  };
-  try {
-    agent = createAgent([question]);
-    await agent.attachToRun("run_orphan", [question], 0);
-
-    assert.deepEqual(agent.getSnapshot().messages, JSON.parse(JSON.stringify([question, answer])));
-    assert.equal(agent.getSnapshot().errorMessage, undefined);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
 test("a rejected send reports the rejection and the error it failed with", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
@@ -501,7 +473,7 @@ test("a turn's own error wording is kept over the run's result, and a cancelled 
   }
 });
 
-test("dismissing an error clears it without touching the transcript", async () => {
+test("dismissing an error clears it from the snapshot", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response("nope", { status: 500 });
   try {

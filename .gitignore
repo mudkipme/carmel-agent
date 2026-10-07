@@ -10,3 +10,12 @@ dist
 .claude
 skills-lock.json
 .pnpm-store
+.codex
+.aws
+.ssh
+.cache
+*.log
+*.tsbuildinfo
+*.sqlite*
+*.pem
+*.key

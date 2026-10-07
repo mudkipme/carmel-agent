@@ -14,6 +14,10 @@ for (const file of [
   loadEnvFile(file);
 }
 
+if (process.env.NODE_ENV === "production" && !process.env.CARMEL_SECRET_KEY?.trim()) {
+  throw new Error("CARMEL_SECRET_KEY is required in production. Generate it once, keep it stable, and back it up with your data.");
+}
+
 /**
  * Prefer Anthropic's 1-hour prompt cache over the 5-minute default.
  *

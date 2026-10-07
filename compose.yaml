@@ -2,9 +2,8 @@
 #
 #   export CARMEL_HOST_UID=$(id -u) CARMEL_HOST_GID=$(id -g)
 #   mkdir -p data
-#   # 1. Build the sandbox runner image referenced by CARMEL_BASH_IMAGE:
-#   podman compose --profile build build
-#   # 2. Start the server:
+#   # Generate a stable CARMEL_SECRET_KEY in .env (see README.md).
+#   podman compose pull
 #   podman compose up -d
 #
 # Written for the rootless Podman socket (systemctl --user enable --now
@@ -13,10 +12,7 @@
 # socket's group ID. Rootless Docker and Docker userns-remap are unsupported.
 services:
   carmel-agent:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: carmel-agent:latest
+    image: "${CARMEL_IMAGE:-ghcr.io/mudkipme/carmel-agent:latest}"
     user: "${CARMEL_HOST_UID:?Set CARMEL_HOST_UID to id -u}:${CARMEL_HOST_GID:?Set CARMEL_HOST_GID to id -g}"
     userns_mode: "${CARMEL_USERNS_MODE:-keep-id}"
     group_add:
@@ -25,16 +21,15 @@ services:
       - "8797:8797"
     environment:
       CARMEL_PODMAN_SOCKET: /run/podman/podman.sock
-      CARMEL_BASH_IMAGE: localhost/carmel-agent-runner:latest
+      CARMEL_BASH_IMAGE: "${CARMEL_BASH_IMAGE:-ghcr.io/mudkipme/carmel-agent-runner:latest}"
+      CARMEL_SECRET_KEY: "${CARMEL_SECRET_KEY:?Generate a stable secret key in .env; see README.md}"
       CARMEL_HOST_UID: ${CARMEL_HOST_UID}
       CARMEL_HOST_GID: ${CARMEL_HOST_GID}
       # The server runs in a container, so runner workspace bind mounts are
       # resolved by the host daemon: point this at the host path backing /data.
-      CARMEL_HOST_DATA_DIR: ${PWD}/data
+      CARMEL_HOST_DATA_DIR: "${CARMEL_HOST_DATA_DIR:-${PWD}/data}"
       # Pass a CDI GPU into runner containers (requires CDI configured on the host):
       # CARMEL_BASH_GPU: nvidia.com/gpu=all
-      # Set a stable secret to encrypt provider credentials at rest:
-      # CARMEL_SECRET_KEY: change-me
       # Single sign-on through an OIDC provider such as Pocket ID
       # (see docs/configuration.md#single-sign-on-openid-connect):
       # CARMEL_PUBLIC_URL: https://carmel.example.com
@@ -50,15 +45,3 @@ services:
       # runner containers. $XDG_RUNTIME_DIR is typically /run/user/<uid>.
       - ${CARMEL_RUNTIME_SOCKET:-${XDG_RUNTIME_DIR:-/run/user/1000}/podman/podman.sock}:/run/podman/podman.sock
     restart: unless-stopped
-
-  # Build-only service: produces the sandbox runner image (CARMEL_BASH_IMAGE).
-  # It is not a long-running service; it is built under the "build" profile and
-  # then used by the host daemon to start ephemeral per-agent containers.
-  runner:
-    profiles: ["build"]
-    build:
-      context: .
-      dockerfile: Dockerfile.runner
-    image: localhost/carmel-agent-runner:latest
-    command: ["true"]
-    restart: "no"

@@ -303,7 +303,7 @@ export function ChatInput({
             type="button"
             variant="ghost"
             size="sm"
-            className="min-w-0 flex-1 justify-start @[28rem]:flex-initial"
+            className="min-w-0 flex-1 justify-start transition-colors @[28rem]:flex-initial"
             aria-label={`Choose model (${currentModel.id})`}
             title={currentModel.id}
             disabled={isStreaming}

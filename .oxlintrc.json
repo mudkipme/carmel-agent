@@ -13,6 +13,9 @@
   "rules": {
     "react/exhaustive-deps": "warn",
     "react/rules-of-hooks": "error",
+    "react/refs": "off",
+    "react/preserve-manual-memoization": "off",
+    "react/set-state-in-effect": "off",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
   }
 }

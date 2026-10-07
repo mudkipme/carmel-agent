@@ -28,25 +28,18 @@ COPY packages/client/package.json packages/client/package.json
 COPY packages/server/package.json packages/server/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-# better-sqlite3 ships prebuilt binaries and falls back to compiling from source
-# when the download fails -- silently, because g++/make/python3 are present above
-# for exactly that fallback. That fallback is not equivalent: a source build
-# against this base image's Node headers aborts the process with
-# "RemoveEnvironmentCleanupHook: Assertion `(env) != nullptr' failed" when a
-# Statement is finalized during teardown, which takes the server down at random.
-# Fail the build instead of shipping a binary that crashes a few times an hour.
-RUN pnpm install --frozen-lockfile && \
-  if find node_modules/.pnpm -maxdepth 7 -type d -name obj.target -path '*better-sqlite3*' | grep -q .; then \
-    echo "ERROR: better-sqlite3 was compiled from source instead of using its prebuilt binary."; \
-    echo "The prebuild download probably failed. Re-run the build; do not ship this image."; \
-    exit 1; \
-  fi
+# better-sqlite3 13 includes N-API prebuilds in its package. Its installer creates
+# obj.target even when using a prebuild; CI checks native loading by booting the
+# finished server image and initializing a fresh database.
+RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 
 COPY packages packages
 
-RUN pnpm build
+# Local checkouts can have restrictive file modes. Runtime files must remain
+# readable when Compose runs the server under the host user's numeric UID.
+RUN chmod -R a+rX /app && pnpm build
 
 FROM base AS app
 
@@ -57,6 +50,10 @@ ENV CARMEL_AGENT_DATA_DIR="/data"
 ENV CARMEL_CONTAINERIZED="1"
 
 COPY --from=build /app /app
+COPY --chmod=644 LICENSE /app/LICENSE
+
+LABEL org.opencontainers.image.source="https://github.com/mudkipme/carmel-agent" \
+      org.opencontainers.image.licenses="MIT"
 
 RUN mkdir -p /data && chown node:node /data
 

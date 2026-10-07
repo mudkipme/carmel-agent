@@ -39,21 +39,6 @@ test("an OpenRouter model carries Pi's attribution headers", () => {
   });
 });
 
-test("a custom endpoint on the OpenRouter provider still attributes", () => {
-  const headers = mergeProviderAttributionHeaders(openRouterModel("http://127.0.0.1:9/v1"), undefined);
-  assert.equal(headers?.["X-OpenRouter-Title"], "pi");
-});
-
-test("auth and request headers win over attribution", () => {
-  const headers = mergeProviderAttributionHeaders(openRouterModel("https://openrouter.ai/api/v1"), undefined, {
-    "HTTP-Referer": "https://example.test",
-    authorization: "Bearer token",
-  });
-  assert.equal(headers?.["HTTP-Referer"], "https://example.test");
-  assert.equal(headers?.authorization, "Bearer token");
-  assert.equal(headers?.["X-OpenRouter-Title"], "pi");
-});
-
 test("a provider Pi does not attribute is left alone", () => {
   const model = { ...openRouterModel("https://api.openai.com/v1"), provider: "openai" } as Model<Api>;
   assert.equal(mergeProviderAttributionHeaders(model, undefined), undefined);

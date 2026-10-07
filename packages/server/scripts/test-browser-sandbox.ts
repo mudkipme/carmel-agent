@@ -15,7 +15,7 @@ process.env.CARMEL_BASH_MEMORY_MB = "1024";
 process.env.CARMEL_HOST_DATA_DIR = directory;
 process.env.CARMEL_HOST_UID ??= String(process.getuid!());
 process.env.CARMEL_HOST_GID ??= String(process.getgid!());
-const { db, migrate } = await import("../src/db/index.ts");
+const { db, initialize } = await import("../src/db/index.ts");
 const { agents } = await import("../src/db/schema.ts");
 const { createSession } = await import("../src/test-support.ts");
 const { eq } = await import("drizzle-orm");
@@ -23,7 +23,7 @@ const { ensureAgentContainer, killAgentContainer, discardAgentContainer, shutdow
 const { attachExecStdio, execInContainer, createStreamDemuxer } = await import("../src/runtime/sandbox/runtime-client.ts");
 const { connectBrowser } = await import("../src/runtime/sandbox/browser-sessions.ts");
 const { sandboxEnv } = await import("../src/runtime/sandbox/bash-operations.ts");
-migrate();
+initialize();
 const fixture = createSession();
 db.update(agents).set({ workingDir: directory, permissions: { read: true, write: true, edit: true, bash: true, network: false } }).where(eq(agents.id, fixture.agentId)).run();
 const agent = db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!;

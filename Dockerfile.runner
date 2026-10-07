@@ -7,6 +7,10 @@
 # Use:   CARMEL_BASH_IMAGE=localhost/carmel-agent-runner:latest
 FROM node:24-trixie-slim
 
+COPY --chmod=644 LICENSE /usr/share/licenses/carmel-agent/LICENSE
+LABEL org.opencontainers.image.source="https://github.com/mudkipme/carmel-agent" \
+      org.opencontainers.image.licenses="MIT"
+
 ENV AGENT_BROWSER_CONFIG="/etc/agent-browser/config.json"
 ENV AGENT_BROWSER_SESSION="carmel"
 
@@ -75,7 +79,7 @@ RUN mkdir -p /etc/agent-browser && \
       '}' \
       > /etc/agent-browser/config.json
 
-RUN npm install -g agent-browser@0.38.2 @tobilu/qmd && \
+RUN npm install -g agent-browser@0.38.2 @tobilu/qmd@2.8.3 && \
     agent-browser --version && \
     qmd --version
 

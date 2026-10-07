@@ -2,6 +2,7 @@
   "name": "@carmel-agent/shared",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -12,12 +13,12 @@
     "openapi:components": "node --import tsx scripts/emit-openapi-components.ts"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "1.0.3",
-    "@earendil-works/pi-ai": "1.0.3",
-    "zod": "^4.4.3"
+    "@earendil-works/pi-agent-core": "1.0.4",
+    "@earendil-works/pi-ai": "1.0.4",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "tsx": "^4.22.3",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }

@@ -33,34 +33,46 @@ The container socket is only needed for the bash sandbox. Without it, Carmel sti
 
 ## Quick Start
 
-Clone the repo, then build the server and sandbox runner images:
+Download the Compose file. The server uses `ghcr.io/mudkipme/carmel-agent:latest`; agent commands use `ghcr.io/mudkipme/carmel-agent-runner:latest`.
 
 ```sh
-export CARMEL_HOST_UID=$(id -u)
-export CARMEL_HOST_GID=$(id -g)
-mkdir -p data
-podman compose --profile build build
+mkdir carmel-agent
+cd carmel-agent
+curl -fsSLO https://raw.githubusercontent.com/mudkipme/carmel-agent/main/compose.yaml
+systemctl --user enable --now podman.socket
 ```
 
-Start Carmel Agent:
+Create the configuration once, as your normal non-root user:
 
 ```sh
+umask 077
+printf 'CARMEL_HOST_UID=%s\nCARMEL_HOST_GID=%s\nCARMEL_SECRET_KEY=%s\n' \
+  "$(id -u)" "$(id -g)" "$(openssl rand -hex 32)" > .env
+mkdir -p data
+```
+
+Keep `.env` and its secret key with your backups. Replacing the key makes existing encrypted credentials unreadable. Compose refuses to start without it.
+
+Pull and start Carmel Agent:
+
+```sh
+podman compose pull
+podman pull ghcr.io/mudkipme/carmel-agent-runner:latest
 podman compose up -d
 ```
 
 Open `http://localhost:8797` and create your administrator account on the welcome screen. That first account is created in the browser — no CLI step needed.
 
-Using rootful Docker instead? Set these variables as well and use `docker compose` for the build/start commands above:
+Using rootful Docker instead? Skip enabling the Podman socket, add these settings to `.env`, and use `docker compose` / `docker pull` for the commands above:
 
 ```sh
-export CARMEL_USERNS_MODE=host
-export CARMEL_RUNTIME_SOCKET=/var/run/docker.sock
-export CARMEL_SOCKET_GID=$(stat -c %g "$CARMEL_RUNTIME_SOCKET")
+printf 'CARMEL_USERNS_MODE=host\nCARMEL_RUNTIME_SOCKET=/var/run/docker.sock\nCARMEL_SOCKET_GID=%s\n' \
+  "$(stat -c %g /var/run/docker.sock)" >> .env
 ```
 
 Keep these variables in your shell or Compose `.env`. The server and runners use your host UID/GID so workspace and home files retain your ownership. See the [upgrade notes](docs/deployment.md#upgrading-an-existing-deployment) for existing installations.
 
-For anything beyond a local trial — a stable secret key, HTTPS, backups, reverse proxies — see [docs/deployment.md](docs/deployment.md).
+For HTTPS, backups, reverse proxies, release pinning, and building custom images, see [docs/deployment.md](docs/deployment.md). Published images currently target Linux amd64.
 
 ## First Steps After Login
 
@@ -120,9 +132,11 @@ pnpm check        # lint, test, and build
 pnpm serve        # run the built server entrypoint
 ```
 
-For sandboxed bash in development, build the runner image (`podman build -f Dockerfile.runner -t carmel-agent-runner:latest .`) and make sure your container socket is reachable.
+For sandboxed bash in development, pull the published runner image and make sure your container socket is reachable. To use a local build, set `CARMEL_BASH_IMAGE=localhost/carmel-agent-runner:latest` after building `Dockerfile.runner`.
 
-Browser regressions use the `agent-browser` CLI (`npm install -g agent-browser`, then `agent-browser install`). Set `AGENT_BROWSER_BIN` if the executable is outside your PATH. The suite builds the client and starts a fixture server on an ephemeral loopback port with an in-memory database, temporary data directory, and no schedulers or container socket. It does not use the running app or real provider credentials.
+Browser regressions use the `agent-browser` CLI (`npm install -g agent-browser@0.38.2`, then `agent-browser install --with-deps`). Set `AGENT_BROWSER_BIN` if the executable is outside your PATH. The suite builds the client and starts a fixture server on an ephemeral loopback port with an in-memory database, temporary data directory, and no schedulers or container socket. It does not use the running app or real provider credentials.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and test guidance, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
 ## Project Layout
 

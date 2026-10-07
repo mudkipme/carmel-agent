@@ -19,6 +19,8 @@ Carmel Agent reads `.env`, `.env.local`, `packages/server/.env`, and `packages/s
 
 Set it before adding any provider credentials and keep it stable. If it changes, previously encrypted values can no longer be decrypted.
 
+Compose requires this value and passes it into the server. Generate it once with `openssl rand -hex 32`, save it in the private Compose `.env`, and preserve it with your backups. Production startup (`NODE_ENV=production`) also rejects a missing or blank key. Development can run without a key, in which case credentials are stored in plaintext; use disposable credentials or configure a key there too.
+
 The `data/` directory stays sensitive even with encryption enabled: it contains sessions, workspace files, database rows, and the encrypted credential material itself.
 
 ## Browser And Proxy Security
@@ -141,7 +143,7 @@ Network tools are only added to a run when the agent has the network permission.
 
 - `CARMEL_PODMAN_SOCKET` — path to the container API socket. Supports rootless Podman and rootful Podman/Docker; the name is historical. Rootless Docker and Docker with `userns-remap` are unsupported. Auto-detected in order from `DOCKER_HOST` (when it is a `unix://` path), `$XDG_RUNTIME_DIR/podman/podman.sock`, `/run/podman/podman.sock`, then `/var/run/docker.sock`.
 - `CARMEL_HOST_UID` / `CARMEL_HOST_GID` — nonzero host UID/GID for runner commands and file ownership. Set both when the server is containerized; otherwise they default to the server process IDs. The server must also run as these IDs. Rootless Podman requires its daemon to run as this same host user and uses `keep-id` for runners.
-- `CARMEL_BASH_IMAGE` — image used for bash sessions. Defaults to `localhost/carmel-agent-runner:latest`. Non-`localhost/` images are pulled on first use.
+- `CARMEL_BASH_IMAGE` — image used for bash sessions. Defaults to `ghcr.io/mudkipme/carmel-agent-runner:latest`. Missing registry images are pulled on first use. Set `localhost/carmel-agent-runner:latest` when using a local build.
 - `CARMEL_BASH_MEMORY_MB` — per-container memory cap in MB. Defaults to `512`.
 - `CARMEL_BASH_CPUS` — per-container CPU limit. Defaults to `1`.
 - `CARMEL_BASH_PIDS_LIMIT` — per-container PID cap. Defaults to `512`.

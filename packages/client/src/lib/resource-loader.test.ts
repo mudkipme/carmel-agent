@@ -62,7 +62,7 @@ test("disposing a resource cancels the request and never publishes after navigat
   assert.equal(await loader.refresh(), undefined);
 });
 
-test("a failed read reports an error and can be retried without rejecting a successful mutation", async () => {
+test("a failed read reports an error and can be retried", async () => {
   let attempt = 0;
   const failure = new Error("Offline");
   const published: unknown[] = [];

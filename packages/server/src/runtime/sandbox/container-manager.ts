@@ -32,7 +32,7 @@ const containerWorkspace = "/workspace";
 const reaperIntervalMs = 60_000;
 
 const config = {
-  image: process.env.CARMEL_BASH_IMAGE?.trim() || "localhost/carmel-agent-runner:latest",
+  image: process.env.CARMEL_BASH_IMAGE?.trim() || "ghcr.io/mudkipme/carmel-agent-runner:latest",
   memoryBytes: positiveInt(process.env.CARMEL_BASH_MEMORY_MB, 512) * 1024 * 1024,
   nanoCpus: Math.round(positiveFloat(process.env.CARMEL_BASH_CPUS, 1) * 1e9),
   pidsLimit: positiveInt(process.env.CARMEL_BASH_PIDS_LIMIT, 512),
@@ -351,7 +351,7 @@ function ensureImage() {
   if (!imageReady) {
     imageReady = (async () => {
       if (await imageExists(config.image)) return;
-      // A local-only image (e.g. the default runner) cannot be pulled; point the
+      // A local-only image cannot be pulled; point the
       // operator at the build step rather than failing with a registry error.
       if (config.image.startsWith("localhost/")) {
         throw new Error(

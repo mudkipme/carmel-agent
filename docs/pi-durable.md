@@ -1,6 +1,6 @@
 # Pi Durable storage
 
-Carmel uses Pi 1.0.3 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
+Carmel uses Pi 1.0.4 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
 
 ## Storage and backups
 
@@ -23,12 +23,12 @@ Tools default to `replay: "unsafe"`. Pi records intent before executing them; af
 ## Native features adopted
 
 - Native SQLite storage, conversations, checkpoints, replay policy, committed live documents, and queued submissions.
-- Native read/write/edit/bash tools, including batched edits, bounded output, efficient text reads, diagnostics, and shell output spill files. Durable 1.0.3 does not support image reads, so that case uses Pi coding-agent's image reader through the same guarded environment.
+- Native read/write/edit/bash tools, including batched edits, bounded output, efficient text reads, diagnostics, and shell output spill files. Durable 1.0.4 does not support image reads, so that case uses Pi coding-agent's image reader through the same guarded environment.
 - Native context-token estimation and skill catalog formatting.
 - Codemode's validated `// @options:` source header, tool-presence checks with `"name" in tools`, and image validation using base64 data URIs. Script options can lower Carmel's output and deadline limits, but cannot raise them.
 - Native threshold, background, and overflow compaction. Small model windows get scaled reserve/tail settings: Durable's `enabled` flag controls overflow recovery too, so the old threshold-only disable workaround is removed.
 - Pi's `azure` provider identifier.
 
-Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are not public Pi 1.0.3 exports, so their positional/default/slice semantics remain in the adapter. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
+Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are not public Pi 1.0.4 exports, so their positional/default/slice semantics remain in the adapter. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
 
-Pi Durable is experimental. Versions are pinned to 1.0.3, and the storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/main/packages/durable).
+Pi Durable is experimental. Versions are pinned to 1.0.4, and the storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/main/packages/durable).

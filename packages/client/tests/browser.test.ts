@@ -455,6 +455,25 @@ test("chat controls fit narrow touch screens with reasoning and long model names
       })()`);
       assert.deepEqual(failures, [], `${path} at ${width}×${height}`);
     }
+    // Sample the first layout after a workspace-sized resize in the same browser
+    // call, so CLI latency cannot hide briefly overflowing animated controls.
+    const resizeFailures = evaluate<string[]>(`(() => {
+      const composer = document.querySelector('.agent-chat-host textarea').parentElement;
+      const modelButton = composer.querySelector('button[aria-label^="Choose model"]');
+      const originalWidth = composer.style.width;
+      modelButton.getBoundingClientRect();
+      composer.style.width = '280px';
+      try {
+        const bounds = modelButton.getBoundingClientRect();
+        return [...modelButton.querySelectorAll('svg, span')].filter(child => {
+          const rect = child.getBoundingClientRect();
+          return rect.width && (rect.left < bounds.left || rect.right > bounds.right);
+        }).map(child => child.tagName + ' overflows the model chooser during resize');
+      } finally {
+        composer.style.width = originalWidth;
+      }
+    })()`);
+    assert.deepEqual(resizeFailures, [], `${path} during composer resize`);
     browser("set", "viewport", "320", "740");
     click("combobox", "Thinking level");
     click("option", "high");
