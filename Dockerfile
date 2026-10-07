@@ -1,7 +1,7 @@
 # carmel-agent server image: the API + built web client. Agent bash runs in a
 # separate per-agent sandbox container built from Dockerfile.runner, so this
 # image only needs the Node runtime and the host-side file/search tooling.
-FROM node:24-trixie-slim AS base
+FROM node:25-trixie-slim AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
