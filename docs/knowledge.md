@@ -70,21 +70,23 @@ Changed global model mounts or agent acceleration settings recreate the bash run
 
 Back up the application database together with `notes/`. Indexes can be rebuilt and models downloaded again. Deleting an agent removes its knowledge state. Normal service shutdown cancels maintenance and removes workers; startup reaps workers left by the previous process. Idle workers are removed after roughly five minutes.
 
-| Server setting                 | Default                                                |
-| ------------------------------ | ------------------------------------------------------ |
-| `CARMEL_KNOWLEDGE_EMBED_MODEL` | Pinned embeddinggemma-300M-Q8_0 HF URI                 |
-| `CARMEL_KNOWLEDGE_IMAGE`       | `CARMEL_BASH_IMAGE`, then published runner             |
-| `CARMEL_KNOWLEDGE_MEMORY_MB`   | `4096`                                                 |
-| `CARMEL_KNOWLEDGE_CPUS`        | `2`                                                    |
-| `CARMEL_KNOWLEDGE_GPU`         | Inherits `CARMEL_BASH_GPU`; empty disables passthrough |
+| Server setting                       | Default                                                |
+| ------------------------------------ | ------------------------------------------------------ |
+| `CARMEL_KNOWLEDGE_EMBED_MODEL`       | Pinned embeddinggemma-300M-Q8_0 HF URI                 |
+| `CARMEL_KNOWLEDGE_IMAGE`             | `CARMEL_BASH_IMAGE`, then published runner             |
+| `CARMEL_KNOWLEDGE_MEMORY_MB`         | `4096`                                                 |
+| `CARMEL_KNOWLEDGE_CPUS`              | `2`                                                    |
+| `CARMEL_KNOWLEDGE_UPDATE_TIMEOUT_MS` | `900000` (15 minutes per index refresh)                |
+| `CARMEL_KNOWLEDGE_EMBED_TIMEOUT_MS`  | `21600000` (6 hours per embedding job)                 |
+| `CARMEL_KNOWLEDGE_GPU`               | Inherits `CARMEL_BASH_GPU`; empty disables passthrough |
 
 Set these in the server environment. Compose passes through `CARMEL_KNOWLEDGE_EMBED_MODEL` from its `.env`; add other overrides under `environment:` as needed.
 
 GPU choices are Automatic, CPU, Vulkan, and CUDA. CDI must expose the chosen devices to the runner. The worker checks backend availability and actual embedding-model GPU layers. Explicit GPU selection fails if no layers offload; Automatic may use CPU. The Knowledge page reports the effective backend and device names. Vulkan with Qwen3 has been exercised on an RTX 3060; CUDA is supported as a configuration choice but has not been validated in this change.
 
-Operations are serialized per agent. One global queue serializes model-backed queries and embedding jobs across knowledge workers. This queue does not coordinate unrelated LifeOS/bash processes using the same GPU. Indexing is bounded by container resources and a two-minute timeout; retrieval has a one-minute timeout; embedding/model preparation has a fifteen-minute timeout. Large corpora may require future resumable scheduling. Document reads are capped at 2 MiB, and excerpts/tool responses are bounded. Models remain cached, and disk quotas are not yet implemented.
+Operations are serialized per agent. One global queue serializes model-backed queries and embedding jobs across knowledge workers. This queue does not coordinate unrelated LifeOS/bash processes using the same GPU. Indexing is bounded by container resources and a fifteen-minute timeout, configurable through `CARMEL_KNOWLEDGE_UPDATE_TIMEOUT_MS` (a positive integer in milliseconds, at most `2147483647`; invalid values use the default). Embedding has a six-hour timeout, including model loading, configurable through `CARMEL_KNOWLEDGE_EMBED_TIMEOUT_MS` with the same integer bounds. Retrieval retains its one-minute timeout; deep-search model preparation retains its fifteen-minute timeout. If indexing times out, completed document writes remain in the derived index: **Refresh index** rescans the source and resumes incrementally. If embedding times out, completed embeddings are retained: **Build embeddings** retries the pending documents without forcing a rebuild. Incomplete documents may be reprocessed. Very large corpora can require longer deadlines; these defaults are limits, not completion-time estimates. Document reads are capped at 2 MiB, and excerpts/tool responses are bounded. Models remain cached, and disk quotas are not yet implemented.
 
-The pinned qmd adapter explicitly shares the SDK store's LlamaCpp instance with qmd 2.8.3's singleton tokenizer. Without this, token-based chunking can load the default embedding model alongside a configured model. Its Node launcher also avoids inheriting `--input-type=module` into native-binding probes. Treat upgrades to qmd as adapter changes and rerun the integration test.
+The pinned qmd adapter explicitly shares the SDK store's LlamaCpp instance with qmd 2.8.3's singleton tokenizer. Without this, token-based chunking can load the default embedding model alongside a configured model. The adapter calls qmd’s internal `generateEmbeddings` with Carmel’s embedding deadline because qmd 2.8.3’s SDK `embed()` does not forward `maxDurationMs` and otherwise stops its model session after 30 minutes. Its Node launcher also avoids inheriting `--input-type=module` into native-binding probes. Treat upgrades to qmd as adapter changes and rerun the integration test.
 
 ## Verification
 

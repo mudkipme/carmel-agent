@@ -97,6 +97,23 @@ function positive(value: string | undefined, fallback: number) {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+export function knowledgeWorkerTimeoutMs(operation: unknown) {
+  if (operation === "update" || operation === "embed") {
+    const configured = Number(
+      operation === "embed"
+        ? process.env.CARMEL_KNOWLEDGE_EMBED_TIMEOUT_MS
+        : process.env.CARMEL_KNOWLEDGE_UPDATE_TIMEOUT_MS,
+    );
+    // Node turns overflowing timeouts into 1 ms; reject invalid operator values.
+    return Number.isInteger(configured) && configured > 0 && configured <= 2_147_483_647
+      ? configured
+      : operation === "embed"
+        ? 6 * 60 * 60_000
+        : 15 * 60_000;
+  }
+  return operation === "prepare" ? 15 * 60_000 : 60_000;
+}
+
 /** Caller holds the per-agent lock for the entire request. There is no host execution path. */
 export async function callKnowledgeWorker(
   plan: KnowledgeWorkerPlan,
@@ -197,13 +214,10 @@ async function callWorker(
   }
   entry.lastUsed = Date.now();
   try {
+    const timeout = knowledgeWorkerTimeoutMs(request.op);
     return await entry.client.request(
-      request,
-      ["embed", "prepare"].includes(String(request.op))
-        ? 15 * 60_000
-        : request.op === "update"
-          ? 120_000
-          : 60_000,
+      request.op === "embed" ? { ...request, maxDurationMs: timeout } : request,
+      timeout,
       signal,
     );
   } catch (error) {
@@ -289,7 +303,17 @@ export class WorkerClient {
     signal?.throwIfAborted();
     const abort = () => this.close(new Error("Knowledge runner operation cancelled."));
     const timer = setTimeout(
-      () => this.close(new Error("Knowledge runner operation timed out.")),
+      () =>
+        this.close(
+          new Error(
+            `Knowledge runner ${String(payload.op ?? "operation")} timed out after ${Math.ceil(timeout / 1000)}s.` +
+              (payload.op === "update"
+                ? " Refresh index to resume. For larger sources, increase CARMEL_KNOWLEDGE_UPDATE_TIMEOUT_MS on the server."
+                : payload.op === "embed"
+                  ? " Completed embeddings were retained. Retry Build embeddings to continue, or increase CARMEL_KNOWLEDGE_EMBED_TIMEOUT_MS on the server."
+                  : ""),
+          ),
+        ),
       timeout,
     );
     signal?.addEventListener("abort", abort, { once: true });

@@ -8,6 +8,7 @@ if (version !== "2.8.3")
   throw new Error(`Expected qmd 2.8.3, found ${version}. Update the runner image.`);
 console.log = (...args) => console.error(...args);
 const { createStore } = await import(`file://${packageRoot}/dist/index.js`);
+const { generateEmbeddings } = await import(`file://${packageRoot}/dist/store.js`);
 const { setDefaultLlamaCpp } = await import(`file://${packageRoot}/dist/llm.js`);
 const { resolveModelFile } = await import(
   `file://${packageRoot}/node_modules/node-llama-cpp/dist/index.js`
@@ -97,8 +98,11 @@ async function handle(request) {
   }
   if (request.op === "embed") {
     await prepareEmbedding();
-    const result = await store.embed({
+    // qmd 2.8.3's SDK embed() drops maxDurationMs. Call its pinned implementation
+    // directly so the internal 30-minute session limit matches Carmel's deadline.
+    const result = await generateEmbeddings(store.internal, {
       force: false,
+      maxDurationMs: request.maxDurationMs,
       maxDocsPerBatch: 16,
       maxBatchBytes: 32 * 1024 * 1024,
     });
