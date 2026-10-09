@@ -20,8 +20,9 @@ independent schedules:
 - **`PromptDispatcher`** — sending composer text as a prompt, skill, or template.
 - **`SessionLog`** — reading, rewinding and appending to the conversation branch.
 
-Run configuration (model, thinking level, active tools) is lane state, written
-by `reconcileLaneConfiguration` in the adapter.
+Run configuration (model, thinking level, active tools) is native conversation
+state, written atomically through Durable's `configure`. Identical updates are
+native no-ops.
 
 ## Porting to a new Pi
 
@@ -52,7 +53,9 @@ Two configurations explain why small windows need scaled defaults:
 The reserve, retained tail, and background allowance are capped at a quarter,
 a third, and a tenth of the model window respectively. Compaction stays enabled:
 Durable's `enabled` flag controls overflow recovery as well as threshold checks.
-Preflight reporting uses the same settings as the native harness.
+Context warnings come from native compaction and overflow events. Startup does
+not estimate the raw transcript, which includes history already compacted out
+of the model's context.
 
 `ContextReporter` (`runtime/agent-runtime.ts`) turns Pi's compaction events into
 what the user sees:
@@ -142,8 +145,12 @@ precise sentence with a generic one.
 
 ## Prompt cache
 
-Two changes, both about keeping the cached prefix intact rather than making it
-smaller:
+Stable prompt content and native caching keep the cached prefix intact:
+
+- **Named Durable sections** separate base instructions, project context,
+  skills, cwd, issue/browser/knowledge guidance, scheduling instructions, and
+  the current clock. Durable persists section changes; a fresh clock does not
+  restate the stable instructions in storage.
 
 - **Skills and prompt templates are sorted** before they reach the system prompt
   (`runtime/resources.ts`). Pi discovers both with `readdirSync` and no ordering

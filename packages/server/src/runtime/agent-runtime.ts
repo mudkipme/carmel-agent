@@ -15,7 +15,12 @@ import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
 import { agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { serializeModelRef } from "../serializers.ts";
-import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
+import {
+  closePiSession,
+  openPiSession,
+  readPiSessionTitleMessages,
+} from "../services/pi-session-storage.ts";
+import type { ToolRegistration } from "@earendil-works/pi-durable";
 import { resolveModelContext } from "../services/model-context.ts";
 
 import { type AgentRunEvent, type PromptInput, type Session } from "@carmel-agent/shared";
@@ -29,24 +34,24 @@ import {
   finishAgentRun,
   type ActiveAgentRun,
 } from "./run-stream.ts";
-import { generateSessionTitle, shouldGenerateSessionTitle } from "./session-title.ts";
+import {
+  generateSessionTitle,
+  isPlaceholderTitle,
+  shouldGenerateSessionTitle,
+} from "./session-title.ts";
 import { createServerExecution } from "./tools.ts";
 import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
 import {
   createPiPromptDispatcher,
-  estimateBranchTokens,
   observeHarnessEvents,
-  reconcileLaneConfiguration,
   type PiDispatcherOptions,
 } from "../effectors/pi-durable/agent-driver.ts";
 import { createPiSessionLog, PI_MAIN_BRANCH } from "../effectors/pi-durable/session-log.ts";
 import {
   compactionSettingsForWindow,
   describeCompactionFailure,
-  describePreflightPressure,
   describeUnrecoveredOverflow,
   OVERFLOW_RECOVERED,
-  type ContextPressureNotice,
 } from "../effectors/compaction-policy.ts";
 import type { TurnFailure } from "../effectors/failure-classifier.ts";
 import type { SessionLog } from "../effectors/contracts/session-log.ts";
@@ -234,7 +239,7 @@ async function startAgentRun(context: AgentRun) {
     );
     await execution.prepare(abort.signal);
     const opened = await openRunHarness({ ...context, piSession, execution });
-    const { lane, activeToolNames } = opened;
+    const { lane, tools } = opened;
     runningLanes.set(session.id, lane);
     harness = opened.harness;
     abort.attach(lane);
@@ -281,8 +286,10 @@ async function startAgentRun(context: AgentRun) {
       return;
     }
 
-    await reconcileLaneConfiguration(lane, runContext, { model, thinkingLevel, activeToolNames });
-    await reportPreflightPressure(context, log);
+    await lane.configure(
+      { model: { provider: model.provider, modelId: model.id }, thinkingLevel, tools },
+      runContext,
+    );
     if (abort.requested) {
       await retry.restore(log);
       await lane.abort(runContext);
@@ -401,7 +408,7 @@ export class RetryBranch {
 
 async function openRunHarness(
   context: AgentRun & { piSession: PiSession; execution: ServerExecution },
-): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[] }> {
+): Promise<{ harness: RunHarness; lane: AgentLane; tools: ToolRegistration[] }> {
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } =
     context;
   const resources = await loadAgentResources(agent, execution.env);
@@ -419,27 +426,30 @@ async function openRunHarness(
   const tools = execution.resolveTools([...schedulingTools, ...(sessionAddons?.tools ?? [])]);
   const activeToolNames = tools.map((tool) => tool.name);
   // Install this run's credentials, resources, and permitted tools before native scheduling.
-  const { harness } = await AgentHarness.create<ExecutionToolContext>(
+  const { harness, tools: durableTools } = await AgentHarness.create<ExecutionToolContext>(
     {
       session: piSession,
       models: modelRuntime,
       model,
       thinkingLevel,
-      systemPrompt: buildHarnessSystemPrompt({
-        base: agent.systemPrompt.trim() || "You are a helpful assistant.",
-        cwd: execution.env.cwd,
-        skills: resources.skills,
-        contextFiles: resources.contextFiles,
-        includeSkills: activeToolNames.includes("read"),
-        sessionInstructions: [
-          sessionAddons?.instructions,
-          agent.permissions.bash ? browserInstructions : "",
-          buildKnowledgeInstructions(context.session.userId, agent.id, activeToolNames),
-          schedulingTools.length ? buildSchedulingInstructions(context.timezone) : "",
-        ]
-          .filter(Boolean)
-          .join("\n\n"),
-      }),
+      promptSections: {
+        ...buildHarnessPromptSections({
+          base: agent.systemPrompt.trim() || "You are a helpful assistant.",
+          cwd: execution.env.cwd,
+          skills: resources.skills,
+          contextFiles: resources.contextFiles,
+          includeSkills: activeToolNames.includes("read"),
+        }),
+        issue: sessionAddons?.instructions,
+        browser: agent.permissions.bash ? browserInstructions : undefined,
+        knowledge:
+          buildKnowledgeInstructions(context.session.userId, agent.id, activeToolNames) ||
+          undefined,
+        scheduling: schedulingTools.length
+          ? buildSchedulingInstructions(context.timezone)
+          : undefined,
+        clock: schedulingTools.length ? `Current time: ${new Date().toISOString()}.` : undefined,
+      },
       resources: {
         skills: resources.skills,
         promptTemplates: [
@@ -476,7 +486,7 @@ async function openRunHarness(
     });
   // The run handle follows the conversation selected in native storage.
   const lane = await harness.lane(PI_MAIN_BRANCH, runContext);
-  return { harness, lane, activeToolNames };
+  return { harness, lane, tools: durableTools };
 }
 
 /** Restore an abandoned retry branch, then persist and emit the failure. */
@@ -532,11 +542,8 @@ async function finalizeRun(
   let finalMessages: AgentMessage[] = [];
   if (piSession) {
     try {
-      if (log) {
-        finalMessages = (await log.readBranch()).flatMap((entry) =>
-          entry.type === "message" ? [entry.message] : [],
-        );
-      }
+      if (isPlaceholderTitle(session.title))
+        finalMessages = await readPiSessionTitleMessages(piSession);
     } catch (error) {
       console.warn("Final transcript read failed:", errorMessage(error));
     }
@@ -644,33 +651,6 @@ function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user
 }
 
 /**
- * Warn before the turn when the session is over budget on a model whose window
- * compaction cannot work in -- Pi would find out from a provider rejection.
- * Never ends the run: this is a measurement, and a notice is all it produces.
- */
-async function reportPreflightPressure(context: AgentRun, log: SessionLog) {
-  try {
-    const notice = describePreflightPressure({
-      tokens: await estimateBranchTokens(log),
-      contextWindow: context.model.contextWindow,
-      settings: compactionSettingsForWindow(context.model.contextWindow),
-    });
-    if (notice) emitContextPressure(context, notice);
-  } catch (error) {
-    console.warn("Context pressure check failed:", errorMessage(error));
-  }
-}
-
-function emitContextPressure(context: AgentRun, notice: ContextPressureNotice) {
-  console.warn(`Context pressure on session ${context.session.id}: ${notice.message}`);
-  emitRunEvent(context.run, {
-    type: "context_pressure",
-    level: notice.level,
-    message: notice.message,
-  });
-}
-
-/**
  * Reports Pi's own compaction to the user; Carmel does no compacting itself.
  *
  * Pi Durable checks context before generation and, when a generation overflows,
@@ -725,34 +705,26 @@ export class ContextReporter {
   }
 }
 
-/**
- * Mirrors the `customPrompt` branch of pi-coding-agent's `buildSystemPrompt`
- * (project context, skills, working directory), which Pi does not export.
- * Keep the layout in step with it when upgrading Pi.
- */
-function buildHarnessSystemPrompt(options: {
+/** Named sections let Durable store only changed instructions between runs. */
+function buildHarnessPromptSections(options: {
   base: string;
   cwd: string;
   skills: Parameters<typeof formatSkillsForSystemPrompt>[0];
   contextFiles: Array<{ path: string; content: string }>;
   includeSkills: boolean;
-  sessionInstructions?: string;
 }) {
-  let prompt = options.base;
-  if (options.contextFiles.length > 0) {
-    prompt += "\n\n<project_context>\n\nProject-specific instructions and guidelines:\n\n";
-    for (const file of options.contextFiles) {
-      prompt += `<project_instructions path="${file.path}">\n${file.content}\n</project_instructions>\n\n`;
-    }
-    prompt += "</project_context>\n";
-  }
-  if (options.includeSkills && options.skills.length > 0) {
-    prompt += `\n\n${formatSkillsForSystemPrompt(options.skills.filter((skill) => !isBuiltinSkill(skill)))}`;
-  }
-  const builtinCatalog = formatBuiltinSkillsForSystemPrompt(options.skills);
-  if (builtinCatalog) prompt += `\n\n${builtinCatalog}`;
-  if (options.sessionInstructions) prompt += `\n\n${options.sessionInstructions}`;
-  return `${prompt}\nCurrent working directory: ${options.cwd.replaceAll("\\", "/")}`;
+  return {
+    system: options.base,
+    project_context: options.contextFiles.length
+      ? `<project_context>\n\nProject-specific instructions and guidelines:\n\n${options.contextFiles.map((file) => `<project_instructions path="${file.path}">\n${file.content}\n</project_instructions>`).join("\n\n")}\n\n</project_context>`
+      : undefined,
+    skills: options.includeSkills
+      ? formatSkillsForSystemPrompt(options.skills.filter((skill) => !isBuiltinSkill(skill))) ||
+        undefined
+      : undefined,
+    builtin_skills: formatBuiltinSkillsForSystemPrompt(options.skills) || undefined,
+    cwd: `Current working directory: ${options.cwd.replaceAll("\\", "/")}`,
+  };
 }
 
 function randomId() {

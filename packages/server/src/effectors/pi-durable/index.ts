@@ -35,7 +35,6 @@ import type {
   Tool,
 } from "@earendil-works/pi-ai";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
-import { estimateContextTokens as estimatePiContextTokens } from "@earendil-works/pi-ai/utils/estimate";
 export { createReadTool, createWriteTool, createEditTool, createBashTool } from "./tools.ts";
 export type AgentToolResult = Omit<
   import("@earendil-works/pi-agent-core").AgentToolResult,
@@ -85,11 +84,4 @@ export type HarnessEvent =
       error: { message: string };
     };
 export type HarnessEventType = HarnessEvent["type"];
-export function estimateContextTokens(messages: AgentMessage[]) {
-  return estimatePiContextTokens(
-    messages.filter((m): m is import("@earendil-works/pi-ai").Message =>
-      ["user", "assistant", "toolResult", "system"].includes(m.role),
-    ),
-  );
-}
 export type ResolvedModel = Model<Api>;

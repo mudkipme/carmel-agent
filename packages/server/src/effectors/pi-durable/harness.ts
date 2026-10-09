@@ -19,7 +19,9 @@ import {
   section,
   watchEvents,
   type AgentEvent,
+  type AgentChange,
   type AgentEventStream,
+  type EntryId,
   type ToolRegistration,
 } from "@earendil-works/pi-durable";
 import {
@@ -49,6 +51,7 @@ export type AgentHarnessOptions<T = ExecutionToolContext> = {
   model: Model<Api>;
   thinkingLevel?: ThinkingLevel;
   systemPrompt?: string;
+  promptSections?: Record<string, string | undefined>;
   tools?: AgentHarnessTool<T>[];
   toolContext?: T;
   activeToolNames?: string[];
@@ -90,6 +93,7 @@ export class AgentHarness<T = ExecutionToolContext> {
   private streaming?: AssistantMessage;
   private lastEntryId = 0;
   private running = false;
+  private readonly runningTools = new Map<string, string>();
   private constructor(readonly options: AgentHarnessOptions<T>) {}
   static async create<T = ExecutionToolContext>(options: AgentHarnessOptions<T>, context: Context) {
     const harness = new AgentHarness(options);
@@ -110,7 +114,9 @@ export class AgentHarness<T = ExecutionToolContext> {
       defineExtension({
         name: "carmel",
         tools,
-        sections: [section("system", () => options.systemPrompt, { tag: false })],
+        sections: Object.entries(options.promptSections ?? { system: options.systemPrompt }).map(
+          ([key, text]) => section(key, () => text, { tag: false }),
+        ),
         hooks: [
           hook(GenerationTask, {
             beforeRequest: async () => {
@@ -134,7 +140,7 @@ export class AgentHarness<T = ExecutionToolContext> {
         context,
       );
     await harness.attachEvents(context);
-    return { harness };
+    return { harness, tools };
   }
   private async attachEvents(context: Context) {
     await this.stream?.stop();
@@ -146,6 +152,7 @@ export class AgentHarness<T = ExecutionToolContext> {
     this.lastEntryId = Math.max(0, ...this.stream.snapshot.entries.map((entry) => entry.id));
     this.running = Boolean(this.stream.snapshot.run);
     this.streaming = undefined;
+    this.runningTools.clear();
     this.stream.start(async (events) => {
       for (const event of events) await this.accept(event);
     });
@@ -186,12 +193,14 @@ export class AgentHarness<T = ExecutionToolContext> {
         // A slow listener receives one committed snapshot instead of an unbounded event backlog.
         const through = Math.max(0, ...event.entries.map((entry) => entry.id));
         const history = await this.options.session.native.commit(
-          (tx) => scanEntries(tx, this.options.session.conversation.id),
+          (tx) =>
+            scanEntries(tx, this.options.session.conversation.id, {
+              minEntryId: (this.lastEntryId + 1) as EntryId,
+              maxEntryId: through as EntryId,
+            }),
           ctx,
         );
-        for (const entry of history.filter(
-          (entry) => entry.id > this.lastEntryId && entry.id <= through,
-        )) {
+        for (const entry of history) {
           const message = entry.model?.[0];
           if (message?.role === "toolResult")
             await this.accept({
@@ -202,6 +211,23 @@ export class AgentHarness<T = ExecutionToolContext> {
             });
           await this.accept({ type: "message_end", entry });
         }
+        for (const slot of event.tools.filter((tool) => tool.status === "running")) {
+          await this.accept({
+            type: "tool_execution_start",
+            toolCallId: slot.callId,
+            toolName: slot.name,
+            args: {},
+          });
+          await this.accept({
+            type: "tool_execution_update",
+            toolCallId: slot.callId,
+            toolName: slot.name,
+            details: slot.details,
+          });
+        }
+        for (const [toolCallId, toolName] of this.runningTools)
+          if (!event.tools.some((tool) => tool.callId === toolCallId && tool.status === "running"))
+            await this.accept({ type: "tool_execution_end", toolCallId, toolName });
         if (event.generation?.message) {
           this.streaming = structuredClone(event.generation.message);
           await this.emit({
@@ -287,6 +313,8 @@ export class AgentHarness<T = ExecutionToolContext> {
         await this.emit({ type: "run_end" });
         break;
       case "tool_execution_start":
+        if (this.runningTools.has(event.toolCallId)) break;
+        this.runningTools.set(event.toolCallId, event.toolName);
         await this.emit({
           type: "tool_start",
           toolCallId: event.toolCallId,
@@ -303,6 +331,7 @@ export class AgentHarness<T = ExecutionToolContext> {
         });
         break;
       case "tool_execution_end":
+        this.runningTools.delete(event.toolCallId);
         await this.emit({
           type: "tool_end",
           toolCallId: event.toolCallId,
@@ -311,18 +340,9 @@ export class AgentHarness<T = ExecutionToolContext> {
         });
         break;
       case "inbox_update": {
-        const records = await this.options.session.native.inspect(ctx);
         await this.emit({
           type: "queue_update",
-          queues: event.items.map((item) => {
-            const submission = records.submissions.find((s) => s.id === item.id);
-            return {
-              entryId:
-                submission && "entry" in submission && submission.entry
-                  ? `durable:${submission.entry}`
-                  : `submission:${item.id}`,
-            };
-          }),
+          queues: event.items.map((item) => ({ entryId: `submission:${item.id}` })),
         });
         break;
       }
@@ -430,33 +450,8 @@ export class AgentLane {
     if (!template) throw new Error(`Prompt template not loaded: ${name}`);
     await this.prompt(formatPromptTemplateInvocation(template, args), undefined, context);
   }
-  async getModel(context: Context) {
-    const model = (await this.session.conversation.agent(context)).model;
-    return model ? this.session.models.getModel(model.provider, model.modelId) : undefined;
-  }
-  async setModel(model: { provider: string; modelId: string }, context: Context) {
-    await this.session.conversation.configure({ model }, context);
-  }
-  async getThinkingLevel(context: Context) {
-    return (await this.session.conversation.agent(context)).thinkingLevel;
-  }
-  async setThinkingLevel(thinkingLevel: ThinkingLevel, context: Context) {
-    await this.session.conversation.configure({ thinkingLevel }, context);
-  }
-  async getActiveTools(context: Context) {
-    const agent = await this.session.native.snapshot(
-      AgentDoc,
-      this.session.conversation.id,
-      context,
-    );
-    return Array.isArray(agent?.tools)
-      ? [...agent.tools]
-      : (await this.session.conversation.agent(context)).tools.map((t) => t.name);
-  }
-  async setActiveTools(names: string[], context: Context) {
-    await this.session.native.commit(async (tx) => {
-      (await tx.doc(AgentDoc, this.session.conversation.id)).tools = names;
-    }, context);
+  async configure(change: AgentChange, context: Context) {
+    await this.session.conversation.configure(change, context);
   }
   async findEntries(_query: { order?: string }, _context: Context) {
     return readPiSessionBranch(this.session);

@@ -104,7 +104,7 @@ function cleanSessionTitle(title: string) {
   return cleaned.length > 64 ? cleaned.slice(0, 64).trim() : cleaned;
 }
 
-function isPlaceholderTitle(title: string) {
+export function isPlaceholderTitle(title: string) {
   const normalized = title.trim().toLowerCase();
   return (
     normalized === "untitled session" ||

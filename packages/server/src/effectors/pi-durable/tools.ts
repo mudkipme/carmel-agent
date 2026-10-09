@@ -4,13 +4,20 @@ import {
   createReadTool as read,
   createWriteTool as write,
 } from "@earendil-works/pi-durable/tools";
-import type { ToolExecutionApi, ToolRegistration } from "@earendil-works/pi-durable";
+import type {
+  ToolExecutionApi,
+  ToolExecutionResult,
+  ToolRegistration,
+} from "@earendil-works/pi-durable";
 import type { AgentHarnessTool, ExecutionToolContext } from "./index.ts";
-import { getOrThrow } from "@earendil-works/pi-durable/env";
+import { getOrThrow, StreamDecoder } from "@earendil-works/pi-durable/env";
 import {
   createReadTool as codingRead,
   detectSupportedImageMimeTypeFromFile,
+  truncateTail,
+  DEFAULT_MAX_BYTES,
 } from "@earendil-works/pi-coding-agent";
+import { errorMessage } from "../../errors.ts";
 /** Adapt native tools for Carmel's tool providers and nested codemode calls. */
 function adapt<T extends ExecutionToolContext>(native: ToolRegistration): AgentHarnessTool<T> {
   return {
@@ -27,15 +34,22 @@ function adapt<T extends ExecutionToolContext>(native: ToolRegistration): AgentH
         };
       }
       let output = "";
+      const decoder = new StreamDecoder();
+      let truncated = false;
       const diagnostics: string[] = [];
       const api = {
         env: tools.env,
         callId: _id,
         outputWindow: undefined,
         output(text: string | Uint8Array) {
-          output = (
-            output + (typeof text === "string" ? text : new TextDecoder().decode(text))
-          ).slice(-50_000);
+          const combined = output + (typeof text === "string" ? text : decoder.decode(text));
+          const newline = combined.endsWith("\n");
+          const bounded = truncateTail(combined, {
+            ...native.outputLimits,
+            maxBytes: (native.outputLimits?.maxBytes ?? DEFAULT_MAX_BYTES) - Number(newline),
+          });
+          output = bounded.content + (bounded.truncated && newline ? "\n" : "");
+          truncated ||= output !== combined;
           onUpdate({ content: [{ type: "text", text: output }] });
         },
         diagnostic(value: { message: string }) {
@@ -45,7 +59,20 @@ function adapt<T extends ExecutionToolContext>(native: ToolRegistration): AgentH
           onUpdate({ content: [], details: value });
         },
       } as unknown as ToolExecutionApi;
-      const result = await native.execute(args, api, context);
+      let result: ToolExecutionResult;
+      try {
+        result = await native.execute(args, api, context);
+      } catch (error) {
+        context.abortSignal?.throwIfAborted();
+        if (native.name !== "bash") throw error;
+        result = {
+          isError: true,
+          diagnostics: [{ severity: "error", code: "tool_error", message: errorMessage(error) }],
+        };
+      }
+      const remainder = decoder.decode();
+      if (remainder) api.output(remainder);
+      if (truncated) diagnostics.push("Output truncated; showing the retained tail.");
       return {
         ...result,
         content: [

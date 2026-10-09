@@ -5,7 +5,7 @@ import type { SessionMessage } from "./messages.ts";
  *
  * Separate from `AgentDriver` because upstream reshapes the loop and the store
  * on independent schedules. Run configuration -- model, thinking level, active
- * tools -- is not here: it is lane state, set by `reconcileLaneConfiguration`.
+ * tools -- is not here: it is native conversation state, set atomically by `configure`.
  */
 
 /**

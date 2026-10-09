@@ -19,6 +19,8 @@ import {
 import { id, now } from "../db/seed.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { loadSession } from "../services/session-store.ts";
+import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createAgent, createUser } from "../test-support.ts";
 import { abortAgentRun, startDetachedAgentRun, whenRunFinished } from "./agent-runtime.ts";
 import { shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
@@ -39,6 +41,58 @@ after(() => provider.close());
 test("a run that gets its reply succeeds", async () => {
   const run = await startRun("reply");
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
+});
+
+test("successive named-session runs persist only the clock change and skip title history reads", async (t) => {
+  const first = await startRun("reply");
+  assert.equal((await finished(first)).outcome, "succeeded");
+  const pi = await openPiSession(first.sessionId);
+  try {
+    const before = await pi.conversation.entries(
+      { order: "ascending" },
+      100,
+      undefined,
+      BACKGROUND_CONTEXT,
+    );
+    const initial = before.items
+      .flatMap((entry) => entry.model ?? [])
+      .filter((message) => message.role === "system");
+    assert.equal(initial.length, 1);
+    assert.ok(initial[0]!.sections?.system);
+    assert.ok(initial[0]!.sections?.cwd);
+    assert.ok(initial[0]!.sections?.scheduling);
+    assert.ok(initial[0]!.sections?.clock);
+    const reads = t.mock.method(pi.conversation, "entries");
+    const session = (await loadSession(first.sessionId))!;
+    const context = await resolveModelContext(session.userId, session.modelRefId);
+    assert.ok(context.ok);
+    const second = startDetachedAgentRun({
+      agent: db.select().from(agents).where(eq(agents.id, session.agentId)).get()!,
+      session,
+      modelRef: context.value.modelRef,
+      providerConfig: context.value.providerConfig,
+      modelRuntime: context.value.modelRuntime,
+      thinkingLevel: "off",
+      promptInput: { text: "Hello again" },
+      timezone: "Asia/Singapore",
+    });
+    assert.equal((await finished(second)).outcome, "succeeded");
+    assert.equal(reads.mock.callCount(), 0, "an existing title needs no history sample");
+    const after = await pi.conversation.entries(
+      { order: "ascending" },
+      100,
+      undefined,
+      BACKGROUND_CONTEXT,
+    );
+    const systems = after.items
+      .flatMap((entry) => entry.model ?? [])
+      .filter((message) => message.role === "system");
+    assert.equal(systems.length, 2);
+    assert.deepEqual(Object.keys(systems.at(-1)!.sections!), ["clock"]);
+    assert.notEqual(systems.at(-1)!.sections!.clock, initial[0]!.sections!.clock);
+  } finally {
+    await closePiSession(pi);
+  }
 });
 
 test("ordinary and Codemode chat calls persist a scheduled reminder and return its confirmation", async () => {

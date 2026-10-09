@@ -82,14 +82,13 @@ export function createScheduleTaskTool(
   };
 }
 
-export function buildSchedulingInstructions(timezone?: string, at = Date.now()): string {
+export function buildSchedulingInstructions(timezone?: string): string {
   return [
     "## Scheduled tasks and reminders",
-    `Current time: ${new Date(at).toISOString()}.`,
     timezone
       ? `User's browser time zone: ${timezoneSchema.parse(timezone)}. Use it for local times unless the user specifies another zone.`
       : "User time zone is unknown. Ask for it when interpreting a local clock time; do not assume the server's zone.",
-    "When the user asks 'remind me at ...', 'in ...', or for recurring work, use schedule_task. Do not merely promise to remember, save a memory, or wait/sleep in the current run. Resolve relative dates from the current time above. Ask a concise follow-up if the reminder content or intended time is ambiguous or missing.",
+    "When the user asks 'remind me at ...', 'in ...', or for recurring work, use schedule_task. Do not merely promise to remember, save a memory, or wait/sleep in the current run. Resolve relative dates from the supplied current time. Ask a concise follow-up if the reminder content or intended time is ambiguous or missing.",
     "Write a self-contained prompt for the future run: it starts a fresh session without this chat. For reminders, tell it to output the reminder when run, not to schedule another reminder. Only confirm creation after schedule_task succeeds; include the returned next run time, time zone, and that results are available in the agent's Tasks history. Do not promise automatic push/email notifications. Existing tasks can be edited, paused, or deleted in Tasks.",
   ].join("\n");
 }

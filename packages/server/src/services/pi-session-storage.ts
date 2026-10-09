@@ -13,6 +13,7 @@ import {
   type Cursor,
   type EntryDraft,
   type EntryId,
+  type EntryQuery,
   type EntryRecord,
   type HarnessSettings,
   type Registry,
@@ -197,15 +198,53 @@ export async function withPiSession<T>(
     await closePiSession(session);
   }
 }
-export async function scanEntries(tx: Tx, id: ConversationId): Promise<EntryRecord[]> {
+export async function scanEntries(
+  tx: Tx,
+  id: ConversationId,
+  bounds?: Pick<EntryQuery, "minEntryId" | "maxEntryId">,
+): Promise<EntryRecord[]> {
   const entries: EntryRecord[] = [];
   let cursor: Cursor | undefined;
   do {
-    const page = await tx.scanEntries({ conversationId: id }, 500, cursor);
+    const page = await tx.scanEntries(
+      { conversationId: id, order: "ascending", ...bounds },
+      500,
+      cursor,
+    );
     entries.push(...page.items);
     cursor = page.next;
   } while (cursor);
-  return entries.reverse();
+  return entries;
+}
+
+/** Title generation needs a small sample and proof that a user and successful answer exist. */
+export async function readPiSessionTitleMessages(session: PiSession): Promise<AgentMessage[]> {
+  const messages: AgentMessage[] = [];
+  let cursor: Cursor | undefined;
+  do {
+    const page = await session.conversation.entries({ order: "ascending" }, 100, cursor, ctx);
+    for (const entry of displayEntries(page.items)) {
+      if (entry.type !== "message") continue;
+      const message = entry.message;
+      if (message.role !== "user" && message.role !== "assistant") continue;
+      if (
+        messages.length < 4 ||
+        (message.role === "user" && !messages.some((m) => m.role === "user")) ||
+        (message.role === "assistant" &&
+          !message.errorMessage &&
+          !messages.some((m) => m.role === "assistant" && !m.errorMessage))
+      )
+        messages.push(message);
+      if (
+        messages.length >= 4 &&
+        messages.some((m) => m.role === "user") &&
+        messages.some((m) => m.role === "assistant" && !m.errorMessage)
+      )
+        return messages;
+    }
+    cursor = page.next;
+  } while (cursor);
+  return messages;
 }
 export function displayId(entry: EntryRecord): string {
   const data = entry.data as { carmelEntryId?: string } | undefined;

@@ -14,17 +14,18 @@ Forks and edits use append-only conversation branches. A non-truncating edit cre
 
 ## Recovery and observation
 
-Pi owns generation checkpoints, tool intent, results, retry policy, compaction, steering submissions, and live progress. Reconnect reads capture history and committed progress on the same native transaction line. The wire adapter handles batched deltas, final unflushed content, and snapshot replacement when a slow observer exhausts the native event backlog.
+Pi owns generation checkpoints, tool intent, results, retry policy, compaction, steering submissions, and live progress. Reconnect reads capture history and committed progress on the same native transaction line. The wire adapter handles batched deltas, final unflushed content, and snapshot replacement when a slow observer exhausts the native event backlog. Snapshot recovery scans only missing entry IDs and restores live tool starts and nested-call details without duplicating starts across successive snapshots.
 
 After an unexpected process exit, requesting a run without new input resumes the selected conversation's checkpoint after installing current credentials and permitted tools. It does not rewind and resubmit the user message. A new prompt first settles pending work and then submits its new input. Read-only requests never start scheduling. A deliberate stop uses Durable's abort protocol and settles pending work rather than leaving it resumable.
 
-Tools default to `replay: "unsafe"`. Pi records intent before executing them; after interruption it returns an error result instead of repeating a possible external effect. Read-only tools can explicitly opt into safe replay. Codemode is unsafe as a whole, because nested calls can change files or remote services. Its committed nested-call details survive recovery; Carmel no longer maintains a separate memo ledger or result-failure patch.
+Tools default to `replay: "unsafe"`. Pi records intent before executing them; after interruption it returns an error result instead of repeating a possible external effect. Guarded read/grep/find/ls and the built-in skill loader explicitly opt into safe replay. Codemode is unsafe as a whole, because nested calls can change files or remote services. Its committed nested-call details survive recovery; Carmel no longer maintains a separate memo ledger or result-failure patch.
 
 ## Native features adopted
 
 - Native SQLite storage, conversations, checkpoints, replay policy, committed live documents, and queued submissions.
-- Native read/write/edit/bash tools, including batched edits, bounded output, efficient text reads, diagnostics, and shell output spill files. Durable 1.1.0 does not support image reads, so that case uses Pi coding-agent's image reader through the same guarded environment.
-- Native context-token estimation and skill catalog formatting.
+- Native read/write/edit/bash tools, including batched edits, bounded output, efficient text reads, diagnostics, and shell output spill files. Nested codemode calls retain failed shell output and spill diagnostics, using Pi's UTF-8 byte/line truncation helpers. Durable 1.1.0 does not support image reads, so that case uses Pi coding-agent's image reader through the same guarded environment.
+- Native named prompt sections and atomic model/thinking/tool configuration. A clock update persists only its changed section. Already-named sessions skip title history reads; new titles use a bounded sample from native entry pages.
+- Native skill catalog formatting.
 - Codemode's validated `// @options:` source header, tool-presence checks with `"name" in tools`, and image validation using base64 data URIs. Script options can lower Carmel's output and deadline limits, but cannot raise them.
 - Native threshold, background, and overflow compaction. Small model windows get scaled reserve/tail settings: Durable's `enabled` flag controls overflow recovery too, so the old threshold-only disable workaround is removed.
 - Pi's `azure` provider identifier.

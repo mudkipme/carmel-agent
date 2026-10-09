@@ -293,6 +293,13 @@ test("createServerToolDefinitions maps server runtime permissions to their tool 
     "read",
     "write",
   ]);
+  assert.deepEqual(
+    tools
+      .filter((tool) => tool.replay === "safe")
+      .map((tool) => tool.name)
+      .sort(),
+    ["find", "grep", "ls", "read"],
+  );
 });
 
 test("the built-in skill loader is permission gated and returns the registered skill without file access", async () => {
@@ -313,6 +320,7 @@ test("the built-in skill loader is permission gated and returns the registered s
             false,
           );
           if (!loader) continue;
+          assert.equal(loader.replay, "safe");
           const result = await executeTool(
             loader,
             "load_browser",

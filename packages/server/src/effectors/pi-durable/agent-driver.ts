@@ -1,5 +1,4 @@
 import {
-  estimateContextTokens,
   formatPromptTemplateInvocation,
   formatSkillInvocation,
   parseCommandArgs,
@@ -10,9 +9,7 @@ import {
   type HarnessEvent,
   type HarnessEventType,
 } from "./index.ts";
-import type { Api, Model } from "@earendil-works/pi-ai";
 import type { DriverResources, PromptDispatcher } from "../contracts/agent-driver.ts";
-import type { SessionLog } from "../contracts/session-log.ts";
 
 /**
  * Prompt dispatch, wire-event subscription, and configuration of the selected
@@ -24,17 +21,6 @@ export type PiHarness = Pick<AgentHarness<ExecutionToolContext>, "getResources" 
 
 /** The lane-scoped surface actually used. Everything that runs the loop is here now. */
 export type PiLane = Pick<AgentLane, "prompt" | "skill" | "promptFromTemplate">;
-
-/** The conversation configuration used by each Carmel run. */
-export type PiConfigLane = Pick<
-  AgentLane,
-  | "getModel"
-  | "setModel"
-  | "getThinkingLevel"
-  | "setThinkingLevel"
-  | "getActiveTools"
-  | "setActiveTools"
->;
 
 export type PiDispatcherOptions = { harness: PiHarness; lane: PiLane; context: Context };
 
@@ -125,44 +111,4 @@ export function observeHarnessEvents(
   return () => {
     for (const unsubscribe of unsubscribes) unsubscribe();
   };
-}
-
-/**
- * Write the run configuration onto the lane where it differs.
- *
- * Restored conversations retain their saved choices until the application
- * reconciles the current model, thinking level, and permitted tools.
- */
-export async function reconcileLaneConfiguration(
-  lane: PiConfigLane,
-  context: Context,
-  desired: {
-    model: Model<Api>;
-    thinkingLevel: Parameters<AgentLane["setThinkingLevel"]>[0];
-    activeToolNames: string[];
-  },
-) {
-  const current = await lane.getModel(context);
-  if (current?.provider !== desired.model.provider || current.id !== desired.model.id) {
-    await lane.setModel({ provider: desired.model.provider, modelId: desired.model.id }, context);
-  }
-  if ((await lane.getThinkingLevel(context)) !== desired.thinkingLevel) {
-    await lane.setThinkingLevel(desired.thinkingLevel, context);
-  }
-  const activeTools = await lane.getActiveTools(context);
-  if (!sameOrder(activeTools, desired.activeToolNames)) {
-    await lane.setActiveTools(desired.activeToolNames, context);
-  }
-}
-
-function sameOrder(left: readonly string[], right: readonly string[]) {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-/** Pi's own estimate of the branch's size, for the pre-flight notice. */
-export async function estimateBranchTokens(log: Pick<SessionLog, "readBranch">) {
-  const messages = (await log.readBranch()).flatMap((entry) =>
-    entry.type === "message" ? [entry.message] : [],
-  );
-  return estimateContextTokens(messages).tokens;
 }

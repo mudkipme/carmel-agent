@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
 import { initialize } from "../db/index.ts";
 import { createSession, userMessage } from "../test-support.ts";
 import {
@@ -11,6 +12,7 @@ import {
   openPiSession,
   readPiSessionBranch,
   readPiSessionMessageEntry,
+  readPiSessionTitleMessages,
   rewritePiSessionMessage,
 } from "./pi-session-storage.ts";
 
@@ -51,6 +53,52 @@ test("stable public message IDs remain readable after reopen and edits give copi
       original,
       "saved links retain the original entry",
     );
+  } finally {
+    await closePiSession(session);
+  }
+});
+
+test("title sampling stops on the first page instead of reading the whole transcript", async (t) => {
+  const { sessionId } = createSession();
+  const session = await openPiSession(sessionId);
+  const messages = Array.from({ length: 300 }, (_, index) =>
+    index % 2 ? fauxAssistantMessage(`Answer ${index}`) : userMessage(`Question ${index}`),
+  );
+  try {
+    await session.conversation.commit(async (tx) => {
+      for (const message of messages)
+        await tx.appendEntry(session.conversation.id, messageDraft(message));
+    }, ctx);
+    const entries = t.mock.method(session.conversation, "entries");
+    assert.deepEqual(await readPiSessionTitleMessages(session), messages.slice(0, 4));
+    assert.equal(entries.mock.callCount(), 1);
+    assert.equal(entries.mock.calls[0]!.arguments[1], 100);
+  } finally {
+    await closePiSession(session);
+  }
+});
+
+test("title sampling can find a later successful answer without retaining intervening errors", async (t) => {
+  const { sessionId } = createSession();
+  const session = await openPiSession(sessionId);
+  const messages = [
+    userMessage("Question"),
+    ...Array.from({ length: 210 }, () =>
+      fauxAssistantMessage("", { stopReason: "error", errorMessage: "Unavailable" }),
+    ),
+    fauxAssistantMessage("Finally answered."),
+  ];
+  try {
+    await session.conversation.commit(async (tx) => {
+      for (const message of messages)
+        await tx.appendEntry(session.conversation.id, messageDraft(message));
+    }, ctx);
+    const entries = t.mock.method(session.conversation, "entries");
+    assert.deepEqual(await readPiSessionTitleMessages(session), [
+      ...messages.slice(0, 4),
+      messages.at(-1),
+    ]);
+    assert.equal(entries.mock.callCount(), 3);
   } finally {
     await closePiSession(session);
   }

@@ -34,7 +34,7 @@ type ServerToolDefinition = AgentHarnessTool<ExecutionToolContext>;
 function asHarnessTool(tool: AgentTool): ServerToolDefinition {
   return {
     ...tool,
-    replay: tool.replay === "safe" ? "safe" : "unsafe",
+    replay: "safe",
     execute: (toolCallId, params, onUpdate, _toolContext, _invocation, context) =>
       tool.execute(toolCallId, params, context.abortSignal, onUpdate),
   };

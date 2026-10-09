@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
-import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "./testing/pi-harness.ts";
-import { reconcileLaneConfiguration, type PiConfigLane } from "./pi-durable/agent-driver.ts";
+import { attachTestHarness, fauxHarnessModels } from "./testing/pi-harness.ts";
+import { AgentDoc, type AgentState } from "@earendil-works/pi-durable";
 import { FakeSessionLog } from "./testing/fake-session-log.ts";
 import { runSessionLogContract } from "./testing/session-log-contract.ts";
 import { dispatchPrompt } from "./dispatch-prompt.ts";
@@ -36,61 +36,54 @@ await runSessionLogContract(
   (name, run) => test(name, run),
 );
 
-test("lane configuration round-trips through a real lane, tool order included", async () => {
+test("native configuration is atomic, preserves tool order, and makes identical updates a no-op", async () => {
   const { sessionId } = createSession();
-  const pi = await attachTestHarness(await openPiSession(sessionId), piHarnessOptions);
+  const tools = ["read", "bash"].map((name) => ({
+    name,
+    label: name,
+    description: name,
+    parameters: { type: "object", properties: {} },
+    async execute() {
+      return { content: [] };
+    },
+  }));
+  const pi = await attachTestHarness(await openPiSession(sessionId), {
+    ...piHarnessOptions,
+    tools,
+  });
+  const nativeTools = pi.session.registry.snapshot().extension("carmel")!.tools!;
+  const updates: AgentState[] = [];
+  const unsubscribe = pi.session.native.subscribeCommits((publication) => {
+    for (const change of publication.changes)
+      if (change.type === "document" && change.record.kind === "pi.agent" && change.value)
+        updates.push(structuredClone(change.value) as AgentState);
+  });
+  const configuration = {
+    model: { provider: piModel.provider, modelId: piModel.id },
+    thinkingLevel: "medium" as const,
+    tools: nativeTools,
+  };
   try {
-    await reconcileLaneConfiguration(pi.lane, pi.context, {
-      model: piModel,
+    await pi.lane.configure(configuration, pi.context);
+    assert.equal(updates.length, 1);
+    assert.deepEqual(updates[0], {
+      model: configuration.model,
       thinkingLevel: "medium",
-      activeToolNames: ["read", "bash"],
+      tools: ["read", "bash"],
     });
-    const model = await pi.lane.getModel(pi.context);
-    assert.deepEqual([model?.provider, model?.id], [piModel.provider, piModel.id]);
-    assert.equal(await pi.lane.getThinkingLevel(pi.context), "medium");
-    assert.deepEqual(await pi.lane.getActiveTools(pi.context), ["read", "bash"]);
-
-    // Order is part of the cached prompt prefix, so a reorder is a real change.
-    await reconcileLaneConfiguration(pi.lane, pi.context, {
-      model: piModel,
-      thinkingLevel: "medium",
-      activeToolNames: ["bash", "read"],
-    });
-    assert.deepEqual(await pi.lane.getActiveTools(pi.context), ["bash", "read"]);
+    await pi.lane.configure(configuration, pi.context);
+    assert.equal(updates.length, 1, "identical native configuration writes nothing");
+    await pi.lane.configure({ tools: [...nativeTools].reverse() }, pi.context);
+    assert.equal(updates.length, 2);
+    assert.deepEqual(updates[1]!.tools, ["bash", "read"]);
+    assert.deepEqual(
+      await pi.session.native.snapshot(AgentDoc, pi.session.conversation.id, pi.context),
+      updates[1],
+    );
   } finally {
+    unsubscribe();
     await pi.close();
   }
-});
-
-test("lane reconciliation writes only what differs", async () => {
-  const writes: string[] = [];
-  const state = {
-    model: { provider: piModel.provider, id: piModel.id },
-    thinkingLevel: "off",
-    tools: ["read"],
-  };
-  const lane = {
-    getModel: async () => state.model,
-    setModel: async () => void writes.push("model"),
-    getThinkingLevel: async () => state.thinkingLevel,
-    setThinkingLevel: async () => void writes.push("thinking"),
-    getActiveTools: async () => state.tools,
-    setActiveTools: async () => void writes.push("tools"),
-  } as unknown as PiConfigLane;
-
-  await reconcileLaneConfiguration(lane, TEST_CONTEXT, {
-    model: piModel,
-    thinkingLevel: "off",
-    activeToolNames: ["read"],
-  });
-  assert.deepEqual(writes, [], "matching configuration must not be rewritten");
-
-  await reconcileLaneConfiguration(lane, TEST_CONTEXT, {
-    model: piModel,
-    thinkingLevel: "high",
-    activeToolNames: ["read"],
-  });
-  assert.deepEqual(writes, ["thinking"]);
 });
 
 test("plain text goes straight to prompt", async () => {

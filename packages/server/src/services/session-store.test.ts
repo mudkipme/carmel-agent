@@ -65,7 +65,7 @@ test("Pi native SQLite storage persists entries and lane configuration", async (
   const pi = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
     await pi.log.appendMessage(userMessage("a"));
-    await pi.lane.setThinkingLevel("high", pi.context);
+    await pi.lane.configure({ thinkingLevel: "high" }, pi.context);
     await pi.log.appendMessage(userMessage("b"));
 
     const messages = (await pi.branch()).flatMap((entry) =>
@@ -75,7 +75,7 @@ test("Pi native SQLite storage persists entries and lane configuration", async (
       messages.map((message) => (message as { content: string }).content),
       ["a", "b"],
     );
-    assert.equal(await pi.lane.getThinkingLevel(pi.context), "high");
+    assert.equal((await pi.session.conversation.agent(pi.context)).thinkingLevel, "high");
     assert.equal(pi.session.metadata.id, sessionId);
   } finally {
     await pi.close();
@@ -218,7 +218,7 @@ test("non-truncating entry edit preserves the message suffix and lane configurat
   let firstId: string;
   try {
     firstId = await pi.log.appendMessage(userMessage("a"));
-    await pi.lane.setThinkingLevel("high", pi.context);
+    await pi.lane.configure({ thinkingLevel: "high" }, pi.context);
     await pi.log.appendMessage(userMessage("b"));
   } finally {
     await pi.close();
@@ -228,7 +228,7 @@ test("non-truncating entry edit preserves the message suffix and lane configurat
 
   const edited = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
-    assert.equal(await edited.lane.getThinkingLevel(edited.context), "high");
+    assert.equal((await edited.session.conversation.agent(edited.context)).thinkingLevel, "high");
     const messages = (await edited.branch()).flatMap((entry) =>
       entry.type === "message" ? [entry.message] : [],
     );

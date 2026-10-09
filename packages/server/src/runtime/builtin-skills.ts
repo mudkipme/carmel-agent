@@ -60,6 +60,7 @@ export function formatBuiltinSkillsForSystemPrompt(skills: Skill[]) {
 export function builtinSkillTool(agent: AgentCapabilities): AgentHarnessTool<ExecutionToolContext> {
   return {
     name: "load_builtin_skill",
+    replay: "safe",
     label: "Load built-in skill",
     description:
       "Load a built-in skill's instructions by name before using its workflow. Available skill: agent-browser (Carmel browser automation and human sign-in handoff).",
