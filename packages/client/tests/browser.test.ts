@@ -58,22 +58,33 @@ function browser<T = Record<string, unknown>>(...args: string[]): T {
   assert.equal(response.success, true, response.error);
   return response.data;
 }
-function click(role: string, name: string, exact = true) {
-  const selector = role === "button" ? "button" : role === "link" ? "a" : `[role="${role}"]`;
+function waitForClickTarget(selector: string, name?: string, exact = true) {
   browser(
     "wait",
     "--fn",
     `Array.from(document.querySelectorAll(${JSON.stringify(selector)})).some(element => {
     const label = element.getAttribute("aria-label") || element.getAttribute("title") || element.textContent.trim();
-    if (!element.getClientRects().length || element.closest("[inert]") || element.matches(":disabled") || !(${exact ? `label === ${JSON.stringify(name)}` : `label.includes(${JSON.stringify(name)})`})) return false;
+    if (!element.getClientRects().length || element.closest("[inert]") || element.matches(":disabled")) return false;
+    if (!(${name === undefined ? "true" : exact ? `label === ${JSON.stringify(name)}` : `label.includes(${JSON.stringify(name)})`})) return false;
     // Mobile reflow can put a rendered control below the scroll viewport or
     // behind a transitioning panel. Wait for a real pointer hit, not just a box.
     element.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+    for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+      if (ancestor.getAnimations().some(animation => animation.pending || animation.playState === "running")) return false;
+    }
     const rect = element.getBoundingClientRect();
     const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
     return hit !== null && element.contains(hit);
   })`,
   );
+}
+function clickSelector(selector: string) {
+  waitForClickTarget(selector);
+  browser("click", selector);
+}
+function click(role: string, name: string, exact = true) {
+  const selector = role === "button" ? "button" : role === "link" ? "a" : `[role="${role}"]`;
+  waitForClickTarget(selector, name, exact);
   browser("find", "role", role, "click", "--name", name, ...(exact ? ["--exact"] : []));
 }
 function open(path: string) {
@@ -265,7 +276,7 @@ test("browser handoff survives reload, supports navigation, and resumes explicit
   open(agentPath(""));
   browser("wait", "--text", "Please sign in to the billing portal.");
   // The assistance callout and header both open the same pane.
-  browser("click", 'header button[aria-label="Open browser"]');
+  clickSelector('header button[aria-label="Open browser"]');
   browser(
     "wait",
     "--fn",
@@ -298,7 +309,7 @@ test("browser handoff survives reload, supports navigation, and resumes explicit
   assert.equal(evaluate<boolean>("document.documentElement.scrollWidth <= innerWidth"), true);
   const audit = browser<{ violations: { id: string }[] }>("a11y", "--tags", "wcag2a,wcag2aa");
   assert.deepEqual(audit.violations, []);
-  browser("click", 'header button[aria-label="Close browser"]');
+  clickSelector('header button[aria-label="Close browser"]');
   browser("set", "viewport", "1440", "900");
 });
 
@@ -435,7 +446,7 @@ test("chat controls fit narrow touch screens with reasoning and long model names
     click("combobox", "Thinking level");
     click("option", "high");
     assert.match(snapshot(), /combobox "Thinking level".*high/);
-    browser("click", '.agent-chat-host button[aria-label^="Choose model"]');
+    clickSelector('.agent-chat-host button[aria-label^="Choose model"]');
     browser("wait", '[role="dialog"]');
     assert.match(browser<{ snapshot: string }>("snapshot").snapshot, /Select Model/);
     browser("press", "Escape");
@@ -461,7 +472,7 @@ test(
     assert.equal(evaluate<string>('document.querySelector("h1").textContent'), "Agent Settings");
     assert.equal(evaluate<number>('document.querySelectorAll("footer button").length'), 0);
     assert.equal(evaluate<boolean>('document.querySelector("#knowledge-model").readOnly'), true);
-    browser("click", "#knowledge-enabled");
+    clickSelector("#knowledge-enabled");
     click("option", "On");
     click("button", "Save settings");
     browser("wait", "--text", "Knowledge settings saved.");
@@ -496,12 +507,12 @@ test(
     );
     click("button", "Forget memory");
     browser("wait", '[role="alertdialog"]');
-    browser("click", '[role="alertdialog"] button[data-variant="destructive"]');
+    clickSelector('[role="alertdialog"] button[data-variant="destructive"]');
     browser("wait", "--text", "No saved memories");
     browser("set", "viewport", "1280", "900");
     click("link", "Knowledge settings");
     browser("wait", "#knowledge-enabled");
-    browser("click", "#knowledge-enabled");
+    clickSelector("#knowledge-enabled");
     click("option", "Off");
     click("button", "Save settings");
     browser("wait", "--text", "Knowledge settings saved.");
