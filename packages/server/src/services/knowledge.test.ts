@@ -67,6 +67,37 @@ test("all agents use the operator's model and shared cache, ignoring legacy per-
   }
 });
 
+test("shell qmd shares global model defaults and weights while retaining its own config and index", async () => {
+  const { knowledgeShellResources } = await import("../runtime/knowledge/shell.ts");
+  const { containerSignature } = await import("../runtime/sandbox/container-manager.ts");
+  const a = await fixture();
+  const agent = db.select().from(agents).where(eq(agents.id, a.agentId)).get()!;
+  const original = process.env.CARMEL_KNOWLEDGE_EMBED_MODEL;
+  try {
+    process.env.CARMEL_KNOWLEDGE_EMBED_MODEL = "hf:org/model/shared.gguf";
+    const first = await knowledgeShellResources(agent);
+    assert.equal(first.env.QMD_EMBED_MODEL, "hf:org/model/shared.gguf");
+    assert.equal(first.env.QMD_LLAMA_GPU, "false");
+    assert.equal(first.env.NODE_LLAMA_CPP_GPU, "false");
+    assert.deepEqual(Object.keys(first.env).sort(), ["NODE_LLAMA_CPP_GPU", "QMD_EMBED_MODEL", "QMD_LLAMA_GPU"]);
+    assert.deepEqual(first.mounts, [{ source: join(root, "knowledge-models"), target: "/home/agent/.cache/qmd/models", readOnly: true }]);
+    const signature = containerSignature(agent, { network: false }, undefined, first);
+    const model = join(root, "Qwen3-Embedding-shell.gguf");
+    await writeFile(model, "model metadata");
+    process.env.CARMEL_KNOWLEDGE_EMBED_MODEL = model;
+    await knowledge.saveKnowledgeSettings(a.userId, a.agentId, { enabled: false, acceleration: "vulkan" });
+    const second = await knowledgeShellResources(agent);
+    assert.equal(second.env.QMD_EMBED_MODEL, "/models/local/Qwen3-Embedding-shell.gguf");
+    assert.equal(second.env.QMD_LLAMA_GPU, "vulkan");
+    assert.equal(second.mounts[0]?.source, first.mounts[0]?.source);
+    assert.deepEqual(second.mounts[1], { source: model, target: second.env.QMD_EMBED_MODEL, readOnly: true });
+    assert.notEqual(containerSignature(agent, { network: false }, undefined, second), signature);
+  } finally {
+    if (original === undefined) delete process.env.CARMEL_KNOWLEDGE_EMBED_MODEL;
+    else process.env.CARMEL_KNOWLEDGE_EMBED_MODEL = original;
+  }
+});
+
 async function fixture() {
   const row = createSession();
   const workspace = join(root, row.agentId, "workspace");

@@ -21,6 +21,7 @@ import { prepareBrowserProfileScript } from "./browser-profile.ts";
 import { resolveSandboxIdentity, type SandboxIdentity } from "./runtime-identity.ts";
 import { containerHome, prepareRunnerScript, runnerEnvironment } from "./environment.ts";
 import { prepareNestedMountpoints } from "./mountpoints.ts";
+import { knowledgeShellResources, type KnowledgeShellResources } from "../knowledge/shell.ts";
 export { containerHome } from "./environment.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -61,7 +62,8 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
   if (stopping) await stopping;
 
   const identity = await resolveSandboxIdentity();
-  const signature = containerSignature(agent, options, identity);
+  const knowledge = await knowledgeShellResources(agent);
+  const signature = containerSignature(agent, options, identity, knowledge);
   const existing = containers.get(agent.id);
   if (existing) {
     // Reuse only if the bind configuration still matches; recreate when the
@@ -81,7 +83,7 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
     // The in-flight creation may have used different mounts or identity.
     return ensureAgentContainer(agent, options);
   }
-  const starting = createAgentContainer(agent, options, identity).then((containerId) => {
+  const starting = createAgentContainer(agent, options, identity, knowledge).then((containerId) => {
     containers.set(agent.id, { containerId, lastUsedAt: Date.now(), signature });
     startReaper();
     return containerId;
@@ -93,7 +95,7 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
 // Identifies the bind-relevant inputs of a runner container. When this changes
 // for an agent (workspace dir, mount path, extra mounts, network), the existing
 // container is torn down and recreated on the next command.
-export function containerSignature(agent: AgentRecord, options: { network: boolean }, identity?: SandboxIdentity) {
+export function containerSignature(agent: AgentRecord, options: { network: boolean }, identity?: SandboxIdentity, knowledge?: KnowledgeShellResources) {
   const workspaceHostPath = toHostPath(resolveAgentWorkingDirPath(agent));
   const tmpHostPath = toHostPath(resolveAgentTmpDirPath(agent));
   const homeHostPath = toHostPath(resolveAgentHomeDirPath(agent));
@@ -102,6 +104,7 @@ export function containerSignature(agent: AgentRecord, options: { network: boole
     binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, agent.mounts),
     network: options.network,
     identity,
+    knowledge,
   });
 }
 
@@ -270,7 +273,7 @@ export async function shutdownContainerManager() {
   await Promise.all(entries.map((entry) => removeContainer(entry.containerId)));
 }
 
-async function createAgentContainer(agent: AgentRecord, options: { network: boolean }, identity: SandboxIdentity) {
+async function createAgentContainer(agent: AgentRecord, options: { network: boolean }, identity: SandboxIdentity, knowledge: KnowledgeShellResources) {
   await ensureImage();
 
   const workspacePath = resolveAgentWorkingDirPath(agent);
@@ -283,6 +286,14 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
   const workspaceHostPath = toHostPath(workspacePath);
   const tmpHostPath = toHostPath(tmpPath);
   const homeHostPath = toHostPath(homePath);
+  const knowledgeMounts = knowledge.mounts.map(mount => ({ ...mount, source: toHostPath(mount.source) }));
+  // Reject overlapping mounts instead of silently shadowing an operator mount.
+  for (const mount of agent.mounts) {
+    const target = resolve(mount.target?.trim() || mount.source);
+    if (knowledgeMounts.some(shared => target === shared.target || shared.target.startsWith(`${target}/`) || target.startsWith(`${shared.target}/`))) {
+      throw new Error(`Agent mount overlaps the shared qmd model mount: ${target}`);
+    }
+  }
 
   prepareNestedMountpoints([
     { source: workspacePath, target: mountPath },
@@ -292,6 +303,7 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
       source: toServerPath(mount.source.trim()), target: mount.target?.trim() || mount.source.trim(),
       readOnly: mount.readOnly,
     })),
+    ...knowledge.mounts,
   ]);
 
   const name = `carmel-bash-${sanitizeName(agent.id)}-${Date.now().toString(36)}`;
@@ -302,12 +314,12 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
     Cmd: ["sleep", "infinity"],
     WorkingDir: mountPath,
     Labels: { [managedLabel]: managedLabelValue, [agentLabel]: agent.id },
-    Env: Object.entries(runnerEnvironment).map(([key, value]) => `${key}=${value}`),
+    Env: Object.entries({ ...runnerEnvironment, ...knowledge.env }).map(([key, value]) => `${key}=${value}`),
     HostConfig: {
       // Reap Chromium descendants when a launch fails or its parent exits.
       Init: true,
       UsernsMode: identity.usernsMode,
-      Binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, agent.mounts),
+      Binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, [...agent.mounts, ...knowledgeMounts]),
       Memory: config.memoryBytes,
       NanoCpus: config.nanoCpus,
       PidsLimit: config.pidsLimit,

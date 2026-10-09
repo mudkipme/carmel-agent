@@ -54,6 +54,20 @@ Downloaded embedding, query-expansion, and reranking weights live once under `CA
 
 Sharing model files avoids duplicate downloads and disk copies. It does **not** share a loaded inference instance: each active runner has its own RAM/VRAM allocation. A common inference service would be a separate change.
 
+## qmd in bash and terminals
+
+Shell qmd uses the bash runner and keeps its own collections, configuration, and index. It does not access Carmel's managed index or saved-memory storage. Both runner images pin qmd 2.8.3 by default.
+
+Carmel supplies `QMD_EMBED_MODEL` from the global `CARMEL_KNOWLEDGE_EMBED_MODEL`, mapping a local GGUF to its read-only `/models/local/` mount. It also supplies `QMD_LLAMA_GPU` and `NODE_LLAMA_CPP_GPU` from the agent's acceleration setting (CPU becomes `false`; an unconfigured agent defaults to `auto`). These defaults apply even when managed knowledge is disabled. Bash GPU device access and resource limits still come from `CARMEL_BASH_GPU`, `CARMEL_BASH_MEMORY_MB`, and `CARMEL_BASH_CPUS`; allocate enough memory for model-backed shell commands.
+
+The shared weights directory is mounted read-only at `/home/agent/.cache/qmd/models`, qmd's default CLI model-cache path. Download missing shared weights through **Build embeddings** or **Prepare deep search** in Knowledge. Shell commands cannot modify the shared cache. Existing files underneath that mount are retained, not migrated or deleted.
+
+Native qmd 2.8.3 `vsearch` also uses query expansion, so it needs the generation model prepared; `query` additionally needs reranking weights. Unlike the built-in tools, the CLI may attempt downloads or wait on retries when those models are missing. Prepare them before offline use.
+
+These are defaults, not forced overrides. Workspace `.env`, explicit shell exports, and qmd YAML model settings can override them; qmd's YAML model selection takes precedence over `QMD_EMBED_MODEL` and may retain a model selected on an earlier invocation. A custom `HOME` or `XDG_CACHE_HOME` selects its own cache. Carmel deliberately does not set `XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `QMD_CONFIG_DIR`, or `INDEX_PATH`, so LifeOS's wrapper and other custom indexes retain their existing locations. Custom cache users can reference the shared weights through `/home/agent/.cache/qmd/models` using an explicit model path.
+
+Changed global model mounts or agent acceleration settings recreate the bash runner on its next use. Existing attached terminals should be reopened after changing those settings. CLI operations use their own qmd process and do not participate in Carmel's knowledge-worker GPU queue or canonical-source verification; use the built-in tools for managed memories and verified citations.
+
 Back up the application database together with `notes/`. Indexes can be rebuilt and models downloaded again. Deleting an agent removes its knowledge state. Normal service shutdown cancels maintenance and removes workers; startup reaps workers left by the previous process. Idle workers are removed after roughly five minutes.
 
 | Server setting | Default |
@@ -78,6 +92,7 @@ The pinned qmd adapter explicitly shares the SDK store's LlamaCpp instance with 
 pnpm check
 pnpm test:browser
 pnpm --filter @carmel-agent/server test:knowledge-sandbox
+pnpm --filter @carmel-agent/server test:knowledge-shell-sandbox
 
 # Optional local-model embedding test: CPU when CARMEL_TEST_GPU is omitted.
 CARMEL_TEST_GPU=nvidia.com/gpu=all \

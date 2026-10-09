@@ -35,7 +35,7 @@ test("container identity, initialization, and replacement fail safely", { timeou
   const executions = new Map<string, boolean>();
   const fixtureExecutions = new Map<string, { command: string; cwd: string }>();
   const fixtureOutput = `large fixture output from ${directory}\n`;
-  const specs: Array<{ User: string; HostConfig: { Init: boolean; UsernsMode: string; CapDrop: string[]; SecurityOpt: string[] } }> = [];
+  const specs: Array<{ User: string; Env: string[]; HostConfig: { Binds: string[]; Init: boolean; UsernsMode: string; CapDrop: string[]; SecurityOpt: string[] } }> = [];
   const server = createServer(async (req, res) => {
     const path = new URL(req.url!, "http://podman").pathname;
     const json = (value: unknown, status = 200) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(value)); };
@@ -100,6 +100,10 @@ test("container identity, initialization, and replacement fail safely", { timeou
       assert.equal(spec.HostConfig.UsernsMode, "host");
       assert.deepEqual(spec.HostConfig.CapDrop, ["ALL"]);
       assert.deepEqual(spec.HostConfig.SecurityOpt, ["no-new-privileges"]);
+      assert.ok(spec.Env.some(value => value.startsWith("QMD_EMBED_MODEL=")));
+      assert.ok(spec.Env.includes("QMD_LLAMA_GPU=auto"));
+      assert.ok(spec.HostConfig.Binds.some(bind => bind.startsWith(`${directory}/knowledge-models:/home/agent/.cache/qmd/models:ro`)));
+      assert.ok(!spec.Env.some(value => /^(INDEX_PATH|XDG_CACHE_HOME|QMD_CONFIG_DIR)=/.test(value)));
     }
     await assert.rejects(reapManagedContainers(), /Listing managed containers failed/, "a failed owner lookup cannot count as an empty list");
     await killAgentContainer(agent.id);
