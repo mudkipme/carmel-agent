@@ -212,7 +212,7 @@ async function startAgentRun(context: AgentRun) {
         }
       },
       onActivity: () => guard.recordActivity(),
-    });
+    }, session.userId);
     await execution.prepare(abort.signal);
     const opened = await openRunHarness({ ...context, piSession, execution });
     const { lane, activeToolNames } = opened;

@@ -486,3 +486,30 @@ test("chat controls fit narrow touch screens with reasoning and long model names
     assert.equal(browser<{ enabled: boolean }>("is", "enabled", 'button[aria-label="Send"]').enabled, true);
   }
 });
+
+test("knowledge settings and shared memories remain editable after reloading", { timeout: 90_000 }, () => {
+  browser("set", "viewport", "1280", "900");
+  open(agentPath("knowledge"));
+  click("button", "Knowledge settings");
+  assert.equal(evaluate<boolean>('document.querySelector("#knowledge-model").readOnly'), true);
+  browser("click", "#knowledge-enabled");
+  click("option", "On");
+  click("button", "Save settings");
+  click("button", "New memory");
+  browser("find", "label", "Title", "fill", "Family budget meeting");
+  browser("find", "label", "Memory", "fill", "Alice and Bob review their budget on Sunday.");
+  click("button", "Save memory");
+  browser("wait", "--text", "Alice and Bob review their budget on Sunday.");
+  open(agentPath("knowledge"));
+  click("button", "Edit memory");
+  assert.equal(value("#memory-content").trim(), "Alice and Bob review their budget on Sunday.");
+  browser("fill", "#memory-content", "Alice and Bob review their budget on Monday.");
+  click("button", "Save memory");
+  browser("wait", "--text", "Alice and Bob review their budget on Monday.");
+  browser("set", "viewport", "375", "812");
+  assert.equal(evaluate<boolean>("document.documentElement.scrollWidth <= window.innerWidth"), true);
+  click("button", "Forget memory");
+  browser("wait", '[role="alertdialog"]');
+  browser("click", '[role="alertdialog"] button[data-variant="destructive"]');
+  browser("wait", "--text", "No saved memories");
+});

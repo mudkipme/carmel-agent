@@ -1,7 +1,13 @@
 import { z } from "zod";
 import * as S from "../src/schemas.ts";
+import * as K from "../src/knowledge.ts";
 
 const requestSchemas = {
+  KnowledgeSettings: K.knowledgeSettingsSchema,
+  KnowledgeSourceRequest: K.knowledgeSourceInputSchema,
+  KnowledgeSearchRequest: K.knowledgeSearchSchema,
+  KnowledgeReadRequest: K.knowledgeReadSchema,
+  MemoryRequest: K.memoryInputSchema,
   LoginRequest: S.loginRequestSchema,
   AccountRequest: S.accountUpdateRequestSchema,
   SetupRequest: S.setupRequestSchema,

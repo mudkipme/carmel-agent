@@ -19,7 +19,302 @@ tags:
   - {name: Files}
   - {name: Tasks}
   - {name: Issues}
+  - {name: Knowledge}
 paths:
+  /api/agents/{agentId}/knowledge:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    get:
+      operationId: getKnowledge
+      tags:
+        - Knowledge
+      responses:
+        "200":
+          description: getKnowledge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeOverview"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/knowledge/settings:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    put:
+      operationId: saveKnowledgeSettings
+      tags:
+        - Knowledge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeSettings"
+      responses:
+        "200":
+          description: saveKnowledgeSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeSettings"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/knowledge/sources:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    post:
+      operationId: addKnowledgeSource
+      tags:
+        - Knowledge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeSourceRequest"
+      responses:
+        "201":
+          description: addKnowledgeSource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeSource"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/knowledge/sources/{sourceId}:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+      - name: sourceId
+        in: path
+        required: true
+        schema: &a1
+          type: string
+    delete:
+      operationId: disconnectKnowledgeSource
+      tags:
+        - Knowledge
+      responses:
+        "200":
+          description: disconnectKnowledgeSource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OK"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/knowledge/search:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    post:
+      operationId: searchKnowledge
+      tags:
+        - Knowledge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeSearchRequest"
+      responses:
+        "200":
+          description: searchKnowledge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeSearchResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/knowledge/read:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    post:
+      operationId: readKnowledge
+      tags:
+        - Knowledge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeReadRequest"
+      responses:
+        "200":
+          description: readKnowledge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeDocument"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/knowledge/refresh:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    post:
+      operationId: refreshKnowledge
+      tags:
+        - Knowledge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeRefreshRequest"
+      responses:
+        "202":
+          description: refreshKnowledge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OK"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/knowledge/memories:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    post:
+      operationId: saveMemory
+      tags:
+        - Knowledge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryRequest"
+      responses:
+        "201":
+          description: saveMemory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedMemory"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/knowledge/memories/{memoryId}:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+      - name: memoryId
+        in: path
+        required: true
+        schema: *a1
+    put:
+      operationId: editMemory
+      tags:
+        - Knowledge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryRequest"
+      responses:
+        "200":
+          description: editMemory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedMemory"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: forgetMemory
+      tags:
+        - Knowledge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryForgetRequest"
+      responses:
+        "200":
+          description: forgetMemory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OK"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
   /api/health:
     get: {operationId: health, tags: [Bootstrap], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
   /api/bootstrap:
@@ -328,6 +623,297 @@ components:
     IssueCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueCreateRequest'}}}}
     IssuePatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssuePatchRequest'}}}}
   schemas:
+    KnowledgeSettings:
+      type: object
+      properties:
+        enabled:
+          default: false
+          type: boolean
+        acceleration:
+          default: auto
+          type: string
+          enum:
+            - auto
+            - cpu
+            - vulkan
+            - cuda
+      required:
+        - enabled
+        - acceleration
+      additionalProperties: false
+    KnowledgeSourceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        path:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        description:
+          default: ""
+          type: string
+          maxLength: 1000
+      required:
+        - name
+        - path
+        - description
+      additionalProperties: false
+    KnowledgeSearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        mode:
+          default: fast
+          type: string
+          enum:
+            - fast
+            - semantic
+            - deep
+        sourceId:
+          type: string
+          maxLength: 100
+        limit:
+          default: 8
+          type: integer
+          minimum: 1
+          maximum: 20
+      required:
+        - query
+        - mode
+        - limit
+      additionalProperties: false
+    KnowledgeReadRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          minLength: 1
+          maxLength: 100
+        path:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        fromLine:
+          default: 1
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        maxLines:
+          default: 100
+          type: integer
+          minimum: 1
+          maximum: 300
+      required:
+        - sourceId
+        - path
+        - fromLine
+        - maxLines
+      additionalProperties: false
+    MemoryRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        content:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        expectedRevision:
+          type: string
+          maxLength: 100
+      required:
+        - title
+        - content
+      additionalProperties: false
+    KnowledgeRefreshRequest:
+      type: object
+      properties:
+        embed:
+          default: false
+          type: boolean
+        allowDownloads:
+          default: false
+          type: boolean
+        deep:
+          default: false
+          type: boolean
+      required:
+        - embed
+        - allowDownloads
+        - deep
+      additionalProperties: false
+    MemoryForgetRequest:
+      type: object
+      properties:
+        expectedRevision:
+          type: string
+          minLength: 1
+      required:
+        - expectedRevision
+      additionalProperties: false
+    KnowledgeSource:
+      type: object
+      required:
+        - id
+        - agentId
+        - name
+        - path
+        - description
+        - createdAt
+      properties:
+        id: &a1
+          type: string
+        agentId: *a1
+        name: *a1
+        path: *a1
+        description: *a1
+        createdAt: &a2
+          type: integer
+    SavedMemory:
+      type: object
+      required:
+        - id
+        - agentId
+        - title
+        - content
+        - revision
+        - contributorId
+        - createdAt
+        - updatedAt
+      properties:
+        id: *a1
+        agentId: *a1
+        title: *a1
+        content: *a1
+        revision: *a1
+        contributorId: *a1
+        createdAt: *a2
+        updatedAt: *a2
+    KnowledgeDocument:
+      type: object
+      required:
+        - sourceId
+        - path
+        - title
+        - content
+        - revision
+        - fromLine
+        - totalLines
+        - citation
+      properties:
+        sourceId: *a1
+        path: *a1
+        title: *a1
+        content: *a1
+        revision: *a1
+        fromLine: *a2
+        totalLines: *a2
+        citation: *a1
+    KnowledgeHit:
+      type: object
+      required:
+        - sourceId
+        - path
+        - title
+        - revision
+        - fromLine
+        - totalLines
+        - citation
+        - excerpt
+        - score
+        - sourceName
+      properties:
+        sourceId: *a1
+        path: *a1
+        title: *a1
+        revision: *a1
+        fromLine: *a2
+        totalLines: *a2
+        citation: *a1
+        excerpt: *a1
+        score:
+          type: number
+        sourceName: *a1
+    KnowledgeSearchResult:
+      type: object
+      required:
+        - hits
+        - mode
+      properties:
+        hits:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeHit"
+        mode:
+          type: string
+          enum:
+            - fast
+            - semantic
+            - deep
+        warning: *a1
+    KnowledgeStatus:
+      type: object
+      required:
+        - state
+        - lastUpdatedAt
+        - documents
+        - needsEmbedding
+        - error
+        - backend
+        - devices
+      properties:
+        state:
+          type: string
+          enum:
+            - disabled
+            - idle
+            - updating
+            - embedding
+            - ready
+            - error
+        lastUpdatedAt:
+          type: integer
+          nullable: true
+        documents: *a2
+        needsEmbedding: *a2
+        error: &a3
+          type: string
+          nullable: true
+        backend: *a3
+        devices:
+          type: array
+          items: *a1
+    KnowledgeOverview:
+      type: object
+      required:
+        - embeddingModel
+        - settings
+        - sources
+        - status
+        - memories
+      properties:
+        embeddingModel:
+          type: string
+        settings:
+          $ref: "#/components/schemas/KnowledgeSettings"
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeSource"
+        status:
+          $ref: "#/components/schemas/KnowledgeStatus"
+        memories:
+          type: array
+          items:
+            $ref: "#/components/schemas/SavedMemory"
     Error: {type: object, required: [error], properties: {error: {type: string}}}
     OK: {type: object, required: [ok], properties: {ok: {type: boolean}}}
     SetupStatus: {type: object, required: [needsSetup, passwordLogin], properties: {needsSetup: {type: boolean}, passwordLogin: {type: boolean}, oidc: {type: object, required: [providerName], properties: {providerName: {type: string}}}}}

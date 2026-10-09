@@ -39,6 +39,7 @@ export {
 } from "./messages.ts";
 export type { UserMessageEditOptions } from "./messages.ts";
 export * from "./commands.ts";
+export * from "./knowledge.ts";
 export * from "./run-events.ts";
 export * from "./models.ts";
 export * from "./records.ts";

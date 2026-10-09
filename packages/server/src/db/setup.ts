@@ -6,6 +6,33 @@ export function initializeSchema(sqlite: BetterSqlite3.Database) {
 }
 
 const CURRENT_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS knowledge_configs (
+    agent_id TEXT PRIMARY KEY NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    settings TEXT NOT NULL,
+    status TEXT NOT NULL,
+    dirty INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS knowledge_sources (
+    id TEXT PRIMARY KEY NOT NULL,
+    agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    path TEXT NOT NULL,
+    description TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS knowledge_sources_agent ON knowledge_sources(agent_id);
+  CREATE TABLE IF NOT EXISTS knowledge_memories (
+    id TEXT PRIMARY KEY NOT NULL,
+    agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    revision TEXT NOT NULL,
+    contributor_id TEXT NOT NULL,
+    pending_content TEXT,
+    deleted_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS knowledge_memories_agent ON knowledge_memories(agent_id);
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY NOT NULL,
     username TEXT,

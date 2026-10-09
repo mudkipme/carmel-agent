@@ -1,7 +1,7 @@
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
 
 /** Which pane fills the main column, and which route is showing it. */
-export type ContentView = "chat" | "files" | "changes" | "terminal" | "issues" | "tasks";
+export type ContentView = "chat" | "files" | "changes" | "terminal" | "issues" | "tasks" | "knowledge";
 
 export type ShellRouteInput = {
   view: ContentView;

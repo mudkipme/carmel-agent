@@ -13,6 +13,7 @@
     "fixtures:provider": "node --import tsx scripts/fake-ollama.ts",
     "test:browser-sandbox": "node --import tsx scripts/test-browser-sandbox.ts",
     "test:sandbox-identity": "node --import tsx scripts/test-sandbox-identity.ts",
+    "test:knowledge-sandbox": "node --import tsx scripts/test-knowledge-sandbox.ts",
     "user:create": "tsx src/cli/create-user.ts"
   },
   "dependencies": {

@@ -94,6 +94,7 @@ export default function App() {
         <Route path="/agents/:agentId/terminal" element={<HarnessShell view="terminal" />} />
         <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
         <Route path="/agents/:agentId/tasks" element={<HarnessShell view="tasks" />} />
+        <Route path="/agents/:agentId/knowledge" element={<HarnessShell view="knowledge" />} />
         <Route path="/agents/:agentId/issues" element={<HarnessShell view="issues" />} />
         <Route path="/agents/:agentId/issues/:issueId" element={<HarnessShell view="issues" />} />
         <Route path="/settings" element={<Navigate to="/settings/models" replace />} />

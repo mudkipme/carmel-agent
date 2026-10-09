@@ -149,6 +149,10 @@ Network tools are only added to a run when the agent has the network permission.
 - `CARMEL_BASH_PIDS_LIMIT` — per-container PID cap. Defaults to `512`.
 - `CARMEL_BASH_IDLE_MINUTES` — idle timeout before a sandbox container is reaped. Defaults to `15`.
 - `CARMEL_BASH_GPU` — comma-separated CDI device ids to attach to runner containers, for example `nvidia.com/gpu=all`.
+- `CARMEL_KNOWLEDGE_EMBED_MODEL` — global embedding model for every agent, as an `hf:` URI or absolute GGUF file path. Defaults to qmd 2.8.3’s embeddinggemma-300M-Q8_0. Downloaded weights are shared under `CARMEL_AGENT_DATA_DIR/knowledge-models/`; local files mount read-only. Restart after changing it and rebuild embeddings.
+- `CARMEL_KNOWLEDGE_IMAGE` — knowledge runner image; defaults to `CARMEL_BASH_IMAGE`, then the published runner. Requires qmd 2.8.3 and must be pulled before use.
+- `CARMEL_KNOWLEDGE_MEMORY_MB` / `CARMEL_KNOWLEDGE_CPUS` — separate knowledge worker limits, defaulting to `4096` MiB and `2` CPUs.
+- `CARMEL_KNOWLEDGE_GPU` — knowledge worker CDI devices; inherits `CARMEL_BASH_GPU` when unset. Set an empty value to disable passthrough. Per-agent acceleration can also be forced to CPU. See [Knowledge and memory](knowledge.md).
 - `CARMEL_BASH_SELINUX_RELABEL` — relabel runner bind mounts for SELinux with `:z`. Defaults to `true`; set to `false` if relabeling is unwanted.
 - `CARMEL_HOST_DATA_DIR` — host path backing `CARMEL_AGENT_DATA_DIR`. Required only when Carmel Agent itself runs in a container, because runner bind mounts are resolved by the host's container runtime.
 

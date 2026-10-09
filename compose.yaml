@@ -30,6 +30,11 @@ services:
       CARMEL_HOST_DATA_DIR: "${CARMEL_HOST_DATA_DIR:-${PWD}/data}"
       # Pass a CDI GPU into runner containers (requires CDI configured on the host):
       # CARMEL_BASH_GPU: nvidia.com/gpu=all
+      CARMEL_KNOWLEDGE_EMBED_MODEL: "${CARMEL_KNOWLEDGE_EMBED_MODEL:-}"
+      # Optional knowledge worker overrides (qmd runs in runners, never this server):
+      # CARMEL_KNOWLEDGE_GPU: nvidia.com/gpu=all
+      # CARMEL_KNOWLEDGE_MEMORY_MB: 4096
+      # CARMEL_KNOWLEDGE_CPUS: 2
       # Single sign-on through an OIDC provider such as Pocket ID
       # (see docs/configuration.md#single-sign-on-openid-connect):
       # CARMEL_PUBLIC_URL: https://carmel.example.com

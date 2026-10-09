@@ -1,4 +1,5 @@
 import type {
+  KnowledgeOverview, KnowledgeSettings, KnowledgeSourceInput, KnowledgeSource, KnowledgeSearchInput, KnowledgeSearchResult, KnowledgeReadInput, KnowledgeDocument, MemoryInput, SavedMemory,
   BrowserControlState,
   AgentCommandPayload,
   GitChangeArea,
@@ -259,6 +260,15 @@ export const api = {
   deleteAgentSecret: (agentId: string, name: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}/secrets/${encodeURIComponent(name)}`, { method: "DELETE" }),
   listAgentTasks: (agentId: string, signal?: AbortSignal) => request<AgentTask[]>(`/api/agents/${agentId}/tasks`, { signal }),
+  knowledge: (agentId: string, signal?: AbortSignal) => request<KnowledgeOverview>(`/api/agents/${agentId}/knowledge`, { signal }),
+  saveKnowledgeSettings: (agentId: string, settings: KnowledgeSettings) => request<KnowledgeSettings>(`/api/agents/${agentId}/knowledge/settings`, { method: "PUT", body: JSON.stringify(settings) }),
+  addKnowledgeSource: (agentId: string, input: KnowledgeSourceInput) => request<KnowledgeSource>(`/api/agents/${agentId}/knowledge/sources`, { method: "POST", body: JSON.stringify(input) }),
+  deleteKnowledgeSource: (agentId: string, sourceId: string) => request(`/api/agents/${agentId}/knowledge/sources/${sourceId}`, { method: "DELETE" }),
+  searchKnowledge: (agentId: string, input: KnowledgeSearchInput, signal?: AbortSignal) => request<KnowledgeSearchResult>(`/api/agents/${agentId}/knowledge/search`, { method: "POST", body: JSON.stringify(input), signal }),
+  readKnowledge: (agentId: string, input: KnowledgeReadInput, signal?: AbortSignal) => request<KnowledgeDocument>(`/api/agents/${agentId}/knowledge/read`, { method: "POST", body: JSON.stringify(input), signal }),
+  refreshKnowledge: (agentId: string, embed = false, allowDownloads = false, deep = false) => request(`/api/agents/${agentId}/knowledge/refresh`, { method: "POST", body: JSON.stringify({ embed, allowDownloads, deep }) }),
+  saveMemory: (agentId: string, input: MemoryInput, memoryId?: string) => request<SavedMemory>(`/api/agents/${agentId}/knowledge/memories${memoryId ? `/${memoryId}` : ""}`, { method: memoryId ? "PUT" : "POST", body: JSON.stringify(input) }),
+  forgetMemory: (agentId: string, memory: SavedMemory) => request(`/api/agents/${agentId}/knowledge/memories/${memory.id}`, { method: "DELETE", body: JSON.stringify({ expectedRevision: memory.revision }) }),
   createAgentTask: (agentId: string, input: AgentTaskCreateCommand) =>
     request<AgentTask>(`/api/agents/${agentId}/tasks`, { method: "POST", body: JSON.stringify(input) }),
   updateAgentTask: (agentId: string, taskId: string, patch: AgentTaskPatchCommand) =>

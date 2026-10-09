@@ -1,4 +1,4 @@
-import { PanelLeftCloseIcon, CalendarClockIcon, ListTodoIcon, SettingsIcon } from "lucide-react";
+import { PanelLeftCloseIcon, CalendarClockIcon, ListTodoIcon, SettingsIcon, BookOpenIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
@@ -100,6 +100,11 @@ export function HarnessSidebar({
           />
           {activeAgent ? (
             <nav aria-label="Agent work" className="flex flex-col gap-1">
+              <Button asChild variant={contentView === "knowledge" ? "secondary" : "ghost"} className="justify-start">
+                <Link to={`/agents/${activeAgent.id}/knowledge`} aria-current={contentView === "knowledge" ? "page" : undefined} onClick={onOpenSession}>
+                  <BookOpenIcon data-icon="inline-start" />Knowledge
+                </Link>
+              </Button>
               <Button asChild variant={contentView === "issues" ? "secondary" : "ghost"} className="justify-start">
                 <Link
                   to={`/agents/${activeAgent.id}/issues`}

@@ -7,6 +7,7 @@ import { createCodemodeTool, type CodemodeHooks } from "./codemode-tool.ts";
 import { browserHelpTool, guardBrowserHandoff } from "./browser-tools.ts";
 import { browserControl } from "./browser-control.ts";
 import { builtinSkillTool, hasBrowserSkill } from "./builtin-skills.ts";
+import { createKnowledgeTools } from "./knowledge/tools.ts";
 import {
   collectAgentTools,
   type ToolProvider,
@@ -16,11 +17,12 @@ export { remapContainerPath } from "./execution-env.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
-export function createServerExecution(agent: AgentRecord, codemodeHooks?: CodemodeHooks) {
+export function createServerExecution(agent: AgentRecord, codemodeHooks?: CodemodeHooks, userId?: string) {
   const browserRevision = { revision: agent.permissions.bash ? browserControl(agent.id).state.revision : 0 };
   const env = new AgentExecutionEnv(agent);
   const mcp = new AgentMcpTools(agent, env.hostCwd);
   const tools = createServerToolDefinitions(agent, env);
+  if (userId) tools.push(...createKnowledgeTools(userId, agent.id));
   return {
     env,
     toolContext: { env } satisfies ExecutionToolContext,

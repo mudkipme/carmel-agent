@@ -1,5 +1,6 @@
 import { IssuesOverview } from "./issues/IssuesOverview";
 import { AgentTasksPage } from "./AgentTasksPage";
+import { AgentKnowledgePage } from "./AgentKnowledgePage";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { ResourceError } from "./ResourceFeedback";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -391,6 +392,8 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
                 />
               ) : null}
             </Suspense>
+          ) : view === "knowledge" && activeAgent ? (
+            <AgentKnowledgePage key={activeAgent.id} agent={activeAgent} />
           ) : view === "tasks" && activeAgent ? (
             <AgentTasksPage key={activeAgent.id} agent={activeAgent} />
           ) : view === "issues" && activeAgent ? (

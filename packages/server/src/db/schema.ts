@@ -1,4 +1,5 @@
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import type { KnowledgeSettings, KnowledgeStatus } from "@carmel-agent/shared";
 import type { Credential, ThinkingLevelMap } from "@earendil-works/pi-ai";
 import type {
   AgentMount,
@@ -157,6 +158,23 @@ export const agents = sqliteTable("agents", {
   defaultThinkingLevel: text("default_thinking_level").$type<AgentThinkingLevel>().notNull().default("off"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
+});
+
+export const knowledgeConfigs = sqliteTable("knowledge_configs", {
+  agentId: text("agent_id").primaryKey().references(() => agents.id, { onDelete: "cascade" }),
+  settings: text("settings", { mode: "json" }).$type<KnowledgeSettings>().notNull(),
+  status: text("status", { mode: "json" }).$type<KnowledgeStatus>().notNull(),
+  dirty: integer("dirty", { mode: "boolean" }).notNull().default(true),
+});
+export const knowledgeSources = sqliteTable("knowledge_sources", {
+  id: text("id").primaryKey(), agentId: text("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), path: text("path").notNull(), description: text("description").notNull(), createdAt: integer("created_at").notNull(),
+});
+export const knowledgeMemories = sqliteTable("knowledge_memories", {
+  id: text("id").primaryKey(), agentId: text("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  title: text("title").notNull(), revision: text("revision").notNull(), contributorId: text("contributor_id").notNull(),
+  pendingContent: text("pending_content"), deletedAt: integer("deleted_at"),
+  createdAt: integer("created_at").notNull(), updatedAt: integer("updated_at").notNull(),
 });
 
 /**

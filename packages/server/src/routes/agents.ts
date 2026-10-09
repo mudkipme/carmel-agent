@@ -24,6 +24,7 @@ import { readActiveRunLeaseForAgent } from "../services/active-run-lease.ts";
 import { jsonValidator } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import { deleteAgentSecretsForAgent } from "../services/agent-secrets.ts";
+import { deleteAgentKnowledge } from "../services/knowledge.ts";
 import { deleteAgentTasksForAgent } from "../services/agent-tasks.ts";
 import { deleteIssuesForAgent } from "../services/issues.ts";
 import { createAgentFilesRoute } from "./agent-files.ts";
@@ -118,6 +119,7 @@ export function createAgentRoutes() {
     deleteAgentTasksForAgent(agentId);
     deleteIssuesForAgent(agentId);
     deleteAgentSecretsForAgent(agentId);
+    await deleteAgentKnowledge(agentId);
     const deletedSessions = db.select().from(sessions).where(eq(sessions.agentId, agentId)).all();
     await deletePiSessions(deletedSessions);
     db.delete(sessions).where(eq(sessions.agentId, agentId)).run();

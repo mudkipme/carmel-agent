@@ -13,6 +13,8 @@ import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
 import { startTaskScheduler } from "./runtime/task-scheduler.ts";
 import { errorMessage } from "./errors.ts";
 import { assertOidcConfig } from "./oidc/config.ts";
+import { startKnowledgeScheduler, stopKnowledgeScheduler } from "./services/knowledge.ts";
+import { reapKnowledgeWorkers, shutdownKnowledgeWorkers } from "./runtime/knowledge/worker-client.ts";
 
 // Before anything else: a mistyped auth variable should stop the boot, not
 // surface later as a sign-in button that fails for everyone.
@@ -34,6 +36,7 @@ pruneExpiredAuthSessions();
 // Remove any sandbox containers left behind by a previous process.
 // Finish removing old profile owners before accepting new sandbox requests.
 await reapManagedContainers();
+await reapKnowledgeWorkers();
 void refreshConfiguredModelCatalogs()
   .then((errors) => {
     for (const [provider, error] of errors) {
@@ -48,6 +51,7 @@ void refreshConfiguredModelCatalogs()
   });
 
 startTaskScheduler();
+startKnowledgeScheduler();
 startIssueQueue();
 
 const app = createApp();
@@ -83,6 +87,8 @@ async function shutdown(signal: string) {
     console.warn("Failed to close terminal sessions:", errorMessage(error));
   }
   try {
+    await stopKnowledgeScheduler();
+    await shutdownKnowledgeWorkers();
     await shutdownContainerManager();
   } catch (error) {
     console.warn("Failed to stop sandbox containers:", errorMessage(error));
