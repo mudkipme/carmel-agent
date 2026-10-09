@@ -447,11 +447,23 @@ test(
   () => {
     browser("set", "viewport", "1280", "900");
     open(agentPath("knowledge"));
-    click("button", "Knowledge settings");
+    click("link", "Knowledge settings");
+    browser("wait", "--url", `**${agentPath("settings/knowledge")}`);
+    browser("wait", "#knowledge-model");
+    assert.equal(evaluate<string>('document.querySelector("h1").textContent'), "Agent Settings");
+    assert.equal(evaluate<number>('document.querySelectorAll("footer button").length'), 0);
     assert.equal(evaluate<boolean>('document.querySelector("#knowledge-model").readOnly'), true);
     browser("click", "#knowledge-enabled");
     click("option", "On");
     click("button", "Save settings");
+    browser("wait", "--text", "Knowledge settings saved.");
+    browser("open", `${fixture.url}${agentPath("settings/knowledge")}`);
+    browser("wait", "#knowledge-enabled");
+    assert.match(snapshot(), /combobox "Knowledge and memory".*On/);
+    click("link", "General");
+    click("link", "Knowledge");
+    browser("wait", "#knowledge-enabled");
+    click("link", "Open knowledge");
     click("button", "New memory");
     browser("find", "label", "Title", "fill", "Family budget meeting");
     browser("find", "label", "Memory", "fill", "Alice and Bob review their budget on Sunday.");

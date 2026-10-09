@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BookOpenIcon, PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
-import type {
-  AgentConfig,
-  KnowledgeSettings,
-  KnowledgeSearchResult,
-  SavedMemory,
-} from "@carmel-agent/shared";
+import type { AgentConfig, KnowledgeSearchResult, SavedMemory } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,7 +11,7 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { Field, FieldLabel, FieldDescription, FieldGroup } from "@/components/ui/field";
+import { Field, FieldLabel, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +58,6 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
   const [busy, setBusy] = useState(false);
   const [editor, setEditor] = useState<SavedMemory | "new">();
   const [addSource, setAddSource] = useState(false);
-  const [settings, setSettings] = useState(false);
   const act = async (operation: () => Promise<unknown>) => {
     setBusy(true);
     try {
@@ -88,9 +82,9 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
               Sources and saved memories shared with everyone who can use this agent.
             </p>
           </div>
-          {owner && data ? (
-            <Button variant="outline" onClick={() => setSettings(!settings)}>
-              Knowledge settings
+          {owner ? (
+            <Button variant="outline" asChild>
+              <Link to={`/agents/${agent.id}/settings/knowledge`}>Knowledge settings</Link>
             </Button>
           ) : null}
         </div>
@@ -100,19 +94,6 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
         {overview.loading ? <ResourceLoading label="Loading knowledge" /> : null}
         {data ? (
           <>
-            {settings ? (
-              <KnowledgeSettingsForm
-                initial={data.settings}
-                embeddingModel={data.embeddingModel}
-                busy={busy}
-                onSave={(value) =>
-                  void act(async () => {
-                    await api.saveKnowledgeSettings(agent.id, value);
-                    setSettings(false);
-                  })
-                }
-              />
-            ) : null}
             {!data.settings.enabled ? (
               <Alert>
                 <AlertTitle>Knowledge is off</AlertTitle>
@@ -477,98 +458,6 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
   );
 }
 
-function KnowledgeSettingsForm({
-  initial,
-  embeddingModel,
-  busy,
-  onSave,
-}: {
-  initial: KnowledgeSettings;
-  embeddingModel: string;
-  busy: boolean;
-  onSave: (value: KnowledgeSettings) => void;
-}) {
-  const [enabled, setEnabled] = useState(initial.enabled);
-  const [acceleration, setAcceleration] = useState(initial.acceleration);
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSave({ enabled, acceleration });
-      }}
-    >
-      <Card>
-        <CardHeader>
-          <CardTitle>Knowledge settings</CardTitle>
-          <CardDescription>
-            Memory is shared by all users of this agent. Conversations remain separate.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="knowledge-enabled">Knowledge and memory</FieldLabel>
-              <Select
-                value={enabled ? "on" : "off"}
-                onValueChange={(value) => setEnabled(value === "on")}
-              >
-                <SelectTrigger id="knowledge-enabled">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="off">Off</SelectItem>
-                    <SelectItem value="on">On</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <FieldDescription>
-                Agents save memories only when asked. Existing memories are retained when switched
-                off.
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="knowledge-acceleration">Acceleration</FieldLabel>
-              <Select
-                value={acceleration}
-                onValueChange={(value) => setAcceleration(value as typeof acceleration)}
-              >
-                <SelectTrigger id="knowledge-acceleration">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {["auto", "cpu", "vulkan", "cuda"].map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value === "auto" ? "Automatic" : value.toUpperCase()}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <FieldDescription>
-                Uses GPUs exposed to the runner. Vulkan works with compatible NVIDIA and AMD
-                drivers.
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="knowledge-model">Embedding model</FieldLabel>
-              <Input id="knowledge-model" value={embeddingModel} readOnly />
-              <FieldDescription>
-                Shared by all agents. The server administrator configures this model.
-              </FieldDescription>
-            </Field>
-          </FieldGroup>
-        </CardContent>
-        <CardFooter>
-          <Button disabled={busy} type="submit">
-            Save settings
-          </Button>
-        </CardFooter>
-      </Card>
-    </form>
-  );
-}
 function MemoryForm({
   memory,
   busy,

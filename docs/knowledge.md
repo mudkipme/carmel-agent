@@ -11,7 +11,7 @@ A compact catalog lists source IDs, names, and shortened descriptions, plus the 
 ## Setup
 
 1. Pull the runner image containing `@tobilu/qmd@2.8.3`, and configure the existing Podman or Docker socket and non-root runner identity.
-2. Open an agent's **Knowledge → Knowledge settings** as its owner and turn knowledge on. The agent needs read permission. General bash permission is not required.
+2. Open **Agent Settings → Knowledge** as the agent's owner and turn knowledge on. The **Knowledge settings** button on the Knowledge page opens the same settings section. The agent needs read permission. General bash permission is not required.
 3. Add a source directory inside the agent workspace or an existing configured mount. Relative paths are relative to the workspace; runner mount paths are also accepted. Only Markdown files are indexed. Hidden directories, build output, dependency directories, and symlinks are excluded by the qmd indexer.
 4. Click **Refresh index** for keyword search. Background maintenance checks dirty agents every 30 seconds and reconciles source changes about every five minutes. It performs no model work or conversation ingestion.
 5. For semantic search, configure the global embedding model on the server and click **Build embeddings**. **Prepare deep search** also prepares qmd's default query-expansion and reranking models. Model downloads require the agent's network permission. Retrieval and automatic indexing always run offline and report missing models without waiting for a download.

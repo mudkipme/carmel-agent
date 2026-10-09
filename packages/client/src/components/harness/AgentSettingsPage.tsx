@@ -2,6 +2,7 @@ import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/
 import {
   ArchiveIcon,
   ArrowLeftIcon,
+  BookOpenIcon,
   CodeIcon,
   FileTextIcon,
   KeyRoundIcon,
@@ -13,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { AgentArchivedSessionsSettings } from "@/components/harness/agent-settings/AgentArchivedSessionsSettings";
 import { AgentGeneralSettings } from "@/components/harness/agent-settings/AgentGeneralSettings";
+import { AgentKnowledgeSettings } from "@/components/harness/agent-settings/AgentKnowledgeSettings";
 import { AgentPermissionsSettings } from "@/components/harness/agent-settings/AgentPermissionsSettings";
 import { AgentSecretsSettings } from "@/components/harness/agent-settings/AgentSecretsSettings";
 import { AgentTemplatesSettings } from "@/components/harness/agent-settings/AgentTemplatesSettings";
@@ -28,6 +30,7 @@ import { resolveModelRef, type AgentConfig, type AgentThinkingLevel } from "@car
 
 const agentSettingsSections = [
   { id: "general", label: "General", icon: SlidersHorizontalIcon },
+  { id: "knowledge", label: "Knowledge", icon: BookOpenIcon },
   { id: "templates", label: "Templates", icon: FileTextIcon },
   { id: "permissions", label: "Permissions", icon: ShieldIcon },
   { id: "codemode", label: "Codemode", icon: CodeIcon },
@@ -252,6 +255,9 @@ export function AgentSettingsPage() {
                   {activeSection === "secrets" ? (
                     <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
                   ) : null}
+                  {activeSection === "knowledge" ? (
+                    <AgentKnowledgeSettings key={agent.id} agentId={agent.id} />
+                  ) : null}
                   {activeSection === "codemode" ? (
                     <AgentCodemodeSettings
                       enabled={draft.codemodeEnabled ?? false}
@@ -270,9 +276,12 @@ export function AgentSettingsPage() {
               ) : null}
             </div>
           </div>
-          {/* Secrets and archived sessions are their own resources and save
+          {/* Knowledge, secrets, and archived sessions are their own resources and save
               themselves, so the draft's save bar would only be a misleading no-op there. */}
-          {draft && !callerSection && activeSection !== "secrets" ? (
+          {draft &&
+          !callerSection &&
+          activeSection !== "secrets" &&
+          activeSection !== "knowledge" ? (
             <footer className="flex shrink-0 items-center justify-end gap-3 border-t px-3 py-2 pb-[calc(0.5rem+var(--safe-bottom))]">
               {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
               {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
