@@ -58,6 +58,7 @@ import { errorMessage } from "../errors.ts";
 import { browserControl } from "./browser-control.ts";
 import { browserInstructions } from "./browser-tools.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
+import { buildKnowledgeInstructions } from "./knowledge/prompt.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
@@ -387,7 +388,11 @@ async function openRunHarness(
       skills: resources.skills,
       contextFiles: resources.contextFiles,
       includeSkills: activeToolNames.includes("read"),
-      sessionInstructions: [sessionAddons?.instructions, agent.permissions.bash ? browserInstructions : ""].filter(Boolean).join("\n"),
+      sessionInstructions: [
+        sessionAddons?.instructions,
+        agent.permissions.bash ? browserInstructions : "",
+        buildKnowledgeInstructions(context.session.userId, agent.id, activeToolNames),
+      ].filter(Boolean).join("\n\n"),
     }),
     resources: {
       skills: resources.skills,

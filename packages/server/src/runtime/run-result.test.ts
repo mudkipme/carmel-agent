@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import type { AgentRunResult } from "@carmel-agent/shared";
 import { db, initialize, sqlite } from "../db/index.ts";
-import { agents, modelRefs, sessions } from "../db/schema.ts";
+import { agents, knowledgeConfigs, knowledgeSources, modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { loadSession } from "../services/session-store.ts";
@@ -53,6 +53,37 @@ test("the model sees runner paths for its cwd, project instructions, and workspa
     assert.ok(prompt.includes("/workspace/.agents/skills/review/SKILL.md"));
     assert.ok(!prompt.includes(workingDir));
   } finally { rmSync(workingDir, { recursive: true, force: true }); }
+});
+
+test("ordinary and Codemode runs send memory guidance and the source catalog to the model", async () => {
+  for (const codemodeEnabled of [false, true]) {
+    const firstRequest = provider.systemPrompts.length;
+    const run = await startRun("reply", sessionId => {
+      const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
+      db.update(agents).set({ codemodeEnabled }).where(eq(agents.id, session.agentId)).run();
+      db.insert(knowledgeConfigs).values({
+        agentId: session.agentId,
+        settings: { enabled: true, acceleration: "cpu" },
+        status: { state: "idle", lastUpdatedAt: null, documents: 0, needsEmbedding: 0, error: null, backend: null, devices: [] },
+      }).run();
+      db.insert(knowledgeSources).values({
+        id: id("source"), agentId: session.agentId, name: "Family vault",
+        path: "/unavailable-vault", description: "Household budgets", createdAt: now(),
+      }).run();
+    });
+    assert.equal((await finished(run)).outcome, "succeeded");
+    const prompt = provider.systemPrompts.slice(firstRequest).find(text => text.includes("Current working directory:"))!;
+    assert.ok(prompt);
+    assert.match(prompt, /## Knowledge and shared memory/);
+    assert.match(prompt, /Family vault/);
+    assert.match(prompt, /Household budgets/);
+    assert.match(prompt, /use knowledge_search/);
+    assert.match(prompt, /Use knowledge_read/);
+    assert.match(prompt, /shared across all of its users/);
+    assert.ok(!prompt.includes("/unavailable-vault"));
+    assert.ok(!prompt.includes("Use memory_save"), "read-only agent must not be instructed to save");
+    assert.ok(!prompt.includes("Use memory_forget"));
+  }
 });
 
 test("a provider rejection fails the run and says why", async () => {

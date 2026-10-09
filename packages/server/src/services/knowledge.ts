@@ -106,6 +106,25 @@ function config(agentId: string) {
 export function knowledgeEnabled(agentId: string) {
   return config(agentId)?.settings.enabled === true;
 }
+/** Metadata only: building a prompt must not read notes or start a qmd worker. */
+export function knowledgePromptContext(userId: string, agentId: string) {
+  const agent = readVisibleAgent(userId, agentId);
+  if (!agent?.permissions.read || !knowledgeEnabled(agentId)) return undefined;
+  return {
+    permissions: agent.permissions,
+    sources: db
+      .select({
+        id: knowledgeSources.id,
+        name: knowledgeSources.name,
+        description: knowledgeSources.description,
+      })
+      .from(knowledgeSources)
+      .where(eq(knowledgeSources.agentId, agentId))
+      .orderBy(knowledgeSources.createdAt, knowledgeSources.id)
+      .limit(21)
+      .all(),
+  };
+}
 function requireAgent(userId: string, agentId: string, owner = false) {
   const agent = readVisibleAgent(userId, agentId);
   if (!agent) throw new KnowledgeError("Agent not found.", 404);

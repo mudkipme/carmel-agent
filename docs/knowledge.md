@@ -4,6 +4,10 @@ Every agent has a Knowledge page for searching registered Markdown directories a
 
 Conversations retain their existing visibility. This release does not index sessions, automatically capture memories, inject startup memory, or run Dream-style consolidation. It implements managed search and explicit memory writes. Existing workspace wikis such as LifeOS remain source directories; automatic writes into their pages are not implemented.
 
+Each run receives knowledge and shared-memory instructions in its system prompt when knowledge is enabled and the read tools are available. This also applies in Codemode. The prompt tells the agent when to recall prior facts, verify passages, cite sources, disclose retrieval limitations, and save or forget explicitly requested memories. It reflects the current write/edit permissions and explains that agent memory is shared while session visibility remains separate.
+
+A compact catalog lists source IDs, names, and shortened descriptions, plus the built-in `memories` source. Directory metadata is capped at 6,000 characters and 20 entries; omitted sources remain searchable without a source filter. The catalog refreshes on each run and treats metadata as untrusted reference data. Building it reads only database metadata: it does not load memory contents, scan directories, start qmd, or call a model. Recall is agent-directed through tools, not automatic retrieval on every message.
+
 ## Setup
 
 1. Pull the runner image containing `@tobilu/qmd@2.8.3`, and configure the existing Podman or Docker socket and non-root runner identity.
