@@ -43,7 +43,8 @@ test("a run that gets its reply succeeds", async () => {
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
 });
 
-test("successive named-session runs persist only the clock change and skip title history reads", async (t) => {
+test("successive named-session runs preserve the provider request prefix without injecting a clock", async (t) => {
+  const firstRequest = provider.requests.length;
   const first = await startRun("reply");
   assert.equal((await finished(first)).outcome, "succeeded");
   const pi = await openPiSession(first.sessionId);
@@ -61,7 +62,7 @@ test("successive named-session runs persist only the clock change and skip title
     assert.ok(initial[0]!.sections?.system);
     assert.ok(initial[0]!.sections?.cwd);
     assert.ok(initial[0]!.sections?.scheduling);
-    assert.ok(initial[0]!.sections?.clock);
+    assert.equal(initial[0]!.sections?.clock, undefined);
     const reads = t.mock.method(pi.conversation, "entries");
     const session = (await loadSession(first.sessionId))!;
     const context = await resolveModelContext(session.userId, session.modelRefId);
@@ -87,9 +88,20 @@ test("successive named-session runs persist only the clock change and skip title
     const systems = after.items
       .flatMap((entry) => entry.model ?? [])
       .filter((message) => message.role === "system");
-    assert.equal(systems.length, 2);
-    assert.deepEqual(Object.keys(systems.at(-1)!.sections!), ["clock"]);
-    assert.notEqual(systems.at(-1)!.sections!.clock, initial[0]!.sections!.clock);
+    assert.equal(systems.length, 1, "unchanged instructions need no new native system entry");
+    const [firstPayload, secondPayload] = provider.requests.slice(firstRequest);
+    assert.ok(firstPayload && secondPayload);
+    assert.deepEqual(
+      secondPayload.messages.slice(0, firstPayload.messages.length),
+      firstPayload.messages,
+    );
+    assert.deepEqual(secondPayload.tools, firstPayload.tools);
+    assert.equal(
+      firstPayload.messages.find((message) => message.role === "user")!.content,
+      "Hello",
+    );
+    assert.equal(secondPayload.messages.at(-1)!.content, "Hello again");
+    assert.doesNotMatch(firstPayload.messages[0]!.content, /Current time: \d{4}-|<current_time>/);
   } finally {
     await closePiSession(pi);
   }
@@ -113,7 +125,8 @@ test("ordinary and Codemode chat calls persist a scheduled reminder and return i
     const prompt = provider.systemPrompts
       .slice(firstRequest)
       .find((text) => text.includes("Current working directory:"))!;
-    assert.match(prompt, /Current time: \d{4}-/);
+    assert.doesNotMatch(prompt, /Current time: \d{4}-|<current_time>/);
+    assert.match(prompt, /check the current time with bash if available/);
     assert.match(prompt, /browser time zone: Asia\/Singapore/);
     assert.match(prompt, /use schedule_task/);
   }
@@ -321,6 +334,8 @@ async function startFakeProvider() {
   let waiters: Array<() => void> = [];
   const state = { mode: "reply" as ProviderMode };
   const systemPrompts: string[] = [];
+  const requests: Array<{ messages: Array<{ role: string; content: string }>; tools?: unknown[] }> =
+    [];
   const server = createServer(async (request, response) => {
     if (request.method !== "POST" || !request.url?.endsWith("/chat/completions")) {
       response.writeHead(404).end();
@@ -328,7 +343,8 @@ async function startFakeProvider() {
     }
     let body = "";
     for await (const chunk of request) body += chunk;
-    const payload = JSON.parse(body) as { messages: Array<{ role: string; content: string }> };
+    const payload = JSON.parse(body) as (typeof requests)[number];
+    requests.push(payload);
     systemPrompts.push(
       ...payload.messages
         .filter((message) => message.role === "system")
@@ -348,6 +364,7 @@ async function startFakeProvider() {
   return {
     url: `http://127.0.0.1:${port}`,
     systemPrompts,
+    requests,
     get mode() {
       return state.mode;
     },

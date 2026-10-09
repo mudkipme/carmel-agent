@@ -7,6 +7,7 @@ import {
   type AgentMcpServer,
 } from "@carmel-agent/shared";
 import { createModels } from "@earendil-works/pi-ai";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   fauxAssistantMessage,
   fauxProvider,
@@ -33,6 +34,54 @@ function agent(
 }
 const http = (url: string, patch: Partial<AgentMcpServer> = {}) =>
   agentMcpServerSchema.parse({ id: "remote", transport: "http", url, ...patch });
+
+test("MCP reconnect ordering keeps native declarations and the Codemode catalog identical", async () => {
+  const definitions = ["zeta", "alpha"].map((name) => ({
+    name,
+    description: `Tool ${name}`,
+    inputSchema: { type: "object" as const, properties: {} },
+  }));
+  const remote = await startMcpTestServer({ tools: definitions });
+  try {
+    for (const codemodeEnabled of [false, true]) {
+      const configured = {
+        ...agent([http(remote.url)], {
+          read: false,
+          write: false,
+          edit: false,
+          bash: false,
+          network: true,
+        }),
+        codemodeEnabled,
+      };
+      const offered: unknown[] = [];
+      for (let connection = 0; connection < 2; connection++) {
+        const execution = createServerExecution(configured);
+        try {
+          await execution.prepare();
+          const tools = execution.resolveTools();
+          assert.deepEqual(
+            tools.filter((tool) => tool.name.startsWith("mcp_")).map((tool) => tool.name),
+            [mcpToolName("remote", "alpha"), mcpToolName("remote", "zeta")],
+          );
+          offered.push(
+            tools.map(({ name, description, parameters }) => ({ name, description, parameters })),
+          );
+        } finally {
+          await execution.cleanup(BACKGROUND_CONTEXT);
+        }
+        definitions.reverse();
+      }
+      assert.deepEqual(
+        offered[1],
+        offered[0],
+        "listing order must not change the cached tool prefix",
+      );
+    }
+  } finally {
+    await remote.close();
+  }
+});
 
 test("MCP configuration validates transports, IDs, timeouts, and unique server IDs", () => {
   assert.equal(

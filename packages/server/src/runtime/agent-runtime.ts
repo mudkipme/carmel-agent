@@ -448,7 +448,6 @@ async function openRunHarness(
         scheduling: schedulingTools.length
           ? buildSchedulingInstructions(context.timezone)
           : undefined,
-        clock: schedulingTools.length ? `Current time: ${new Date().toISOString()}.` : undefined,
       },
       resources: {
         skills: resources.skills,

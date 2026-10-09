@@ -110,6 +110,9 @@ export class AgentMcpTools {
         await Promise.race([client.connect(transport), cancelled]);
         signal.throwIfAborted();
         const definitions = await client.listTools({ signal });
+        // Reconnects may list the same tools in a different order. Keep both
+        // native declarations and Codemode's catalog stable for prompt caching.
+        definitions.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
         this.discoveredTools.push(
           ...definitions.map((tool) => ({
             name: tool.name,

@@ -24,12 +24,18 @@ Tools default to `replay: "unsafe"`. Pi records intent before executing them; af
 
 - Native SQLite storage, conversations, checkpoints, replay policy, committed live documents, and queued submissions.
 - Native read/write/edit/bash tools, including batched edits, bounded output, efficient text reads, diagnostics, and shell output spill files. Nested codemode calls retain failed shell output and spill diagnostics, using Pi's UTF-8 byte/line truncation helpers. Durable 1.1.0 does not support image reads, so that case uses Pi coding-agent's image reader through the same guarded environment.
-- Native named prompt sections and atomic model/thinking/tool configuration. A clock update persists only its changed section. Already-named sessions skip title history reads; new titles use a bounded sample from native entry pages.
+- Native named prompt sections and atomic model/thinking/tool configuration. Already-named sessions skip title history reads; new titles use a bounded sample from native entry pages.
 - Native skill catalog formatting.
 - Codemode's validated `// @options:` source header, tool-presence checks with `"name" in tools`, and image validation using base64 data URIs. Script options can lower Carmel's output and deadline limits, but cannot raise them.
 - Native threshold, background, and overflow compaction. Small model windows get scaled reserve/tail settings: Durable's `enabled` flag controls overflow recovery too, so the old threshold-only disable workaround is removed.
 - Pi's `azure` provider identifier.
 
 Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are not public Pi 1.1.0 exports, so their positional/default/slice semantics remain in the adapter. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
+
+## Prompt cache stability
+
+Carmel does not inject a clock into system instructions or user messages, matching Pi coding-agent/TUI's default prompt. For relative scheduling, the model checks time with bash when available or asks the user. Native message timestamps remain storage metadata.
+
+Named sections reduce redundant storage writes. They preserve the request prefix when the selected model supports mid-conversation system changes; otherwise Pi collapses section updates into the leading system prompt. Keeping a changing clock out of the prompt protects conversation-history caching in both cases. MCP tools are sorted by name within each configured server, keeping native declarations and Codemode's embedded catalog stable when a reconnect returns the same tools in another order.
 
 Pi Durable is experimental. Versions are pinned to 1.1.0, and the storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/main/packages/durable).

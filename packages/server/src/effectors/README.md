@@ -148,9 +148,14 @@ precise sentence with a generic one.
 Stable prompt content and native caching keep the cached prefix intact:
 
 - **Named Durable sections** separate base instructions, project context,
-  skills, cwd, issue/browser/knowledge guidance, scheduling instructions, and
-  the current clock. Durable persists section changes; a fresh clock does not
-  restate the stable instructions in storage.
+  skills, cwd, issue/browser/knowledge guidance, and scheduling instructions.
+  Durable persists section changes. On models without mid-conversation system
+  support, Pi still collapses them into the leading prompt.
+- **No injected clock.** Like Pi's TUI, Carmel lets the model read time through
+  bash or ask the user. Time never changes the cached system/history prefix.
+- **MCP tools are sorted by name within each server** before native declarations
+  and Codemode's catalog are built. A server returning the same tools in another
+  order does not invalidate the cached tool prefix.
 
 - **Skills and prompt templates are sorted** before they reach the system prompt
   (`runtime/resources.ts`). Pi discovers both with `readdirSync` and no ordering
