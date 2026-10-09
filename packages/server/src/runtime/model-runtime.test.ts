@@ -114,7 +114,8 @@ test("typed and mixed SDK lookups retain the bound chat endpoint without alterin
     assert.deepEqual(models.find((model) => model.id === OPENAI_MODEL_ID && model.type === "classifier"), classifier);
   }
   assert.deepEqual(bound.getModelOfType("image", "openai", OPENAI_MODEL_ID), image);
-  assert.deepEqual(bound.getModelsOfType("classifier", "openai"), [classifier]);
+  assert.deepEqual(bound.getModelOfType("classifier", "openai", OPENAI_MODEL_ID), classifier);
+  assert.deepEqual(bound.getModelsOfType("classifier", "openai"), runtime.getModelsOfType("classifier", "openai"));
 });
 
 /** Collect every URL the block sends a request to, without letting one out. */

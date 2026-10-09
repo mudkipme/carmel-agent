@@ -72,7 +72,7 @@ export function parseCommandArgs(text: string): string[] {
   return args;
 }
 export function formatPromptTemplateInvocation(template: PromptTemplate, args: string[]) {
-  // Pi's prompt-template helpers are not public exports in 1.0.4. Keep their substitution semantics here.
+  // Pi's prompt-template helpers are not public exports in 1.1.0. Keep their substitution semantics here.
   return template.content.replace(/\$\{(\d+|ARGUMENTS|@):-([^}]*)\}|\$\{@:(\d+)(?::(\d+))?\}|\$(ARGUMENTS|@|\d+)/g,
     (_match, target: string | undefined, fallback: string, start: string | undefined, length: string | undefined, simple: string) => {
       if (target) return (target === "@" || target === "ARGUMENTS" ? args.join(" ") : args[Number(target) - 1]) || fallback;

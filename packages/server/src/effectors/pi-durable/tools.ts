@@ -31,7 +31,7 @@ export function createReadTool<T extends ExecutionToolContext>(options?: { resol
     async execute(id, args, update, tools, invocation, context) {
       const result = await native.execute(id, args, update, tools, invocation, context);
       if (!result.diagnostics?.some(diagnostic => diagnostic.code === "unsupported_image")) return result;
-      // Durable 1.0.4 reads text only. Keep Pi's native image reader behind the same guarded environment.
+      // Durable 1.1.0 reads text only. Keep Pi's native image reader behind the same guarded environment.
       const imageReader = codingRead(tools.env.cwd, { operations: {
         readFile: async path => Buffer.from(getOrThrow(await tools.env.readBinaryFile(path, context))),
         access: async path => { getOrThrow(await tools.env.readBinaryFile(path, context)); },
