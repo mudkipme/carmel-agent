@@ -117,6 +117,7 @@ export function createAgentRunRoutes() {
       modelRuntime,
       thinkingLevel,
       promptInput,
+      timezone: body.timezone,
     });
     return createRunStream(run);
   });

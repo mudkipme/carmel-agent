@@ -180,6 +180,7 @@ export class RemoteAgent {
             modelRefId: this.config.modelRefId,
             thinkingLevel: this.thinkingLevel,
             promptInput,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           }),
           signal: controller.signal,
         });

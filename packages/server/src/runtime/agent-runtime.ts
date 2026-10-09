@@ -59,6 +59,7 @@ import { browserControl } from "./browser-control.ts";
 import { browserInstructions } from "./browser-tools.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 import { buildKnowledgeInstructions } from "./knowledge/prompt.ts";
+import { createScheduleTaskTool, buildSchedulingInstructions } from "./task-tools.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
@@ -107,6 +108,8 @@ export type AgentRunInput = {
   modelRuntime: ModelRuntime;
   thinkingLevel: Session["thinkingLevel"];
   promptInput?: PromptInput;
+  /** Browser time zone for interpreting local reminder times. */
+  timezone?: string;
   /**
    * What the session the run is in adds to the agent: tools and instructions
    * that only make sense there, like an issue's `report_issue`. Offered on top
@@ -374,7 +377,14 @@ async function openRunHarness(
 ): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[] }> {
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } = context;
   const resources = await loadAgentResources(agent, execution.env);
-  const tools = execution.resolveTools(sessionAddons?.tools);
+  const schedulingTools = context.session.taskId ? [] : [createScheduleTaskTool({
+    userId: context.session.userId,
+    agentId: agent.id,
+    modelRefId: context.modelRef.id,
+    thinkingLevel,
+    timezone: context.timezone,
+  })];
+  const tools = execution.resolveTools([...schedulingTools, ...(sessionAddons?.tools ?? [])]);
   const activeToolNames = tools.map((tool) => tool.name);
   // Install this run's credentials, resources, and permitted tools before native scheduling.
   const { harness } = await AgentHarness.create<ExecutionToolContext>({
@@ -392,6 +402,7 @@ async function openRunHarness(
         sessionAddons?.instructions,
         agent.permissions.bash ? browserInstructions : "",
         buildKnowledgeInstructions(context.session.userId, agent.id, activeToolNames),
+        schedulingTools.length ? buildSchedulingInstructions(context.timezone) : "",
       ].filter(Boolean).join("\n\n"),
     }),
     resources: {

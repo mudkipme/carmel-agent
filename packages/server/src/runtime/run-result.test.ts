@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import type { AgentRunResult } from "@carmel-agent/shared";
 import { db, initialize, sqlite } from "../db/index.ts";
-import { agents, knowledgeConfigs, knowledgeSources, modelRefs, sessions } from "../db/schema.ts";
+import { agents, agentTasks, knowledgeConfigs, knowledgeSources, modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { loadSession } from "../services/session-store.ts";
@@ -25,13 +25,35 @@ import { shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
 
 initialize();
 
-type ProviderMode = "reply" | "reject" | "tool-loop" | "hang";
+type ProviderMode = "reply" | "reject" | "tool-loop" | "hang" | "schedule" | "schedule-codemode";
 const provider = await startFakeProvider();
 after(() => provider.close());
 
 test("a run that gets its reply succeeds", async () => {
   const run = await startRun("reply");
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
+});
+
+test("ordinary and Codemode chat calls persist a scheduled reminder and return its confirmation", async () => {
+  for (const codemodeEnabled of [false, true]) {
+    const firstRequest = provider.systemPrompts.length;
+    const run = await startRun(codemodeEnabled ? "schedule-codemode" : "schedule", sessionId => {
+      const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
+      db.update(agents).set({ codemodeEnabled }).where(eq(agents.id, session.agentId)).run();
+    });
+    assert.deepEqual(await finished(run), { outcome: "succeeded" });
+    const session = (await loadSession(run.sessionId))!;
+    const tasks = db.select().from(agentTasks).where(eq(agentTasks.agentId, session.agentId)).all();
+    assert.equal(tasks.length, 1);
+    assert.equal(tasks[0].userId, run.userId);
+    assert.equal(tasks[0].modelRefId, session.modelRefId);
+    assert.equal(tasks[0].nextRunAt, Date.parse("2099-01-01T01:00:00Z"));
+    assert.match(JSON.stringify(session.messages), /Tasks run history/);
+    const prompt = provider.systemPrompts.slice(firstRequest).find(text => text.includes("Current working directory:"))!;
+    assert.match(prompt, /Current time: \d{4}-/);
+    assert.match(prompt, /browser time zone: Asia\/Singapore/);
+    assert.match(prompt, /use schedule_task/);
+  }
 });
 
 test("the model sees runner paths for its cwd, project instructions, and workspace skills", async () => {
@@ -188,6 +210,7 @@ async function startRun(mode: ProviderMode, beforeStart?: (sessionId: string) =>
     modelRuntime: context.value.modelRuntime,
     thinkingLevel: "off",
     promptInput: { text: "Hello" },
+    timezone: "Asia/Singapore",
   });
 }
 
@@ -206,7 +229,7 @@ async function startFakeProvider() {
     systemPrompts.push(...payload.messages.filter(message => message.role === "system").map(message => message.content));
     for (const resolve of waiters) resolve();
     waiters = [];
-    respond(state.mode, request, response);
+    respond(state.mode, request, response, payload.messages.some(message => message.role === "tool"));
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
@@ -227,7 +250,7 @@ async function startFakeProvider() {
   };
 }
 
-function respond(mode: ProviderMode, request: IncomingMessage, response: ServerResponse) {
+function respond(mode: ProviderMode, request: IncomingMessage, response: ServerResponse, hasToolResult: boolean) {
   if (mode === "reject") {
     response.writeHead(401, { "content-type": "application/json" });
     response.end(JSON.stringify({ error: { message: "Incorrect API key provided.", type: "invalid_request_error", code: "invalid_api_key" } }));
@@ -242,7 +265,14 @@ function respond(mode: ProviderMode, request: IncomingMessage, response: ServerR
   const base = { id: "chatcmpl-test", object: "chat.completion.chunk", created: 0, model: "fake" };
   const chunk = (delta: object, finishReason: string | null = null) =>
     `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`;
-  if (mode === "tool-loop") {
+  if ((mode === "schedule" || mode === "schedule-codemode") && !hasToolResult) {
+    const args = { name: "Report reminder", prompt: "Remind the user to submit the report.", scheduleKind: "once", scheduleValue: "2099-01-01T09:00:00+08:00" };
+    const call = mode === "schedule"
+      ? { name: "schedule_task", arguments: JSON.stringify(args) }
+      : { name: "codemode", arguments: JSON.stringify({ code: `text(await tools.schedule_task(${JSON.stringify(args)}));` }) };
+    response.write(chunk({ role: "assistant", tool_calls: [{ index: 0, id: "call_schedule", type: "function", function: call }] }));
+    response.write(chunk({}, "tool_calls"));
+  } else if (mode === "tool-loop") {
     // Asks for the same tool every turn, so only the guard ends the run.
     response.write(chunk({ role: "assistant", tool_calls: [{ index: 0, id: `call_${Date.now()}`, type: "function", function: { name: "read", arguments: JSON.stringify({ path: "missing.txt" }) } }] }));
     response.write(chunk({}, "tool_calls"));

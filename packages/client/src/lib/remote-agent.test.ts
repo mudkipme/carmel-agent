@@ -401,6 +401,7 @@ test("a run that fails after admission is still an accepted submission", async (
   globalThis.fetch = async (input, init) => {
     const url = String(input);
     if ((init?.method ?? "GET") === "POST" && url.endsWith("/run")) {
+      assert.equal(JSON.parse(String(init?.body)).timezone, Intl.DateTimeFormat().resolvedOptions().timeZone);
       return eventResponse(
         [envelope(1, { type: "message_end", message: question }), envelope(2, agentEnd())],
         { "x-agent-run-id": "run_failing" },

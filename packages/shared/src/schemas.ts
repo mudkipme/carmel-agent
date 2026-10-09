@@ -255,11 +255,20 @@ export const promptInputSchema = z.object({
   text: z.string(),
   images: z.array(imageContentSchema).optional(),
 }).strict();
+export const timezoneSchema = z.string().min(1).max(100).refine((value) => {
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}, "Use a valid IANA time zone, such as Asia/Singapore.");
 export const agentRunRequestSchema = z.object({
   sessionId: optionalStringSchema,
   modelRefId: optionalStringSchema,
   thinkingLevel: thinkingLevelSchema.optional(),
   promptInput: promptInputSchema.optional(),
+  timezone: timezoneSchema.optional(),
 }).strict();
 export const sessionDraftRequestSchema = z.object({
   agentId: z.string(),
