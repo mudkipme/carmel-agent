@@ -9,6 +9,8 @@ import { Link } from "react-router-dom";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useRemoteResource } from "@/hooks/use-remote-resource";
+import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
@@ -61,6 +63,12 @@ export function HarnessSidebar({
   const createAgent = useHarnessStore((state) => state.createAgent);
   const modelRefs = useHarnessStore((state) => state.modelRefs);
   const activeUserId = useHarnessStore((state) => state.activeUserId);
+  const knowledge = useRemoteResource({
+    key: `knowledge-settings:${activeUserId}:${activeAgent?.id}`,
+    enabled: Boolean(activeAgent?.permissions.read),
+    load: (signal) => api.knowledgeSettings(activeAgent!.id, signal),
+    pollInterval: 30_000,
+  });
   const createSidebarAgent = async (): Promise<AgentConfig | undefined> => {
     try {
       return await createAgent({
@@ -108,20 +116,22 @@ export function HarnessSidebar({
           />
           {activeAgent ? (
             <nav aria-label="Agent work" className="flex flex-col gap-1">
-              <Button
-                asChild
-                variant={contentView === "knowledge" ? "secondary" : "ghost"}
-                className="justify-start"
-              >
-                <Link
-                  to={`/agents/${activeAgent.id}/knowledge`}
-                  aria-current={contentView === "knowledge" ? "page" : undefined}
-                  onClick={onOpenSession}
+              {activeAgent.permissions.read && knowledge.data?.enabled ? (
+                <Button
+                  asChild
+                  variant={contentView === "knowledge" ? "secondary" : "ghost"}
+                  className="justify-start"
                 >
-                  <BookOpenIcon data-icon="inline-start" />
-                  Knowledge
-                </Link>
-              </Button>
+                  <Link
+                    to={`/agents/${activeAgent.id}/knowledge`}
+                    aria-current={contentView === "knowledge" ? "page" : undefined}
+                    onClick={onOpenSession}
+                  >
+                    <BookOpenIcon data-icon="inline-start" />
+                    Knowledge
+                  </Link>
+                </Button>
+              ) : null}
               <Button
                 asChild
                 variant={contentView === "issues" ? "secondary" : "ghost"}

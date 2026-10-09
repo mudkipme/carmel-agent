@@ -231,6 +231,11 @@ export async function knowledgeOverview(
     memories: await listMemories(agentId),
   };
 }
+/** Read navigation settings without loading memory files or starting a worker. */
+export function readKnowledgeSettings(userId: string, agentId: string): KnowledgeSettings {
+  requireAgent(userId, agentId);
+  return config(agentId)?.settings ?? knowledgeSettingsSchema.parse({});
+}
 export async function saveKnowledgeSettings(
   userId: string,
   agentId: string,

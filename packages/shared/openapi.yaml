@@ -48,6 +48,23 @@ paths:
   /api/agents/{agentId}/knowledge/settings:
     parameters:
       - $ref: "#/components/parameters/AgentID"
+    get:
+      operationId: getKnowledgeSettings
+      tags:
+        - Knowledge
+      summary: Read the agent's knowledge settings
+      description: Available to users who can access the agent when its read permission is enabled. Returns settings without loading memories or starting a knowledge worker.
+      responses:
+        "200":
+          description: Current knowledge settings, including defaults when not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeSettings"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
     put:
       operationId: saveKnowledgeSettings
       tags:

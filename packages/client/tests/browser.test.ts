@@ -447,6 +447,8 @@ test(
   () => {
     browser("set", "viewport", "1280", "900");
     open(agentPath("knowledge"));
+    browser("wait", "--text", "Knowledge is off");
+    assert.doesNotMatch(snapshot(), /link "Knowledge"/);
     click("link", "Knowledge settings");
     browser("wait", "--url", `**${agentPath("settings/knowledge")}`);
     browser("wait", "#knowledge-model");
@@ -464,6 +466,12 @@ test(
     click("link", "Knowledge");
     browser("wait", "#knowledge-enabled");
     click("link", "Open knowledge");
+    browser("wait", `nav[aria-label="Agent work"] a[href="${agentPath("knowledge")}"]`);
+    open(`/agents/${fixture.secondAgentId}/knowledge`);
+    browser("wait", "--text", "Knowledge is off");
+    assert.doesNotMatch(snapshot(), /link "Knowledge"/);
+    open(agentPath("knowledge"));
+    browser("wait", `nav[aria-label="Agent work"] a[href="${agentPath("knowledge")}"]`);
     click("button", "New memory");
     browser("find", "label", "Title", "fill", "Family budget meeting");
     browser("find", "label", "Memory", "fill", "Alice and Bob review their budget on Sunday.");
@@ -484,5 +492,15 @@ test(
     browser("wait", '[role="alertdialog"]');
     browser("click", '[role="alertdialog"] button[data-variant="destructive"]');
     browser("wait", "--text", "No saved memories");
+    browser("set", "viewport", "1280", "900");
+    click("link", "Knowledge settings");
+    browser("wait", "#knowledge-enabled");
+    browser("click", "#knowledge-enabled");
+    click("option", "Off");
+    click("button", "Save settings");
+    browser("wait", "--text", "Knowledge settings saved.");
+    click("link", "Open knowledge");
+    browser("wait", "--text", "Knowledge is off");
+    assert.doesNotMatch(snapshot(), /link "Knowledge"/);
   },
 );

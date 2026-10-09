@@ -12,6 +12,7 @@ import { jsonValidator } from "../validation.ts";
 import {
   KnowledgeError,
   knowledgeOverview,
+  readKnowledgeSettings,
   saveKnowledgeSettings,
   addKnowledgeSource,
   deleteKnowledgeSource,
@@ -38,6 +39,9 @@ export function createKnowledgeRoutes() {
       c.json(
         await saveKnowledgeSettings(c.get("user").id, c.req.param("agentId"), c.req.valid("json")),
       ),
+  );
+  route.get("/agents/:agentId/knowledge/settings", (c) =>
+    c.json(readKnowledgeSettings(c.get("user").id, c.req.param("agentId"))),
   );
   route.post(
     "/agents/:agentId/knowledge/sources",

@@ -274,6 +274,7 @@ test("agent memory is shared across users, with conflict checks and immediate fo
 test("knowledge rechecks agent sharing and permissions; configuration remains owner-only", async () => {
   const a = await fixture(),
     bob = createUser();
+  assert.equal(knowledge.readKnowledgeSettings(bob, a.agentId).enabled, true);
   await assert.rejects(
     knowledge.saveKnowledgeSettings(bob, a.agentId, {
       enabled: false,
@@ -286,6 +287,7 @@ test("knowledge rechecks agent sharing and permissions; configuration remains ow
     ["knowledge_search", "knowledge_read", "memory_save", "memory_forget"],
   );
   db.update(agents).set({ shared: false }).where(eq(agents.id, a.agentId)).run();
+  assert.throws(() => knowledge.readKnowledgeSettings(bob, a.agentId), { status: 404 });
   await assert.rejects(knowledge.knowledgeOverview(bob, a.agentId), {
     status: 404,
   });

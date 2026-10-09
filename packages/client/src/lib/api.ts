@@ -299,6 +299,8 @@ export const api = {
     request<AgentTask[]>(`/api/agents/${agentId}/tasks`, { signal }),
   knowledge: (agentId: string, signal?: AbortSignal) =>
     request<KnowledgeOverview>(`/api/agents/${agentId}/knowledge`, { signal }),
+  knowledgeSettings: (agentId: string, signal?: AbortSignal) =>
+    request<KnowledgeSettings>(`/api/agents/${agentId}/knowledge/settings`, { signal }),
   saveKnowledgeSettings: (agentId: string, settings: KnowledgeSettings) =>
     request<KnowledgeSettings>(`/api/agents/${agentId}/knowledge/settings`, {
       method: "PUT",
