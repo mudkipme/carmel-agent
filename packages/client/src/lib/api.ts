@@ -434,6 +434,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
+
+  abortSession: (sessionId: string) =>
+    request<{ ok: true }>(`/api/sessions/${encodeURIComponent(sessionId)}/abort`, {
+      method: "POST",
+    }),
   truncateSessionMessages: (
     sessionId: string,
     entryId: string,

@@ -99,6 +99,23 @@ export function PiChat({
         {snapshot.contextPressure ? (
           <ContextPressureNotice pressure={snapshot.contextPressure} />
         ) : null}
+        {!session.issueId && snapshot.hasPendingWork && !snapshot.isStreaming ? (
+          <div
+            role="status"
+            className="flex flex-wrap items-center gap-2 border-b bg-muted px-4 py-2 text-sm"
+          >
+            <span className="min-w-0 flex-1">
+              This conversation has unfinished work. Resume or stop it before retrying or editing
+              messages.
+            </span>
+            <Button variant="outline" size="sm" onClick={() => void agent?.resume()}>
+              Resume
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => void agent?.abort()}>
+              Stop
+            </Button>
+          </div>
+        ) : null}
         {/* ChatPanel is `h-full`, so the notice takes its height from a sibling
             row rather than overlaying or squeezing the chat. */}
         <div className="min-h-0 flex-1">

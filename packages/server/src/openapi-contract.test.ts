@@ -169,7 +169,7 @@ test("representative response fixtures satisfy every response component", async 
     AgentConfig: agent,
     SessionMetadata: metadata,
     Session: session,
-    SessionConnection: { session, activeRun: null },
+    SessionConnection: { session, activeRun: null, pendingWork: true },
     FileEntry: file,
     FileList: { path: "", entries: [file] },
     FileContent: { path: "README.md", content: "hello", updatedAt: 1 },

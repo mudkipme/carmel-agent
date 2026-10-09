@@ -58,6 +58,53 @@ db.update(agents)
   .where(eq(agents.id, secondAgentId))
   .run();
 const timestamp = Date.now();
+// A real persisted checkpoint, closed as it would be on a server restart.
+const pendingSessionId = "browser-pending-session";
+db.insert(sessions)
+  .values({
+    ...db.select().from(sessions).where(eq(sessions.id, fixture.sessionId)).get()!,
+    id: pendingSessionId,
+    title: "Interrupted lookup",
+  })
+  .run();
+const { fauxHarnessModels, openTestHarness } =
+  await import("../src/effectors/testing/pi-harness.ts");
+const { fauxAssistantMessage, fauxToolCall } = await import("@earendil-works/pi-ai/providers/faux");
+const { faux, ...pendingModels } = fauxHarnessModels();
+faux.setResponses([fauxAssistantMessage([fauxToolCall("lookup", {})], { stopReason: "toolUse" })]);
+let entered!: () => void;
+const started = new Promise<void>((resolve) => {
+  entered = resolve;
+});
+const checkpoint = await openTestHarness(pendingSessionId, {
+  ...pendingModels,
+  tools: [
+    {
+      name: "lookup",
+      label: "Lookup",
+      description: "Pending lookup",
+      replay: "safe",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+      async execute(_id, _args, _update, _tools, _invocation, context) {
+        entered();
+        await new Promise((_, reject) =>
+          context.abortSignal!.addEventListener(
+            "abort",
+            () => reject(context.abortSignal!.reason),
+            { once: true },
+          ),
+        );
+        return { content: [] };
+      },
+    },
+  ],
+});
+await checkpoint.session.conversation.submit(
+  { type: "input", content: "Look up a record", whenBusy: "reject" },
+  checkpoint.context,
+);
+await started;
+await checkpoint.close();
 const previousSessionId = "browser-previous-session";
 db.insert(sessions)
   .values({
@@ -163,6 +210,7 @@ const server = serve({ fetch: createApp().fetch, port: 0, hostname: "127.0.0.1" 
       reviewIssueId: reviewIssue.id,
       backlogIssueId: backlogIssue.id,
       previousSessionId,
+      pendingSessionId,
       taskSessionId,
       taskName,
     }),

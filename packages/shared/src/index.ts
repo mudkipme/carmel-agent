@@ -177,6 +177,8 @@ export type ActiveAgentRunSummary = {
 export type SessionConnection = {
   session: Session;
   activeRun: ActiveAgentRunSummary | null;
+  /** Saved Durable work that can be resumed or stopped after a server restart. */
+  pendingWork?: boolean;
 };
 
 export type ProviderConfig = {

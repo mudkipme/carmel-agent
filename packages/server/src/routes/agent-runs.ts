@@ -15,12 +15,19 @@ import {
   normalizePromptInput,
   startDetachedAgentRun,
 } from "../runtime/agent-runtime.ts";
-import { createRunStream, getActiveSessionIdsForUser } from "../runtime/run-stream.ts";
+import {
+  createActiveAgentRun,
+  createRunStream,
+  finishAgentRun,
+  getActiveSessionIdsForUser,
+} from "../runtime/run-stream.ts";
 import { readVisibleAgent } from "../services/agent-access.ts";
 import { NO_PROVIDER_AUTH_MESSAGE, resolveRunModel } from "../services/model-context.ts";
 import { readSessionConnection } from "../services/session-snapshot.ts";
 import { jsonValidator } from "../validation.ts";
 import { errorMessage } from "../errors.ts";
+import { withPiSession } from "../services/pi-session-storage.ts";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 
 export function createAgentRunRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -72,6 +79,35 @@ export function createAgentRunRoutes() {
   route.get("/sessions/:id/connection", async (c) => {
     const connection = await readSessionConnection(c.get("user").id, c.req.param("id"));
     return connection ? c.json(connection) : c.json({ error: "Session not found" }, 404);
+  });
+
+  route.post("/sessions/:id/abort", async (c) => {
+    const userId = c.get("user").id;
+    const sessionId = c.req.param("id");
+    const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+    if (!session || session.userId !== userId) return c.json({ error: "Session not found" }, 404);
+    if (session.issueId) return c.json({ error: "Stop the attempt from the issue." }, 409);
+    await withPiSession(sessionId, async (pi) => {
+      // Opening storage can yield to a newly admitted run. Let its runtime own
+      // cancellation and finalization if it acquired the session meanwhile.
+      const active = getActiveAgentRunForSession(userId, sessionId);
+      if (active) abortAgentRun(userId, active.runId);
+      else {
+        // Keep retries, edits and new runs out while Durable settles the stop.
+        const stopping = createActiveAgentRun({
+          runId: crypto.randomUUID(),
+          userId,
+          sessionId,
+          abort: () => {},
+        });
+        try {
+          await pi.conversation.abort(BACKGROUND_CONTEXT, { background: true });
+        } finally {
+          finishAgentRun(stopping);
+        }
+      }
+    });
+    return c.json({ ok: true });
   });
 
   route.post("/agents/:id/run", jsonValidator(agentRunRequestSchema), async (c) => {

@@ -18,6 +18,8 @@ Pi owns generation checkpoints, tool intent, results, retry policy, compaction, 
 
 After an unexpected process exit, requesting a run without new input resumes the selected conversation's checkpoint after installing current credentials and permitted tools. It does not rewind and resubmit the user message. A new prompt first settles pending work and then submits its new input. Read-only requests never start scheduling. A deliberate stop uses Durable's abort protocol and settles pending work rather than leaving it resumable.
 
+Connection snapshots report pending Durable work separately from the current process's active run. After a restart, the chat offers Resume and Stop for that saved work. Stop also works without a live run ID or provider credentials. Retry and transcript edits remain guarded until the checkpoint settles.
+
 Tools default to `replay: "unsafe"`. Pi records intent before executing them; after interruption it returns an error result instead of repeating a possible external effect. Guarded read/grep/find/ls and the built-in skill loader explicitly opt into safe replay. Codemode is unsafe as a whole, because nested calls can change files or remote services. Its committed nested-call details survive recovery; Carmel no longer maintains a separate memo ledger or result-failure patch.
 
 ## Native features adopted

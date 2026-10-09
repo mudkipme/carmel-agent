@@ -11,6 +11,7 @@ type Fixture = {
   reviewIssueId: string;
   backlogIssueId: string;
   previousSessionId: string;
+  pendingSessionId: string;
   taskSessionId: string;
   taskName: string;
 };
@@ -457,6 +458,35 @@ test("chat controls fit narrow touch screens with reasoning and long model names
     );
   }
 });
+
+test(
+  "a restarted session offers recovery and Stop clears its pending checkpoint",
+  { timeout: 60_000 },
+  () => {
+    browser("set", "viewport", "375", "812");
+    open(agentPath(`sessions/${fixture.pendingSessionId}`));
+    browser("wait", "--text", "This conversation has unfinished work.");
+    assert.match(snapshot(), /button "Resume"/);
+    assert.match(snapshot(), /button "Stop"/);
+    assert.equal(
+      evaluate<boolean>("document.documentElement.scrollWidth <= window.innerWidth"),
+      true,
+    );
+    click("button", "Stop");
+    browser(
+      "wait",
+      "--fn",
+      "!document.body.innerText.includes('This conversation has unfinished work.')",
+    );
+    browser("reload");
+    browser("wait", 'textarea[placeholder="Type a message..."]');
+    assert.doesNotMatch(snapshot(), /button "Resume"/);
+    assert.equal(
+      evaluate<number>("document.querySelectorAll('.agent-chat-host textarea').length"),
+      1,
+    );
+  },
+);
 
 test(
   "knowledge settings and shared memories remain editable after reloading",

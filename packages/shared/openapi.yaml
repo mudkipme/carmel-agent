@@ -1038,13 +1038,28 @@ paths:
           {
             "200":
               {
-                description: Transcript and active run,
+                description: Transcript,
+                active run and saved Durable work,
                 content:
                   {
                     application/json:
                       { schema: { $ref: "#/components/schemas/SessionConnection" } },
                   },
               },
+          },
+      }
+  /api/sessions/{id}/abort:
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    post:
+      {
+        operationId: abortSession,
+        tags: [Sessions],
+        description: Stop an active run or settle saved Durable work after a restart.,
+        responses:
+          {
+            "200": { $ref: "#/components/responses/JSONSuccess" },
+            "404": { $ref: "#/components/responses/Error" },
+            "409": { $ref: "#/components/responses/Error" },
           },
       }
   /api/sessions/{id}/fork:
@@ -2861,6 +2876,8 @@ components:
         properties:
           {
             session: { $ref: "#/components/schemas/Session" },
+            pendingWork:
+              { type: boolean, description: Saved Durable work awaiting resume or stop. },
             activeRun:
               {
                 nullable: true,

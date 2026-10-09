@@ -16,6 +16,7 @@ const EMPTY_SNAPSHOT: AgentSnapshot = {
   streamingMessage: undefined,
   pendingToolCalls: new Set(),
   isStreaming: false,
+  hasPendingWork: false,
   model: undefined as unknown as Model<Api>,
   thinkingLevel: "off",
   errorMessage: undefined,
@@ -24,7 +25,6 @@ const EMPTY_SNAPSHOT: AgentSnapshot = {
 
 export function useSessionAgent(agentConfig: AgentConfig, session: Session, modelRef: ModelRef) {
   const connectSession = useHarnessStore((state) => state.connectSession);
-  const refreshSession = useHarnessStore((state) => state.refreshSession);
   const updateSession = useHarnessStore((state) => state.updateSession);
   const resolvedModel = useMemo(() => resolveModelRef(modelRef), [modelRef]);
   const agentRef = useRef<RemoteAgent | null>(null);
@@ -52,7 +52,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
   useEffect(() => {
     let cancelled = false;
     let activeAgent: RemoteAgent | undefined;
-    const createAgent = (authoritativeSession: Session) => {
+    const createAgent = (authoritativeSession: Session, pendingWork?: boolean) => {
       const seed = modelSeedRef.current;
       const nextAgent = new RemoteAgent({
         agentId: agentConfig.id,
@@ -61,12 +61,13 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
         model: seed.model,
         thinkingLevel: clampThinkingLevel(seed.model, authoritativeSession.thinkingLevel),
         messages: authoritativeSession.messages,
+        pendingWork,
         onRunComplete: async () => {
-          const saved = await refreshSession(authoritativeSession.id);
+          const connection = await connectSession(authoritativeSession.id);
           if (cancelled || activeAgent !== nextAgent) return;
-          sessionRef.current = saved;
-          seedMessagesRef.current = saved.messages;
-          nextAgent.setMessages(saved.messages);
+          sessionRef.current = connection.session;
+          seedMessagesRef.current = connection.session.messages;
+          nextAgent.applyConnectionSnapshot(connection);
         },
       });
       return nextAgent;
@@ -77,7 +78,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
         if (cancelled) return;
         sessionRef.current = connection.session;
         seedMessagesRef.current = connection.session.messages;
-        activeAgent = createAgent(connection.session);
+        activeAgent = createAgent(connection.session, connection.pendingWork);
         agentRef.current = activeAgent;
         setAgent(activeAgent);
         if (connection.activeRun) {
@@ -103,7 +104,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
       agentRef.current = null;
       setAgent(null);
     };
-  }, [agentConfig.id, connectSession, refreshSession, session.id]);
+  }, [agentConfig.id, connectSession, session.id]);
 
   // Returns what happened to the submission so the composer can keep a message
   // the server never took. Everything that can stop a send before the prompt

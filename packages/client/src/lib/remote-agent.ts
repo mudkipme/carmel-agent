@@ -25,6 +25,7 @@ export type AgentSnapshot = {
   pendingToolCalls: Set<string>;
   codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
   isStreaming: boolean;
+  hasPendingWork: boolean;
   model: Model<Api>;
   thinkingLevel: ThinkingLevel;
   errorMessage?: string;
@@ -57,6 +58,7 @@ export class RemoteAgent {
   private pendingToolCalls = new Set<string>();
   private codemodeCalls = new Map<string, CodemodeCallInfo[]>();
   private isStreaming = false;
+  private hasPendingWork = false;
   private model: Model<Api>;
   private thinkingLevel: ThinkingLevel;
   private errorMessage?: string;
@@ -75,10 +77,12 @@ export class RemoteAgent {
       model: Model<Api>;
       thinkingLevel: ThinkingLevel;
       messages: AgentMessage[];
+      pendingWork?: boolean;
       onRunComplete?: () => Promise<void> | void;
     },
   ) {
     this.messages = [...config.messages];
+    this.hasPendingWork = config.pendingWork ?? false;
     this.model = config.model;
     this.thinkingLevel = config.thinkingLevel;
     this.snapshotValue = this.buildSnapshot();
@@ -113,6 +117,7 @@ export class RemoteAgent {
       pendingToolCalls: this.pendingToolCalls,
       codemodeCalls: this.codemodeCalls,
       isStreaming: this.isStreaming,
+      hasPendingWork: this.hasPendingWork,
       model: this.model,
       thinkingLevel: this.thinkingLevel,
       errorMessage: this.errorMessage,
@@ -136,7 +141,26 @@ export class RemoteAgent {
 
   async abort() {
     const runId = this.runId;
-    if (!runId) return;
+    if (!runId) {
+      if (!this.hasPendingWork || this.abortController) return;
+      const controller = this.beginRun();
+      try {
+        await api.abortSession(this.config.sessionId);
+        const connection = await this.readConnection(controller.signal);
+        this.applyConnectionSnapshot(connection);
+        if (connection.activeRun) {
+          this.runId = connection.activeRun.runId;
+          this.lastSequence = connection.activeRun.eventCursor;
+          await this.watchRun(this.runId, controller.signal);
+        }
+        await this.notifyRunComplete();
+      } catch (error) {
+        this.fail(error);
+      } finally {
+        this.finishObservation();
+      }
+      return;
+    }
     try {
       await api.abortAgentRun(runId);
     } catch (error) {
@@ -232,6 +256,7 @@ export class RemoteAgent {
       if (!runId) throw new Error("Agent response did not identify its server run.");
       this.runId = runId;
       admitted = true;
+      this.hasPendingWork = false;
       await this.consumeAcceptedResponse(response.body, controller.signal);
       await this.watchRun(runId, controller.signal);
       await this.notifyRunComplete();
@@ -275,6 +300,11 @@ export class RemoteAgent {
       throw new Error("Cannot continue from current message state.");
     }
     this.replaceNextUserMessage = true;
+    return this.prompt([]);
+  }
+
+  /** Resume the stored checkpoint without rewinding or resending any message. */
+  async resume() {
     return this.prompt([]);
   }
 
@@ -415,8 +445,9 @@ export class RemoteAgent {
     return api.getSessionConnection(this.config.sessionId, signal);
   }
 
-  private applyConnectionSnapshot(connection: SessionConnection) {
+  applyConnectionSnapshot(connection: SessionConnection) {
     this.messages = [...connection.session.messages];
+    this.hasPendingWork = connection.pendingWork ?? false;
     this.thinkingLevel = connection.session.thinkingLevel;
     this.streamingMessage = undefined;
     this.pendingToolCalls = new Set();

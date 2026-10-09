@@ -592,6 +592,58 @@ test("codemode progress stays outside messages and is cleared when observation f
   }
 });
 
+test("Resume admits saved work after a tool call without resending or rewinding the user message", async () => {
+  const originalFetch = globalThis.fetch;
+  const messages = [userMessage("original"), assistantMessage("pending tool")];
+  globalThis.fetch = async (input, init) => {
+    assert.equal(String(input), "/api/agents/agent_1/run");
+    assert.equal(init?.method, "POST");
+    const body = JSON.parse(String(init?.body));
+    assert.equal(body.sessionId, "session_1");
+    assert.equal(body.promptInput, undefined);
+    return eventResponse([envelope(1, runFinished())], { "x-agent-run-id": "run_resumed" });
+  };
+  try {
+    const agent = createAgent(messages);
+    agent.applyConnectionSnapshot({ ...connection(messages, null), pendingWork: true });
+    assert.equal(agent.getSnapshot().hasPendingWork, true);
+    assert.deepEqual(await agent.resume(), { status: "accepted" });
+    assert.deepEqual(agent.getSnapshot().messages, messages);
+    assert.equal(agent.getSnapshot().hasPendingWork, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Stop uses session authority for saved work when the server run ID was lost", async () => {
+  const originalFetch = globalThis.fetch;
+  const messages = [userMessage("original"), assistantMessage("pending tool")];
+  const paths: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    const path = String(input);
+    paths.push(path);
+    if (path.endsWith("/abort")) {
+      assert.equal(init?.method, "POST");
+      return Response.json({ ok: true });
+    }
+    return Response.json({ ...connection(messages, null), pendingWork: false });
+  };
+  try {
+    const agent = createAgent(messages);
+    agent.applyConnectionSnapshot({ ...connection(messages, null), pendingWork: true });
+    await agent.abort();
+    assert.deepEqual(paths, [
+      "/api/sessions/session_1/abort",
+      "/api/sessions/session_1/connection",
+    ]);
+    assert.equal(agent.getSnapshot().hasPendingWork, false);
+    assert.equal(agent.getSnapshot().isStreaming, false);
+    assert.deepEqual(agent.getSnapshot().messages, JSON.parse(JSON.stringify(messages)));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 function createAgent(messages: AgentMessage[], onRunComplete?: () => Promise<void> | void) {
   return new RemoteAgent({
     agentId: "agent_1",
