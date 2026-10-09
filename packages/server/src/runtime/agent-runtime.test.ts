@@ -47,7 +47,10 @@ test("run state and generated title commits advance the leased revision", () => 
   });
   assert.equal(runRevision, 1);
   assert.equal(commitSessionAtRevision(fixture.sessionId, 0, { title: "stale title" }), undefined);
-  assert.equal(commitSessionAtRevision(fixture.sessionId, runRevision!, { title: "generated title" }), 2);
+  assert.equal(
+    commitSessionAtRevision(fixture.sessionId, runRevision!, { title: "generated title" }),
+    2,
+  );
 
   const stored = db.select().from(sessions).where(eq(sessions.id, fixture.sessionId)).get();
   assert.equal(stored?.title, "generated title");

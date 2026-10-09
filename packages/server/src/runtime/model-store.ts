@@ -1,5 +1,12 @@
 import type BetterSqlite3 from "better-sqlite3";
-import { isModelType, type AnyModel, type Api, type Model, type ModelsStore, type ModelsStoreEntry } from "@earendil-works/pi-ai";
+import {
+  isModelType,
+  type AnyModel,
+  type Api,
+  type Model,
+  type ModelsStore,
+  type ModelsStoreEntry,
+} from "@earendil-works/pi-ai";
 import { sqlite } from "../db/index.ts";
 
 type StoredCatalogRow = {
@@ -14,10 +21,12 @@ export class SqliteModelsStore implements ModelsStore {
   constructor(private readonly database: BetterSqlite3.Database = sqlite) {}
 
   async read(providerId: string): Promise<ModelsStoreEntry | undefined> {
-    const row = this.database.prepare(`
+    const row = this.database
+      .prepare(`
       SELECT models, checked_at AS checkedAt, last_modified AS lastModified, etag
       FROM model_catalogs WHERE provider_id = ?
-    `).get(providerId) as StoredCatalogRow | undefined;
+    `)
+      .get(providerId) as StoredCatalogRow | undefined;
     if (!row) return undefined;
     let models: unknown;
     try {
@@ -39,7 +48,8 @@ export class SqliteModelsStore implements ModelsStore {
   }
 
   async write(providerId: string, entry: ModelsStoreEntry): Promise<void> {
-    this.database.prepare(`
+    this.database
+      .prepare(`
       INSERT INTO model_catalogs (provider_id, models, checked_at, last_modified, etag)
       VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(provider_id) DO UPDATE SET
@@ -47,13 +57,14 @@ export class SqliteModelsStore implements ModelsStore {
         checked_at = excluded.checked_at,
         last_modified = excluded.last_modified,
         etag = excluded.etag
-    `).run(
-      providerId,
-      JSON.stringify(entry.models),
-      entry.checkedAt ?? null,
-      entry.lastModified ?? null,
-      entry.etag ?? null,
-    );
+    `)
+      .run(
+        providerId,
+        JSON.stringify(entry.models),
+        entry.checkedAt ?? null,
+        entry.lastModified ?? null,
+        entry.etag ?? null,
+      );
     catalogCache.delete(providerId);
   }
 

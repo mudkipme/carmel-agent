@@ -155,26 +155,44 @@ export const agents = sqliteTable("agents", {
   defaultModelRefId: text("default_model_ref_id")
     .notNull()
     .references(() => modelRefs.id),
-  defaultThinkingLevel: text("default_thinking_level").$type<AgentThinkingLevel>().notNull().default("off"),
+  defaultThinkingLevel: text("default_thinking_level")
+    .$type<AgentThinkingLevel>()
+    .notNull()
+    .default("off"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
 
 export const knowledgeConfigs = sqliteTable("knowledge_configs", {
-  agentId: text("agent_id").primaryKey().references(() => agents.id, { onDelete: "cascade" }),
+  agentId: text("agent_id")
+    .primaryKey()
+    .references(() => agents.id, { onDelete: "cascade" }),
   settings: text("settings", { mode: "json" }).$type<KnowledgeSettings>().notNull(),
   status: text("status", { mode: "json" }).$type<KnowledgeStatus>().notNull(),
   dirty: integer("dirty", { mode: "boolean" }).notNull().default(true),
 });
 export const knowledgeSources = sqliteTable("knowledge_sources", {
-  id: text("id").primaryKey(), agentId: text("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
-  name: text("name").notNull(), path: text("path").notNull(), description: text("description").notNull(), createdAt: integer("created_at").notNull(),
+  id: text("id").primaryKey(),
+  agentId: text("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  path: text("path").notNull(),
+  description: text("description").notNull(),
+  createdAt: integer("created_at").notNull(),
 });
 export const knowledgeMemories = sqliteTable("knowledge_memories", {
-  id: text("id").primaryKey(), agentId: text("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
-  title: text("title").notNull(), revision: text("revision").notNull(), contributorId: text("contributor_id").notNull(),
-  pendingContent: text("pending_content"), deletedAt: integer("deleted_at"),
-  createdAt: integer("created_at").notNull(), updatedAt: integer("updated_at").notNull(),
+  id: text("id").primaryKey(),
+  agentId: text("agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  revision: text("revision").notNull(),
+  contributorId: text("contributor_id").notNull(),
+  pendingContent: text("pending_content"),
+  deletedAt: integer("deleted_at"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
 });
 
 /**
@@ -294,13 +312,18 @@ export const issues = sqliteTable("issues", {
   description: text("description").notNull(),
   status: text("status").$type<IssueStatus>().notNull().default("todo"),
   criteria: text("criteria", { mode: "json" }).$type<string[]>().notNull().default([]),
-  priority: text("priority").$type<import("@carmel-agent/shared").IssuePriority>().notNull().default("normal"),
+  priority: text("priority")
+    .$type<import("@carmel-agent/shared").IssuePriority>()
+    .notNull()
+    .default("normal"),
   lastRunOutcome: text("last_run_outcome").$type<AgentRunOutcome>(),
   lastRunDetail: text("last_run_detail"),
   verdict: text("verdict").$type<IssueVerdict>(),
   verdictSummary: text("verdict_summary"),
   queuePosition: integer("queue_position"),
-  queuedCommand: text("queued_command", { mode: "json" }).$type<import("@carmel-agent/shared").IssueRunCommand>(),
+  queuedCommand: text("queued_command", { mode: "json" }).$type<
+    import("@carmel-agent/shared").IssueRunCommand
+  >(),
   closedAt: integer("closed_at"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
@@ -308,20 +331,26 @@ export const issues = sqliteTable("issues", {
 
 export const issueAttempts = sqliteTable("issue_attempts", {
   id: text("id").primaryKey(),
-  issueId: text("issue_id").notNull().references(() => issues.id, { onDelete: "cascade" }),
+  issueId: text("issue_id")
+    .notNull()
+    .references(() => issues.id, { onDelete: "cascade" }),
   sessionId: text("session_id").references(() => sessions.id, { onDelete: "set null" }),
   instructions: text("instructions").notNull(),
   brief: text("brief").notNull(),
   outcome: text("outcome").$type<AgentRunOutcome | "running">().notNull(),
   summary: text("summary"),
   evidence: text("evidence"),
-  snapshot: text("snapshot", { mode: "json" }).$type<import("@carmel-agent/shared").IssueResultSnapshot>(),
+  snapshot: text("snapshot", { mode: "json" }).$type<
+    import("@carmel-agent/shared").IssueResultSnapshot
+  >(),
   createdAt: integer("created_at").notNull(),
   finishedAt: integer("finished_at"),
 });
 export const issueNotes = sqliteTable("issue_notes", {
   id: text("id").primaryKey(),
-  issueId: text("issue_id").notNull().references(() => issues.id, { onDelete: "cascade" }),
+  issueId: text("issue_id")
+    .notNull()
+    .references(() => issues.id, { onDelete: "cascade" }),
   kind: text("kind").$type<"note" | "action" | "result">().notNull(),
   body: text("body").notNull(),
   delivery: text("delivery").$type<"queued" | "delivered" | "not_delivered">(),

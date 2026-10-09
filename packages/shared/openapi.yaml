@@ -8,18 +8,18 @@ servers:
 security:
   - carmelSession: []
 tags:
-  - {name: Auth}
-  - {name: Bootstrap}
-  - {name: Users}
-  - {name: Models}
-  - {name: Providers}
-  - {name: Agents}
-  - {name: Runs}
-  - {name: Sessions}
-  - {name: Files}
-  - {name: Tasks}
-  - {name: Issues}
-  - {name: Knowledge}
+  - { name: Auth }
+  - { name: Bootstrap }
+  - { name: Users }
+  - { name: Models }
+  - { name: Providers }
+  - { name: Agents }
+  - { name: Runs }
+  - { name: Sessions }
+  - { name: Files }
+  - { name: Tasks }
+  - { name: Issues }
+  - { name: Knowledge }
 paths:
   /api/agents/{agentId}/knowledge:
     parameters:
@@ -316,149 +316,992 @@ paths:
         "503":
           $ref: "#/components/responses/Error"
   /api/health:
-    get: {operationId: health, tags: [Bootstrap], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+    get:
+      {
+        operationId: health,
+        tags: [Bootstrap],
+        responses: { "200": { $ref: "#/components/responses/JSONSuccess" } },
+      }
   /api/bootstrap:
-    get: {operationId: getBootstrap, tags: [Bootstrap], responses: {'200': {description: Bootstrap state, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '401': {$ref: '#/components/responses/Error'}}}
+    get:
+      {
+        operationId: getBootstrap,
+        tags: [Bootstrap],
+        responses:
+          {
+            "200":
+              {
+                description: Bootstrap state,
+                content:
+                  {
+                    application/json: { schema: { $ref: "#/components/schemas/BootstrapPayload" } },
+                  },
+              },
+            "401": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/auth/status:
-    get: {operationId: getAuthStatus, tags: [Auth], security: [], responses: {'200': {description: Setup state, content: {application/json: {schema: {$ref: '#/components/schemas/SetupStatus'}}}}}}
+    get:
+      {
+        operationId: getAuthStatus,
+        tags: [Auth],
+        security: [],
+        responses:
+          {
+            "200":
+              {
+                description: Setup state,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/SetupStatus" } } },
+              },
+          },
+      }
   /api/auth/login:
-    post: {operationId: login, tags: [Auth], security: [], requestBody: {$ref: '#/components/requestBodies/Login'}, responses: {'200': {description: Signed-in bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '401': {$ref: '#/components/responses/Error'}, '429': {$ref: '#/components/responses/Error'}}}
+    post:
+      {
+        operationId: login,
+        tags: [Auth],
+        security: [],
+        requestBody: { $ref: "#/components/requestBodies/Login" },
+        responses:
+          {
+            "200":
+              {
+                description: Signed-in bootstrap,
+                content:
+                  {
+                    application/json: { schema: { $ref: "#/components/schemas/BootstrapPayload" } },
+                  },
+              },
+            "401": { $ref: "#/components/responses/Error" },
+            "429": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/auth/logout:
-    post: {operationId: logout, tags: [Auth], security: [], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+    post:
+      {
+        operationId: logout,
+        tags: [Auth],
+        security: [],
+        responses: { "200": { $ref: "#/components/responses/JSONSuccess" } },
+      }
   /api/auth/setup:
-    post: {operationId: setup, tags: [Auth], security: [], requestBody: {$ref: '#/components/requestBodies/Setup'}, responses: {'201': {description: Initial bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '400': {$ref: '#/components/responses/Error'}}}
+    post:
+      {
+        operationId: setup,
+        tags: [Auth],
+        security: [],
+        requestBody: { $ref: "#/components/requestBodies/Setup" },
+        responses:
+          {
+            "201":
+              {
+                description: Initial bootstrap,
+                content:
+                  {
+                    application/json: { schema: { $ref: "#/components/schemas/BootstrapPayload" } },
+                  },
+              },
+            "400": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/auth/oidc/login:
-    get: {operationId: startOidcLogin, tags: [Auth], security: [], description: Browser navigation only. Redirects to the configured OpenID Connect provider and sets a short-lived flow cookie., responses: {'302': {description: Redirect to the provider, or back to /?auth_error=<code> if it cannot be reached}, '404': {$ref: '#/components/responses/Error'}}}
+    get:
+      {
+        operationId: startOidcLogin,
+        tags: [Auth],
+        security: [],
+        description: Browser navigation only. Redirects to the configured OpenID Connect provider and sets a short-lived flow cookie.,
+        responses:
+          {
+            "302":
+              {
+                description: Redirect to the provider,
+                or back to /?auth_error=<code> if it cannot be reached,
+              },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/auth/oidc/callback:
-    get: {operationId: completeOidcLogin, tags: [Auth], security: [], description: Provider redirect target. Signs the browser in and redirects to /, or to /?auth_error=<code> when sign-in is refused., parameters: [{name: code, in: query, schema: {type: string}}, {name: state, in: query, schema: {type: string}}], responses: {'302': {description: Redirect into the app}, '404': {$ref: '#/components/responses/Error'}}}
+    get:
+      {
+        operationId: completeOidcLogin,
+        tags: [Auth],
+        security: [],
+        description: Provider redirect target. Signs the browser in and redirects to /,
+        or to /?auth_error=<code> when sign-in is refused.,
+        parameters:
+          [
+            { name: code, in: query, schema: { type: string } },
+            { name: state, in: query, schema: { type: string } },
+          ],
+        responses:
+          {
+            "302": { description: Redirect into the app },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/auth/account:
-    post: {operationId: updateAccount, tags: [Auth], requestBody: {$ref: '#/components/requestBodies/Account'}, responses: {'200': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}, '400': {$ref: '#/components/responses/Error'}}}
+    post:
+      {
+        operationId: updateAccount,
+        tags: [Auth],
+        requestBody: { $ref: "#/components/requestBodies/Account" },
+        responses:
+          {
+            "200":
+              {
+                description: User,
+                content: { application/json: { schema: { $ref: "#/components/schemas/User" } } },
+              },
+            "400": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/users:
-    get: {operationId: listUsers, tags: [Users], responses: {'200': {description: Users, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/User'}}}}}}}
-    post: {operationId: createUser, tags: [Users], requestBody: {$ref: '#/components/requestBodies/CreateUser'}, responses: {'201': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}, '409': {$ref: '#/components/responses/Error'}}}
+    get:
+      {
+        operationId: listUsers,
+        tags: [Users],
+        responses:
+          {
+            "200":
+              {
+                description: Users,
+                content:
+                  {
+                    application/json:
+                      { schema: { type: array, items: { $ref: "#/components/schemas/User" } } },
+                  },
+              },
+          },
+      }
+    post:
+      {
+        operationId: createUser,
+        tags: [Users],
+        requestBody: { $ref: "#/components/requestBodies/CreateUser" },
+        responses:
+          {
+            "201":
+              {
+                description: User,
+                content: { application/json: { schema: { $ref: "#/components/schemas/User" } } },
+              },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/users/{id}:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    put: {operationId: updateUserProfile, tags: [Users], requestBody: {$ref: '#/components/requestBodies/UserProfile'}, responses: {'200': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}}}
-    patch: {operationId: updateUserRole, tags: [Users], requestBody: {$ref: '#/components/requestBodies/UserRole'}, responses: {'200': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/User'}}}}}}
-    delete: {operationId: deleteUser, tags: [Users], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '409': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    put:
+      {
+        operationId: updateUserProfile,
+        tags: [Users],
+        requestBody: { $ref: "#/components/requestBodies/UserProfile" },
+        responses:
+          {
+            "200":
+              {
+                description: User,
+                content: { application/json: { schema: { $ref: "#/components/schemas/User" } } },
+              },
+          },
+      }
+    patch:
+      {
+        operationId: updateUserRole,
+        tags: [Users],
+        requestBody: { $ref: "#/components/requestBodies/UserRole" },
+        responses:
+          {
+            "200":
+              {
+                description: User,
+                content: { application/json: { schema: { $ref: "#/components/schemas/User" } } },
+              },
+          },
+      }
+    delete:
+      {
+        operationId: deleteUser,
+        tags: [Users],
+        responses:
+          {
+            "200": { $ref: "#/components/responses/JSONSuccess" },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/users/{id}/password:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    post: {operationId: resetUserPassword, tags: [Users], requestBody: {$ref: '#/components/requestBodies/Password'}, responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    post:
+      {
+        operationId: resetUserPassword,
+        tags: [Users],
+        requestBody: { $ref: "#/components/requestBodies/Password" },
+        responses: { "200": { $ref: "#/components/responses/JSONSuccess" } },
+      }
   /api/api-keys:
-    get: {operationId: listApiKeys, tags: [Users], description: Keys for the OpenAI-compatible /v1 API. Never includes the key itself., responses: {'200': {description: API keys, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/ApiKey'}}}}}}}
-    post: {operationId: createApiKey, tags: [Users], description: The only response that carries the key; it cannot be read back later., requestBody: {$ref: '#/components/requestBodies/ApiKeyCreate'}, responses: {'201': {description: Created key, content: {application/json: {schema: {$ref: '#/components/schemas/ApiKeyCreated'}}}}, '400': {$ref: '#/components/responses/Error'}}}
+    get:
+      {
+        operationId: listApiKeys,
+        tags: [Users],
+        description: Keys for the OpenAI-compatible /v1 API. Never includes the key itself.,
+        responses:
+          {
+            "200":
+              {
+                description: API keys,
+                content:
+                  {
+                    application/json:
+                      { schema: { type: array, items: { $ref: "#/components/schemas/ApiKey" } } },
+                  },
+              },
+          },
+      }
+    post:
+      {
+        operationId: createApiKey,
+        tags: [Users],
+        description: The only response that carries the key; it cannot be read back later.,
+        requestBody: { $ref: "#/components/requestBodies/ApiKeyCreate" },
+        responses:
+          {
+            "201":
+              {
+                description: Created key,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/ApiKeyCreated" } } },
+              },
+            "400": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/api-keys/{id}:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    delete: {operationId: deleteApiKey, tags: [Users], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '404': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    delete:
+      {
+        operationId: deleteApiKey,
+        tags: [Users],
+        responses:
+          {
+            "200": { $ref: "#/components/responses/JSONSuccess" },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/models/{id}:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    put: {operationId: upsertModel, tags: [Models], requestBody: {$ref: '#/components/requestBodies/Model'}, responses: {'200': {description: Model, content: {application/json: {schema: {$ref: '#/components/schemas/ModelRef'}}}}, '409': {$ref: '#/components/responses/Error'}}}
-    delete: {operationId: deleteModel, tags: [Models], responses: {'200': {description: Replacement bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '409': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    put:
+      {
+        operationId: upsertModel,
+        tags: [Models],
+        requestBody: { $ref: "#/components/requestBodies/Model" },
+        responses:
+          {
+            "200":
+              {
+                description: Model,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/ModelRef" } } },
+              },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
+    delete:
+      {
+        operationId: deleteModel,
+        tags: [Models],
+        responses:
+          {
+            "200":
+              {
+                description: Replacement bootstrap,
+                content:
+                  {
+                    application/json: { schema: { $ref: "#/components/schemas/BootstrapPayload" } },
+                  },
+              },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/provider-configs/{id}:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    put: {operationId: upsertProviderConfig, tags: [Providers], requestBody: {$ref: '#/components/requestBodies/Provider'}, responses: {'200': {description: Provider, content: {application/json: {schema: {$ref: '#/components/schemas/ProviderConfig'}}}}, '409': {$ref: '#/components/responses/Error'}}}
-    delete: {operationId: deleteProviderConfig, tags: [Providers], responses: {'200': {description: Replacement bootstrap, content: {application/json: {schema: {$ref: '#/components/schemas/BootstrapPayload'}}}}, '409': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    put:
+      {
+        operationId: upsertProviderConfig,
+        tags: [Providers],
+        requestBody: { $ref: "#/components/requestBodies/Provider" },
+        responses:
+          {
+            "200":
+              {
+                description: Provider,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/ProviderConfig" } } },
+              },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
+    delete:
+      {
+        operationId: deleteProviderConfig,
+        tags: [Providers],
+        responses:
+          {
+            "200":
+              {
+                description: Replacement bootstrap,
+                content:
+                  {
+                    application/json: { schema: { $ref: "#/components/schemas/BootstrapPayload" } },
+                  },
+              },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/provider-configs/{id}/models:
-    parameters: [{$ref: '#/components/parameters/ID'}, {name: refresh, in: query, schema: {type: boolean}}]
-    get: {operationId: listProviderModels, tags: [Providers], responses: {'200': {description: Models, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/ProviderModel'}}}}}}}
+    parameters:
+      [
+        { $ref: "#/components/parameters/ID" },
+        { name: refresh, in: query, schema: { type: boolean } },
+      ]
+    get:
+      {
+        operationId: listProviderModels,
+        tags: [Providers],
+        responses:
+          {
+            "200":
+              {
+                description: Models,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          { type: array, items: { $ref: "#/components/schemas/ProviderModel" } },
+                      },
+                  },
+              },
+          },
+      }
   /api/oauth/providers:
-    get: {operationId: listOAuthProviders, tags: [Providers], responses: {'200': {description: OAuth providers, content: {application/json: {schema: {type: array, items: {type: object, additionalProperties: true}}}}}}}
+    get:
+      {
+        operationId: listOAuthProviders,
+        tags: [Providers],
+        responses:
+          {
+            "200":
+              {
+                description: OAuth providers,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          { type: array, items: { type: object, additionalProperties: true } },
+                      },
+                  },
+              },
+          },
+      }
   /api/provider-configs/{id}/oauth/login:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    post: {operationId: startProviderOAuth, tags: [Providers], responses: {'200': {description: OAuth flow, content: {application/json: {schema: {$ref: '#/components/schemas/OAuthFlow'}}}}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    post:
+      {
+        operationId: startProviderOAuth,
+        tags: [Providers],
+        responses:
+          {
+            "200":
+              {
+                description: OAuth flow,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/OAuthFlow" } } },
+              },
+          },
+      }
   /api/oauth/flows/{id}:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: getOAuthFlow, tags: [Providers], responses: {'200': {description: OAuth flow, content: {application/json: {schema: {$ref: '#/components/schemas/OAuthFlow'}}}}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: getOAuthFlow,
+        tags: [Providers],
+        responses:
+          {
+            "200":
+              {
+                description: OAuth flow,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/OAuthFlow" } } },
+              },
+          },
+      }
   /api/oauth/flows/{id}/input:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    post: {operationId: submitOAuthInput, tags: [Providers], requestBody: {$ref: '#/components/requestBodies/OAuthInput'}, responses: {'200': {description: OAuth flow, content: {application/json: {schema: {$ref: '#/components/schemas/OAuthFlow'}}}}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    post:
+      {
+        operationId: submitOAuthInput,
+        tags: [Providers],
+        requestBody: { $ref: "#/components/requestBodies/OAuthInput" },
+        responses:
+          {
+            "200":
+              {
+                description: OAuth flow,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/OAuthFlow" } } },
+              },
+          },
+      }
   /api/agents/{id}:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    put: {operationId: upsertAgent, tags: [Agents], requestBody: {$ref: '#/components/requestBodies/Agent'}, responses: {'200': {description: Redacted agent, content: {application/json: {schema: {$ref: '#/components/schemas/AgentConfig'}}}}, '409': {$ref: '#/components/responses/Error'}}}
-    delete: {operationId: deleteAgent, tags: [Agents], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '409': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    put:
+      {
+        operationId: upsertAgent,
+        tags: [Agents],
+        requestBody: { $ref: "#/components/requestBodies/Agent" },
+        responses:
+          {
+            "200":
+              {
+                description: Redacted agent,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/AgentConfig" } } },
+              },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
+    delete:
+      {
+        operationId: deleteAgent,
+        tags: [Agents],
+        responses:
+          {
+            "200": { $ref: "#/components/responses/JSONSuccess" },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{id}/settings:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: getAgentSettings, tags: [Agents], responses: {'200': {description: Owner settings, content: {application/json: {schema: {$ref: '#/components/schemas/AgentConfig'}}}}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: getAgentSettings,
+        tags: [Agents],
+        responses:
+          {
+            "200":
+              {
+                description: Owner settings,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/AgentConfig" } } },
+              },
+          },
+      }
   /api/agents/{id}/mcp/test:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    post: {operationId: testAgentMcpServer, tags: [Agents], requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/McpServer'}}}}, responses: {'200': {description: Discovered MCP tools, content: {application/json: {schema: {type: object, required: [tools], properties: {tools: {type: array, items: {type: object, required: [name, label], properties: {name: {type: string}, label: {type: string}}}}}}}}}, '400': {$ref: '#/components/responses/Error'}, '403': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/ActiveRunConflict'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    post:
+      {
+        operationId: testAgentMcpServer,
+        tags: [Agents],
+        requestBody:
+          {
+            required: true,
+            content: { application/json: { schema: { $ref: "#/components/schemas/McpServer" } } },
+          },
+        responses:
+          {
+            "200":
+              {
+                description: Discovered MCP tools,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          {
+                            type: object,
+                            required: [tools],
+                            properties:
+                              {
+                                tools:
+                                  {
+                                    type: array,
+                                    items:
+                                      {
+                                        type: object,
+                                        required: [name, label],
+                                        properties:
+                                          { name: { type: string }, label: { type: string } },
+                                      },
+                                  },
+                              },
+                          },
+                      },
+                  },
+              },
+            "400": { $ref: "#/components/responses/Error" },
+            "403": { $ref: "#/components/responses/Error" },
+            "409": { $ref: "#/components/responses/ActiveRunConflict" },
+          },
+      }
   /api/agents/{id}/commands:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: getAgentCommands, tags: [Agents], responses: {'200': {description: Commands, content: {application/json: {schema: {type: object, additionalProperties: true}}}}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: getAgentCommands,
+        tags: [Agents],
+        responses:
+          {
+            "200":
+              {
+                description: Commands,
+                content:
+                  { application/json: { schema: { type: object, additionalProperties: true } } },
+              },
+          },
+      }
   /api/agents/{id}/run:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    post: {operationId: startAgentRun, tags: [Runs], requestBody: {$ref: '#/components/requestBodies/AgentRun'}, responses: {'200': {$ref: '#/components/responses/NDJSON'}, '409': {$ref: '#/components/responses/ActiveRunConflict'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    post:
+      {
+        operationId: startAgentRun,
+        tags: [Runs],
+        requestBody: { $ref: "#/components/requestBodies/AgentRun" },
+        responses:
+          {
+            "200": { $ref: "#/components/responses/NDJSON" },
+            "409": { $ref: "#/components/responses/ActiveRunConflict" },
+          },
+      }
   /api/agent-runs/{runId}/events:
-    parameters: [{$ref: '#/components/parameters/RunID'}, {name: after, in: query, required: true, schema: {type: integer, minimum: 0}}]
-    get: {operationId: watchAgentRun, tags: [Runs], responses: {'200': {$ref: '#/components/responses/NDJSON'}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}}
+    parameters:
+      [
+        { $ref: "#/components/parameters/RunID" },
+        { name: after, in: query, required: true, schema: { type: integer, minimum: 0 } },
+      ]
+    get:
+      {
+        operationId: watchAgentRun,
+        tags: [Runs],
+        responses:
+          {
+            "200": { $ref: "#/components/responses/NDJSON" },
+            "400": { $ref: "#/components/responses/Error" },
+            "404": { $ref: "#/components/responses/Error" },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agent-runs/{runId}/abort:
-    parameters: [{$ref: '#/components/parameters/RunID'}]
-    post: {operationId: abortAgentRun, tags: [Runs], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '404': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/RunID" }]
+    post:
+      {
+        operationId: abortAgentRun,
+        tags: [Runs],
+        responses:
+          {
+            "200": { $ref: "#/components/responses/JSONSuccess" },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/sessions:
-    post: {operationId: createSession, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/SessionDraft'}, responses: {'201': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}}}
+    post:
+      {
+        operationId: createSession,
+        tags: [Sessions],
+        requestBody: { $ref: "#/components/requestBodies/SessionDraft" },
+        responses:
+          {
+            "201":
+              {
+                description: Session,
+                content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } },
+              },
+          },
+      }
   /api/agents/{agentId}/archived-sessions:
-    parameters: [{$ref: '#/components/parameters/AgentID'}]
-    get: {operationId: listArchivedSessions, tags: [Sessions], responses: {'200': {description: Archived sessions, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/SessionMetadata'}}}}}, '404': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/AgentID" }]
+    get:
+      {
+        operationId: listArchivedSessions,
+        tags: [Sessions],
+        responses:
+          {
+            "200":
+              {
+                description: Archived sessions,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          { type: array, items: { $ref: "#/components/schemas/SessionMetadata" } },
+                      },
+                  },
+              },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{id}/active-sessions:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: listActiveSessions, tags: [Sessions], responses: {'200': {description: Active listed session IDs, content: {application/json: {schema: {type: object, required: [sessionIds], properties: {sessionIds: {type: array, items: {type: string}}}}}}}, '404': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: listActiveSessions,
+        tags: [Sessions],
+        responses:
+          {
+            "200":
+              {
+                description: Active listed session IDs,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          {
+                            type: object,
+                            required: [sessionIds],
+                            properties: { sessionIds: { type: array, items: { type: string } } },
+                          },
+                      },
+                  },
+              },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/sessions/import/open-webui:
-    post: {operationId: importOpenWebUISessions, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/OpenWebUIImport'}, responses: {'201': {description: Import result, content: {application/json: {schema: {type: object, additionalProperties: true}}}}}}
+    post:
+      {
+        operationId: importOpenWebUISessions,
+        tags: [Sessions],
+        requestBody: { $ref: "#/components/requestBodies/OpenWebUIImport" },
+        responses:
+          {
+            "201":
+              {
+                description: Import result,
+                content:
+                  { application/json: { schema: { type: object, additionalProperties: true } } },
+              },
+          },
+      }
   /api/sessions/{id}:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    patch: {operationId: patchSession, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/SessionPatch'}, responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '409': {$ref: '#/components/responses/ActiveRunConflict'}}}
-    delete: {operationId: deleteSession, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '409': {$ref: '#/components/responses/ActiveRunConflict'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    patch:
+      {
+        operationId: patchSession,
+        tags: [Sessions],
+        requestBody: { $ref: "#/components/requestBodies/SessionPatch" },
+        responses:
+          {
+            "200":
+              {
+                description: Session,
+                content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } },
+              },
+            "409": { $ref: "#/components/responses/ActiveRunConflict" },
+          },
+      }
+    delete:
+      {
+        operationId: deleteSession,
+        tags: [Sessions],
+        responses:
+          {
+            "200": { $ref: "#/components/responses/JSONSuccess" },
+            "409": { $ref: "#/components/responses/ActiveRunConflict" },
+          },
+      }
   /api/sessions/{id}/connection:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: getSessionConnection, tags: [Sessions], responses: {'200': {description: Transcript and active run, content: {application/json: {schema: {$ref: '#/components/schemas/SessionConnection'}}}}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: getSessionConnection,
+        tags: [Sessions],
+        responses:
+          {
+            "200":
+              {
+                description: Transcript and active run,
+                content:
+                  {
+                    application/json:
+                      { schema: { $ref: "#/components/schemas/SessionConnection" } },
+                  },
+              },
+          },
+      }
   /api/sessions/{id}/fork:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    post: {operationId: forkSession, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/Fork'}, responses: {'201': {description: Forked session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '409': {$ref: '#/components/responses/SafeEntryConflict'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    post:
+      {
+        operationId: forkSession,
+        tags: [Sessions],
+        requestBody: { $ref: "#/components/requestBodies/Fork" },
+        responses:
+          {
+            "201":
+              {
+                description: Forked session,
+                content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } },
+              },
+            "409": { $ref: "#/components/responses/SafeEntryConflict" },
+          },
+      }
   /api/sessions/{id}/messages/truncate:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    post: {operationId: truncateSession, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/Truncate'}, responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '409': {$ref: '#/components/responses/SafeEntryConflict'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    post:
+      {
+        operationId: truncateSession,
+        tags: [Sessions],
+        requestBody: { $ref: "#/components/requestBodies/Truncate" },
+        responses:
+          {
+            "200":
+              {
+                description: Session,
+                content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } },
+              },
+            "409": { $ref: "#/components/responses/SafeEntryConflict" },
+          },
+      }
   /api/sessions/{id}/messages/{entryId}:
-    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/EntryID'}]
-    patch: {operationId: editSessionMessage, tags: [Sessions], requestBody: {$ref: '#/components/requestBodies/MessageEdit'}, responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}}}
+    parameters:
+      [{ $ref: "#/components/parameters/ID" }, { $ref: "#/components/parameters/EntryID" }]
+    patch:
+      {
+        operationId: editSessionMessage,
+        tags: [Sessions],
+        requestBody: { $ref: "#/components/requestBodies/MessageEdit" },
+        responses:
+          {
+            "200":
+              {
+                description: Session,
+                content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } },
+              },
+          },
+      }
   /api/sessions/{id}/images/{entryId}/{imageIndex}:
-    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/EntryID'}, {$ref: '#/components/parameters/ImageIndex'}]
-    get: {operationId: getSessionImage, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/Image'}}}
+    parameters:
+      [
+        { $ref: "#/components/parameters/ID" },
+        { $ref: "#/components/parameters/EntryID" },
+        { $ref: "#/components/parameters/ImageIndex" },
+      ]
+    get:
+      {
+        operationId: getSessionImage,
+        tags: [Sessions],
+        responses: { "200": { $ref: "#/components/responses/Image" } },
+      }
   /api/sessions/{id}/tool-result-images/{entryId}/{partIndex}:
-    parameters: [{$ref: '#/components/parameters/ID'}, {$ref: '#/components/parameters/EntryID'}, {$ref: '#/components/parameters/PartIndex'}]
-    get: {operationId: getToolResultImage, tags: [Sessions], responses: {'200': {$ref: '#/components/responses/Image'}}}
+    parameters:
+      [
+        { $ref: "#/components/parameters/ID" },
+        { $ref: "#/components/parameters/EntryID" },
+        { $ref: "#/components/parameters/PartIndex" },
+      ]
+    get:
+      {
+        operationId: getToolResultImage,
+        tags: [Sessions],
+        responses: { "200": { $ref: "#/components/responses/Image" } },
+      }
   /api/agents/{id}/files:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: listAgentFiles, tags: [Files], parameters: [{name: path, in: query, schema: {type: string}}, {name: showHidden, in: query, schema: {type: boolean}}], responses: {'200': {description: Files, content: {application/json: {schema: {$ref: '#/components/schemas/FileList'}}}}}}
-    post: {operationId: createAgentFile, tags: [Files], requestBody: {$ref: '#/components/requestBodies/FileCreate'}, responses: {'201': {description: Entry, content: {application/json: {schema: {$ref: '#/components/schemas/FileEntry'}}}}}}
-    patch: {operationId: renameAgentFile, tags: [Files], requestBody: {$ref: '#/components/requestBodies/FileRename'}, responses: {'200': {description: Entry, content: {application/json: {schema: {$ref: '#/components/schemas/FileEntry'}}}}}}
-    delete: {operationId: deleteAgentFile, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: listAgentFiles,
+        tags: [Files],
+        parameters:
+          [
+            { name: path, in: query, schema: { type: string } },
+            { name: showHidden, in: query, schema: { type: boolean } },
+          ],
+        responses:
+          {
+            "200":
+              {
+                description: Files,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/FileList" } } },
+              },
+          },
+      }
+    post:
+      {
+        operationId: createAgentFile,
+        tags: [Files],
+        requestBody: { $ref: "#/components/requestBodies/FileCreate" },
+        responses:
+          {
+            "201":
+              {
+                description: Entry,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/FileEntry" } } },
+              },
+          },
+      }
+    patch:
+      {
+        operationId: renameAgentFile,
+        tags: [Files],
+        requestBody: { $ref: "#/components/requestBodies/FileRename" },
+        responses:
+          {
+            "200":
+              {
+                description: Entry,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/FileEntry" } } },
+              },
+          },
+      }
+    delete:
+      {
+        operationId: deleteAgentFile,
+        tags: [Files],
+        parameters: [{ name: path, in: query, required: true, schema: { type: string } }],
+        responses: { "200": { $ref: "#/components/responses/JSONSuccess" } },
+      }
   /api/agents/{id}/files/content:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: getAgentFileContent, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}], responses: {'200': {description: Content, content: {application/json: {schema: {$ref: '#/components/schemas/FileContent'}}}}}}
-    put: {operationId: putAgentFileContent, tags: [Files], requestBody: {$ref: '#/components/requestBodies/FileContent'}, responses: {'200': {description: Content, content: {application/json: {schema: {$ref: '#/components/schemas/FileContent'}}}}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: getAgentFileContent,
+        tags: [Files],
+        parameters: [{ name: path, in: query, required: true, schema: { type: string } }],
+        responses:
+          {
+            "200":
+              {
+                description: Content,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/FileContent" } } },
+              },
+          },
+      }
+    put:
+      {
+        operationId: putAgentFileContent,
+        tags: [Files],
+        requestBody: { $ref: "#/components/requestBodies/FileContent" },
+        responses:
+          {
+            "200":
+              {
+                description: Content,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/FileContent" } } },
+              },
+          },
+      }
   /api/agents/{id}/files/raw:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: getAgentFileImage, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}], responses: {'200': {$ref: '#/components/responses/Image'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: getAgentFileImage,
+        tags: [Files],
+        parameters: [{ name: path, in: query, required: true, schema: { type: string } }],
+        responses: { "200": { $ref: "#/components/responses/Image" } },
+      }
   /api/agents/{id}/files/download:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: downloadAgentFiles, tags: [Files], description: One file streams as-is; a directory or several paths stream as a zip archive., parameters: [{name: path, in: query, required: true, explode: true, schema: {type: array, items: {type: string}}}], responses: {'200': {$ref: '#/components/responses/Download'}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: downloadAgentFiles,
+        tags: [Files],
+        description: One file streams as-is; a directory or several paths stream as a zip archive.,
+        parameters:
+          [
+            {
+              name: path,
+              in: query,
+              required: true,
+              explode: true,
+              schema: { type: array, items: { type: string } },
+            },
+          ],
+        responses:
+          {
+            "200": { $ref: "#/components/responses/Download" },
+            "400": { $ref: "#/components/responses/Error" },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{id}/files/upload:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    put: {operationId: uploadAgentFile, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}, {name: overwrite, in: query, schema: {type: boolean}}], requestBody: {$ref: '#/components/requestBodies/FileUpload'}, responses: {'201': {description: Entry, content: {application/json: {schema: {$ref: '#/components/schemas/FileEntry'}}}}, '409': {$ref: '#/components/responses/Error'}, '413': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    put:
+      {
+        operationId: uploadAgentFile,
+        tags: [Files],
+        parameters:
+          [
+            { name: path, in: query, required: true, schema: { type: string } },
+            { name: overwrite, in: query, schema: { type: boolean } },
+          ],
+        requestBody: { $ref: "#/components/requestBodies/FileUpload" },
+        responses:
+          {
+            "201":
+              {
+                description: Entry,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/FileEntry" } } },
+              },
+            "409": { $ref: "#/components/responses/Error" },
+            "413": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{id}/files/batch:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    post: {operationId: batchAgentFileOperation, tags: [Files], requestBody: {$ref: '#/components/requestBodies/FileBatch'}, responses: {'200': {description: Per-path outcome, content: {application/json: {schema: {$ref: '#/components/schemas/FileBatchResult'}}}}, '400': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    post:
+      {
+        operationId: batchAgentFileOperation,
+        tags: [Files],
+        requestBody: { $ref: "#/components/requestBodies/FileBatch" },
+        responses:
+          {
+            "200":
+              {
+                description: Per-path outcome,
+                content:
+                  {
+                    application/json: { schema: { $ref: "#/components/schemas/FileBatchResult" } },
+                  },
+              },
+            "400": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{id}/git/status:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: getAgentGitStatus, tags: [Files], description: Read-only working-tree status of the repository containing the agent's working directory. Runs git in the agent's sandbox., responses: {'200': {description: Status, content: {application/json: {schema: {$ref: '#/components/schemas/GitStatus'}}}}, '403': {$ref: '#/components/responses/Error'}, '502': {$ref: '#/components/responses/Error'}, '503': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: getAgentGitStatus,
+        tags: [Files],
+        description: Read-only working-tree status of the repository containing the agent's working directory. Runs git in the agent's sandbox.,
+        responses:
+          {
+            "200":
+              {
+                description: Status,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/GitStatus" } } },
+              },
+            "403": { $ref: "#/components/responses/Error" },
+            "502": { $ref: "#/components/responses/Error" },
+            "503": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{id}/browser:
-    parameters: [{$ref: '#/components/parameters/ID'}]
+    parameters: [{ $ref: "#/components/parameters/ID" }]
     get:
       operationId: getAgentBrowserStatus
       tags: [Agents]
       description: Shared browser control state. Requires visibility of the agent and bash permission. Does not launch a browser.
       responses:
-        '200':
+        "200":
           description: Browser availability and handoff state
           content:
             application/json:
@@ -466,162 +1309,844 @@ paths:
                 type: object
                 required: [available, control]
                 properties:
-                  available: {type: boolean}
+                  available: { type: boolean }
                   control:
                     type: object
                     required: [phase, revision]
                     properties:
-                      phase: {type: string, enum: [agent, pausing, waiting, human]}
-                      reason: {type: string}
-                      controllerName: {type: string}
-                      revision: {type: integer}
-        '403': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
+                      phase: { type: string, enum: [agent, pausing, waiting, human] }
+                      reason: { type: string }
+                      controllerName: { type: string }
+                      revision: { type: integer }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
   /api/agents/{id}/git/diff:
-    parameters: [{$ref: '#/components/parameters/ID'}]
-    get: {operationId: getAgentGitDiff, tags: [Files], parameters: [{name: path, in: query, required: true, schema: {type: string}}, {name: area, in: query, required: true, schema: {type: string, enum: [staged, unstaged, untracked, conflicted]}}, {name: originalPath, in: query, schema: {type: string}}], responses: {'200': {description: Both sides of one file's change, content: {application/json: {schema: {$ref: '#/components/schemas/GitFileDiff'}}}}, '400': {$ref: '#/components/responses/Error'}, '403': {$ref: '#/components/responses/Error'}, '502': {$ref: '#/components/responses/Error'}, '503': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      {
+        operationId: getAgentGitDiff,
+        tags: [Files],
+        parameters:
+          [
+            { name: path, in: query, required: true, schema: { type: string } },
+            {
+              name: area,
+              in: query,
+              required: true,
+              schema: { type: string, enum: [staged, unstaged, untracked, conflicted] },
+            },
+            { name: originalPath, in: query, schema: { type: string } },
+          ],
+        responses:
+          {
+            "200":
+              {
+                description: Both sides of one file's change,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/GitFileDiff" } } },
+              },
+            "400": { $ref: "#/components/responses/Error" },
+            "403": { $ref: "#/components/responses/Error" },
+            "502": { $ref: "#/components/responses/Error" },
+            "503": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{agentId}/secrets:
-    parameters: [{$ref: '#/components/parameters/AgentID'}]
-    get: {operationId: listAgentSecrets, tags: [Secrets], responses: {'200': {description: Secret names, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/AgentSecret'}}}}}, '403': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/AgentID" }]
+    get:
+      {
+        operationId: listAgentSecrets,
+        tags: [Secrets],
+        responses:
+          {
+            "200":
+              {
+                description: Secret names,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          { type: array, items: { $ref: "#/components/schemas/AgentSecret" } },
+                      },
+                  },
+              },
+            "403": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{agentId}/secrets/{name}:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/SecretName'}]
-    put: {operationId: writeAgentSecret, tags: [Secrets], requestBody: {$ref: '#/components/requestBodies/AgentSecret'}, responses: {'200': {description: Secret, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSecret'}}}}, '400': {$ref: '#/components/responses/Error'}, '403': {$ref: '#/components/responses/Error'}}}
-    delete: {operationId: deleteAgentSecret, tags: [Secrets], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '403': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}}}
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/SecretName" }]
+    put:
+      {
+        operationId: writeAgentSecret,
+        tags: [Secrets],
+        requestBody: { $ref: "#/components/requestBodies/AgentSecret" },
+        responses:
+          {
+            "200":
+              {
+                description: Secret,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/AgentSecret" } } },
+              },
+            "400": { $ref: "#/components/responses/Error" },
+            "403": { $ref: "#/components/responses/Error" },
+          },
+      }
+    delete:
+      {
+        operationId: deleteAgentSecret,
+        tags: [Secrets],
+        responses:
+          {
+            "200": { $ref: "#/components/responses/JSONSuccess" },
+            "403": { $ref: "#/components/responses/Error" },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{agentId}/tasks:
-    parameters: [{$ref: '#/components/parameters/AgentID'}]
-    get: {operationId: listAgentTasks, tags: [Tasks], responses: {'200': {description: Tasks, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/AgentTask'}}}}}}}
-    post: {operationId: createAgentTask, tags: [Tasks], requestBody: {$ref: '#/components/requestBodies/TaskCreate'}, responses: {'201': {description: Task, content: {application/json: {schema: {$ref: '#/components/schemas/AgentTask'}}}}}}
+    parameters: [{ $ref: "#/components/parameters/AgentID" }]
+    get:
+      {
+        operationId: listAgentTasks,
+        tags: [Tasks],
+        responses:
+          {
+            "200":
+              {
+                description: Tasks,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema: { type: array, items: { $ref: "#/components/schemas/AgentTask" } },
+                      },
+                  },
+              },
+          },
+      }
+    post:
+      {
+        operationId: createAgentTask,
+        tags: [Tasks],
+        requestBody: { $ref: "#/components/requestBodies/TaskCreate" },
+        responses:
+          {
+            "201":
+              {
+                description: Task,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/AgentTask" } } },
+              },
+          },
+      }
   /api/agents/{agentId}/tasks/{taskId}:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/TaskID'}]
-    patch: {operationId: updateAgentTask, tags: [Tasks], requestBody: {$ref: '#/components/requestBodies/TaskPatch'}, responses: {'200': {description: Task, content: {application/json: {schema: {$ref: '#/components/schemas/AgentTask'}}}}}}
-    delete: {operationId: deleteAgentTask, tags: [Tasks], responses: {'200': {$ref: '#/components/responses/JSONSuccess'}}}
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/TaskID" }]
+    patch:
+      {
+        operationId: updateAgentTask,
+        tags: [Tasks],
+        requestBody: { $ref: "#/components/requestBodies/TaskPatch" },
+        responses:
+          {
+            "200":
+              {
+                description: Task,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/AgentTask" } } },
+              },
+          },
+      }
+    delete:
+      {
+        operationId: deleteAgentTask,
+        tags: [Tasks],
+        responses: { "200": { $ref: "#/components/responses/JSONSuccess" } },
+      }
   /api/agents/{agentId}/tasks/{taskId}/runs:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/TaskID'}]
-    get: {operationId: listAgentTaskRuns, tags: [Tasks], responses: {'200': {description: Runs, content: {application/json: {schema: {type: array, items: {type: object, additionalProperties: true}}}}}}}
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/TaskID" }]
+    get:
+      {
+        operationId: listAgentTaskRuns,
+        tags: [Tasks],
+        responses:
+          {
+            "200":
+              {
+                description: Runs,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          { type: array, items: { type: object, additionalProperties: true } },
+                      },
+                  },
+              },
+          },
+      }
   /api/agents/{agentId}/tasks/{taskId}/run:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/TaskID'}]
-    post: {operationId: runAgentTask, tags: [Tasks], responses: {'200': {description: Outcome, content: {application/json: {schema: {type: object, additionalProperties: true}}}}}}
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/TaskID" }]
+    post:
+      {
+        operationId: runAgentTask,
+        tags: [Tasks],
+        responses:
+          {
+            "200":
+              {
+                description: Outcome,
+                content:
+                  { application/json: { schema: { type: object, additionalProperties: true } } },
+              },
+          },
+      }
   /api/agents/{agentId}/issues:
-    parameters: [{$ref: '#/components/parameters/AgentID'}]
-    get: {operationId: listIssues, tags: [Issues], description: The caller's own issues on this agent, most recently active first., responses: {'200': {description: Issues, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Issue'}}}}}, '404': {$ref: '#/components/responses/Error'}}}
-    post: {operationId: createIssue, tags: [Issues], description: Saves an agent-owned brief without starting work., requestBody: {$ref: '#/components/requestBodies/IssueCreate'}, responses: {'201': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}}}
+    parameters: [{ $ref: "#/components/parameters/AgentID" }]
+    get:
+      {
+        operationId: listIssues,
+        tags: [Issues],
+        description: The caller's own issues on this agent,
+        most recently active first.,
+        responses:
+          {
+            "200":
+              {
+                description: Issues,
+                content:
+                  {
+                    application/json:
+                      { schema: { type: array, items: { $ref: "#/components/schemas/Issue" } } },
+                  },
+              },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
+    post:
+      {
+        operationId: createIssue,
+        tags: [Issues],
+        description: Saves an agent-owned brief without starting work.,
+        requestBody: { $ref: "#/components/requestBodies/IssueCreate" },
+        responses:
+          {
+            "201":
+              {
+                description: Issue,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+              },
+            "400": { $ref: "#/components/responses/Error" },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{agentId}/issues/{issueId}:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
-    get: {operationId: getIssue, tags: [Issues], responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '404': {$ref: '#/components/responses/Error'}}}
-    patch: {operationId: updateIssue, tags: [Issues], description: Edit an idle brief or move unstarted work between backlog and todo., requestBody: {$ref: '#/components/requestBodies/IssuePatch'}, responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}}
-    delete: {operationId: deleteIssue, tags: [Issues], description: Deletes the issue and all attempt sessions. Refused while a run is in progress., responses: {'200': {$ref: '#/components/responses/JSONSuccess'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}}
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/IssueID" }]
+    get:
+      {
+        operationId: getIssue,
+        tags: [Issues],
+        responses:
+          {
+            "200":
+              {
+                description: Issue,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+              },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
+    patch:
+      {
+        operationId: updateIssue,
+        tags: [Issues],
+        description: Edit an idle brief or move unstarted work between backlog and todo.,
+        requestBody: { $ref: "#/components/requestBodies/IssuePatch" },
+        responses:
+          {
+            "200":
+              {
+                description: Issue,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+              },
+            "404": { $ref: "#/components/responses/Error" },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
+    delete:
+      {
+        operationId: deleteIssue,
+        tags: [Issues],
+        description: Deletes the issue and all attempt sessions. Refused while a run is in progress.,
+        responses:
+          {
+            "200": { $ref: "#/components/responses/JSONSuccess" },
+            "404": { $ref: "#/components/responses/Error" },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{agentId}/issues/{issueId}/interrupt:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
-    post: {operationId: interruptIssue, tags: [Issues], description: Stops the current run. The issue stays open for a reply., responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '404': {$ref: '#/components/responses/Error'}}}
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/IssueID" }]
+    post:
+      {
+        operationId: interruptIssue,
+        tags: [Issues],
+        description: Stops the current run. The issue stays open for a reply.,
+        responses:
+          {
+            "200":
+              {
+                description: Issue,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+              },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{agentId}/issues/{issueId}/cancel:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
-    post: {operationId: cancelIssue, tags: [Issues], description: Stops any run and closes the issue as cancelled., responses: {'200': {description: Issue, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '404': {$ref: '#/components/responses/Error'}}}
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/IssueID" }]
+    post:
+      {
+        operationId: cancelIssue,
+        tags: [Issues],
+        description: Stops any run and closes the issue as cancelled.,
+        responses:
+          {
+            "200":
+              {
+                description: Issue,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+              },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{agentId}/issues/{issueId}/runs:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/IssueID" }]
     post:
       operationId: runIssue
       tags: [Issues]
       description: Queue work; continue the conversation unless fresh is true. One issue runs per agent.
-      requestBody: {$ref: '#/components/requestBodies/IssueRun'}
-      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
+      requestBody: { $ref: "#/components/requestBodies/IssueRun" }
+      responses:
+        {
+          "200":
+            {
+              description: Issue detail,
+              content:
+                { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+            },
+          "400": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+          "409": { $ref: "#/components/responses/Error" },
+        }
   /api/agents/{agentId}/issues/{issueId}/notes:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/IssueID" }]
     post:
       operationId: addIssueNote
       tags: [Issues]
       description: Save a note without triggering execution or changing status.
-      requestBody: {$ref: '#/components/requestBodies/IssueNote'}
-      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
+      requestBody: { $ref: "#/components/requestBodies/IssueNote" }
+      responses:
+        {
+          "200":
+            {
+              description: Issue detail,
+              content:
+                { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+            },
+          "400": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+          "409": { $ref: "#/components/responses/Error" },
+        }
   /api/agents/{agentId}/issues/{issueId}/accept:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/IssueID" }]
     post:
       operationId: acceptIssue
       tags: [Issues]
       description: Accept a result in review and mark the issue done.
-      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
+      responses:
+        {
+          "200":
+            {
+              description: Issue detail,
+              content:
+                { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+            },
+          "400": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+          "409": { $ref: "#/components/responses/Error" },
+        }
   /api/agents/{agentId}/issues/{issueId}/reopen:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/IssueID" }]
     post:
       operationId: reopenIssue
       tags: [Issues]
       description: Reopen a closed issue without starting work.
-      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
+      responses:
+        {
+          "200":
+            {
+              description: Issue detail,
+              content:
+                { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+            },
+          "400": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+          "409": { $ref: "#/components/responses/Error" },
+        }
   /api/agents/{agentId}/issues/{issueId}/updates:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/IssueID" }]
     post:
       operationId: sendIssueUpdate
       tags: [Issues]
       description: Steer the active Pi lane; persist visible update delivery status.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueNoteRequest'}}}}
-      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
+      requestBody:
+        {
+          required: true,
+          content:
+            { application/json: { schema: { $ref: "#/components/schemas/IssueNoteRequest" } } },
+        }
+      responses:
+        {
+          "200":
+            {
+              description: Issue detail,
+              content:
+                { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+            },
+          "400": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+          "409": { $ref: "#/components/responses/Error" },
+        }
   /api/agents/{agentId}/issues/{issueId}/queue:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/IssueID" }]
     delete:
       operationId: removeIssueFromQueue
       tags: [Issues]
       description: Return a queued issue to Backlog; retain instructions in the discussion.
-      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
+      responses:
+        {
+          "200":
+            {
+              description: Issue detail,
+              content:
+                { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+            },
+          "400": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+          "409": { $ref: "#/components/responses/Error" },
+        }
   /api/agents/{agentId}/issues/{issueId}/queue/move:
-    parameters: [{$ref: '#/components/parameters/AgentID'}, {$ref: '#/components/parameters/IssueID'}]
+    parameters:
+      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/IssueID" }]
     post:
       operationId: moveQueuedIssue
       tags: [Issues]
       description: Move a job up or down among this user's queued issues.
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueQueueMoveRequest'}}}}
-      responses: {'200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueDetail'}}}}, '400': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}}
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json: { schema: { $ref: "#/components/schemas/IssueQueueMoveRequest" } },
+            },
+        }
+      responses:
+        {
+          "200":
+            {
+              description: Issue detail,
+              content:
+                { application/json: { schema: { $ref: "#/components/schemas/IssueDetail" } } },
+            },
+          "400": { $ref: "#/components/responses/Error" },
+          "404": { $ref: "#/components/responses/Error" },
+          "409": { $ref: "#/components/responses/Error" },
+        }
 components:
   securitySchemes:
-    carmelSession: {type: apiKey, in: cookie, name: carmel_session}
+    carmelSession: { type: apiKey, in: cookie, name: carmel_session }
   parameters:
-    ID: {name: id, in: path, required: true, schema: {type: string}}
-    AgentID: {name: agentId, in: path, required: true, schema: {type: string}}
-    RunID: {name: runId, in: path, required: true, schema: {type: string}}
-    TaskID: {name: taskId, in: path, required: true, schema: {type: string}}
-    IssueID: {name: issueId, in: path, required: true, schema: {type: string}}
-    SecretName: {name: name, in: path, required: true, schema: {type: string}}
-    EntryID: {name: entryId, in: path, required: true, schema: {type: string}}
-    ImageIndex: {name: imageIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
-    PartIndex: {name: partIndex, in: path, required: true, schema: {type: integer, minimum: 0}}
+    ID: { name: id, in: path, required: true, schema: { type: string } }
+    AgentID: { name: agentId, in: path, required: true, schema: { type: string } }
+    RunID: { name: runId, in: path, required: true, schema: { type: string } }
+    TaskID: { name: taskId, in: path, required: true, schema: { type: string } }
+    IssueID: { name: issueId, in: path, required: true, schema: { type: string } }
+    SecretName: { name: name, in: path, required: true, schema: { type: string } }
+    EntryID: { name: entryId, in: path, required: true, schema: { type: string } }
+    ImageIndex:
+      { name: imageIndex, in: path, required: true, schema: { type: integer, minimum: 0 } }
+    PartIndex: { name: partIndex, in: path, required: true, schema: { type: integer, minimum: 0 } }
   responses:
-    Error: {description: Error, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
-    JSONSuccess: {description: Success, content: {application/json: {schema: {$ref: '#/components/schemas/OK'}}}}
-    ActiveRunConflict: {description: Resource is busy, headers: {x-agent-run-id: {schema: {type: string}}}, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/Error'}, {type: object, properties: {runId: {type: string}}}]}}}}
-    SafeEntryConflict: {description: Invalid cut point, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/Error'}, {type: object, properties: {safeEntryId: {type: string}}}]}}}}
-    NDJSON: {description: Live sequence-enveloped run events, headers: {x-agent-run-id: {schema: {type: string}}, x-agent-event-cursor: {schema: {type: integer}}}, content: {application/x-ndjson: {schema: {type: string, format: binary}}}}
-    Download: {description: File bytes or a zip archive, headers: {content-disposition: {schema: {type: string}}}, content: {application/octet-stream: {schema: {type: string, format: binary}}, application/zip: {schema: {type: string, format: binary}}}}
-    Image: {description: Binary image, content: {image/png: {schema: {type: string, format: binary}}, image/jpeg: {schema: {type: string, format: binary}}, image/webp: {schema: {type: string, format: binary}}}}
+    Error:
+      {
+        description: Error,
+        content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } },
+      }
+    JSONSuccess:
+      {
+        description: Success,
+        content: { application/json: { schema: { $ref: "#/components/schemas/OK" } } },
+      }
+    ActiveRunConflict:
+      {
+        description: Resource is busy,
+        headers: { x-agent-run-id: { schema: { type: string } } },
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  {
+                    allOf:
+                      [
+                        { $ref: "#/components/schemas/Error" },
+                        { type: object, properties: { runId: { type: string } } },
+                      ],
+                  },
+              },
+          },
+      }
+    SafeEntryConflict:
+      {
+        description: Invalid cut point,
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  {
+                    allOf:
+                      [
+                        { $ref: "#/components/schemas/Error" },
+                        { type: object, properties: { safeEntryId: { type: string } } },
+                      ],
+                  },
+              },
+          },
+      }
+    NDJSON:
+      {
+        description: Live sequence-enveloped run events,
+        headers:
+          {
+            x-agent-run-id: { schema: { type: string } },
+            x-agent-event-cursor: { schema: { type: integer } },
+          },
+        content: { application/x-ndjson: { schema: { type: string, format: binary } } },
+      }
+    Download:
+      {
+        description: File bytes or a zip archive,
+        headers: { content-disposition: { schema: { type: string } } },
+        content:
+          {
+            application/octet-stream: { schema: { type: string, format: binary } },
+            application/zip: { schema: { type: string, format: binary } },
+          },
+      }
+    Image:
+      {
+        description: Binary image,
+        content:
+          {
+            image/png: { schema: { type: string, format: binary } },
+            image/jpeg: { schema: { type: string, format: binary } },
+            image/webp: { schema: { type: string, format: binary } },
+          },
+      }
   requestBodies:
-    IssueRun: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueRunRequest'}}}}
-    IssueNote: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueNoteRequest'}}}}
-    Login: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LoginRequest'}}}}
-    Setup: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SetupRequest'}}}}
-    Account: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AccountRequest'}}}}
-    CreateUser: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateUserRequest'}}}}
-    UserProfile: {required: true, content: {application/json: {schema: {type: object, required: [name], properties: {name: {type: string}, fastTaskModelRefId: {type: string}}}}}}
-    UserRole: {required: true, content: {application/json: {schema: {type: object, required: [role], properties: {role: {type: string, enum: [admin, user]}}}}}}
-    Password: {required: true, content: {application/json: {schema: {type: object, required: [password], properties: {password: {type: string}}}}}}
-    Model: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ModelRequest'}}}}
-    Provider: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProviderRequest'}}}}
-    OAuthInput: {required: true, content: {application/json: {schema: {type: object, properties: {value: {type: string}}}}}}
-    Agent: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentRequest'}}}}
-    AgentRun: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentRunRequest'}}}}
-    SessionDraft: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SessionDraftRequest'}}}}
-    SessionPatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SessionPatchRequest'}}}}
-    OpenWebUIImport: {required: true, content: {application/json: {schema: {type: object, required: [agentId, modelRefId, source], properties: {agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, source: {}}}}}}
-    Fork: {required: true, content: {application/json: {schema: {type: object, required: [entryId], properties: {entryId: {type: string}}}}}}
-    Truncate: {required: true, content: {application/json: {schema: {type: object, required: [entryId], properties: {entryId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}}}}}}
-    MessageEdit: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/MessageEditRequest'}}}}
-    FileContent: {required: true, content: {application/json: {schema: {type: object, required: [path, content], properties: {path: {type: string}, content: {type: string}}}}}}
-    FileCreate: {required: true, content: {application/json: {schema: {type: object, required: [path, type], properties: {path: {type: string}, type: {type: string, enum: [file, directory]}}}}}}
-    FileRename: {required: true, content: {application/json: {schema: {type: object, required: [path, newPath], properties: {path: {type: string}, newPath: {type: string}}}}}}
-    FileUpload: {required: true, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
-    FileBatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/FileBatchRequest'}}}}
-    AgentSecret: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AgentSecretRequest'}}}}
-    ApiKeyCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ApiKeyCreateRequest'}}}}
-    TaskCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
-    TaskPatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/TaskWrite'}}}}
-    IssueCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssueCreateRequest'}}}}
-    IssuePatch: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IssuePatchRequest'}}}}
+    IssueRun:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: "#/components/schemas/IssueRunRequest" } } },
+      }
+    IssueNote:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/IssueNoteRequest" } } },
+      }
+    Login:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: "#/components/schemas/LoginRequest" } } },
+      }
+    Setup:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: "#/components/schemas/SetupRequest" } } },
+      }
+    Account:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: "#/components/schemas/AccountRequest" } } },
+      }
+    CreateUser:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/CreateUserRequest" } } },
+      }
+    UserProfile:
+      {
+        required: true,
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  {
+                    type: object,
+                    required: [name],
+                    properties: { name: { type: string }, fastTaskModelRefId: { type: string } },
+                  },
+              },
+          },
+      }
+    UserRole:
+      {
+        required: true,
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  {
+                    type: object,
+                    required: [role],
+                    properties: { role: { type: string, enum: [admin, user] } },
+                  },
+              },
+          },
+      }
+    Password:
+      {
+        required: true,
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  {
+                    type: object,
+                    required: [password],
+                    properties: { password: { type: string } },
+                  },
+              },
+          },
+      }
+    Model:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: "#/components/schemas/ModelRequest" } } },
+      }
+    Provider:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: "#/components/schemas/ProviderRequest" } } },
+      }
+    OAuthInput:
+      {
+        required: true,
+        content:
+          {
+            application/json: { schema: { type: object, properties: { value: { type: string } } } },
+          },
+      }
+    Agent:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: "#/components/schemas/AgentRequest" } } },
+      }
+    AgentRun:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: "#/components/schemas/AgentRunRequest" } } },
+      }
+    SessionDraft:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/SessionDraftRequest" } } },
+      }
+    SessionPatch:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/SessionPatchRequest" } } },
+      }
+    OpenWebUIImport:
+      {
+        required: true,
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  {
+                    type: object,
+                    required: [agentId, modelRefId, source],
+                    properties:
+                      {
+                        agentId: { type: string },
+                        modelRefId: { type: string },
+                        thinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
+                        source: {},
+                      },
+                  },
+              },
+          },
+      }
+    Fork:
+      {
+        required: true,
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  { type: object, required: [entryId], properties: { entryId: { type: string } } },
+              },
+          },
+      }
+    Truncate:
+      {
+        required: true,
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  {
+                    type: object,
+                    required: [entryId],
+                    properties:
+                      {
+                        entryId: { type: string },
+                        thinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
+                      },
+                  },
+              },
+          },
+      }
+    MessageEdit:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/MessageEditRequest" } } },
+      }
+    FileContent:
+      {
+        required: true,
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  {
+                    type: object,
+                    required: [path, content],
+                    properties: { path: { type: string }, content: { type: string } },
+                  },
+              },
+          },
+      }
+    FileCreate:
+      {
+        required: true,
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  {
+                    type: object,
+                    required: [path, type],
+                    properties:
+                      { path: { type: string }, type: { type: string, enum: [file, directory] } },
+                  },
+              },
+          },
+      }
+    FileRename:
+      {
+        required: true,
+        content:
+          {
+            application/json:
+              {
+                schema:
+                  {
+                    type: object,
+                    required: [path, newPath],
+                    properties: { path: { type: string }, newPath: { type: string } },
+                  },
+              },
+          },
+      }
+    FileUpload:
+      {
+        required: true,
+        content: { application/octet-stream: { schema: { type: string, format: binary } } },
+      }
+    FileBatch:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/FileBatchRequest" } } },
+      }
+    AgentSecret:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/AgentSecretRequest" } } },
+      }
+    ApiKeyCreate:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/ApiKeyCreateRequest" } } },
+      }
+    TaskCreate:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: "#/components/schemas/TaskWrite" } } },
+      }
+    TaskPatch:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: "#/components/schemas/TaskWrite" } } },
+      }
+    IssueCreate:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/IssueCreateRequest" } } },
+      }
+    IssuePatch:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/IssuePatchRequest" } } },
+      }
   schemas:
     KnowledgeSettings:
       type: object
@@ -914,83 +2439,943 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SavedMemory"
-    Error: {type: object, required: [error], properties: {error: {type: string}}}
-    OK: {type: object, required: [ok], properties: {ok: {type: boolean}}}
-    SetupStatus: {type: object, required: [needsSetup, passwordLogin], properties: {needsSetup: {type: boolean}, passwordLogin: {type: boolean}, oidc: {type: object, required: [providerName], properties: {providerName: {type: string}}}}}
-    ThinkingLevel: {type: string, enum: [off, minimal, low, medium, high, xhigh, max]}
-    LoginRequest: {type: object, additionalProperties: false, properties: {username: {type: string}, password: {type: string}}}
-    SetupRequest: {type: object, additionalProperties: false, required: [username, password], properties: {username: {type: string}, password: {type: string}, email: {type: string}, name: {type: string}}}
-    AccountRequest: {type: object, additionalProperties: false, required: [email], properties: {currentPassword: {type: string}, email: {type: string}, newPassword: {type: string}}}
-    CreateUserRequest: {type: object, additionalProperties: false, required: [username, email, password], properties: {username: {type: string}, email: {type: string}, password: {type: string}, name: {type: string}, role: {type: string, enum: [admin, user]}}}
-    User: {type: object, required: [id, name, email, role], properties: {id: {type: string}, username: {type: string}, name: {type: string}, email: {type: string}, role: {type: string, enum: [admin, user]}, fastTaskModelRefId: {type: string}, hasPassword: {type: boolean}}}
-    ModelRequest: {type: object, required: [shared, label, provider, modelId], additionalProperties: false, properties: {shared: {type: boolean}, label: {type: string}, provider: {type: string}, providerConfigId: {type: string}, modelId: {type: string}, api: {type: string}, baseUrl: {type: string}, contextWindow: {type: number}, maxTokens: {type: number}, reasoning: {type: boolean}, input: {type: array, items: {type: string, enum: [text, image]}}, thinkingLevelMap: {type: object, additionalProperties: true}}}
-    ModelRef: {type: object, required: [id, ownerUserId, shared, label, provider, modelId], additionalProperties: false, properties: {id: {type: string}, ownerUserId: {type: string}, shared: {type: boolean}, label: {type: string}, provider: {type: string}, providerConfigId: {type: string}, modelId: {type: string}, api: {type: string}, baseUrl: {type: string}, contextWindow: {type: number}, maxTokens: {type: number}, reasoning: {type: boolean}, input: {type: array, items: {type: string, enum: [text, image]}}, thinkingLevelMap: {type: object, additionalProperties: true}}}
-    ProviderRequest: {type: object, required: [label, provider], additionalProperties: false, properties: {label: {type: string}, provider: {type: string}, authType: {type: string, enum: [api_key, oauth]}, apiKey: {type: string}, baseUrl: {type: string}}}
-    ProviderConfig: {type: object, required: [id, userId, label, provider, createdAt, updatedAt], properties: {id: {type: string}, userId: {type: string}, label: {type: string}, provider: {type: string}, authType: {type: string}, hasApiKey: {type: boolean}, hasOAuth: {type: boolean}, baseUrl: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
-    ProviderModel: {type: object, required: [id, name], additionalProperties: true, properties: {id: {type: string}, name: {type: string}}}
-    OAuthFlow: {type: object, required: [id, providerConfigId, provider, providerName, status], additionalProperties: true, properties: {id: {type: string}, providerConfigId: {type: string}, provider: {type: string}, providerName: {type: string}, status: {type: string, enum: [pending, auth, input, success, error]}}}
+    Error: { type: object, required: [error], properties: { error: { type: string } } }
+    OK: { type: object, required: [ok], properties: { ok: { type: boolean } } }
+    SetupStatus:
+      {
+        type: object,
+        required: [needsSetup, passwordLogin],
+        properties:
+          {
+            needsSetup: { type: boolean },
+            passwordLogin: { type: boolean },
+            oidc:
+              {
+                type: object,
+                required: [providerName],
+                properties: { providerName: { type: string } },
+              },
+          },
+      }
+    ThinkingLevel: { type: string, enum: [off, minimal, low, medium, high, xhigh, max] }
+    LoginRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        properties: { username: { type: string }, password: { type: string } },
+      }
+    SetupRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [username, password],
+        properties:
+          {
+            username: { type: string },
+            password: { type: string },
+            email: { type: string },
+            name: { type: string },
+          },
+      }
+    AccountRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [email],
+        properties:
+          {
+            currentPassword: { type: string },
+            email: { type: string },
+            newPassword: { type: string },
+          },
+      }
+    CreateUserRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [username, email, password],
+        properties:
+          {
+            username: { type: string },
+            email: { type: string },
+            password: { type: string },
+            name: { type: string },
+            role: { type: string, enum: [admin, user] },
+          },
+      }
+    User:
+      {
+        type: object,
+        required: [id, name, email, role],
+        properties:
+          {
+            id: { type: string },
+            username: { type: string },
+            name: { type: string },
+            email: { type: string },
+            role: { type: string, enum: [admin, user] },
+            fastTaskModelRefId: { type: string },
+            hasPassword: { type: boolean },
+          },
+      }
+    ModelRequest:
+      {
+        type: object,
+        required: [shared, label, provider, modelId],
+        additionalProperties: false,
+        properties:
+          {
+            shared: { type: boolean },
+            label: { type: string },
+            provider: { type: string },
+            providerConfigId: { type: string },
+            modelId: { type: string },
+            api: { type: string },
+            baseUrl: { type: string },
+            contextWindow: { type: number },
+            maxTokens: { type: number },
+            reasoning: { type: boolean },
+            input: { type: array, items: { type: string, enum: [text, image] } },
+            thinkingLevelMap: { type: object, additionalProperties: true },
+          },
+      }
+    ModelRef:
+      {
+        type: object,
+        required: [id, ownerUserId, shared, label, provider, modelId],
+        additionalProperties: false,
+        properties:
+          {
+            id: { type: string },
+            ownerUserId: { type: string },
+            shared: { type: boolean },
+            label: { type: string },
+            provider: { type: string },
+            providerConfigId: { type: string },
+            modelId: { type: string },
+            api: { type: string },
+            baseUrl: { type: string },
+            contextWindow: { type: number },
+            maxTokens: { type: number },
+            reasoning: { type: boolean },
+            input: { type: array, items: { type: string, enum: [text, image] } },
+            thinkingLevelMap: { type: object, additionalProperties: true },
+          },
+      }
+    ProviderRequest:
+      {
+        type: object,
+        required: [label, provider],
+        additionalProperties: false,
+        properties:
+          {
+            label: { type: string },
+            provider: { type: string },
+            authType: { type: string, enum: [api_key, oauth] },
+            apiKey: { type: string },
+            baseUrl: { type: string },
+          },
+      }
+    ProviderConfig:
+      {
+        type: object,
+        required: [id, userId, label, provider, createdAt, updatedAt],
+        properties:
+          {
+            id: { type: string },
+            userId: { type: string },
+            label: { type: string },
+            provider: { type: string },
+            authType: { type: string },
+            hasApiKey: { type: boolean },
+            hasOAuth: { type: boolean },
+            baseUrl: { type: string },
+            createdAt: { type: number },
+            updatedAt: { type: number },
+          },
+      }
+    ProviderModel:
+      {
+        type: object,
+        required: [id, name],
+        additionalProperties: true,
+        properties: { id: { type: string }, name: { type: string } },
+      }
+    OAuthFlow:
+      {
+        type: object,
+        required: [id, providerConfigId, provider, providerName, status],
+        additionalProperties: true,
+        properties:
+          {
+            id: { type: string },
+            providerConfigId: { type: string },
+            provider: { type: string },
+            providerName: { type: string },
+            status: { type: string, enum: [pending, auth, input, success, error] },
+          },
+      }
     McpServer:
       oneOf:
         - type: object
           additionalProperties: false
           required: [id, transport, url]
           properties:
-            id: {type: string, pattern: '^[A-Za-z0-9_-]{1,32}$'}
-            transport: {type: string, enum: [http]}
-            enabled: {type: boolean, default: true}
-            timeoutMs: {type: integer, minimum: 1000, maximum: 300000, default: 60000}
-            tools: {type: array, items: {type: string, minLength: 1}}
-            url: {type: string, description: 'HTTP(S) URL without embedded credentials.'}
-            headers: {type: object, additionalProperties: {type: string}, default: {}}
+            id: { type: string, pattern: "^[A-Za-z0-9_-]{1,32}$" }
+            transport: { type: string, enum: [http] }
+            enabled: { type: boolean, default: true }
+            timeoutMs: { type: integer, minimum: 1000, maximum: 300000, default: 60000 }
+            tools: { type: array, items: { type: string, minLength: 1 } }
+            url: { type: string, description: "HTTP(S) URL without embedded credentials." }
+            headers: { type: object, additionalProperties: { type: string }, default: {} }
         - type: object
           additionalProperties: false
           required: [id, transport, command]
           properties:
-            id: {type: string, pattern: '^[A-Za-z0-9_-]{1,32}$'}
-            transport: {type: string, enum: [stdio]}
-            enabled: {type: boolean, default: true}
-            timeoutMs: {type: integer, minimum: 1000, maximum: 300000, default: 60000}
-            tools: {type: array, items: {type: string, minLength: 1}}
-            command: {type: string, minLength: 1}
-            args: {type: array, items: {type: string}, default: []}
-            env: {type: object, additionalProperties: {type: string}, default: {}}
-    AgentRequest: {type: object, required: [shared, name, description, workingDirMode, workingDir, mounts, systemPrompt, promptTemplates, permissions, defaultModelRefId, defaultThinkingLevel], additionalProperties: false, properties: {shared: {type: boolean}, name: {type: string}, description: {type: string}, workingDirMode: {type: string, enum: [default, manual]}, workingDir: {type: string}, defaultWorkingDir: {type: string}, mounts: {type: array, items: {type: object, additionalProperties: true}}, systemPrompt: {type: string}, promptTemplates: {type: array, items: {type: object, additionalProperties: true}}, permissions: {type: object, additionalProperties: {type: boolean}}, codemodeEnabled: {type: boolean, default: false}, defaultModelRefId: {type: string}, mcpServers: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/McpServer'}}, defaultThinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}}}
-    AgentConfig: {type: object, required: [id, ownerUserId, shared, name, description, workingDirMode, workingDir, mounts, systemPrompt, promptTemplates, permissions, defaultModelRefId, defaultThinkingLevel, createdAt, updatedAt], additionalProperties: false, properties: {id: {type: string}, ownerUserId: {type: string}, shared: {type: boolean}, name: {type: string}, description: {type: string}, workingDirMode: {type: string, enum: [default, manual]}, workingDir: {type: string}, defaultWorkingDir: {type: string}, mounts: {type: array, items: {type: object, additionalProperties: true}}, systemPrompt: {type: string}, promptTemplates: {type: array, items: {type: object, additionalProperties: true}}, permissions: {type: object, additionalProperties: {type: boolean}}, codemodeEnabled: {type: boolean, default: false}, defaultModelRefId: {type: string}, mcpServers: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/McpServer'}}, defaultThinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, createdAt: {type: number}, updatedAt: {type: number}}}
-    AgentRunRequest: {type: object, additionalProperties: false, properties: {sessionId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, promptInput: {type: object, required: [text], properties: {text: {type: string}, images: {type: array, maxItems: 10, items: {type: object, required: [type, data, mimeType], properties: {type: {type: string, enum: [image]}, data: {type: string}, mimeType: {type: string}}}}}}}}
-    SessionDraftRequest: {type: object, required: [agentId, modelRefId], additionalProperties: false, properties: {agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, title: {type: string}}}
-    SessionPatchRequest: {type: object, additionalProperties: false, properties: {title: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, pinnedAt: {type: number, nullable: true}, archivedAt: {type: number, nullable: true}, taskId: {type: string, nullable: true, enum: [null]}}}
-    MessageEditRequest: {type: object, required: [content], additionalProperties: false, properties: {content: {type: string}, truncate: {type: boolean}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, removedImageIndexes: {type: array, items: {type: integer, minimum: 0}}}}
-    SessionMetadata: {type: object, required: [id, title, userId, agentId, modelRefId, thinkingLevel, revision, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, title: {type: string}, userId: {type: string}, agentId: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, revision: {type: integer}, pinnedAt: {type: number}, archivedAt: {type: number}, taskId: {type: string}, issueId: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
-    Session: {allOf: [{$ref: '#/components/schemas/SessionMetadata'}, {type: object, required: [messages, messageEntryIds], properties: {messages: {type: array, items: {type: object, additionalProperties: true}}, messageEntryIds: {type: array, items: {type: string}}}}]}
-    SessionConnection: {type: object, required: [session, activeRun], properties: {session: {$ref: '#/components/schemas/Session'}, activeRun: {nullable: true, type: object, required: [runId, sessionId, eventCursor], properties: {runId: {type: string}, sessionId: {type: string}, eventCursor: {type: integer}}}}}
-    FileEntry: {type: object, required: [name, path, type, updatedAt, hidden], properties: {name: {type: string}, path: {type: string}, type: {type: string, enum: [file, directory]}, size: {type: number}, updatedAt: {type: number}, hidden: {type: boolean}}}
-    GitChange: {type: object, required: [path, area, kind], properties: {path: {type: string}, originalPath: {type: string}, workspacePath: {type: string}, area: {type: string, enum: [staged, unstaged, untracked, conflicted]}, kind: {type: string, enum: [added, modified, deleted, renamed, copied, type_changed, untracked, conflicted]}}}
-    GitStatus: {type: object, required: [repository], properties: {repository: {type: boolean}, branch: {type: string}, head: {type: string}, ahead: {type: integer}, behind: {type: integer}, changes: {type: array, items: {$ref: '#/components/schemas/GitChange'}}, truncated: {type: boolean}}}
-    GitDiffSide: {type: object, required: [kind], properties: {kind: {type: string, enum: [text, absent, binary, too_large]}, text: {type: string}, bytes: {type: integer}}}
-    GitFileDiff: {type: object, required: [path, area, original, modified], properties: {path: {type: string}, originalPath: {type: string}, area: {type: string, enum: [staged, unstaged, untracked, conflicted]}, original: {$ref: '#/components/schemas/GitDiffSide'}, modified: {$ref: '#/components/schemas/GitDiffSide'}}}
-    FileList: {type: object, required: [path, entries], properties: {path: {type: string}, entries: {type: array, items: {$ref: '#/components/schemas/FileEntry'}}}}
-    FileContent: {type: object, required: [path, content, updatedAt], properties: {path: {type: string}, content: {type: string}, updatedAt: {type: number}}}
-    FileBatchRequest: {type: object, required: [operation, paths], additionalProperties: false, properties: {operation: {type: string, enum: [delete, move, copy]}, paths: {type: array, minItems: 1, maxItems: 500, items: {type: string}}, destination: {type: string}}}
-    FileBatchResult: {type: object, required: [completed, failed], properties: {completed: {type: array, items: {type: string}}, failed: {type: array, items: {type: object, required: [path, error], properties: {path: {type: string}, error: {type: string}}}}}}
-    TaskWrite: {type: object, additionalProperties: false, properties: {name: {type: string}, prompt: {type: string}, modelRefId: {type: string}, thinkingLevel: {$ref: '#/components/schemas/ThinkingLevel'}, scheduleKind: {type: string, enum: [cron, interval, once]}, scheduleValue: {type: string}, timezone: {type: string}, status: {type: string, enum: [active, paused]}}}
-    AgentSecretRequest: {type: object, required: [value], additionalProperties: false, properties: {value: {type: string, minLength: 1, maxLength: 8192}}}
-    ApiKeyCreateRequest: {type: object, required: [name], additionalProperties: false, properties: {name: {type: string, minLength: 1, maxLength: 100}}}
-    ApiKey: {type: object, required: [id, name, prefix, createdAt], additionalProperties: false, properties: {id: {type: string}, name: {type: string}, prefix: {type: string}, lastUsedAt: {type: number}, createdAt: {type: number}}}
-    ApiKeyCreated: {type: object, required: [id, name, prefix, createdAt, key], additionalProperties: false, properties: {id: {type: string}, name: {type: string}, prefix: {type: string}, lastUsedAt: {type: number}, createdAt: {type: number}, key: {type: string}}}
-    AgentSecret: {type: object, required: [agentId, name, updatedAt], additionalProperties: false, properties: {agentId: {type: string}, name: {type: string}, updatedAt: {type: number}}}
-    AgentTask: {type: object, required: [id, agentId, userId, name, prompt, scheduleKind, scheduleValue, status, createdAt, updatedAt], additionalProperties: true, properties: {id: {type: string}, agentId: {type: string}, userId: {type: string}, name: {type: string}, prompt: {type: string}, scheduleKind: {type: string}, scheduleValue: {type: string}, status: {type: string}, createdAt: {type: number}, updatedAt: {type: number}}}
-    IssueCreateRequest: {"type":"object","properties":{"title":{"type":"string","minLength":1,"maxLength":200},"description":{"type":"string","maxLength":40000},"criteria":{"maxItems":50,"type":"array","items":{"type":"string","minLength":1,"maxLength":2000}},"priority":{"type":"string","enum":["low","normal","high","urgent"]},"status":{"type":"string","enum":["backlog","todo"]},"queue":{"type":"boolean"}},"required":["title","description"],"additionalProperties":false}
-    IssuePatchRequest: {"type":"object","properties":{"title":{"type":"string","minLength":1,"maxLength":200},"description":{"type":"string","maxLength":40000},"criteria":{"maxItems":50,"type":"array","items":{"type":"string","minLength":1,"maxLength":2000}},"priority":{"type":"string","enum":["low","normal","high","urgent"]},"status":{"type":"string","enum":["backlog","todo"]}},"additionalProperties":false}
-    Issue: {"type":"object","additionalProperties":false,"required":["id","agentId","userId","title","description","criteria","priority","status","running","createdAt","updatedAt"],"properties":{"id":{"type":"string"},"agentId":{"type":"string"},"userId":{"type":"string"},"sessionId":{"type":"string"},"title":{"type":"string"},"description":{"type":"string"},"lastRunDetail":{"type":"string"},"verdictSummary":{"type":"string"},"criteria":{"type":"array","maxItems":50,"items":{"type":"string","minLength":1,"maxLength":2000}},"priority":{"type":"string","enum":["low","normal","high","urgent"]},"status":{"type":"string","enum":["backlog","todo","queued","in_progress","needs_input","blocked","in_review","done","cancelled"]},"running":{"type":"boolean"},"lastRunOutcome":{"type":"string","enum":["succeeded","failed","cancelled","interrupted"]},"verdict":{"type":"string","enum":["done","needs_input","blocked"]},"closedAt":{"type":"number"},"createdAt":{"type":"number"},"updatedAt":{"type":"number"},"queuePosition":{"type":"number"},"queuedInstructions":{"type":"string"}}}
-    BootstrapPayload: {type: object, required: [users, agents, providerConfigs, modelRefs, modelCatalog, sessions], properties: {users: {type: array, items: {$ref: '#/components/schemas/User'}}, agents: {type: array, items: {$ref: '#/components/schemas/AgentConfig'}}, providerConfigs: {type: array, items: {$ref: '#/components/schemas/ProviderConfig'}}, modelRefs: {type: array, items: {$ref: '#/components/schemas/ModelRef'}}, modelCatalog: {type: object, additionalProperties: true}, sessions: {type: array, items: {$ref: '#/components/schemas/SessionMetadata'}}}}
+            id: { type: string, pattern: "^[A-Za-z0-9_-]{1,32}$" }
+            transport: { type: string, enum: [stdio] }
+            enabled: { type: boolean, default: true }
+            timeoutMs: { type: integer, minimum: 1000, maximum: 300000, default: 60000 }
+            tools: { type: array, items: { type: string, minLength: 1 } }
+            command: { type: string, minLength: 1 }
+            args: { type: array, items: { type: string }, default: [] }
+            env: { type: object, additionalProperties: { type: string }, default: {} }
+    AgentRequest:
+      {
+        type: object,
+        required:
+          [
+            shared,
+            name,
+            description,
+            workingDirMode,
+            workingDir,
+            mounts,
+            systemPrompt,
+            promptTemplates,
+            permissions,
+            defaultModelRefId,
+            defaultThinkingLevel,
+          ],
+        additionalProperties: false,
+        properties:
+          {
+            shared: { type: boolean },
+            name: { type: string },
+            description: { type: string },
+            workingDirMode: { type: string, enum: [default, manual] },
+            workingDir: { type: string },
+            defaultWorkingDir: { type: string },
+            mounts: { type: array, items: { type: object, additionalProperties: true } },
+            systemPrompt: { type: string },
+            promptTemplates: { type: array, items: { type: object, additionalProperties: true } },
+            permissions: { type: object, additionalProperties: { type: boolean } },
+            codemodeEnabled: { type: boolean, default: false },
+            defaultModelRefId: { type: string },
+            mcpServers:
+              { type: array, maxItems: 20, items: { $ref: "#/components/schemas/McpServer" } },
+            defaultThinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
+          },
+      }
+    AgentConfig:
+      {
+        type: object,
+        required:
+          [
+            id,
+            ownerUserId,
+            shared,
+            name,
+            description,
+            workingDirMode,
+            workingDir,
+            mounts,
+            systemPrompt,
+            promptTemplates,
+            permissions,
+            defaultModelRefId,
+            defaultThinkingLevel,
+            createdAt,
+            updatedAt,
+          ],
+        additionalProperties: false,
+        properties:
+          {
+            id: { type: string },
+            ownerUserId: { type: string },
+            shared: { type: boolean },
+            name: { type: string },
+            description: { type: string },
+            workingDirMode: { type: string, enum: [default, manual] },
+            workingDir: { type: string },
+            defaultWorkingDir: { type: string },
+            mounts: { type: array, items: { type: object, additionalProperties: true } },
+            systemPrompt: { type: string },
+            promptTemplates: { type: array, items: { type: object, additionalProperties: true } },
+            permissions: { type: object, additionalProperties: { type: boolean } },
+            codemodeEnabled: { type: boolean, default: false },
+            defaultModelRefId: { type: string },
+            mcpServers:
+              { type: array, maxItems: 20, items: { $ref: "#/components/schemas/McpServer" } },
+            defaultThinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
+            createdAt: { type: number },
+            updatedAt: { type: number },
+          },
+      }
+    AgentRunRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        properties:
+          {
+            sessionId: { type: string },
+            modelRefId: { type: string },
+            thinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
+            promptInput:
+              {
+                type: object,
+                required: [text],
+                properties:
+                  {
+                    text: { type: string },
+                    images:
+                      {
+                        type: array,
+                        maxItems: 10,
+                        items:
+                          {
+                            type: object,
+                            required: [type, data, mimeType],
+                            properties:
+                              {
+                                type: { type: string, enum: [image] },
+                                data: { type: string },
+                                mimeType: { type: string },
+                              },
+                          },
+                      },
+                  },
+              },
+          },
+      }
+    SessionDraftRequest:
+      {
+        type: object,
+        required: [agentId, modelRefId],
+        additionalProperties: false,
+        properties:
+          {
+            agentId: { type: string },
+            modelRefId: { type: string },
+            thinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
+            title: { type: string },
+          },
+      }
+    SessionPatchRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        properties:
+          {
+            title: { type: string },
+            modelRefId: { type: string },
+            thinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
+            pinnedAt: { type: number, nullable: true },
+            archivedAt: { type: number, nullable: true },
+            taskId: { type: string, nullable: true, enum: [null] },
+          },
+      }
+    MessageEditRequest:
+      {
+        type: object,
+        required: [content],
+        additionalProperties: false,
+        properties:
+          {
+            content: { type: string },
+            truncate: { type: boolean },
+            thinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
+            removedImageIndexes: { type: array, items: { type: integer, minimum: 0 } },
+          },
+      }
+    SessionMetadata:
+      {
+        type: object,
+        required:
+          [id, title, userId, agentId, modelRefId, thinkingLevel, revision, createdAt, updatedAt],
+        additionalProperties: true,
+        properties:
+          {
+            id: { type: string },
+            title: { type: string },
+            userId: { type: string },
+            agentId: { type: string },
+            modelRefId: { type: string },
+            thinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
+            revision: { type: integer },
+            pinnedAt: { type: number },
+            archivedAt: { type: number },
+            taskId: { type: string },
+            issueId: { type: string },
+            createdAt: { type: number },
+            updatedAt: { type: number },
+          },
+      }
+    Session:
+      {
+        allOf:
+          [
+            { $ref: "#/components/schemas/SessionMetadata" },
+            {
+              type: object,
+              required: [messages, messageEntryIds],
+              properties:
+                {
+                  messages: { type: array, items: { type: object, additionalProperties: true } },
+                  messageEntryIds: { type: array, items: { type: string } },
+                },
+            },
+          ],
+      }
+    SessionConnection:
+      {
+        type: object,
+        required: [session, activeRun],
+        properties:
+          {
+            session: { $ref: "#/components/schemas/Session" },
+            activeRun:
+              {
+                nullable: true,
+                type: object,
+                required: [runId, sessionId, eventCursor],
+                properties:
+                  {
+                    runId: { type: string },
+                    sessionId: { type: string },
+                    eventCursor: { type: integer },
+                  },
+              },
+          },
+      }
+    FileEntry:
+      {
+        type: object,
+        required: [name, path, type, updatedAt, hidden],
+        properties:
+          {
+            name: { type: string },
+            path: { type: string },
+            type: { type: string, enum: [file, directory] },
+            size: { type: number },
+            updatedAt: { type: number },
+            hidden: { type: boolean },
+          },
+      }
+    GitChange:
+      {
+        type: object,
+        required: [path, area, kind],
+        properties:
+          {
+            path: { type: string },
+            originalPath: { type: string },
+            workspacePath: { type: string },
+            area: { type: string, enum: [staged, unstaged, untracked, conflicted] },
+            kind:
+              {
+                type: string,
+                enum:
+                  [added, modified, deleted, renamed, copied, type_changed, untracked, conflicted],
+              },
+          },
+      }
+    GitStatus:
+      {
+        type: object,
+        required: [repository],
+        properties:
+          {
+            repository: { type: boolean },
+            branch: { type: string },
+            head: { type: string },
+            ahead: { type: integer },
+            behind: { type: integer },
+            changes: { type: array, items: { $ref: "#/components/schemas/GitChange" } },
+            truncated: { type: boolean },
+          },
+      }
+    GitDiffSide:
+      {
+        type: object,
+        required: [kind],
+        properties:
+          {
+            kind: { type: string, enum: [text, absent, binary, too_large] },
+            text: { type: string },
+            bytes: { type: integer },
+          },
+      }
+    GitFileDiff:
+      {
+        type: object,
+        required: [path, area, original, modified],
+        properties:
+          {
+            path: { type: string },
+            originalPath: { type: string },
+            area: { type: string, enum: [staged, unstaged, untracked, conflicted] },
+            original: { $ref: "#/components/schemas/GitDiffSide" },
+            modified: { $ref: "#/components/schemas/GitDiffSide" },
+          },
+      }
+    FileList:
+      {
+        type: object,
+        required: [path, entries],
+        properties:
+          {
+            path: { type: string },
+            entries: { type: array, items: { $ref: "#/components/schemas/FileEntry" } },
+          },
+      }
+    FileContent:
+      {
+        type: object,
+        required: [path, content, updatedAt],
+        properties:
+          { path: { type: string }, content: { type: string }, updatedAt: { type: number } },
+      }
+    FileBatchRequest:
+      {
+        type: object,
+        required: [operation, paths],
+        additionalProperties: false,
+        properties:
+          {
+            operation: { type: string, enum: [delete, move, copy] },
+            paths: { type: array, minItems: 1, maxItems: 500, items: { type: string } },
+            destination: { type: string },
+          },
+      }
+    FileBatchResult:
+      {
+        type: object,
+        required: [completed, failed],
+        properties:
+          {
+            completed: { type: array, items: { type: string } },
+            failed:
+              {
+                type: array,
+                items:
+                  {
+                    type: object,
+                    required: [path, error],
+                    properties: { path: { type: string }, error: { type: string } },
+                  },
+              },
+          },
+      }
+    TaskWrite:
+      {
+        type: object,
+        additionalProperties: false,
+        properties:
+          {
+            name: { type: string },
+            prompt: { type: string },
+            modelRefId: { type: string },
+            thinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
+            scheduleKind: { type: string, enum: [cron, interval, once] },
+            scheduleValue: { type: string },
+            timezone: { type: string },
+            status: { type: string, enum: [active, paused] },
+          },
+      }
+    AgentSecretRequest:
+      {
+        type: object,
+        required: [value],
+        additionalProperties: false,
+        properties: { value: { type: string, minLength: 1, maxLength: 8192 } },
+      }
+    ApiKeyCreateRequest:
+      {
+        type: object,
+        required: [name],
+        additionalProperties: false,
+        properties: { name: { type: string, minLength: 1, maxLength: 100 } },
+      }
+    ApiKey:
+      {
+        type: object,
+        required: [id, name, prefix, createdAt],
+        additionalProperties: false,
+        properties:
+          {
+            id: { type: string },
+            name: { type: string },
+            prefix: { type: string },
+            lastUsedAt: { type: number },
+            createdAt: { type: number },
+          },
+      }
+    ApiKeyCreated:
+      {
+        type: object,
+        required: [id, name, prefix, createdAt, key],
+        additionalProperties: false,
+        properties:
+          {
+            id: { type: string },
+            name: { type: string },
+            prefix: { type: string },
+            lastUsedAt: { type: number },
+            createdAt: { type: number },
+            key: { type: string },
+          },
+      }
+    AgentSecret:
+      {
+        type: object,
+        required: [agentId, name, updatedAt],
+        additionalProperties: false,
+        properties:
+          { agentId: { type: string }, name: { type: string }, updatedAt: { type: number } },
+      }
+    AgentTask:
+      {
+        type: object,
+        required:
+          [
+            id,
+            agentId,
+            userId,
+            name,
+            prompt,
+            scheduleKind,
+            scheduleValue,
+            status,
+            createdAt,
+            updatedAt,
+          ],
+        additionalProperties: true,
+        properties:
+          {
+            id: { type: string },
+            agentId: { type: string },
+            userId: { type: string },
+            name: { type: string },
+            prompt: { type: string },
+            scheduleKind: { type: string },
+            scheduleValue: { type: string },
+            status: { type: string },
+            createdAt: { type: number },
+            updatedAt: { type: number },
+          },
+      }
+    IssueCreateRequest:
+      {
+        "type": "object",
+        "properties":
+          {
+            "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "description": { "type": "string", "maxLength": 40000 },
+            "criteria":
+              {
+                "maxItems": 50,
+                "type": "array",
+                "items": { "type": "string", "minLength": 1, "maxLength": 2000 },
+              },
+            "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
+            "status": { "type": "string", "enum": ["backlog", "todo"] },
+            "queue": { "type": "boolean" },
+          },
+        "required": ["title", "description"],
+        "additionalProperties": false,
+      }
+    IssuePatchRequest:
+      {
+        "type": "object",
+        "properties":
+          {
+            "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "description": { "type": "string", "maxLength": 40000 },
+            "criteria":
+              {
+                "maxItems": 50,
+                "type": "array",
+                "items": { "type": "string", "minLength": 1, "maxLength": 2000 },
+              },
+            "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
+            "status": { "type": "string", "enum": ["backlog", "todo"] },
+          },
+        "additionalProperties": false,
+      }
+    Issue:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required":
+          [
+            "id",
+            "agentId",
+            "userId",
+            "title",
+            "description",
+            "criteria",
+            "priority",
+            "status",
+            "running",
+            "createdAt",
+            "updatedAt",
+          ],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "agentId": { "type": "string" },
+            "userId": { "type": "string" },
+            "sessionId": { "type": "string" },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "lastRunDetail": { "type": "string" },
+            "verdictSummary": { "type": "string" },
+            "criteria":
+              {
+                "type": "array",
+                "maxItems": 50,
+                "items": { "type": "string", "minLength": 1, "maxLength": 2000 },
+              },
+            "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
+            "status":
+              {
+                "type": "string",
+                "enum":
+                  [
+                    "backlog",
+                    "todo",
+                    "queued",
+                    "in_progress",
+                    "needs_input",
+                    "blocked",
+                    "in_review",
+                    "done",
+                    "cancelled",
+                  ],
+              },
+            "running": { "type": "boolean" },
+            "lastRunOutcome":
+              { "type": "string", "enum": ["succeeded", "failed", "cancelled", "interrupted"] },
+            "verdict": { "type": "string", "enum": ["done", "needs_input", "blocked"] },
+            "closedAt": { "type": "number" },
+            "createdAt": { "type": "number" },
+            "updatedAt": { "type": "number" },
+            "queuePosition": { "type": "number" },
+            "queuedInstructions": { "type": "string" },
+          },
+      }
+    BootstrapPayload:
+      {
+        type: object,
+        required: [users, agents, providerConfigs, modelRefs, modelCatalog, sessions],
+        properties:
+          {
+            users: { type: array, items: { $ref: "#/components/schemas/User" } },
+            agents: { type: array, items: { $ref: "#/components/schemas/AgentConfig" } },
+            providerConfigs:
+              { type: array, items: { $ref: "#/components/schemas/ProviderConfig" } },
+            modelRefs: { type: array, items: { $ref: "#/components/schemas/ModelRef" } },
+            modelCatalog: { type: object, additionalProperties: true },
+            sessions: { type: array, items: { $ref: "#/components/schemas/SessionMetadata" } },
+          },
+      }
 
-    IssueQueueMoveRequest: {"type":"object","additionalProperties":false,"required":["direction"],"properties":{"direction":{"type":"string","enum":["up","down"]}}}
-    IssueRunRequest: {"type":"object","properties":{"instructions":{"type":"string","maxLength":20000},"modelRefId":{"type":"string"},"thinkingLevel":{"type":"string","enum":["off","minimal","low","medium","high","xhigh","max"]},"fresh":{"type":"boolean"}},"additionalProperties":false}
+    IssueQueueMoveRequest:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["direction"],
+        "properties": { "direction": { "type": "string", "enum": ["up", "down"] } },
+      }
+    IssueRunRequest:
+      {
+        "type": "object",
+        "properties":
+          {
+            "instructions": { "type": "string", "maxLength": 20000 },
+            "modelRefId": { "type": "string" },
+            "thinkingLevel":
+              {
+                "type": "string",
+                "enum": ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+              },
+            "fresh": { "type": "boolean" },
+          },
+        "additionalProperties": false,
+      }
 
-    IssueNoteRequest: {"type":"object","properties":{"body":{"type":"string","minLength":1,"maxLength":20000}},"required":["body"],"additionalProperties":false}
+    IssueNoteRequest:
+      {
+        "type": "object",
+        "properties": { "body": { "type": "string", "minLength": 1, "maxLength": 20000 } },
+        "required": ["body"],
+        "additionalProperties": false,
+      }
 
-    IssueAttempt: {"type":"object","additionalProperties":false,"required":["id","issueId","instructions","brief","sessionId","summary","evidence","outcome","createdAt","finishedAt"],"properties":{"id":{"type":"string"},"issueId":{"type":"string"},"instructions":{"type":"string"},"brief":{"type":"string"},"sessionId":{"type":"string","nullable":true},"summary":{"type":"string","nullable":true},"evidence":{"type":"string","nullable":true},"outcome":{"type":"string","enum":["running","succeeded","failed","cancelled","interrupted"]},"createdAt":{"type":"number"},"finishedAt":{"type":"number","nullable":true},"snapshot":{"type":"object","nullable":true,"required":["files","capturedAt"],"additionalProperties":false,"properties":{"capturedAt":{"type":"number"},"warning":{"type":"string"},"files":{"type":"array","items":{"type":"object","required":["path","change","before","after"],"additionalProperties":false,"properties":{"path":{"type":"string"},"change":{"type":"string","enum":["added","modified","deleted"]},"before":{"type":"string","nullable":true},"after":{"type":"string","nullable":true},"omitted":{"type":"boolean"}}}}}}}}
+    IssueAttempt:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required":
+          [
+            "id",
+            "issueId",
+            "instructions",
+            "brief",
+            "sessionId",
+            "summary",
+            "evidence",
+            "outcome",
+            "createdAt",
+            "finishedAt",
+          ],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "issueId": { "type": "string" },
+            "instructions": { "type": "string" },
+            "brief": { "type": "string" },
+            "sessionId": { "type": "string", "nullable": true },
+            "summary": { "type": "string", "nullable": true },
+            "evidence": { "type": "string", "nullable": true },
+            "outcome":
+              {
+                "type": "string",
+                "enum": ["running", "succeeded", "failed", "cancelled", "interrupted"],
+              },
+            "createdAt": { "type": "number" },
+            "finishedAt": { "type": "number", "nullable": true },
+            "snapshot":
+              {
+                "type": "object",
+                "nullable": true,
+                "required": ["files", "capturedAt"],
+                "additionalProperties": false,
+                "properties":
+                  {
+                    "capturedAt": { "type": "number" },
+                    "warning": { "type": "string" },
+                    "files":
+                      {
+                        "type": "array",
+                        "items":
+                          {
+                            "type": "object",
+                            "required": ["path", "change", "before", "after"],
+                            "additionalProperties": false,
+                            "properties":
+                              {
+                                "path": { "type": "string" },
+                                "change":
+                                  { "type": "string", "enum": ["added", "modified", "deleted"] },
+                                "before": { "type": "string", "nullable": true },
+                                "after": { "type": "string", "nullable": true },
+                                "omitted": { "type": "boolean" },
+                              },
+                          },
+                      },
+                  },
+              },
+          },
+      }
 
-    IssueDetail: {"type":"object","additionalProperties":false,"required":["id","agentId","userId","title","description","criteria","priority","status","running","createdAt","updatedAt","attempts","notes"],"properties":{"id":{"type":"string"},"agentId":{"type":"string"},"userId":{"type":"string"},"sessionId":{"type":"string"},"title":{"type":"string"},"description":{"type":"string"},"lastRunDetail":{"type":"string"},"verdictSummary":{"type":"string"},"criteria":{"type":"array","maxItems":50,"items":{"type":"string","minLength":1,"maxLength":2000}},"priority":{"type":"string","enum":["low","normal","high","urgent"]},"status":{"type":"string","enum":["backlog","todo","queued","in_progress","needs_input","blocked","in_review","done","cancelled"]},"running":{"type":"boolean"},"lastRunOutcome":{"type":"string","enum":["succeeded","failed","cancelled","interrupted"]},"verdict":{"type":"string","enum":["done","needs_input","blocked"]},"closedAt":{"type":"number"},"createdAt":{"type":"number"},"updatedAt":{"type":"number"},"attempts":{"type":"array","items":{"$ref":"#/components/schemas/IssueAttempt"}},"notes":{"type":"array","items":{"$ref":"#/components/schemas/IssueNote"}},"queuePosition":{"type":"number"},"queuedInstructions":{"type":"string"}}}
+    IssueDetail:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required":
+          [
+            "id",
+            "agentId",
+            "userId",
+            "title",
+            "description",
+            "criteria",
+            "priority",
+            "status",
+            "running",
+            "createdAt",
+            "updatedAt",
+            "attempts",
+            "notes",
+          ],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "agentId": { "type": "string" },
+            "userId": { "type": "string" },
+            "sessionId": { "type": "string" },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "lastRunDetail": { "type": "string" },
+            "verdictSummary": { "type": "string" },
+            "criteria":
+              {
+                "type": "array",
+                "maxItems": 50,
+                "items": { "type": "string", "minLength": 1, "maxLength": 2000 },
+              },
+            "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
+            "status":
+              {
+                "type": "string",
+                "enum":
+                  [
+                    "backlog",
+                    "todo",
+                    "queued",
+                    "in_progress",
+                    "needs_input",
+                    "blocked",
+                    "in_review",
+                    "done",
+                    "cancelled",
+                  ],
+              },
+            "running": { "type": "boolean" },
+            "lastRunOutcome":
+              { "type": "string", "enum": ["succeeded", "failed", "cancelled", "interrupted"] },
+            "verdict": { "type": "string", "enum": ["done", "needs_input", "blocked"] },
+            "closedAt": { "type": "number" },
+            "createdAt": { "type": "number" },
+            "updatedAt": { "type": "number" },
+            "attempts":
+              { "type": "array", "items": { "$ref": "#/components/schemas/IssueAttempt" } },
+            "notes": { "type": "array", "items": { "$ref": "#/components/schemas/IssueNote" } },
+            "queuePosition": { "type": "number" },
+            "queuedInstructions": { "type": "string" },
+          },
+      }
 
-    IssueNote: {"type":"object","additionalProperties":false,"required":["id","issueId","body","kind","createdAt"],"properties":{"id":{"type":"string"},"issueId":{"type":"string"},"body":{"type":"string"},"kind":{"type":"string","enum":["note","action","result"]},"createdAt":{"type":"number"},"delivery":{"type":"string","nullable":true,"enum":["queued","delivered","not_delivered",null]},"entryId":{"type":"string","nullable":true}}}
+    IssueNote:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "issueId", "body", "kind", "createdAt"],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "issueId": { "type": "string" },
+            "body": { "type": "string" },
+            "kind": { "type": "string", "enum": ["note", "action", "result"] },
+            "createdAt": { "type": "number" },
+            "delivery":
+              {
+                "type": "string",
+                "nullable": true,
+                "enum": ["queued", "delivered", "not_delivered", null],
+              },
+            "entryId": { "type": "string", "nullable": true },
+          },
+      }

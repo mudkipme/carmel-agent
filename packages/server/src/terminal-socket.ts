@@ -38,8 +38,10 @@ export function attachTerminalSocket(server: Server) {
     // server-side check. Validate the origin here or a page on another site
     // could open a shell with the visitor's cookie.
     const origin = request.headers.origin;
-    const host = (request.headers["x-forwarded-host"] as string | undefined) ?? request.headers.host;
-    if (origin && !isAllowedBrowserOrigin(origin, host)) return rejectUpgrade(socket, 403, "Forbidden");
+    const host =
+      (request.headers["x-forwarded-host"] as string | undefined) ?? request.headers.host;
+    if (origin && !isAllowedBrowserOrigin(origin, host))
+      return rejectUpgrade(socket, 403, "Forbidden");
 
     const user = readAuthenticatedUser(readSessionCookie(request.headers.cookie));
     if (!user) return rejectUpgrade(socket, 401, "Unauthorized");
@@ -116,7 +118,8 @@ async function openTerminal(
 function parseMessage(raw: string): ClientMessage | undefined {
   try {
     const parsed = JSON.parse(raw) as Partial<ClientMessage>;
-    if (parsed.type === "input" && typeof parsed.data === "string") return { type: "input", data: parsed.data };
+    if (parsed.type === "input" && typeof parsed.data === "string")
+      return { type: "input", data: parsed.data };
     if (parsed.type === "resize" && Number.isFinite(parsed.rows) && Number.isFinite(parsed.cols)) {
       return { type: "resize", rows: Number(parsed.rows), cols: Number(parsed.cols) };
     }

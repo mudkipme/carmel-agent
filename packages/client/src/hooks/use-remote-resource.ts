@@ -21,9 +21,7 @@ export function useRemoteResource<T>({
   const [state, setState] = useState<ResourceState<T>>({ key });
   const options = useRef({ load, pollInterval });
   options.current = { load, pollInterval };
-  const loader = useRef<ReturnType<typeof createResourceLoader<T>> | undefined>(
-    undefined,
-  );
+  const loader = useRef<ReturnType<typeof createResourceLoader<T>> | undefined>(undefined);
   const refresh = useCallback(
     () => loader.current?.refresh(true) ?? Promise.resolve(undefined),
     [],

@@ -7,7 +7,10 @@ import type { AgentRunEvent } from "./index.ts";
 // rather than only in the client -- it is what the server's protocol tests
 // reassemble with.
 
-type StreamingEvent = Extract<AgentRunEvent, { type: "message_start" | "message_delta" | "message_part" }>;
+type StreamingEvent = Extract<
+  AgentRunEvent,
+  { type: "message_start" | "message_delta" | "message_part" }
+>;
 
 /**
  * Fold one streaming event into the message being received, returning the new
@@ -36,7 +39,9 @@ export function applyStreamingEvent(
   const existing = content[event.contentIndex];
   if (event.field === "text") {
     content[event.contentIndex] =
-      existing?.type === "text" ? { ...existing, text: existing.text + event.delta } : { type: "text", text: event.delta };
+      existing?.type === "text"
+        ? { ...existing, text: existing.text + event.delta }
+        : { type: "text", text: event.delta };
   } else {
     content[event.contentIndex] =
       existing?.type === "thinking"
@@ -47,7 +52,11 @@ export function applyStreamingEvent(
 }
 
 export function isStreamingEvent(event: AgentRunEvent): event is StreamingEvent {
-  return event.type === "message_start" || event.type === "message_delta" || event.type === "message_part";
+  return (
+    event.type === "message_start" ||
+    event.type === "message_delta" ||
+    event.type === "message_part"
+  );
 }
 
 /**

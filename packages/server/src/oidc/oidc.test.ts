@@ -38,7 +38,9 @@ function profile(overrides: Partial<OidcProfile> = {}): OidcProfile {
   };
 }
 
-function insertUser(values: { username?: string; email?: string; password?: string; role?: "admin" | "user" } = {}) {
+function insertUser(
+  values: { username?: string; email?: string; password?: string; role?: "admin" | "user" } = {},
+) {
   const userId = id("user");
   const timestamp = now();
   db.insert(users)
@@ -68,22 +70,36 @@ test("OIDC is off without an issuer, and on with sensible Pocket ID-friendly def
   const parsed = config();
   assert.equal(parsed.redirectUri, "https://carmel.example.test/api/auth/oidc/callback");
   assert.deepEqual(parsed.scopes, ["openid", "profile", "email"]);
-  assert.deepEqual(parsed.claims, { username: "preferred_username", email: "email", name: "name", groups: "groups" });
+  assert.deepEqual(parsed.claims, {
+    username: "preferred_username",
+    email: "email",
+    name: "name",
+    groups: "groups",
+  });
   assert.deepEqual(parsed.matchBy, ["email", "username"]);
   assert.equal(parsed.requireVerifiedEmail, true);
   assert.equal(parsed.autoCreate, true);
 });
 
 test("group settings request the groups scope unless scopes are set explicitly", () => {
-  assert.deepEqual(config({ CARMEL_OIDC_ADMIN_GROUPS: "carmel-admins" }).scopes, ["openid", "profile", "email", "groups"]);
+  assert.deepEqual(config({ CARMEL_OIDC_ADMIN_GROUPS: "carmel-admins" }).scopes, [
+    "openid",
+    "profile",
+    "email",
+    "groups",
+  ]);
   assert.deepEqual(
-    config({ CARMEL_OIDC_ADMIN_GROUPS: "carmel-admins", CARMEL_OIDC_SCOPES: "openid email" }).scopes,
+    config({ CARMEL_OIDC_ADMIN_GROUPS: "carmel-admins", CARMEL_OIDC_SCOPES: "openid email" })
+      .scopes,
     ["openid", "email"],
   );
 });
 
 test("match fields parse in priority order and reject unknown values", () => {
-  assert.deepEqual(config({ CARMEL_OIDC_MATCH_BY: "email, username" }).matchBy, ["email", "username"]);
+  assert.deepEqual(config({ CARMEL_OIDC_MATCH_BY: "email, username" }).matchBy, [
+    "email",
+    "username",
+  ]);
   assert.deepEqual(config({ CARMEL_OIDC_MATCH_BY: "none" }).matchBy, []);
   assert.throws(() => config({ CARMEL_OIDC_MATCH_BY: "sub" }), /CARMEL_OIDC_MATCH_BY/);
 });
@@ -100,7 +116,10 @@ test("misconfiguration names the variable at fault", () => {
   assert.throws(() => readOidcConfig({ ...baseEnv, CARMEL_PUBLIC_URL: "" }), /CARMEL_PUBLIC_URL/);
   assert.throws(() => config({ CARMEL_OIDC_AUTO_CREATE: "maybe" }), /CARMEL_OIDC_AUTO_CREATE/);
   assert.throws(() => config({ CARMEL_OIDC_SCOPES: "profile email" }), /openid/);
-  assert.throws(() => assertOidcConfig({ CARMEL_PASSWORD_LOGIN: "false" }), /CARMEL_PASSWORD_LOGIN/);
+  assert.throws(
+    () => assertOidcConfig({ CARMEL_PASSWORD_LOGIN: "false" }),
+    /CARMEL_PASSWORD_LOGIN/,
+  );
 });
 
 // --- account resolution ----------------------------------------------------
@@ -130,7 +149,12 @@ test("a linked identity keeps signing in to its account after the username and e
   const identity = profile({ username: `stable_${randomUUID()}`, email: "stable@example.test" });
   const created = resolveOidcUser(cfg, identity);
 
-  const renamed = resolveOidcUser(cfg, { ...identity, username: "renamed", email: "renamed@example.test", name: "Renamed" });
+  const renamed = resolveOidcUser(cfg, {
+    ...identity,
+    username: "renamed",
+    email: "renamed@example.test",
+    name: "Renamed",
+  });
   assert.equal(renamed.id, created.id);
   assert.equal(renamed.email, "renamed@example.test");
   assert.equal(renamed.name, "Renamed");
@@ -150,14 +174,20 @@ test("by default a first sign-in links by verified email, then by username", asy
   const username = `ivy_${randomUUID()}`;
   const localId = insertUser({ username, password: await hashPassword("password1") });
   // Pocket ID's default: an unverified email, so the username decides.
-  const user = resolveOidcUser(config(), profile({ username, email: `${username}@example.test`, emailVerified: false }));
+  const user = resolveOidcUser(
+    config(),
+    profile({ username, email: `${username}@example.test`, emailVerified: false }),
+  );
   assert.equal(user.id, localId);
 });
 
 test("username matching ignores case, since Pocket ID only allows lowercase usernames", () => {
   const suffix = randomUUID();
   const localId = insertUser({ username: `Grace_${suffix}` });
-  const user = resolveOidcUser(config({ CARMEL_OIDC_MATCH_BY: "username" }), profile({ username: `grace_${suffix}` }));
+  const user = resolveOidcUser(
+    config({ CARMEL_OIDC_MATCH_BY: "username" }),
+    profile({ username: `grace_${suffix}` }),
+  );
   assert.equal(user.id, localId);
 });
 
@@ -167,7 +197,11 @@ test("without username matching, a same-name account is left alone and the reaso
   const warn = t.mock.method(console, "warn", () => {});
   const user = resolveOidcUser(config({ CARMEL_OIDC_MATCH_BY: "none" }), profile({ username }));
   assert.notEqual(user.id, localId);
-  assert.ok(warn.mock.calls.some((call) => String(call.arguments[0]).includes("CARMEL_OIDC_MATCH_BY=username")));
+  assert.ok(
+    warn.mock.calls.some((call) =>
+      String(call.arguments[0]).includes("CARMEL_OIDC_MATCH_BY=username"),
+    ),
+  );
 });
 
 test("email matching is case-insensitive and requires a verified email by default", () => {
@@ -175,13 +209,22 @@ test("email matching is case-insensitive and requires a verified email by defaul
   const localId = insertUser({ email });
   const cfg = config({ CARMEL_OIDC_MATCH_BY: "email", CARMEL_OIDC_AUTO_CREATE: "false" });
 
-  assert.throws(() => resolveOidcUser(cfg, profile({ email: email.toLowerCase(), emailVerified: false })), refusal("not_linked"));
+  assert.throws(
+    () => resolveOidcUser(cfg, profile({ email: email.toLowerCase(), emailVerified: false })),
+    refusal("not_linked"),
+  );
   assert.equal(resolveOidcUser(cfg, profile({ email: email.toLowerCase() })).id, localId);
 
-  const trusting = config({ CARMEL_OIDC_MATCH_BY: "email", CARMEL_OIDC_REQUIRE_VERIFIED_EMAIL: "false" });
+  const trusting = config({
+    CARMEL_OIDC_MATCH_BY: "email",
+    CARMEL_OIDC_REQUIRE_VERIFIED_EMAIL: "false",
+  });
   const otherEmail = `carol.${randomUUID()}@example.test`;
   const otherId = insertUser({ email: otherEmail });
-  assert.equal(resolveOidcUser(trusting, profile({ email: otherEmail, emailVerified: false })).id, otherId);
+  assert.equal(
+    resolveOidcUser(trusting, profile({ email: otherEmail, emailVerified: false })).id,
+    otherId,
+  );
 });
 
 test("match fields are tried in order", () => {
@@ -190,8 +233,17 @@ test("match fields are tried in order", () => {
   const byUsername = insertUser({ username });
   const byEmail = insertUser({ email });
   const identity = profile({ username, email });
-  assert.equal(resolveOidcUser(config({ CARMEL_OIDC_MATCH_BY: "email,username" }), identity).id, byEmail);
-  assert.equal(resolveOidcUser(config({ CARMEL_OIDC_MATCH_BY: "username,email" }), { ...identity, subject: randomUUID() }).id, byUsername);
+  assert.equal(
+    resolveOidcUser(config({ CARMEL_OIDC_MATCH_BY: "email,username" }), identity).id,
+    byEmail,
+  );
+  assert.equal(
+    resolveOidcUser(config({ CARMEL_OIDC_MATCH_BY: "username,email" }), {
+      ...identity,
+      subject: randomUUID(),
+    }).id,
+    byUsername,
+  );
 });
 
 test("an account already linked to another identity is never handed to a new one", () => {
@@ -206,7 +258,15 @@ test("an email copied onto a linked account neither wins the match nor blocks it
   const cfg = config({ CARMEL_OIDC_MATCH_BY: "email" });
   // Someone else's account picks up the address through an unverified sync.
   const copycat = resolveOidcUser(cfg, profile({ email: "copycat@example.test" }));
-  resolveOidcUser(cfg, profile({ subject: db.select().from(userIdentities).where(eq(userIdentities.userId, copycat.id)).get()!.subject, email, emailVerified: false }));
+  resolveOidcUser(
+    cfg,
+    profile({
+      subject: db.select().from(userIdentities).where(eq(userIdentities.userId, copycat.id)).get()!
+        .subject,
+      email,
+      emailVerified: false,
+    }),
+  );
   assert.equal(db.select().from(users).where(eq(users.id, copycat.id)).get()!.email, email);
 
   const victimId = insertUser({ email });
@@ -225,7 +285,11 @@ test("an email shared by several accounts refuses rather than guessing", () => {
 
 test("without a match and with auto-create off, sign-in is refused", () => {
   assert.throws(
-    () => resolveOidcUser(config({ CARMEL_OIDC_AUTO_CREATE: "false" }), profile({ username: `nobody_${randomUUID()}` })),
+    () =>
+      resolveOidcUser(
+        config({ CARMEL_OIDC_AUTO_CREATE: "false" }),
+        profile({ username: `nobody_${randomUUID()}` }),
+      ),
     refusal("not_linked"),
   );
 });
@@ -239,7 +303,10 @@ test("a new account whose username is taken locally is created without one", () 
 });
 
 test("allowed groups gate sign-in, and admin groups set the role on every sign-in", () => {
-  const cfg = config({ CARMEL_OIDC_ALLOWED_GROUPS: "carmel", CARMEL_OIDC_ADMIN_GROUPS: "carmel-admins" });
+  const cfg = config({
+    CARMEL_OIDC_ALLOWED_GROUPS: "carmel",
+    CARMEL_OIDC_ADMIN_GROUPS: "carmel-admins",
+  });
   assert.throws(() => resolveOidcUser(cfg, profile({ groups: ["other"] })), refusal("not_allowed"));
 
   const identity = profile({ groups: ["carmel", "carmel-admins"] });
@@ -252,13 +319,21 @@ test("allowed groups gate sign-in, and admin groups set the role on every sign-i
 /** Either client_secret_post or client_secret_basic (form-decoded, as RFC 6749 says). */
 function clientAuthenticated(authorization: string | undefined, form: URLSearchParams) {
   if (authorization?.startsWith("Basic ")) {
-    const [clientId, secret] = Buffer.from(authorization.slice(6), "base64").toString().split(":").map(decodeURIComponent);
+    const [clientId, secret] = Buffer.from(authorization.slice(6), "base64")
+      .toString()
+      .split(":")
+      .map(decodeURIComponent);
     return clientId === "carmel" && secret === "client-secret";
   }
   return form.get("client_id") === "carmel" && form.get("client_secret") === "client-secret";
 }
 
-type Grant = { nonce: string; challenge: string; redirectUri: string; claims: Record<string, unknown> };
+type Grant = {
+  nonce: string;
+  challenge: string;
+  redirectUri: string;
+  claims: Record<string, unknown>;
+};
 
 function createFakeProvider(claimsFor: () => Record<string, unknown>) {
   const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -294,7 +369,8 @@ function createFakeProvider(claimsFor: () => Record<string, unknown>) {
   );
   provider.post("/api/oidc/token", async (c) => {
     const form = new URLSearchParams(await c.req.text());
-    if (!clientAuthenticated(c.req.header("authorization"), form)) return c.json({ error: "invalid_client" }, 401);
+    if (!clientAuthenticated(c.req.header("authorization"), form))
+      return c.json({ error: "invalid_client" }, 401);
     const grant = grants.get(form.get("code") ?? "");
     grants.delete(form.get("code") ?? "");
     const verifier = form.get("code_verifier") ?? "";
@@ -329,8 +405,15 @@ function createFakeProvider(claimsFor: () => Record<string, unknown>) {
   });
 
   return {
-    fetch: (url: string, options: { method: string; headers: Record<string, string>; body?: unknown }) =>
-      provider.request(url, { method: options.method, headers: options.headers, body: options.body as BodyInit }),
+    fetch: (
+      url: string,
+      options: { method: string; headers: Record<string, string>; body?: unknown },
+    ) =>
+      provider.request(url, {
+        method: options.method,
+        headers: options.headers,
+        body: options.body as BodyInit,
+      }),
     /** What the provider's login page would do: approve and redirect back with a code. */
     authorize(authorizationUrl: URL) {
       const code = randomUUID();
@@ -372,7 +455,10 @@ function withOidcEnv(overrides: Record<string, string>, run: () => Promise<void>
 }
 
 const cookieValue = (response: Response, name: string) =>
-  response.headers.getSetCookie().map((cookie) => cookie.split(";")[0]).find((cookie) => cookie.startsWith(`${name}=`));
+  response.headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(";")[0])
+    .find((cookie) => cookie.startsWith(`${name}=`));
 
 test(
   "the login redirect and callback sign the browser in with a Pocket ID-shaped provider",
@@ -399,12 +485,17 @@ test(
     assert.equal(authorizationUrl.origin + authorizationUrl.pathname, `${issuer}/authorize`);
     assert.equal(authorizationUrl.searchParams.get("client_id"), "carmel");
     assert.equal(authorizationUrl.searchParams.get("code_challenge_method"), "S256");
-    assert.equal(authorizationUrl.searchParams.get("redirect_uri"), "https://carmel.example.test/api/auth/oidc/callback");
+    assert.equal(
+      authorizationUrl.searchParams.get("redirect_uri"),
+      "https://carmel.example.test/api/auth/oidc/callback",
+    );
     const flowCookie = cookieValue(start, "carmel_oidc");
     assert.ok(flowCookie);
 
     const callbackQuery = provider.authorize(authorizationUrl);
-    const callback = await app.request(`/api/auth/oidc/callback${callbackQuery}`, { headers: { cookie: flowCookie } });
+    const callback = await app.request(`/api/auth/oidc/callback${callbackQuery}`, {
+      headers: { cookie: flowCookie },
+    });
     assert.equal(callback.status, 302);
     assert.equal(callback.headers.get("location"), "/");
     const session = cookieValue(callback, "carmel_session");
@@ -416,7 +507,9 @@ test(
     assert.equal(stored.name, "Pocket Person");
 
     // The flow is single use: replaying the callback does not sign in again.
-    const replay = await app.request(`/api/auth/oidc/callback${callbackQuery}`, { headers: { cookie: flowCookie } });
+    const replay = await app.request(`/api/auth/oidc/callback${callbackQuery}`, {
+      headers: { cookie: flowCookie },
+    });
     assert.equal(replay.headers.get("location"), "/?auth_error=expired");
     assert.equal(cookieValue(replay, "carmel_session"), undefined);
   }),
@@ -499,16 +592,29 @@ test("OIDC endpoints are absent when OIDC is not configured", async () => {
 });
 
 test("deleting a user removes their linked identities", async () => {
-  const admin = insertUser({ username: `admin_${randomUUID()}`, password: await hashPassword("adminpass1"), role: "admin" });
+  const admin = insertUser({
+    username: `admin_${randomUUID()}`,
+    password: await hashPassword("adminpass1"),
+    role: "admin",
+  });
   const linked = resolveOidcUser(config(), profile());
   const app = buildApp();
   const login = await app.request("/api/auth/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username: db.select().from(users).where(eq(users.id, admin)).get()!.username, password: "adminpass1" }),
+    body: JSON.stringify({
+      username: db.select().from(users).where(eq(users.id, admin)).get()!.username,
+      password: "adminpass1",
+    }),
   });
   const cookie = cookieValue(login, "carmel_session")!;
-  const removed = await app.request(`/api/users/${linked.id}`, { method: "DELETE", headers: { cookie } });
+  const removed = await app.request(`/api/users/${linked.id}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
   assert.equal(removed.status, 200);
-  assert.equal(db.select().from(userIdentities).where(eq(userIdentities.userId, linked.id)).get(), undefined);
+  assert.equal(
+    db.select().from(userIdentities).where(eq(userIdentities.userId, linked.id)).get(),
+    undefined,
+  );
 });

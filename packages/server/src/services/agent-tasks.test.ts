@@ -16,7 +16,11 @@ initialize();
 
 test("a task is created armed with its next run", () => {
   const { user, agentId } = fixture();
-  const task = createAgentTask(user, agentId, draft({ scheduleKind: "interval", scheduleValue: String(60_000) }));
+  const task = createAgentTask(
+    user,
+    agentId,
+    draft({ scheduleKind: "interval", scheduleValue: String(60_000) }),
+  );
   assert.equal(task.status, "active");
   assert.ok(task.nextRunAt && task.nextRunAt > Date.now());
 });
@@ -26,7 +30,8 @@ test("an unparseable schedule is rejected at write time", () => {
   // which the author is not present to see.
   const { user, agentId } = fixture();
   assert.throws(
-    () => createAgentTask(user, agentId, draft({ scheduleKind: "cron", scheduleValue: "not a cron" })),
+    () =>
+      createAgentTask(user, agentId, draft({ scheduleKind: "cron", scheduleValue: "not a cron" })),
     (error: unknown) => error instanceof AgentTaskError && error.status === 400,
   );
 });
@@ -34,7 +39,12 @@ test("an unparseable schedule is rejected at write time", () => {
 test("a one-shot in the past is rejected rather than created already complete", () => {
   const { user, agentId } = fixture();
   assert.throws(
-    () => createAgentTask(user, agentId, draft({ scheduleKind: "once", scheduleValue: "2020-01-01T00:00:00Z" })),
+    () =>
+      createAgentTask(
+        user,
+        agentId,
+        draft({ scheduleKind: "once", scheduleValue: "2020-01-01T00:00:00Z" }),
+      ),
     (error: unknown) => error instanceof AgentTaskError && error.status === 400,
   );
 });
@@ -46,7 +56,10 @@ test("tasks are listed per agent and not across users", () => {
   const other = { id: createUser(), role: "user" as const };
   createAgentTask(owner.user, owner.agentId, draft({ name: "mine" }));
 
-  assert.deepEqual(readAgentTasks(owner.user, owner.agentId).map((task) => task.name), ["mine"]);
+  assert.deepEqual(
+    readAgentTasks(owner.user, owner.agentId).map((task) => task.name),
+    ["mine"],
+  );
   assert.deepEqual(readAgentTasks({ ...other, id: other.id }, owner.agentId), []);
 });
 
@@ -54,7 +67,10 @@ test("an admin sees tasks they do not own", () => {
   const owner = fixture();
   createAgentTask(owner.user, owner.agentId, draft({ name: "theirs" }));
   const admin = { id: createUser(), role: "admin" as const };
-  assert.deepEqual(readAgentTasks(admin, owner.agentId).map((task) => task.name), ["theirs"]);
+  assert.deepEqual(
+    readAgentTasks(admin, owner.agentId).map((task) => task.name),
+    ["theirs"],
+  );
 });
 
 test("a task on another agent reads as not found, not as a wrong-agent error", () => {
@@ -69,7 +85,11 @@ test("a task on another agent reads as not found, not as a wrong-agent error", (
 
 test("changing the schedule re-arms the task", () => {
   const { user, agentId } = fixture();
-  const task = createAgentTask(user, agentId, draft({ scheduleKind: "interval", scheduleValue: String(3_600_000) }));
+  const task = createAgentTask(
+    user,
+    agentId,
+    draft({ scheduleKind: "interval", scheduleValue: String(3_600_000) }),
+  );
   const updated = updateAgentTask(user, agentId, task.id, { scheduleValue: String(60_000) });
   assert.ok(updated.nextRunAt! < task.nextRunAt!);
 });
@@ -78,7 +98,11 @@ test("resuming a paused task re-arms it instead of firing immediately", () => {
   // A task paused for a week has a `nextRunAt` a week in the past. Resuming is
   // not a request to run right now.
   const { user, agentId } = fixture();
-  const task = createAgentTask(user, agentId, draft({ scheduleKind: "interval", scheduleValue: String(60_000) }));
+  const task = createAgentTask(
+    user,
+    agentId,
+    draft({ scheduleKind: "interval", scheduleValue: String(60_000) }),
+  );
   updateAgentTask(user, agentId, task.id, { status: "paused" });
   const resumed = updateAgentTask(user, agentId, task.id, { status: "active" });
   assert.ok(resumed.nextRunAt! > Date.now());
@@ -86,8 +110,16 @@ test("resuming a paused task re-arms it instead of firing immediately", () => {
 
 test("only active tasks that are due are returned to the scheduler", () => {
   const { user, agentId } = fixture();
-  const due = createAgentTask(user, agentId, draft({ name: "due", scheduleKind: "interval", scheduleValue: String(60_000) }));
-  const paused = createAgentTask(user, agentId, draft({ name: "paused", scheduleKind: "interval", scheduleValue: String(60_000) }));
+  const due = createAgentTask(
+    user,
+    agentId,
+    draft({ name: "due", scheduleKind: "interval", scheduleValue: String(60_000) }),
+  );
+  const paused = createAgentTask(
+    user,
+    agentId,
+    draft({ name: "paused", scheduleKind: "interval", scheduleValue: String(60_000) }),
+  );
   updateAgentTask(user, agentId, paused.id, { status: "paused" });
 
   const ids = readDueTasks(Date.now() + 120_000).map((task) => task.id);
@@ -112,7 +144,11 @@ test("deleting a task removes it", async () => {
 function fixture(options?: { shared?: boolean }) {
   const userId = createUser();
   const modelRefId = createModelRef({ ownerUserId: userId });
-  const agentId = createAgent({ ownerUserId: userId, shared: options?.shared, defaultModelRefId: modelRefId });
+  const agentId = createAgent({
+    ownerUserId: userId,
+    shared: options?.shared,
+    defaultModelRefId: modelRefId,
+  });
   return { user: { id: userId, role: "user" as const }, agentId, modelRefId };
 }
 

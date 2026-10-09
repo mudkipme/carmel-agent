@@ -76,23 +76,15 @@ export async function captureIssueWorkspace(
         if (!entry.isFile()) continue;
         const authorized = env.resolveBrowserPath(file);
         if (relative(env.hostCwd, authorized).startsWith("..")) continue;
-        const handle = await open(
-          authorized,
-          constants.O_RDONLY | constants.O_NOFOLLOW,
-        );
+        const handle = await open(authorized, constants.O_RDONLY | constants.O_NOFOLLOW);
         try {
           const stat = await handle.stat();
-          if (
-            stat.size > MAX_FILE_BYTES ||
-            bytes + stat.size > MAX_TOTAL_BYTES
-          ) {
+          if (stat.size > MAX_FILE_BYTES || bytes + stat.size > MAX_TOTAL_BYTES) {
             warn();
             continue;
           }
           // Read at most the budget even if a file grows after stat().
-          const buffer = Buffer.alloc(
-            Math.min(MAX_FILE_BYTES + 1, stat.size + 1),
-          );
+          const buffer = Buffer.alloc(Math.min(MAX_FILE_BYTES + 1, stat.size + 1));
           const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
           if (bytesRead > MAX_FILE_BYTES) {
             warn();
@@ -146,9 +138,7 @@ export function compareIssueWorkspace(
       change: !old ? "added" : !next ? "deleted" : "modified",
       before: old?.text ?? null,
       after: next?.text ?? null,
-      ...((old && old.text === null) || (next && next.text === null)
-        ? { omitted: true }
-        : {}),
+      ...((old && old.text === null) || (next && next.text === null) ? { omitted: true } : {}),
     });
   }
   return {

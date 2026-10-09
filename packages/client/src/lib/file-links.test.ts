@@ -31,5 +31,8 @@ test("other hrefs stay ordinary links", () => {
 
 test("file page paths encode each segment", () => {
   assert.equal(agentFilesPath("agent_1"), "/agents/agent_1/files");
-  assert.equal(agentFilesPath("agent_1", "post/love live#1.md"), "/agents/agent_1/files/post/love%20live%231.md");
+  assert.equal(
+    agentFilesPath("agent_1", "post/love live#1.md"),
+    "/agents/agent_1/files/post/love%20live%231.md",
+  );
 });

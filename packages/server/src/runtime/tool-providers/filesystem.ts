@@ -16,7 +16,11 @@ import {
 } from "../../effectors/pi-durable/index.ts";
 import type { AgentExecutionEnv } from "../execution-env.ts";
 import { createGrepOperations, createLsOperations } from "../search-operations.ts";
-import type { ProvidedTool, ToolProvider, ToolProvisionContext } from "../../effectors/contracts/tool-provider.ts";
+import type {
+  ProvidedTool,
+  ToolProvider,
+  ToolProvisionContext,
+} from "../../effectors/contracts/tool-provider.ts";
 
 type ServerToolDefinition = AgentHarnessTool<ExecutionToolContext>;
 
@@ -56,7 +60,12 @@ export const filesystemToolProvider: ToolProvider = {
     });
 
     return [
-      own("read", createReadTool<ExecutionToolContext>({ resolveImagePath: path => env.resolveAuthorizedPath(path, "read") })),
+      own(
+        "read",
+        createReadTool<ExecutionToolContext>({
+          resolveImagePath: (path) => env.resolveAuthorizedPath(path, "read"),
+        }),
+      ),
       own("read", createAuthorizedGrepTool(env)),
       own("read", createAuthorizedFindTool(env)),
       own("read", asHarnessTool(createPiLsTool(env.cwd, { operations: createLsOperations(env) }))),
@@ -71,7 +80,13 @@ export const bashToolProvider: ToolProvider = {
   id: "carmel.bash",
   label: "Sandboxed shell",
   provide(): ProvidedTool[] {
-    return [{ providerId: bashToolProvider.id, requires: "bash", tool: createBashTool<ExecutionToolContext>() }];
+    return [
+      {
+        providerId: bashToolProvider.id,
+        requires: "bash",
+        tool: createBashTool<ExecutionToolContext>(),
+      },
+    ];
   },
 };
 
@@ -83,8 +98,11 @@ function createAuthorizedFindTool(env: AgentExecutionEnv): ServerToolDefinition 
     async execute(toolCallId, params, signal, onUpdate) {
       const args = params as FindToolInput;
       const path = env.resolveAuthorizedPath(args.path || ".", "read");
-      try { return await tool.execute(toolCallId, { ...args, path }, signal, onUpdate); }
-      catch (error) { throw env.toAgentError(error); }
+      try {
+        return await tool.execute(toolCallId, { ...args, path }, signal, onUpdate);
+      } catch (error) {
+        throw env.toAgentError(error);
+      }
     },
   });
 }
@@ -99,8 +117,11 @@ function createAuthorizedGrepTool(env: AgentExecutionEnv): ServerToolDefinition 
     async execute(toolCallId, params, signal, onUpdate) {
       const args = params as GrepToolInput;
       const path = env.resolveAuthorizedPath(args.path || ".", "read");
-      try { return await tool.execute(toolCallId, { ...args, path }, signal, onUpdate); }
-      catch (error) { throw env.toAgentError(error); }
+      try {
+        return await tool.execute(toolCallId, { ...args, path }, signal, onUpdate);
+      } catch (error) {
+        throw env.toAgentError(error);
+      }
     },
   });
 }

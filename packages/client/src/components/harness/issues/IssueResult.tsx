@@ -24,9 +24,7 @@ export function IssueResult({ attempt }: { attempt: IssueAttempt }) {
             Files changed during this run · Saved versions
           </h4>
           {attempt.snapshot.files.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              No captured file changes.
-            </p>
+            <p className="text-xs text-muted-foreground">No captured file changes.</p>
           ) : null}
           {attempt.snapshot.files.map((file) => (
             <details key={file.path} className="min-w-0 rounded-md border">
@@ -45,16 +43,12 @@ export function IssueResult({ attempt }: { attempt: IssueAttempt }) {
                   {(["before", "after"] as const).map((side) => (
                     <div key={side} className="min-w-0">
                       <p className="mb-2 text-xs font-medium text-muted-foreground">
-                        {side === "before"
-                          ? "Before this run"
-                          : "After this run"}
+                        {side === "before" ? "Before this run" : "After this run"}
                       </p>
                       <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs">
                         <code>
                           {file[side] ??
-                            (side === "before"
-                              ? "File did not exist"
-                              : "File deleted")}
+                            (side === "before" ? "File did not exist" : "File deleted")}
                         </code>
                       </pre>
                     </div>
@@ -64,9 +58,7 @@ export function IssueResult({ attempt }: { attempt: IssueAttempt }) {
             </details>
           ))}
           {attempt.snapshot.warning ? (
-            <p className="text-xs text-muted-foreground">
-              {attempt.snapshot.warning}
-            </p>
+            <p className="text-xs text-muted-foreground">{attempt.snapshot.warning}</p>
           ) : null}
         </div>
       ) : (

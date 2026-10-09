@@ -9,7 +9,15 @@ import { id, now } from "./db/seed.ts";
 export function createUser() {
   const userId = id("user");
   const timestamp = now();
-  db.insert(users).values({ id: userId, name: "Test", email: `${userId}@test.local`, createdAt: timestamp, updatedAt: timestamp }).run();
+  db.insert(users)
+    .values({
+      id: userId,
+      name: "Test",
+      email: `${userId}@test.local`,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .run();
   return userId;
 }
 
@@ -17,12 +25,24 @@ export function createProviderConfig(userId: string) {
   const configId = id("provider_config");
   const timestamp = now();
   db.insert(providerConfigs)
-    .values({ id: configId, userId, label: "Test", provider: "openai", authType: "api_key", createdAt: timestamp, updatedAt: timestamp })
+    .values({
+      id: configId,
+      userId,
+      label: "Test",
+      provider: "openai",
+      authType: "api_key",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
     .run();
   return configId;
 }
 
-export function createModelRef(options: { ownerUserId: string; shared?: boolean; providerConfigId?: string }) {
+export function createModelRef(options: {
+  ownerUserId: string;
+  shared?: boolean;
+  providerConfigId?: string;
+}) {
   const modelRefId = id("model_ref");
   const timestamp = now();
   db.insert(modelRefs)
@@ -43,7 +63,11 @@ export function createModelRef(options: { ownerUserId: string; shared?: boolean;
   return modelRefId;
 }
 
-export function createAgent(options: { ownerUserId: string; shared?: boolean; defaultModelRefId: string }) {
+export function createAgent(options: {
+  ownerUserId: string;
+  shared?: boolean;
+  defaultModelRefId: string;
+}) {
   const agentId = id("agent");
   const timestamp = now();
   db.insert(agents)
@@ -75,7 +99,16 @@ export function createSession(options?: { userId?: string }) {
   const sessionId = id("session");
   const timestamp = now();
   db.insert(sessions)
-    .values({ id: sessionId, title: "Test", userId, agentId, modelRefId, thinkingLevel: "off", createdAt: timestamp, updatedAt: timestamp })
+    .values({
+      id: sessionId,
+      title: "Test",
+      userId,
+      agentId,
+      modelRefId,
+      thinkingLevel: "off",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
     .run();
   return { sessionId, userId, agentId, modelRefId };
 }

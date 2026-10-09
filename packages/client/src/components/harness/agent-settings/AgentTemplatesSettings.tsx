@@ -40,7 +40,9 @@ export function AgentTemplatesSettings({
               <div key={template.id} className="flex items-start gap-2 rounded-md border p-3">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{template.name}</div>
-                  <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{template.body}</div>
+                  <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {template.body}
+                  </div>
                 </div>
                 <Button
                   type="button"
@@ -62,7 +64,10 @@ export function AgentTemplatesSettings({
           </Field>
           <Field>
             <FieldLabel>Template text</FieldLabel>
-            <Textarea value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} />
+            <Textarea
+              value={templateBody}
+              onChange={(event) => setTemplateBody(event.target.value)}
+            />
           </Field>
           <div>
             <Button type="button" variant="secondary" onClick={addPromptTemplate}>

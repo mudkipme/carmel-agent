@@ -23,7 +23,10 @@ const DEFAULT_REFRESH_TIMEOUT_MS = 15_000;
 
 export function readModelCatalog(): ModelCatalog {
   return {
-    providers: Array.from(new Set([...getBuiltinProviders(), OLLAMA_PROVIDER])).map((id) => ({ id, name: id })),
+    providers: Array.from(new Set([...getBuiltinProviders(), OLLAMA_PROVIDER])).map((id) => ({
+      id,
+      name: id,
+    })),
   };
 }
 
@@ -38,9 +41,13 @@ export async function readProviderModels(
   options: CatalogReadOptions = {},
 ): Promise<ProviderModelSummary[]> {
   if (options.allowNetwork ?? options.force ?? false) {
-    return (await refreshProviderModelCatalog(providerConfig, { ...options, allowNetwork: true })).models;
+    return (await refreshProviderModelCatalog(providerConfig, { ...options, allowNetwork: true }))
+      .models;
   }
-  const { models } = await refreshProviderModelCatalog(providerConfig, { ...options, allowNetwork: false });
+  const { models } = await refreshProviderModelCatalog(providerConfig, {
+    ...options,
+    allowNetwork: false,
+  });
   // An explicit `allowNetwork: false` means offline, so only an unstated
   // preference (the model picker) gets the background revalidation.
   if (options.allowNetwork === undefined) queueCatalogRefresh(providerConfig, options);
@@ -53,7 +60,11 @@ const backgroundRefreshes = new Map<string, Promise<unknown>>();
 function queueCatalogRefresh(providerConfig: ProviderConfigRecord, options: CatalogReadOptions) {
   const provider = providerConfig.provider;
   if (backgroundRefreshes.has(provider)) return;
-  const task = refreshProviderModelCatalog(providerConfig, { ...options, allowNetwork: true, force: false })
+  const task = refreshProviderModelCatalog(providerConfig, {
+    ...options,
+    allowNetwork: true,
+    force: false,
+  })
     // Nobody is waiting on this; the next read just keeps serving the cache.
     .catch(() => undefined)
     .finally(() => backgroundRefreshes.delete(provider));
@@ -65,7 +76,10 @@ export async function refreshConfiguredModelCatalogs(): Promise<Map<string, Erro
   const configsByProvider = new Map<string, ProviderConfigRecord[]>();
   for (const config of db.select().from(providerConfigs).all()) {
     if (config.provider === OLLAMA_PROVIDER) continue;
-    configsByProvider.set(config.provider, [...(configsByProvider.get(config.provider) ?? []), config]);
+    configsByProvider.set(config.provider, [
+      ...(configsByProvider.get(config.provider) ?? []),
+      config,
+    ]);
   }
 
   // Credential refresh may update SQLite. Keep provider refreshes sequential so
@@ -97,12 +111,17 @@ async function refreshProviderModelCatalog(
     },
   );
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_REFRESH_TIMEOUT_MS);
-  const refresh = await runtime.refresh({
-    allowNetwork: options.allowNetwork ?? true,
-    force: options.force,
-    signal: controller.signal,
-  }).finally(() => clearTimeout(timeout));
+  const timeout = setTimeout(
+    () => controller.abort(),
+    options.timeoutMs ?? DEFAULT_REFRESH_TIMEOUT_MS,
+  );
+  const refresh = await runtime
+    .refresh({
+      allowNetwork: options.allowNetwork ?? true,
+      force: options.force,
+      signal: controller.signal,
+    })
+    .finally(() => clearTimeout(timeout));
   return {
     models: runtime.getModels(providerConfig.provider).map((model) => ({
       id: model.id,

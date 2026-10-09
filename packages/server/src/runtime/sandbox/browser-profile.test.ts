@@ -1,7 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { prepareBrowserProfileScript } from "./browser-profile.ts";
@@ -26,14 +34,24 @@ test("fresh sandbox preparation removes stale singleton links without touching p
     // Empty/new profiles and repeated preparation are harmless.
     execFileSync(process.execPath, ["-e", prepareBrowserProfileScript, profile]);
     execFileSync(process.execPath, ["-e", prepareBrowserProfileScript, join(dir, "missing")]);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("profile preparation refuses unexpected lock files", () => {
   const profile = mkdtempSync(join(tmpdir(), "browser-profile-"));
   writeFileSync(join(profile, "SingletonCookie"), "keep this file");
   try {
-    assert.throws(() => execFileSync(process.execPath, ["-e", prepareBrowserProfileScript, profile], { stdio: "pipe" }), /Unexpected browser profile lock type/);
+    assert.throws(
+      () =>
+        execFileSync(process.execPath, ["-e", prepareBrowserProfileScript, profile], {
+          stdio: "pipe",
+        }),
+      /Unexpected browser profile lock type/,
+    );
     assert.equal(readFileSync(join(profile, "SingletonCookie"), "utf8"), "keep this file");
-  } finally { rmSync(profile, { recursive: true, force: true }); }
+  } finally {
+    rmSync(profile, { recursive: true, force: true });
+  }
 });

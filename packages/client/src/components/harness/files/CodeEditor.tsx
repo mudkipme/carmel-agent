@@ -21,7 +21,12 @@ import {
   rectangularSelection,
 } from "@codemirror/view";
 import { useEffect, useRef } from "react";
-import { editorTheme, languageExtension, themeExtensions, type EditorLanguage } from "./editor-extensions";
+import {
+  editorTheme,
+  languageExtension,
+  themeExtensions,
+  type EditorLanguage,
+} from "./editor-extensions";
 
 type CodeEditorProps = {
   value: string;

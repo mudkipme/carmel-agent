@@ -11,7 +11,10 @@ test("a run whose last turn ended cleanly succeeded", () => {
 test("a provider rejection fails the run even though nothing threw", () => {
   const outcome = new RunOutcome();
   outcome.recordTurnEnd({ stopReason: "error", detail: "The provider rejected the API key." });
-  assert.deepEqual(outcome.result(), { outcome: "failed", detail: "The provider rejected the API key." });
+  assert.deepEqual(outcome.result(), {
+    outcome: "failed",
+    detail: "The provider rejected the API key.",
+  });
 });
 
 test("only the last turn counts, so a recovered failure is a success", () => {
@@ -25,7 +28,10 @@ test("an error thrown out of the run body fails it", () => {
   const outcome = new RunOutcome();
   outcome.recordTurnEnd({ stopReason: "stop" });
   outcome.recordThrown("Cannot retry an empty user message.");
-  assert.deepEqual(outcome.result(), { outcome: "failed", detail: "Cannot retry an empty user message." });
+  assert.deepEqual(outcome.result(), {
+    outcome: "failed",
+    detail: "Cannot retry an empty user message.",
+  });
 });
 
 test("the abort reason decides a stopped run", () => {
@@ -35,11 +41,17 @@ test("the abort reason decides a stopped run", () => {
     return outcome;
   };
   assert.deepEqual(stopped().result("user"), { outcome: "cancelled" });
-  assert.deepEqual(stopped().result("shutdown"), { outcome: "interrupted", detail: INTERRUPTED_DETAIL });
+  assert.deepEqual(stopped().result("shutdown"), {
+    outcome: "interrupted",
+    detail: INTERRUPTED_DETAIL,
+  });
 
   const guarded = stopped();
   guarded.recordThrown("This run was stopped after 4 tool calls.");
-  assert.deepEqual(guarded.result("guard"), { outcome: "failed", detail: "This run was stopped after 4 tool calls." });
+  assert.deepEqual(guarded.result("guard"), {
+    outcome: "failed",
+    detail: "This run was stopped after 4 tool calls.",
+  });
   // A guard stop that landed before the prompt never threw, and still needs a reason.
   assert.equal(stopped().result("guard").outcome, "failed");
 });

@@ -28,8 +28,7 @@ test("runner protocol handles fragmented multiplexed UTF-8 and fails closed on c
   const { socket, client, response } = connection();
   const pending = client.request({ op: "search" }, 1000);
   const frame = response({ title: "家庭预算" });
-  for (let i = 0; i < frame.length; i += 3)
-    socket.push(frame.subarray(i, i + 3));
+  for (let i = 0; i < frame.length; i += 3) socket.push(frame.subarray(i, i + 3));
   assert.deepEqual(await pending, { title: "家庭预算" });
   const next = client.request({ op: "status" }, 1000);
   const malformed = Buffer.alloc(8);
@@ -80,15 +79,9 @@ test("knowledge workers mount only registered sources and explicitly provisioned
     assert.equal(cpu.HostConfig.DeviceRequests, undefined);
     assert.equal(cpu.User, "1000:1000");
     assert.equal(cpu.HostConfig.Binds.length, 3);
-    assert.match(
-      cpu.HostConfig.Binds[1]!,
-      /^\/test\/shared-models:\/models\/cache:ro/,
-    );
+    assert.match(cpu.HostConfig.Binds[1]!, /^\/test\/shared-models:\/models\/cache:ro/);
     const setup = knowledgeContainerSpec({ ...plan, network: true }, identity);
-    assert.match(
-      setup.HostConfig.Binds[1]!,
-      /^\/test\/shared-models:\/models\/cache:rw/,
-    );
+    assert.match(setup.HostConfig.Binds[1]!, /^\/test\/shared-models:\/models\/cache:rw/);
     assert.match(cpu.HostConfig.Binds[2]!, /^\/test\/docs:\/sources\/docs:ro/);
     assert.ok(!cpu.HostConfig.Binds.some((b) => b.includes("socket")));
     assert.ok(!cpu.Env.some((e) => /KEY=|TOKEN=|SECRET=/.test(e)));

@@ -1,4 +1,10 @@
-import { PanelLeftCloseIcon, CalendarClockIcon, ListTodoIcon, SettingsIcon, BookOpenIcon } from "lucide-react";
+import {
+  PanelLeftCloseIcon,
+  CalendarClockIcon,
+  ListTodoIcon,
+  SettingsIcon,
+  BookOpenIcon,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
@@ -77,7 +83,9 @@ export function HarnessSidebar({
       inert={!sidebarOpen}
       className={cn(
         "fixed inset-y-0 left-0 z-30 flex min-h-0 w-[var(--sidebar-width)] max-w-[85vw] flex-col overflow-hidden border-r bg-sidebar shadow-lg lg:static lg:z-auto lg:max-w-none lg:shrink-0 lg:shadow-none",
-        sidebarResizing ? "transition-none" : "transition-[transform,width] duration-200 ease-out motion-reduce:transition-none",
+        sidebarResizing
+          ? "transition-none"
+          : "transition-[transform,width] duration-200 ease-out motion-reduce:transition-none",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:w-0 lg:translate-x-0 lg:border-r-0",
       )}
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
@@ -100,12 +108,25 @@ export function HarnessSidebar({
           />
           {activeAgent ? (
             <nav aria-label="Agent work" className="flex flex-col gap-1">
-              <Button asChild variant={contentView === "knowledge" ? "secondary" : "ghost"} className="justify-start">
-                <Link to={`/agents/${activeAgent.id}/knowledge`} aria-current={contentView === "knowledge" ? "page" : undefined} onClick={onOpenSession}>
-                  <BookOpenIcon data-icon="inline-start" />Knowledge
+              <Button
+                asChild
+                variant={contentView === "knowledge" ? "secondary" : "ghost"}
+                className="justify-start"
+              >
+                <Link
+                  to={`/agents/${activeAgent.id}/knowledge`}
+                  aria-current={contentView === "knowledge" ? "page" : undefined}
+                  onClick={onOpenSession}
+                >
+                  <BookOpenIcon data-icon="inline-start" />
+                  Knowledge
                 </Link>
               </Button>
-              <Button asChild variant={contentView === "issues" ? "secondary" : "ghost"} className="justify-start">
+              <Button
+                asChild
+                variant={contentView === "issues" ? "secondary" : "ghost"}
+                className="justify-start"
+              >
                 <Link
                   to={`/agents/${activeAgent.id}/issues`}
                   aria-current={contentView === "issues" ? "page" : undefined}
@@ -115,7 +136,11 @@ export function HarnessSidebar({
                   Issues
                 </Link>
               </Button>
-              <Button asChild variant={contentView === "tasks" ? "secondary" : "ghost"} className="justify-start">
+              <Button
+                asChild
+                variant={contentView === "tasks" ? "secondary" : "ghost"}
+                className="justify-start"
+              >
                 <Link
                   to={`/agents/${activeAgent.id}/tasks`}
                   aria-current={contentView === "tasks" ? "page" : undefined}
@@ -149,9 +174,17 @@ export function HarnessSidebar({
         <footer className="flex shrink-0 items-center gap-2 px-3 py-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-medium">{activeUser?.name}</p>
-            <p className="text-ui-smaller truncate text-muted-foreground" title={activeUser?.email}>{activeUser?.email}</p>
+            <p className="text-ui-smaller truncate text-muted-foreground" title={activeUser?.email}>
+              {activeUser?.email}
+            </p>
           </div>
-          <Button variant="ghost" size="icon-sm" title="Settings" aria-label="Settings" onClick={onOpenSettings}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Settings"
+            aria-label="Settings"
+            onClick={onOpenSettings}
+          >
             <SettingsIcon />
           </Button>
         </footer>
@@ -172,10 +205,17 @@ export function HarnessSidebar({
         onDoubleClick={onResetWidth}
         onKeyDown={(event) => {
           const delta = event.key === "ArrowLeft" ? -16 : event.key === "ArrowRight" ? 16 : 0;
-          const edge = event.key === "Home" ? MIN_SIDEBAR_WIDTH : event.key === "End" ? MAX_SIDEBAR_WIDTH : undefined;
+          const edge =
+            event.key === "Home"
+              ? MIN_SIDEBAR_WIDTH
+              : event.key === "End"
+                ? MAX_SIDEBAR_WIDTH
+                : undefined;
           if (!delta && edge === undefined) return;
           event.preventDefault();
-          onResizeWidth(Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, edge ?? sidebarWidth + delta)));
+          onResizeWidth(
+            Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, edge ?? sidebarWidth + delta)),
+          );
         }}
       />
     </aside>

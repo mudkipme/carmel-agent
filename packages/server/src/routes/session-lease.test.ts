@@ -55,7 +55,7 @@ test("active-run lease rejects every session mutation and exposes run authority"
       });
       assert.equal(response.status, 409, `${mutation.method} ${mutation.path}`);
       assert.equal(response.headers.get("x-agent-run-id"), run.runId);
-      const payload = await response.json() as { activeRun?: { runId?: string } };
+      const payload = (await response.json()) as { activeRun?: { runId?: string } };
       assert.equal(payload.activeRun?.runId, run.runId);
     }
 
@@ -72,7 +72,7 @@ test("active-run lease rejects every session mutation and exposes run authority"
     body: JSON.stringify({ title: "allowed" }),
   });
   assert.equal(allowed.status, 200);
-  const saved = await allowed.json() as { title: string; revision: number };
+  const saved = (await allowed.json()) as { title: string; revision: number };
   assert.equal(saved.title, "allowed");
   assert.equal(saved.revision, 1);
 });
@@ -125,17 +125,24 @@ test("pinning and archiving go through during a run without staling its commit",
 test("session images are addressed by entry, so an edit never reuses a cached URL", async () => {
   const fixture = createSession();
   const app = createTestApp(fixture.userId);
-  const image = (data: string) => ({ role: "user", content: [{ type: "image", data, mimeType: "image/png" }] }) as ReturnType<typeof userMessage>;
+  const image = (data: string) =>
+    ({ role: "user", content: [{ type: "image", data, mimeType: "image/png" }] }) as ReturnType<
+      typeof userMessage
+    >;
   const urlOf = (session: { messages: unknown[] }) =>
-    ((session.messages[0] as { content: Array<{ url: string }> }).content[0]!).url;
+    (session.messages[0] as { content: Array<{ url: string }> }).content[0]!.url;
 
-  await replacePiSessionMessages(fixture.sessionId, [image(Buffer.from("first").toString("base64"))]);
+  await replacePiSessionMessages(fixture.sessionId, [
+    image(Buffer.from("first").toString("base64")),
+  ]);
   const before = (await loadSession(fixture.sessionId))!;
   const firstUrl = urlOf(serializeSession(before));
   assert.ok(firstUrl.includes(encodeURIComponent(before.messageEntryIds[0]!)));
 
   // The same position now holds a different image.
-  await replacePiSessionMessages(fixture.sessionId, [image(Buffer.from("second").toString("base64"))]);
+  await replacePiSessionMessages(fixture.sessionId, [
+    image(Buffer.from("second").toString("base64")),
+  ]);
   const secondUrl = urlOf(serializeSession((await loadSession(fixture.sessionId))!));
   assert.notEqual(secondUrl, firstUrl);
 

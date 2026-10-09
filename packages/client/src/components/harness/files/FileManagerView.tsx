@@ -46,7 +46,11 @@ type FileManagerViewProps = {
   onOpenFile: (path: string) => void;
 };
 
-const sortLabels: Record<FileSortKey, string> = { name: "Name", size: "Size", updatedAt: "Modified" };
+const sortLabels: Record<FileSortKey, string> = {
+  name: "Name",
+  size: "Size",
+  updatedAt: "Modified",
+};
 
 export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
   const browser = useFileBrowser({ agent, onOpenFile });
@@ -101,14 +105,31 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
       <div className="flex min-h-[var(--header-height)] shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-1.5">
         <Breadcrumbs path={browser.path} onNavigate={browser.navigate} />
         <div className="flex shrink-0 items-center gap-1">
-          <Button size="sm" variant="outline" disabled={!canWrite} onClick={() => fileInputRef.current?.click()}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!canWrite}
+            onClick={() => fileInputRef.current?.click()}
+          >
             <UploadIcon />
             Upload
           </Button>
-          <Button size="icon-sm" variant="ghost" title="New file" disabled={!canWrite} onClick={() => void browser.createEntry("file")}>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="New file"
+            disabled={!canWrite}
+            onClick={() => void browser.createEntry("file")}
+          >
             <FilePlusIcon />
           </Button>
-          <Button size="icon-sm" variant="ghost" title="New folder" disabled={!canWrite} onClick={() => void browser.createEntry("directory")}>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="New folder"
+            disabled={!canWrite}
+            onClick={() => void browser.createEntry("directory")}
+          >
             <FolderPlusIcon />
           </Button>
           <Button size="icon-sm" variant="ghost" title="Refresh" onClick={browser.refresh}>
@@ -121,11 +142,17 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem disabled={!canWrite} onSelect={() => folderInputRef.current?.click()}>
+              <DropdownMenuItem
+                disabled={!canWrite}
+                onSelect={() => folderInputRef.current?.click()}
+              >
                 <UploadIcon />
                 Upload folder
               </DropdownMenuItem>
-              <DropdownMenuItem disabled={!canRead} onSelect={() => browser.download([browser.path])}>
+              <DropdownMenuItem
+                disabled={!canRead}
+                onSelect={() => browser.download([browser.path])}
+              >
                 <DownloadIcon />
                 Download this folder
               </DropdownMenuItem>
@@ -139,13 +166,18 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
                 <DropdownMenuItem
                   key={key}
                   onSelect={() =>
-                    browser.setSort({ key, ascending: browser.sort.key === key ? !browser.sort.ascending : true })
+                    browser.setSort({
+                      key,
+                      ascending: browser.sort.key === key ? !browser.sort.ascending : true,
+                    })
                   }
                 >
                   <ArrowDownUpIcon />
                   Sort by {sortLabels[key].toLowerCase()}
                   {browser.sort.key === key ? (
-                    <span className="ml-auto text-xs text-muted-foreground">{browser.sort.ascending ? "A→Z" : "Z→A"}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {browser.sort.ascending ? "A→Z" : "Z→A"}
+                    </span>
                   ) : null}
                 </DropdownMenuItem>
               ))}
@@ -167,7 +199,12 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
               {clipboard.paths.length} item{clipboard.paths.length === 1 ? "" : "s"} to{" "}
               {clipboard.operation === "move" ? "move" : "copy"}
             </span>
-            <Button size="xs" variant="outline" disabled={!canWrite} onClick={() => void browser.paste()}>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={!canWrite}
+              onClick={() => void browser.paste()}
+            >
               <ClipboardPasteIcon />
               Paste here
             </Button>
@@ -178,19 +215,39 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
       {selected.length > 0 ? (
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-accent/40 px-3 py-2">
           <span className="text-xs font-medium">{selected.length} selected</span>
-          <Button size="xs" variant="outline" disabled={!canRead} onClick={() => browser.download(selected)}>
+          <Button
+            size="xs"
+            variant="outline"
+            disabled={!canRead}
+            onClick={() => browser.download(selected)}
+          >
             <DownloadIcon />
             Download
           </Button>
-          <Button size="xs" variant="outline" disabled={!canWrite} onClick={() => browser.copy(selected)}>
+          <Button
+            size="xs"
+            variant="outline"
+            disabled={!canWrite}
+            onClick={() => browser.copy(selected)}
+          >
             <CopyIcon />
             Copy
           </Button>
-          <Button size="xs" variant="outline" disabled={!canWrite} onClick={() => browser.cut(selected)}>
+          <Button
+            size="xs"
+            variant="outline"
+            disabled={!canWrite}
+            onClick={() => browser.cut(selected)}
+          >
             <ScissorsIcon />
             Cut
           </Button>
-          <Button size="xs" variant="destructive" disabled={!canWrite} onClick={() => void browser.deleteEntries(selectedEntries)}>
+          <Button
+            size="xs"
+            variant="destructive"
+            disabled={!canWrite}
+            onClick={() => void browser.deleteEntries(selectedEntries)}
+          >
             <Trash2Icon />
             Delete
           </Button>
@@ -201,7 +258,11 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
         </div>
       ) : null}
 
-      {browser.error ? <p className="shrink-0 border-b px-3 py-2 text-xs break-words text-destructive">{browser.error}</p> : null}
+      {browser.error ? (
+        <p className="shrink-0 border-b px-3 py-2 text-xs break-words text-destructive">
+          {browser.error}
+        </p>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="flex h-8 items-center gap-3 border-b px-3 text-ui-smaller text-muted-foreground">
@@ -210,7 +271,9 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
             aria-label="Select all"
             disabled={entries.length === 0}
             checked={allSelected ? true : selected.length > 0 ? "indeterminate" : false}
-            onCheckedChange={(checked) => (checked ? browser.selectAll() : browser.clearSelection())}
+            onCheckedChange={(checked) =>
+              checked ? browser.selectAll() : browser.clearSelection()
+            }
           />
           <span className="flex-1">Name</span>
           <span className="hidden w-20 text-right sm:block">Size</span>
@@ -228,10 +291,14 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
             <span className="flex-1">..</span>
           </button>
         ) : null}
-        {browser.loading ? <p className="px-3 py-3 text-xs text-muted-foreground">Loading files...</p> : null}
+        {browser.loading ? (
+          <p className="px-3 py-3 text-xs text-muted-foreground">Loading files...</p>
+        ) : null}
         {!browser.loading && entries.length === 0 ? (
           <p className="px-3 py-3 text-xs text-muted-foreground">
-            {browser.filter ? "Nothing matches this filter." : "This folder is empty. Drop files here to upload."}
+            {browser.filter
+              ? "Nothing matches this filter."
+              : "This folder is empty. Drop files here to upload."}
           </p>
         ) : null}
         {entries.map((entry) => (
@@ -262,7 +329,11 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
             ) : (
               <FileIcon className="size-4 shrink-0 text-faint" />
             )}
-            <span className={cn("flex-1 truncate text-[13px]", entry.hidden && "text-muted-foreground")}>{entry.name}</span>
+            <span
+              className={cn("flex-1 truncate text-[13px]", entry.hidden && "text-muted-foreground")}
+            >
+              {entry.name}
+            </span>
             <span className="hidden w-20 text-right text-xs text-muted-foreground tabular-nums sm:block">
               {entry.type === "directory" ? "—" : formatFileSize(entry.size)}
             </span>
@@ -280,12 +351,18 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
                   {entry.type === "directory" ? <FolderIcon /> : <FileIcon />}
                   Open
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled={!canRead} onSelect={() => browser.download([entry.path])}>
+                <DropdownMenuItem
+                  disabled={!canRead}
+                  onSelect={() => browser.download([entry.path])}
+                >
                   <DownloadIcon />
                   Download
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem disabled={!canRename} onSelect={() => void browser.renameEntry(entry)}>
+                <DropdownMenuItem
+                  disabled={!canRename}
+                  onSelect={() => void browser.renameEntry(entry)}
+                >
                   <PencilIcon />
                   Rename
                 </DropdownMenuItem>
@@ -298,7 +375,11 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
                   Cut
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" disabled={!canWrite} onSelect={() => void browser.deleteEntries([entry])}>
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={!canWrite}
+                  onSelect={() => void browser.deleteEntries([entry])}
+                >
                   <Trash2Icon />
                   Delete
                 </DropdownMenuItem>
@@ -370,7 +451,12 @@ function Breadcrumbs({ path, onNavigate }: { path: string; onNavigate: (path: st
 
   return (
     <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-[13px]">
-      <Button size="icon-xs" variant="ghost" title="Working directory" onClick={() => onNavigate("")}>
+      <Button
+        size="icon-xs"
+        variant="ghost"
+        title="Working directory"
+        onClick={() => onNavigate("")}
+      >
         <HomeIcon />
       </Button>
       {segments.map((segment, index) => (

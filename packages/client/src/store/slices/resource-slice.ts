@@ -14,15 +14,25 @@ import { resolveModelRef, type AgentConfig } from "@carmel-agent/shared";
 
 type SetState = StoreApi<HarnessState>["setState"];
 type GetState = StoreApi<HarnessState>["getState"];
-type ResourceActions = Pick<HarnessState,
-  "upsertUser" | "upsertAgent" | "createAgent" | "deleteAgent" | "upsertProviderConfig" |
-  "deleteProviderConfig" | "upsertModelRef" | "deleteModelRef"
+type ResourceActions = Pick<
+  HarnessState,
+  | "upsertUser"
+  | "upsertAgent"
+  | "createAgent"
+  | "deleteAgent"
+  | "upsertProviderConfig"
+  | "deleteProviderConfig"
+  | "upsertModelRef"
+  | "deleteModelRef"
 >;
 
 export function createResourceSlice(set: SetState, get: GetState): ResourceActions {
   return {
     upsertUser: async (user) => {
-      const saved = await api.upsertUser(user.id, { name: user.name, fastTaskModelRefId: user.fastTaskModelRefId });
+      const saved = await api.upsertUser(user.id, {
+        name: user.name,
+        fastTaskModelRefId: user.fastTaskModelRefId,
+      });
       set((state) => ({ users: upsertById(state.users, saved) }));
     },
     upsertAgent: async (agent) => {
@@ -46,12 +56,21 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
         mounts: draft?.mounts ?? [],
         systemPrompt: draft?.systemPrompt ?? "You are a helpful agent.",
         promptTemplates: draft?.promptTemplates ?? [],
-        permissions: draft?.permissions ?? { read: true, write: true, edit: true, bash: false, network: false },
+        permissions: draft?.permissions ?? {
+          read: true,
+          write: true,
+          edit: true,
+          bash: false,
+          network: false,
+        },
         codemodeEnabled: draft?.codemodeEnabled ?? false,
         mcpServers: draft?.mcpServers ?? [],
         defaultModelRefId,
         defaultThinkingLevel: defaultModelRef
-          ? clampThinkingLevel(resolveModelRef(defaultModelRef), draft?.defaultThinkingLevel ?? "off")
+          ? clampThinkingLevel(
+              resolveModelRef(defaultModelRef),
+              draft?.defaultThinkingLevel ?? "off",
+            )
           : "off",
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -65,14 +84,21 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
       set((state) => {
         const agents = state.agents.filter((item) => item.id !== agentId);
         const sessions = state.sessions.filter((item) => item.agentId !== agentId);
-        const deletedSessionIds = new Set(state.sessions.filter((item) => item.agentId === agentId).map((item) => item.id));
-        const sessionDetails = Object.fromEntries(Object.entries(state.sessionDetails).filter(([id]) => !deletedSessionIds.has(id)));
+        const deletedSessionIds = new Set(
+          state.sessions.filter((item) => item.agentId === agentId).map((item) => item.id),
+        );
+        const sessionDetails = Object.fromEntries(
+          Object.entries(state.sessionDetails).filter(([id]) => !deletedSessionIds.has(id)),
+        );
         const lastAgentId = state.lastAgentId === agentId ? "" : state.lastAgentId;
         return { agents, sessions, sessionDetails, lastAgentId };
       });
     },
     upsertProviderConfig: async (providerConfig) => {
-      const saved = await api.upsertProviderConfig(providerConfig.id, toProviderConfigCommand(providerConfig));
+      const saved = await api.upsertProviderConfig(
+        providerConfig.id,
+        toProviderConfigCommand(providerConfig),
+      );
       set((state) => ({ providerConfigs: upsertById(state.providerConfigs, saved) }));
     },
     deleteProviderConfig: async (id) => {

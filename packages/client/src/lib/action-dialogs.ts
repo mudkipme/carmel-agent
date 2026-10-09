@@ -19,11 +19,25 @@ export type ActionDialogRequest = ConfirmRequest | PromptRequest;
 let current: ActionDialogRequest | null = null;
 const listeners = new Set<() => void>();
 
-export function confirmAction(options: { title: string; description: string; actionLabel?: string }) {
-  return enqueue<boolean>((resolve) => ({ kind: "confirm", actionLabel: options.actionLabel ?? "Continue", ...options, resolve }));
+export function confirmAction(options: {
+  title: string;
+  description: string;
+  actionLabel?: string;
+}) {
+  return enqueue<boolean>((resolve) => ({
+    kind: "confirm",
+    actionLabel: options.actionLabel ?? "Continue",
+    ...options,
+    resolve,
+  }));
 }
 
-export function promptText(options: { title: string; description?: string; initialValue?: string; actionLabel?: string }) {
+export function promptText(options: {
+  title: string;
+  description?: string;
+  initialValue?: string;
+  actionLabel?: string;
+}) {
   return enqueue<string | null>((resolve) => ({
     kind: "prompt",
     title: options.title,

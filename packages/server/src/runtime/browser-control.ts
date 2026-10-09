@@ -15,7 +15,10 @@ export class BrowserControl {
   private active = 0;
   private listeners = new Set<() => void>();
 
-  constructor(saved?: SavedState, private readonly save: (state: SavedState) => void = () => {}) {
+  constructor(
+    saved?: SavedState,
+    private readonly save: (state: SavedState) => void = () => {},
+  ) {
     this.paused = saved?.paused ?? false;
     this.reason = saved?.reason;
     this.revision = saved?.revision ?? 0;
@@ -23,21 +26,41 @@ export class BrowserControl {
 
   get state(): BrowserControlState {
     return {
-      phase: !this.paused ? "agent" : this.active ? "pausing" : this.controller ? "human" : "waiting",
+      phase: !this.paused
+        ? "agent"
+        : this.active
+          ? "pausing"
+          : this.controller
+            ? "human"
+            : "waiting",
       reason: this.reason,
       controllerName: this.controller?.name,
       revision: this.revision,
     };
   }
 
-  get isPaused() { return this.paused; }
-  get isDraining() { return this.paused && this.active > 0; }
-  owns(id: string) { return this.controller?.id === id; }
-  canInput(id: string) { return this.owns(id) && this.state.phase === "human"; }
-  subscribe(listener: () => void) { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
+  get isPaused() {
+    return this.paused;
+  }
+  get isDraining() {
+    return this.paused && this.active > 0;
+  }
+  owns(id: string) {
+    return this.controller?.id === id;
+  }
+  canInput(id: string) {
+    return this.owns(id) && this.state.phase === "human";
+  }
+  subscribe(listener: () => void) {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
 
   take(id: string, name: string) {
-    if (this.controller && !this.owns(id)) throw new Error(`${this.controller.name} already has browser control.`);
+    if (this.controller && !this.owns(id))
+      throw new Error(`${this.controller.name} already has browser control.`);
     this.pause(this.reason ?? "A person is helping in the browser.");
     this.controller = { id, name };
     this.notify();
@@ -74,21 +97,31 @@ export class BrowserControl {
     signal?.throwIfAborted();
     this.active++;
     let released = false;
-    return { interrupted: revision !== this.revision, release: () => {
-      if (released) return;
-      released = true;
-      this.active--;
-      this.notify();
-    } };
+    return {
+      interrupted: revision !== this.revision,
+      release: () => {
+        if (released) return;
+        released = true;
+        this.active--;
+        this.notify();
+      },
+    };
   }
 
   async wait(signal?: AbortSignal) {
     signal?.throwIfAborted();
     if (!this.paused) return;
     await new Promise<void>((resolve, reject) => {
-      const finish = (error?: unknown) => { off(); signal?.removeEventListener("abort", abort); if (error) reject(error); else resolve(); };
+      const finish = (error?: unknown) => {
+        off();
+        signal?.removeEventListener("abort", abort);
+        if (error) reject(error);
+        else resolve();
+      };
       const abort = () => finish(signal?.reason ?? new Error("Browser wait cancelled."));
-      const off = this.subscribe(() => { if (!this.paused) finish(); });
+      const off = this.subscribe(() => {
+        if (!this.paused) finish();
+      });
       signal?.addEventListener("abort", abort, { once: true });
       if (signal?.aborted) abort();
     });
@@ -102,7 +135,9 @@ export class BrowserControl {
     this.revision = revision;
     this.notify();
   }
-  private notify() { for (const listener of this.listeners) listener(); }
+  private notify() {
+    for (const listener of this.listeners) listener();
+  }
 }
 
 // Kept outside the agent's mounted directories. No input, pixels, URLs, or cookies are saved here.
@@ -113,8 +148,11 @@ export function browserControl(agentId: string) {
   let control = controls.get(agentId);
   if (!control) {
     let saved: SavedState | undefined;
-    try { saved = JSON.parse(readFileSync(statePath(agentId), "utf8")); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    try {
+      saved = JSON.parse(readFileSync(statePath(agentId), "utf8"));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
     control = new BrowserControl(saved, (state) => {
       mkdirSync(directory, { recursive: true, mode: 0o700 });
       const path = statePath(agentId);
@@ -126,7 +164,8 @@ export function browserControl(agentId: string) {
     const updateHold = () => {
       if (control!.isPaused === held) return;
       held = control!.isPaused;
-      if (held) holdAgentContainer(agentId); else releaseAgentContainer(agentId);
+      if (held) holdAgentContainer(agentId);
+      else releaseAgentContainer(agentId);
     };
     control.subscribe(updateHold);
     updateHold();

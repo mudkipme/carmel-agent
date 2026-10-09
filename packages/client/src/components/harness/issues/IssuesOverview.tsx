@@ -6,20 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Empty,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-} from "@/components/ui/empty";
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
-import {
-  issueFilters,
-  issueListSearch,
-  readIssueFilter,
-} from "@/lib/issue-navigation";
+import { issueFilters, issueListSearch, readIssueFilter } from "@/lib/issue-navigation";
 import { ResourceError, ResourceLoading } from "../ResourceFeedback";
 import { describeIssue, issueGroup, sortIssues } from "./issue-state";
 export function IssuesOverview({
@@ -59,14 +50,10 @@ export function IssuesOverview({
     .filter(
       (issue) =>
         groupForFilter.includes(issueGroup(issue)) &&
-        `${issue.title} ${issue.description}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
+        `${issue.title} ${issue.description}`.toLowerCase().includes(query.toLowerCase()),
     )
     .sort(sortIssues);
-  const queue = issues
-    .filter((issue) => issue.status === "queued")
-    .sort(sortIssues);
+  const queue = issues.filter((issue) => issue.status === "queued").sort(sortIssues);
   const move = async (issueId: string, direction: "up" | "down") => {
     setBusy(true);
     try {
@@ -83,31 +70,20 @@ export function IssuesOverview({
       {filtered.map((issue) => {
         const state = describeIssue(issue);
         return (
-          <div
-            key={issue.id}
-            className="flex min-w-0 items-center border-b last:border-0"
-          >
+          <div key={issue.id} className="flex min-w-0 items-center border-b last:border-0">
             <Link
               to={`/agents/${agent.id}/issues/${issue.id}${listSearch}`}
               className="flex min-w-0 flex-1 items-start gap-3 px-4 py-4 hover:bg-muted/50"
             >
-              <state.Icon
-                className={cn("mt-0.5 size-4 shrink-0", state.className)}
-              />
+              <state.Icon className={cn("mt-0.5 size-4 shrink-0", state.className)} />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-sm font-medium break-words">
-                  {issue.title}
-                </span>
+                <span className="text-sm font-medium break-words">{issue.title}</span>
                 <span className="line-clamp-1 text-xs text-muted-foreground">
-                  {issue.lastRunDetail ??
-                    issue.verdictSummary ??
-                    issue.description}
+                  {issue.lastRunDetail ?? issue.verdictSummary ?? issue.description}
                 </span>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <Badge variant="secondary">{state.label}</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {issue.priority} priority
-                  </span>
+                  <span className="text-xs text-muted-foreground">{issue.priority} priority</span>
                 </div>
               </div>
               <span className="shrink-0 text-xs text-muted-foreground">
@@ -170,8 +146,7 @@ export function IssuesOverview({
             <p className="mb-1 text-sm text-muted-foreground">{agent.name}</p>
             <h1 className="text-2xl font-semibold">Issues</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Queue work for this agent, answer questions, and review delivered
-              results.
+              Queue work for this agent, answer questions, and review delivered results.
             </p>
           </div>
           <Button asChild>
@@ -202,11 +177,7 @@ export function IssuesOverview({
             />
           </div>
           {error ? (
-            <ResourceError
-              error={error}
-              title="Unable to load issues"
-              onRetry={onRefresh}
-            />
+            <ResourceError error={error} title="Unable to load issues" onRetry={onRefresh} />
           ) : null}
           {issueFilters.map((value) => (
             <TabsContent key={value} value={value}>

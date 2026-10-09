@@ -19,7 +19,11 @@ export function useModelSelection(options: {
 
   useEffect(() => {
     if (!agent || snapshot.isStreaming || snapshot.model === resolvedModel) return;
-    agent.setModel(modelRef.id, resolvedModel, clampThinkingLevel(resolvedModel, agent.getSnapshot().thinkingLevel));
+    agent.setModel(
+      modelRef.id,
+      resolvedModel,
+      clampThinkingLevel(resolvedModel, agent.getSnapshot().thinkingLevel),
+    );
   }, [agent, modelRef.id, resolvedModel, snapshot.isStreaming, snapshot.model]);
 
   useEffect(() => {
@@ -32,7 +36,10 @@ export function useModelSelection(options: {
   const selectModel = async (nextModelRef: ModelRef) => {
     const activeAgent = agentRef.current;
     const nextModel = resolveModelRef(nextModelRef);
-    const thinkingLevel = clampThinkingLevel(nextModel, activeAgent?.getSnapshot().thinkingLevel ?? session.thinkingLevel);
+    const thinkingLevel = clampThinkingLevel(
+      nextModel,
+      activeAgent?.getSnapshot().thinkingLevel ?? session.thinkingLevel,
+    );
     activeAgent?.setModel(nextModelRef.id, nextModel, thinkingLevel);
     try {
       await updateSession(session.id, { modelRefId: nextModelRef.id, thinkingLevel });

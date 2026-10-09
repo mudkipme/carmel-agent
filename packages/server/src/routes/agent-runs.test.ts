@@ -28,21 +28,31 @@ test("active session list includes only running listed sessions owned by the cal
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
-  db.insert(sessions).values([
-    { ...base, id: hiddenSessionId, userId: fixture.userId, archivedAt: Date.now() },
-    { ...base, id: otherSessionId, userId: otherUserId },
-  ]).run();
+  db.insert(sessions)
+    .values([
+      { ...base, id: hiddenSessionId, userId: fixture.userId, archivedAt: Date.now() },
+      { ...base, id: otherSessionId, userId: otherUserId },
+    ])
+    .run();
   const runs = [
     [fixture.sessionId, fixture.userId],
     [hiddenSessionId, fixture.userId],
     [otherSessionId, otherUserId],
-  ].map(([sessionId, userId]) => createActiveAgentRun({
-    runId: id("run"), sessionId, userId, abort: () => {},
-  }));
+  ].map(([sessionId, userId]) =>
+    createActiveAgentRun({
+      runId: id("run"),
+      sessionId,
+      userId,
+      abort: () => {},
+    }),
+  );
   const user = db.select().from(users).where(eq(users.id, fixture.userId)).get();
   assert.ok(user);
   const app = new Hono<{ Variables: AuthVariables }>();
-  app.use("*", async (c, next) => { c.set("user", user); await next(); });
+  app.use("*", async (c, next) => {
+    c.set("user", user);
+    await next();
+  });
   app.route("/", createAgentRunRoutes());
 
   try {
@@ -96,7 +106,10 @@ test("finished run snapshot returns the final persisted transcript with no stale
 
   const connection = await readSessionConnection(fixture.userId, fixture.sessionId);
   assert.equal(connection?.activeRun, null);
-  assert.equal((connection?.session.messages[0] as { content?: unknown })?.content, "final authoritative message");
+  assert.equal(
+    (connection?.session.messages[0] as { content?: unknown })?.content,
+    "final authoritative message",
+  );
 });
 
 test("connection snapshots replace raw image data with the shared authenticated URL projection", async () => {

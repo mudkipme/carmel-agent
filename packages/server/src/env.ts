@@ -15,7 +15,9 @@ for (const file of [
 }
 
 if (process.env.NODE_ENV === "production" && !process.env.CARMEL_SECRET_KEY?.trim()) {
-  throw new Error("CARMEL_SECRET_KEY is required in production. Generate it once, keep it stable, and back it up with your data.");
+  throw new Error(
+    "CARMEL_SECRET_KEY is required in production. Generate it once, keep it stable, and back it up with your data.",
+  );
 }
 
 /**
@@ -46,7 +48,9 @@ function parseEnvLine(line: string) {
   const trimmed = line.trim();
   if (!trimmed || trimmed.startsWith("#")) return undefined;
 
-  const normalized = trimmed.startsWith("export ") ? trimmed.slice("export ".length).trimStart() : trimmed;
+  const normalized = trimmed.startsWith("export ")
+    ? trimmed.slice("export ".length).trimStart()
+    : trimmed;
   const separator = normalized.indexOf("=");
   if (separator <= 0) return undefined;
 

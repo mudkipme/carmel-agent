@@ -12,7 +12,8 @@ export type MountDirectory = { source: string; target: string; readOnly?: boolea
  */
 export function prepareNestedMountpoints(mounts: MountDirectory[]) {
   for (const mount of mounts) {
-    const parent = mounts.filter((other) => other !== mount && isBelow(other.target, mount.target))
+    const parent = mounts
+      .filter((other) => other !== mount && isBelow(other.target, mount.target))
       .sort((a, b) => b.target.length - a.target.length)[0];
     if (!parent) continue;
     const parts = posix.relative(parent.target, mount.target).split("/");
@@ -24,11 +25,19 @@ export function prepareNestedMountpoints(mounts: MountDirectory[]) {
         const child = `/proc/self/fd/${fd}/${part}`;
         const last = index === parts.length - 1;
         if (last && !statSync(mount.source).isDirectory()) {
-          const flags = constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK | (parent.readOnly ? 0 : constants.O_CREAT);
+          const flags =
+            constants.O_RDONLY |
+            constants.O_NOFOLLOW |
+            constants.O_NONBLOCK |
+            (parent.readOnly ? 0 : constants.O_CREAT);
           closeSync(openSync(child, flags, 0o644));
         } else {
           if (!parent.readOnly) {
-            try { mkdirSync(child); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+            try {
+              mkdirSync(child);
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+            }
           }
           const next = openSync(child, directoryFlags);
           closeSync(fd);
@@ -36,8 +45,13 @@ export function prepareNestedMountpoints(mounts: MountDirectory[]) {
         }
       }
     } catch (error) {
-      throw new Error(`Cannot prepare nested sandbox mount ${mount.target}. Its sources must be accessible to the server and its parent directories writable, without symlinks.`, { cause: error });
-    } finally { if (fd !== undefined) closeSync(fd); }
+      throw new Error(
+        `Cannot prepare nested sandbox mount ${mount.target}. Its sources must be accessible to the server and its parent directories writable, without symlinks.`,
+        { cause: error },
+      );
+    } finally {
+      if (fd !== undefined) closeSync(fd);
+    }
   }
 }
 

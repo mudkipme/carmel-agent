@@ -38,15 +38,19 @@ test("SQLite model catalogs survive store recreation", async () => {
 });
 
 test("invalid cached catalogs are removed instead of breaking model discovery", async () => {
-  sqlite.prepare(`
+  sqlite
+    .prepare(`
     INSERT INTO model_catalogs (provider_id, models) VALUES (?, ?)
     ON CONFLICT(provider_id) DO UPDATE SET models = excluded.models
-  `).run("broken-provider", "not-json");
+  `)
+    .run("broken-provider", "not-json");
 
   const store = new SqliteModelsStore(sqlite);
   assert.equal(await store.read("broken-provider"), undefined);
   assert.equal(
-    sqlite.prepare("SELECT provider_id FROM model_catalogs WHERE provider_id = ?").get("broken-provider"),
+    sqlite
+      .prepare("SELECT provider_id FROM model_catalogs WHERE provider_id = ?")
+      .get("broken-provider"),
     undefined,
   );
 });

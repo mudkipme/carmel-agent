@@ -10,13 +10,28 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { getActionDialogSnapshot, resolveActionDialog, subscribeActionDialogs } from "@/lib/action-dialogs";
+import {
+  getActionDialogSnapshot,
+  resolveActionDialog,
+  subscribeActionDialogs,
+} from "@/lib/action-dialogs";
 
 export function ActionDialogs() {
-  const request = useSyncExternalStore(subscribeActionDialogs, getActionDialogSnapshot, getActionDialogSnapshot);
+  const request = useSyncExternalStore(
+    subscribeActionDialogs,
+    getActionDialogSnapshot,
+    getActionDialogSnapshot,
+  );
   const [draft, setDraft] = useState("");
   useEffect(() => {
     if (request?.kind === "prompt") setDraft(request.initialValue);
@@ -24,11 +39,20 @@ export function ActionDialogs() {
 
   return (
     <>
-      <AlertDialog open={request?.kind === "confirm"} onOpenChange={(open) => { if (!open) resolveActionDialog(false); }}>
+      <AlertDialog
+        open={request?.kind === "confirm"}
+        onOpenChange={(open) => {
+          if (!open) resolveActionDialog(false);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{request?.kind === "confirm" ? request.title : "Confirm action"}</AlertDialogTitle>
-            <AlertDialogDescription>{request?.kind === "confirm" ? request.description : ""}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {request?.kind === "confirm" ? request.title : "Confirm action"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {request?.kind === "confirm" ? request.description : ""}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -39,18 +63,37 @@ export function ActionDialogs() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={request?.kind === "prompt"} onOpenChange={(open) => { if (!open) resolveActionDialog(null); }}>
+      <Dialog
+        open={request?.kind === "prompt"}
+        onOpenChange={(open) => {
+          if (!open) resolveActionDialog(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{request?.kind === "prompt" ? request.title : "Enter a value"}</DialogTitle>
-            {request?.kind === "prompt" && request.description ? <DialogDescription>{request.description}</DialogDescription> : null}
+            <DialogTitle>
+              {request?.kind === "prompt" ? request.title : "Enter a value"}
+            </DialogTitle>
+            {request?.kind === "prompt" && request.description ? (
+              <DialogDescription>{request.description}</DialogDescription>
+            ) : null}
           </DialogHeader>
           <Field>
             <FieldLabel htmlFor="action-dialog-value">Name</FieldLabel>
-            <Input id="action-dialog-value" autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && draft.trim()) resolveActionDialog(draft.trim()); }} />
+            <Input
+              id="action-dialog-value"
+              autoFocus
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && draft.trim()) resolveActionDialog(draft.trim());
+              }}
+            />
           </Field>
           <DialogFooter>
-            <Button variant="outline" onClick={() => resolveActionDialog(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => resolveActionDialog(null)}>
+              Cancel
+            </Button>
             <Button disabled={!draft.trim()} onClick={() => resolveActionDialog(draft.trim())}>
               {request?.kind === "prompt" ? request.actionLabel : "Save"}
             </Button>

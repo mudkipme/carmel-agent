@@ -40,9 +40,20 @@ export function PiChat({
   const hasStreamedRef = useRef(false);
   const inputDraftRef = useRef("");
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
-  const { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot } = useSessionAgent(agentConfig, session, modelRef);
+  const { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot } = useSessionAgent(
+    agentConfig,
+    session,
+    modelRef,
+  );
   const mutations = useMessageMutations(agentRef, sessionRef);
-  const modelSelection = useModelSelection({ agent, agentRef, modelRef, resolvedModel, session, snapshot });
+  const modelSelection = useModelSelection({
+    agent,
+    agentRef,
+    modelRef,
+    resolvedModel,
+    session,
+    snapshot,
+  });
 
   /* A session made from the new-session composer arrives with its first
      message still to send. A rejection puts the text back in the composer, as
@@ -71,44 +82,59 @@ export function PiChat({
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
-        {session.issueId ? <div className="flex items-center justify-between gap-3 border-b px-4 py-2 text-sm text-muted-foreground">
-          <span>Issue conversation · Read-only history</span>
-          <Button asChild variant="outline" size="sm"><Link to={`/agents/${session.agentId}/issues/${session.issueId}`}>Back to issue</Link></Button>
-        </div> : null}
-        {snapshot.errorMessage ? (
-          <ChatErrorNotice message={snapshot.errorMessage} onDismiss={() => agent?.dismissError()} />
+        {session.issueId ? (
+          <div className="flex items-center justify-between gap-3 border-b px-4 py-2 text-sm text-muted-foreground">
+            <span>Issue conversation · Read-only history</span>
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/agents/${session.agentId}/issues/${session.issueId}`}>Back to issue</Link>
+            </Button>
+          </div>
         ) : null}
-        {snapshot.contextPressure ? <ContextPressureNotice pressure={snapshot.contextPressure} /> : null}
+        {snapshot.errorMessage ? (
+          <ChatErrorNotice
+            message={snapshot.errorMessage}
+            onDismiss={() => agent?.dismissError()}
+          />
+        ) : null}
+        {snapshot.contextPressure ? (
+          <ContextPressureNotice pressure={snapshot.contextPressure} />
+        ) : null}
         {/* ChatPanel is `h-full`, so the notice takes its height from a sibling
             row rather than overlaying or squeezing the chat. */}
         <div className="min-h-0 flex-1">
-        {agent ? (
-          <ChatPanel
-            readOnly={Boolean(session.issueId)}
-            scrollResetKey={session.id}
-            messages={snapshot.messages}
-            streamingMessage={snapshot.streamingMessage}
-            pendingToolCalls={snapshot.pendingToolCalls}
-            codemodeCalls={snapshot.codemodeCalls}
-            isStreaming={snapshot.isStreaming}
-            collapseRunDetails={collapseRunDetails}
-            currentModel={snapshot.model}
-            thinkingLevel={snapshot.thinkingLevel}
-            inputRef={chatInputRef}
-            inputLeadingActions={<AgentCommandPalette agent={agentConfig} onInsert={insertCommandText} />}
-            initialInput={inputDraftRef.current}
-            onInputDraftChange={(value) => { inputDraftRef.current = value; }}
-            onThinkingLevelChange={modelSelection.setThinkingLevel}
-            onSend={sendMessage}
-            onAbort={() => void agent.abort()}
-            onModelSelect={() => setModelDialogOpen(true)}
-            onEditMessage={mutations.editMessage}
-            onRetryMessage={mutations.retryFromMessage}
-            onForkMessage={mutations.forkFromMessage}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">Loading chat...</div>
-        )}
+          {agent ? (
+            <ChatPanel
+              readOnly={Boolean(session.issueId)}
+              scrollResetKey={session.id}
+              messages={snapshot.messages}
+              streamingMessage={snapshot.streamingMessage}
+              pendingToolCalls={snapshot.pendingToolCalls}
+              codemodeCalls={snapshot.codemodeCalls}
+              isStreaming={snapshot.isStreaming}
+              collapseRunDetails={collapseRunDetails}
+              currentModel={snapshot.model}
+              thinkingLevel={snapshot.thinkingLevel}
+              inputRef={chatInputRef}
+              inputLeadingActions={
+                <AgentCommandPalette agent={agentConfig} onInsert={insertCommandText} />
+              }
+              initialInput={inputDraftRef.current}
+              onInputDraftChange={(value) => {
+                inputDraftRef.current = value;
+              }}
+              onThinkingLevelChange={modelSelection.setThinkingLevel}
+              onSend={sendMessage}
+              onAbort={() => void agent.abort()}
+              onModelSelect={() => setModelDialogOpen(true)}
+              onEditMessage={mutations.editMessage}
+              onRetryMessage={mutations.retryFromMessage}
+              onForkMessage={mutations.forkFromMessage}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+              Loading chat...
+            </div>
+          )}
         </div>
       </div>
       <ModelCommandDialog
@@ -126,7 +152,8 @@ export function PiChat({
         value={mutations.editingMessage}
         onChange={mutations.setEditingMessage}
         onSave={async (edit, submit, removals) => {
-          if (edit.kind === "assistant") await mutations.saveAssistantMessage(edit.message, edit.draft);
+          if (edit.kind === "assistant")
+            await mutations.saveAssistantMessage(edit.message, edit.draft);
           else await mutations.saveUserMessage(edit.message, edit.draft, submit, removals);
         }}
       />

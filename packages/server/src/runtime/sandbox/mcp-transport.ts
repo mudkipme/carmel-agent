@@ -20,53 +20,89 @@ export class SandboxMcpTransport implements McpTransport {
   private readonly errors = new Set<McpTransportErrorListener>();
   private readonly closes = new Set<McpTransportCloseListener>();
 
-  constructor(private readonly open: () => Promise<Duplex>, private readonly release: () => void) {}
+  constructor(
+    private readonly open: () => Promise<Duplex>,
+    private readonly release: () => void,
+  ) {}
 
-  onMessage(listener: McpTransportMessageListener) { this.messages.add(listener); return () => { this.messages.delete(listener); }; }
-  onError(listener: McpTransportErrorListener) { this.errors.add(listener); return () => { this.errors.delete(listener); }; }
-  onClose(listener: McpTransportCloseListener) { this.closes.add(listener); return () => { this.closes.delete(listener); }; }
+  onMessage(listener: McpTransportMessageListener) {
+    this.messages.add(listener);
+    return () => {
+      this.messages.delete(listener);
+    };
+  }
+  onError(listener: McpTransportErrorListener) {
+    this.errors.add(listener);
+    return () => {
+      this.errors.delete(listener);
+    };
+  }
+  onClose(listener: McpTransportCloseListener) {
+    this.closes.add(listener);
+    return () => {
+      this.closes.delete(listener);
+    };
+  }
 
   async start() {
     if (this.closed) throw new McpConnectionClosedError();
     const socket = await this.open();
-    if (this.closed) { socket.destroy(); this.release(); throw new McpConnectionClosedError(); }
+    if (this.closed) {
+      socket.destroy();
+      this.release();
+      throw new McpConnectionClosedError();
+    }
     this.socket = socket;
     const decoder = new StringDecoder("utf8");
     let pending = "";
-    const demux = createStreamDemuxer((stream, chunk) => {
-      // stderr must never enter the JSON-RPC parser or a model transcript.
-      if (stream !== 1) return;
-      pending += decoder.write(chunk);
-      let end: number;
-      try {
-        while ((end = pending.indexOf("\n")) >= 0) {
-          const line = pending.slice(0, end);
-          pending = pending.slice(end + 1);
-          if (Buffer.byteLength(line) > 16 * 1024 * 1024) throw new Error("MCP message exceeds 16 MiB.");
-          if (!line.trim()) continue;
-          const message = parseJsonRpcMessage(JSON.parse(line));
-          for (const listener of this.messages) listener(message);
+    const demux = createStreamDemuxer(
+      (stream, chunk) => {
+        // stderr must never enter the JSON-RPC parser or a model transcript.
+        if (stream !== 1) return;
+        pending += decoder.write(chunk);
+        let end: number;
+        try {
+          while ((end = pending.indexOf("\n")) >= 0) {
+            const line = pending.slice(0, end);
+            pending = pending.slice(end + 1);
+            if (Buffer.byteLength(line) > 16 * 1024 * 1024)
+              throw new Error("MCP message exceeds 16 MiB.");
+            if (!line.trim()) continue;
+            const message = parseJsonRpcMessage(JSON.parse(line));
+            for (const listener of this.messages) listener(message);
+          }
+          if (Buffer.byteLength(pending) > 16 * 1024 * 1024)
+            throw new Error("MCP message exceeds 16 MiB.");
+        } catch {
+          for (const listener of this.errors) listener(new Error("Invalid MCP stdio message."));
+          void this.close();
         }
-        if (Buffer.byteLength(pending) > 16 * 1024 * 1024) throw new Error("MCP message exceeds 16 MiB.");
-      } catch {
-        for (const listener of this.errors) listener(new Error("Invalid MCP stdio message."));
-        void this.close();
-      }
-    }, 16 * 1024 * 1024);
+      },
+      16 * 1024 * 1024,
+    );
     socket.on("data", (chunk: Buffer) => {
-      try { demux(chunk); } catch {
+      try {
+        demux(chunk);
+      } catch {
         for (const listener of this.errors) listener(new Error("Invalid MCP stdio frame."));
         void this.close();
       }
     });
-    socket.on("error", (error) => { for (const listener of this.errors) listener(error); void this.close(); });
-    socket.on("close", () => { void this.close(); });
+    socket.on("error", (error) => {
+      for (const listener of this.errors) listener(error);
+      void this.close();
+    });
+    socket.on("close", () => {
+      void this.close();
+    });
   }
 
   async send(message: JsonRpcMessage) {
     if (this.closed || !this.socket) throw new McpConnectionClosedError();
     const socket = this.socket;
-    await new Promise<void>((resolve, reject) => socket.write(`${JSON.stringify(message)}\n`, (error) => error ? reject(error) : resolve()));
+    await new Promise<void>((resolve, reject) =>
+      socket.write(`${JSON.stringify(message)}\n`, (error) => (error ? reject(error) : resolve())),
+    );
   }
 
   async close() {
@@ -81,8 +117,15 @@ export class SandboxMcpTransport implements McpTransport {
     const socket = this.socket;
     if (socket && !socket.destroyed) {
       await new Promise<void>((resolve) => {
-        const timeout = setTimeout(() => { socket.destroy(); resolve(); }, 1000);
-        socket.end(() => { clearTimeout(timeout); socket.destroy(); resolve(); });
+        const timeout = setTimeout(() => {
+          socket.destroy();
+          resolve();
+        }, 1000);
+        socket.end(() => {
+          clearTimeout(timeout);
+          socket.destroy();
+          resolve();
+        });
       });
     }
     this.release();

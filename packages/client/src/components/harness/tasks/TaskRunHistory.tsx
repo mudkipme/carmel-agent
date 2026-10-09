@@ -20,9 +20,7 @@ export function TaskRunHistory({
   revision: number;
   onRunFinished: () => Promise<unknown>;
 }) {
-  const canOpenSessions = useHarnessStore(
-    (state) => state.activeUserId === task.userId,
-  );
+  const canOpenSessions = useHarnessStore((state) => state.activeUserId === task.userId);
   const {
     data: runs,
     error,
@@ -32,8 +30,7 @@ export function TaskRunHistory({
     key: `task-runs:${task.id}`,
     load: (signal) => api.listAgentTaskRuns(task.agentId, task.id, signal),
     refreshKey: revision,
-    pollInterval: (data) =>
-      data?.some((run) => run.outcome === "running") ? 3_000 : 30_000,
+    pollInterval: (data) => (data?.some((run) => run.outcome === "running") ? 3_000 : 30_000),
   });
   const running = runs?.some((run) => run.outcome === "running") ?? false;
   const wasRunning = useRef(false);
@@ -46,11 +43,7 @@ export function TaskRunHistory({
     <div className="flex min-w-0 flex-col gap-3 border-t pt-3">
       <h3 className="text-sm font-medium">Run history</h3>
       {error ? (
-        <ResourceError
-          error={error}
-          title="Unable to load run history"
-          onRetry={refresh}
-        />
+        <ResourceError error={error} title="Unable to load run history" onRetry={refresh} />
       ) : null}
       {loading ? (
         <ResourceLoading label="Loading run history" />
@@ -69,17 +62,14 @@ export function TaskRunHistory({
                   <span
                     className={cn(
                       "text-muted-foreground",
-                      ["failed", "interrupted"].includes(run.outcome) &&
-                        "text-destructive",
+                      ["failed", "interrupted"].includes(run.outcome) && "text-destructive",
                     )}
                   >
                     {describeTaskOutcome(run.outcome)}
                   </span>
                 </p>
                 {run.detail ? (
-                  <p className="break-words text-muted-foreground">
-                    {run.detail}
-                  </p>
+                  <p className="break-words text-muted-foreground">{run.detail}</p>
                 ) : null}
               </div>
               {run.sessionId && canOpenSessions ? (

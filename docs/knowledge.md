@@ -24,12 +24,12 @@ For LifeOS, register its existing wiki and vault directories without importing o
 
 ## Retrieval and memory tools
 
-| Tool | Behavior |
-| --- | --- |
+| Tool               | Behavior                                                                                                                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `knowledge_search` | Fast keyword search, semantic vector search, or deep hybrid retrieval. Returns bounded excerpts and links to current source documents. Semantic failures fall back to keyword search with a visible warning. |
-| `knowledge_read` | Reads a bounded line range of a current source document, with a revision hash and citation. |
-| `memory_save` | Creates a managed note when the user asks to remember something. Updates require its ID and expected revision. |
-| `memory_forget` | Removes a saved memory for all users of the agent, using an expected revision. |
+| `knowledge_read`   | Reads a bounded line range of a current source document, with a revision hash and citation.                                                                                                                  |
+| `memory_save`      | Creates a managed note when the user asks to remember something. Updates require its ID and expected revision.                                                                                               |
+| `memory_forget`    | Removes a saved memory for all users of the agent, using an expected revision.                                                                                                                               |
 
 Read tools require agent visibility and read permission. Creating memories requires write permission; editing or forgetting requires edit permission. Settings, source registration, and manual maintenance are owner-only. Permissions are rechecked on every call. The explicit retention rule is part of the agent tool instruction, not a classifier that verifies intent on the server.
 
@@ -70,13 +70,13 @@ Changed global model mounts or agent acceleration settings recreate the bash run
 
 Back up the application database together with `notes/`. Indexes can be rebuilt and models downloaded again. Deleting an agent removes its knowledge state. Normal service shutdown cancels maintenance and removes workers; startup reaps workers left by the previous process. Idle workers are removed after roughly five minutes.
 
-| Server setting | Default |
-| --- | --- |
-| `CARMEL_KNOWLEDGE_EMBED_MODEL` | Pinned embeddinggemma-300M-Q8_0 HF URI |
-| `CARMEL_KNOWLEDGE_IMAGE` | `CARMEL_BASH_IMAGE`, then published runner |
-| `CARMEL_KNOWLEDGE_MEMORY_MB` | `4096` |
-| `CARMEL_KNOWLEDGE_CPUS` | `2` |
-| `CARMEL_KNOWLEDGE_GPU` | Inherits `CARMEL_BASH_GPU`; empty disables passthrough |
+| Server setting                 | Default                                                |
+| ------------------------------ | ------------------------------------------------------ |
+| `CARMEL_KNOWLEDGE_EMBED_MODEL` | Pinned embeddinggemma-300M-Q8_0 HF URI                 |
+| `CARMEL_KNOWLEDGE_IMAGE`       | `CARMEL_BASH_IMAGE`, then published runner             |
+| `CARMEL_KNOWLEDGE_MEMORY_MB`   | `4096`                                                 |
+| `CARMEL_KNOWLEDGE_CPUS`        | `2`                                                    |
+| `CARMEL_KNOWLEDGE_GPU`         | Inherits `CARMEL_BASH_GPU`; empty disables passthrough |
 
 Set these in the server environment. Compose passes through `CARMEL_KNOWLEDGE_EMBED_MODEL` from its `.env`; add other overrides under `environment:` as needed.
 

@@ -16,7 +16,9 @@ export function resolveRuntimeSocketPath(): string | undefined {
   if (dockerHost?.startsWith("unix://")) return dockerHost.slice("unix://".length);
 
   const candidates = [
-    process.env.XDG_RUNTIME_DIR ? join(process.env.XDG_RUNTIME_DIR, "podman", "podman.sock") : undefined,
+    process.env.XDG_RUNTIME_DIR
+      ? join(process.env.XDG_RUNTIME_DIR, "podman", "podman.sock")
+      : undefined,
     "/run/podman/podman.sock",
     "/var/run/docker.sock",
   ].filter((path): path is string => Boolean(path));
@@ -49,7 +51,8 @@ function runtimeRequest(options: RequestOptions): Promise<IncomingMessage> {
   const socketPath = resolveRuntimeSocketPath();
   if (!socketPath) return Promise.reject(new Error(sandboxUnavailableMessage()));
 
-  const payload = options.body === undefined ? undefined : Buffer.from(JSON.stringify(options.body));
+  const payload =
+    options.body === undefined ? undefined : Buffer.from(JSON.stringify(options.body));
   return new Promise((resolve, reject) => {
     const req = httpRequest(
       {
@@ -96,7 +99,9 @@ async function expectStatus(res: IncomingMessage, allowed: number[], context: st
 /** Read daemon metadata, including Podman's native info when requested. */
 export async function runtimeInfo<T>(path: "/version" | "/info" | "/libpod/info"): Promise<T> {
   const res = await runtimeRequest({
-    method: "GET", path, signal: AbortSignal.timeout(10000),
+    method: "GET",
+    path,
+    signal: AbortSignal.timeout(10000),
     ...(path === "/libpod/info" ? { apiVersion: "v4.0.0" } : {}),
   });
   await expectStatus(res, [200], "Inspecting sandbox runtime");
@@ -108,13 +113,17 @@ export async function runtimeInfo<T>(path: "/version" | "/info" | "/libpod/info"
 // Docker/Podman multiplexes stdout and stderr into a single stream when no TTY
 // is attached. Each frame is an 8-byte header [stream, 0, 0, 0, size(uint32 BE)]
 // followed by `size` payload bytes. Frames can span chunk boundaries.
-export function createStreamDemuxer(onPayload: (stream: number, chunk: Buffer) => void, maxPayloadBytes = Infinity) {
+export function createStreamDemuxer(
+  onPayload: (stream: number, chunk: Buffer) => void,
+  maxPayloadBytes = Infinity,
+) {
   let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
   return (chunk: Buffer) => {
     buffer = buffer.length === 0 ? chunk : Buffer.concat([buffer, chunk]);
     while (buffer.length >= 8) {
       const payloadLength = buffer.readUInt32BE(4);
-      if (payloadLength > maxPayloadBytes) throw new Error("Container stream frame exceeds its size limit.");
+      if (payloadLength > maxPayloadBytes)
+        throw new Error("Container stream frame exceeds its size limit.");
       if (buffer.length < 8 + payloadLength) break;
       onPayload(buffer[0] ?? 0, buffer.subarray(8, 8 + payloadLength));
       buffer = buffer.subarray(8 + payloadLength);
@@ -126,12 +135,16 @@ export function parseImageRef(image: string): { name: string; tag: string } {
   const lastSlash = image.lastIndexOf("/");
   const lastColon = image.lastIndexOf(":");
   // A colon before the last slash is a registry port (e.g. localhost:5000/x), not a tag.
-  if (lastColon > lastSlash) return { name: image.slice(0, lastColon), tag: image.slice(lastColon + 1) };
+  if (lastColon > lastSlash)
+    return { name: image.slice(0, lastColon), tag: image.slice(lastColon + 1) };
   return { name: image, tag: "latest" };
 }
 
 export async function imageExists(image: string) {
-  const res = await runtimeRequest({ method: "GET", path: `/images/${encodeURIComponent(image)}/json` });
+  const res = await runtimeRequest({
+    method: "GET",
+    path: `/images/${encodeURIComponent(image)}/json`,
+  });
   const status = res.statusCode ?? 0;
   await drain(res);
   return status === 200;
@@ -152,7 +165,12 @@ export async function pullImage(image: string) {
 export type CreateContainerSpec = Record<string, unknown>;
 
 export async function createContainer(name: string, spec: CreateContainerSpec) {
-  const res = await runtimeRequest({ method: "POST", path: "/containers/create", query: { name }, body: spec });
+  const res = await runtimeRequest({
+    method: "POST",
+    path: "/containers/create",
+    query: { name },
+    body: spec,
+  });
   await expectStatus(res, [201], "Creating container");
   const data = await readJson<{ Id: string }>(res);
   if (!data?.Id) throw new Error("Container create response did not include an id.");
@@ -180,7 +198,11 @@ export async function isContainerRunning(containerId: string) {
 // can keep tracking it and retry instead of silently leaking an orphan.
 export async function removeContainer(containerId: string): Promise<boolean> {
   try {
-    const stopRes = await runtimeRequest({ method: "POST", path: `/containers/${containerId}/stop`, query: { t: 2 } });
+    const stopRes = await runtimeRequest({
+      method: "POST",
+      path: `/containers/${containerId}/stop`,
+      query: { t: 2 },
+    });
     await drain(stopRes);
   } catch {
     // Already stopped or gone.
@@ -350,7 +372,11 @@ async function attachExec(
       resolve(upgraded);
     });
     req.on("response", async (res) => {
-      reject(new Error(`Terminal exec was not upgraded (${res.statusCode}): ${(await readBody(res)).slice(0, 300)}`));
+      reject(
+        new Error(
+          `Terminal exec was not upgraded (${res.statusCode}): ${(await readBody(res)).slice(0, 300)}`,
+        ),
+      );
     });
     req.on("error", reject);
     req.end(JSON.stringify({ Detach: false, Tty: tty }));

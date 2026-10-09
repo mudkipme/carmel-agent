@@ -1,7 +1,15 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import type { CodemodeCallInfo } from "@carmel-agent/shared";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode, type Ref } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+  type Ref,
+} from "react";
 import type { PromptOutcome } from "@/lib/remote-agent";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMessages } from "./ChatMessages";
@@ -62,7 +70,8 @@ export function ChatPanel({
     element.scrollTop = element.scrollHeight;
   }, []);
   const renderKey = useMemo(
-    () => `${messages.length}:${streamingMessage?.timestamp ?? ""}:${isStreaming ? "streaming" : "idle"}`,
+    () =>
+      `${messages.length}:${streamingMessage?.timestamp ?? ""}:${isStreaming ? "streaming" : "idle"}`,
     [isStreaming, messages.length, streamingMessage?.timestamp],
   );
 
@@ -96,11 +105,15 @@ export function ChatPanel({
         className="min-h-0 flex-1 overflow-y-auto"
         onScroll={(event) => {
           const element = event.currentTarget;
-          const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+          const distanceFromBottom =
+            element.scrollHeight - element.scrollTop - element.clientHeight;
           autoScrollRef.current = distanceFromBottom < 48;
         }}
       >
-        <div ref={contentRef} className="mx-auto flex w-full max-w-[var(--line-width)] min-w-0 flex-col px-3 py-4">
+        <div
+          ref={contentRef}
+          className="mx-auto flex w-full max-w-[var(--line-width)] min-w-0 flex-col px-3 py-4"
+        >
           <ChatMessages
             messages={messages}
             streamingMessage={streamingMessage}
@@ -114,23 +127,25 @@ export function ChatPanel({
           />
         </div>
       </div>
-      {!readOnly ? <div className="shrink-0 px-3 pb-[calc(0.75rem+var(--safe-bottom))]">
-        <div className="mx-auto w-full max-w-[var(--line-width)] min-w-0">
-          <ChatInput
-            ref={inputRef}
-            leadingActions={inputLeadingActions}
-            currentModel={currentModel}
-            thinkingLevel={thinkingLevel}
-            isStreaming={isStreaming}
-            initialValue={initialInput}
-            onDraftChange={onInputDraftChange}
-            onThinkingLevelChange={onThinkingLevelChange}
-            onSend={onSend}
-            onAbort={onAbort}
-            onModelSelect={onModelSelect}
-          />
+      {!readOnly ? (
+        <div className="shrink-0 px-3 pb-[calc(0.75rem+var(--safe-bottom))]">
+          <div className="mx-auto w-full max-w-[var(--line-width)] min-w-0">
+            <ChatInput
+              ref={inputRef}
+              leadingActions={inputLeadingActions}
+              currentModel={currentModel}
+              thinkingLevel={thinkingLevel}
+              isStreaming={isStreaming}
+              initialValue={initialInput}
+              onDraftChange={onInputDraftChange}
+              onThinkingLevelChange={onThinkingLevelChange}
+              onSend={onSend}
+              onAbort={onAbort}
+              onModelSelect={onModelSelect}
+            />
+          </div>
         </div>
-      </div> : null}
+      ) : null}
     </div>
   );
 }

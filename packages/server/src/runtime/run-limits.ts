@@ -15,8 +15,14 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 10 * 60_000;
 
 export function runGuardLimits(): RunGuardLimits {
   return {
-    maxToolCalls: positiveInt(process.env.CARMEL_AGENT_MAX_TOOL_CALLS, DEFAULT_RUN_GUARD_LIMITS.maxToolCalls),
-    stallTimeoutMs: positiveInt(process.env.CARMEL_AGENT_STALL_TIMEOUT_MS, DEFAULT_RUN_GUARD_LIMITS.stallTimeoutMs),
+    maxToolCalls: positiveInt(
+      process.env.CARMEL_AGENT_MAX_TOOL_CALLS,
+      DEFAULT_RUN_GUARD_LIMITS.maxToolCalls,
+    ),
+    stallTimeoutMs: positiveInt(
+      process.env.CARMEL_AGENT_STALL_TIMEOUT_MS,
+      DEFAULT_RUN_GUARD_LIMITS.stallTimeoutMs,
+    ),
   };
 }
 

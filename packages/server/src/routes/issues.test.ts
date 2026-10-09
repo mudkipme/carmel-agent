@@ -69,7 +69,10 @@ test("replies reuse the conversation; failures persist in attempt history", asyn
   const running = (await start.json()) as IssueDetail;
   assert.equal(running.attempts.length, 1);
   assert.ok(running.sessionId);
-  assert.equal(db.select().from(sessions).where(eq(sessions.id, running.sessionId)).get()?.agentId, f.agentId);
+  assert.equal(
+    db.select().from(sessions).where(eq(sessions.id, running.sessionId)).get()?.agentId,
+    f.agentId,
+  );
   assert.ok(!readBootstrapPayload(f.userId).sessions.some((s) => s.id === running.sessionId));
   await waitFor(() => !readIssueView(f.userId, f.agentId, issue.id).running);
   const failed = readIssueView(f.userId, f.agentId, issue.id);
@@ -115,7 +118,10 @@ test("preflight errors leave a durable failed attempt without a session", async 
     title: "Fix",
     description: "Fix it",
   });
-  await assert.rejects(runIssue(f.userId, f.agentId, issue.id, { modelRefId: "missing" }), /Model not found/);
+  await assert.rejects(
+    runIssue(f.userId, f.agentId, issue.id, { modelRefId: "missing" }),
+    /Model not found/,
+  );
   const detail = readIssueView(f.userId, f.agentId, issue.id);
   assert.equal(detail.status, "backlog");
   assert.equal(detail.attempts[0]?.sessionId, null);
@@ -141,11 +147,17 @@ test("agent delivery waits for human review; notes never reopen accepted work", 
   const done = readIssueView(f.userId, f.agentId, f.issueId);
   assert.equal(done.status, "done");
   assert.equal(done.attempts.length, 1);
-  assert.equal((await post(app, f.agentId, f.issueId, "runs", { instructions: "More" })).status, 409);
+  assert.equal(
+    (await post(app, f.agentId, f.issueId, "runs", { instructions: "More" })).status,
+    409,
+  );
   const reopened = await post(app, f.agentId, f.issueId, "reopen");
   assert.equal(((await reopened.json()) as IssueDetail).status, "backlog");
   assert.equal(readIssueView(f.userId, f.agentId, f.issueId).running, false);
-  await assert.rejects(report(f, { state: "done", summary: "Stale", evidence: "" }), /no longer active/);
+  await assert.rejects(
+    report(f, { state: "done", summary: "Stale", evidence: "" }),
+    /no longer active/,
+  );
 });
 
 test("needs-input, failed reports, and restart recovery preserve attempt evidence", async () => {
@@ -177,7 +189,8 @@ test("needs-input, failed reports, and restart recovery preserve attempt evidenc
   recoverIssueAttempts();
   recoverIssueAttempts();
   assert.equal(
-    readIssueView(interrupted.userId, interrupted.agentId, interrupted.issueId).attempts[0]?.outcome,
+    readIssueView(interrupted.userId, interrupted.agentId, interrupted.issueId).attempts[0]
+      ?.outcome,
     "interrupted",
   );
 });
@@ -226,7 +239,10 @@ test("active work rejects edits and deletion; cancellation cannot be overwritten
     200,
   );
   assert.equal(db.select().from(sessions).where(eq(sessions.id, f.sessionId)).get(), undefined);
-  assert.equal(db.select().from(issueAttempts).where(eq(issueAttempts.id, f.attemptId)).get(), undefined);
+  assert.equal(
+    db.select().from(issueAttempts).where(eq(issueAttempts.id, f.attemptId)).get(),
+    undefined,
+  );
 });
 
 test("issue attempt sessions cannot be reused, edited, forked, or deleted through chat APIs", async () => {
@@ -234,7 +250,11 @@ test("issue attempt sessions cannot be reused, edited, forked, or deleted throug
   finishIssueAttempt(f.attemptId, { outcome: "succeeded" });
   const app = appAs(f.userId);
   for (const [method, path, body] of [
-    ["POST", `/agents/${f.agentId}/run`, { sessionId: f.sessionId, promptInput: { text: "Bypass" } }],
+    [
+      "POST",
+      `/agents/${f.agentId}/run`,
+      { sessionId: f.sessionId, promptInput: { text: "Bypass" } },
+    ],
     ["PATCH", `/sessions/${f.sessionId}`, { title: "Bypass" }],
     ["DELETE", `/sessions/${f.sessionId}`, undefined],
     ["POST", `/sessions/${f.sessionId}/fork`, { entryId: "entry" }],
@@ -281,7 +301,13 @@ function appAs(userId: string) {
   app.route("/", createAgentRunRoutes());
   return app;
 }
-function post(app: ReturnType<typeof appAs>, agentId: string, issueId: string, action: string, body: object = {}) {
+function post(
+  app: ReturnType<typeof appAs>,
+  agentId: string,
+  issueId: string,
+  action: string,
+  body: object = {},
+) {
   return app.request(`/agents/${agentId}/issues/${issueId}/${action}`, {
     method: "POST",
     headers: json,

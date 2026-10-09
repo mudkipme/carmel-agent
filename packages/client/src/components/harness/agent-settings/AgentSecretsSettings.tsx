@@ -73,7 +73,9 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
       });
       if (!confirmed) return;
     }
-    if (await act(() => api.writeAgentSecret(agentId, name, draft.value), "Unable to save secret")) {
+    if (
+      await act(() => api.writeAgentSecret(agentId, name, draft.value), "Unable to save secret")
+    ) {
       setDraft(undefined);
     }
   };
@@ -97,7 +99,8 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
 
       {shared ? (
         <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
-          This agent is shared. Anyone who can run it runs commands with these secrets in their environment.
+          This agent is shared. Anyone who can run it runs commands with these secrets in their
+          environment.
         </p>
       ) : null}
 
@@ -108,7 +111,10 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
       ) : (
         <ul className="grid gap-2">
           {secrets.map((secret) => (
-            <li key={secret.name} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+            <li
+              key={secret.name}
+              className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+            >
               <div className="flex min-w-0 items-center gap-2">
                 <KeyRoundIcon className="size-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
@@ -166,7 +172,12 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
         </div>
       ) : (
         <div>
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => setDraft({ name: "", value: "" })}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => setDraft({ name: "", value: "" })}
+          >
             <PlusIcon data-icon="inline-start" />
             Add secret
           </Button>

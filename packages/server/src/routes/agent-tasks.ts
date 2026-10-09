@@ -25,11 +25,22 @@ export function createAgentTaskRoutes() {
   );
 
   route.post("/agents/:agentId/tasks", jsonValidator(agentTaskCreateSchema), (c) =>
-    respond(c, () => createAgentTask(c.get("user"), c.req.param("agentId"), c.req.valid("json")), 201),
+    respond(
+      c,
+      () => createAgentTask(c.get("user"), c.req.param("agentId"), c.req.valid("json")),
+      201,
+    ),
   );
 
   route.patch("/agents/:agentId/tasks/:taskId", jsonValidator(agentTaskPatchSchema), (c) =>
-    respond(c, () => updateAgentTask(c.get("user"), c.req.param("agentId"), c.req.param("taskId"), c.req.valid("json"))),
+    respond(c, () =>
+      updateAgentTask(
+        c.get("user"),
+        c.req.param("agentId"),
+        c.req.param("taskId"),
+        c.req.valid("json"),
+      ),
+    ),
   );
 
   route.delete("/agents/:agentId/tasks/:taskId", async (c) => {
@@ -65,7 +76,11 @@ export function createAgentTaskRoutes() {
   return route;
 }
 
-function respond<T>(c: { json: (body: unknown, status?: 200 | 201 | 400 | 404 | 409) => Response }, read: () => T, status: 200 | 201 = 200) {
+function respond<T>(
+  c: { json: (body: unknown, status?: 200 | 201 | 400 | 404 | 409) => Response },
+  read: () => T,
+  status: 200 | 201 = 200,
+) {
   try {
     return c.json(read() as object, status);
   } catch (error) {

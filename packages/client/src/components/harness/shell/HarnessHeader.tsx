@@ -1,4 +1,11 @@
-import { FolderIcon, GitCompareIcon, GlobeIcon, PanelLeftIcon, SettingsIcon, SquareTerminalIcon } from "lucide-react";
+import {
+  FolderIcon,
+  GitCompareIcon,
+  GlobeIcon,
+  PanelLeftIcon,
+  SettingsIcon,
+  SquareTerminalIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
@@ -35,20 +42,23 @@ export function HarnessHeader({
   /* Files and the terminal replace the session in the main column, so the
      title names the pane you are actually looking at. */
   const title =
-    contentView === "tasks" ? "Tasks" : contentView === "files"
-      ? "Files"
-      : contentView === "changes"
-        ? "Changes"
-        : contentView === "terminal"
-          ? "Terminal"
-          : contentView === "issues"
-            ? (issueTitle ?? "Issues")
-            : (activeSession?.title ?? "New session");
+    contentView === "tasks"
+      ? "Tasks"
+      : contentView === "files"
+        ? "Files"
+        : contentView === "changes"
+          ? "Changes"
+          : contentView === "terminal"
+            ? "Terminal"
+            : contentView === "issues"
+              ? (issueTitle ?? "Issues")
+              : (activeSession?.title ?? "New session");
   /* The subtitle carries only what nothing else on screen says: the model is
      already named in the composer, and the working directory is worth the room
      just when the agent runs somewhere other than its own default. */
   const customWorkingDir =
-    activeAgent?.workingDirMode === "manual" && activeAgent.workingDir !== activeAgent.defaultWorkingDir
+    activeAgent?.workingDirMode === "manual" &&
+    activeAgent.workingDir !== activeAgent.defaultWorkingDir
       ? activeAgent.workingDir
       : "";
 
@@ -110,11 +120,32 @@ export function HarnessHeader({
             <SquareTerminalIcon />
           </Button>
         ) : null}
-        {activeAgent?.permissions.bash ? <Button variant={browserOpen ? "secondary" : "ghost"} size="sm" className="relative w-10 sm:w-auto" aria-label={browserOpen ? "Close browser" : "Open browser"} aria-pressed={browserOpen} onClick={onToggleBrowser}>
-          <GlobeIcon data-icon="inline-start" /><span className="hidden sm:inline">Browser</span>{browserNeedsHelp ? <Badge variant="secondary" className="absolute top-0 right-0 sm:static">!</Badge> : null}
-        </Button> : null}
+        {activeAgent?.permissions.bash ? (
+          <Button
+            variant={browserOpen ? "secondary" : "ghost"}
+            size="sm"
+            className="relative w-10 sm:w-auto"
+            aria-label={browserOpen ? "Close browser" : "Open browser"}
+            aria-pressed={browserOpen}
+            onClick={onToggleBrowser}
+          >
+            <GlobeIcon data-icon="inline-start" />
+            <span className="hidden sm:inline">Browser</span>
+            {browserNeedsHelp ? (
+              <Badge variant="secondary" className="absolute top-0 right-0 sm:static">
+                !
+              </Badge>
+            ) : null}
+          </Button>
+        ) : null}
         {activeAgent ? (
-          <Button variant="ghost" size="icon-sm" title="Agent settings" aria-label="Agent settings" onClick={onOpenAgentSettings}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Agent settings"
+            aria-label="Agent settings"
+            onClick={onOpenAgentSettings}
+          >
             <SettingsIcon />
           </Button>
         ) : null}

@@ -4,7 +4,12 @@ import { asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agentTasks, agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
-import { defaultAgentWorkingDir, ensureDir, normalizeDataRelativePath, resolveDataPath } from "../paths.ts";
+import {
+  defaultAgentWorkingDir,
+  ensureDir,
+  normalizeDataRelativePath,
+  resolveDataPath,
+} from "../paths.ts";
 import { resolveServerModelRef } from "../runtime/model.ts";
 import { serializeModelRef } from "../serializers.ts";
 
@@ -46,7 +51,13 @@ export function readVisibleModelRefs(userId: string) {
   return db
     .select()
     .from(modelRefs)
-    .where(or(eq(modelRefs.ownerUserId, userId), eq(modelRefs.shared, true), isNull(modelRefs.providerConfigId)))
+    .where(
+      or(
+        eq(modelRefs.ownerUserId, userId),
+        eq(modelRefs.shared, true),
+        isNull(modelRefs.providerConfigId),
+      ),
+    )
     .all();
 }
 
@@ -54,12 +65,21 @@ export function readVisibleModelRefs(userId: string) {
 export function readUsableModelRef(userId: string, modelRefId: string): ModelRefRecord | undefined {
   const modelRef = db.select().from(modelRefs).where(eq(modelRefs.id, modelRefId)).get();
   if (!modelRef) return undefined;
-  return modelRef.ownerUserId === userId || modelRef.shared || !modelRef.providerConfigId ? modelRef : undefined;
+  return modelRef.ownerUserId === userId || modelRef.shared || !modelRef.providerConfigId
+    ? modelRef
+    : undefined;
 }
 
-export function resolveSupportedThinkingLevel(modelRef: ModelRefRecord, thinkingLevel: AgentThinkingLevel) {
+export function resolveSupportedThinkingLevel(
+  modelRef: ModelRefRecord,
+  thinkingLevel: AgentThinkingLevel,
+) {
   const providerConfig = modelRef.providerConfigId
-    ? db.select().from(providerConfigs).where(eq(providerConfigs.id, modelRef.providerConfigId)).get()
+    ? db
+        .select()
+        .from(providerConfigs)
+        .where(eq(providerConfigs.id, modelRef.providerConfigId))
+        .get()
     : undefined;
   return clampThinkingLevel(
     resolveServerModelRef(serializeModelRef(modelRef), providerConfig),
@@ -84,7 +104,9 @@ export function resolveAgentWorkingDir(
   }
 
   const previousManualWorkingDir =
-    current?.workingDirMode === "manual" && current.workingDir !== defaultWorkingDir ? current.workingDir : "";
+    current?.workingDirMode === "manual" && current.workingDir !== defaultWorkingDir
+      ? current.workingDir
+      : "";
   const workingDir = agent.workingDir.trim() || previousManualWorkingDir;
   if (!workingDir) return null;
   return {
@@ -93,7 +115,10 @@ export function resolveAgentWorkingDir(
   };
 }
 
-export function assertAgentHostPathAccess(role: UserRole, agent: Pick<AgentConfig, "workingDirMode" | "mounts">) {
+export function assertAgentHostPathAccess(
+  role: UserRole,
+  agent: Pick<AgentConfig, "workingDirMode" | "mounts">,
+) {
   if (role === "admin") return;
   if (agent.workingDirMode === "manual") {
     throw new AgentHostPathAccessError("Manual working directories are admin-only.");
@@ -122,7 +147,11 @@ export function reassignModelReferences(deletedModelIds: Set<string>) {
     .where(inArray(agentTasks.modelRefId, ids))
     .run();
 
-  const affectedAgents = db.select().from(agents).where(inArray(agents.defaultModelRefId, ids)).all();
+  const affectedAgents = db
+    .select()
+    .from(agents)
+    .where(inArray(agents.defaultModelRefId, ids))
+    .all();
   for (const agent of affectedAgents) {
     const fallbackModel = readFallbackModelForUser(agent.ownerUserId, deletedModelIds);
     if (!fallbackModel) continue;
@@ -132,7 +161,11 @@ export function reassignModelReferences(deletedModelIds: Set<string>) {
       .run();
   }
 
-  const affectedSessions = db.select().from(sessions).where(inArray(sessions.modelRefId, ids)).all();
+  const affectedSessions = db
+    .select()
+    .from(sessions)
+    .where(inArray(sessions.modelRefId, ids))
+    .all();
   const agentIds = [...new Set(affectedSessions.map((session) => session.agentId))];
   const agentDefaultModelById = new Map(
     agentIds.length === 0
@@ -170,13 +203,25 @@ export function readAffectedModelUserIds(deletedModelIds: Set<string>) {
   const ids = [...deletedModelIds];
   if (ids.length === 0) return [];
   const userIds = new Set<string>();
-  for (const agent of db.select({ ownerUserId: agents.ownerUserId }).from(agents).where(inArray(agents.defaultModelRefId, ids)).all()) {
+  for (const agent of db
+    .select({ ownerUserId: agents.ownerUserId })
+    .from(agents)
+    .where(inArray(agents.defaultModelRefId, ids))
+    .all()) {
     userIds.add(agent.ownerUserId);
   }
-  for (const user of db.select({ id: users.id }).from(users).where(inArray(users.fastTaskModelRefId, ids)).all()) {
+  for (const user of db
+    .select({ id: users.id })
+    .from(users)
+    .where(inArray(users.fastTaskModelRefId, ids))
+    .all()) {
     userIds.add(user.id);
   }
-  for (const session of db.select({ userId: sessions.userId }).from(sessions).where(inArray(sessions.modelRefId, ids)).all()) {
+  for (const session of db
+    .select({ userId: sessions.userId })
+    .from(sessions)
+    .where(inArray(sessions.modelRefId, ids))
+    .all()) {
     userIds.add(session.userId);
   }
   return [...userIds];

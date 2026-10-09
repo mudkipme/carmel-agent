@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyTurnFailure, formatTurnFailure, type FailureCategory } from "./failure-classifier.ts";
+import {
+  classifyTurnFailure,
+  formatTurnFailure,
+  type FailureCategory,
+} from "./failure-classifier.ts";
 
 /**
  * Wording taken from what the providers actually return.
@@ -12,12 +16,14 @@ import { classifyTurnFailure, formatTurnFailure, type FailureCategory } from "./
 const REAL_MESSAGES: readonly { category: FailureCategory; message: string }[] = [
   {
     category: "auth",
-    message: "401 {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"}}",
+    message:
+      '401 {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
   },
   { category: "auth", message: "OAuth token has expired. Please re-authenticate." },
   {
     category: "quota",
-    message: "429 You exceeded your current quota, please check your plan and billing details. code: insufficient_quota",
+    message:
+      "429 You exceeded your current quota, please check your plan and billing details. code: insufficient_quota",
   },
   { category: "quota", message: "Your credit balance is too low to access the Anthropic API." },
   {
@@ -27,10 +33,14 @@ const REAL_MESSAGES: readonly { category: FailureCategory; message: string }[] =
   },
   {
     category: "tool_history",
-    message: "400 Invalid parameter: messages with role 'tool' must be a response to a preceding message with 'tool_calls'.",
+    message:
+      "400 Invalid parameter: messages with role 'tool' must be a response to a preceding message with 'tool_calls'.",
   },
-  { category: "model_unavailable", message: "404 The model `gpt-5.6-sol` does not exist or you do not have access to it." },
-  { category: "transient", message: "529 {\"type\":\"overloaded_error\",\"message\":\"Overloaded\"}" },
+  {
+    category: "model_unavailable",
+    message: "404 The model `gpt-5.6-sol` does not exist or you do not have access to it.",
+  },
+  { category: "transient", message: '529 {"type":"overloaded_error","message":"Overloaded"}' },
   { category: "transient", message: "fetch failed: ECONNRESET" },
 ];
 
@@ -62,7 +72,10 @@ test("a quota refusal that mentions 429 is not treated as retryable", () => {
 });
 
 test("the transient hint only promotes an otherwise unrecognised failure", () => {
-  assert.equal(classifyTurnFailure({ message: "something odd", transientHint: true }).category, "transient");
+  assert.equal(
+    classifyTurnFailure({ message: "something odd", transientHint: true }).category,
+    "transient",
+  );
   assert.equal(classifyTurnFailure({ message: "something odd" }).category, "unknown");
 });
 
@@ -95,11 +108,16 @@ test("a tool-history failure points at the fork and truncate remedy", () => {
 });
 
 test("an unclassified failure keeps the provider's text instead of a useless summary", () => {
-  assert.equal(formatTurnFailure(classifyTurnFailure({ message: "weird gateway hiccup" })), "weird gateway hiccup");
+  assert.equal(
+    formatTurnFailure(classifyTurnFailure({ message: "weird gateway hiccup" })),
+    "weird gateway hiccup",
+  );
 });
 
 test("long provider detail is collapsed and truncated, not dumped", () => {
-  const rendered = formatTurnFailure(classifyTurnFailure({ message: `invalid x-api-key\n${"x".repeat(900)}` }));
+  const rendered = formatTurnFailure(
+    classifyTurnFailure({ message: `invalid x-api-key\n${"x".repeat(900)}` }),
+  );
   assert.ok(rendered.length < 600, `rendered ${rendered.length} chars`);
   assert.match(rendered, /…\)$/);
 });

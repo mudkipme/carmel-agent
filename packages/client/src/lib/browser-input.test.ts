@@ -20,5 +20,8 @@ test("address input normalizes domains without permitting active content", () =>
   assert.equal(browserAddress("about:blank"), "about:blank");
   assert.throws(() => browserAddress("javascript:alert(1)"));
   assert.throws(() => browserAddress("file:///etc/passwd"));
-  assert.equal(browserModifiers({ altKey: true, ctrlKey: false, metaKey: true, shiftKey: true }), 13);
+  assert.equal(
+    browserModifiers({ altKey: true, ctrlKey: false, metaKey: true, shiftKey: true }),
+    13,
+  );
 });

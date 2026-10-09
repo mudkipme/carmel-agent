@@ -19,7 +19,8 @@ export function createApiKeyRoutes() {
   );
 
   route.delete("/api-keys/:id", (c) => {
-    if (!deleteApiKey(c.get("user").id, c.req.param("id"))) return c.json({ error: "API key not found." }, 404);
+    if (!deleteApiKey(c.get("user").id, c.req.param("id")))
+      return c.json({ error: "API key not found." }, 404);
     return c.json({ ok: true });
   });
 

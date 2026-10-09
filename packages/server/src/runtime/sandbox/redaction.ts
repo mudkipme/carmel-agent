@@ -28,7 +28,9 @@ const minRedactableLength = 4;
 
 const passthrough: SecretRedactor = { push: (chunk) => chunk, flush: () => "" };
 
-export function createSecretRedactor(secrets: ReadonlyArray<{ name: string; value: string }>): SecretRedactor {
+export function createSecretRedactor(
+  secrets: ReadonlyArray<{ name: string; value: string }>,
+): SecretRedactor {
   const seen = new Set<string>();
   const entries = secrets
     .filter((secret) => {
@@ -47,7 +49,8 @@ export function createSecretRedactor(secrets: ReadonlyArray<{ name: string; valu
 
   const redact = (text: string) => {
     let result = text;
-    for (const entry of entries) result = result.split(entry.value).join(`[redacted:${entry.name}]`);
+    for (const entry of entries)
+      result = result.split(entry.value).join(`[redacted:${entry.name}]`);
     return result;
   };
 

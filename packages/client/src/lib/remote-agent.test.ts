@@ -2,7 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
-import type { AgentRunEvent, AgentRunEventEnvelope, AgentRunResult, SessionConnection } from "@carmel-agent/shared";
+import type {
+  AgentRunEvent,
+  AgentRunEventEnvelope,
+  AgentRunResult,
+  SessionConnection,
+} from "@carmel-agent/shared";
 import { RemoteAgent } from "./remote-agent.ts";
 
 const model = {
@@ -79,7 +84,10 @@ test("a broken observer stream reconnects after the last received sequence witho
       { url: "/api/agent-runs/run_reconnect/events?after=1", method: "GET" },
       { url: "/api/agent-runs/run_reconnect/events?after=2", method: "GET" },
     ]);
-    assert.equal(requests.some((request) => request.url.includes("/abort")), false);
+    assert.equal(
+      requests.some((request) => request.url.includes("/abort")),
+      false,
+    );
     assert.deepEqual(agent.getSnapshot().messages, final);
   } finally {
     globalThis.fetch = originalFetch;
@@ -99,7 +107,9 @@ test("an uncertain submit response recovers the server-owned run through session
     requests.push({ url, method });
     if (method === "POST" && url.endsWith("/run")) throw new Error("response socket lost");
     if (url.endsWith("/sessions/session_1/connection")) {
-      return Response.json(connection([question], { runId: "run_recovered", sessionId: "session_1", eventCursor: 1 }));
+      return Response.json(
+        connection([question], { runId: "run_recovered", sessionId: "session_1", eventCursor: 1 }),
+      );
     }
     if (url.endsWith("/events?after=1")) {
       return eventResponse([
@@ -119,7 +129,10 @@ test("an uncertain submit response recovers the server-owned run through session
       { url: "/api/sessions/session_1/connection", method: "GET" },
       { url: "/api/agent-runs/run_recovered/events?after=1", method: "GET" },
     ]);
-    assert.equal(requests.some((request) => request.url.includes("/abort")), false);
+    assert.equal(
+      requests.some((request) => request.url.includes("/abort")),
+      false,
+    );
     assert.deepEqual(agent.getSnapshot().messages, final);
   } finally {
     globalThis.fetch = originalFetch;
@@ -139,7 +152,9 @@ test("a replay gap replaces local messages with one authoritative connection sna
     requests.push(url);
     if (url.endsWith("/events?after=5")) return new Response("gap", { status: 409 });
     if (url.endsWith("/sessions/session_1/connection")) {
-      return Response.json(connection(authoritative, { runId: "run_gap", sessionId: "session_1", eventCursor: 10 }));
+      return Response.json(
+        connection(authoritative, { runId: "run_gap", sessionId: "session_1", eventCursor: 10 }),
+      );
     }
     if (url.endsWith("/events?after=10")) {
       return eventResponse([envelope(11, { type: "message_end", message: streamed })]);
@@ -168,7 +183,11 @@ test("detaching cancels only the observer request and never calls the stop API",
   globalThis.fetch = (input, init) => {
     requests.push({ url: String(input), method: init?.method ?? "GET" });
     return new Promise<Response>((_resolve, reject) => {
-      init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+      init?.signal?.addEventListener(
+        "abort",
+        () => reject(new DOMException("Aborted", "AbortError")),
+        { once: true },
+      );
     });
   };
   try {
@@ -178,7 +197,9 @@ test("detaching cancels only the observer request and never calls the stop API",
     agent.detach();
     await observing;
 
-    assert.deepEqual(requests, [{ url: "/api/agent-runs/run_detach/events?after=3", method: "GET" }]);
+    assert.deepEqual(requests, [
+      { url: "/api/agent-runs/run_detach/events?after=3", method: "GET" },
+    ]);
     assert.equal(agent.getSnapshot().isStreaming, false);
   } finally {
     globalThis.fetch = originalFetch;
@@ -203,7 +224,11 @@ test("manual stop uses the abort API but keeps watching the server-persisted abo
       eventRequests += 1;
       if (eventRequests === 1) {
         return new Response(
-          new ReadableStream<Uint8Array>({ start: (controller) => { streamController = controller; } }),
+          new ReadableStream<Uint8Array>({
+            start: (controller) => {
+              streamController = controller;
+            },
+          }),
           { status: 200 },
         );
       }
@@ -220,16 +245,22 @@ test("manual stop uses the abort API but keeps watching the server-persisted abo
 
     assert.equal(agent.getSnapshot().isStreaming, true);
     assert.ok(streamController);
-    streamController.enqueue(encodeEvents([
-      envelope(1, { type: "message_end", message: aborted }),
-      envelope(2, { type: "turn_end", errorMessage: "Stopped by user" }),
-      envelope(3, agentEnd()),
-      envelope(4, runFinished()),
-    ]));
+    streamController.enqueue(
+      encodeEvents([
+        envelope(1, { type: "message_end", message: aborted }),
+        envelope(2, { type: "turn_end", errorMessage: "Stopped by user" }),
+        envelope(3, agentEnd()),
+        envelope(4, runFinished()),
+      ]),
+    );
     streamController.close();
     await observing;
 
-    assert.equal(requests.filter((request) => request.method === "POST" && request.url.endsWith("/abort")).length, 1);
+    assert.equal(
+      requests.filter((request) => request.method === "POST" && request.url.endsWith("/abort"))
+        .length,
+      1,
+    );
     assert.deepEqual(agent.getSnapshot().messages, final);
     assert.equal(agent.getSnapshot().errorMessage, "Stopped by user");
   } finally {
@@ -265,7 +296,10 @@ test("a server-persisted model failure is authoritative and is not duplicated sy
     await agent.attachToRun("run_failure", [question], 0);
 
     assert.deepEqual(agent.getSnapshot().messages, final);
-    assert.equal(agent.getSnapshot().messages.filter((message) => message.role === "assistant").length, 1);
+    assert.equal(
+      agent.getSnapshot().messages.filter((message) => message.role === "assistant").length,
+      1,
+    );
     assert.equal(agent.getSnapshot().errorMessage, "Provider failed");
   } finally {
     globalThis.fetch = originalFetch;
@@ -283,7 +317,12 @@ test("the streaming message is rebuilt from deltas and tool-call parts", async (
     if (url.includes("/events?")) {
       return eventResponse([
         envelope(1, { type: "message_start", message: assistantMessage("") }),
-        envelope(2, { type: "message_delta", contentIndex: 0, field: "thinking", delta: "let me think" }),
+        envelope(2, {
+          type: "message_delta",
+          contentIndex: 0,
+          field: "thinking",
+          delta: "let me think",
+        }),
         envelope(3, { type: "message_delta", contentIndex: 1, field: "text", delta: "Hello, " }),
         envelope(4, { type: "message_delta", contentIndex: 1, field: "text", delta: "world" }),
         envelope(5, {
@@ -344,10 +383,15 @@ test("a send refused because the session is busy is rejected, not silently swall
   globalThis.fetch = async (input, init) => {
     const url = String(input);
     if ((init?.method ?? "GET") === "POST" && url.endsWith("/run")) {
-      return Response.json({ runId: "run_busy" }, { status: 409, headers: { "x-agent-run-id": "run_busy" } });
+      return Response.json(
+        { runId: "run_busy" },
+        { status: 409, headers: { "x-agent-run-id": "run_busy" } },
+      );
     }
     if (url.endsWith("/sessions/session_1/connection")) {
-      return Response.json(connection([question], { runId: "run_busy", sessionId: "session_1", eventCursor: 1 }));
+      return Response.json(
+        connection([question], { runId: "run_busy", sessionId: "session_1", eventCursor: 1 }),
+      );
     }
     if (url.endsWith("/events?after=1")) {
       return eventResponse([
@@ -365,7 +409,10 @@ test("a send refused because the session is busy is rejected, not silently swall
     // The client still follows the run holding the session, but the message it
     // tried to send was never accepted by it.
     assert.equal(outcome.status, "rejected");
-    assert.deepEqual(agent.getSnapshot().messages.map((message) => message.role), [question.role, answer.role]);
+    assert.deepEqual(
+      agent.getSnapshot().messages.map((message) => message.role),
+      [question.role, answer.role],
+    );
     assert.match(agent.getSnapshot().errorMessage ?? "", /run in progress/i);
   } finally {
     globalThis.fetch = originalFetch;
@@ -376,7 +423,8 @@ test("a submission that may have landed is unknown rather than rejected", async 
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     const url = String(input);
-    if ((init?.method ?? "GET") === "POST" && url.endsWith("/run")) throw new Error("response socket lost");
+    if ((init?.method ?? "GET") === "POST" && url.endsWith("/run"))
+      throw new Error("response socket lost");
     if (url.endsWith("/sessions/session_1/connection")) return Response.json(connection([], null));
     return new Response(null, { status: 404 });
   };
@@ -401,7 +449,10 @@ test("a run that fails after admission is still an accepted submission", async (
   globalThis.fetch = async (input, init) => {
     const url = String(input);
     if ((init?.method ?? "GET") === "POST" && url.endsWith("/run")) {
-      assert.equal(JSON.parse(String(init?.body)).timezone, Intl.DateTimeFormat().resolvedOptions().timeZone);
+      assert.equal(
+        JSON.parse(String(init?.body)).timezone,
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+      );
       return eventResponse(
         [envelope(1, { type: "message_end", message: question }), envelope(2, agentEnd())],
         { "x-agent-run-id": "run_failing" },
@@ -434,7 +485,13 @@ test("a run that failed where no turn could say so reports the server's reason",
         envelope(1, { type: "message_end", message: answer }),
         envelope(2, { type: "turn_end" }),
         envelope(3, agentEnd()),
-        envelope(4, runFinished({ outcome: "failed", detail: "The run's result could not be saved: disk I/O error" })),
+        envelope(
+          4,
+          runFinished({
+            outcome: "failed",
+            detail: "The run's result could not be saved: disk I/O error",
+          }),
+        ),
       ]);
     }
     return new Response(null, { status: 404 });
@@ -442,7 +499,10 @@ test("a run that failed where no turn could say so reports the server's reason",
   try {
     agent = createAgent([question], async () => agent.setMessages([question, answer]));
     await agent.attachToRun("run_unsaved", [question], 0);
-    assert.equal(agent.getSnapshot().errorMessage, "The run's result could not be saved: disk I/O error");
+    assert.equal(
+      agent.getSnapshot().errorMessage,
+      "The run's result could not be saved: disk I/O error",
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -460,7 +520,9 @@ test("a turn's own error wording is kept over the run's result, and a cancelled 
   ];
   let stream = 0;
   globalThis.fetch = async (input) =>
-    String(input).includes("/events?") ? eventResponse(streams[stream++]!) : new Response(null, { status: 404 });
+    String(input).includes("/events?")
+      ? eventResponse(streams[stream++]!)
+      : new Response(null, { status: 404 });
   try {
     const failed = createAgent([question]);
     await failed.attachToRun("run_rejected", [question], 0);
@@ -491,13 +553,27 @@ test("dismissing an error clears it from the snapshot", async () => {
 
 test("codemode progress stays outside messages and is cleared when observation finishes", async () => {
   const originalFetch = globalThis.fetch;
-  const codemodeCalls = [{ id: "nested", name: "mcp_echo", label: "MCP echo", status: "running" as const, durationMs: 0 }];
-  globalThis.fetch = async () => eventResponse([
-    envelope(1, { type: "tool_execution_start", toolCallId: "call", toolName: "codemode" }),
-    envelope(2, { type: "tool_execution_update", toolCallId: "call", codemodeCalls }),
-    envelope(3, { type: "tool_execution_end", toolCallId: "call", toolName: "codemode", isError: false }),
-    envelope(4, runFinished()),
-  ]);
+  const codemodeCalls = [
+    {
+      id: "nested",
+      name: "mcp_echo",
+      label: "MCP echo",
+      status: "running" as const,
+      durationMs: 0,
+    },
+  ];
+  globalThis.fetch = async () =>
+    eventResponse([
+      envelope(1, { type: "tool_execution_start", toolCallId: "call", toolName: "codemode" }),
+      envelope(2, { type: "tool_execution_update", toolCallId: "call", codemodeCalls }),
+      envelope(3, {
+        type: "tool_execution_end",
+        toolCallId: "call",
+        toolName: "codemode",
+        isError: false,
+      }),
+      envelope(4, runFinished()),
+    ]);
   try {
     const agent = createAgent([]);
     let sawProgress = false;
@@ -511,7 +587,9 @@ test("codemode progress stays outside messages and is cleared when observation f
     await agent.attachToRun("run_codemode", [], 0);
     assert.equal(sawProgress, true);
     assert.equal(agent.getSnapshot().codemodeCalls?.size, 0);
-  } finally { globalThis.fetch = originalFetch; }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 function createAgent(messages: AgentMessage[], onRunComplete?: () => Promise<void> | void) {

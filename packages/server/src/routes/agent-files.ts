@@ -60,8 +60,15 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     const directoryPath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
     const directory = unwrap(await env.fileInfo(directoryPath, fsCtx));
     if (directory.kind !== "directory") return c.json({ error: "Path is not a directory." }, 400);
-    const entries = await readDirectoryEntries(env, directoryPath, c.req.query("showHidden") === "true");
-    return c.json({ path: env.toWorkspaceRelativePath(directoryPath), entries } satisfies AgentFileList);
+    const entries = await readDirectoryEntries(
+      env,
+      directoryPath,
+      c.req.query("showHidden") === "true",
+    );
+    return c.json({
+      path: env.toWorkspaceRelativePath(directoryPath),
+      entries,
+    } satisfies AgentFileList);
   });
 
   route.get("/:id/files/content", requireRead, async (c) => {
@@ -69,9 +76,11 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
     const file = unwrap(await env.fileInfo(filePath, fsCtx));
     if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
-    if (file.size > MAX_TEXT_FILE_BYTES) return c.json({ error: "File is too large to edit." }, 413);
+    if (file.size > MAX_TEXT_FILE_BYTES)
+      return c.json({ error: "File is too large to edit." }, 413);
     const bytes = unwrap(await env.readBinaryFile(filePath, fsCtx));
-    if (bytes.includes(0)) throw new FileError("invalid", "Binary files cannot be edited.", filePath);
+    if (bytes.includes(0))
+      throw new FileError("invalid", "Binary files cannot be edited.", filePath);
     return c.json({
       path: env.toWorkspaceRelativePath(filePath),
       content: new TextDecoder().decode(bytes),
@@ -84,7 +93,8 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
     const file = unwrap(await env.fileInfo(filePath, fsCtx));
     if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
-    if (file.size > MAX_IMAGE_FILE_BYTES) return c.json({ error: "File is too large to preview." }, 413);
+    if (file.size > MAX_IMAGE_FILE_BYTES)
+      return c.json({ error: "File is too large to preview." }, 413);
     const contentType = imageContentType(filePath);
     if (!contentType) return c.json({ error: "File is not a supported image." }, 415);
     return c.body(unwrap(await env.readBinaryFile(filePath, fsCtx)).buffer as ArrayBuffer, 200, {
@@ -93,20 +103,26 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     });
   });
 
-  route.put("/:id/files/content", requireWriteOrEdit, jsonValidator(fileContentRequestSchema), async (c) => {
-    const body = c.req.valid("json");
-    if (!body.path || typeof body.content !== "string") return c.json({ error: "Path and content are required." }, 400);
+  route.put(
+    "/:id/files/content",
+    requireWriteOrEdit,
+    jsonValidator(fileContentRequestSchema),
+    async (c) => {
+      const body = c.req.valid("json");
+      if (!body.path || typeof body.content !== "string")
+        return c.json({ error: "Path and content are required." }, 400);
 
-    const env = c.get("agentEnv");
-    const filePath = env.resolveBrowserPath(body.path, "write");
-    unwrap(await env.writeFile(filePath, body.content, fsCtx));
-    const file = unwrap(await env.fileInfo(filePath, fsCtx));
-    return c.json({
-      path: env.toWorkspaceRelativePath(filePath),
-      content: body.content,
-      updatedAt: file.mtimeMs,
-    } satisfies AgentFileContent);
-  });
+      const env = c.get("agentEnv");
+      const filePath = env.resolveBrowserPath(body.path, "write");
+      unwrap(await env.writeFile(filePath, body.content, fsCtx));
+      const file = unwrap(await env.fileInfo(filePath, fsCtx));
+      return c.json({
+        path: env.toWorkspaceRelativePath(filePath),
+        content: body.content,
+        updatedAt: file.mtimeMs,
+      } satisfies AgentFileContent);
+    },
+  );
 
   route.post("/:id/files", requireWrite, jsonValidator(createFileEntryRequestSchema), async (c) => {
     const body = c.req.valid("json");
@@ -116,7 +132,8 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
 
     const env = c.get("agentEnv");
     const targetPath = env.resolveBrowserPath(body.path, "write");
-    if (unwrap(await env.exists(targetPath, fsCtx))) return c.json({ error: "Path already exists." }, 409);
+    if (unwrap(await env.exists(targetPath, fsCtx)))
+      return c.json({ error: "Path already exists." }, 409);
     if (body.type === "directory") {
       unwrap(await env.createDir(targetPath, { recursive: false }, fsCtx));
     } else {
@@ -125,21 +142,29 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     return c.json(await toFileEntry(env, targetPath), 201);
   });
 
-  route.patch("/:id/files", requireWriteOrEdit, jsonValidator(renameFileEntryRequestSchema), async (c) => {
-    const body = c.req.valid("json");
-    if (!body.path || !body.newPath) return c.json({ error: "Path and newPath are required." }, 400);
+  route.patch(
+    "/:id/files",
+    requireWriteOrEdit,
+    jsonValidator(renameFileEntryRequestSchema),
+    async (c) => {
+      const body = c.req.valid("json");
+      if (!body.path || !body.newPath)
+        return c.json({ error: "Path and newPath are required." }, 400);
 
-    const env = c.get("agentEnv");
-    const nextPath = env.resolveBrowserPath(body.newPath, "write");
-    if (unwrap(await env.exists(nextPath, fsCtx))) return c.json({ error: "Path already exists." }, 409);
-    unwrap(await env.rename(body.path, body.newPath, true));
-    return c.json(await toFileEntry(env, nextPath));
-  });
+      const env = c.get("agentEnv");
+      const nextPath = env.resolveBrowserPath(body.newPath, "write");
+      if (unwrap(await env.exists(nextPath, fsCtx)))
+        return c.json({ error: "Path already exists." }, 409);
+      unwrap(await env.rename(body.path, body.newPath, true));
+      return c.json(await toFileEntry(env, nextPath));
+    },
+  );
 
   route.delete("/:id/files", requireWrite, async (c) => {
     const env = c.get("agentEnv");
     const targetPath = env.resolveBrowserPath(c.req.query("path") ?? "", "write");
-    if (targetPath === env.hostCwd) return c.json({ error: "The working directory cannot be deleted." }, 400);
+    if (targetPath === env.hostCwd)
+      return c.json({ error: "The working directory cannot be deleted." }, 400);
     unwrap(await env.remove(targetPath, { recursive: true }, fsCtx));
     return c.json({ ok: true });
   });
@@ -168,8 +193,13 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
       });
     }
 
-    const entries = await collectArchiveEntries(env, targets.map((target) => target.absolutePath));
-    const archiveName = single ? `${single.absolutePath === env.hostCwd ? "workspace" : basename(single.absolutePath)}.zip` : "files.zip";
+    const entries = await collectArchiveEntries(
+      env,
+      targets.map((target) => target.absolutePath),
+    );
+    const archiveName = single
+      ? `${single.absolutePath === env.hostCwd ? "workspace" : basename(single.absolutePath)}.zip`
+      : "files.zip";
     return c.body(toWebStream(Readable.from(zipArchive(entries))), 200, {
       "content-type": "application/zip",
       "content-disposition": contentDisposition(archiveName),
@@ -182,7 +212,8 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
   // per-file progress bar.
   route.put("/:id/files/upload", requireWrite, async (c) => {
     const requestedPath = (c.req.query("path") ?? "").trim();
-    if (!requestedPath || requestedPath.endsWith("/")) return c.json({ error: "A file path is required." }, 400);
+    if (!requestedPath || requestedPath.endsWith("/"))
+      return c.json({ error: "A file path is required." }, 400);
     const declaredSize = Number(c.req.header("content-length"));
     if (Number.isFinite(declaredSize) && declaredSize > MAX_UPLOAD_BYTES) {
       return c.json({ error: "File is too large to upload." }, 413);
@@ -192,8 +223,10 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
     const targetPath = env.resolveBrowserPath(requestedPath, "write");
     if (targetPath === env.hostCwd) return c.json({ error: "A file path is required." }, 400);
     if (unwrap(await env.exists(targetPath, fsCtx))) {
-      if (c.req.query("overwrite") !== "true") return c.json({ error: "Path already exists." }, 409);
-      if (unwrap(await env.fileInfo(targetPath, fsCtx)).kind !== "file") return c.json({ error: "Path is not a file." }, 400);
+      if (c.req.query("overwrite") !== "true")
+        return c.json({ error: "Path already exists." }, 409);
+      if (unwrap(await env.fileInfo(targetPath, fsCtx)).kind !== "file")
+        return c.json({ error: "Path is not a file." }, 400);
     }
 
     // Folder uploads arrive as files carrying their relative path, so the
@@ -208,8 +241,12 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
   route.post("/:id/files/batch", requireWrite, jsonValidator(fileBatchRequestSchema), async (c) => {
     const { operation, paths, destination } = c.req.valid("json");
     const env = c.get("agentEnv");
-    const destinationPath = operation === "delete" ? "" : env.resolveBrowserPath(destination ?? "", "write");
-    if (destinationPath && unwrap(await env.fileInfo(destinationPath, fsCtx)).kind !== "directory") {
+    const destinationPath =
+      operation === "delete" ? "" : env.resolveBrowserPath(destination ?? "", "write");
+    if (
+      destinationPath &&
+      unwrap(await env.fileInfo(destinationPath, fsCtx)).kind !== "directory"
+    ) {
       return c.json({ error: "Destination is not a directory." }, 400);
     }
 
@@ -248,7 +285,11 @@ async function collectArchiveEntries(env: AgentExecutionEnv, roots: string[]) {
       if (totalBytes > MAX_ARCHIVE_BYTES) {
         throw new FileError("invalid", "Selection is too large to download.", archiveName);
       }
-      entries.push({ name: archiveName, mtimeMs: info.mtimeMs, open: () => createReadStream(absolutePath) });
+      entries.push({
+        name: archiveName,
+        mtimeMs: info.mtimeMs,
+        open: () => createReadStream(absolutePath),
+      });
       return;
     }
     // Symlinked directories can point back at an ancestor; the canonical path
@@ -285,7 +326,8 @@ async function streamUpload(body: ReadableStream<Uint8Array> | null, targetPath:
     if (!body) return;
     for await (const chunk of Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0])) {
       received += (chunk as Uint8Array).length;
-      if (received > MAX_UPLOAD_BYTES) throw new FileError("invalid", "File is too large to upload.", targetPath);
+      if (received > MAX_UPLOAD_BYTES)
+        throw new FileError("invalid", "File is too large to upload.", targetPath);
       yield chunk as Uint8Array;
     }
   };
@@ -306,7 +348,8 @@ async function applyBatchOperation(
 ) {
   const sourcePath = env.resolveBrowserPath(path, "write");
   const name = basename(sourcePath);
-  if (sourcePath === env.hostCwd) throw new FileError("invalid", "The working directory cannot be moved or deleted.", path);
+  if (sourcePath === env.hostCwd)
+    throw new FileError("invalid", "The working directory cannot be moved or deleted.", path);
   if (operation === "delete") {
     unwrap(await env.remove(sourcePath, { recursive: true }, fsCtx));
     return;
@@ -316,14 +359,23 @@ async function applyBatchOperation(
     throw new FileError("invalid", `“${name}” cannot be placed inside itself.`, path);
   }
   const destinationRelative = env.toWorkspaceRelativePath(destinationPath);
-  const targetPath = env.resolveBrowserPath([destinationRelative, name].filter(Boolean).join("/"), "write");
+  const targetPath = env.resolveBrowserPath(
+    [destinationRelative, name].filter(Boolean).join("/"),
+    "write",
+  );
   if (targetPath === sourcePath) throw new FileError("invalid", `“${name}” is already here.`, path);
-  if (unwrap(await env.exists(targetPath, fsCtx))) throw new FileError("invalid", `“${name}” already exists here.`, path);
+  if (unwrap(await env.exists(targetPath, fsCtx)))
+    throw new FileError("invalid", `“${name}” already exists here.`, path);
 
   if (operation === "move") await renameFile(sourcePath, targetPath);
   // Symlinks are copied as symlinks: following them would pull content from
   // outside the workspace into it.
-  else await cp(sourcePath, targetPath, { recursive: true, errorOnExist: true, verbatimSymlinks: true });
+  else
+    await cp(sourcePath, targetPath, {
+      recursive: true,
+      errorOnExist: true,
+      verbatimSymlinks: true,
+    });
 }
 
 function isInsidePath(root: string, target: string) {
@@ -384,7 +436,11 @@ const requireWriteOrEdit = requirePermission(
   "Write permission is disabled for this agent.",
 );
 
-async function readDirectoryEntries(env: AgentExecutionEnv, directoryPath: string, showHidden: boolean) {
+async function readDirectoryEntries(
+  env: AgentExecutionEnv,
+  directoryPath: string,
+  showHidden: boolean,
+) {
   const children = unwrap(await env.listDir(directoryPath, fsCtx));
   const visible = showHidden ? children : children.filter((entry) => !entry.name.startsWith("."));
   const entries = await Promise.all(
@@ -396,13 +452,19 @@ async function readDirectoryEntries(env: AgentExecutionEnv, directoryPath: strin
       }
     }),
   );
-  return entries.filter((entry): entry is AgentFileEntry => Boolean(entry)).sort((a, b) => {
-    if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
-    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-  });
+  return entries
+    .filter((entry): entry is AgentFileEntry => Boolean(entry))
+    .sort((a, b) => {
+      if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    });
 }
 
-async function toFileEntry(env: AgentExecutionEnv, path: string, displayName?: string): Promise<AgentFileEntry> {
+async function toFileEntry(
+  env: AgentExecutionEnv,
+  path: string,
+  displayName?: string,
+): Promise<AgentFileEntry> {
   const canonicalPath = unwrap(await env.canonicalPath(path, fsCtx));
   const info = unwrap(await env.fileInfo(canonicalPath, fsCtx));
   return {
@@ -422,29 +484,38 @@ function unwrap<T>(result: Result<T, FileError>): T {
 
 function imageContentType(filePath: string) {
   switch (extname(filePath).toLowerCase()) {
-    case ".apng": return "image/apng";
-    case ".avif": return "image/avif";
-    case ".gif": return "image/gif";
+    case ".apng":
+      return "image/apng";
+    case ".avif":
+      return "image/avif";
+    case ".gif":
+      return "image/gif";
     case ".jpg":
-    case ".jpeg": return "image/jpeg";
-    case ".png": return "image/png";
-    case ".svg": return "image/svg+xml";
-    case ".webp": return "image/webp";
-    default: return "";
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".svg":
+      return "image/svg+xml";
+    case ".webp":
+      return "image/webp";
+    default:
+      return "";
   }
 }
 
 function fileError(c: Context, error: unknown) {
   const message = errorMessage(error);
   const code = error instanceof FileError ? error.code : undefined;
-  const status = code === "permission_denied"
-    ? 400
-    : code === "not_found" || message.includes("ENOENT")
-      ? 404
-      : message.includes("already exists") || message.includes("EEXIST")
-        ? 409
-        : code === "invalid" || message.includes("ENOTDIR") || message.includes("EISDIR")
-          ? 400
-          : 500;
+  const status =
+    code === "permission_denied"
+      ? 400
+      : code === "not_found" || message.includes("ENOENT")
+        ? 404
+        : message.includes("already exists") || message.includes("EEXIST")
+          ? 409
+          : code === "invalid" || message.includes("ENOTDIR") || message.includes("EISDIR")
+            ? 400
+            : 500;
   return c.json({ error: message }, status);
 }

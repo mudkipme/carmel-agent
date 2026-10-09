@@ -61,7 +61,8 @@ export function useUserAdministration() {
   const removeUser = async (user: User) => {
     const confirmed = await confirmAction({
       title: `Delete ${user.username ?? user.name}?`,
-      description: "Their agents and models will transfer to your account; their sessions will be deleted.",
+      description:
+        "Their agents and models will transfer to your account; their sessions will be deleted.",
       actionLabel: "Delete user",
     });
     if (!confirmed) return;

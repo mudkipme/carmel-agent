@@ -41,15 +41,29 @@ test("first-run setup claims the seeded placeholder as admin and then blocks re-
   const timestamp = now();
   // Seed a passwordless placeholder, as a fresh database does.
   db.insert(users)
-    .values({ id: "user_self", name: "Local User", email: "user@local", role: "user", createdAt: timestamp, updatedAt: timestamp })
+    .values({
+      id: "user_self",
+      name: "Local User",
+      email: "user@local",
+      role: "user",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
     .run();
 
-  assert.deepEqual(await (await app.request("/api/auth/status")).json(), { needsSetup: true, passwordLogin: true });
+  assert.deepEqual(await (await app.request("/api/auth/status")).json(), {
+    needsSetup: true,
+    passwordLogin: true,
+  });
 
   const setup = await app.request("/api/auth/setup", {
     method: "POST",
     headers: json,
-    body: JSON.stringify({ username: "admin", password: "adminpass1", email: "admin@example.test" }),
+    body: JSON.stringify({
+      username: "admin",
+      password: "adminpass1",
+      email: "admin@example.test",
+    }),
   });
   assert.equal(setup.status, 201);
 
@@ -59,7 +73,10 @@ test("first-run setup claims the seeded placeholder as admin and then blocks re-
   assert.equal(claimed?.role, "admin");
   assert.ok(claimed?.passwordHash);
 
-  assert.deepEqual(await (await app.request("/api/auth/status")).json(), { needsSetup: false, passwordLogin: true });
+  assert.deepEqual(await (await app.request("/api/auth/status")).json(), {
+    needsSetup: false,
+    passwordLogin: true,
+  });
 
   const again = await app.request("/api/auth/setup", {
     method: "POST",
@@ -86,7 +103,12 @@ test("admin can list and create users; non-admins are forbidden", async () => {
   const created = await app.request("/api/users", {
     method: "POST",
     headers: { ...json, cookie: adminCookie },
-    body: JSON.stringify({ username: "bob", email: "bob@example.test", password: "bobpassword", role: "user" }),
+    body: JSON.stringify({
+      username: "bob",
+      email: "bob@example.test",
+      password: "bobpassword",
+      role: "user",
+    }),
   });
   assert.equal(created.status, 201);
 
@@ -119,7 +141,12 @@ test("self profile update rejects server-owned fields and accepts its narrow com
   const invalid = await app.request(`/api/users/${me.id}`, {
     method: "PUT",
     headers: { ...json, cookie: bobCookie },
-    body: JSON.stringify({ id: me.id, name: "Bob", email: "bob-via-put@example.test", role: "admin" }),
+    body: JSON.stringify({
+      id: me.id,
+      name: "Bob",
+      email: "bob-via-put@example.test",
+      role: "admin",
+    }),
   });
   assert.equal(invalid.status, 400);
 
@@ -140,7 +167,11 @@ test("account update requires the current password to change email; new password
   await app.request("/api/users", {
     method: "POST",
     headers: { ...json, cookie: adminCookie },
-    body: JSON.stringify({ username: "dave", email: "dave@example.test", password: "davepassword" }),
+    body: JSON.stringify({
+      username: "dave",
+      email: "dave@example.test",
+      password: "davepassword",
+    }),
   });
   const daveCookie = await loginCookie(app, "dave", "davepassword");
 
@@ -166,7 +197,11 @@ test("account update requires the current password to change email; new password
   const both = await app.request("/api/auth/account", {
     method: "POST",
     headers: { ...json, cookie: daveCookie },
-    body: JSON.stringify({ currentPassword: "davepassword", email: "dave3@example.test", newPassword: "dave-new-pw" }),
+    body: JSON.stringify({
+      currentPassword: "davepassword",
+      email: "dave3@example.test",
+      newPassword: "dave-new-pw",
+    }),
   });
   assert.equal(both.status, 200);
   assert.match(await loginCookie(app, "dave", "dave-new-pw"), /^carmel_session=/);
@@ -175,8 +210,10 @@ test("account update requires the current password to change email; new password
 test("admin can change another user's role but not their own", async () => {
   const app = buildApp();
   const adminCookie = await loginCookie(app, "admin", "adminpass1");
-  const adminId = (await (await app.request("/api/me", { headers: { cookie: adminCookie } })).json()).id;
-  const bobId = (db.select().from(users).where(eq(users.username, "bob")).get())!.id;
+  const adminId = (
+    await (await app.request("/api/me", { headers: { cookie: adminCookie } })).json()
+  ).id;
+  const bobId = db.select().from(users).where(eq(users.username, "bob")).get()!.id;
 
   const promote = await app.request(`/api/users/${bobId}`, {
     method: "PATCH",
@@ -203,30 +240,48 @@ test("admin can change another user's role but not their own", async () => {
 test("admin can delete another user; their agents/models transfer and sessions are removed", async () => {
   const app = buildApp();
   const adminCookie = await loginCookie(app, "admin", "adminpass1");
-  const adminId = (await (await app.request("/api/me", { headers: { cookie: adminCookie } })).json()).id;
+  const adminId = (
+    await (await app.request("/api/me", { headers: { cookie: adminCookie } })).json()
+  ).id;
 
   // A user that owns an agent, a model, and a session.
   const created = await app.request("/api/users", {
     method: "POST",
     headers: { ...json, cookie: adminCookie },
-    body: JSON.stringify({ username: "carol", email: "carol@example.test", password: "carolpassword" }),
+    body: JSON.stringify({
+      username: "carol",
+      email: "carol@example.test",
+      password: "carolpassword",
+    }),
   });
   const carolId = (await created.json()).id;
   const { sessionId, modelRefId, agentId } = createSession({ userId: carolId });
   const ownedModel = createModelRef({ ownerUserId: carolId });
   const ownedAgent = createAgent({ ownerUserId: carolId, defaultModelRefId: modelRefId });
 
-  const cannotDeleteSelf = await app.request(`/api/users/${adminId}`, { method: "DELETE", headers: { cookie: adminCookie } });
+  const cannotDeleteSelf = await app.request(`/api/users/${adminId}`, {
+    method: "DELETE",
+    headers: { cookie: adminCookie },
+  });
   assert.equal(cannotDeleteSelf.status, 400);
 
-  const deleted = await app.request(`/api/users/${carolId}`, { method: "DELETE", headers: { cookie: adminCookie } });
+  const deleted = await app.request(`/api/users/${carolId}`, {
+    method: "DELETE",
+    headers: { cookie: adminCookie },
+  });
   assert.equal(deleted.status, 200);
 
   assert.equal(db.select().from(users).where(eq(users.id, carolId)).get(), undefined);
   assert.equal(db.select().from(sessions).where(eq(sessions.id, sessionId)).get(), undefined);
   assert.equal(db.select().from(agents).where(eq(agents.id, agentId)).get()?.ownerUserId, adminId);
-  assert.equal(db.select().from(agents).where(eq(agents.id, ownedAgent)).get()?.ownerUserId, adminId);
-  assert.equal(db.select().from(modelRefs).where(eq(modelRefs.id, ownedModel)).get()?.ownerUserId, adminId);
+  assert.equal(
+    db.select().from(agents).where(eq(agents.id, ownedAgent)).get()?.ownerUserId,
+    adminId,
+  );
+  assert.equal(
+    db.select().from(modelRefs).where(eq(modelRefs.id, ownedModel)).get()?.ownerUserId,
+    adminId,
+  );
 });
 
 test("provider configs are admin-managed: non-admins cannot create or delete them", async () => {
@@ -241,15 +296,32 @@ test("provider configs are admin-managed: non-admins cannot create or delete the
   });
 
   assert.equal(
-    (await app.request("/api/provider-configs/p_admin", { method: "PUT", headers: { ...json, cookie: adminCookie }, body: providerBody })).status,
+    (
+      await app.request("/api/provider-configs/p_admin", {
+        method: "PUT",
+        headers: { ...json, cookie: adminCookie },
+        body: providerBody,
+      })
+    ).status,
     200,
   );
   assert.equal(
-    (await app.request("/api/provider-configs/p_bob", { method: "PUT", headers: { ...json, cookie: bobCookie }, body: providerBody })).status,
+    (
+      await app.request("/api/provider-configs/p_bob", {
+        method: "PUT",
+        headers: { ...json, cookie: bobCookie },
+        body: providerBody,
+      })
+    ).status,
     403,
   );
   assert.equal(
-    (await app.request("/api/provider-configs/p_admin", { method: "DELETE", headers: { cookie: bobCookie } })).status,
+    (
+      await app.request("/api/provider-configs/p_admin", {
+        method: "DELETE",
+        headers: { cookie: bobCookie },
+      })
+    ).status,
     403,
   );
 });
@@ -258,7 +330,7 @@ test("admin can reset another user's password; non-admins cannot, and the new pa
   const app = buildApp();
   const adminCookie = await loginCookie(app, "admin", "adminpass1");
   const bobCookie = await loginCookie(app, "bob", "bobpassword");
-  const bobId = (db.select().from(users).where(eq(users.username, "bob")).get())!.id;
+  const bobId = db.select().from(users).where(eq(users.username, "bob")).get()!.id;
 
   // A non-admin cannot reset passwords.
   assert.equal(

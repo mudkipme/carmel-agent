@@ -16,7 +16,11 @@ import { id, now } from "../db/seed.ts";
 import { serializeUser } from "../serializers.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import { jsonValidator } from "../validation.ts";
-import { accountUpdateRequestSchema, loginRequestSchema, setupRequestSchema } from "@carmel-agent/shared";
+import {
+  accountUpdateRequestSchema,
+  loginRequestSchema,
+  setupRequestSchema,
+} from "@carmel-agent/shared";
 import { createOidcAuthRoutes } from "./auth-oidc.ts";
 
 const passwordLoginDisabled = { error: "Password sign-in is disabled on this server." };
@@ -34,7 +38,8 @@ export function createAuthRoutes() {
     if (!isPasswordLoginEnabled()) return c.json(passwordLoginDisabled, 403);
     const body = c.req.valid("json");
     const username = body.username?.trim();
-    if (!username || !body.password) return c.json({ error: "Username and password are required." }, 400);
+    if (!username || !body.password)
+      return c.json({ error: "Username and password are required." }, 400);
 
     const attemptKey = loginAttemptKey(c, username);
     if (isLoginRateLimited(attemptKey)) {
@@ -74,12 +79,18 @@ export function createAuthRoutes() {
 
     const username = c.req.valid("json").username.trim();
     const { password, email, name } = c.req.valid("json");
-    if (!username || !password) return c.json({ error: "Username and password are required." }, 400);
-    if (password.length < 8) return c.json({ error: "Password must be at least 8 characters." }, 400);
+    if (!username || !password)
+      return c.json({ error: "Username and password are required." }, 400);
+    if (password.length < 8)
+      return c.json({ error: "Password must be at least 8 characters." }, 400);
 
     // Claim the seeded placeholder (so its default agent/model become the admin's)
     // when present; otherwise create a fresh account.
-    const placeholder = db.select().from(users).all().find((user) => !user.passwordHash);
+    const placeholder = db
+      .select()
+      .from(users)
+      .all()
+      .find((user) => !user.passwordHash);
     const userId = placeholder?.id ?? id("user");
     const timestamp = now();
     db.insert(users)

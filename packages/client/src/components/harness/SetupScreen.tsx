@@ -47,13 +47,20 @@ export function SetupScreen() {
               variant={passwordLogin ? "outline" : "default"}
             />
           ) : null}
-          {oidc && passwordLogin ? <FieldSeparator className="[&>span]:bg-card">or</FieldSeparator> : null}
+          {oidc && passwordLogin ? (
+            <FieldSeparator className="[&>span]:bg-card">or</FieldSeparator>
+          ) : null}
           {passwordLogin ? (
             <form className="flex flex-col gap-4" onSubmit={submit}>
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="setup-username">Username</FieldLabel>
-                  <Input id="setup-username" value={username} autoComplete="username" onChange={(event) => setUsername(event.target.value)} />
+                  <Input
+                    id="setup-username"
+                    value={username}
+                    autoComplete="username"
+                    onChange={(event) => setUsername(event.target.value)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="setup-email">Email</FieldLabel>
@@ -81,7 +88,9 @@ export function SetupScreen() {
                 <ShieldCheckIcon data-icon="inline-start" />
                 {submitting ? "Creating account" : "Create admin account"}
               </Button>
-              <p className="text-xs text-muted-foreground">Password must be at least 8 characters.</p>
+              <p className="text-xs text-muted-foreground">
+                Password must be at least 8 characters.
+              </p>
             </form>
           ) : error ? (
             <p className="text-sm text-destructive">{error}</p>

@@ -52,7 +52,8 @@ export function createApp() {
   app.use(
     "/api/*",
     cors({
-      origin: (origin, c) => allowedCorsOrigin(origin, c.req.header("x-forwarded-host") ?? c.req.header("host")),
+      origin: (origin, c) =>
+        allowedCorsOrigin(origin, c.req.header("x-forwarded-host") ?? c.req.header("host")),
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       credentials: true,
     }),
@@ -63,7 +64,10 @@ export function createApp() {
 
   // Bearer-key auth, not cookies, so any origin may call it: a browser holding
   // the key already has everything the key grants.
-  app.use("/v1/*", cors({ origin: "*", allowHeaders: ["authorization", "content-type", "x-session-id"] }));
+  app.use(
+    "/v1/*",
+    cors({ origin: "*", allowHeaders: ["authorization", "content-type", "x-session-id"] }),
+  );
   app.route("/v1", createOpenAIRoutes());
 
   mountClient(app);
@@ -71,7 +75,8 @@ export function createApp() {
 }
 
 function mountClient(app: Hono<{ Variables: AuthVariables }>) {
-  const clientDistDir = process.env.CLIENT_DIST_DIR ?? fileURLToPath(new URL("../../client/dist/", import.meta.url));
+  const clientDistDir =
+    process.env.CLIENT_DIST_DIR ?? fileURLToPath(new URL("../../client/dist/", import.meta.url));
   if (!existsSync(clientDistDir)) return;
 
   app.use("*", serveStatic({ root: clientDistDir }));

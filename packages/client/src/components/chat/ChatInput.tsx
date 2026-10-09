@@ -2,7 +2,15 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import type { ChatAttachment } from "@carmel-agent/shared";
-import { BrainIcon, Loader2Icon, PaperclipIcon, SendIcon, SparklesIcon, SquareIcon, XIcon } from "lucide-react";
+import {
+  BrainIcon,
+  Loader2Icon,
+  PaperclipIcon,
+  SendIcon,
+  SparklesIcon,
+  SquareIcon,
+  XIcon,
+} from "lucide-react";
 import {
   useEffect,
   useImperativeHandle,
@@ -94,7 +102,8 @@ export function ChatInput({
     : (supportedThinkingLevels[0] ?? "off");
   const supportsThinking = supportedThinkingLevels.some((level) => level !== "off");
   const supportsImages = currentModel.input?.includes("image") !== false;
-  const canSend = !isStreaming && !processingFiles && (value.trim().length > 0 || attachments.length > 0);
+  const canSend =
+    !isStreaming && !processingFiles && (value.trim().length > 0 || attachments.length > 0);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -150,7 +159,9 @@ export function ChatInput({
       const nextAttachments: ChatAttachment[] = [];
       for (const file of imageFiles) {
         if (file.size > MAX_FILE_SIZE) {
-          toast.error(`${file.name} exceeds the ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB limit.`);
+          toast.error(
+            `${file.name} exceeds the ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB limit.`,
+          );
           continue;
         }
         nextAttachments.push(await fileToImageAttachment(file));
@@ -200,19 +211,30 @@ export function ChatInput({
       {attachments.length > 0 ? (
         <div className="flex flex-wrap gap-2 px-3 pt-3">
           {attachments.map((attachment) => (
-            <div key={attachment.id} className="flex items-center gap-2 rounded-md border bg-background p-1 pr-2">
+            <div
+              key={attachment.id}
+              className="flex items-center gap-2 rounded-md border bg-background p-1 pr-2"
+            >
               <img
                 className="size-8 rounded object-cover"
-                src={imageSrc({ url: attachment.url, data: attachment.preview ?? attachment.content, mimeType: attachment.mimeType })}
+                src={imageSrc({
+                  url: attachment.url,
+                  data: attachment.preview ?? attachment.content,
+                  mimeType: attachment.mimeType,
+                })}
                 alt={attachment.fileName}
               />
-              <span className="max-w-36 truncate text-xs text-muted-foreground">{attachment.fileName}</span>
+              <span className="max-w-36 truncate text-xs text-muted-foreground">
+                {attachment.fileName}
+              </span>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-xs"
                 aria-label={`Remove ${attachment.fileName}`}
-                onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}
+                onClick={() =>
+                  setAttachments((current) => current.filter((item) => item.id !== attachment.id))
+                }
               >
                 <XIcon />
               </Button>
@@ -227,11 +249,16 @@ export function ChatInput({
         autoFocus={autoFocus && !isTouchPrimaryInput()}
         enterKeyHint="enter"
         placeholder="Type a message..."
-        className={cn("max-h-60 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0", textareaClassName)}
+        className={cn(
+          "max-h-60 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0",
+          textareaClassName,
+        )}
         onChange={(event) => updateValue(event.target.value)}
         onPaste={(event) => {
           if (!supportsImages) return;
-          const files = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
+          const files = Array.from(event.clipboardData.files).filter((file) =>
+            file.type.startsWith("image/"),
+          );
           if (files.length === 0) return;
           event.preventDefault();
           void addFiles(files);
@@ -284,7 +311,11 @@ export function ChatInput({
               disabled={isStreaming}
               onValueChange={(level) => onThinkingLevelChange(level as ThinkingLevel)}
             >
-              <SelectTrigger size="sm" aria-label="Thinking level" className="shrink-0 border-0 shadow-none">
+              <SelectTrigger
+                size="sm"
+                aria-label="Thinking level"
+                className="shrink-0 border-0 shadow-none"
+              >
                 <BrainIcon />
                 <SelectValue />
               </SelectTrigger>
@@ -315,11 +346,26 @@ export function ChatInput({
         </div>
         <div className="col-start-3 row-start-2 @[28rem]:row-start-1">
           {isStreaming ? (
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="Abort" title="Abort" onClick={onAbort}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Abort"
+              title="Abort"
+              onClick={onAbort}
+            >
               <SquareIcon />
             </Button>
           ) : (
-            <Button type="button" variant="ghost" size="icon-sm" disabled={!canSend} aria-label="Send" title="Send" onClick={send}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={!canSend}
+              aria-label="Send"
+              title="Send"
+              onClick={send}
+            >
               <SendIcon />
             </Button>
           )}

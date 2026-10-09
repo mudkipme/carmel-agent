@@ -103,20 +103,32 @@ export function ApiKeySettings() {
       ) : (
         <ul className="grid gap-2">
           {keys.map((key) => (
-            <li key={key.id} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+            <li
+              key={key.id}
+              className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+            >
               <div className="flex min-w-0 items-center gap-2">
                 <KeySquareIcon className="size-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
                   <p className="truncate text-sm">
-                    {key.name} <span className="font-mono text-muted-foreground">{key.prefix}…</span>
+                    {key.name}{" "}
+                    <span className="font-mono text-muted-foreground">{key.prefix}…</span>
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     Created {new Date(key.createdAt).toLocaleString()} ·{" "}
-                    {key.lastUsedAt ? `last used ${new Date(key.lastUsedAt).toLocaleString()}` : "never used"}
+                    {key.lastUsedAt
+                      ? `last used ${new Date(key.lastUsedAt).toLocaleString()}`
+                      : "never used"}
                   </p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" disabled={busy} title="Revoke key" onClick={() => void revokeKey(key)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                title="Revoke key"
+                onClick={() => void revokeKey(key)}
+              >
                 <Trash2Icon data-icon="inline-start" />
               </Button>
             </li>
@@ -141,7 +153,12 @@ export function ApiKeySettings() {
             />
           </Field>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" disabled={busy} onClick={() => setDraftName(undefined)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => setDraftName(undefined)}
+            >
               Cancel
             </Button>
             <Button size="sm" disabled={busy || !draftName.trim()} onClick={() => void createKey()}>

@@ -79,13 +79,28 @@ export async function tick(at = now()) {
         case "idle":
           break;
         case "complete":
-          updateTaskAfterRun(task.id, { nextRunAt: null, status: "completed", outcome: task.lastOutcome ?? "succeeded" });
+          updateTaskAfterRun(task.id, {
+            nextRunAt: null,
+            status: "completed",
+            outcome: task.lastOutcome ?? "succeeded",
+          });
           break;
         case "disable":
           // The schedule cannot be parsed any more, so the next tick would
           // reach the same conclusion. Stop asking.
-          recordTaskRun({ taskId: task.id, scheduledFor: task.nextRunAt ?? at, startedAt: at, outcome: "failed", detail: plan.reason });
-          updateTaskAfterRun(task.id, { nextRunAt: null, status: "disabled", outcome: "failed", error: plan.reason });
+          recordTaskRun({
+            taskId: task.id,
+            scheduledFor: task.nextRunAt ?? at,
+            startedAt: at,
+            outcome: "failed",
+            detail: plan.reason,
+          });
+          updateTaskAfterRun(task.id, {
+            nextRunAt: null,
+            status: "disabled",
+            outcome: "failed",
+            error: plan.reason,
+          });
           break;
         case "skip_missed":
           recordTaskRun({
@@ -119,7 +134,9 @@ export async function tick(at = now()) {
  * next runs on its own. Answers once the run has started rather than when it
  * ends, so the caller can open the run's session and watch it.
  */
-export async function runTaskNow(task: TaskRecord): Promise<TaskResult | { outcome: "running"; sessionId: string }> {
+export async function runTaskNow(
+  task: TaskRecord,
+): Promise<TaskResult | { outcome: "running"; sessionId: string }> {
   if (running.has(task.id)) return { outcome: "skipped", detail: "This task is already running." };
   running.add(task.id);
   const firing = await startTask(task, now()).catch((error: unknown) => {
@@ -158,7 +175,9 @@ async function startTask(
   scheduledFor: number,
 ): Promise<{ sessionId?: string; finished: Promise<TaskResult> }> {
   const startedAt = now();
-  const prepared = await prepareTaskRun(task).catch((error: unknown) => ({ error: errorMessage(error) }));
+  const prepared = await prepareTaskRun(task).catch((error: unknown) => ({
+    error: errorMessage(error),
+  }));
   if ("error" in prepared) {
     const result: TaskResult = { outcome: "failed", detail: prepared.error };
     recordTaskRun({ taskId: task.id, scheduledFor, startedAt, ...result });
@@ -183,13 +202,16 @@ async function startTask(
   return { sessionId, finished };
 }
 
-async function prepareTaskRun(task: TaskRecord): Promise<{ input: AgentRunInput } | { error: string }> {
+async function prepareTaskRun(
+  task: TaskRecord,
+): Promise<{ input: AgentRunInput } | { error: string }> {
   // Checked on every firing with the rule that let the task be created, so a
   // task stops once its owner could no longer create it -- an agent un-shared,
   // or an admin demoted.
   const owner = db.select().from(users).where(eq(users.id, task.userId)).get();
   const agent = owner ? readTaskAgent(owner, task.agentId) : undefined;
-  if (!agent) return { error: "The agent this task belongs to is no longer available to its owner." };
+  if (!agent)
+    return { error: "The agent this task belongs to is no longer available to its owner." };
 
   // Every run gets a fresh session. One thread per task used to be the rule,
   // for the prompt cache -- but the cache lives an hour at most, so a daily task
@@ -203,11 +225,14 @@ async function prepareTaskRun(task: TaskRecord): Promise<{ input: AgentRunInput 
     thinkingLevel: task.thinkingLevel ?? undefined,
     session: { title: task.name, taskId: task.id },
   });
-  if (!prepared.ok) return { error: "The model this task uses is no longer available to its owner." };
+  if (!prepared.ok)
+    return { error: "The model this task uses is no longer available to its owner." };
   return { input: { ...prepared.value, promptInput: { text: task.prompt } } };
 }
 
 function maxConcurrent() {
   const configured = Number(process.env.CARMEL_AGENT_MAX_CONCURRENT_TASKS);
-  return Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : DEFAULT_MAX_CONCURRENT;
+  return Number.isFinite(configured) && configured > 0
+    ? Math.floor(configured)
+    : DEFAULT_MAX_CONCURRENT;
 }

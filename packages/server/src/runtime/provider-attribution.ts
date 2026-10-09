@@ -1,4 +1,10 @@
-import type { Api, Model, ModelsApiStreamOptions, ModelsSimpleStreamOptions, ProviderHeaders } from "@earendil-works/pi-ai";
+import type {
+  Api,
+  Model,
+  ModelsApiStreamOptions,
+  ModelsSimpleStreamOptions,
+  ProviderHeaders,
+} from "@earendil-works/pi-ai";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 
 /**
@@ -81,7 +87,10 @@ function defaultAttributionHeaders(model: Model<Api>): ProviderHeaders | undefin
   return undefined;
 }
 
-function sessionHeaders(model: Model<Api>, sessionId: string | undefined): ProviderHeaders | undefined {
+function sessionHeaders(
+  model: Model<Api>,
+  sessionId: string | undefined,
+): ProviderHeaders | undefined {
   if (!sessionId) return undefined;
   if (
     model.provider !== "opencode" &&
@@ -130,13 +139,18 @@ export function withProviderAttribution(runtime: ModelRuntime): ModelRuntime {
       transformHeaders: attributionTransform(model, options),
     } as ModelsApiStreamOptions<typeof model.api>);
   const streamSimple: ModelRuntime["streamSimple"] = (model, context, options) =>
-    runtime.streamSimple(model, context, { ...options, transformHeaders: attributionTransform(model, options) });
+    runtime.streamSimple(model, context, {
+      ...options,
+      transformHeaders: attributionTransform(model, options),
+    });
 
   return new Proxy(runtime, {
     get(target, property) {
       switch (property) {
-        case "stream": return stream;
-        case "streamSimple": return streamSimple;
+        case "stream":
+          return stream;
+        case "streamSimple":
+          return streamSimple;
         case "complete": {
           const complete: ModelRuntime["complete"] = (model, context, options) =>
             stream(model, context, options).result();
@@ -162,6 +176,6 @@ function attributionTransform(
     mergeProviderAttributionHeaders(
       model,
       options?.sessionId,
-      await options?.transformHeaders?.(headers) ?? headers,
+      (await options?.transformHeaders?.(headers)) ?? headers,
     ) ?? {};
 }

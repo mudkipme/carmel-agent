@@ -53,7 +53,9 @@ export function parseSlashCommand(text: string): ParsedSlashCommand | undefined 
   const name = match[1]!;
   return {
     name,
-    skillName: name.startsWith(SKILL_COMMAND_PREFIX) ? name.slice(SKILL_COMMAND_PREFIX.length) : undefined,
+    skillName: name.startsWith(SKILL_COMMAND_PREFIX)
+      ? name.slice(SKILL_COMMAND_PREFIX.length)
+      : undefined,
     args: match[2] ?? "",
   };
 }

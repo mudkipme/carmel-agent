@@ -12,7 +12,10 @@ import { deletePiSession } from "./pi-session-storage.ts";
 type TaskRecord = typeof agentTasks.$inferSelect;
 
 export class AgentTaskError extends Error {
-  constructor(message: string, readonly status: 400 | 404 | 409) {
+  constructor(
+    message: string,
+    readonly status: 400 | 404 | 409,
+  ) {
     super(message);
   }
 }
@@ -43,13 +46,18 @@ function assertAgentVisible(user: { id: string; role: UserRole }, agentId: strin
   if (!readTaskAgent(user, agentId)) throw new AgentTaskError("Agent not found.", 404);
 }
 
-export function readAgentTask(user: { id: string; role: UserRole }, agentId: string, taskId: string): TaskRecord {
+export function readAgentTask(
+  user: { id: string; role: UserRole },
+  agentId: string,
+  taskId: string,
+): TaskRecord {
   assertAgentVisible(user, agentId);
   const row = db.select().from(agentTasks).where(eq(agentTasks.id, taskId)).get();
   // A task on another agent is "not found" rather than "wrong agent": the id
   // alone should not confirm that a task exists somewhere else.
   if (!row || row.agentId !== agentId) throw new AgentTaskError("Task not found.", 404);
-  if (user.role !== "admin" && row.userId !== user.id) throw new AgentTaskError("Task not found.", 404);
+  if (user.role !== "admin" && row.userId !== user.id)
+    throw new AgentTaskError("Task not found.", 404);
   return row;
 }
 
@@ -64,7 +72,11 @@ export type AgentTaskDraft = {
   status?: "active" | "paused";
 };
 
-export function createAgentTask(user: { id: string; role: UserRole }, agentId: string, draft: AgentTaskDraft): AgentTask {
+export function createAgentTask(
+  user: { id: string; role: UserRole },
+  agentId: string,
+  draft: AgentTaskDraft,
+): AgentTask {
   assertAgentVisible(user, agentId);
   assertUsableModel(user.id, draft.modelRefId);
 
@@ -127,7 +139,9 @@ export function updateAgentTask(
   // resume is not what pausing means.
   const resumed = patch.status === "active" && current.status !== "active";
   const nextRunAt =
-    scheduleChanged || resumed ? valueOrNull(computeNextRun(schedule, timestamp)) : current.nextRunAt;
+    scheduleChanged || resumed
+      ? valueOrNull(computeNextRun(schedule, timestamp))
+      : current.nextRunAt;
 
   const row: TaskRecord = {
     ...current,
@@ -151,7 +165,11 @@ export function updateAgentTask(
  * the task -- except the ones moved to the session list, which are ordinary
  * sessions by then and no longer carry the task's id.
  */
-export async function deleteAgentTask(user: { id: string; role: UserRole }, agentId: string, taskId: string) {
+export async function deleteAgentTask(
+  user: { id: string; role: UserRole },
+  agentId: string,
+  taskId: string,
+) {
   const task = readAgentTask(user, agentId, taskId);
   const runSessions = db.select().from(sessions).where(eq(sessions.taskId, task.id)).all();
   if (runSessions.some((session) => readActiveRunLeaseForSession(session.id))) {
@@ -166,7 +184,11 @@ export async function deleteAgentTask(user: { id: string; role: UserRole }, agen
 
 /** Called from agent deletion, which has already checked ownership and deletes the agent's sessions itself. */
 export function deleteAgentTasksForAgent(agentId: string) {
-  const ids = db.select({ id: agentTasks.id }).from(agentTasks).where(eq(agentTasks.agentId, agentId)).all();
+  const ids = db
+    .select({ id: agentTasks.id })
+    .from(agentTasks)
+    .where(eq(agentTasks.agentId, agentId))
+    .all();
   deleteTaskRows(ids.map((row) => row.id));
 }
 
@@ -177,7 +199,12 @@ function deleteTaskRows(taskIds: string[]) {
   }
 }
 
-export function readTaskRuns(user: { id: string; role: UserRole }, agentId: string, taskId: string, limit = 50): AgentTaskRun[] {
+export function readTaskRuns(
+  user: { id: string; role: UserRole },
+  agentId: string,
+  taskId: string,
+  limit = 50,
+): AgentTaskRun[] {
   readAgentTask(user, agentId, taskId);
   return db
     .select()
@@ -232,7 +259,12 @@ export function recordTaskRun(input: {
  * Log a run as it starts, linked to its session, so the run history can open a
  * run that is still going. `finishTaskRun` records how it ended.
  */
-export function startTaskRun(input: { taskId: string; scheduledFor: number; startedAt: number; sessionId: string }) {
+export function startTaskRun(input: {
+  taskId: string;
+  scheduledFor: number;
+  startedAt: number;
+  sessionId: string;
+}) {
   const runId = id("agent_task_run");
   db.insert(agentTaskRuns)
     .values({ id: runId, ...input, finishedAt: null, outcome: "running", detail: null })
@@ -240,7 +272,10 @@ export function startTaskRun(input: { taskId: string; scheduledFor: number; star
   return runId;
 }
 
-export function finishTaskRun(runId: string, result: { outcome: AgentTaskOutcome; detail?: string }) {
+export function finishTaskRun(
+  runId: string,
+  result: { outcome: AgentTaskOutcome; detail?: string },
+) {
   db.update(agentTaskRuns)
     .set({ finishedAt: now(), outcome: result.outcome, detail: result.detail ?? null })
     .where(eq(agentTaskRuns.id, runId))
@@ -261,7 +296,12 @@ export function markInterruptedTaskRuns() {
 
 export function updateTaskAfterRun(
   taskId: string,
-  patch: { nextRunAt: number | null; status?: TaskRecord["status"]; outcome: AgentTaskOutcome; error?: string | null },
+  patch: {
+    nextRunAt: number | null;
+    status?: TaskRecord["status"];
+    outcome: AgentTaskOutcome;
+    error?: string | null;
+  },
 ) {
   db.update(agentTasks)
     .set({
@@ -294,7 +334,9 @@ function valueOrNull(next: ReturnType<typeof computeNextRun>) {
 }
 
 function definedOnly<T extends object>(patch: T): Partial<T> {
-  return Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)) as Partial<T>;
+  return Object.fromEntries(
+    Object.entries(patch).filter(([, value]) => value !== undefined),
+  ) as Partial<T>;
 }
 
 function serializeTask(row: TaskRecord): AgentTask {

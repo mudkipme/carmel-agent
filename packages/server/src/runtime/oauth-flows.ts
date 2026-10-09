@@ -23,17 +23,20 @@ const flowTtlMs = 15 * 60 * 1000;
 export function listOAuthProviders(): OAuthProviderSummary[] {
   return builtinProviders().flatMap((provider) =>
     provider.auth.oauth
-      ? [{
-          id: provider.id,
-          name: provider.auth.oauth.name,
-        }]
+      ? [
+          {
+            id: provider.id,
+            name: provider.auth.oauth.name,
+          },
+        ]
       : [],
   );
 }
 
 export async function startOAuthLoginFlow(userId: string, providerConfig: ProviderConfigRecord) {
   const provider = builtinProviders().find((candidate) => candidate.id === providerConfig.provider);
-  if (!provider?.auth.oauth) throw new Error(`Provider ${providerConfig.provider} does not support OAuth login.`);
+  if (!provider?.auth.oauth)
+    throw new Error(`Provider ${providerConfig.provider} does not support OAuth login.`);
 
   const flow: OAuthFlow = {
     id: randomId("oauth_flow"),
@@ -76,7 +79,10 @@ export function submitOAuthLoginFlowInput(userId: string, flowId: string, value:
 
 async function runOAuthLoginFlow(flow: OAuthFlow, providerConfig: ProviderConfigRecord) {
   try {
-    const credentials = createProviderConfigCredentialStore(providerConfig, providerConfig.provider);
+    const credentials = createProviderConfigCredentialStore(
+      providerConfig,
+      providerConfig.provider,
+    );
     const models = builtinModels({ credentials });
     await models.login(providerConfig.provider, "oauth", {
       notify: (event) => notifyOAuthFlow(flow, event),
@@ -105,8 +111,12 @@ function notifyOAuthFlow(flow: OAuthFlow, event: AuthEvent) {
         url: event.verificationUri,
         instructions: [
           `Enter code: ${event.userCode}`,
-          event.expiresInSeconds ? `This code expires in ${event.expiresInSeconds} seconds.` : undefined,
-        ].filter(Boolean).join(" "),
+          event.expiresInSeconds
+            ? `This code expires in ${event.expiresInSeconds} seconds.`
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join(" "),
       };
       break;
     case "progress":
@@ -161,7 +171,9 @@ function waitForInput(
         flow.pendingInput = undefined;
         flow.prompt = undefined;
       }
-      reject(signal?.reason instanceof Error ? signal.reason : new Error("OAuth prompt cancelled."));
+      reject(
+        signal?.reason instanceof Error ? signal.reason : new Error("OAuth prompt cancelled."),
+      );
     };
     const pendingInput: PendingInput = {
       resolve: (value) => {

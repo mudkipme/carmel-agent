@@ -28,7 +28,8 @@ export class AgentSecretError extends Error {
 function assertAgentOwner(userId: string, agentId: string) {
   const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
   if (!agent) throw new AgentSecretError("Agent not found.", 404);
-  if (agent.ownerUserId !== userId) throw new AgentSecretError("Agent secrets are owner-only.", 403);
+  if (agent.ownerUserId !== userId)
+    throw new AgentSecretError("Agent secrets are owner-only.", 403);
   return agent;
 }
 
@@ -43,7 +44,12 @@ export function readAgentSecrets(userId: string, agentId: string): AgentSecret[]
     .map(serializeAgentSecret);
 }
 
-export function writeAgentSecret(userId: string, agentId: string, name: string, value: string): AgentSecret {
+export function writeAgentSecret(
+  userId: string,
+  agentId: string,
+  name: string,
+  value: string,
+): AgentSecret {
   assertAgentOwner(userId, agentId);
   const nameError = agentSecretNameError(name);
   if (nameError) throw new AgentSecretError(nameError, 400);
@@ -69,7 +75,9 @@ export function writeAgentSecret(userId: string, agentId: string, name: string, 
 export function deleteAgentSecret(userId: string, agentId: string, name: string) {
   assertAgentOwner(userId, agentId);
   if (!readSecretRow(agentId, name)) throw new AgentSecretError("Secret not found.", 404);
-  db.delete(agentSecrets).where(and(eq(agentSecrets.agentId, agentId), eq(agentSecrets.name, name))).run();
+  db.delete(agentSecrets)
+    .where(and(eq(agentSecrets.agentId, agentId), eq(agentSecrets.name, name)))
+    .run();
 }
 
 /** Agent deletion: secrets reference the agent and must not outlive it. */

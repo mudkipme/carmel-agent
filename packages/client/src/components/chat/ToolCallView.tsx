@@ -16,16 +16,33 @@ type ToolCallViewProps = {
   codemodeCalls?: CodemodeCallInfo[];
 };
 
-export function ToolCallView({ toolCall, result, pending = false, streaming = false, aborted = false, codemodeCalls }: ToolCallViewProps) {
+export function ToolCallView({
+  toolCall,
+  result,
+  pending = false,
+  streaming = false,
+  aborted = false,
+  codemodeCalls,
+}: ToolCallViewProps) {
   const [open, setOpen] = useState(false);
   const isError = aborted || result?.isError;
-  const state = isError ? "Error" : result ? "Complete" : pending ? "Running" : streaming ? "Preparing" : "Pending";
+  const state = isError
+    ? "Error"
+    : result
+      ? "Complete"
+      : pending
+        ? "Running"
+        : streaming
+          ? "Preparing"
+          : "Pending";
   const active = state === "Preparing" || state === "Running";
   const images = getToolResultImages(result);
   const details = result?.details as { codemodeCalls?: unknown } | undefined;
   const savedCalls = codemodeCallsSchema.safeParse(details?.codemodeCalls);
-  const calls = (savedCalls.success ? savedCalls.data : codemodeCalls ?? []).map((call) =>
-    call.status === "running" && (aborted || result) ? { ...call, status: "cancelled" as const } : call,
+  const calls = (savedCalls.success ? savedCalls.data : (codemodeCalls ?? [])).map((call) =>
+    call.status === "running" && (aborted || result)
+      ? { ...call, status: "cancelled" as const }
+      : call,
   );
 
   return (
@@ -49,21 +66,37 @@ export function ToolCallView({ toolCall, result, pending = false, streaming = fa
           <CodePanel label="Input" value={formatJson(toolCall.arguments)} />
           {calls.length > 0 ? (
             <div className="flex min-w-0 flex-col gap-2">
-              <div className="text-xs font-medium text-muted-foreground">Nested tool calls ({calls.length})</div>
+              <div className="text-xs font-medium text-muted-foreground">
+                Nested tool calls ({calls.length})
+              </div>
               {calls.map((call) => (
-                <div key={call.id} className="flex min-w-0 items-center justify-between gap-2 text-sm">
-                  <span className="truncate" title={call.name}>{call.label}</span>
+                <div
+                  key={call.id}
+                  className="flex min-w-0 items-center justify-between gap-2 text-sm"
+                >
+                  <span className="truncate" title={call.name}>
+                    {call.label}
+                  </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <span className="text-xs text-muted-foreground">{call.durationMs} ms</span>
                     <Badge variant={call.status === "error" ? "destructive" : "secondary"}>
-                      {call.status === "running" ? "Running" : call.status === "ok" ? "Complete" : call.status === "cancelled" ? "Cancelled" : "Error"}
+                      {call.status === "running"
+                        ? "Running"
+                        : call.status === "ok"
+                          ? "Complete"
+                          : call.status === "cancelled"
+                            ? "Cancelled"
+                            : "Error"}
                     </Badge>
                   </span>
                 </div>
               ))}
             </div>
           ) : null}
-          <CodePanel label="Output" value={aborted ? "Tool call aborted." : formatToolResult(result)} />
+          <CodePanel
+            label="Output"
+            value={aborted ? "Tool call aborted." : formatToolResult(result)}
+          />
           {images.length > 0 ? (
             <div className="flex min-w-0 flex-col gap-1">
               <div className="text-xs font-medium text-muted-foreground">Images</div>
@@ -93,12 +126,15 @@ function CodePanel({ label, value }: { label: string; value: string }) {
 
 function getToolResultImages(result?: ToolResultMessage) {
   return (
-    result?.content
-      ?.flatMap((part) => {
-        if (part.type !== "image") return [];
-        const displayPart = part as typeof part & { data?: string; url?: string };
-        const src = imageSrc({ url: displayPart.url, data: displayPart.data, mimeType: part.mimeType });
-        return src ? [{ src }] : [];
-      }) ?? []
+    result?.content?.flatMap((part) => {
+      if (part.type !== "image") return [];
+      const displayPart = part as typeof part & { data?: string; url?: string };
+      const src = imageSrc({
+        url: displayPart.url,
+        data: displayPart.data,
+        mimeType: part.mimeType,
+      });
+      return src ? [{ src }] : [];
+    }) ?? []
   );
 }

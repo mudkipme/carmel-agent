@@ -38,7 +38,10 @@ export function createOpenAIRoutes() {
     const key = header?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
     const user = authenticateApiKey(key);
     if (!user) {
-      return c.json(toOpenAIError("Invalid API key.", "invalid_request_error", "invalid_api_key"), 401);
+      return c.json(
+        toOpenAIError("Invalid API key.", "invalid_request_error", "invalid_api_key"),
+        401,
+      );
     }
     c.set("user", user);
     await next();
@@ -73,7 +76,13 @@ export function createOpenAIRoutes() {
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       const where = issue?.path.length ? `${issue.path.join(".")}: ` : "";
-      return c.json(toOpenAIError(`${where}${issue?.message ?? "Invalid request body."}`, "invalid_request_error"), 400);
+      return c.json(
+        toOpenAIError(
+          `${where}${issue?.message ?? "Invalid request body."}`,
+          "invalid_request_error",
+        ),
+        400,
+      );
     }
     const request = parsed.data;
     const userId = c.get("user").id;
@@ -83,7 +92,14 @@ export function createOpenAIRoutes() {
     const resolved = await resolveModelContext(userId, match.modelRef.id);
     if (!resolved.ok) {
       return resolved.reason === "no_auth"
-        ? c.json(toOpenAIError(NO_PROVIDER_AUTH_MESSAGE, "invalid_request_error", "provider_auth_missing"), 400)
+        ? c.json(
+            toOpenAIError(
+              NO_PROVIDER_AUTH_MESSAGE,
+              "invalid_request_error",
+              "provider_auth_missing",
+            ),
+            400,
+          )
         : modelNotFound(c, request.model);
     }
     const { model, modelRuntime } = resolved.value;
@@ -95,7 +111,10 @@ export function createOpenAIRoutes() {
       options = toPiStreamOptions(request, model);
     } catch (error) {
       if (error instanceof OpenAICompatError) {
-        return c.json(toOpenAIError(error.message, "invalid_request_error", error.code), error.status);
+        return c.json(
+          toOpenAIError(error.message, "invalid_request_error", error.code),
+          error.status,
+        );
       }
       throw error;
     }
@@ -124,7 +143,8 @@ export function createOpenAIRoutes() {
     // error, not a 200 whose stream happens to contain one.
     const first = await events.next();
     if (first.done) return upstreamError(c, "The provider returned no response.");
-    if (first.value.type === "error") return upstreamError(c, first.value.error.errorMessage ?? "Provider request failed.");
+    if (first.value.type === "error")
+      return upstreamError(c, first.value.error.errorMessage ?? "Provider request failed.");
 
     const envelope = {
       id: `chatcmpl-${randomUUID().replaceAll("-", "")}`,
@@ -139,12 +159,17 @@ export function createOpenAIRoutes() {
         if (next.done) break;
         event = next.value;
       }
-      if (event.type === "error") return upstreamError(c, event.error.errorMessage ?? "Provider request failed.");
-      if (event.type !== "done") return upstreamError(c, "The provider stream ended without a result.");
+      if (event.type === "error")
+        return upstreamError(c, event.error.errorMessage ?? "Provider request failed.");
+      if (event.type !== "done")
+        return upstreamError(c, "The provider stream ended without a result.");
       return c.json(toChatCompletion(envelope, event.message));
     }
 
-    const translate = createChunkTranslator(envelope, request.stream_options?.include_usage === true);
+    const translate = createChunkTranslator(
+      envelope,
+      request.stream_options?.include_usage === true,
+    );
     return streamSSE(c, async (stream) => {
       stream.onAbort(() => abort.abort());
       let result: IteratorResult<AssistantMessageEvent> = first;
@@ -154,12 +179,15 @@ export function createOpenAIRoutes() {
           // Aborted means the caller hung up; there is nobody to tell.
           if (event.reason !== "aborted") {
             await stream.writeSSE({
-              data: JSON.stringify(toOpenAIError(event.error.errorMessage ?? "Provider request failed.")),
+              data: JSON.stringify(
+                toOpenAIError(event.error.errorMessage ?? "Provider request failed."),
+              ),
             });
           }
           return;
         }
-        for (const chunk of translate(event)) await stream.writeSSE({ data: JSON.stringify(chunk) });
+        for (const chunk of translate(event))
+          await stream.writeSSE({ data: JSON.stringify(chunk) });
         if (event.type === "done") break;
         result = await events.next();
       }
@@ -214,14 +242,29 @@ function conversationId(c: OpenAIContext, userId: string, modelRefId: string, co
   const explicit = c.req.header("x-session-id")?.trim();
   const firstUser = context.messages.find((message) => message.role === "user");
   const hash = createHash("sha256")
-    .update(JSON.stringify([userId, modelRefId, explicit ?? null, explicit ? null : context.systemPrompt ?? "", explicit ? null : firstUser?.content ?? ""]))
+    .update(
+      JSON.stringify([
+        userId,
+        modelRefId,
+        explicit ?? null,
+        explicit ? null : (context.systemPrompt ?? ""),
+        explicit ? null : (firstUser?.content ?? ""),
+      ]),
+    )
     .digest("hex");
   // UUID-shaped, as pi's own session IDs are.
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }
 
 function modelNotFound(c: OpenAIContext, model: string) {
-  return c.json(toOpenAIError(`The model '${model}' does not exist or you do not have access to it.`, "invalid_request_error", "model_not_found"), 404);
+  return c.json(
+    toOpenAIError(
+      `The model '${model}' does not exist or you do not have access to it.`,
+      "invalid_request_error",
+      "model_not_found",
+    ),
+    404,
+  );
 }
 
 function upstreamError(c: OpenAIContext, message: string) {

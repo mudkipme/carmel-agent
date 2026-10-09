@@ -10,7 +10,9 @@ test("concurrent reads for one session share a single connection request", async
   globalThis.fetch = async (input) => {
     requests.push(String(input));
     if (requests.length === 1) {
-      await new Promise<void>((resolve) => { release = resolve; });
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
     }
     return Response.json(connection("session_1"));
   };

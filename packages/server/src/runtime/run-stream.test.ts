@@ -18,7 +18,9 @@ test("run events are sequenced and reconnect replays only events after the curso
     runId: "run_sequence",
     userId: "user_sequence",
     sessionId: "session_sequence",
-    abort: () => { abortCalls += 1; },
+    abort: () => {
+      abortCalls += 1;
+    },
   });
   try {
     emitRunEvent(run, { type: "turn_end" });
@@ -89,11 +91,10 @@ test("consecutive deltas for one content part are merged into a single event", a
     // A non-delta event flushes whatever is buffered ahead of itself.
     emitRunEvent(run, { type: "message_end", message: assistantMessage("Hello, world") });
 
-    assert.deepEqual(run.events.map((entry) => entry.event.type), [
-      "message_start",
-      "message_delta",
-      "message_end",
-    ]);
+    assert.deepEqual(
+      run.events.map((entry) => entry.event.type),
+      ["message_start", "message_delta", "message_end"],
+    );
     assert.deepEqual(run.events[1].event, {
       type: "message_delta",
       contentIndex: 0,
@@ -120,11 +121,14 @@ test("deltas for different content parts stay separate and flush on their own ti
 
     await delay(120);
 
-    assert.deepEqual(run.events.map((entry) => entry.event), [
-      { type: "message_start", message: assistantMessage() },
-      { type: "message_delta", contentIndex: 0, field: "thinking", delta: "hmm" },
-      { type: "message_delta", contentIndex: 1, field: "text", delta: "answer" },
-    ]);
+    assert.deepEqual(
+      run.events.map((entry) => entry.event),
+      [
+        { type: "message_start", message: assistantMessage() },
+        { type: "message_delta", contentIndex: 0, field: "thinking", delta: "hmm" },
+        { type: "message_delta", contentIndex: 1, field: "text", delta: "answer" },
+      ],
+    );
   } finally {
     finishAgentRun(run);
   }
@@ -155,7 +159,10 @@ test("a client attaching mid-message rewinds to the message_start it needs to re
     // Once the message is complete there is nothing to rebuild, so the cursor
     // returns to the newest event.
     emitRunEvent(run, { type: "message_end", message: assistantMessage("partial") });
-    assert.equal(getActiveAgentRunForSession(run.userId, run.sessionId)?.eventCursor, run.nextSequence - 1);
+    assert.equal(
+      getActiveAgentRunForSession(run.userId, run.sessionId)?.eventCursor,
+      run.nextSequence - 1,
+    );
   } finally {
     finishAgentRun(run);
   }
@@ -172,7 +179,11 @@ test("the attach cursor never rewinds past the replay buffer", async () => {
     emitRunEvent(run, { type: "message_start", message: assistantMessage() });
     // Push the message_start out of the buffer with distinct, uncoalescable events.
     for (let index = 0; index < 1_100; index += 1) {
-      emitRunEvent(run, { type: "tool_execution_start", toolCallId: `call_${index}`, toolName: "read" });
+      emitRunEvent(run, {
+        type: "tool_execution_start",
+        toolCallId: `call_${index}`,
+        toolName: "read",
+      });
     }
 
     const cursor = getActiveAgentRunForSession(run.userId, run.sessionId)?.eventCursor;

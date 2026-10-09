@@ -23,7 +23,12 @@ export function createAgentSecretRoutes() {
 
   route.put("/agents/:agentId/secrets/:name", jsonValidator(agentSecretWriteSchema), (c) =>
     respond(c, () =>
-      writeAgentSecret(c.get("user").id, c.req.param("agentId"), c.req.param("name"), c.req.valid("json").value),
+      writeAgentSecret(
+        c.get("user").id,
+        c.req.param("agentId"),
+        c.req.param("name"),
+        c.req.valid("json").value,
+      ),
     ),
   );
 

@@ -12,10 +12,7 @@ import { id, now } from "../db/seed.ts";
 import { createAgent, createUser } from "../test-support.ts";
 import { loadSession } from "./session-store.ts";
 import { writeAgentSecret } from "./agent-secrets.ts";
-import {
-  captureIssueWorkspace,
-  compareIssueWorkspace,
-} from "./issue-results.ts";
+import { captureIssueWorkspace, compareIssueWorkspace } from "./issue-results.ts";
 import {
   createIssue,
   readIssueView,
@@ -45,33 +42,16 @@ test("the agent runs a reordered queue serially; review releases the slot and pr
     await waitFor(() => f.provider.requests.length === 1);
     const second = f.issue("Second job");
     const third = f.issue("Third job");
-    assert.equal(
-      (await runIssue(f.userId, f.agentId, second.id, {})).status,
-      "queued",
-    );
-    assert.equal(
-      (await runIssue(f.userId, f.agentId, third.id, {})).status,
-      "queued",
-    );
+    assert.equal((await runIssue(f.userId, f.agentId, second.id, {})).status, "queued");
+    assert.equal((await runIssue(f.userId, f.agentId, third.id, {})).status, "queued");
     assert.equal(f.detail(second.id).attempts.length, 0);
     moveQueuedIssue(f.userId, f.agentId, third.id, "up");
-    assert.ok(
-      f.detail(third.id).queuePosition! < f.detail(second.id).queuePosition!,
-    );
-    await assert.rejects(
-      runIssue(f.userId, f.agentId, second.id, {}),
-      /already queued/,
-    );
-    assert.equal(
-      f.provider.requests.length,
-      1,
-      "queued jobs must not contact the provider",
-    );
+    assert.ok(f.detail(third.id).queuePosition! < f.detail(second.id).queuePosition!);
+    await assert.rejects(runIssue(f.userId, f.agentId, second.id, {}), /already queued/);
+    assert.equal(f.provider.requests.length, 1, "queued jobs must not contact the provider");
     f.provider.release();
     await waitFor(() =>
-      [first, second, third].every(
-        (issue) => f.detail(issue.id).status === "in_review",
-      ),
+      [first, second, third].every((issue) => f.detail(issue.id).status === "in_review"),
     );
     assert.deepEqual(
       f.provider.starts.map((text) => text.match(/^# (.*)/)?.[1]),
@@ -79,28 +59,15 @@ test("the agent runs a reordered queue serially; review releases the slot and pr
     );
     assert.equal(f.provider.maxRequests, 1);
     const snapshot = f.detail(first.id).attempts[0]!.snapshot!;
-    assert.equal(
-      snapshot.files.find((file) => file.path === "result.txt")?.before,
-      "before",
-    );
-    assert.equal(
-      snapshot.files.find((file) => file.path === "result.txt")?.after,
-      "version 1",
-    );
-    assert.equal(
-      await readFile(join(f.root, "result.txt"), "utf8"),
-      "version 3",
-    );
+    assert.equal(snapshot.files.find((file) => file.path === "result.txt")?.before, "before");
+    assert.equal(snapshot.files.find((file) => file.path === "result.txt")?.after, "version 1");
+    assert.equal(await readFile(join(f.root, "result.txt"), "utf8"), "version 3");
     assert.deepEqual(
       f.detail(first.id).attempts[0]!.snapshot,
       snapshot,
       "later jobs must not change a saved result",
     );
-    const currentAgent = db
-      .select()
-      .from(agents)
-      .where(eq(agents.id, f.agentId))
-      .get()!;
+    const currentAgent = db.select().from(agents).where(eq(agents.id, f.agentId)).get()!;
     db.update(agents)
       .set({ permissions: { ...currentAgent.permissions, read: false } })
       .where(eq(agents.id, f.agentId))
@@ -135,18 +102,12 @@ test("revisions keep the Pi conversation; a fresh start creates a new one", asyn
     assert.ok(
       revisionRequest.messages.some(
         (message) =>
-          message.role === "user" &&
-          contentText(message.content).includes("Work on this issue."),
+          message.role === "user" && contentText(message.content).includes("Work on this issue."),
       ),
     );
-    assert.ok(
-      revisionRequest.messages.some((message) => message.role === "assistant"),
-    );
+    assert.ok(revisionRequest.messages.some((message) => message.role === "assistant"));
     const saved = await loadSession(firstSession!);
-    assert.equal(
-      saved?.messages.filter((message) => message.role === "user").length,
-      2,
-    );
+    assert.equal(saved?.messages.filter((message) => message.role === "user").length, 2);
     await runIssue(f.userId, f.agentId, issue.id, {
       instructions: "Start again",
       fresh: true,
@@ -181,11 +142,8 @@ test("live updates use Pi steering and visibly move from queued to delivered", a
     f.provider.releaseWithRead();
     await waitFor(() => f.detail(issue.id).status === "in_review");
     assert.equal(
-      f
-        .detail(issue.id)
-        .notes.find(
-          (note) => note.body === "Use the revised acceptance criterion",
-        )?.delivery,
+      f.detail(issue.id).notes.find((note) => note.body === "Use the revised acceptance criterion")
+        ?.delivery,
       "delivered",
     );
     assert.ok(
@@ -193,16 +151,11 @@ test("live updates use Pi steering and visibly move from queued to delivered", a
         body.messages.some(
           (message) =>
             message.role === "user" &&
-            contentText(message.content).includes(
-              "Use the revised acceptance criterion",
-            ),
+            contentText(message.content).includes("Use the revised acceptance criterion"),
         ),
       ),
     );
-    await assert.rejects(
-      sendIssueUpdate(f.userId, f.agentId, issue.id, "Too late"),
-      /not running/,
-    );
+    await assert.rejects(sendIssueUpdate(f.userId, f.agentId, issue.id, "Too late"), /not running/);
   } finally {
     await f.close();
   }
@@ -226,10 +179,7 @@ test("failed and stopped runs advance the queue; an unreported success cannot en
     assert.equal(f.detail(first.id).status, "backlog");
     assert.match(f.detail(first.id).lastRunDetail!, /401|Rejected/);
     assert.match(f.detail(second.id).lastRunDetail!, /without delivering/);
-    assert.throws(
-      () => acceptIssue(f.userId, f.agentId, second.id),
-      /awaiting review/,
-    );
+    assert.throws(() => acceptIssue(f.userId, f.agentId, second.id), /awaiting review/);
   } finally {
     await f.close();
   }
@@ -252,14 +202,11 @@ test("stopping a run advances the queue and never delivers unused steering to th
         f.detail(second.id).status === "in_review",
     );
     assert.equal(
-      f.detail(first.id).notes.find((note) => note.body === "Unused update")
-        ?.delivery,
+      f.detail(first.id).notes.find((note) => note.body === "Unused update")?.delivery,
       "not_delivered",
     );
     f.provider.release();
-    assert.ok(
-      !f.provider.starts.some((text) => text.includes("Unused update")),
-    );
+    assert.ok(!f.provider.starts.some((text) => text.includes("Unused update")));
   } finally {
     await f.close();
   }
@@ -268,10 +215,7 @@ test("stopping a run advances the queue and never delivers unused steering to th
 test("shared agents serialize all owners' work while their queues and commands remain private", async () => {
   const f = await fixture();
   try {
-    db.update(agents)
-      .set({ shared: true })
-      .where(eq(agents.id, f.agentId))
-      .run();
+    db.update(agents).set({ shared: true }).where(eq(agents.id, f.agentId)).run();
     f.provider.hold();
     const first = f.issue("Owner's job");
     await runIssue(f.userId, f.agentId, first.id, {});
@@ -290,10 +234,7 @@ test("shared agents serialize all owners' work while their queues and commands r
       [privateJob.id],
     );
     assert.equal(readIssues(f.userId, f.agentId).length, 1);
-    assert.throws(
-      () => moveQueuedIssue(f.userId, f.agentId, privateJob.id, "up"),
-      /not found/,
-    );
+    assert.throws(() => moveQueuedIssue(f.userId, f.agentId, privateJob.id, "up"), /not found/);
     assert.ok(!("queuedCommand" in queued));
     removeIssueFromQueue(otherUser, f.agentId, privateJob.id);
     assert.ok(
@@ -301,10 +242,7 @@ test("shared agents serialize all owners' work while their queues and commands r
         (note) => note.kind === "note" && note.body === "Private instructions",
       ),
     );
-    assert.equal(
-      readIssueView(otherUser, f.agentId, privateJob.id).status,
-      "backlog",
-    );
+    assert.equal(readIssueView(otherUser, f.agentId, privateJob.id).status, "backlog");
     f.provider.release();
     await waitFor(() => f.detail(first.id).status === "in_review");
     assert.equal(f.provider.starts.length, 1);
@@ -336,10 +274,7 @@ test("queued work survives queue shutdown; restart recovery releases stale claim
   try {
     stopIssueQueue();
     const first = f.issue("Resume after restart");
-    assert.equal(
-      (await runIssue(f.userId, f.agentId, first.id, {})).status,
-      "queued",
-    );
+    assert.equal((await runIssue(f.userId, f.agentId, first.id, {})).status, "queued");
     const stale = f.issue("Interrupted by restart");
     db.insert(issueAttempts)
       .values({
@@ -351,10 +286,7 @@ test("queued work survives queue shutdown; restart recovery releases stale claim
         createdAt: now(),
       })
       .run();
-    db.update(issues)
-      .set({ status: "in_progress" })
-      .where(eq(issues.id, stale.id))
-      .run();
+    db.update(issues).set({ status: "in_progress" }).where(eq(issues.id, stale.id)).run();
     recoverIssueAttempts();
     assert.equal(f.detail(stale.id).lastRunOutcome, "interrupted");
     assert.equal(f.detail(stale.id).running, false);
@@ -371,37 +303,19 @@ test("workspace capture honors permission, excludes secrets and symlinks, and pr
   const f = await fixture();
   const outside = await mkdtemp(join(tmpdir(), "carmel-result-outside-"));
   try {
-    const agent = db
-      .select()
-      .from(agents)
-      .where(eq(agents.id, f.agentId))
-      .get()!;
+    const agent = db.select().from(agents).where(eq(agents.id, f.agentId)).get()!;
     await writeFile(join(f.root, "document.md"), "original");
     await writeFile(join(f.root, ".env"), "PRIVATE=secret");
     await writeFile(join(outside, "private.txt"), "private data");
     await symlink(join(outside, "private.txt"), join(f.root, "external.txt"));
-    writeAgentSecret(
-      f.userId,
-      f.agentId,
-      "FIXTURE_TOKEN",
-      "captured-secret-value",
-    );
-    await writeFile(
-      join(f.root, "configuration.txt"),
-      "token=captured-secret-value",
-    );
+    writeAgentSecret(f.userId, f.agentId, "FIXTURE_TOKEN", "captured-secret-value");
+    await writeFile(join(f.root, "configuration.txt"), "token=captured-secret-value");
     await writeFile(join(f.root, "oversized.txt"), "x".repeat(300 * 1024));
     const before = await captureIssueWorkspace(agent);
-    assert.equal(
-      before.files.get("configuration.txt")?.text,
-      "token=[redacted:FIXTURE_TOKEN]",
-    );
+    assert.equal(before.files.get("configuration.txt")?.text, "token=[redacted:FIXTURE_TOKEN]");
     await writeFile(join(f.root, "document.md"), "delivered");
     await writeFile(join(f.root, "oversized.txt"), "now small enough");
-    const result = compareIssueWorkspace(
-      before,
-      await captureIssueWorkspace(agent),
-    );
+    const result = compareIssueWorkspace(before, await captureIssueWorkspace(agent));
     assert.deepEqual(
       result.files.map((file) => file.path),
       ["document.md"],
@@ -428,15 +342,11 @@ type ProviderBody = {
 function contentText(content: unknown) {
   if (typeof content === "string") return content;
   if (Array.isArray(content))
-    return content
-      .map((part) => (typeof part.text === "string" ? part.text : ""))
-      .join("\n");
+    return content.map((part) => (typeof part.text === "string" ? part.text : "")).join("\n");
   return "";
 }
 function lastUser(body: ProviderBody) {
-  return contentText(
-    body.messages.findLast((message) => message.role === "user")?.content,
-  );
+  return contentText(body.messages.findLast((message) => message.role === "user")?.content);
 }
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "carmel-issue-queue-"));
@@ -462,17 +372,13 @@ async function fixture() {
     ownerUserId: userId,
     defaultModelRefId: modelRefId,
   });
-  db.update(agents)
-    .set({ workingDir: root })
-    .where(eq(agents.id, agentId))
-    .run();
+  db.update(agents).set({ workingDir: root }).where(eq(agents.id, agentId)).run();
   return {
     root,
     userId,
     agentId,
     provider,
-    issue: (title: string) =>
-      createIssue(userId, agentId, { title, description: "" }),
+    issue: (title: string) => createIssue(userId, agentId, { title, description: "" }),
     detail: (issueId: string) => readIssueView(userId, agentId, issueId),
     close: async () => {
       provider.release();
@@ -518,8 +424,7 @@ async function fakeProvider(root: string) {
       .filter((message) => message.role === "system")
       .map((message) => contentText(message.content))
       .join("\n");
-    const currentTitle =
-      context.match(/## Issue brief\n\n# ([^\n]+)/)?.[1] ?? "";
+    const currentTitle = context.match(/## Issue brief\n\n# ([^\n]+)/)?.[1] ?? "";
     if (`${context} ${last}`.includes("Fail this job")) {
       response
         .writeHead(401, { "content-type": "application/json" })
@@ -531,16 +436,10 @@ async function fakeProvider(root: string) {
       response.write(
         `data: ${JSON.stringify({ id: "fixture", object: "chat.completion.chunk", created: 0, model: "fixture", choices: [{ index: 0, delta, finish_reason }] })}\n\n`,
       );
-    const latestUser = body.messages.findLastIndex(
-      (message) => message.role === "user",
-    );
+    const latestUser = body.messages.findLastIndex((message) => message.role === "user");
     const reported = body.messages
       .slice(latestUser + 1)
-      .some(
-        (message) =>
-          message.role === "tool" &&
-          message.tool_call_id?.startsWith("report_"),
-      );
+      .some((message) => message.role === "tool" && message.tool_call_id?.startsWith("report_"));
     if (readOnRelease) {
       readOnRelease = false;
       send({

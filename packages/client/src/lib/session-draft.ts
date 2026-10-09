@@ -10,9 +10,7 @@ export function readSessionDraft<T>(
 ): T {
   if (!key) return initial;
   try {
-    const stored: unknown = JSON.parse(
-      window.sessionStorage.getItem(key) ?? "null",
-    );
+    const stored: unknown = JSON.parse(window.sessionStorage.getItem(key) ?? "null");
     return valid(stored) ? stored : initial;
   } catch {
     return initial;

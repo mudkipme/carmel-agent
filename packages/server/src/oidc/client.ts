@@ -57,7 +57,11 @@ export async function buildOidcAuthorizationUrl(config: OidcConfig) {
  * URL, because behind a proxy the request URL is the internal one, and the
  * token endpoint insists on the exact redirect URI that was sent.
  */
-export async function completeOidcLogin(config: OidcConfig, callbackSearch: string, login: PendingOidcLogin) {
+export async function completeOidcLogin(
+  config: OidcConfig,
+  callbackSearch: string,
+  login: PendingOidcLogin,
+) {
   const configuration = await discover(config);
   const currentUrl = new URL(config.redirectUri);
   currentUrl.search = callbackSearch;
@@ -108,7 +112,12 @@ async function discoverNow(config: OidcConfig) {
   // Discovery only reads a public document; the client authentication method
   // is picked afterwards from what the provider says its token endpoint takes.
   const server = metadata.serverMetadata();
-  const configuration = new oidc.Configuration(server, config.clientId, undefined, clientAuthentication(config, server));
+  const configuration = new oidc.Configuration(
+    server,
+    config.clientId,
+    undefined,
+    clientAuthentication(config, server),
+  );
   configuration.timeout = requestTimeoutSeconds;
   if (fetchOverride) configuration[oidc.customFetch] = fetchOverride;
   for (const extension of execute) extension(configuration);

@@ -34,7 +34,7 @@ test("session routes fork, edit, and truncate by native Pi entry ID", async () =
     body: JSON.stringify({ entryId: answerId }),
   });
   assert.equal(forkResponse.status, 201);
-  const fork = await forkResponse.json() as typeof source;
+  const fork = (await forkResponse.json()) as typeof source;
   assert.deepEqual(fork.messages.map(messageText), ["question", "answer"]);
   assert.deepEqual(fork.messageEntryIds, [questionId, answerId]);
   assert.deepEqual(fork.forkedFrom, { sessionId: fixture.sessionId, entryId: answerId });
@@ -44,7 +44,7 @@ test("session routes fork, edit, and truncate by native Pi entry ID", async () =
     { method: "PATCH", headers: json, body: JSON.stringify({ content: "edited answer" }) },
   );
   assert.equal(editResponse.status, 200);
-  const edited = await editResponse.json() as typeof source;
+  const edited = (await editResponse.json()) as typeof source;
   assert.deepEqual(edited.messages.map(messageText), ["question", "edited answer", "follow-up"]);
   assert.equal(edited.messageEntryIds[0], questionId);
   assert.notEqual(edited.messageEntryIds[1], answerId);
@@ -56,7 +56,7 @@ test("session routes fork, edit, and truncate by native Pi entry ID", async () =
     body: JSON.stringify({ entryId: edited.messageEntryIds[1] }),
   });
   assert.equal(truncateResponse.status, 200);
-  const truncated = await truncateResponse.json() as typeof source;
+  const truncated = (await truncateResponse.json()) as typeof source;
   assert.deepEqual(truncated.messages.map(messageText), ["question", "edited answer"]);
   assert.deepEqual(truncated.messageEntryIds, edited.messageEntryIds.slice(0, 2));
 });
@@ -78,14 +78,17 @@ test("truncate and fork refuse a cut that would strand a tool call", async () =>
   assert.ok(callId && resultId);
   const app = createTestApp(fixture.userId);
 
-  for (const path of [`/sessions/${fixture.sessionId}/messages/truncate`, `/sessions/${fixture.sessionId}/fork`]) {
+  for (const path of [
+    `/sessions/${fixture.sessionId}/messages/truncate`,
+    `/sessions/${fixture.sessionId}/fork`,
+  ]) {
     const response = await app.request(path, {
       method: "POST",
       headers: json,
       body: JSON.stringify({ entryId: callId }),
     });
     assert.equal(response.status, 409, path);
-    const body = await response.json() as { error: string; safeEntryId: string | null };
+    const body = (await response.json()) as { error: string; safeEntryId: string | null };
     assert.match(body.error, /unanswered tool call \(bash\)/);
     // The caller is told where the valid cut is rather than left to guess.
     assert.equal(body.safeEntryId, resultId);
@@ -98,7 +101,7 @@ test("truncate and fork refuse a cut that would strand a tool call", async () =>
     body: JSON.stringify({ entryId: resultId }),
   });
   assert.equal(accepted.status, 200);
-  const truncated = await accepted.json() as typeof source;
+  const truncated = (await accepted.json()) as typeof source;
   assert.deepEqual(truncated.messageEntryIds, source.messageEntryIds.slice(0, 3));
 });
 
@@ -110,7 +113,14 @@ function assistantToolCall(id: string, name: string) {
 }
 
 function toolResultMessage(toolCallId: string, toolName: string) {
-  return { role: "toolResult", toolCallId, toolName, content: [], isError: false, timestamp: Date.now() } as unknown as AgentMessage;
+  return {
+    role: "toolResult",
+    toolCallId,
+    toolName,
+    content: [],
+    isError: false,
+    timestamp: Date.now(),
+  } as unknown as AgentMessage;
 }
 
 function createTestApp(userId: string) {
@@ -131,7 +141,13 @@ function messageText(message: unknown) {
   if (!Array.isArray(content)) return "";
   return content
     .filter((part): part is { type: "text"; text: string } =>
-      Boolean(part && typeof part === "object" && "type" in part && part.type === "text" && "text" in part),
+      Boolean(
+        part &&
+        typeof part === "object" &&
+        "type" in part &&
+        part.type === "text" &&
+        "text" in part,
+      ),
     )
     .map((part) => part.text)
     .join("\n");

@@ -29,7 +29,14 @@ function readSessionMetadataForUser(userId: string) {
   return db
     .select()
     .from(sessions)
-    .where(and(eq(sessions.userId, userId), isNull(sessions.archivedAt), isNull(sessions.taskId), isNull(sessions.issueId)))
+    .where(
+      and(
+        eq(sessions.userId, userId),
+        isNull(sessions.archivedAt),
+        isNull(sessions.taskId),
+        isNull(sessions.issueId),
+      ),
+    )
     .all()
     .sort(sortSessions)
     .map(serializeSessionMetadata);

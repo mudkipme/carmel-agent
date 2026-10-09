@@ -1,9 +1,7 @@
 /** One cancellable request at a time. Only the current request may publish. */
 export function createResourceLoader<T>(
   load: (signal: AbortSignal) => Promise<T>,
-  publish: (
-    result: { data: T; error?: never } | { error: unknown; data?: never },
-  ) => void,
+  publish: (result: { data: T; error?: never } | { error: unknown; data?: never }) => void,
 ) {
   let controller: AbortController | undefined;
   let pending: Promise<T | undefined> | undefined;

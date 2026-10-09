@@ -1,5 +1,12 @@
 import { isRecord, toSessionMetadata } from "@carmel-agent/shared";
-import type { AgentConfig, ModelRef, ProviderConfig, Session, SessionMetadata, User } from "@carmel-agent/shared";
+import type {
+  AgentConfig,
+  ModelRef,
+  ProviderConfig,
+  Session,
+  SessionMetadata,
+  User,
+} from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { agents, modelRefs, providerConfigs, sessions, users } from "./db/schema.ts";
 import { defaultAgentWorkingDir } from "./paths.ts";
@@ -75,7 +82,9 @@ export function serializeModelRef(model: typeof modelRefs.$inferSelect): ModelRe
   };
 }
 
-export function serializeProviderConfig(providerConfig: typeof providerConfigs.$inferSelect): ProviderConfig {
+export function serializeProviderConfig(
+  providerConfig: typeof providerConfigs.$inferSelect,
+): ProviderConfig {
   // Listed field by field on purpose: spreading the row leaks the stored OAuth
   // credential to clients.
   return {
@@ -125,7 +134,10 @@ type MessageDisplayContext = {
   entryId: string | undefined;
 };
 
-function serializeMessageForDisplay(message: AgentMessage, context: MessageDisplayContext): AgentMessage {
+function serializeMessageForDisplay(
+  message: AgentMessage,
+  context: MessageDisplayContext,
+): AgentMessage {
   if (!isRecord(message) || typeof message.role !== "string") return message;
   const role = (message as { role?: string }).role;
   const record = message as Record<string, unknown>;
@@ -152,7 +164,9 @@ function serializeMessageForDisplay(message: AgentMessage, context: MessageDispl
     return {
       ...message,
       content: Array.isArray(record.content)
-        ? record.content.map((part, partIndex) => serializeToolResultContentPart(part, context, partIndex)).filter(Boolean)
+        ? record.content
+            .map((part, partIndex) => serializeToolResultContentPart(part, context, partIndex))
+            .filter(Boolean)
         : record.content,
       details: summarizeValue(record.details),
     } as unknown as AgentMessage;
@@ -222,9 +236,14 @@ function serializeAssistantContentPart(part: unknown) {
   return part;
 }
 
-function serializeToolResultContentPart(part: unknown, context: MessageDisplayContext, partIndex: number) {
+function serializeToolResultContentPart(
+  part: unknown,
+  context: MessageDisplayContext,
+  partIndex: number,
+) {
   if (!isRecord(part) || typeof part.type !== "string") return undefined;
-  if (part.type === "text") return { ...part, text: truncateText(String(part.text ?? ""), MAX_TOOL_RESULT_TEXT_LENGTH) };
+  if (part.type === "text")
+    return { ...part, text: truncateText(String(part.text ?? ""), MAX_TOOL_RESULT_TEXT_LENGTH) };
   if (part.type === "image") {
     return {
       type: "image",
@@ -256,7 +275,8 @@ function summarizeValue(value: unknown, depth = 0): unknown {
 
   if (Array.isArray(value)) {
     const items = value.slice(0, MAX_ARRAY_ITEMS).map((item) => summarizeValue(item, depth + 1));
-    if (value.length > MAX_ARRAY_ITEMS) items.push(`... ${value.length - MAX_ARRAY_ITEMS} more items`);
+    if (value.length > MAX_ARRAY_ITEMS)
+      items.push(`... ${value.length - MAX_ARRAY_ITEMS} more items`);
     return items;
   }
 

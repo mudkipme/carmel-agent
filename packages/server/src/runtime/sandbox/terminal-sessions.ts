@@ -9,7 +9,12 @@ import {
   releaseAgentContainer,
   toContainerWorkdir,
 } from "./container-manager.ts";
-import { attachExecTty, isSandboxConfigured, resizeExec, sandboxUnavailableMessage } from "./runtime-client.ts";
+import {
+  attachExecTty,
+  isSandboxConfigured,
+  resizeExec,
+  sandboxUnavailableMessage,
+} from "./runtime-client.ts";
 import { errorMessage } from "../../errors.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -190,7 +195,8 @@ function startSweeper() {
     const now = Date.now();
     for (const [key, session] of sessions) {
       if (session.subscribers.size > 0 || session.detachedAt === undefined) continue;
-      if (now - session.detachedAt >= graceMs) closeSession(key, session, "The terminal timed out.");
+      if (now - session.detachedAt >= graceMs)
+        closeSession(key, session, "The terminal timed out.");
     }
   }, sweepIntervalMs);
   sweeper.unref?.();

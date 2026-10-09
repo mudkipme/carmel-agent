@@ -34,55 +34,83 @@ import { errorMessage } from "../errors.ts";
 export function createProviderConfigRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
 
-  route.put("/provider-configs/:id", requireAdmin, jsonValidator(providerConfigRequestSchema), async (c) => {
-    const currentUserId = c.get("user").id;
-    const providerConfig = c.req.valid("json");
-    const timestamp = now();
-    const current = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
-    const activeRun = current ? readActiveRunLeaseForProviderConfig(current.id) : undefined;
-    if (activeRun) return activeRunConflictResponse(c, activeRun);
+  route.put(
+    "/provider-configs/:id",
+    requireAdmin,
+    jsonValidator(providerConfigRequestSchema),
+    async (c) => {
+      const currentUserId = c.get("user").id;
+      const providerConfig = c.req.valid("json");
+      const timestamp = now();
+      const current = db
+        .select()
+        .from(providerConfigs)
+        .where(eq(providerConfigs.id, c.req.param("id")))
+        .get();
+      const activeRun = current ? readActiveRunLeaseForProviderConfig(current.id) : undefined;
+      if (activeRun) return activeRunConflictResponse(c, activeRun);
 
-    const authType = providerConfig.authType ?? current?.authType ?? "api_key";
-    const apiKey = authType === "api_key" ? protectSecret(providerConfig.apiKey ?? current?.apiKey ?? null) : null;
-    const oauthCredential = authType === "oauth" ? protectJsonSecret(current?.oauthCredential ?? null) : null;
-    db.insert(providerConfigs)
-      .values({
-        ...providerConfig,
-        id: c.req.param("id"),
-        userId: currentUserId,
-        authType,
-        apiKey,
-        oauthCredential,
-        createdAt: current?.createdAt ?? timestamp,
-        updatedAt: timestamp,
-      })
-      .onConflictDoUpdate({
-        target: providerConfigs.id,
-        set: {
+      const authType = providerConfig.authType ?? current?.authType ?? "api_key";
+      const apiKey =
+        authType === "api_key"
+          ? protectSecret(providerConfig.apiKey ?? current?.apiKey ?? null)
+          : null;
+      const oauthCredential =
+        authType === "oauth" ? protectJsonSecret(current?.oauthCredential ?? null) : null;
+      db.insert(providerConfigs)
+        .values({
+          ...providerConfig,
+          id: c.req.param("id"),
           userId: currentUserId,
-          label: providerConfig.label,
-          provider: providerConfig.provider,
           authType,
           apiKey,
           oauthCredential,
-          baseUrl: providerConfig.baseUrl,
+          createdAt: current?.createdAt ?? timestamp,
           updatedAt: timestamp,
-        },
-      })
-      .run();
-    return c.json(
-      serializeProviderConfig(db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get()!),
-    );
-  });
+        })
+        .onConflictDoUpdate({
+          target: providerConfigs.id,
+          set: {
+            userId: currentUserId,
+            label: providerConfig.label,
+            provider: providerConfig.provider,
+            authType,
+            apiKey,
+            oauthCredential,
+            baseUrl: providerConfig.baseUrl,
+            updatedAt: timestamp,
+          },
+        })
+        .run();
+      return c.json(
+        serializeProviderConfig(
+          db
+            .select()
+            .from(providerConfigs)
+            .where(eq(providerConfigs.id, c.req.param("id")))
+            .get()!,
+        ),
+      );
+    },
+  );
 
   route.get("/provider-configs/:id/models", requireAdmin, async (c) => {
-    const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
+    const providerConfig = db
+      .select()
+      .from(providerConfigs)
+      .where(eq(providerConfigs.id, c.req.param("id")))
+      .get();
     if (!providerConfig) {
       return c.json({ error: "Provider config not found." }, 404);
     }
     if (providerConfig.provider !== OLLAMA_PROVIDER) {
       const refresh = c.req.query("refresh") === "true";
-      return c.json(await readProviderModels(providerConfig, refresh ? { allowNetwork: true, force: true } : {}));
+      return c.json(
+        await readProviderModels(
+          providerConfig,
+          refresh ? { allowNetwork: true, force: true } : {},
+        ),
+      );
     }
 
     try {
@@ -98,7 +126,11 @@ export function createProviderConfigRoutes() {
 
   route.post("/provider-configs/:id/oauth/login", requireAdmin, async (c) => {
     const currentUserId = c.get("user").id;
-    const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, c.req.param("id"))).get();
+    const providerConfig = db
+      .select()
+      .from(providerConfigs)
+      .where(eq(providerConfigs.id, c.req.param("id")))
+      .get();
     if (!providerConfig) {
       return c.json({ error: "Provider config not found." }, 404);
     }
@@ -115,33 +147,57 @@ export function createProviderConfigRoutes() {
     return c.json(flow);
   });
 
-  route.post("/oauth/flows/:id/input", requireAdmin, jsonValidator(oauthInputRequestSchema), async (c) => {
-    const body = c.req.valid("json");
-    try {
-      const flow = submitOAuthLoginFlowInput(c.get("user").id, c.req.param("id"), body.value ?? "");
-      if (!flow) return c.json({ error: "OAuth flow not found." }, 404);
-      return c.json(flow);
-    } catch (error) {
-      return c.json({ error: errorMessage(error) }, 400);
-    }
-  });
+  route.post(
+    "/oauth/flows/:id/input",
+    requireAdmin,
+    jsonValidator(oauthInputRequestSchema),
+    async (c) => {
+      const body = c.req.valid("json");
+      try {
+        const flow = submitOAuthLoginFlowInput(
+          c.get("user").id,
+          c.req.param("id"),
+          body.value ?? "",
+        );
+        if (!flow) return c.json({ error: "OAuth flow not found." }, 404);
+        return c.json(flow);
+      } catch (error) {
+        return c.json({ error: errorMessage(error) }, 400);
+      }
+    },
+  );
 
   route.delete("/provider-configs/:id", requireAdmin, async (c) => {
     const currentUserId = c.get("user").id;
     const providerConfigId = c.req.param("id");
-    if (!db.select({ id: providerConfigs.id }).from(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).get()) {
+    if (
+      !db
+        .select({ id: providerConfigs.id })
+        .from(providerConfigs)
+        .where(eq(providerConfigs.id, providerConfigId))
+        .get()
+    ) {
       return c.json({ error: "Provider config not found." }, 404);
     }
     const activeRun = readActiveRunLeaseForProviderConfig(providerConfigId);
     if (activeRun) return activeRunConflictResponse(c, activeRun);
-    const relatedModels = db.select().from(modelRefs).where(eq(modelRefs.providerConfigId, providerConfigId)).all();
+    const relatedModels = db
+      .select()
+      .from(modelRefs)
+      .where(eq(modelRefs.providerConfigId, providerConfigId))
+      .all();
     const deletedModelIds = new Set(relatedModels.map((model) => model.id));
     if (deletedModelIds.size > 0) {
       const missingFallbackUserIds = readAffectedModelUserIds(deletedModelIds).filter(
         (userId) => !readFallbackModelForUser(userId, deletedModelIds),
       );
       if (missingFallbackUserIds.length > 0) {
-        return c.json({ error: "Every affected user needs another visible model before deleting this provider." }, 409);
+        return c.json(
+          {
+            error: "Every affected user needs another visible model before deleting this provider.",
+          },
+          409,
+        );
       }
     }
 

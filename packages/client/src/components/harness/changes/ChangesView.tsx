@@ -1,7 +1,14 @@
 import { ArrowLeftIcon, ExternalLinkIcon, GitBranchIcon, RefreshCwIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { AgentConfig, GitChange, GitChangeArea, GitDiffSide, GitFileDiff, GitStatus } from "@carmel-agent/shared";
+import type {
+  AgentConfig,
+  GitChange,
+  GitChangeArea,
+  GitDiffSide,
+  GitFileDiff,
+  GitStatus,
+} from "@carmel-agent/shared";
 import { DiffViewer, type DiffLayout } from "@/components/harness/changes/DiffViewer";
 import { inferLanguage, isDarkTheme } from "@/components/harness/files/editor-extensions";
 import { Button } from "@/components/ui/button";
@@ -64,9 +71,10 @@ export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
   }, [loadStatus]);
 
   const changes = status?.repository ? status.changes : [];
-  const selected = changePath && area
-    ? changes.find((change) => change.path === changePath && change.area === area)
-    : undefined;
+  const selected =
+    changePath && area
+      ? changes.find((change) => change.path === changePath && change.area === area)
+      : undefined;
   const open = (change: GitChange) => navigate(agentChangesPath(agent.id, change));
 
   return (
@@ -81,9 +89,17 @@ export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
           <GitBranchIcon className="size-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[13px] font-medium">{branchLabel(status)}</h2>
-            <p className="truncate text-xs text-muted-foreground">{summaryLabel(status, loading)}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {summaryLabel(status, loading)}
+            </p>
           </div>
-          <Button size="icon-sm" variant="ghost" title="Refresh" disabled={loading} onClick={() => void loadStatus()}>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="Refresh"
+            disabled={loading}
+            onClick={() => void loadStatus()}
+          >
             <RefreshCwIcon className={cn(loading && "animate-spin")} />
           </Button>
         </div>
@@ -119,12 +135,15 @@ export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
           )}
           {status?.repository && status.truncated ? (
             <p className="px-3 py-2 text-xs text-muted-foreground">
-              The list was cut off; there are more changes than it shows. An untracked dependency folder usually belongs in .gitignore.
+              The list was cut off; there are more changes than it shows. An untracked dependency
+              folder usually belongs in .gitignore.
             </p>
           ) : null}
         </div>
       </div>
-      <div className={cn("min-h-0 min-w-0 flex-1 flex-col", changePath ? "flex" : "hidden lg:flex")}>
+      <div
+        className={cn("min-h-0 min-w-0 flex-1 flex-col", changePath ? "flex" : "hidden lg:flex")}
+      >
         {selected ? (
           <DiffPanel
             key={`${selected.area}:${selected.path}:${revision}`}
@@ -140,7 +159,12 @@ export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
                 ? "Select a changed file to see its diff."
                 : null}
             {changePath ? (
-              <Button size="sm" variant="outline" className="lg:hidden" onClick={() => navigate(agentChangesPath(agent.id))}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="lg:hidden"
+                onClick={() => navigate(agentChangesPath(agent.id))}
+              >
                 <ArrowLeftIcon />
                 All changes
               </Button>
@@ -152,7 +176,15 @@ export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
   );
 }
 
-function ChangeRow({ change, active, onOpen }: { change: GitChange; active: boolean; onOpen: () => void }) {
+function ChangeRow({
+  change,
+  active,
+  onOpen,
+}: {
+  change: GitChange;
+  active: boolean;
+  onOpen: () => void;
+}) {
   const slash = change.path.lastIndexOf("/");
   const name = change.path.slice(slash + 1);
   const directory = slash >= 0 ? change.path.slice(0, slash) : "";
@@ -167,26 +199,32 @@ function ChangeRow({ change, active, onOpen }: { change: GitChange; active: bool
     >
       <span
         aria-label={badge.label}
-        className={cn("w-3 shrink-0 text-center font-mono text-[11px] font-semibold", badge.className)}
+        className={cn(
+          "w-3 shrink-0 text-center font-mono text-[11px] font-semibold",
+          badge.className,
+        )}
       >
         {badge.letter}
       </span>
       <span className="truncate text-[13px]">{name}</span>
-      {directory ? <span className="min-w-0 truncate text-xs text-muted-foreground">{directory}</span> : null}
+      {directory ? (
+        <span className="min-w-0 truncate text-xs text-muted-foreground">{directory}</span>
+      ) : null}
     </button>
   );
 }
 
-const KIND_BADGES: Record<GitChange["kind"], { letter: string; label: string; className: string }> = {
-  added: { letter: "A", label: "Added", className: "text-[var(--color-green)]" },
-  untracked: { letter: "U", label: "Untracked", className: "text-[var(--color-green)]" },
-  modified: { letter: "M", label: "Modified", className: "text-[var(--color-orange)]" },
-  type_changed: { letter: "T", label: "Type changed", className: "text-[var(--color-orange)]" },
-  renamed: { letter: "R", label: "Renamed", className: "text-[var(--color-blue)]" },
-  copied: { letter: "C", label: "Copied", className: "text-[var(--color-blue)]" },
-  deleted: { letter: "D", label: "Deleted", className: "text-destructive" },
-  conflicted: { letter: "!", label: "Conflicted", className: "text-destructive" },
-};
+const KIND_BADGES: Record<GitChange["kind"], { letter: string; label: string; className: string }> =
+  {
+    added: { letter: "A", label: "Added", className: "text-[var(--color-green)]" },
+    untracked: { letter: "U", label: "Untracked", className: "text-[var(--color-green)]" },
+    modified: { letter: "M", label: "Modified", className: "text-[var(--color-orange)]" },
+    type_changed: { letter: "T", label: "Type changed", className: "text-[var(--color-orange)]" },
+    renamed: { letter: "R", label: "Renamed", className: "text-[var(--color-blue)]" },
+    copied: { letter: "C", label: "Copied", className: "text-[var(--color-blue)]" },
+    deleted: { letter: "D", label: "Deleted", className: "text-destructive" },
+    conflicted: { letter: "!", label: "Conflicted", className: "text-destructive" },
+  };
 
 const AREA_LABELS: Record<GitChangeArea, string> = {
   staged: "Staged: HEAD → index",
@@ -195,7 +233,15 @@ const AREA_LABELS: Record<GitChangeArea, string> = {
   conflicted: "Conflicted: ours → working tree",
 };
 
-function DiffPanel({ agent, change, onBack }: { agent: AgentConfig; change: GitChange; onBack: () => void }) {
+function DiffPanel({
+  agent,
+  change,
+  onBack,
+}: {
+  agent: AgentConfig;
+  change: GitChange;
+  onBack: () => void;
+}) {
   const navigate = useNavigate();
   const dark = isDarkTheme(useThemePreference());
   const [diff, setDiff] = useState<GitFileDiff>();
@@ -220,14 +266,21 @@ function DiffPanel({ agent, change, onBack }: { agent: AgentConfig; change: GitC
 
   const unavailable = diff ? unavailableReason(diff.original, diff.modified) : undefined;
   // The working-tree file, when there is one to open.
-  const openablePath = change.workspacePath && diff?.modified.kind !== "absent" && change.area !== "staged"
-    ? change.workspacePath
-    : undefined;
+  const openablePath =
+    change.workspacePath && diff?.modified.kind !== "absent" && change.area !== "staged"
+      ? change.workspacePath
+      : undefined;
 
   return (
     <>
       <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
-        <Button size="icon-sm" variant="ghost" className="lg:hidden" title="All changes" onClick={onBack}>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          className="lg:hidden"
+          title="All changes"
+          onClick={onBack}
+        >
           <ArrowLeftIcon />
         </Button>
         <div className="min-w-0 flex-1">
@@ -236,7 +289,11 @@ function DiffPanel({ agent, change, onBack }: { agent: AgentConfig; change: GitC
           </h2>
           <p className="truncate text-xs text-muted-foreground">{AREA_LABELS[change.area]}</p>
         </div>
-        <div role="group" aria-label="Diff layout" className="hidden shrink-0 rounded-md border p-0.5 lg:flex">
+        <div
+          role="group"
+          aria-label="Diff layout"
+          className="hidden shrink-0 rounded-md border p-0.5 lg:flex"
+        >
           {(["split", "unified"] as const).map((option) => (
             <button
               key={option}
@@ -253,7 +310,11 @@ function DiffPanel({ agent, change, onBack }: { agent: AgentConfig; change: GitC
           ))}
         </div>
         {openablePath ? (
-          <Button size="sm" variant="outline" onClick={() => navigate(agentFilesPath(agent.id, openablePath))}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate(agentFilesPath(agent.id, openablePath))}
+          >
             <ExternalLinkIcon />
             Open file
           </Button>
@@ -265,7 +326,9 @@ function DiffPanel({ agent, change, onBack }: { agent: AgentConfig; change: GitC
         ) : !diff ? (
           <p className="p-4 text-xs text-muted-foreground">Loading diff...</p>
         ) : unavailable ? (
-          <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">{unavailable}</div>
+          <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+            {unavailable}
+          </div>
         ) : (
           <DiffViewer
             original={sideText(diff.original)}
@@ -303,9 +366,11 @@ function useDiffLayout(): [DiffLayout, (layout: DiffLayout) => void] {
 }
 
 function unavailableReason(original: GitDiffSide, modified: GitDiffSide) {
-  if (original.kind === "binary" || modified.kind === "binary") return "Binary file; no text diff to show.";
+  if (original.kind === "binary" || modified.kind === "binary")
+    return "Binary file; no text diff to show.";
   const tooLarge = [original, modified].find((side) => side.kind === "too_large");
-  if (tooLarge?.kind === "too_large") return `Too large to diff here (${formatBytes(tooLarge.bytes)}).`;
+  if (tooLarge?.kind === "too_large")
+    return `Too large to diff here (${formatBytes(tooLarge.bytes)}).`;
   if (original.kind === "absent" && modified.kind === "absent") return "Nothing to compare.";
   return undefined;
 }
@@ -316,19 +381,26 @@ function sideText(side: GitDiffSide) {
 
 function branchLabel(status: GitStatus | undefined) {
   if (!status?.repository) return "Changes";
-  return status.branch ?? (status.head ? `Detached at ${status.head.slice(0, 7)}` : "No commits yet");
+  return (
+    status.branch ?? (status.head ? `Detached at ${status.head.slice(0, 7)}` : "No commits yet")
+  );
 }
 
 function summaryLabel(status: GitStatus | undefined, loading: boolean) {
   if (!status) return loading ? "Reading git status..." : "";
   if (!status.repository) return "Not a repository";
   const count = status.changes.length;
-  const sync = [status.ahead ? `${status.ahead} ahead` : "", status.behind ? `${status.behind} behind` : ""]
+  const sync = [
+    status.ahead ? `${status.ahead} ahead` : "",
+    status.behind ? `${status.behind} behind` : "",
+  ]
     .filter(Boolean)
     .join(", ");
   return [`${count} ${count === 1 ? "change" : "changes"}`, sync].filter(Boolean).join(" · ");
 }
 
 function formatBytes(bytes: number) {
-  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.ceil(bytes / 1024)} KB`;
 }

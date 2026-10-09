@@ -48,7 +48,10 @@ test("active-run lease blocks cascading agent, model, provider, and user deletio
   const attempts = [
     { app: createTestApp(ownerId, createAgentRoutes), path: `/agents/${agentId}` },
     { app: createTestApp(ownerId, createModelRoutes), path: `/models/${modelRefId}` },
-    { app: createTestApp(ownerId, createProviderConfigRoutes), path: `/provider-configs/${providerConfigId}` },
+    {
+      app: createTestApp(ownerId, createProviderConfigRoutes),
+      path: `/provider-configs/${providerConfigId}`,
+    },
     { app: createTestApp(actingAdminId, createUserRoutes), path: `/users/${ownerId}` },
   ];
 
@@ -64,10 +67,7 @@ test("active-run lease blocks cascading agent, model, provider, and user deletio
   }
 });
 
-function createTestApp(
-  userId: string,
-  createRoutes: () => Hono<{ Variables: AuthVariables }>,
-) {
+function createTestApp(userId: string, createRoutes: () => Hono<{ Variables: AuthVariables }>) {
   const user = db.select().from(users).where(eq(users.id, userId)).get();
   assert.ok(user);
   const app = new Hono<{ Variables: AuthVariables }>();

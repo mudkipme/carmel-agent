@@ -55,7 +55,10 @@ export const rejectCrossOriginMutations: MiddlewareHandler = async (c, next) => 
   }
 
   const origin = c.req.header("origin");
-  if (!origin || isAllowedBrowserOrigin(origin, c.req.header("x-forwarded-host") ?? c.req.header("host"))) {
+  if (
+    !origin ||
+    isAllowedBrowserOrigin(origin, c.req.header("x-forwarded-host") ?? c.req.header("host"))
+  ) {
     await next();
     return;
   }
@@ -98,12 +101,14 @@ function secretKey() {
   return secret ? createHash("sha256").update(secret).digest() : undefined;
 }
 
-function isEncryptedJson<T>(value: T | null | undefined): value is T & Record<typeof encryptedJsonKey, string> {
+function isEncryptedJson<T>(
+  value: T | null | undefined,
+): value is T & Record<typeof encryptedJsonKey, string> {
   return Boolean(
     value &&
-      typeof value === "object" &&
-      !Array.isArray(value) &&
-      encryptedJsonKey in value &&
-      typeof (value as Record<string, unknown>)[encryptedJsonKey] === "string",
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    encryptedJsonKey in value &&
+    typeof (value as Record<string, unknown>)[encryptedJsonKey] === "string",
   );
 }

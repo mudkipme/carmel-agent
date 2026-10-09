@@ -34,5 +34,16 @@ export function useProviderOAuth(selectedConfig?: ProviderConfig) {
     setFlow(next);
   };
 
-  return { flow, input, reset: () => { setFlow(null); setInput(""); }, setFlow, setInput, start, submit };
+  return {
+    flow,
+    input,
+    reset: () => {
+      setFlow(null);
+      setInput("");
+    },
+    setFlow,
+    setInput,
+    start,
+    submit,
+  };
 }

@@ -1,10 +1,19 @@
 import { isRecord } from "@carmel-agent/shared";
 import type { ModelRef, Session } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { Api, AssistantMessage, ImageContent, TextContent, Usage } from "@earendil-works/pi-ai";
+import type {
+  Api,
+  AssistantMessage,
+  ImageContent,
+  TextContent,
+  Usage,
+} from "@earendil-works/pi-ai";
 import { id } from "../db/seed.ts";
 
-type OpenWebuiImportOptions = Pick<Session, "userId" | "agentId" | "modelRefId" | "thinkingLevel"> & {
+type OpenWebuiImportOptions = Pick<
+  Session,
+  "userId" | "agentId" | "modelRefId" | "thinkingLevel"
+> & {
   modelRef: Pick<ModelRef, "provider" | "modelId" | "api">;
   now: number;
 };
@@ -27,7 +36,10 @@ type OpenWebuiMessage = {
   files?: unknown;
 };
 
-export function importOpenWebuiSessions(source: unknown, options: OpenWebuiImportOptions): OpenWebuiImportResult {
+export function importOpenWebuiSessions(
+  source: unknown,
+  options: OpenWebuiImportOptions,
+): OpenWebuiImportResult {
   const chats = extractChats(source);
   const sessions = chats.flatMap((chat) => {
     const messages = extractMessages(chat);
@@ -35,9 +47,13 @@ export function importOpenWebuiSessions(source: unknown, options: OpenWebuiImpor
     if (convertedMessages.length === 0) return [];
 
     const createdAt =
-      timestampFrom(readRecordValue(chat, "created_at")) ?? firstTimestamp(convertedMessages) ?? options.now;
+      timestampFrom(readRecordValue(chat, "created_at")) ??
+      firstTimestamp(convertedMessages) ??
+      options.now;
     const updatedAt =
-      timestampFrom(readRecordValue(chat, "updated_at")) ?? lastTimestamp(convertedMessages) ?? createdAt;
+      timestampFrom(readRecordValue(chat, "updated_at")) ??
+      lastTimestamp(convertedMessages) ??
+      createdAt;
     return [
       {
         id: id("session"),
@@ -75,7 +91,8 @@ function extractMessages(chatExport: Record<string, unknown>): OpenWebuiMessage[
   const history = isRecord(chat.history) ? chat.history : undefined;
   const historyMessages = isRecord(history?.messages) ? history.messages : undefined;
   const currentId = typeof history?.currentId === "string" ? history.currentId : undefined;
-  const branchMessages = historyMessages && currentId ? messagesFromCurrentBranch(historyMessages, currentId) : [];
+  const branchMessages =
+    historyMessages && currentId ? messagesFromCurrentBranch(historyMessages, currentId) : [];
   if (branchMessages.length > 0) return branchMessages;
 
   const messages = Array.isArray(chat.messages)
@@ -86,7 +103,10 @@ function extractMessages(chatExport: Record<string, unknown>): OpenWebuiMessage[
   return messages.filter(isRecord);
 }
 
-function messagesFromCurrentBranch(messages: Record<string, unknown>, currentId: string): OpenWebuiMessage[] {
+function messagesFromCurrentBranch(
+  messages: Record<string, unknown>,
+  currentId: string,
+): OpenWebuiMessage[] {
   const branch: OpenWebuiMessage[] = [];
   const seen = new Set<string>();
   let nextId: string | undefined = currentId;
@@ -100,7 +120,10 @@ function messagesFromCurrentBranch(messages: Record<string, unknown>, currentId:
   return branch.reverse();
 }
 
-function convertMessages(messages: OpenWebuiMessage[], options: OpenWebuiImportOptions): AgentMessage[] {
+function convertMessages(
+  messages: OpenWebuiMessage[],
+  options: OpenWebuiImportOptions,
+): AgentMessage[] {
   const converted: AgentMessage[] = [];
   messages.forEach((message, index) => {
     const role = typeof message.role === "string" ? message.role : "";
@@ -121,7 +144,8 @@ function convertMessages(messages: OpenWebuiMessage[], options: OpenWebuiImportO
       const content = extractAssistantContent(message);
       if (!content.text.trim() && !content.thinking?.trim()) return;
       const contentParts: AssistantMessage["content"] = [];
-      if (content.thinking?.trim()) contentParts.push({ type: "thinking", thinking: content.thinking });
+      if (content.thinking?.trim())
+        contentParts.push({ type: "thinking", thinking: content.thinking });
       if (content.text.trim()) contentParts.push({ type: "text", text: content.text });
       converted.push({
         role: "assistant",
@@ -200,17 +224,23 @@ function outputToAssistantContent(output: unknown): { text: string; thinking?: s
       target.push(part.text);
     }
   }
-  return { text: textParts.join("\n\n").trim(), thinking: thinkingParts.join("\n\n").trim() || undefined };
+  return {
+    text: textParts.join("\n\n").trim(),
+    thinking: thinkingParts.join("\n\n").trim() || undefined,
+  };
 }
 
 function splitReasoningDetails(content: string): { text: string; thinking?: string } {
   const thinkingParts: string[] = [];
   const text = content
-    .replace(/<details\b(?=[^>]*\btype=["']reasoning["'])[^>]*>[\s\S]*?<\/details>/gi, (details) => {
-      const thinking = cleanReasoningDetails(details);
-      if (thinking) thinkingParts.push(thinking);
-      return "";
-    })
+    .replace(
+      /<details\b(?=[^>]*\btype=["']reasoning["'])[^>]*>[\s\S]*?<\/details>/gi,
+      (details) => {
+        const thinking = cleanReasoningDetails(details);
+        if (thinking) thinkingParts.push(thinking);
+        return "";
+      },
+    )
     .trim();
   return { text, thinking: thinkingParts.join("\n\n").trim() || undefined };
 }
@@ -236,8 +266,10 @@ function decodeHtmlEntities(text: string) {
     if (normalized === "gt") return ">";
     if (normalized === "quot") return '"';
     if (normalized === "apos" || normalized === "#39") return "'";
-    if (normalized.startsWith("#x")) return String.fromCodePoint(Number.parseInt(normalized.slice(2), 16));
-    if (normalized.startsWith("#")) return String.fromCodePoint(Number.parseInt(normalized.slice(1), 10));
+    if (normalized.startsWith("#x"))
+      return String.fromCodePoint(Number.parseInt(normalized.slice(2), 16));
+    if (normalized.startsWith("#"))
+      return String.fromCodePoint(Number.parseInt(normalized.slice(1), 10));
     return entity;
   });
 }
@@ -300,7 +332,8 @@ function readRecordValue(record: Record<string, unknown>, key: string) {
 
 function firstTimestamp(messages: AgentMessage[]) {
   for (const message of messages) {
-    if (typeof message.timestamp === "number" && Number.isFinite(message.timestamp)) return message.timestamp;
+    if (typeof message.timestamp === "number" && Number.isFinite(message.timestamp))
+      return message.timestamp;
   }
   return undefined;
 }

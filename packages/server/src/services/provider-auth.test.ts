@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import {
-  DEFAULT_OLLAMA_BASE_URL,
-  OLLAMA_PROVIDER,
-  resolveModelRef,
-} from "@carmel-agent/shared";
+import { DEFAULT_OLLAMA_BASE_URL, OLLAMA_PROVIDER, resolveModelRef } from "@carmel-agent/shared";
 import { createCarmelModelRuntime } from "../runtime/model-runtime.ts";
 import { ensureOptionalProviderAuth, listOllamaModels } from "./provider-auth.ts";
 
@@ -49,16 +45,21 @@ test("Ollama discovery exposes thinking levels and reasoning effort support", as
 
     const qwen = models.find((model) => model.id === "qwen3:8b");
     assert.equal(qwen?.reasoning, true);
-    assert.deepEqual(getSupportedThinkingLevels(resolveModelRef({
-      id: "qwen-ref",
-      ownerUserId: "user-1",
-      shared: false,
-      label: "qwen3:8b",
-      provider: OLLAMA_PROVIDER,
-      modelId: "qwen3:8b",
-      reasoning: qwen?.reasoning,
-      thinkingLevelMap: qwen?.thinkingLevelMap,
-    })), ["off", "low", "medium", "high", "max"]);
+    assert.deepEqual(
+      getSupportedThinkingLevels(
+        resolveModelRef({
+          id: "qwen-ref",
+          ownerUserId: "user-1",
+          shared: false,
+          label: "qwen3:8b",
+          provider: OLLAMA_PROVIDER,
+          modelId: "qwen3:8b",
+          reasoning: qwen?.reasoning,
+          thinkingLevelMap: qwen?.thinkingLevelMap,
+        }),
+      ),
+      ["off", "low", "medium", "high", "max"],
+    );
 
     const gptOss = models.find((model) => model.id === "gpt-oss:20b");
     assert.deepEqual(gptOss?.thinkingLevelMap, {
@@ -82,7 +83,9 @@ test("Ollama discovery exposes thinking levels and reasoning effort support", as
       xhigh: null,
       max: "max",
     });
-    assert.ok(requests.some((request) => request.url.endsWith("/api/tags") && request.method === "GET"));
+    assert.ok(
+      requests.some((request) => request.url.endsWith("/api/tags") && request.method === "GET"),
+    );
     assert.equal(requests.length, 1);
   } finally {
     globalThis.fetch = originalFetch;

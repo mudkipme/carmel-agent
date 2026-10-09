@@ -5,7 +5,10 @@ import test from "node:test";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { initialize } from "../db/index.ts";
 import { bindResolvedModel, createCarmelModelRuntime } from "./model-runtime.ts";
-import { mergeProviderAttributionHeaders, withProviderAttribution } from "./provider-attribution.ts";
+import {
+  mergeProviderAttributionHeaders,
+  withProviderAttribution,
+} from "./provider-attribution.ts";
 
 initialize();
 
@@ -32,15 +35,21 @@ function openRouterModel(baseUrl: string): Model<Api> {
 }
 
 test("an OpenRouter model carries Pi's attribution headers", () => {
-  assert.deepEqual(mergeProviderAttributionHeaders(openRouterModel("https://openrouter.ai/api/v1"), undefined), {
-    "HTTP-Referer": "https://pi.dev",
-    "X-OpenRouter-Title": "pi",
-    "X-OpenRouter-Categories": "cli-agent",
-  });
+  assert.deepEqual(
+    mergeProviderAttributionHeaders(openRouterModel("https://openrouter.ai/api/v1"), undefined),
+    {
+      "HTTP-Referer": "https://pi.dev",
+      "X-OpenRouter-Title": "pi",
+      "X-OpenRouter-Categories": "cli-agent",
+    },
+  );
 });
 
 test("a provider Pi does not attribute is left alone", () => {
-  const model = { ...openRouterModel("https://api.openai.com/v1"), provider: "openai" } as Model<Api>;
+  const model = {
+    ...openRouterModel("https://api.openai.com/v1"),
+    provider: "openai",
+  } as Model<Api>;
   assert.equal(mergeProviderAttributionHeaders(model, undefined), undefined);
 });
 
@@ -48,7 +57,10 @@ test("PI_TELEMETRY=0 opts out the way it does in the CLI", () => {
   const previous = process.env.PI_TELEMETRY;
   process.env.PI_TELEMETRY = "0";
   try {
-    assert.equal(mergeProviderAttributionHeaders(openRouterModel("https://openrouter.ai/api/v1"), undefined), undefined);
+    assert.equal(
+      mergeProviderAttributionHeaders(openRouterModel("https://openrouter.ai/api/v1"), undefined),
+      undefined,
+    );
   } finally {
     if (previous === undefined) delete process.env.PI_TELEMETRY;
     else process.env.PI_TELEMETRY = previous;
@@ -67,8 +79,12 @@ test("attribution, runtime auth, and caller headers reach the wire through every
     request.resume();
     response.writeHead(200, { "content-type": "text/event-stream" });
     const base = { id: "c1", object: "chat.completion.chunk", created: 0, model: "test-model" };
-    response.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: "assistant", content: "hi" }, finish_reason: null }] })}\n\n`);
-    response.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] })}\n\n`);
+    response.write(
+      `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: "assistant", content: "hi" }, finish_reason: null }] })}\n\n`,
+    );
+    response.write(
+      `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] })}\n\n`,
+    );
     response.end("data: [DONE]\n\n");
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -80,12 +96,16 @@ test("attribution, runtime auth, and caller headers reach the wire through every
   const attributed = withProviderAttribution(bindResolvedModel(runtime, model));
 
   for (const method of ["stream", "streamSimple", "complete", "completeSimple"] as const) {
-    const response = attributed[method](model, {
-      messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
-    }, {
-      headers: { "X-Caller": "caller" },
-      transformHeaders: (headers) => ({ ...headers, "HTTP-Referer": "https://caller.test" }),
-    });
+    const response = attributed[method](
+      model,
+      {
+        messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+      },
+      {
+        headers: { "X-Caller": "caller" },
+        transformHeaders: (headers) => ({ ...headers, "HTTP-Referer": "https://caller.test" }),
+      },
+    );
     const result = await ("result" in response ? response.result() : response);
     assert.equal(result.stopReason, "stop", `${method}: ${result.errorMessage}`);
     assert.equal(received?.["http-referer"], "https://caller.test", method);

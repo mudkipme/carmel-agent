@@ -33,7 +33,10 @@ test("updateUserMessageContent drops the image at the given index (positioned am
 
   assert.equal(edited.content[0].text, "updated");
   const images = edited.content.filter((part) => part.type === "image");
-  assert.deepEqual(images.map((part) => part.data), ["BBB"]);
+  assert.deepEqual(
+    images.map((part) => part.data),
+    ["BBB"],
+  );
 });
 
 test("updateUserMessageContent can drop every image, leaving only text", () => {
@@ -51,5 +54,8 @@ test("updateUserMessageContent ignores removals on non-user messages", () => {
     content: [{ type: "text", text: "reply" }],
     timestamp: 1,
   } as unknown as AgentMessage;
-  assert.strictEqual(updateUserMessageContent(assistant, "changed", { removedImageIndexes: [0] }), assistant);
+  assert.strictEqual(
+    updateUserMessageContent(assistant, "changed", { removedImageIndexes: [0] }),
+    assistant,
+  );
 });

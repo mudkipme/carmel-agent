@@ -22,12 +22,20 @@ import {
 type AgentRecord = typeof agents.$inferSelect;
 
 function manualAgent(overrides: Partial<AgentRecord> = {}): AgentRecord {
-  return { id: "agent_test", workingDirMode: "manual", workingDir: "/srv/projects/app", mounts: [], ...overrides } as AgentRecord;
+  return {
+    id: "agent_test",
+    workingDirMode: "manual",
+    workingDir: "/srv/projects/app",
+    mounts: [],
+    ...overrides,
+  } as AgentRecord;
 }
 
 test("demuxer reassembles multiplexed docker frames split across chunks", () => {
   const chunks: Array<{ stream: number; payload: Buffer }> = [];
-  const demux = createStreamDemuxer((stream, payload) => chunks.push({ stream, payload: Buffer.from(payload) }));
+  const demux = createStreamDemuxer((stream, payload) =>
+    chunks.push({ stream, payload: Buffer.from(payload) }),
+  );
 
   const frame = (stream: number, text: string) => {
     const payload = Buffer.from(text, "utf-8");
@@ -70,12 +78,21 @@ test("parseImageRef splits tags but not registry ports", () => {
     tag: "stable-slim",
   });
   assert.deepEqual(parseImageRef("alpine"), { name: "alpine", tag: "latest" });
-  assert.deepEqual(parseImageRef("localhost:5000/tools"), { name: "localhost:5000/tools", tag: "latest" });
-  assert.deepEqual(parseImageRef("localhost:5000/tools:dev"), { name: "localhost:5000/tools", tag: "dev" });
+  assert.deepEqual(parseImageRef("localhost:5000/tools"), {
+    name: "localhost:5000/tools",
+    tag: "latest",
+  });
+  assert.deepEqual(parseImageRef("localhost:5000/tools:dev"), {
+    name: "localhost:5000/tools",
+    tag: "dev",
+  });
 });
 
 test("containerWorkdir maps host paths onto the workspace mount", () => {
-  assert.equal(containerWorkdir("/data/agents/a/workspace", "/data/agents/a/workspace", "/workspace"), "/workspace");
+  assert.equal(
+    containerWorkdir("/data/agents/a/workspace", "/data/agents/a/workspace", "/workspace"),
+    "/workspace",
+  );
   assert.equal(
     containerWorkdir("/data/agents/a/workspace", "/data/agents/a/workspace/src/lib", "/workspace"),
     "/workspace/src/lib",
@@ -84,39 +101,97 @@ test("containerWorkdir maps host paths onto the workspace mount", () => {
 
 test("containerWorkdir falls back to the mount root for outside paths", () => {
   assert.equal(containerWorkdir("/data/agents/a/workspace", "/etc", "/workspace"), "/workspace");
-  assert.equal(containerWorkdir("/data/agents/a/workspace", "/data/agents/b/workspace", "/workspace"), "/workspace");
+  assert.equal(
+    containerWorkdir("/data/agents/a/workspace", "/data/agents/b/workspace", "/workspace"),
+    "/workspace",
+  );
 });
 
 test("containerWorkdir preserves an absolute mount path for manual workspaces", () => {
-  assert.equal(containerWorkdir("/srv/projects/app", "/srv/projects/app/src", "/srv/projects/app"), "/srv/projects/app/src");
+  assert.equal(
+    containerWorkdir("/srv/projects/app", "/srv/projects/app/src", "/srv/projects/app"),
+    "/srv/projects/app/src",
+  );
 });
 
 test("shell working directories follow workspace, tmp, home, and extra mount paths", () => {
-  const agent = manualAgent({ workingDirMode: "default", workingDir: "/data/agents/a/workspace", mounts: [{ source: "/srv/shared", target: "/refs" }] });
+  const agent = manualAgent({
+    workingDirMode: "default",
+    workingDir: "/data/agents/a/workspace",
+    mounts: [{ source: "/srv/shared", target: "/refs" }],
+  });
   assert.equal(toContainerWorkdir(agent, agent.workingDir), "/workspace");
   assert.equal(toContainerWorkdir(agent, join(agent.workingDir, "src")), "/workspace/src");
-  assert.equal(toContainerWorkdir(agent, join(resolveAgentTmpDirPath(agent), "output")), "/tmp/output");
-  assert.equal(toContainerWorkdir(agent, join(resolveAgentHomeDirPath(agent), "bin")), "/home/agent/bin");
+  assert.equal(
+    toContainerWorkdir(agent, join(resolveAgentTmpDirPath(agent), "output")),
+    "/tmp/output",
+  );
+  assert.equal(
+    toContainerWorkdir(agent, join(resolveAgentHomeDirPath(agent), "bin")),
+    "/home/agent/bin",
+  );
   assert.equal(toContainerWorkdir(agent, "/srv/shared/docs"), "/refs/docs");
   assert.equal(toContainerWorkdir(agent, "/srv/shared-other"), "/workspace");
 });
 
 test("resolveContainerWorkspace keeps the absolute path for manual workspaces", () => {
-  assert.equal(resolveContainerWorkspace({ workingDirMode: "manual", workingDir: "/srv/projects/app" } as AgentRecord), "/srv/projects/app");
-  assert.equal(resolveContainerWorkspace({ workingDirMode: "default", workingDir: "agents/a/workspace" } as AgentRecord), "/workspace");
+  assert.equal(
+    resolveContainerWorkspace({
+      workingDirMode: "manual",
+      workingDir: "/srv/projects/app",
+    } as AgentRecord),
+    "/srv/projects/app",
+  );
+  assert.equal(
+    resolveContainerWorkspace({
+      workingDirMode: "default",
+      workingDir: "agents/a/workspace",
+    } as AgentRecord),
+    "/workspace",
+  );
 });
 
 test("containerSignature changes when the workspace dir, mounts, or network change", () => {
   const base = containerSignature(manualAgent(), { network: false });
-  assert.equal(base, containerSignature(manualAgent(), { network: false }), "stable for identical config");
-  assert.notEqual(base, containerSignature(manualAgent({ workingDir: "/srv/projects/other" }), { network: false }));
-  assert.notEqual(base, containerSignature(manualAgent({ mounts: [{ source: "/srv/shared" }] }), { network: false }));
+  assert.equal(
+    base,
+    containerSignature(manualAgent(), { network: false }),
+    "stable for identical config",
+  );
+  assert.notEqual(
+    base,
+    containerSignature(manualAgent({ workingDir: "/srv/projects/other" }), { network: false }),
+  );
+  assert.notEqual(
+    base,
+    containerSignature(manualAgent({ mounts: [{ source: "/srv/shared" }] }), { network: false }),
+  );
   assert.notEqual(base, containerSignature(manualAgent(), { network: true }));
-  const identity = { runtime: "podman", uid: 1000, gid: 1000, user: "1000:1000", usernsMode: "keep-id", socket: "/run/podman.sock" } as const;
+  const identity = {
+    runtime: "podman",
+    uid: 1000,
+    gid: 1000,
+    user: "1000:1000",
+    usernsMode: "keep-id",
+    socket: "/run/podman.sock",
+  } as const;
   const withIdentity = containerSignature(manualAgent(), { network: false }, identity);
-  assert.notEqual(withIdentity, containerSignature(manualAgent(), { network: false }, { ...identity, usernsMode: "host" }));
-  assert.notEqual(withIdentity, containerSignature(manualAgent(), { network: false }, { ...identity, uid: 2000, user: "2000:1000" }));
-  assert.notEqual(withIdentity, containerSignature(manualAgent(), { network: false }, { ...identity, socket: "/other.sock" }));
+  assert.notEqual(
+    withIdentity,
+    containerSignature(manualAgent(), { network: false }, { ...identity, usernsMode: "host" }),
+  );
+  assert.notEqual(
+    withIdentity,
+    containerSignature(
+      manualAgent(),
+      { network: false },
+      { ...identity, uid: 2000, user: "2000:1000" },
+    ),
+  );
+  assert.notEqual(
+    withIdentity,
+    containerSignature(manualAgent(), { network: false }, { ...identity, socket: "/other.sock" }),
+  );
 });
 
 test("buildBinds adds the workspace, /tmp, $HOME, and extra mounts with SELinux relabel", () => {
@@ -125,7 +200,11 @@ test("buildBinds adds the workspace, /tmp, $HOME, and extra mounts with SELinux 
     "/workspace",
     "/host/data/agents/a/tmp",
     "/host/data/agents/a/home",
-    [{ source: "/srv/shared", target: "/refs", readOnly: true }, { source: "/srv/cache" }, { source: "  " }],
+    [
+      { source: "/srv/shared", target: "/refs", readOnly: true },
+      { source: "/srv/cache" },
+      { source: "  " },
+    ],
   );
   assert.deepEqual(binds, [
     "/host/data/agents/a/workspace:/workspace:rw,z",
@@ -149,9 +228,21 @@ test("the agent home bind is per-agent and independent of the workspace", () => 
 
 test("sandbox env starts from a fixed base and never inherits the server environment", () => {
   const env = sandboxEnv();
-  assert.deepEqual(env.map((entry) => entry.split("=")[0]).sort(), ["AGENT_BROWSER_SESSION", "HOME", "LANG", "NPM_CONFIG_PREFIX", "PATH", "TERM", "VIRTUAL_ENV"]);
+  assert.deepEqual(env.map((entry) => entry.split("=")[0]).sort(), [
+    "AGENT_BROWSER_SESSION",
+    "HOME",
+    "LANG",
+    "NPM_CONFIG_PREFIX",
+    "PATH",
+    "TERM",
+    "VIRTUAL_ENV",
+  ]);
   assert.ok(env.includes("VIRTUAL_ENV=/home/agent/.venvs/default"));
-  assert.ok(env.some((entry) => entry.startsWith("PATH=/home/agent/.venvs/default/bin:/home/agent/.npm-global/bin:")));
+  assert.ok(
+    env.some((entry) =>
+      entry.startsWith("PATH=/home/agent/.venvs/default/bin:/home/agent/.npm-global/bin:"),
+    ),
+  );
 });
 
 test("agent secrets are exported into the exec environment", () => {
@@ -172,7 +263,10 @@ test("a malformed secret name is dropped rather than emitted as a broken entry",
     { name: "not a name", value: "x" },
     { name: "GOOD", value: "y" },
   ]);
-  assert.deepEqual(env.filter((entry) => entry.startsWith("GOOD") || entry.includes("not a name")), ["GOOD=y"]);
+  assert.deepEqual(
+    env.filter((entry) => entry.startsWith("GOOD") || entry.includes("not a name")),
+    ["GOOD=y"],
+  );
 });
 
 function withTempDir(run: (dir: string) => void) {
@@ -186,8 +280,15 @@ function withTempDir(run: (dir: string) => void) {
 
 test("the workspace .env is parsed into exec variables", () => {
   withTempDir((dir) => {
-    writeFileSync(join(dir, ".env"), '# comment\nPLAIN=one\nexport QUOTED="two words"\nMULTI="a\nb"\n');
-    assert.deepEqual(readWorkspaceDotEnv(dir), { PLAIN: "one", QUOTED: "two words", MULTI: "a\nb" });
+    writeFileSync(
+      join(dir, ".env"),
+      '# comment\nPLAIN=one\nexport QUOTED="two words"\nMULTI="a\nb"\n',
+    );
+    assert.deepEqual(readWorkspaceDotEnv(dir), {
+      PLAIN: "one",
+      QUOTED: "two words",
+      MULTI: "a\nb",
+    });
   });
 });
 
@@ -209,9 +310,7 @@ test("a workspace .env symlink is not followed out to a host file", () => {
 test("a caller variable wins over .env, and a secret wins over both", () => {
   const dotEnv = { A: "dotenv", B: "dotenv", C: "dotenv" };
   const callerEnv = { B: "caller", C: "caller" };
-  const env = sandboxEnv({ ...dotEnv, ...callerEnv }, [
-    { name: "C", value: "secret" },
-  ]);
+  const env = sandboxEnv({ ...dotEnv, ...callerEnv }, [{ name: "C", value: "secret" }]);
   assert.ok(env.includes("A=dotenv"));
   assert.ok(env.includes("B=caller"));
   assert.ok(env.includes("C=secret"));
@@ -226,7 +325,11 @@ test("a held container is exempt from the idle reaper until every hold is releas
   holdAgentContainer(agentId);
   assert.equal(isAgentContainerHeld(agentId), true);
   releaseAgentContainer(agentId);
-  assert.equal(isAgentContainerHeld(agentId), true, "one tab closing must not release another tab's hold");
+  assert.equal(
+    isAgentContainerHeld(agentId),
+    true,
+    "one tab closing must not release another tab's hold",
+  );
   releaseAgentContainer(agentId);
   assert.equal(isAgentContainerHeld(agentId), false);
 });

@@ -4,7 +4,14 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useProviderConfigEditor } from "@/hooks/use-provider-config-editor";
 import type { ModelRef, OAuthProviderSummary, ProviderConfig } from "@carmel-agent/shared";
 
@@ -85,10 +92,7 @@ export function ProviderSettings({
       <section className="grid gap-3 border-t pt-6">
         <Field>
           <FieldLabel>Provider config</FieldLabel>
-          <Select
-            value={selectedConfigId}
-            onValueChange={editor.selectConfig}
-          >
+          <Select value={selectedConfigId} onValueChange={editor.selectConfig}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -106,10 +110,7 @@ export function ProviderSettings({
         </Field>
         <Field>
           <FieldLabel>Provider type</FieldLabel>
-          <Select
-            value={provider}
-            onValueChange={editor.selectProvider}
-          >
+          <Select value={provider} onValueChange={editor.selectProvider}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -126,15 +127,26 @@ export function ProviderSettings({
         </Field>
         <Field>
           <FieldLabel>Label</FieldLabel>
-          <Input value={label} placeholder="Provider label" onChange={(event) => setLabel(event.target.value)} />
+          <Input
+            value={label}
+            placeholder="Provider label"
+            onChange={(event) => setLabel(event.target.value)}
+          />
         </Field>
         <Field>
           <FieldLabel>Base URL</FieldLabel>
-          <Input value={baseUrl} placeholder="Optional API base URL" onChange={(event) => setBaseUrl(event.target.value)} />
+          <Input
+            value={baseUrl}
+            placeholder="Optional API base URL"
+            onChange={(event) => setBaseUrl(event.target.value)}
+          />
         </Field>
         <Field>
           <FieldLabel>Authentication</FieldLabel>
-          <Select value={authType} onValueChange={(value) => setAuthType(value as "api_key" | "oauth")}>
+          <Select
+            value={authType}
+            onValueChange={(value) => setAuthType(value as "api_key" | "oauth")}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -149,7 +161,12 @@ export function ProviderSettings({
         {authType === "api_key" ? (
           <Field>
             <FieldLabel>API key</FieldLabel>
-            <Input value={apiKey} type="password" placeholder="API key" onChange={(event) => setApiKey(event.target.value)} />
+            <Input
+              value={apiKey}
+              type="password"
+              placeholder="API key"
+              onChange={(event) => setApiKey(event.target.value)}
+            />
           </Field>
         ) : (
           <div className="grid gap-3 rounded-md border p-3">
@@ -160,18 +177,31 @@ export function ProviderSettings({
                   {selectedConfig?.hasOAuth ? "Connected" : "Not connected"}
                 </div>
               </div>
-              <Button type="button" variant="secondary" onClick={() => void oauth.start()} disabled={!selectedConfig}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void oauth.start()}
+                disabled={!selectedConfig}
+              >
                 Login
               </Button>
             </div>
             {oauth.flow?.auth ? (
-              <Button type="button" variant="outline" onClick={() => window.open(oauth.flow?.auth?.url, "_blank", "noopener,noreferrer")}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => window.open(oauth.flow?.auth?.url, "_blank", "noopener,noreferrer")}
+              >
                 <ExternalLinkIcon data-icon="inline-start" />
                 Open login page
               </Button>
             ) : null}
-            {oauth.flow?.auth?.instructions ? <p className="text-xs text-muted-foreground">{oauth.flow.auth.instructions}</p> : null}
-            {oauth.flow?.progress ? <p className="text-xs text-muted-foreground">{oauth.flow.progress}</p> : null}
+            {oauth.flow?.auth?.instructions ? (
+              <p className="text-xs text-muted-foreground">{oauth.flow.auth.instructions}</p>
+            ) : null}
+            {oauth.flow?.progress ? (
+              <p className="text-xs text-muted-foreground">{oauth.flow.progress}</p>
+            ) : null}
             {oauth.flow?.prompt ? (
               <div className="grid gap-2">
                 <p className="text-xs text-muted-foreground">{oauth.flow.prompt.message}</p>
@@ -207,9 +237,17 @@ export function ProviderSettings({
                 </Button>
               </div>
             ) : null}
-            {oauth.flow?.status === "success" ? <p className="text-xs text-muted-foreground">OAuth login completed.</p> : null}
-            {oauth.flow?.error ? <p className="text-xs text-destructive">{oauth.flow.error}</p> : null}
-            {!selectedConfig ? <p className="text-xs text-muted-foreground">Create the provider before logging in.</p> : null}
+            {oauth.flow?.status === "success" ? (
+              <p className="text-xs text-muted-foreground">OAuth login completed.</p>
+            ) : null}
+            {oauth.flow?.error ? (
+              <p className="text-xs text-destructive">{oauth.flow.error}</p>
+            ) : null}
+            {!selectedConfig ? (
+              <p className="text-xs text-muted-foreground">
+                Create the provider before logging in.
+              </p>
+            ) : null}
           </div>
         )}
         <Button onClick={() => void editor.save()}>

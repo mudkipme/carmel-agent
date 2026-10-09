@@ -27,7 +27,8 @@ async function main() {
   const timestamp = now();
   const existingByUsername = db.select().from(users).where(eq(users.username, username)).get();
   const allUsers = db.select().from(users).all();
-  const reusableDefaultUser = allUsers.length === 1 && !allUsers[0].username ? allUsers[0] : undefined;
+  const reusableDefaultUser =
+    allUsers.length === 1 && !allUsers[0].username ? allUsers[0] : undefined;
   const userId = args.id ?? existingByUsername?.id ?? reusableDefaultUser?.id ?? id("user");
   const current = existingByUsername ?? reusableDefaultUser;
   const passwordHash = await hashPassword(password);
@@ -68,7 +69,13 @@ function readArgs(argv: string[]): Args {
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) continue;
     index += 1;
-    if (key === "id" || key === "username" || key === "password" || key === "name" || key === "email") {
+    if (
+      key === "id" ||
+      key === "username" ||
+      key === "password" ||
+      key === "name" ||
+      key === "email"
+    ) {
       args[key] = value;
     }
   }

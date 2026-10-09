@@ -7,7 +7,10 @@ import { protectJsonSecret, protectSecret, revealJsonSecret, revealSecret } from
 
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 
-export function createProviderConfigCredentialStore(providerConfig: ProviderConfigRecord, provider: string) {
+export function createProviderConfigCredentialStore(
+  providerConfig: ProviderConfigRecord,
+  provider: string,
+) {
   return new ProviderConfigCredentialStore(providerConfig.id, provider);
 }
 
@@ -57,16 +60,18 @@ class ProviderConfigCredentialStore implements CredentialStore {
   }
 
   private readCredential(): Credential | undefined {
-    const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, this.providerConfigId)).get();
+    const providerConfig = db
+      .select()
+      .from(providerConfigs)
+      .where(eq(providerConfigs.id, this.providerConfigId))
+      .get();
     const oauthCredential = revealJsonSecret(providerConfig?.oauthCredential);
     const apiKey = revealSecret(providerConfig?.apiKey);
-    return (
-      providerConfig?.authType === "oauth" && oauthCredential
-        ? oauthCredential
-        : apiKey
-          ? { type: "api_key", key: apiKey }
-          : undefined
-    );
+    return providerConfig?.authType === "oauth" && oauthCredential
+      ? oauthCredential
+      : apiKey
+        ? { type: "api_key", key: apiKey }
+        : undefined;
   }
 
   private writeCredential(credential: Credential | undefined) {

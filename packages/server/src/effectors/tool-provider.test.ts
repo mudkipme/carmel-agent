@@ -8,14 +8,20 @@ import {
 } from "./contracts/tool-provider.ts";
 
 test("a tool whose capability the agent lacks is skipped", () => {
-  const { tools, skipped } = collectAgentTools([provider("p", [tool("bash", "bash")])], context({ bash: false }));
+  const { tools, skipped } = collectAgentTools(
+    [provider("p", [tool("bash", "bash")])],
+    context({ bash: false }),
+  );
   assert.deepEqual(tools, []);
   assert.deepEqual(skipped, [{ providerId: "p", toolName: "bash", reason: "missing_permission" }]);
 });
 
 test("a tool with no capability requirement is always offered", () => {
   const { tools } = collectAgentTools([provider("p", [tool("ping")])], context({}));
-  assert.deepEqual(tools.map((entry) => entry.name), ["ping"]);
+  assert.deepEqual(
+    tools.map((entry) => entry.name),
+    ["ping"],
+  );
 });
 
 test("the first provider owns a duplicate tool name", () => {
@@ -46,7 +52,14 @@ function context(permissions: Partial<ToolProvisionContext["permissions"]>): Too
   return {
     agentId: "agent_1",
     workingDir: "/tmp/agent",
-    permissions: { read: false, write: false, edit: false, bash: false, network: false, ...permissions },
+    permissions: {
+      read: false,
+      write: false,
+      edit: false,
+      bash: false,
+      network: false,
+      ...permissions,
+    },
     env: {} as never,
   };
 }

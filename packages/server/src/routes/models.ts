@@ -23,13 +23,22 @@ export function createModelRoutes() {
   route.put("/models/:id", jsonValidator(modelRefRequestSchema), async (c) => {
     const currentUserId = c.get("user").id;
     const model = c.req.valid("json");
-    const current = db.select().from(modelRefs).where(eq(modelRefs.id, c.req.param("id"))).get();
-    if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Model not found." }, 404);
+    const current = db
+      .select()
+      .from(modelRefs)
+      .where(eq(modelRefs.id, c.req.param("id")))
+      .get();
+    if (current && current.ownerUserId !== currentUserId)
+      return c.json({ error: "Model not found." }, 404);
     const activeRun = current ? readActiveRunLeaseForModels([current.id]) : undefined;
     if (activeRun) return activeRunConflictResponse(c, activeRun);
     if (
       model.providerConfigId &&
-      !db.select({ id: providerConfigs.id }).from(providerConfigs).where(eq(providerConfigs.id, model.providerConfigId)).get()
+      !db
+        .select({ id: providerConfigs.id })
+        .from(providerConfigs)
+        .where(eq(providerConfigs.id, model.providerConfigId))
+        .get()
     ) {
       return c.json({ error: "Provider config not found." }, 404);
     }
@@ -81,14 +90,23 @@ export function createModelRoutes() {
         },
       })
       .run();
-    return c.json(serializeModelRef(db.select().from(modelRefs).where(eq(modelRefs.id, c.req.param("id"))).get()!));
+    return c.json(
+      serializeModelRef(
+        db
+          .select()
+          .from(modelRefs)
+          .where(eq(modelRefs.id, c.req.param("id")))
+          .get()!,
+      ),
+    );
   });
 
   route.delete("/models/:id", async (c) => {
     const currentUserId = c.get("user").id;
     const modelId = c.req.param("id");
     const model = db.select().from(modelRefs).where(eq(modelRefs.id, modelId)).get();
-    if (!model || model.ownerUserId !== currentUserId) return c.json({ error: "Model not found." }, 404);
+    if (!model || model.ownerUserId !== currentUserId)
+      return c.json({ error: "Model not found." }, 404);
     const activeRun = readActiveRunLeaseForModels([modelId]);
     if (activeRun) return activeRunConflictResponse(c, activeRun);
     const deletedModelIds = new Set([modelId]);
@@ -96,7 +114,10 @@ export function createModelRoutes() {
       (userId) => !readFallbackModelForUser(userId, deletedModelIds),
     );
     if (missingFallbackUserIds.length > 0) {
-      return c.json({ error: "Every affected user needs another visible model before deleting this model." }, 409);
+      return c.json(
+        { error: "Every affected user needs another visible model before deleting this model." },
+        409,
+      );
     }
     // Reassign references and delete the model atomically so a mid-way failure
     // can't leave some agents/sessions pointing at a model row that's gone (or

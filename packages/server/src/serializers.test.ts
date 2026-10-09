@@ -23,14 +23,26 @@ test("a serialized model ref round-trips through the strict command schema", () 
 
   const { id: _id, ownerUserId: _ownerUserId, ...command } = serialized;
   const parsed = modelRefRequestSchema.safeParse({ ...command, shared: true });
-  assert.equal(parsed.success, true, parsed.error?.message ?? "Serialized model ref must match the request schema");
+  assert.equal(
+    parsed.success,
+    true,
+    parsed.error?.message ?? "Serialized model ref must match the request schema",
+  );
 });
 
 test("a serialized provider config withholds stored credentials", () => {
   const userId = createUser();
   const configId = createProviderConfig(userId);
   db.update(providerConfigs)
-    .set({ apiKey: "sk-secret", oauthCredential: { type: "oauth", access: "access-token", refresh: "refresh-token", expires: 0 } })
+    .set({
+      apiKey: "sk-secret",
+      oauthCredential: {
+        type: "oauth",
+        access: "access-token",
+        refresh: "refresh-token",
+        expires: 0,
+      },
+    })
     .where(eq(providerConfigs.id, configId))
     .run();
   const row = db.select().from(providerConfigs).where(eq(providerConfigs.id, configId)).get()!;
@@ -48,5 +60,9 @@ test("a serialized provider config withholds stored credentials", () => {
     authType: serialized.authType,
     baseUrl: serialized.baseUrl,
   });
-  assert.equal(parsed.success, true, parsed.error?.message ?? "Serialized provider config must match the request schema");
+  assert.equal(
+    parsed.success,
+    true,
+    parsed.error?.message ?? "Serialized provider config must match the request schema",
+  );
 });

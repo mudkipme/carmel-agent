@@ -25,7 +25,7 @@ export type AuthVariables = {
 export function hasLoginCapableUser() {
   return Boolean(
     db.select({ id: users.id }).from(users).where(isNotNull(users.passwordHash)).get() ??
-      db.select({ userId: userIdentities.userId }).from(userIdentities).get(),
+    db.select({ userId: userIdentities.userId }).from(userIdentities).get(),
   );
 }
 
@@ -68,7 +68,10 @@ export async function createAuthSession(c: Context<{ Variables: AuthVariables }>
 
 export function clearAuthSession(c: Context) {
   const token = getCookie(c, cookieName);
-  if (token) db.delete(authSessions).where(eq(authSessions.tokenHash, hashToken(token))).run();
+  if (token)
+    db.delete(authSessions)
+      .where(eq(authSessions.tokenHash, hashToken(token)))
+      .run();
   deleteCookie(c, cookieName, { path: "/" });
 }
 
@@ -134,7 +137,8 @@ export const requireAuth: MiddlewareHandler<{ Variables: AuthVariables }> = asyn
 };
 
 export const requireAdmin: MiddlewareHandler<{ Variables: AuthVariables }> = async (c, next) => {
-  if (c.get("user").role !== "admin") return c.json({ error: "Administrator access required." }, 403);
+  if (c.get("user").role !== "admin")
+    return c.json({ error: "Administrator access required." }, 403);
   await next();
 };
 

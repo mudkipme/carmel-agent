@@ -79,7 +79,9 @@ export function checkCutPoint(entries: readonly BranchMessage[], entryId: string
 
 function unansweredAt(entries: readonly BranchMessage[], cutIndex: number) {
   return inspectBranchIntegrity(entries.slice(0, cutIndex + 1)).flatMap((defect) =>
-    defect.kind === "unanswered_tool_call" ? [{ entryId: defect.entryId, toolCallId: defect.toolCallId, toolName: defect.toolName }] : [],
+    defect.kind === "unanswered_tool_call"
+      ? [{ entryId: defect.entryId, toolCallId: defect.toolCallId, toolName: defect.toolName }]
+      : [],
   );
 }
 
@@ -98,7 +100,13 @@ function toolCallsIn({ entryId, message }: BranchMessage): ToolCallRef[] {
   return record.content.flatMap((part) => {
     const candidate = part as { type?: unknown; id?: unknown; name?: unknown };
     if (candidate.type !== "toolCall" || typeof candidate.id !== "string") return [];
-    return [{ entryId, toolCallId: candidate.id, toolName: typeof candidate.name === "string" ? candidate.name : "unknown" }];
+    return [
+      {
+        entryId,
+        toolCallId: candidate.id,
+        toolName: typeof candidate.name === "string" ? candidate.name : "unknown",
+      },
+    ];
   });
 }
 

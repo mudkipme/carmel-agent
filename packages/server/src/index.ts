@@ -1,10 +1,18 @@
-import { recoverIssueAttempts, startIssueQueue, stopIssueQueue, drainIssueResults } from "./services/issues.ts";
+import {
+  recoverIssueAttempts,
+  startIssueQueue,
+  stopIssueQueue,
+  drainIssueResults,
+} from "./services/issues.ts";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { pruneExpiredAuthSessions } from "./auth.ts";
 import { initialize, seed, sqlite } from "./db/index.ts";
 import { shutdownActiveRuns } from "./runtime/run-stream.ts";
-import { reapManagedContainers, shutdownContainerManager } from "./runtime/sandbox/container-manager.ts";
+import {
+  reapManagedContainers,
+  shutdownContainerManager,
+} from "./runtime/sandbox/container-manager.ts";
 import { shutdownTerminals } from "./runtime/sandbox/terminal-sessions.ts";
 import { attachTerminalSocket } from "./terminal-socket.ts";
 import { attachBrowserSocket } from "./browser-socket.ts";
@@ -14,19 +22,25 @@ import { startTaskScheduler } from "./runtime/task-scheduler.ts";
 import { errorMessage } from "./errors.ts";
 import { assertOidcConfig } from "./oidc/config.ts";
 import { startKnowledgeScheduler, stopKnowledgeScheduler } from "./services/knowledge.ts";
-import { reapKnowledgeWorkers, shutdownKnowledgeWorkers } from "./runtime/knowledge/worker-client.ts";
+import {
+  reapKnowledgeWorkers,
+  shutdownKnowledgeWorkers,
+} from "./runtime/knowledge/worker-client.ts";
 
 // Before anything else: a mistyped auth variable should stop the boot, not
 // surface later as a sign-in button that fails for everyone.
 const oidcConfig = assertOidcConfig();
 if (oidcConfig) {
-  console.log(`OIDC sign-in enabled via ${oidcConfig.issuer.href} (redirect URI ${oidcConfig.redirectUri})`);
+  console.log(
+    `OIDC sign-in enabled via ${oidcConfig.issuer.href} (redirect URI ${oidcConfig.redirectUri})`,
+  );
   console.log(
     oidcConfig.matchBy.length
       ? `OIDC: first sign-ins link to existing accounts by ${oidcConfig.matchBy.join(", then ")}.`
       : "OIDC: CARMEL_OIDC_MATCH_BY=none, so first sign-ins never link to existing accounts.",
   );
-  if (oidcConfig.issuer.protocol === "http:") console.warn("OIDC issuer uses plain HTTP; use HTTPS outside local testing.");
+  if (oidcConfig.issuer.protocol === "http:")
+    console.warn("OIDC issuer uses plain HTTP; use HTTPS outside local testing.");
 }
 
 initialize();
@@ -44,10 +58,7 @@ void refreshConfiguredModelCatalogs()
     }
   })
   .catch((error: unknown) => {
-    console.warn(
-      "Failed to refresh configured model catalogs:",
-      errorMessage(error),
-    );
+    console.warn("Failed to refresh configured model catalogs:", errorMessage(error));
   });
 
 startTaskScheduler();

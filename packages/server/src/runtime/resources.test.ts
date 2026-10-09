@@ -29,9 +29,10 @@ test("filesystem resources load through AgentExecutionEnv with Pi-native parsing
 
   try {
     const resources = await loadAgentResources(env.agent, env);
-    assert.deepEqual(resources.skills.map(({ name, description, content }) => ({ name, description, content })), [
-      { name: "review", description: "Review code carefully", content: "Use the checklist." },
-    ]);
+    assert.deepEqual(
+      resources.skills.map(({ name, description, content }) => ({ name, description, content })),
+      [{ name: "review", description: "Review code carefully", content: "Use the checklist." }],
+    );
     assert.deepEqual(resources.promptTemplates, [
       { name: "summarize", description: "Summarize this", content: "Summarize $ARGUMENTS" },
     ]);
@@ -50,14 +51,21 @@ test("resource discovery cannot follow a skill symlink outside readable roots", 
   const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-resources-"));
   const outsideDir = mkdtempSync(join(tmpdir(), "carmel-agent-outside-"));
   mkdirSync(join(workingDir, ".agents", "skills"), { recursive: true });
-  writeFileSync(join(outsideDir, "SKILL.md"), "---\nname: escape\ndescription: Secret\n---\nsecret");
+  writeFileSync(
+    join(outsideDir, "SKILL.md"),
+    "---\nname: escape\ndescription: Secret\n---\nsecret",
+  );
   symlinkSync(outsideDir, join(workingDir, ".agents", "skills", "escape"));
   const env = new AgentExecutionEnv(makeAgent(workingDir));
 
   try {
     const resources = await loadAgentResources(env.agent, env);
     assert.deepEqual(resources.skills, []);
-    assert.ok(resources.diagnostics.some((diagnostic) => /outside the agent working directory/.test(diagnostic.message)));
+    assert.ok(
+      resources.diagnostics.some((diagnostic) =>
+        /outside the agent working directory/.test(diagnostic.message),
+      ),
+    );
   } finally {
     await env.cleanup(TEST_CONTEXT);
   }
@@ -75,8 +83,14 @@ test("Pi's text line reader preserves line endings and respects agent read roots
     const opened = await env.openTextLineReader("session.jsonl", TEST_CONTEXT);
     if (!opened.ok) assert.fail(opened.error.message);
     try {
-      assert.deepEqual(await opened.value.readLine(TEST_CONTEXT), { ok: true, value: { text: "complete", terminated: true } });
-      assert.deepEqual(await opened.value.readLine(TEST_CONTEXT), { ok: true, value: { text: "partial", terminated: false } });
+      assert.deepEqual(await opened.value.readLine(TEST_CONTEXT), {
+        ok: true,
+        value: { text: "complete", terminated: true },
+      });
+      assert.deepEqual(await opened.value.readLine(TEST_CONTEXT), {
+        ok: true,
+        value: { text: "partial", terminated: false },
+      });
       assert.deepEqual(await opened.value.readLine(TEST_CONTEXT), { ok: true, value: undefined });
     } finally {
       await opened.value.close(TEST_CONTEXT);
@@ -131,7 +145,10 @@ test("skills and prompt templates reach the system prompt in a stable order", as
 
   try {
     const resources = await loadAgentResources(env.agent, env);
-    assert.deepEqual(resources.skills.map((skill) => skill.name), ["alpha", "middle", "zebra"]);
+    assert.deepEqual(
+      resources.skills.map((skill) => skill.name),
+      ["alpha", "middle", "zebra"],
+    );
   } finally {
     await env.cleanup(TEST_CONTEXT);
   }
@@ -146,23 +163,32 @@ test("PI_CACHE_RETENTION defaults to the 1-hour cache", () => {
 test("the browser skill is discoverable with both bash and network, even without workspace read permission", async () => {
   const workingDir = mkdtempSync(join(tmpdir(), "carmel-browser-skill-"));
   try {
-    for (const read of [false, true]) for (const bash of [false, true]) for (const network of [false, true]) {
-      const agent = makeAgent(workingDir);
-      agent.permissions = { ...agent.permissions, read, bash, network };
-      const env = new AgentExecutionEnv(agent);
-      try {
-        const { skills } = await loadAgentResources(agent, env);
-        assert.deepEqual(skills.map((skill) => skill.name), bash && network ? ["agent-browser"] : []);
-        if (bash && network) {
-          assert.equal(isBuiltinSkill(skills[0]!), true);
-          const catalog = formatBuiltinSkillsForSystemPrompt(skills);
-          assert.ok(catalog.includes("load_builtin_skill"));
-          assert.ok(catalog.includes(skills[0]!.description));
-          assert.ok(!catalog.includes(skills[0]!.content), "the full guide loads on demand");
+    for (const read of [false, true])
+      for (const bash of [false, true])
+        for (const network of [false, true]) {
+          const agent = makeAgent(workingDir);
+          agent.permissions = { ...agent.permissions, read, bash, network };
+          const env = new AgentExecutionEnv(agent);
+          try {
+            const { skills } = await loadAgentResources(agent, env);
+            assert.deepEqual(
+              skills.map((skill) => skill.name),
+              bash && network ? ["agent-browser"] : [],
+            );
+            if (bash && network) {
+              assert.equal(isBuiltinSkill(skills[0]!), true);
+              const catalog = formatBuiltinSkillsForSystemPrompt(skills);
+              assert.ok(catalog.includes("load_builtin_skill"));
+              assert.ok(catalog.includes(skills[0]!.description));
+              assert.ok(!catalog.includes(skills[0]!.content), "the full guide loads on demand");
+            }
+          } finally {
+            await env.cleanup(TEST_CONTEXT);
+          }
         }
-      } finally { await env.cleanup(TEST_CONTEXT); }
-    }
-  } finally { rmSync(workingDir, { recursive: true, force: true }); }
+  } finally {
+    rmSync(workingDir, { recursive: true, force: true });
+  }
 });
 
 test("the built-in browser workflow wins a workspace name collision without hiding other skills", async () => {
@@ -170,7 +196,10 @@ test("the built-in browser workflow wins a workspace name collision without hidi
   for (const name of ["agent-browser", "review"]) {
     const directory = join(workingDir, ".agents", "skills", name);
     mkdirSync(directory, { recursive: true });
-    writeFileSync(join(directory, "SKILL.md"), `---\nname: ${name}\ndescription: Workspace copy\n---\nWorkspace instructions.`);
+    writeFileSync(
+      join(directory, "SKILL.md"),
+      `---\nname: ${name}\ndescription: Workspace copy\n---\nWorkspace instructions.`,
+    );
   }
   const agent = makeAgent(workingDir);
   agent.permissions.bash = true;
@@ -178,8 +207,14 @@ test("the built-in browser workflow wins a workspace name collision without hidi
   const env = new AgentExecutionEnv(agent);
   try {
     const { skills } = await loadAgentResources(agent, env);
-    assert.deepEqual(skills.map((skill) => skill.name), ["agent-browser", "review"]);
+    assert.deepEqual(
+      skills.map((skill) => skill.name),
+      ["agent-browser", "review"],
+    );
     assert.ok(isBuiltinSkill(skills[0]!));
     assert.equal(skills[1]!.content, "Workspace instructions.");
-  } finally { await env.cleanup(TEST_CONTEXT); rmSync(workingDir, { recursive: true, force: true }); }
+  } finally {
+    await env.cleanup(TEST_CONTEXT);
+    rmSync(workingDir, { recursive: true, force: true });
+  }
 });

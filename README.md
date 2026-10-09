@@ -127,10 +127,12 @@ pnpm dev          # run API and client together
 pnpm dev:server   # run only the API
 pnpm dev:client   # run only the Vite client
 pnpm build        # type-check and build all packages
+pnpm format       # format files with oxfmt
+pnpm format:check # check formatting without writing files
 pnpm lint         # run oxlint
 pnpm test         # run server and client tests
 pnpm test:browser # browser regressions (requires agent-browser and its Chromium)
-pnpm check        # lint, test, and build
+pnpm check        # check formatting, lint, test, and build
 pnpm serve        # run the built server entrypoint
 ```
 

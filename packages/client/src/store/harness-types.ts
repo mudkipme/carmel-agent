@@ -40,7 +40,12 @@ export type HarnessState = {
   issues: Issue[];
   bootstrap: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
-  setup: (input: { username: string; password: string; email?: string; name?: string }) => Promise<void>;
+  setup: (input: {
+    username: string;
+    password: string;
+    email?: string;
+    name?: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   updateAccount: (currentPassword: string, email: string, newPassword?: string) => Promise<void>;
   rememberAgent: (agentId: string) => void;
@@ -55,7 +60,11 @@ export type HarnessState = {
   createSession: (draft: SessionDraft) => Promise<Session>;
   importOpenWebuiSessions: (draft: SessionDraft & { source: unknown }) => Promise<Session[]>;
   updateSession: (sessionId: string, patch: SessionPatch) => Promise<void>;
-  truncateSessionMessages: (sessionId: string, entryId: string, thinkingLevel?: Session["thinkingLevel"]) => Promise<Session>;
+  truncateSessionMessages: (
+    sessionId: string,
+    entryId: string,
+    thinkingLevel?: Session["thinkingLevel"],
+  ) => Promise<Session>;
   editSessionMessage: (
     sessionId: string,
     entryId: string,

@@ -51,11 +51,11 @@ export function thinkingLevelOverrides(
   if (!submitted) return null;
   const catalog =
     getCachedCatalogModel(modelRef.provider, modelRef.modelId)?.thinkingLevelMap ??
-    (modelRef.provider === OLLAMA_PROVIDER
-      ? getOllamaThinkingLevelMap(modelRef.modelId)
-      : {});
+    (modelRef.provider === OLLAMA_PROVIDER ? getOllamaThinkingLevelMap(modelRef.modelId) : {});
   const overrides: ThinkingLevelMap = {};
-  for (const [level, value] of Object.entries(submitted) as Array<[ModelThinkingLevel, string | null | undefined]>) {
+  for (const [level, value] of Object.entries(submitted) as Array<
+    [ModelThinkingLevel, string | null | undefined]
+  >) {
     if (value === undefined) continue;
     if (catalog[level] !== value) overrides[level] = value;
   }

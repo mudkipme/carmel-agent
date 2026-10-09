@@ -1,7 +1,14 @@
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
 
 /** Which pane fills the main column, and which route is showing it. */
-export type ContentView = "chat" | "files" | "changes" | "terminal" | "issues" | "tasks" | "knowledge";
+export type ContentView =
+  | "chat"
+  | "files"
+  | "changes"
+  | "terminal"
+  | "issues"
+  | "tasks"
+  | "knowledge";
 
 export type ShellRouteInput = {
   view: ContentView;
@@ -53,7 +60,9 @@ export function resolveShellRoute(input: ShellRouteInput): ShellRoute {
 
   const session = input.routeSession;
   if (!session) {
-    return input.routeSessionLookupDone ? { kind: "redirect", to: `/agents/${agent.id}` } : { kind: "loading" };
+    return input.routeSessionLookupDone
+      ? { kind: "redirect", to: `/agents/${agent.id}` }
+      : { kind: "loading" };
   }
   // A link can name the right session under the wrong agent; the session wins.
   if (session.agentId !== agent.id) {

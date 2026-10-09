@@ -97,7 +97,10 @@ export function TerminalPanel({ agent }: { agent: AgentConfig }) {
     };
     /* Only a drop the server did not explain: an `exit` or `error` frame has
        already set a more useful reason than "connection lost". */
-    socket.onclose = () => setStatus((current) => (current.kind === "closed" ? current : { kind: "closed", reason: "Connection lost." }));
+    socket.onclose = () =>
+      setStatus((current) =>
+        current.kind === "closed" ? current : { kind: "closed", reason: "Connection lost." },
+      );
 
     const inputSubscription = terminal.onData((data) => send({ type: "input", data }));
 

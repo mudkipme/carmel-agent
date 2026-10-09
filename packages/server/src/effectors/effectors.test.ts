@@ -18,8 +18,9 @@ initialize();
 const piHarnessOptions = fauxHarnessModels();
 const piModel = piHarnessOptions.model;
 
-await runSessionLogContract({ name: "FakeSessionLog", create: () => new FakeSessionLog() }, (name, run) =>
-  test(name, run),
+await runSessionLogContract(
+  { name: "FakeSessionLog", create: () => new FakeSessionLog() },
+  (name, run) => test(name, run),
 );
 
 await runSessionLogContract(
@@ -63,7 +64,11 @@ test("lane configuration round-trips through a real lane, tool order included", 
 
 test("lane reconciliation writes only what differs", async () => {
   const writes: string[] = [];
-  const state = { model: { provider: piModel.provider, id: piModel.id }, thinkingLevel: "off", tools: ["read"] };
+  const state = {
+    model: { provider: piModel.provider, id: piModel.id },
+    thinkingLevel: "off",
+    tools: ["read"],
+  };
   const lane = {
     getModel: async () => state.model,
     setModel: async () => void writes.push("model"),
@@ -73,10 +78,18 @@ test("lane reconciliation writes only what differs", async () => {
     setActiveTools: async () => void writes.push("tools"),
   } as unknown as PiConfigLane;
 
-  await reconcileLaneConfiguration(lane, TEST_CONTEXT, { model: piModel, thinkingLevel: "off", activeToolNames: ["read"] });
+  await reconcileLaneConfiguration(lane, TEST_CONTEXT, {
+    model: piModel,
+    thinkingLevel: "off",
+    activeToolNames: ["read"],
+  });
   assert.deepEqual(writes, [], "matching configuration must not be rewritten");
 
-  await reconcileLaneConfiguration(lane, TEST_CONTEXT, { model: piModel, thinkingLevel: "high", activeToolNames: ["read"] });
+  await reconcileLaneConfiguration(lane, TEST_CONTEXT, {
+    model: piModel,
+    thinkingLevel: "high",
+    activeToolNames: ["read"],
+  });
   assert.deepEqual(writes, ["thinking"]);
 });
 
@@ -105,7 +118,10 @@ test("a template command keeps its arguments untrimmed for the driver to parse",
 });
 
 test("a skill: token matching no skill falls through to a template of that exact name", async () => {
-  const { driver, calls } = recordingDriver({ skills: [], promptTemplates: [{ name: "skill:pdf" }] });
+  const { driver, calls } = recordingDriver({
+    skills: [],
+    promptTemplates: [{ name: "skill:pdf" }],
+  });
   await dispatchPrompt(driver, "/skill:pdf go");
   assert.deepEqual(calls, [["invokeTemplate", "skill:pdf", "go", undefined]]);
 });

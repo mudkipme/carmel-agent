@@ -4,9 +4,17 @@ import { parseEnv } from "node:util";
 import type { agents } from "../../db/schema.ts";
 import { readAgentSecretEnv } from "../../services/agent-secrets.ts";
 import { resolveAgentWorkingDirPath } from "../resources.ts";
-import { ensureAgentContainer, killAgentContainer, toContainerWorkdir } from "./container-manager.ts";
+import {
+  ensureAgentContainer,
+  killAgentContainer,
+  toContainerWorkdir,
+} from "./container-manager.ts";
 import { runnerEnvironment } from "./environment.ts";
-import { execInContainer, isSandboxConfigured, sandboxUnavailableMessage } from "./runtime-client.ts";
+import {
+  execInContainer,
+  isSandboxConfigured,
+  sandboxUnavailableMessage,
+} from "./runtime-client.ts";
 import { createSecretRedactor } from "./redaction.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -97,7 +105,10 @@ export async function execSandboxCommand(
 // Agent secrets are applied last, so a caller-supplied `env` -- or the
 // workspace `.env` folded into it -- cannot shadow a configured credential with
 // a value of its own choosing.
-export function sandboxEnv(overrides?: Record<string, string>, secrets: ReadonlyArray<{ name: string; value: string }> = []) {
+export function sandboxEnv(
+  overrides?: Record<string, string>,
+  secrets: ReadonlyArray<{ name: string; value: string }> = [],
+) {
   const values = new Map(Object.entries(runnerEnvironment));
   const assign = (name: string, value: string) => {
     if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !value.includes("\0")) values.set(name, value);
@@ -122,7 +133,10 @@ const maxDotEnvBytes = 1024 * 1024;
 export function readWorkspaceDotEnv(workingDir: string): Record<string, string> {
   let fd: number;
   try {
-    fd = openSync(join(workingDir, ".env"), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    fd = openSync(
+      join(workingDir, ".env"),
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
   } catch {
     return {};
   }

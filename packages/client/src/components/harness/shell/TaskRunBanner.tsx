@@ -33,11 +33,18 @@ export function TaskRunBanner({ session }: { session: SessionMetadata }) {
       <CalendarClockIcon className="size-3.5 shrink-0 text-muted-foreground" />
       <p className="min-w-0 flex-1 truncate text-muted-foreground">
         Task run · <span className="text-foreground">{session.title}</span> ·{" "}
-        {new Date(session.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+        {new Date(session.createdAt).toLocaleString(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })}
       </p>
       <div className="flex shrink-0 items-center gap-1">
         <Button asChild size="xs" variant="ghost">
-          <Link to={`/agents/${session.agentId}/tasks?task=${encodeURIComponent(session.taskId ?? "")}`}>Run history</Link>
+          <Link
+            to={`/agents/${session.agentId}/tasks?task=${encodeURIComponent(session.taskId ?? "")}`}
+          >
+            Run history
+          </Link>
         </Button>
         <Button size="xs" variant="outline" disabled={moving} onClick={() => void move()}>
           <ListPlusIcon data-icon="inline-start" />

@@ -16,7 +16,6 @@ export type DriverResources = {
 };
 
 export interface PromptDispatcher {
-
   listResources(): Promise<DriverResources>;
 
   prompt(text: string, images?: PromptImages): Promise<void>;

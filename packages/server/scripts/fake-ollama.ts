@@ -16,16 +16,27 @@ const server = createServer((request, response) => {
       "cache-control": "no-cache",
       connection: "keep-alive",
     });
-    const base = { id: "chatcmpl-carmel-fixture", object: "chat.completion.chunk", created: 0, model: "carmel-fixture" };
-    response.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }] })}\n\n`);
+    const base = {
+      id: "chatcmpl-carmel-fixture",
+      object: "chat.completion.chunk",
+      created: 0,
+      model: "carmel-fixture",
+    };
+    response.write(
+      `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }] })}\n\n`,
+    );
     let index = 0;
     const timer = setInterval(() => {
       if (index < words.length) {
-        response.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { content: words[index++] }, finish_reason: null }] })}\n\n`);
+        response.write(
+          `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { content: words[index++] }, finish_reason: null }] })}\n\n`,
+        );
         return;
       }
       clearInterval(timer);
-      response.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 8, completion_tokens: 6, total_tokens: 14 } })}\n\n`);
+      response.write(
+        `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 8, completion_tokens: 6, total_tokens: 14 } })}\n\n`,
+      );
       response.end("data: [DONE]\n\n");
     }, 80);
     response.on("close", () => clearInterval(timer));

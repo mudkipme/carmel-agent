@@ -1,7 +1,14 @@
 import { SectionHeader } from "@/components/harness/form-primitives";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { ThemePreference } from "@/lib/theme";
 
 export function AppearanceSettings({
@@ -17,7 +24,10 @@ export function AppearanceSettings({
 }) {
   return (
     <div className="grid gap-4">
-      <SectionHeader title="Appearance" description="Choose how Carmel Agent follows your display theme." />
+      <SectionHeader
+        title="Appearance"
+        description="Choose how Carmel Agent follows your display theme."
+      />
       <Field>
         <FieldLabel>Theme</FieldLabel>
         <Select value={value} onValueChange={(nextValue) => onChange(nextValue as ThemePreference)}>

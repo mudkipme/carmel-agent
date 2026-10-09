@@ -8,15 +8,17 @@ Scripts can combine independent calls with `Promise.all`, process results, and r
 
 ```js
 const paths = ["README.md", "package.json"];
-const files = await Promise.all(paths.map(path => tools.read({ path })));
-text(files.map((file, index) => ({
-  path: paths[index],
-  preview: file.content
-    .filter(part => part.type === "text")
-    .map(part => part.text)
-    .join("\n")
-    .slice(0, 500),
-})));
+const files = await Promise.all(paths.map((path) => tools.read({ path })));
+text(
+  files.map((file, index) => ({
+    path: paths[index],
+    preview: file.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n")
+      .slice(0, 500),
+  })),
+);
 ```
 
 Use the tool names and argument schemas from codemode's generated declarations. Check tool presence with `"read" in tools`; accessing an unknown member throws. Tools declaring an output schema return their `structuredContent` directly. Other tools return `{ content, structuredContent? }`; forward an image with `image("data:" + part.mimeType + ";base64," + part.data)`. Pi validates the image bytes and detects their MIME type. Tool failures throw inside the script and can be handled with `try/catch`. Tools marked sequential retain their execution ordering, and argument preparation and validation also apply to nested calls. Native edits take `{path, edits: [{oldText, newText}]}`.

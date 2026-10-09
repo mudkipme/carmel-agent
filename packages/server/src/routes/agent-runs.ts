@@ -1,4 +1,8 @@
-import { type ActiveAgentRunSummary, agentRunRequestSchema, type PromptInput } from "@carmel-agent/shared";
+import {
+  type ActiveAgentRunSummary,
+  agentRunRequestSchema,
+  type PromptInput,
+} from "@carmel-agent/shared";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -27,14 +31,20 @@ export function createAgentRunRoutes() {
     if (!agent) return c.json({ error: "Agent not found" }, 404);
     const activeSessionIds = getActiveSessionIdsForUser(userId);
     if (activeSessionIds.length === 0) return c.json({ sessionIds: [] });
-    const listed = db.select({ id: sessions.id }).from(sessions).where(and(
-      inArray(sessions.id, activeSessionIds),
-      eq(sessions.userId, userId),
-      eq(sessions.agentId, agent.id),
-      isNull(sessions.archivedAt),
-      isNull(sessions.taskId),
-      isNull(sessions.issueId),
-    )).all();
+    const listed = db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(
+        and(
+          inArray(sessions.id, activeSessionIds),
+          eq(sessions.userId, userId),
+          eq(sessions.agentId, agent.id),
+          isNull(sessions.archivedAt),
+          isNull(sessions.taskId),
+          isNull(sessions.issueId),
+        ),
+      )
+      .all();
     return c.json({ sessionIds: listed.map((session) => session.id) });
   });
 
@@ -50,7 +60,11 @@ export function createAgentRunRoutes() {
     if (!Number.isSafeInteger(afterSequence) || afterSequence < 0) {
       return c.json({ error: "Invalid event cursor" }, 400);
     }
-    const response = createAgentRunEventStream(c.get("user").id, c.req.param("runId"), afterSequence);
+    const response = createAgentRunEventStream(
+      c.get("user").id,
+      c.req.param("runId"),
+      afterSequence,
+    );
     if (!response) return c.json({ error: "Agent run not found" }, 404);
     return response;
   });
@@ -100,13 +114,20 @@ export function createAgentRunRoutes() {
     // Model/auth resolution can yield to other requests. Revalidate the session
     // lease immediately before synchronously registering the active run.
     const currentSession = db.select().from(sessions).where(eq(sessions.id, session.id)).get();
-    if (!currentSession || currentSession.userId !== currentUserId || currentSession.agentId !== agent.id) {
+    if (
+      !currentSession ||
+      currentSession.userId !== currentUserId ||
+      currentSession.agentId !== agent.id
+    ) {
       return c.json({ error: "Session not found" }, 404);
     }
     const currentActiveRun = getActiveAgentRunForSession(currentUserId, currentSession.id);
     if (currentActiveRun) return alreadyRunning(c, currentActiveRun);
     if (currentSession.revision !== session.revision) {
-      return c.json({ error: "Session changed while preparing the agent run. Retry the request." }, 409);
+      return c.json(
+        { error: "Session changed while preparing the agent run. Retry the request." },
+        409,
+      );
     }
 
     const run = startDetachedAgentRun({

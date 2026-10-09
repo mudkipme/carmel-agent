@@ -4,7 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { type AgentSnapshot, type PromptOutcome, RemoteAgent } from "@/lib/remote-agent";
 import { errorMessage } from "@/lib/errors";
 import { useHarnessStore } from "@/store/harness-store";
-import { resolveModelRef, type AgentConfig, type ModelRef, type Session } from "@carmel-agent/shared";
+import {
+  resolveModelRef,
+  type AgentConfig,
+  type ModelRef,
+  type Session,
+} from "@carmel-agent/shared";
 
 const EMPTY_SNAPSHOT: AgentSnapshot = {
   messages: [],
@@ -28,7 +33,10 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
   const modelSeedRef = useRef({ modelRefId: modelRef.id, model: resolvedModel });
   const [agent, setAgent] = useState<RemoteAgent | null>(null);
 
-  const subscribeStore = useCallback((onChange: () => void) => agent?.subscribeStore(onChange) ?? (() => {}), [agent]);
+  const subscribeStore = useCallback(
+    (onChange: () => void) => agent?.subscribeStore(onChange) ?? (() => {}),
+    [agent],
+  );
   const getSnapshot = useCallback(() => agent?.getSnapshot() ?? EMPTY_SNAPSHOT, [agent]);
   const snapshot = useSyncExternalStore(subscribeStore, getSnapshot);
 
@@ -73,7 +81,11 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
         agentRef.current = activeAgent;
         setAgent(activeAgent);
         if (connection.activeRun) {
-          void activeAgent.attachToRun(connection.activeRun.runId, connection.session.messages, connection.activeRun.eventCursor);
+          void activeAgent.attachToRun(
+            connection.activeRun.runId,
+            connection.session.messages,
+            connection.activeRun.eventCursor,
+          );
         }
       },
       () => {
@@ -96,21 +108,26 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
   // Returns what happened to the submission so the composer can keep a message
   // the server never took. Everything that can stop a send before the prompt
   // reaches the agent has to answer with a rejection rather than nothing.
-  const sendMessage = useCallback(async (text: string, images?: ImageContent[]): Promise<PromptOutcome> => {
-    const activeAgent = agentRef.current;
-    const { isStreaming, thinkingLevel } = activeAgent?.getSnapshot() ?? EMPTY_SNAPSHOT;
-    if (!activeAgent) return { status: "rejected", error: "Not connected to this conversation yet." };
-    if (isStreaming) return { status: "rejected", error: "This conversation already has a run in progress." };
-    const currentSession = sessionRef.current;
-    if (thinkingLevel !== currentSession.thinkingLevel) {
-      try {
-        await updateSession(currentSession.id, { thinkingLevel });
-      } catch (error) {
-        return { status: "rejected", error: errorMessage(error) };
+  const sendMessage = useCallback(
+    async (text: string, images?: ImageContent[]): Promise<PromptOutcome> => {
+      const activeAgent = agentRef.current;
+      const { isStreaming, thinkingLevel } = activeAgent?.getSnapshot() ?? EMPTY_SNAPSHOT;
+      if (!activeAgent)
+        return { status: "rejected", error: "Not connected to this conversation yet." };
+      if (isStreaming)
+        return { status: "rejected", error: "This conversation already has a run in progress." };
+      const currentSession = sessionRef.current;
+      if (thinkingLevel !== currentSession.thinkingLevel) {
+        try {
+          await updateSession(currentSession.id, { thinkingLevel });
+        } catch (error) {
+          return { status: "rejected", error: errorMessage(error) };
+        }
       }
-    }
-    return activeAgent.prompt(text, images);
-  }, [updateSession]);
+      return activeAgent.prompt(text, images);
+    },
+    [updateSession],
+  );
 
   return { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot };
 }

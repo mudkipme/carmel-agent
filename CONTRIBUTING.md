@@ -7,7 +7,7 @@ Keep real credentials, sessions, and workspace files outside Git. Copy `.env.exa
 ## Before Opening A Pull Request
 
 - Explain the user-visible problem and resulting behavior.
-- Run `pnpm check` for lint, server/client tests, type-checking, and the client build.
+- Run `pnpm format` to format files with oxfmt, then `pnpm check` for formatting, lint, server/client tests, type-checking, and the client build.
 - For UI changes, run `pnpm test:browser`. Install its matching CLI with `npm install -g agent-browser@0.38.2`, then `agent-browser install --with-deps`.
 - For runner changes, build `Dockerfile.runner` and run the sandbox identity and browser checks described in [deployment.md](docs/deployment.md#local-development).
 - Update the relevant configuration or runtime documentation when behavior changes.

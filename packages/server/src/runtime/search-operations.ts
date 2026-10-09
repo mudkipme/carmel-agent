@@ -1,14 +1,17 @@
-import type {
-  GrepOperations,
-  LsOperations,
-} from "@earendil-works/pi-coding-agent";
-import { BACKGROUND_CONTEXT, getOrThrow, type ExecutionEnv, type FileInfo } from "../effectors/pi-durable/index.ts";
+import type { GrepOperations, LsOperations } from "@earendil-works/pi-coding-agent";
+import {
+  BACKGROUND_CONTEXT,
+  getOrThrow,
+  type ExecutionEnv,
+  type FileInfo,
+} from "../effectors/pi-durable/index.ts";
 
 const ctx = BACKGROUND_CONTEXT;
 
 export function createGrepOperations(env: ExecutionEnv): GrepOperations {
   return {
-    isDirectory: async (absolutePath) => (await followedFileInfo(env, absolutePath)).kind === "directory",
+    isDirectory: async (absolutePath) =>
+      (await followedFileInfo(env, absolutePath)).kind === "directory",
     readFile: async (absolutePath) => getOrThrow(await env.readTextFile(absolutePath, ctx)),
   };
 }

@@ -28,12 +28,21 @@ export type PiLane = Pick<AgentLane, "prompt" | "skill" | "promptFromTemplate">;
 /** The conversation configuration used by each Carmel run. */
 export type PiConfigLane = Pick<
   AgentLane,
-  "getModel" | "setModel" | "getThinkingLevel" | "setThinkingLevel" | "getActiveTools" | "setActiveTools"
+  | "getModel"
+  | "setModel"
+  | "getThinkingLevel"
+  | "setThinkingLevel"
+  | "getActiveTools"
+  | "setActiveTools"
 >;
 
 export type PiDispatcherOptions = { harness: PiHarness; lane: PiLane; context: Context };
 
-export function createPiPromptDispatcher({ harness, lane, context }: PiDispatcherOptions): PromptDispatcher {
+export function createPiPromptDispatcher({
+  harness,
+  lane,
+  context,
+}: PiDispatcherOptions): PromptDispatcher {
   return {
     async listResources(): Promise<DriverResources> {
       const resources = await harness.getResources(context);
@@ -64,7 +73,11 @@ export function createPiPromptDispatcher({ harness, lane, context }: PiDispatche
         const resources = await harness.getResources(context);
         const template = resources.promptTemplates?.find((candidate) => candidate.name === name);
         if (!template) throw new Error(`Prompt template not loaded: ${name}`);
-        await lane.prompt(formatPromptTemplateInvocation(template, parseCommandArgs(args)), images, context);
+        await lane.prompt(
+          formatPromptTemplateInvocation(template, parseCommandArgs(args)),
+          images,
+          context,
+        );
         return;
       }
       await lane.promptFromTemplate(name, parseCommandArgs(args), context);
@@ -106,7 +119,9 @@ export function observeHarnessEvents(
   harness: PiHarness,
   listener: (event: HarnessEvent) => void,
 ): () => void {
-  const unsubscribes = OBSERVED_EVENTS.map((type) => harness.events.on(type, (event) => listener(event)));
+  const unsubscribes = OBSERVED_EVENTS.map((type) =>
+    harness.events.on(type, (event) => listener(event)),
+  );
   return () => {
     for (const unsubscribe of unsubscribes) unsubscribe();
   };
@@ -121,7 +136,11 @@ export function observeHarnessEvents(
 export async function reconcileLaneConfiguration(
   lane: PiConfigLane,
   context: Context,
-  desired: { model: Model<Api>; thinkingLevel: Parameters<AgentLane["setThinkingLevel"]>[0]; activeToolNames: string[] },
+  desired: {
+    model: Model<Api>;
+    thinkingLevel: Parameters<AgentLane["setThinkingLevel"]>[0];
+    activeToolNames: string[];
+  },
 ) {
   const current = await lane.getModel(context);
   if (current?.provider !== desired.model.provider || current.id !== desired.model.id) {
@@ -142,6 +161,8 @@ function sameOrder(left: readonly string[], right: readonly string[]) {
 
 /** Pi's own estimate of the branch's size, for the pre-flight notice. */
 export async function estimateBranchTokens(log: Pick<SessionLog, "readBranch">) {
-  const messages = (await log.readBranch()).flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
+  const messages = (await log.readBranch()).flatMap((entry) =>
+    entry.type === "message" ? [entry.message] : [],
+  );
   return estimateContextTokens(messages).tokens;
 }

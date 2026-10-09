@@ -1,4 +1,13 @@
-import { ArchiveIcon, EllipsisIcon, LoaderCircleIcon, PencilIcon, Pin, PinOff, SearchIcon, Trash2Icon } from "lucide-react";
+import {
+  ArchiveIcon,
+  EllipsisIcon,
+  LoaderCircleIcon,
+  PencilIcon,
+  Pin,
+  PinOff,
+  SearchIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -43,7 +52,9 @@ export function SessionList({
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE_SIZE);
   const { groups, hidden } = useMemo(() => {
-    const matching = query.trim() ? sessions.filter((session) => matchesSessionQuery(session, query)) : sessions;
+    const matching = query.trim()
+      ? sessions.filter((session) => matchesSessionQuery(session, query))
+      : sessions;
     return limitGroups(groupSessions(matching), limit);
   }, [limit, query, sessions]);
   const showSearch = sessions.length > SEARCH_THRESHOLD || query.length > 0;
@@ -86,12 +97,17 @@ export function SessionList({
                   <span className="sr-only">Open session</span>
                   <span className="flex min-w-0 items-center gap-1.5">
                     {(runOverrides[session.id] ?? runningSessionIds.has(session.id)) ? (
-                      <LoaderCircleIcon aria-hidden="true" className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none text-[var(--color-blue)]" />
+                      <LoaderCircleIcon
+                        aria-hidden="true"
+                        className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none text-[var(--color-blue)]"
+                      />
                     ) : null}
                     {session.pinnedAt ? <Pin className="size-3 shrink-0 text-faint" /> : null}
                     <span className="truncate text-[13px]">{session.title}</span>
                   </span>
-                  {(runOverrides[session.id] ?? runningSessionIds.has(session.id)) ? <span className="sr-only">Running</span> : null}
+                  {(runOverrides[session.id] ?? runningSessionIds.has(session.id)) ? (
+                    <span className="sr-only">Running</span>
+                  ) : null}
                 </button>
                 <SessionActions
                   session={session}
@@ -104,7 +120,9 @@ export function SessionList({
           </section>
         ))}
         {query.trim() && groups.length === 0 ? (
-          <p className="px-2.5 py-2 text-[13px] text-muted-foreground">No sessions match “{query.trim()}”.</p>
+          <p className="px-2.5 py-2 text-[13px] text-muted-foreground">
+            No sessions match “{query.trim()}”.
+          </p>
         ) : null}
         {hidden > 0 ? (
           <Button
@@ -193,7 +211,12 @@ function SessionActions({
               onSelect={() => {
                 void updateSession(session.id, {
                   pinnedAt: session.pinnedAt ? null : Date.now(),
-                }).catch((error) => showError(session.pinnedAt ? "Unable to unpin session" : "Unable to pin session", error));
+                }).catch((error) =>
+                  showError(
+                    session.pinnedAt ? "Unable to unpin session" : "Unable to pin session",
+                    error,
+                  ),
+                );
               }}
             >
               {session.pinnedAt ? <PinOff /> : <Pin />}
@@ -201,19 +224,21 @@ function SessionActions({
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
-                void promptText({ title: "Rename session", initialValue: session.title }).then((nextTitle) => {
-                  const title = nextTitle?.trim();
-                  if (!title || title === session.title) return;
-                  void updateSession(session.id, { title }).catch((error) => showError("Unable to rename session", error));
-                });
+                void promptText({ title: "Rename session", initialValue: session.title }).then(
+                  (nextTitle) => {
+                    const title = nextTitle?.trim();
+                    if (!title || title === session.title) return;
+                    void updateSession(session.id, { title }).catch((error) =>
+                      showError("Unable to rename session", error),
+                    );
+                  },
+                );
               }}
             >
               <PencilIcon />
               Rename
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => void archive()}
-            >
+            <DropdownMenuItem onSelect={() => void archive()}>
               <ArchiveIcon />
               Archive
             </DropdownMenuItem>
@@ -228,7 +253,10 @@ function SessionActions({
                   description: "This session and its message history will be permanently deleted.",
                   actionLabel: "Delete session",
                 }).then((confirmed) => {
-                  if (confirmed) void deleteSession(session.id).catch((error) => showError("Unable to delete session", error));
+                  if (confirmed)
+                    void deleteSession(session.id).catch((error) =>
+                      showError("Unable to delete session", error),
+                    );
                 });
               }}
             >

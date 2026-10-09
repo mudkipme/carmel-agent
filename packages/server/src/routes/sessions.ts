@@ -25,7 +25,11 @@ import { modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { importOpenWebuiSessions } from "../import/open-webui.ts";
 import { serializeSession, serializeSessionMetadata } from "../serializers.ts";
-import { readUsableModelRef, readVisibleAgent, resolveSupportedThinkingLevel } from "../services/agent-access.ts";
+import {
+  readUsableModelRef,
+  readVisibleAgent,
+  resolveSupportedThinkingLevel,
+} from "../services/agent-access.ts";
 import { insertSession } from "../services/session-launch.ts";
 import { readActiveRunLeaseForSession } from "../services/active-run-lease.ts";
 import {
@@ -37,9 +41,17 @@ import {
   replacePiSessionMessages,
   rewritePiSessionMessage,
 } from "../services/pi-session-storage.ts";
-import { loadOwnedSession, loadSession, type SessionWithMessages } from "../services/session-store.ts";
+import {
+  loadOwnedSession,
+  loadSession,
+  type SessionWithMessages,
+} from "../services/session-store.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
-import { checkCutPoint, describeCutPointRejection, type BranchMessage } from "../effectors/branch-integrity.ts";
+import {
+  checkCutPoint,
+  describeCutPointRejection,
+  type BranchMessage,
+} from "../effectors/branch-integrity.ts";
 import { jsonValidator } from "../validation.ts";
 
 export function createSessionRoutes() {
@@ -53,7 +65,13 @@ export function createSessionRoutes() {
     const archived = db
       .select()
       .from(sessions)
-      .where(and(eq(sessions.userId, currentUserId), eq(sessions.agentId, agent.id), isNotNull(sessions.archivedAt)))
+      .where(
+        and(
+          eq(sessions.userId, currentUserId),
+          eq(sessions.agentId, agent.id),
+          isNotNull(sessions.archivedAt),
+        ),
+      )
       .orderBy(desc(sessions.archivedAt))
       .all();
     return c.json(archived.map(serializeSessionMetadata));
@@ -86,57 +104,74 @@ export function createSessionRoutes() {
       userId: currentUserId,
       agentId: agent.id,
       modelRefId: modelRef.id,
-      thinkingLevel: resolveSupportedThinkingLevel(modelRef, draft.thinkingLevel ?? agent.defaultThinkingLevel ?? "off"),
+      thinkingLevel: resolveSupportedThinkingLevel(
+        modelRef,
+        draft.thinkingLevel ?? agent.defaultThinkingLevel ?? "off",
+      ),
     });
     return c.json(serializeSession({ ...session, messages: [], messageEntryIds: [] }), 201);
   });
 
-  route.post("/sessions/import/open-webui", jsonValidator(openWebuiImportRequestSchema), async (c) => {
-    const currentUserId = c.get("user").id;
-    const body = c.req.valid("json");
-    const agent = readVisibleAgent(currentUserId, body.agentId);
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    const modelRef = readUsableModelRef(currentUserId, body.modelRefId);
-    if (!modelRef) return c.json({ error: "Model not found." }, 404);
+  route.post(
+    "/sessions/import/open-webui",
+    jsonValidator(openWebuiImportRequestSchema),
+    async (c) => {
+      const currentUserId = c.get("user").id;
+      const body = c.req.valid("json");
+      const agent = readVisibleAgent(currentUserId, body.agentId);
+      if (!agent) return c.json({ error: "Agent not found." }, 404);
+      const modelRef = readUsableModelRef(currentUserId, body.modelRefId);
+      if (!modelRef) return c.json({ error: "Model not found." }, 404);
 
-    const thinkingLevel = resolveSupportedThinkingLevel(
-      modelRef,
-      body.thinkingLevel ?? agent.defaultThinkingLevel ?? "off",
-    );
-    const imported = importOpenWebuiSessions(body.source, {
-      userId: currentUserId,
-      agentId: agent.id,
-      modelRefId: modelRef.id,
-      thinkingLevel,
-      modelRef: { provider: modelRef.provider, modelId: modelRef.modelId, api: modelRef.api ?? undefined },
-      now: now(),
-    });
-    if (imported.sessions.length === 0) {
-      return c.json({ error: "No importable Open WebUI conversations found." }, 400);
-    }
-
-    db.transaction((tx) => {
-      for (const session of imported.sessions) tx.insert(sessions).values(toSessionRow(session)).run();
-    });
-    try {
-      for (const session of imported.sessions) {
-        if (session.messages.length > 0) await replacePiSessionMessages(session.id, session.messages);
+      const thinkingLevel = resolveSupportedThinkingLevel(
+        modelRef,
+        body.thinkingLevel ?? agent.defaultThinkingLevel ?? "off",
+      );
+      const imported = importOpenWebuiSessions(body.source, {
+        userId: currentUserId,
+        agentId: agent.id,
+        modelRefId: modelRef.id,
+        thinkingLevel,
+        modelRef: {
+          provider: modelRef.provider,
+          modelId: modelRef.modelId,
+          api: modelRef.api ?? undefined,
+        },
+        now: now(),
+      });
+      if (imported.sessions.length === 0) {
+        return c.json({ error: "No importable Open WebUI conversations found." }, 400);
       }
-    } catch (error) {
-      for (const session of imported.sessions) {
-        await deletePiSession(toSessionRow(session)).catch(() => undefined);
-        db.delete(sessions).where(eq(sessions.id, session.id)).run();
-      }
-      throw error;
-    }
 
-    const persisted = await Promise.all(imported.sessions.map((session) => loadSession(session.id)));
-    const result: SessionImportResult = {
-      sessions: persisted.filter((session): session is NonNullable<typeof session> => Boolean(session)).map(serializeSession),
-      skipped: imported.skipped,
-    };
-    return c.json(result, 201);
-  });
+      db.transaction((tx) => {
+        for (const session of imported.sessions)
+          tx.insert(sessions).values(toSessionRow(session)).run();
+      });
+      try {
+        for (const session of imported.sessions) {
+          if (session.messages.length > 0)
+            await replacePiSessionMessages(session.id, session.messages);
+        }
+      } catch (error) {
+        for (const session of imported.sessions) {
+          await deletePiSession(toSessionRow(session)).catch(() => undefined);
+          db.delete(sessions).where(eq(sessions.id, session.id)).run();
+        }
+        throw error;
+      }
+
+      const persisted = await Promise.all(
+        imported.sessions.map((session) => loadSession(session.id)),
+      );
+      const result: SessionImportResult = {
+        sessions: persisted
+          .filter((session): session is NonNullable<typeof session> => Boolean(session))
+          .map(serializeSession),
+        skipped: imported.skipped,
+      };
+      return c.json(result, 201);
+    },
+  );
 
   route.patch("/sessions/:id", jsonValidator(sessionPatchRequestSchema), async (c) => {
     const patch = c.req.valid("json");
@@ -162,29 +197,36 @@ export function createSessionRoutes() {
 
     const leaseConflict = rejectActiveRunMutation(c, current.id);
     if (leaseConflict) return leaseConflict;
-    const nextModelRef = patch.modelRefId ? readUsableModelRef(c.get("user").id, patch.modelRefId) : undefined;
+    const nextModelRef = patch.modelRefId
+      ? readUsableModelRef(c.get("user").id, patch.modelRefId)
+      : undefined;
     if (patch.modelRefId && !nextModelRef) return c.json({ error: "Model not found." }, 404);
     // Clamp the thinking level to what the (possibly newly selected) model supports,
     // matching the create/import write paths so PATCH can't persist an unsupported level.
     let thinkingLevel = patch.thinkingLevel ?? current.thinkingLevel;
     if (patch.thinkingLevel !== undefined || nextModelRef) {
-      const modelRef = nextModelRef ?? db.select().from(modelRefs).where(eq(modelRefs.id, current.modelRefId)).get();
+      const modelRef =
+        nextModelRef ??
+        db.select().from(modelRefs).where(eq(modelRefs.id, current.modelRefId)).get();
       if (modelRef) thinkingLevel = resolveSupportedThinkingLevel(modelRef, thinkingLevel);
     }
     // Switching model, thinking level, pin, or archive state are preferences and must not
     // affect the session's update time or its sort order. Only a rename counts as
     // a meaningful edit here; conversation activity touches updatedAt elsewhere.
     const titleChanged = patch.title !== undefined && patch.title !== current.title;
-    return c.json(await commitSessionChange(current.id, {
-      title: patch.title ?? current.title,
-      modelRefId: patch.modelRefId ?? current.modelRefId,
-      thinkingLevel,
-      forkedFrom: current.forkedFrom,
-      pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
-      archivedAt: patch.archivedAt === null ? null : (patch.archivedAt ?? current.archivedAt ?? null),
-      taskId: patch.taskId === null ? null : current.taskId,
-      updatedAt: titleChanged ? now() : current.updatedAt,
-    }));
+    return c.json(
+      await commitSessionChange(current.id, {
+        title: patch.title ?? current.title,
+        modelRefId: patch.modelRefId ?? current.modelRefId,
+        thinkingLevel,
+        forkedFrom: current.forkedFrom,
+        pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
+        archivedAt:
+          patch.archivedAt === null ? null : (patch.archivedAt ?? current.archivedAt ?? null),
+        taskId: patch.taskId === null ? null : current.taskId,
+        updatedAt: titleChanged ? now() : current.updatedAt,
+      }),
+    );
   });
 
   route.post("/sessions/:id/fork", jsonValidator(forkSessionRequestSchema), async (c) => {
@@ -229,54 +271,74 @@ export function createSessionRoutes() {
     return c.json(serializeSession((await loadSession(fork.id))!), 201);
   });
 
-  route.post("/sessions/:id/messages/truncate", jsonValidator(sessionTruncateRequestSchema), async (c) => {
-    const body = c.req.valid("json");
-    const { session: current, conflict } = await guardSessionMutation(c);
-    if (!current) return conflict;
-    if (!current.messageEntryIds.includes(body.entryId)) return c.json({ error: "Message not found" }, 404);
-    const cut = checkCutPoint(branchOf(current), body.entryId);
-    if (!cut.ok) {
-      return c.json({ error: describeCutPointRejection(cut), safeEntryId: cut.safeEntryId }, 409);
-    }
+  route.post(
+    "/sessions/:id/messages/truncate",
+    jsonValidator(sessionTruncateRequestSchema),
+    async (c) => {
+      const body = c.req.valid("json");
+      const { session: current, conflict } = await guardSessionMutation(c);
+      if (!current) return conflict;
+      if (!current.messageEntryIds.includes(body.entryId))
+        return c.json({ error: "Message not found" }, 404);
+      const cut = checkCutPoint(branchOf(current), body.entryId);
+      if (!cut.ok) {
+        return c.json({ error: describeCutPointRejection(cut), safeEntryId: cut.safeEntryId }, 409);
+      }
 
-    await movePiSessionToEntry(current.id, body.entryId);
-    return c.json(await commitSessionChange(current.id, {
-      thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
-      updatedAt: now(),
-    }));
-  });
+      await movePiSessionToEntry(current.id, body.entryId);
+      return c.json(
+        await commitSessionChange(current.id, {
+          thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
+          updatedAt: now(),
+        }),
+      );
+    },
+  );
 
-  route.patch("/sessions/:id/messages/:entryId", jsonValidator(sessionMessageEditRequestSchema), async (c) => {
-    const entryId = c.req.param("entryId");
-    const body = c.req.valid("json");
-    const { session: current, conflict } = await guardSessionMutation(c);
-    if (!current) return conflict;
-    const messageIndex = current.messageEntryIds.indexOf(entryId);
-    if (messageIndex < 0) return c.json({ error: "Message not found" }, 404);
+  route.patch(
+    "/sessions/:id/messages/:entryId",
+    jsonValidator(sessionMessageEditRequestSchema),
+    async (c) => {
+      const entryId = c.req.param("entryId");
+      const body = c.req.valid("json");
+      const { session: current, conflict } = await guardSessionMutation(c);
+      if (!current) return conflict;
+      const messageIndex = current.messageEntryIds.indexOf(entryId);
+      if (messageIndex < 0) return c.json({ error: "Message not found" }, 404);
 
-    const target = current.messages[messageIndex];
-    const editableUser = isUserMessage(target);
-    const editableAssistant = isEditableAssistantMessage(target);
-    if (!editableUser && !editableAssistant) return c.json({ error: "Message is not editable" }, 400);
+      const target = current.messages[messageIndex];
+      const editableUser = isUserMessage(target);
+      const editableAssistant = isEditableAssistantMessage(target);
+      if (!editableUser && !editableAssistant)
+        return c.json({ error: "Message is not editable" }, 400);
 
-    const editedMessage = editableUser
-      ? updateUserMessageContent(target, body.content, {
-          removedImageIndexes: body.removedImageIndexes,
-        })
-      : updateAssistantMessageContent(target, body.content);
-    // Pi entries are immutable: create a sibling branch at this entry ID and
-    // preserve the native suffix unless this is an explicit edit-and-rerun.
-    await rewritePiSessionMessage(current.id, entryId, editedMessage, editableUser && Boolean(body.truncate));
-    return c.json(await commitSessionChange(current.id, {
-      thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
-      updatedAt: now(),
-    }));
-  });
+      const editedMessage = editableUser
+        ? updateUserMessageContent(target, body.content, {
+            removedImageIndexes: body.removedImageIndexes,
+          })
+        : updateAssistantMessageContent(target, body.content);
+      // Pi entries are immutable: create a sibling branch at this entry ID and
+      // preserve the native suffix unless this is an explicit edit-and-rerun.
+      await rewritePiSessionMessage(
+        current.id,
+        entryId,
+        editedMessage,
+        editableUser && Boolean(body.truncate),
+      );
+      return c.json(
+        await commitSessionChange(current.id, {
+          thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
+          updatedAt: now(),
+        }),
+      );
+    },
+  );
 
   route.delete("/sessions/:id", async (c) => {
     const session = ownedSessionRecord(c);
     if (!session) return c.json({ error: "Session not found" }, 404);
-    if (session.issueId) return c.json({ error: "Delete the issue to remove its attempt history." }, 409);
+    if (session.issueId)
+      return c.json({ error: "Delete the issue to remove its attempt history." }, 409);
     const leaseConflict = rejectActiveRunMutation(c, session.id);
     if (leaseConflict) return leaseConflict;
     await deletePiSession(session);
@@ -289,13 +351,21 @@ export function createSessionRoutes() {
 
 /** Only fields a run never writes, so the patch cannot race one. */
 function isPlacementOnlyPatch(patch: SessionPatch) {
-  const keys = (Object.keys(patch) as (keyof SessionPatch)[]).filter((key) => patch[key] !== undefined);
-  return keys.length > 0 && keys.every((key) => key === "pinnedAt" || key === "archivedAt" || key === "taskId");
+  const keys = (Object.keys(patch) as (keyof SessionPatch)[]).filter(
+    (key) => patch[key] !== undefined,
+  );
+  return (
+    keys.length > 0 &&
+    keys.every((key) => key === "pinnedAt" || key === "archivedAt" || key === "taskId")
+  );
 }
 
 /** The loaded session's branch in the shape the cut-point check reads. */
 function branchOf(session: SessionWithMessages): BranchMessage[] {
-  return session.messageEntryIds.map((entryId, index) => ({ entryId, message: session.messages[index]! }));
+  return session.messageEntryIds.map((entryId, index) => ({
+    entryId,
+    message: session.messages[index]!,
+  }));
 }
 
 function rejectActiveRunMutation(c: Context<{ Variables: AuthVariables }>, sessionId: string) {
@@ -310,13 +380,23 @@ function rejectActiveRunMutation(c: Context<{ Variables: AuthVariables }>, sessi
  */
 async function guardSessionMutation(
   c: Context<{ Variables: AuthVariables }>,
-): Promise<{ session: SessionWithMessages; conflict?: undefined } | { session?: undefined; conflict: Response }> {
+): Promise<
+  | { session: SessionWithMessages; conflict?: undefined }
+  | { session?: undefined; conflict: Response }
+> {
   const session = await ownedSession(c);
   if (!session) return { conflict: c.json({ error: "Session not found" }, 404) };
-  if (session.issueId) return { conflict: c.json({ error: "Issue attempt history is read-only." }, 409) };
+  if (session.issueId)
+    return { conflict: c.json({ error: "Issue attempt history is read-only." }, 409) };
   const leaseConflict = rejectActiveRunMutation(c, session.id);
   if (leaseConflict) return { conflict: leaseConflict };
-  if (await hasPendingPiSessionWork(session.id)) return { conflict: c.json({ error: "Resume or stop pending Durable work before changing this conversation." }, 409) };
+  if (await hasPendingPiSessionWork(session.id))
+    return {
+      conflict: c.json(
+        { error: "Resume or stop pending Durable work before changing this conversation." },
+        409,
+      ),
+    };
   const resumedLeaseConflict = rejectActiveRunMutation(c, session.id);
   if (resumedLeaseConflict) return { conflict: resumedLeaseConflict };
   return { session };
@@ -326,7 +406,10 @@ async function guardSessionMutation(
  * Apply a session-row change, advance its optimistic revision, and return the
  * refreshed display projection every mutation route responds with.
  */
-async function commitSessionChange(sessionId: string, patch: Partial<typeof sessions.$inferInsert>) {
+async function commitSessionChange(
+  sessionId: string,
+  patch: Partial<typeof sessions.$inferInsert>,
+) {
   db.update(sessions)
     .set({ ...patch, revision: sql`${sessions.revision} + 1` })
     .where(eq(sessions.id, sessionId))
@@ -347,7 +430,9 @@ async function ownedSession(c: Context<{ Variables: AuthVariables }>) {
 // deserialize the whole transcript on every request.
 function ownedSessionRecord(c: Context<{ Variables: AuthVariables }>) {
   const sessionId = c.req.param("id");
-  const record = sessionId ? db.select().from(sessions).where(eq(sessions.id, sessionId)).get() : undefined;
+  const record = sessionId
+    ? db.select().from(sessions).where(eq(sessions.id, sessionId)).get()
+    : undefined;
   return record && record.userId === c.get("user").id ? record : undefined;
 }
 
@@ -359,7 +444,8 @@ async function serveEntryImage(
 ) {
   const session = ownedSessionRecord(c);
   const entryId = c.req.param("entryId");
-  const image = session && entryId ? pick(await readPiSessionMessageEntry(session.id, entryId)) : undefined;
+  const image =
+    session && entryId ? pick(await readPiSessionMessageEntry(session.id, entryId)) : undefined;
   return image ? imageResponse(image) : c.json({ error: notFound }, 404);
 }
 

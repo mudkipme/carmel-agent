@@ -29,11 +29,10 @@ function browser<T = Record<string, unknown>>(...args: string[]): T {
       maxBuffer: 2_000_000,
     });
   } catch (error) {
-    execFileSync(
-      binary,
-      ["--session", session, "doctor", "--offline", "--quick"],
-      { stdio: "ignore", timeout: 30_000 },
-    );
+    execFileSync(binary, ["--session", session, "doctor", "--offline", "--quick"], {
+      stdio: "ignore",
+      timeout: 30_000,
+    });
     for (const diagnostic of [
       ["get", "url"],
       ["snapshot", "-i"],
@@ -60,8 +59,7 @@ function browser<T = Record<string, unknown>>(...args: string[]): T {
   return response.data;
 }
 function click(role: string, name: string, exact = true) {
-  const selector =
-    role === "button" ? "button" : role === "link" ? "a" : `[role="${role}"]`;
+  const selector = role === "button" ? "button" : role === "link" ? "a" : `[role="${role}"]`;
   browser(
     "wait",
     "--fn",
@@ -70,15 +68,7 @@ function click(role: string, name: string, exact = true) {
     return element.getClientRects().length && !element.closest("[inert]") && ${exact ? `label === ${JSON.stringify(name)}` : `label.includes(${JSON.stringify(name)})`};
   })`,
   );
-  browser(
-    "find",
-    "role",
-    role,
-    "click",
-    "--name",
-    name,
-    ...(exact ? ["--exact"] : []),
-  );
+  browser("find", "role", role, "click", "--name", name, ...(exact ? ["--exact"] : []));
 }
 function open(path: string) {
   browser("open", `${fixture.url}${path}`);
@@ -100,14 +90,10 @@ function snapshot() {
 
 before(
   async () => {
-    server = spawn(
-      process.execPath,
-      ["--import", "tsx", "scripts/browser-preview.ts"],
-      {
-        cwd: fileURLToPath(new URL("../../server/", import.meta.url)),
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
+    server = spawn(process.execPath, ["--import", "tsx", "scripts/browser-preview.ts"], {
+      cwd: fileURLToPath(new URL("../../server/", import.meta.url)),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     fixture = await new Promise<Fixture>((resolve, reject) => {
       let output = "";
       let errors = "";
@@ -128,9 +114,7 @@ before(
       });
       server!.stdout!.on("data", (chunk) => {
         output += String(chunk);
-        const line = output
-          .split("\n")
-          .find((value) => value.startsWith('{"url":'));
+        const line = output.split("\n").find((value) => value.startsWith('{"url":'));
         if (line) {
           clearTimeout(timeout);
           resolve(JSON.parse(line));
@@ -153,9 +137,7 @@ after(async () => {
     browser("close");
   } finally {
     if (server && server.exitCode === null) {
-      const stopped = new Promise<void>((resolve) =>
-        server!.once("exit", () => resolve()),
-      );
+      const stopped = new Promise<void>((resolve) => server!.once("exit", () => resolve()));
       server.kill("SIGTERM");
       await stopped;
     }
@@ -186,10 +168,7 @@ test("returning from an issue preserves the selected tab and search", () => {
   browser("wait", '[role="tab"][aria-selected="true"]');
   assert.match(snapshot(), /tab "Needs you" \[selected/);
   assert.equal(value('[aria-label="Search issues"]'), "guide");
-  assert.match(
-    browser<{ url: string }>("get", "url").url,
-    /filter=attention&q=guide$/,
-  );
+  assert.match(browser<{ url: string }>("get", "url").url, /filter=attention&q=guide$/);
 });
 
 test("new issue drafts survive navigation and reload, remain scoped to their agent, and clear on cancel", () => {
@@ -227,23 +206,13 @@ test("saved issue drafts clear only after the server accepts them", () => {
 test("issue replies survive leaving the conversation and clear after saving", () => {
   open(agentPath(`issues/${fixture.reviewIssueId}`));
   browser("wait", "#issue-reply");
-  browser(
-    "find",
-    "label",
-    "Instructions or feedback",
-    "fill",
-    "Please verify the setup commands",
-  );
+  browser("find", "label", "Instructions or feedback", "fill", "Please verify the setup commands");
   click("link", "Tasks");
   open(agentPath(`issues/${fixture.reviewIssueId}`));
   browser("wait", "#issue-reply");
   assert.equal(value("#issue-reply"), "Please verify the setup commands");
   click("button", "Save note");
-  browser(
-    "wait",
-    "--fn",
-    'document.querySelector("#issue-reply").value === ""',
-  );
+  browser("wait", "--fn", 'document.querySelector("#issue-reply").value === ""');
   assert.equal(value("#issue-reply"), "");
 });
 
@@ -263,16 +232,10 @@ test("long task titles and controls fit mobile; creation controls have accessibl
   browser("find", "label", "Prompt", "fill", "Check the guide");
   assert.equal(value("#task-name"), "A labelled task");
   assert.equal(
-    evaluate<boolean>(
-      'Boolean(document.querySelector("#task-repeats").labels.length)',
-    ),
+    evaluate<boolean>('Boolean(document.querySelector("#task-repeats").labels.length)'),
     true,
   );
-  const audit = browser<{ violations: { id: string }[] }>(
-    "a11y",
-    "--tags",
-    "wcag2a,wcag2aa",
-  );
+  const audit = browser<{ violations: { id: string }[] }>("a11y", "--tags", "wcag2a,wcag2aa");
   assert.deepEqual(audit.violations, []);
   click("button", "Cancel");
   browser("set", "viewport", "1440", "900");
@@ -283,13 +246,7 @@ test("existing tasks can be edited without changing their paused state", () => {
   click("button", `Edit ${fixture.taskName}`);
   assert.equal(value("#task-prompt"), "Review the guide.");
   assert.equal(value("#task-schedule"), "1440");
-  browser(
-    "find",
-    "label",
-    "Prompt",
-    "fill",
-    "Review the guide and verify backups.",
-  );
+  browser("find", "label", "Prompt", "fill", "Review the guide and verify backups.");
   click("button", "Save task");
   browser("wait", "--fn", '!document.querySelector("#task-name")');
   click("button", `Edit ${fixture.taskName}`);
@@ -303,13 +260,25 @@ test("browser handoff survives reload, supports navigation, and resumes explicit
   browser("wait", "--text", "Please sign in to the billing portal.");
   // The assistance callout and header both open the same pane.
   browser("click", 'header button[aria-label="Open browser"]');
-  browser("wait", "--fn", 'document.querySelector("#browser-address")?.value === "https://example.test/login?stream=live"');
-  browser("wait", "--fn", 'Array.from(document.querySelectorAll("button")).some(b => b.textContent === "Take control" && !b.disabled)');
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#browser-address")?.value === "https://example.test/login?stream=live"',
+  );
+  browser(
+    "wait",
+    "--fn",
+    'Array.from(document.querySelectorAll("button")).some(b => b.textContent === "Take control" && !b.disabled)',
+  );
   click("button", "Take control");
   browser("wait", "--text", "You have control");
   browser("find", "label", "Browser address", "fill", "example.test/account");
   click("button", "Go");
-  browser("wait", "--fn", 'document.querySelector("#browser-address").value === "https://example.test/account"');
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#browser-address").value === "https://example.test/account"',
+  );
   browser("reload");
   browser("wait", "--text", "Waiting for help");
   click("button", "Take control");
@@ -320,7 +289,7 @@ test("browser handoff survives reload, supports navigation, and resumes explicit
   assert.match(browser<{ url: string }>("get", "url").url, /browser=full/);
   click("button", "Show conversation");
   browser("set", "viewport", "390", "844");
-  assert.equal(evaluate<boolean>('document.documentElement.scrollWidth <= innerWidth'), true);
+  assert.equal(evaluate<boolean>("document.documentElement.scrollWidth <= innerWidth"), true);
   const audit = browser<{ violations: { id: string }[] }>("a11y", "--tags", "wcag2a,wcag2aa");
   assert.deepEqual(audit.violations, []);
   browser("click", 'header button[aria-label="Close browser"]');
@@ -351,19 +320,12 @@ test("failed issue loading shows an error and Retry instead of an empty list", (
     open(agentPath("issues"));
     browser("wait", "--text", "Unable to load issues");
     assert.match(snapshot(), /button "Retry"/);
-    assert.equal(
-      evaluate<boolean>('document.body.innerText.includes("No queued work")'),
-      false,
-    );
+    assert.equal(evaluate<boolean>('document.body.innerText.includes("No queued work")'), false);
   } finally {
     browser("network", "unroute", url);
   }
   click("button", "Retry");
-  browser(
-    "wait",
-    "--fn",
-    '!document.body.innerText.includes("Unable to load issues")',
-  );
+  browser("wait", "--fn", '!document.body.innerText.includes("Unable to load issues")');
   click("tab", "Backlog");
   assert.match(snapshot(), /Explain backups/);
 });
@@ -375,9 +337,7 @@ test("failed task loading can be retried and successful edits are not reported a
     open(agentPath("tasks"));
     browser("wait", "--text", "Unable to load tasks");
     assert.equal(
-      evaluate<boolean>(
-        'document.body.innerText.includes("No scheduled tasks")',
-      ),
+      evaluate<boolean>('document.body.innerText.includes("No scheduled tasks")'),
       false,
     );
   } finally {
@@ -386,36 +346,21 @@ test("failed task loading can be retried and successful edits are not reported a
   click("button", "Retry");
   browser("wait", "--text", fixture.taskName);
   click("button", `Edit ${fixture.taskName}`);
-  browser(
-    "find",
-    "label",
-    "Prompt",
-    "fill",
-    "An edit accepted before refresh fails.",
-  );
+  browser("find", "label", "Prompt", "fill", "An edit accepted before refresh fails.");
   browser("network", "route", url, "--abort");
   try {
     click("button", "Save task");
     browser("wait", "--text", "Unable to load tasks");
     assert.equal(
-      evaluate<boolean>(
-        'document.body.innerText.includes("Unable to save task")',
-      ),
+      evaluate<boolean>('document.body.innerText.includes("Unable to save task")'),
       false,
     );
-    assert.equal(
-      evaluate<boolean>('Boolean(document.querySelector("#task-name"))'),
-      false,
-    );
+    assert.equal(evaluate<boolean>('Boolean(document.querySelector("#task-name"))'), false);
   } finally {
     browser("network", "unroute", url);
   }
   click("button", "Retry");
-  browser(
-    "wait",
-    "--fn",
-    '!document.body.innerText.includes("Unable to load tasks")',
-  );
+  browser("wait", "--fn", '!document.body.innerText.includes("Unable to load tasks")');
   click("button", `Edit ${fixture.taskName}`);
   assert.equal(value("#task-prompt"), "An edit accepted before refresh fails.");
   click("button", "Cancel");
@@ -425,8 +370,14 @@ test("chat controls fit narrow touch screens with reasoning and long model names
   assert.equal(evaluate<boolean>('matchMedia("(pointer: coarse)").matches'), true);
   for (const path of [agentPath(""), agentPath(`sessions/${fixture.taskSessionId}`)]) {
     open(path);
-    browser("wait", '.agent-chat-host textarea');
-    for (const [width, height] of [[320, 740], [390, 844], [430, 932], [844, 390], [1440, 900]]) {
+    browser("wait", ".agent-chat-host textarea");
+    for (const [width, height] of [
+      [320, 740],
+      [390, 844],
+      [430, 932],
+      [844, 390],
+      [1440, 900],
+    ]) {
       browser("set", "viewport", String(width), String(height));
       const failures = evaluate<string[]>(`(() => {
         const failures = [];
@@ -483,33 +434,43 @@ test("chat controls fit narrow touch screens with reasoning and long model names
     assert.match(browser<{ snapshot: string }>("snapshot").snapshot, /Select Model/);
     browser("press", "Escape");
     browser("find", "placeholder", "Type a message...", "fill", "A mobile draft");
-    assert.equal(browser<{ enabled: boolean }>("is", "enabled", 'button[aria-label="Send"]').enabled, true);
+    assert.equal(
+      browser<{ enabled: boolean }>("is", "enabled", 'button[aria-label="Send"]').enabled,
+      true,
+    );
   }
 });
 
-test("knowledge settings and shared memories remain editable after reloading", { timeout: 90_000 }, () => {
-  browser("set", "viewport", "1280", "900");
-  open(agentPath("knowledge"));
-  click("button", "Knowledge settings");
-  assert.equal(evaluate<boolean>('document.querySelector("#knowledge-model").readOnly'), true);
-  browser("click", "#knowledge-enabled");
-  click("option", "On");
-  click("button", "Save settings");
-  click("button", "New memory");
-  browser("find", "label", "Title", "fill", "Family budget meeting");
-  browser("find", "label", "Memory", "fill", "Alice and Bob review their budget on Sunday.");
-  click("button", "Save memory");
-  browser("wait", "--text", "Alice and Bob review their budget on Sunday.");
-  open(agentPath("knowledge"));
-  click("button", "Edit memory");
-  assert.equal(value("#memory-content").trim(), "Alice and Bob review their budget on Sunday.");
-  browser("fill", "#memory-content", "Alice and Bob review their budget on Monday.");
-  click("button", "Save memory");
-  browser("wait", "--text", "Alice and Bob review their budget on Monday.");
-  browser("set", "viewport", "375", "812");
-  assert.equal(evaluate<boolean>("document.documentElement.scrollWidth <= window.innerWidth"), true);
-  click("button", "Forget memory");
-  browser("wait", '[role="alertdialog"]');
-  browser("click", '[role="alertdialog"] button[data-variant="destructive"]');
-  browser("wait", "--text", "No saved memories");
-});
+test(
+  "knowledge settings and shared memories remain editable after reloading",
+  { timeout: 90_000 },
+  () => {
+    browser("set", "viewport", "1280", "900");
+    open(agentPath("knowledge"));
+    click("button", "Knowledge settings");
+    assert.equal(evaluate<boolean>('document.querySelector("#knowledge-model").readOnly'), true);
+    browser("click", "#knowledge-enabled");
+    click("option", "On");
+    click("button", "Save settings");
+    click("button", "New memory");
+    browser("find", "label", "Title", "fill", "Family budget meeting");
+    browser("find", "label", "Memory", "fill", "Alice and Bob review their budget on Sunday.");
+    click("button", "Save memory");
+    browser("wait", "--text", "Alice and Bob review their budget on Sunday.");
+    open(agentPath("knowledge"));
+    click("button", "Edit memory");
+    assert.equal(value("#memory-content").trim(), "Alice and Bob review their budget on Sunday.");
+    browser("fill", "#memory-content", "Alice and Bob review their budget on Monday.");
+    click("button", "Save memory");
+    browser("wait", "--text", "Alice and Bob review their budget on Monday.");
+    browser("set", "viewport", "375", "812");
+    assert.equal(
+      evaluate<boolean>("document.documentElement.scrollWidth <= window.innerWidth"),
+      true,
+    );
+    click("button", "Forget memory");
+    browser("wait", '[role="alertdialog"]');
+    browser("click", '[role="alertdialog"] button[data-variant="destructive"]');
+    browser("wait", "--text", "No saved memories");
+  },
+);

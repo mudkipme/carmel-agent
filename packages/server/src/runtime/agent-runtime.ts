@@ -65,7 +65,12 @@ type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 type SessionRecord = typeof sessions.$inferSelect;
-export { abortAgentRun, createAgentRunEventStream, getActiveAgentRunForSession, whenRunFinished } from "./run-stream.ts";
+export {
+  abortAgentRun,
+  createAgentRunEventStream,
+  getActiveAgentRunForSession,
+  whenRunFinished,
+} from "./run-stream.ts";
 
 export function normalizePromptInput(input?: PromptInput) {
   if (!input) return undefined;
@@ -137,9 +142,7 @@ export async function steerAgentRun(sessionId: string, text: string) {
   try {
     return {
       entryId: result.value.entryId,
-      pending: watch.snapshot.queues.some(
-        (item) => item.entryId === result.value.entryId,
-      ),
+      pending: watch.snapshot.queues.some((item) => item.entryId === result.value.entryId),
     };
   } finally {
     watch.unsubscribe();
@@ -173,9 +176,15 @@ export function startDetachedAgentRun(input: AgentRunInput): ActiveAgentRun {
     sessionId: input.session.id,
     abort: (reason) => abort.request(reason),
   });
-  const model = resolveServerModelRef(serializeModelRef(input.modelRef), input.providerConfig, input.modelRuntime);
+  const model = resolveServerModelRef(
+    serializeModelRef(input.modelRef),
+    input.providerConfig,
+    input.modelRuntime,
+  );
 
-  queueMicrotask(() => void startAgentRun({ ...input, run, abort, outcome: new RunOutcome(), model }));
+  queueMicrotask(
+    () => void startAgentRun({ ...input, run, abort, outcome: new RunOutcome(), model }),
+  );
   return run;
 }
 
@@ -190,7 +199,9 @@ async function startAgentRun(context: AgentRun) {
   run.started = true;
 
   const retry = new RetryBranch();
-  const contextReporter = new ContextReporter(model.contextWindow, (event) => emitRunEvent(run, event));
+  const contextReporter = new ContextReporter(model.contextWindow, (event) =>
+    emitRunEvent(run, event),
+  );
   const guard = new RunGuard(runGuardLimits());
   let guardTimer: ReturnType<typeof setInterval> | undefined;
   let piSession: PiSession | undefined;
@@ -205,18 +216,22 @@ async function startAgentRun(context: AgentRun) {
 
   try {
     piSession = await openPiSession(session.id);
-    execution = createServerExecution(agent, {
-      signal: abort.signal,
-      beforeCall() {
-        if (guard.stop) throw new RunGuardError(guard.stop);
-        const stop = guard.recordToolCall();
-        if (stop) {
-          abort.request("guard");
-          throw new RunGuardError(stop);
-        }
+    execution = createServerExecution(
+      agent,
+      {
+        signal: abort.signal,
+        beforeCall() {
+          if (guard.stop) throw new RunGuardError(guard.stop);
+          const stop = guard.recordToolCall();
+          if (stop) {
+            abort.request("guard");
+            throw new RunGuardError(stop);
+          }
+        },
+        onActivity: () => guard.recordActivity(),
       },
-      onActivity: () => guard.recordActivity(),
-    }, session.userId);
+      session.userId,
+    );
     await execution.prepare(abort.signal);
     const opened = await openRunHarness({ ...context, piSession, execution });
     const { lane, activeToolNames } = opened;
@@ -238,7 +253,8 @@ async function startAgentRun(context: AgentRun) {
       // Every event is a sign of life; only finished tool calls count against
       // the ceiling. Aborting through the same gate the HTTP path uses means a
       // guard stop tears down exactly like a user stop.
-      const stop = event.type === "tool_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
+      const stop =
+        event.type === "tool_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
       if (stop) abort.request("guard");
       const projected = projectRunEvent(event, model.contextWindow);
       if (projected) emitRunEvent(run, projected);
@@ -246,7 +262,11 @@ async function startAgentRun(context: AgentRun) {
     // Catches what events cannot: a provider connection that opened and went
     // quiet, or a bash command the model launched without a timeout.
     guardTimer = setInterval(() => {
-      if (agent.permissions.bash && browserControl(agent.id).isPaused && !browserControl(agent.id).isDraining) {
+      if (
+        agent.permissions.bash &&
+        browserControl(agent.id).isPaused &&
+        !browserControl(agent.id).isDraining
+      ) {
         guard.recordActivity();
         return;
       }
@@ -269,13 +289,17 @@ async function startAgentRun(context: AgentRun) {
       return;
     }
 
-    if (!promptInput && await lane.hasPending(runContext)) {
+    if (!promptInput && (await lane.hasPending(runContext))) {
       // A restart continues Durable's checkpoint instead of rewinding and resubmitting the user input.
       await lane.resume(runContext);
     } else {
       const prepared = await prepareAgentRunPrompt(log, promptInput);
       retry.arm(prepared.retryOriginalLeafId);
-      await runHarnessPrompt({ harness, lane, context: runContext }, prepared.promptInput.text, prepared.promptInput.images);
+      await runHarnessPrompt(
+        { harness, lane, context: runContext },
+        prepared.promptInput.text,
+        prepared.promptInput.images,
+      );
     }
     // Checked before the retry-abandonment test: a guard stop aborts mid-turn,
     // which is a plausible way to leave a retry unpersisted, and the guard is
@@ -290,8 +314,11 @@ async function startAgentRun(context: AgentRun) {
     const lane = runningLanes.get(session.id);
     runningLanes.delete(session.id);
     if (lane && context.sessionAddons?.onRunSettling) {
-      try { await context.sessionAddons.onRunSettling(lane, abort.requested); }
-      catch (error) { console.warn("Unable to settle issue updates:", errorMessage(error)); }
+      try {
+        await context.sessionAddons.onRunSettling(lane, abort.requested);
+      } catch (error) {
+        console.warn("Unable to settle issue updates:", errorMessage(error));
+      }
     }
     await finalizeRun(context, { piSession, harness, log, execution, unsubscribe });
   }
@@ -375,60 +402,78 @@ export class RetryBranch {
 async function openRunHarness(
   context: AgentRun & { piSession: PiSession; execution: ServerExecution },
 ): Promise<{ harness: RunHarness; lane: AgentLane; activeToolNames: string[] }> {
-  const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } = context;
+  const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } =
+    context;
   const resources = await loadAgentResources(agent, execution.env);
-  const schedulingTools = context.session.taskId ? [] : [createScheduleTaskTool({
-    userId: context.session.userId,
-    agentId: agent.id,
-    modelRefId: context.modelRef.id,
-    thinkingLevel,
-    timezone: context.timezone,
-  })];
+  const schedulingTools = context.session.taskId
+    ? []
+    : [
+        createScheduleTaskTool({
+          userId: context.session.userId,
+          agentId: agent.id,
+          modelRefId: context.modelRef.id,
+          thinkingLevel,
+          timezone: context.timezone,
+        }),
+      ];
   const tools = execution.resolveTools([...schedulingTools, ...(sessionAddons?.tools ?? [])]);
   const activeToolNames = tools.map((tool) => tool.name);
   // Install this run's credentials, resources, and permitted tools before native scheduling.
-  const { harness } = await AgentHarness.create<ExecutionToolContext>({
-    session: piSession,
-    models: modelRuntime,
-    model,
-    thinkingLevel,
-    systemPrompt: buildHarnessSystemPrompt({
-      base: agent.systemPrompt.trim() || "You are a helpful assistant.",
-      cwd: execution.env.cwd,
-      skills: resources.skills,
-      contextFiles: resources.contextFiles,
-      includeSkills: activeToolNames.includes("read"),
-      sessionInstructions: [
-        sessionAddons?.instructions,
-        agent.permissions.bash ? browserInstructions : "",
-        buildKnowledgeInstructions(context.session.userId, agent.id, activeToolNames),
-        schedulingTools.length ? buildSchedulingInstructions(context.timezone) : "",
-      ].filter(Boolean).join("\n\n"),
-    }),
-    resources: {
-      skills: resources.skills,
-      promptTemplates: [
-        ...resources.promptTemplates,
-        ...agent.promptTemplates.map((template) => ({ name: template.name, content: template.body })),
-      ],
+  const { harness } = await AgentHarness.create<ExecutionToolContext>(
+    {
+      session: piSession,
+      models: modelRuntime,
+      model,
+      thinkingLevel,
+      systemPrompt: buildHarnessSystemPrompt({
+        base: agent.systemPrompt.trim() || "You are a helpful assistant.",
+        cwd: execution.env.cwd,
+        skills: resources.skills,
+        contextFiles: resources.contextFiles,
+        includeSkills: activeToolNames.includes("read"),
+        sessionInstructions: [
+          sessionAddons?.instructions,
+          agent.permissions.bash ? browserInstructions : "",
+          buildKnowledgeInstructions(context.session.userId, agent.id, activeToolNames),
+          schedulingTools.length ? buildSchedulingInstructions(context.timezone) : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      }),
+      resources: {
+        skills: resources.skills,
+        promptTemplates: [
+          ...resources.promptTemplates,
+          ...agent.promptTemplates.map((template) => ({
+            name: template.name,
+            content: template.body,
+          })),
+        ],
+      },
+      tools,
+      toolContext: execution.toolContext,
+      activeToolNames,
+      // `timeoutMs` was missing, so a provider connection that opened and never
+      // answered held the run -- and the session's mutation lease -- for the life
+      // of the process.
+      streamOptions: {
+        timeoutMs: providerRequestTimeoutMs(),
+        maxRetries: 2,
+        maxRetryDelayMs: 60_000,
+      },
+      // Distinct from `streamOptions`, which only covers turn streaming. Without
+      // this, a transient provider error during summarization ended compaction for
+      // the turn -- on the one call the session most needs to succeed.
+      retry: { enabled: true, maxRetries: 2, baseDelayMs: 1_000 },
+      compaction: compactionSettingsForWindow(model.contextWindow),
     },
-    tools,
-    toolContext: execution.toolContext,
-    activeToolNames,
-    // `timeoutMs` was missing, so a provider connection that opened and never
-    // answered held the run -- and the session's mutation lease -- for the life
-    // of the process.
-    streamOptions: { timeoutMs: providerRequestTimeoutMs(), maxRetries: 2, maxRetryDelayMs: 60_000 },
-    // Distinct from `streamOptions`, which only covers turn streaming. Without
-    // this, a transient provider error during summarization ended compaction for
-    // the turn -- on the one call the session most needs to succeed.
-    retry: { enabled: true, maxRetries: 2, baseDelayMs: 1_000 },
-    compaction: compactionSettingsForWindow(model.contextWindow),
-  }, runContext);
-  if (agent.permissions.bash) harness.hooks.on("before_request", async () => {
-    await browserControl(agent.id).wait(context.abort.signal);
-    return undefined;
-  });
+    runContext,
+  );
+  if (agent.permissions.bash)
+    harness.hooks.on("before_request", async () => {
+      await browserControl(agent.id).wait(context.abort.signal);
+      return undefined;
+    });
   // The run handle follows the conversation selected in native storage.
   const lane = await harness.lane(PI_MAIN_BRANCH, runContext);
   return { harness, lane, activeToolNames };
@@ -618,7 +663,11 @@ async function reportPreflightPressure(context: AgentRun, log: SessionLog) {
 
 function emitContextPressure(context: AgentRun, notice: ContextPressureNotice) {
   console.warn(`Context pressure on session ${context.session.id}: ${notice.message}`);
-  emitRunEvent(context.run, { type: "context_pressure", level: notice.level, message: notice.message });
+  emitRunEvent(context.run, {
+    type: "context_pressure",
+    level: notice.level,
+    message: notice.message,
+  });
 }
 
 /**
@@ -666,7 +715,11 @@ export class ContextReporter {
 
   /** Call once the prompt returns. A failed compaction already said its piece. */
   reportUnrecoveredOverflow() {
-    if (this.#lastTurnFailure?.category !== "context_overflow" || this.#overflowCompaction === "failed") return;
+    if (
+      this.#lastTurnFailure?.category !== "context_overflow" ||
+      this.#overflowCompaction === "failed"
+    )
+      return;
     const notice = describeUnrecoveredOverflow(this.#overflowCompaction === "completed");
     this.#emit({ type: "context_pressure", level: notice.level, message: notice.message });
   }
@@ -703,7 +756,10 @@ function buildHarnessSystemPrompt(options: {
 }
 
 function randomId() {
-  return globalThis.crypto?.randomUUID?.() ?? `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`
+  );
 }
 
 async function persistSessionRun(
@@ -742,14 +798,14 @@ async function persistSessionRun(
       messages: patch.messages,
     });
     if (!title) return;
-    if (commitSessionAtRevision(session.id, committedRevision, { title, updatedAt: now() }) === undefined) {
+    if (
+      commitSessionAtRevision(session.id, committedRevision, { title, updatedAt: now() }) ===
+      undefined
+    ) {
       console.warn(`Skipped stale title update for session ${session.id}.`);
     }
   } catch (error) {
-    console.warn(
-      "Session title generation failed:",
-      errorMessage(error),
-    );
+    console.warn("Session title generation failed:", errorMessage(error));
   }
 }
 

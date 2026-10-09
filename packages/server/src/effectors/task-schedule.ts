@@ -77,7 +77,11 @@ export type TaskFiringPlan =
   | { readonly action: "idle" }
   | { readonly action: "fire"; readonly scheduledFor: number; readonly lateMs: number }
   /** Too late to run. Record the miss and move on to `nextRunAt`. */
-  | { readonly action: "skip_missed"; readonly scheduledFor: number; readonly nextRunAt: number | null }
+  | {
+      readonly action: "skip_missed";
+      readonly scheduledFor: number;
+      readonly nextRunAt: number | null;
+    }
   /** Nothing left to schedule. */
   | { readonly action: "complete" }
   /** The schedule cannot be parsed; running it again would fail identically. */
@@ -115,14 +119,21 @@ function computeCronNextRun(schedule: TaskSchedule, from: number): NextRun {
       .getTime();
     return { ok: true, at: next };
   } catch (error) {
-    return { ok: false, reason: error instanceof Error ? error.message : "Not a valid cron expression." };
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : "Not a valid cron expression.",
+    };
   }
 }
 
 /** Validate a schedule at write time so a bad one is rejected, not disabled later. */
-export function validateSchedule(schedule: TaskSchedule, now: number): { ok: true } | { ok: false; reason: string } {
+export function validateSchedule(
+  schedule: TaskSchedule,
+  now: number,
+): { ok: true } | { ok: false; reason: string } {
   const next = computeNextRun(schedule, now);
   if (!next.ok) return { ok: false, reason: next.reason };
-  if (schedule.kind === "once" && next.at === null) return { ok: false, reason: "That time is in the past." };
+  if (schedule.kind === "once" && next.at === null)
+    return { ok: false, reason: "That time is in the past." };
   return { ok: true };
 }

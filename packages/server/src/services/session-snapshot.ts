@@ -4,7 +4,10 @@ import { serializeSession } from "../serializers.ts";
 import { loadOwnedSession } from "./session-store.ts";
 
 /** Build the single display-safe projection used by every full-session GET. */
-export async function readSessionSnapshot(userId: string, sessionId: string): Promise<Session | undefined> {
+export async function readSessionSnapshot(
+  userId: string,
+  sessionId: string,
+): Promise<Session | undefined> {
   const session = await loadOwnedSession(userId, sessionId);
   return session ? serializeSession(session) : undefined;
 }

@@ -103,8 +103,12 @@ export type ResolveModelRefOptions = {
   baseUrl?: string;
 };
 
-export function resolveModelRef(modelRef: ModelRef, options: ResolveModelRefOptions = {}): Model<Api> {
-  const baseUrl = options.baseUrl ?? modelRef.baseUrl ?? defaultBaseUrlForProvider(modelRef.provider);
+export function resolveModelRef(
+  modelRef: ModelRef,
+  options: ResolveModelRefOptions = {},
+): Model<Api> {
+  const baseUrl =
+    options.baseUrl ?? modelRef.baseUrl ?? defaultBaseUrlForProvider(modelRef.provider);
   const ollamaModel = modelRef.provider === OLLAMA_PROVIDER;
   const defaultThinkingLevelMap = ollamaModel
     ? getOllamaThinkingLevelMap(modelRef.modelId)

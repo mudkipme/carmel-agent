@@ -90,8 +90,12 @@ function readOnlyExtensions(language: EditorLanguage, dark: boolean): Extension 
  */
 const diffTheme = EditorView.theme({
   "&": { height: "auto", minHeight: "100%" },
-  ".cm-changedLine": { backgroundColor: "color-mix(in oklch, var(--color-green) 12%, transparent)" },
-  ".cm-changedText": { backgroundColor: "color-mix(in oklch, var(--color-green) 30%, transparent)" },
+  ".cm-changedLine": {
+    backgroundColor: "color-mix(in oklch, var(--color-green) 12%, transparent)",
+  },
+  ".cm-changedText": {
+    backgroundColor: "color-mix(in oklch, var(--color-green) 30%, transparent)",
+  },
   ".cm-deletedChunk, .cm-merge-a .cm-changedLine": {
     backgroundColor: "color-mix(in oklch, var(--destructive) 12%, transparent)",
   },

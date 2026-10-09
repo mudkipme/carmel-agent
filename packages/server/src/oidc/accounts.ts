@@ -33,7 +33,11 @@ export type OidcProfile = {
 
 type UserRow = typeof users.$inferSelect;
 
-export function readOidcProfile(config: OidcConfig, issuer: string, claims: OidcClaims): OidcProfile {
+export function readOidcProfile(
+  config: OidcConfig,
+  issuer: string,
+  claims: OidcClaims,
+): OidcProfile {
   return {
     issuer,
     subject: claims.sub,
@@ -56,7 +60,10 @@ export function readOidcProfile(config: OidcConfig, issuer: string, claims: Oidc
  */
 export function resolveOidcUser(config: OidcConfig, profile: OidcProfile): UserRow {
   if (config.allowedGroups.length && !inAnyGroup(profile, config.allowedGroups)) {
-    throw new OidcLoginError("not_allowed", "Your account is not in a group that is allowed to use Carmel Agent.");
+    throw new OidcLoginError(
+      "not_allowed",
+      "Your account is not in a group that is allowed to use Carmel Agent.",
+    );
   }
 
   return db.transaction(() => {
@@ -65,12 +72,19 @@ export function resolveOidcUser(config: OidcConfig, profile: OidcProfile): UserR
       .select({ user: users })
       .from(userIdentities)
       .innerJoin(users, eq(users.id, userIdentities.userId))
-      .where(and(eq(userIdentities.issuer, profile.issuer), eq(userIdentities.subject, profile.subject)))
+      .where(
+        and(eq(userIdentities.issuer, profile.issuer), eq(userIdentities.subject, profile.subject)),
+      )
       .get()?.user;
     if (linked) {
       db.update(userIdentities)
         .set({ lastLoginAt: timestamp })
-        .where(and(eq(userIdentities.issuer, profile.issuer), eq(userIdentities.subject, profile.subject)))
+        .where(
+          and(
+            eq(userIdentities.issuer, profile.issuer),
+            eq(userIdentities.subject, profile.subject),
+          ),
+        )
         .run();
       return syncProfile(config, profile, linked, timestamp);
     }
@@ -82,7 +96,10 @@ export function resolveOidcUser(config: OidcConfig, profile: OidcProfile): UserR
     }
 
     if (!config.autoCreate) {
-      throw new OidcLoginError("not_linked", "No Carmel Agent account is linked to this sign-in. Ask an administrator to create one.");
+      throw new OidcLoginError(
+        "not_linked",
+        "No Carmel Agent account is linked to this sign-in. Ask an administrator to create one.",
+      );
     }
     return createUser(config, profile, timestamp);
   });
@@ -95,9 +112,13 @@ function findMatchingUser(config: OidcConfig, profile: OidcProfile) {
     // theirs there can copy someone else's onto their own linked account.
     // Linked accounts are therefore never email candidates: the copy can
     // neither win the match nor make the real one ambiguous.
-    if (field === "email") candidates = candidates.filter((candidate) => !linkedToIssuer(candidate.id, profile.issuer));
+    if (field === "email")
+      candidates = candidates.filter((candidate) => !linkedToIssuer(candidate.id, profile.issuer));
     if (candidates.length > 1) {
-      throw new OidcLoginError("ambiguous_account", `More than one account has this ${field}. Ask an administrator to resolve the duplicate.`);
+      throw new OidcLoginError(
+        "ambiguous_account",
+        `More than one account has this ${field}. Ask an administrator to resolve the duplicate.`,
+      );
     }
     const candidate = candidates[0];
     if (!candidate) continue;
@@ -105,14 +126,21 @@ function findMatchingUser(config: OidcConfig, profile: OidcProfile) {
     // An account already claimed by another identity from this provider stays
     // theirs: whoever now holds the same username is someone else.
     if (linkedToIssuer(candidate.id, profile.issuer)) {
-      throw new OidcLoginError("already_linked", `The account with this ${field} is already linked to a different sign-in.`);
+      throw new OidcLoginError(
+        "already_linked",
+        `The account with this ${field} is already linked to a different sign-in.`,
+      );
     }
     return candidate;
   }
   return undefined;
 }
 
-function matchCandidates(config: OidcConfig, profile: OidcProfile, field: OidcConfig["matchBy"][number]) {
+function matchCandidates(
+  config: OidcConfig,
+  profile: OidcProfile,
+  field: OidcConfig["matchBy"][number],
+) {
   if (field === "username") {
     if (!profile.username) return [];
     // Case-insensitive: Pocket ID, like many providers, only allows lowercase
@@ -143,7 +171,8 @@ function createUser(config: OidcConfig, profile: OidcProfile, timestamp: number)
     ? db.select().from(users).where(isNull(users.passwordHash)).orderBy(users.createdAt).get()
     : undefined;
   warnAboutUnmatchedAccounts(config, profile, placeholder?.id);
-  const username = profile.username && !usernameTaken(profile.username, placeholder?.id) ? profile.username : null;
+  const username =
+    profile.username && !usernameTaken(profile.username, placeholder?.id) ? profile.username : null;
   const values = {
     username,
     name: profile.name || profile.username || profile.email || "User",
@@ -156,7 +185,9 @@ function createUser(config: OidcConfig, profile: OidcProfile, timestamp: number)
   if (placeholder) {
     db.update(users).set(values).where(eq(users.id, userId)).run();
   } else {
-    db.insert(users).values({ id: userId, ...values, createdAt: timestamp }).run();
+    db.insert(users)
+      .values({ id: userId, ...values, createdAt: timestamp })
+      .run();
   }
   linkIdentity(profile, userId, timestamp);
   return db.select().from(users).where(eq(users.id, userId)).get()!;
@@ -197,7 +228,13 @@ function linkedToIssuer(userId: string, issuer: string) {
 
 function linkIdentity(profile: OidcProfile, userId: string, timestamp: number) {
   db.insert(userIdentities)
-    .values({ issuer: profile.issuer, subject: profile.subject, userId, createdAt: timestamp, lastLoginAt: timestamp })
+    .values({
+      issuer: profile.issuer,
+      subject: profile.subject,
+      userId,
+      createdAt: timestamp,
+      lastLoginAt: timestamp,
+    })
     .run();
 }
 
@@ -218,16 +255,28 @@ function usernameTaken(username: string, exceptUserId: string | undefined) {
  * likely surprise in this whole flow, and it is always a configuration
  * choice. Say so in the log, naming the variable that would have linked them.
  */
-function warnAboutUnmatchedAccounts(config: OidcConfig, profile: OidcProfile, exceptUserId: string | undefined) {
+function warnAboutUnmatchedAccounts(
+  config: OidcConfig,
+  profile: OidcProfile,
+  exceptUserId: string | undefined,
+) {
   const unlinked = (candidates: UserRow[]) =>
     candidates.some((user) => user.id !== exceptUserId && !linkedToIssuer(user.id, profile.issuer));
-  if (profile.username && !config.matchBy.includes("username") && unlinked(usersWithUsername(profile.username))) {
+  if (
+    profile.username &&
+    !config.matchBy.includes("username") &&
+    unlinked(usersWithUsername(profile.username))
+  ) {
     console.warn(
       `OIDC: creating a new account for "${profile.username}" although an existing account has that username. Set CARMEL_OIDC_MATCH_BY=username to link to it instead.`,
     );
   }
   if (profile.email && !config.matchBy.includes("email")) {
-    const sameEmail = db.select().from(users).where(eq(sql`lower(${users.email})`, profile.email.toLowerCase())).all();
+    const sameEmail = db
+      .select()
+      .from(users)
+      .where(eq(sql`lower(${users.email})`, profile.email.toLowerCase()))
+      .all();
     if (unlinked(sameEmail)) {
       console.warn(
         `OIDC: creating a new account for subject ${profile.subject} although an existing account has the same email. Set CARMEL_OIDC_MATCH_BY=email to link to it instead.`,

@@ -20,7 +20,8 @@ test("Pi's own overflow recovery is announced, so the client can clear the error
   const scene = await setupScene((callCount) => {
     // 0: the turn overflows. 1: the summarization Pi's recovery makes.
     // 2: Pi's retried generation, which now fits.
-    if (callCount === 0) return fauxAssistantMessage("", { stopReason: "error", errorMessage: OVERFLOW });
+    if (callCount === 0)
+      return fauxAssistantMessage("", { stopReason: "error", errorMessage: OVERFLOW });
     if (callCount === 1) return fauxAssistantMessage("Summary of the conversation so far.");
     return fauxAssistantMessage("Here is the answer.");
   });
@@ -56,11 +57,16 @@ test("an overflow that survives Pi's compaction is reported as unrecoverable", a
 test("a failed overflow compaction warns once and is not reported again as unrecoverable", async () => {
   // Everything errors, so Pi's summarization fails too: the user hears about
   // the failed compaction, and the overflow is not reported a second time.
-  const scene = await setupScene(() => fauxAssistantMessage("", { stopReason: "error", errorMessage: OVERFLOW }));
+  const scene = await setupScene(() =>
+    fauxAssistantMessage("", { stopReason: "error", errorMessage: OVERFLOW }),
+  );
 
   await scene.prompt("go");
 
-  assert.deepEqual(scene.emitted().map((event) => event.type), ["context_pressure"]);
+  assert.deepEqual(
+    scene.emitted().map((event) => event.type),
+    ["context_pressure"],
+  );
   const notice = scene.emitted()[0] as Extract<AgentRunEvent, { type: "context_pressure" }>;
   assert.equal(notice.level, "warning");
   assert.match(notice.message, /Automatic compaction failed/);
@@ -104,23 +110,38 @@ test("an overflow Pi declined to compact says there was nothing to summarize", (
   } as never);
   reporter.reportUnrecoveredOverflow();
 
-  assert.deepEqual(emitted.map((event) => event.type), ["context_pressure"]);
+  assert.deepEqual(
+    emitted.map((event) => event.type),
+    ["context_pressure"],
+  );
   assert.match((emitted[0] as { message: string }).message, /no older history to summarize/);
 });
 
 async function setupScene(respond: (callCount: number) => AgentMessage) {
   const { sessionId } = createSession();
   // Prior history, so compaction has something to summarize.
-  await replacePiSessionMessages(sessionId, [userMessage("earlier question"), fauxAssistantMessage("earlier answer")]);
+  await replacePiSessionMessages(sessionId, [
+    userMessage("earlier question"),
+    fauxAssistantMessage("earlier answer"),
+  ]);
 
-  const faux = fauxProvider({ provider: `faux-recovery-${crypto.randomUUID()}`, tokensPerSecond: 5_000 });
+  const faux = fauxProvider({
+    provider: `faux-recovery-${crypto.randomUUID()}`,
+    tokensPerSecond: 5_000,
+  });
   const models = createModels();
   models.setProvider(faux.provider);
-  const step = (_context: unknown, _options: unknown, state: { callCount: number }) => respond(state.callCount - 1);
+  const step = (_context: unknown, _options: unknown, state: { callCount: number }) =>
+    respond(state.callCount - 1);
   faux.setResponses([step, step, step, step] as never);
 
   const model = faux.getModel();
-  const pi = await attachTestHarness(await openPiSession(sessionId), { models, model, systemPrompt: "Test assistant", compaction: { enabled: true, reserveTokens: 1_024, keepRecentTokens: 1, backgroundTokens: 0 } });
+  const pi = await attachTestHarness(await openPiSession(sessionId), {
+    models,
+    model,
+    systemPrompt: "Test assistant",
+    compaction: { enabled: true, reserveTokens: 1_024, keepRecentTokens: 1, backgroundTokens: 0 },
+  });
   const emitted: AgentRunEvent[] = [];
   const reporter = new ContextReporter(model.contextWindow, (event) => emitted.push(event));
   const unsubscribe = pi.observe((event) => reporter.observe(event));
@@ -143,10 +164,11 @@ async function setupScene(respond: (callCount: number) => AgentMessage) {
 
 function describe(message: AgentMessage) {
   const record = message as { role: string; content: unknown; errorMessage?: string };
-  const text = typeof record.content === "string"
-    ? record.content
-    : Array.isArray(record.content)
-      ? record.content.map((part) => (part as { text?: string }).text ?? "").join("")
-      : "";
+  const text =
+    typeof record.content === "string"
+      ? record.content
+      : Array.isArray(record.content)
+        ? record.content.map((part) => (part as { text?: string }).text ?? "").join("")
+        : "";
   return `${record.role}:${text}${record.errorMessage ? `|${record.errorMessage}` : ""}`;
 }

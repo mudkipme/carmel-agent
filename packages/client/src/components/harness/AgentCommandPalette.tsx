@@ -110,7 +110,9 @@ export function AgentCommandPalette({ agent, onInsert, className }: AgentCommand
             icon={FileTextIcon}
             onSelect={insertCommand}
           />
-          {groupedCommands.prompt.length > 0 && groupedCommands.skill.length > 0 ? <CommandSeparator /> : null}
+          {groupedCommands.prompt.length > 0 && groupedCommands.skill.length > 0 ? (
+            <CommandSeparator />
+          ) : null}
           <CommandSection
             heading="Skill Commands"
             commands={groupedCommands.skill}
@@ -148,9 +150,14 @@ function CommandSection({ heading, commands, icon: Icon, onSelect }: CommandSect
         >
           <Icon />
           <div className="flex min-w-0 flex-col">
-            <span className="truncate">{command.commandText.startsWith("/") ? `/${command.name}` : command.name}</span>
+            <span className="truncate">
+              {command.commandText.startsWith("/") ? `/${command.name}` : command.name}
+            </span>
             <span className="truncate text-xs text-muted-foreground">
-              {command.description || command.argumentHint || command.sourcePath || command.commandText}
+              {command.description ||
+                command.argumentHint ||
+                command.sourcePath ||
+                command.commandText}
             </span>
           </div>
         </CommandItem>
@@ -169,8 +176,13 @@ function groupCommands(commands: AgentSlashCommand[]) {
 }
 
 function isSlashCommandTrigger(event: KeyboardEvent) {
-  if (event.defaultPrevented || event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return false;
+  if (event.defaultPrevented || event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey)
+    return false;
   if (!(event.target instanceof HTMLTextAreaElement)) return false;
   if (!event.target.closest(".agent-chat-host")) return false;
-  return event.target.value.length === 0 && event.target.selectionStart === 0 && event.target.selectionEnd === 0;
+  return (
+    event.target.value.length === 0 &&
+    event.target.selectionStart === 0 &&
+    event.target.selectionEnd === 0
+  );
 }

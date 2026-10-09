@@ -7,17 +7,14 @@ export const DEFAULT_EMBEDDING_MODEL =
   "hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf";
 
 export function knowledgeEmbeddingModel() {
-  return (
-    process.env.CARMEL_KNOWLEDGE_EMBED_MODEL?.trim() || DEFAULT_EMBEDDING_MODEL
-  );
+  return process.env.CARMEL_KNOWLEDGE_EMBED_MODEL?.trim() || DEFAULT_EMBEDDING_MODEL;
 }
 
 export async function knowledgeModelPlan() {
   const embeddingModel = knowledgeEmbeddingModel();
   const modelCacheDir = resolve(dataDir, "knowledge-models");
   await mkdir(modelCacheDir, { recursive: true });
-  if (embeddingModel.startsWith("hf:"))
-    return { embeddingModel, modelCacheDir };
+  if (embeddingModel.startsWith("hf:")) return { embeddingModel, modelCacheDir };
   if (!isAbsolute(embeddingModel) || !embeddingModel.endsWith(".gguf")) {
     throw new Error(
       "CARMEL_KNOWLEDGE_EMBED_MODEL must be an hf: URI or an absolute GGUF file path.",
@@ -30,8 +27,7 @@ export async function knowledgeModelPlan() {
     );
   });
   const info = await stat(hostPath);
-  if (!info.isFile())
-    throw new Error("CARMEL_KNOWLEDGE_EMBED_MODEL must identify a GGUF file.");
+  if (!info.isFile()) throw new Error("CARMEL_KNOWLEDGE_EMBED_MODEL must identify a GGUF file.");
   return {
     embeddingModel,
     modelCacheDir,

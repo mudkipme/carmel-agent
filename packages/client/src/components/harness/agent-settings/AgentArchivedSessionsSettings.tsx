@@ -66,17 +66,24 @@ export function AgentArchivedSessionsSettings({ agentId }: { agentId: string }) 
       />
 
       {sessions === undefined ? (
-        error ? null : <p className="text-sm text-muted-foreground">Loading…</p>
+        error ? null : (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        )
       ) : sessions.length === 0 ? (
         <p className="text-sm text-muted-foreground">No archived sessions.</p>
       ) : (
         <ul className="grid gap-2">
           {sessions.map((session) => (
-            <li key={session.id} className="flex items-center justify-between gap-2 rounded-md border p-3">
+            <li
+              key={session.id}
+              className="flex items-center justify-between gap-2 rounded-md border p-3"
+            >
               <div className="min-w-0">
                 <p className="truncate font-medium">{session.title}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {session.archivedAt ? `Archived ${formatRelativeTime(session.archivedAt)} ago` : "Archived"}
+                  {session.archivedAt
+                    ? `Archived ${formatRelativeTime(session.archivedAt)} ago`
+                    : "Archived"}
                 </p>
               </div>
               <div className="flex shrink-0 gap-1">
@@ -84,7 +91,9 @@ export function AgentArchivedSessionsSettings({ agentId }: { agentId: string }) 
                   variant="ghost"
                   size="sm"
                   disabled={busy}
-                  onClick={() => void act(() => restoreSession(session.id), "Unable to restore session")}
+                  onClick={() =>
+                    void act(() => restoreSession(session.id), "Unable to restore session")
+                  }
                 >
                   <ArchiveRestoreIcon data-icon="inline-start" />
                   Restore

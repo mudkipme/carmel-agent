@@ -3,18 +3,12 @@
 import { createInterface } from "node:readline";
 import { readFile, mkdir } from "node:fs/promises";
 const packageRoot = "/usr/local/lib/node_modules/@tobilu/qmd";
-const { version } = JSON.parse(
-  await readFile(`${packageRoot}/package.json`, "utf8"),
-);
+const { version } = JSON.parse(await readFile(`${packageRoot}/package.json`, "utf8"));
 if (version !== "2.8.3")
-  throw new Error(
-    `Expected qmd 2.8.3, found ${version}. Update the runner image.`,
-  );
+  throw new Error(`Expected qmd 2.8.3, found ${version}. Update the runner image.`);
 console.log = (...args) => console.error(...args);
 const { createStore } = await import(`file://${packageRoot}/dist/index.js`);
-const { setDefaultLlamaCpp } = await import(
-  `file://${packageRoot}/dist/llm.js`
-);
+const { setDefaultLlamaCpp } = await import(`file://${packageRoot}/dist/llm.js`);
 const { resolveModelFile } = await import(
   `file://${packageRoot}/node_modules/node-llama-cpp/dist/index.js`
 );
@@ -42,11 +36,7 @@ async function status() {
   return {
     documents: result.totalDocuments,
     needsEmbedding: result.needsEmbedding,
-    backend: device
-      ? device.gpuOffloading
-        ? String(device.gpu)
-        : "cpu"
-      : null,
+    backend: device ? (device.gpuOffloading ? String(device.gpu) : "cpu") : null,
     devices: device?.gpuDevices ?? [],
   };
 }
@@ -56,9 +46,7 @@ async function prepareEmbedding() {
   if (!model.gpuLayers) {
     device = { ...device, gpuOffloading: false, gpuDevices: [] };
     if (["vulkan", "cuda"].includes(acceleration))
-      throw new Error(
-        "The embedding model did not offload any layers to the requested GPU.",
-      );
+      throw new Error("The embedding model did not offload any layers to the requested GPU.");
   }
 }
 async function handle(request) {
@@ -100,8 +88,7 @@ async function handle(request) {
   if (request.op === "prepare") {
     const llm = store.internal.llm;
     // resolveModel enforces offline mode and validates GGUF files.
-    for (const uri of [llm.generateModelUri, llm.rerankModelUri])
-      await llm.resolveModel(uri);
+    for (const uri of [llm.generateModelUri, llm.rerankModelUri]) await llm.resolveModel(uri);
     return status();
   }
   if (request.op === "update") {
@@ -168,8 +155,7 @@ for await (const line of createInterface({
 })) {
   let id;
   try {
-    if (Buffer.byteLength(line) > 256 * 1024)
-      throw new Error("Request too large");
+    if (Buffer.byteLength(line) > 256 * 1024) throw new Error("Request too large");
     const request = JSON.parse(line);
     id = request.id;
     const result = await handle(request);

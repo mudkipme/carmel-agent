@@ -2,12 +2,7 @@ import { type FormEvent } from "react";
 import type { IssueCreateCommand, IssuePriority } from "@carmel-agent/shared";
 import { useSessionDraft } from "@/hooks/use-session-draft";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldDescription,
-} from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -56,10 +51,7 @@ export function IssueBriefForm({
       ...(!initial
         ? {
             status: "backlog",
-            queue:
-              (event.nativeEvent as SubmitEvent).submitter?.getAttribute(
-                "name",
-              ) === "queue",
+            queue: (event.nativeEvent as SubmitEvent).submitter?.getAttribute("name") === "queue",
           }
         : {}),
     });
@@ -88,9 +80,7 @@ export function IssueBriefForm({
             maxLength={40000}
             className="min-h-40"
             value={description}
-            onChange={(e) =>
-              setDraft({ ...draft, description: e.target.value })
-            }
+            onChange={(e) => setDraft({ ...draft, description: e.target.value })}
             placeholder="Describe the outcome, context, and constraints."
           />
         </Field>
@@ -101,30 +91,22 @@ export function IssueBriefForm({
           <div className="mt-4 flex flex-col gap-4">
             {" "}
             <Field>
-              <FieldLabel htmlFor="issue-criteria">
-                Acceptance criteria
-              </FieldLabel>
+              <FieldLabel htmlFor="issue-criteria">Acceptance criteria</FieldLabel>
               <Textarea
                 id="issue-criteria"
                 className="min-h-24"
                 value={criteria}
-                onChange={(e) =>
-                  setDraft({ ...draft, criteria: e.target.value })
-                }
+                onChange={(e) => setDraft({ ...draft, criteria: e.target.value })}
                 placeholder="One criterion per line"
               />
-              <FieldDescription>
-                What will you check before accepting the result?
-              </FieldDescription>
+              <FieldDescription>What will you check before accepting the result?</FieldDescription>
             </Field>
             <div className="flex flex-wrap gap-4">
               <Field className="w-40">
                 <FieldLabel htmlFor="issue-priority">Priority</FieldLabel>
                 <Select
                   value={priority}
-                  onValueChange={(v) =>
-                    setDraft({ ...draft, priority: v as IssuePriority })
-                  }
+                  onValueChange={(v) => setDraft({ ...draft, priority: v as IssuePriority })}
                 >
                   <SelectTrigger id="issue-priority">
                     <SelectValue />

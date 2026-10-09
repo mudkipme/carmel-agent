@@ -30,7 +30,11 @@ test("remote Pi catalogs are persisted across runtimes and retained after refres
     .set({ apiKey: "test-api-key" })
     .where(eq(providerConfigs.id, providerConfigId))
     .run();
-  const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).get();
+  const providerConfig = db
+    .select()
+    .from(providerConfigs)
+    .where(eq(providerConfigs.id, providerConfigId))
+    .get();
   assert.ok(providerConfig);
 
   let failRefresh = false;
@@ -55,7 +59,14 @@ test("remote Pi catalogs are persisted across runtimes and retained after refres
     force: true,
     modelsStore: store,
   });
-  assert.ok(requests.some((url) => url.origin === catalogBaseUrl && url.pathname === "/api/models/providers/openai" && url.searchParams.get("types") === "chat,image,classifier"));
+  assert.ok(
+    requests.some(
+      (url) =>
+        url.origin === catalogBaseUrl &&
+        url.pathname === "/api/models/providers/openai" &&
+        url.searchParams.get("types") === "chat,image,classifier",
+    ),
+  );
   assert.ok(refreshed.some((model) => model.id === remoteModel.id));
 
   const restored = await readProviderModels(providerConfig, {
@@ -82,7 +93,11 @@ test("the model picker read does not wait on an unresponsive catalog host", asyn
     .set({ apiKey: "test-api-key" })
     .where(eq(providerConfigs.id, providerConfigId))
     .run();
-  const providerConfig = db.select().from(providerConfigs).where(eq(providerConfigs.id, providerConfigId)).get();
+  const providerConfig = db
+    .select()
+    .from(providerConfigs)
+    .where(eq(providerConfigs.id, providerConfigId))
+    .get();
   assert.ok(providerConfig);
 
   const catalogBaseUrl = "https://catalog.test";
@@ -109,7 +124,10 @@ test("the model picker read does not wait on an unresponsive catalog host", asyn
 
   hang = true;
   const models = await withDeadline(
-    readProviderModels(providerConfig, { catalogBaseUrl, modelsStore: new SqliteModelsStore(sqlite) }),
+    readProviderModels(providerConfig, {
+      catalogBaseUrl,
+      modelsStore: new SqliteModelsStore(sqlite),
+    }),
     2_000,
   );
   assert.ok(models.some((model) => model.id === remoteModel.id));

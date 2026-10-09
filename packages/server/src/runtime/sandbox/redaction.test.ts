@@ -8,16 +8,20 @@ const drain = (secrets: Array<{ name: string; value: string }>, chunks: string[]
 };
 
 test("a secret contained in one chunk is replaced by its placeholder", () => {
-  const output = drain([{ name: "GITHUB_TOKEN", value: "ghp_supersecretvalue" }], [
-    "GITHUB_TOKEN=ghp_supersecretvalue\n",
-  ]);
+  const output = drain(
+    [{ name: "GITHUB_TOKEN", value: "ghp_supersecretvalue" }],
+    ["GITHUB_TOKEN=ghp_supersecretvalue\n"],
+  );
   assert.equal(output, "GITHUB_TOKEN=[redacted:GITHUB_TOKEN]\n");
 });
 
 test("a secret split across chunk boundaries is still replaced", () => {
   const secret = "ghp_supersecretvalue";
   const chunks = [...`prefix ${secret} suffix`].map((character) => character);
-  assert.equal(drain([{ name: "GITHUB_TOKEN", value: secret }], chunks), "prefix [redacted:GITHUB_TOKEN] suffix");
+  assert.equal(
+    drain([{ name: "GITHUB_TOKEN", value: secret }], chunks),
+    "prefix [redacted:GITHUB_TOKEN] suffix",
+  );
 });
 
 test("output is released rather than held indefinitely", () => {

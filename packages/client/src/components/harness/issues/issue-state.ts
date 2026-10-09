@@ -16,10 +16,7 @@ type IssueState = {
   className: string;
   attention: "blocking" | "review" | "none";
 };
-const states: Record<
-  IssueStatus,
-  [string, LucideIcon, IssueState["attention"]]
-> = {
+const states: Record<IssueStatus, [string, LucideIcon, IssueState["attention"]]> = {
   backlog: ["Backlog", CircleDashedIcon, "none"],
   todo: ["Backlog", CircleDotIcon, "none"],
   queued: ["Queued", CircleDotIcon, "none"],
@@ -39,9 +36,7 @@ export function describeIssue(issue: Issue): IssueState {
     issue.lastRunOutcome !== "succeeded"
   )
     return {
-      label: ["interrupted", "cancelled"].includes(issue.lastRunOutcome)
-        ? "Stopped"
-        : "Run failed",
+      label: ["interrupted", "cancelled"].includes(issue.lastRunOutcome) ? "Stopped" : "Run failed",
       Icon: OctagonAlertIcon,
       attention: "blocking",
       className: "text-destructive",
@@ -68,9 +63,7 @@ export function sortIssues(a: Issue, b: Issue) {
   if (isClosedIssue(a) !== isClosedIssue(b)) return isClosedIssue(a) ? 1 : -1;
   return b.updatedAt - a.updatedAt;
 }
-export function issueGroup(
-  issue: Issue,
-): "Working" | "Queued" | "Needs you" | "Backlog" | "Done" {
+export function issueGroup(issue: Issue): "Working" | "Queued" | "Needs you" | "Backlog" | "Done" {
   if (issue.running) return "Working";
   if (isClosedIssue(issue)) return "Done";
   if (issue.status === "queued") return "Queued";

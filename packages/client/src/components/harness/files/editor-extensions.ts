@@ -86,7 +86,9 @@ export const editorTheme = EditorView.theme({
   ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, .cm-content ::selection": {
     backgroundColor: "color-mix(in oklch, var(--primary) 22%, transparent)",
   },
-  ".cm-activeLine": { backgroundColor: "color-mix(in oklch, var(--muted-foreground) 8%, transparent)" },
+  ".cm-activeLine": {
+    backgroundColor: "color-mix(in oklch, var(--muted-foreground) 8%, transparent)",
+  },
   ".cm-selectionMatch": {
     backgroundColor: "color-mix(in oklch, var(--primary) 16%, transparent)",
   },
@@ -146,11 +148,21 @@ export const editorTheme = EditorView.theme({
 // Token colors need concrete hues that the neutral design tokens don't provide;
 // these track GitHub's light/dark syntax palettes.
 const lightHighlightStyle = HighlightStyle.define([
-  { tag: [tags.comment, tags.lineComment, tags.blockComment], color: "#6e7781", fontStyle: "italic" },
-  { tag: [tags.keyword, tags.moduleKeyword, tags.modifier, tags.self, tags.null], color: "#cf222e" },
+  {
+    tag: [tags.comment, tags.lineComment, tags.blockComment],
+    color: "#6e7781",
+    fontStyle: "italic",
+  },
+  {
+    tag: [tags.keyword, tags.moduleKeyword, tags.modifier, tags.self, tags.null],
+    color: "#cf222e",
+  },
   { tag: [tags.string, tags.special(tags.string), tags.regexp], color: "#0a3069" },
   { tag: [tags.number, tags.bool, tags.atom, tags.constant(tags.variableName)], color: "#0550ae" },
-  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.labelName], color: "#8250df" },
+  {
+    tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.labelName],
+    color: "#8250df",
+  },
   { tag: [tags.typeName, tags.className, tags.namespace, tags.tagName], color: "#953800" },
   { tag: [tags.propertyName, tags.attributeName], color: "#0550ae" },
   { tag: [tags.variableName, tags.definition(tags.variableName)], color: "#24292f" },
@@ -165,11 +177,21 @@ const lightHighlightStyle = HighlightStyle.define([
 ]);
 
 const darkHighlightStyle = HighlightStyle.define([
-  { tag: [tags.comment, tags.lineComment, tags.blockComment], color: "#8b949e", fontStyle: "italic" },
-  { tag: [tags.keyword, tags.moduleKeyword, tags.modifier, tags.self, tags.null], color: "#ff7b72" },
+  {
+    tag: [tags.comment, tags.lineComment, tags.blockComment],
+    color: "#8b949e",
+    fontStyle: "italic",
+  },
+  {
+    tag: [tags.keyword, tags.moduleKeyword, tags.modifier, tags.self, tags.null],
+    color: "#ff7b72",
+  },
   { tag: [tags.string, tags.special(tags.string), tags.regexp], color: "#a5d6ff" },
   { tag: [tags.number, tags.bool, tags.atom, tags.constant(tags.variableName)], color: "#79c0ff" },
-  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.labelName], color: "#d2a8ff" },
+  {
+    tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.labelName],
+    color: "#d2a8ff",
+  },
   { tag: [tags.typeName, tags.className, tags.namespace, tags.tagName], color: "#ffa657" },
   { tag: [tags.propertyName, tags.attributeName], color: "#79c0ff" },
   { tag: [tags.variableName, tags.definition(tags.variableName)], color: "#e6edf3" },

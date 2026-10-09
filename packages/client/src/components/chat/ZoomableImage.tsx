@@ -22,7 +22,11 @@ export function ZoomableImage({ src, alt, caption }: ZoomableImageProps) {
         >
           <img className="aspect-square w-full object-cover" src={src} alt={alt} />
         </button>
-        {caption ? <figcaption className="truncate px-2 py-1 text-xs text-muted-foreground">{caption}</figcaption> : null}
+        {caption ? (
+          <figcaption className="truncate px-2 py-1 text-xs text-muted-foreground">
+            {caption}
+          </figcaption>
+        ) : null}
       </figure>
       {open ? (
         <Suspense fallback={null}>

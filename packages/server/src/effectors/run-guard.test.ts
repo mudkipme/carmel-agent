@@ -6,7 +6,8 @@ const LIMITS = { maxToolCalls: 3, stallTimeoutMs: 1_000 };
 
 test("tool calls up to the ceiling are allowed", () => {
   const { guard } = fixture();
-  for (let call = 0; call < LIMITS.maxToolCalls; call++) assert.equal(guard.recordToolCall(), undefined);
+  for (let call = 0; call < LIMITS.maxToolCalls; call++)
+    assert.equal(guard.recordToolCall(), undefined);
   assert.equal(guard.stop, undefined);
   assert.equal(guard.toolCalls, 3);
 });
@@ -67,5 +68,10 @@ test("the shipped defaults do not shape ordinary work", () => {
 function fixture() {
   let clock = 1_000_000;
   const guard = new RunGuard(LIMITS, () => clock);
-  return { guard, advance: (ms: number) => { clock += ms; } };
+  return {
+    guard,
+    advance: (ms: number) => {
+      clock += ms;
+    },
+  };
 }

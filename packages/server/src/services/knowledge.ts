@@ -1,14 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import {
-  mkdir,
-  open,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, open, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import { and, eq, isNull } from "drizzle-orm";
@@ -31,12 +22,7 @@ import {
   type MemoryInput,
 } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import {
-  agents,
-  knowledgeConfigs,
-  knowledgeMemories,
-  knowledgeSources,
-} from "../db/schema.ts";
+import { agents, knowledgeConfigs, knowledgeMemories, knowledgeSources } from "../db/schema.ts";
 import { dataDir } from "../paths.ts";
 import { readVisibleAgent, type AgentRecord } from "./agent-access.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
@@ -47,10 +33,7 @@ import {
 } from "../runtime/knowledge/worker-client.ts";
 import { knowledgeLock } from "../runtime/knowledge/queue.ts";
 
-import {
-  knowledgeEmbeddingModel,
-  knowledgeModelPlan,
-} from "../runtime/knowledge/models.ts";
+import { knowledgeEmbeddingModel, knowledgeModelPlan } from "../runtime/knowledge/models.ts";
 
 const initialStatus: KnowledgeStatus = {
   state: "idle",
@@ -94,14 +77,8 @@ export function knowledgeDir(agentId: string) {
   return resolve(dataDir, "knowledge", hash(agentId));
 }
 function config(agentId: string) {
-  const row = db
-    .select()
-    .from(knowledgeConfigs)
-    .where(eq(knowledgeConfigs.agentId, agentId))
-    .get();
-  return row
-    ? { ...row, settings: knowledgeSettingsSchema.parse(row.settings) }
-    : undefined;
+  const row = db.select().from(knowledgeConfigs).where(eq(knowledgeConfigs.agentId, agentId)).get();
+  return row ? { ...row, settings: knowledgeSettingsSchema.parse(row.settings) } : undefined;
 }
 export function knowledgeEnabled(agentId: string) {
   return config(agentId)?.settings.enabled === true;
@@ -131,10 +108,7 @@ function requireAgent(userId: string, agentId: string, owner = false) {
   if (owner && agent.ownerUserId !== userId)
     throw new KnowledgeError("Knowledge settings are owner-only.", 403);
   if (!agent.permissions.read)
-    throw new KnowledgeError(
-      "Knowledge requires the agent's read permission.",
-      403,
-    );
+    throw new KnowledgeError("Knowledge requires the agent's read permission.", 403);
   return agent;
 }
 function requireWrite(agent: AgentRecord, editing = false) {
@@ -145,11 +119,7 @@ function requireWrite(agent: AgentRecord, editing = false) {
     );
 }
 function sources(agentId: string) {
-  return db
-    .select()
-    .from(knowledgeSources)
-    .where(eq(knowledgeSources.agentId, agentId))
-    .all();
+  return db.select().from(knowledgeSources).where(eq(knowledgeSources.agentId, agentId)).all();
 }
 function inside(root: string, path: string) {
   const rel = relative(root, path);
@@ -171,28 +141,17 @@ async function sourceRoot(agent: AgentRecord, path: string) {
   const canonical = await realpath(result).catch(() => {
     throw new KnowledgeError("Source directory does not exist.");
   });
-  const allowed = await Promise.all(
-    roots.map((p) => realpath(p).catch(() => p)),
-  );
+  const allowed = await Promise.all(roots.map((p) => realpath(p).catch(() => p)));
   if (!allowed.some((root) => inside(root, canonical)))
-    throw new KnowledgeError(
-      "Source is outside the permitted document roots.",
-      403,
-    );
+    throw new KnowledgeError("Source is outside the permitted document roots.", 403);
   if (!(await stat(canonical)).isDirectory())
     throw new KnowledgeError("Choose a directory containing Markdown files.");
-  if (canonical.includes(":"))
-    throw new KnowledgeError("Source paths cannot contain colons.");
+  if (canonical.includes(":")) throw new KnowledgeError("Source paths cannot contain colons.");
   return canonical;
 }
-async function plan(
-  agent: AgentRecord,
-  network = false,
-): Promise<KnowledgeWorkerPlan> {
-  const settings =
-    config(agent.id)?.settings ?? knowledgeSettingsSchema.parse({});
-  if (!settings.enabled)
-    throw new KnowledgeError("Knowledge is disabled for this agent.", 409);
+async function plan(agent: AgentRecord, network = false): Promise<KnowledgeWorkerPlan> {
+  const settings = config(agent.id)?.settings ?? knowledgeSettingsSchema.parse({});
+  if (!settings.enabled) throw new KnowledgeError("Knowledge is disabled for this agent.", 409);
   const stateDir = knowledgeDir(agent.id);
   await Promise.all(
     ["notes", "home", "cache", "config"].map((p) =>
@@ -224,11 +183,7 @@ async function plan(
   };
   return result;
 }
-function setStatus(
-  agentId: string,
-  patch: Partial<KnowledgeStatus>,
-  dirty?: boolean,
-) {
+function setStatus(agentId: string, patch: Partial<KnowledgeStatus>, dirty?: boolean) {
   const current = config(agentId);
   if (!current) return;
   db.update(knowledgeConfigs)
@@ -256,15 +211,9 @@ export async function deleteAgentKnowledge(agentId: string) {
   return knowledgeLock(agentId, async () => {
     await stopKnowledgeWorker(agentId);
     await rm(knowledgeDir(agentId), { recursive: true, force: true });
-    db.delete(knowledgeConfigs)
-      .where(eq(knowledgeConfigs.agentId, agentId))
-      .run();
-    db.delete(knowledgeSources)
-      .where(eq(knowledgeSources.agentId, agentId))
-      .run();
-    db.delete(knowledgeMemories)
-      .where(eq(knowledgeMemories.agentId, agentId))
-      .run();
+    db.delete(knowledgeConfigs).where(eq(knowledgeConfigs.agentId, agentId)).run();
+    db.delete(knowledgeSources).where(eq(knowledgeSources.agentId, agentId)).run();
+    db.delete(knowledgeMemories).where(eq(knowledgeMemories.agentId, agentId)).run();
   });
 }
 
@@ -278,9 +227,7 @@ export async function knowledgeOverview(
     settings: current?.settings ?? knowledgeSettingsSchema.parse({}),
     embeddingModel: knowledgeEmbeddingModel(),
     sources: sources(agentId),
-    status: current?.settings.enabled
-      ? current.status
-      : { ...initialStatus, state: "disabled" },
+    status: current?.settings.enabled ? current.status : { ...initialStatus, state: "disabled" },
     memories: await listMemories(agentId),
   };
 }
@@ -313,9 +260,7 @@ export async function addKnowledgeSource(
     const data = knowledgeSourceInputSchema.parse(input);
     await sourceRoot(agent, data.path);
     if (sources(agentId).length >= 20)
-      throw new KnowledgeError(
-        "An agent can register up to 20 source directories.",
-      );
+      throw new KnowledgeError("An agent can register up to 20 source directories.");
     const source = {
       ...data,
       id: `s${randomUUID().replaceAll("-", "")}`,
@@ -328,40 +273,24 @@ export async function addKnowledgeSource(
     return source;
   });
 }
-export async function deleteKnowledgeSource(
-  userId: string,
-  agentId: string,
-  sourceId: string,
-) {
+export async function deleteKnowledgeSource(userId: string, agentId: string, sourceId: string) {
   return knowledgeLock(agentId, async () => {
     requireAgent(userId, agentId, true);
     db.delete(knowledgeSources)
-      .where(
-        and(
-          eq(knowledgeSources.id, sourceId),
-          eq(knowledgeSources.agentId, agentId),
-        ),
-      )
+      .where(and(eq(knowledgeSources.id, sourceId), eq(knowledgeSources.agentId, agentId)))
       .run();
     await purgeIndexes(agentId);
   });
 }
 
-async function readCanonical(
-  agent: AgentRecord,
-  sourceId: string,
-  path: string,
-) {
+async function readCanonical(agent: AgentRecord, sourceId: string, path: string) {
   if (
     isAbsolute(path) ||
     path.includes("\\") ||
     path
       .split("/")
       .some(
-        (p) =>
-          !p ||
-          p.startsWith(".") ||
-          ["node_modules", "vendor", "dist", "build"].includes(p),
+        (p) => !p || p.startsWith(".") || ["node_modules", "vendor", "dist", "build"].includes(p),
       ) ||
     !path.endsWith(".md")
   )
@@ -441,14 +370,7 @@ export async function readKnowledge(
   const args = knowledgeReadSchema.parse(input);
   const result = await readCanonical(agent, args.sourceId, args.path);
   requireAgent(userId, agentId);
-  return document(
-    agentId,
-    args.sourceId,
-    args.path,
-    result,
-    args.fromLine,
-    args.maxLines,
-  );
+  return document(agentId, args.sourceId, args.path, result, args.fromLine, args.maxLines);
 }
 
 export async function searchKnowledge(
@@ -478,17 +400,13 @@ export async function searchKnowledge(
       response = workerSearchSchema.parse(
         await (mode === "fast"
           ? callKnowledgeWorker(workerPlan, request, signal)
-          : knowledgeLock("$gpu", () =>
-              callKnowledgeWorker(workerPlan, request, signal),
-            )),
+          : knowledgeLock("$gpu", () => callKnowledgeWorker(workerPlan, request, signal))),
       );
     } catch (error) {
       if (signal?.aborted) throw error;
       if (mode === "fast")
         throw new KnowledgeError(
-          error instanceof Error
-            ? error.message
-            : "Knowledge runner unavailable.",
+          error instanceof Error ? error.message : "Knowledge runner unavailable.",
           503,
         );
       mode = "fast";
@@ -514,10 +432,7 @@ export async function searchKnowledge(
     const hits: KnowledgeSearchResult["hits"] = [];
     const seen = new Set<string>();
     for (const hit of response.hits) {
-      if (
-        !ids.includes(hit.sourceId) ||
-        (args.sourceId && hit.sourceId !== args.sourceId)
-      )
+      if (!ids.includes(hit.sourceId) || (args.sourceId && hit.sourceId !== args.sourceId))
         continue;
       const key = `${hit.sourceId}/${hit.path}`;
       if (seen.has(key)) continue;
@@ -526,8 +441,7 @@ export async function searchKnowledge(
         const text = await readCanonical(currentAgent, hit.sourceId, hit.path);
         if (hit.hash !== text.revision) {
           dirty(agentId);
-          warning ??=
-            "Some indexed documents changed. Refresh the index for current matches.";
+          warning ??= "Some indexed documents changed. Refresh the index for current matches.";
           continue;
         }
         const words = args.query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -535,8 +449,7 @@ export async function searchKnowledge(
           1,
           text.content
             .split(/\r?\n/)
-            .findIndex((l) => words.some((w) => l.toLowerCase().includes(w))) -
-            1,
+            .findIndex((l) => words.some((w) => l.toLowerCase().includes(w))) - 1,
         );
         const doc = document(agentId, hit.sourceId, hit.path, text, line, 12);
         const { content, ...rest } = doc;
@@ -547,16 +460,14 @@ export async function searchKnowledge(
           sourceName:
             hit.sourceId === "memories"
               ? "Saved memories"
-              : (sources(agentId).find((s) => s.id === hit.sourceId)?.name ??
-                "Source"),
+              : (sources(agentId).find((s) => s.id === hit.sourceId)?.name ?? "Source"),
         });
         if (hits.length >= args.limit) break;
       } catch {
         dirty(agentId);
       }
     }
-    if (!config(agentId)?.status.lastUpdatedAt)
-      warning ??= "The index has not been refreshed yet.";
+    if (!config(agentId)?.status.lastUpdatedAt) warning ??= "The index has not been refreshed yet.";
     return { hits, mode, ...(warning ? { warning } : {}) };
   });
 }
@@ -569,10 +480,8 @@ export async function refreshKnowledge(
   deep = false,
 ) {
   requireAgent(userId, agentId, true);
-  if (jobs.has(agentId))
-    throw new KnowledgeError("Knowledge maintenance is already running.", 409);
-  if (!knowledgeEnabled(agentId))
-    throw new KnowledgeError("Enable knowledge first.", 409);
+  if (jobs.has(agentId)) throw new KnowledgeError("Knowledge maintenance is already running.", 409);
+  if (!knowledgeEnabled(agentId)) throw new KnowledgeError("Enable knowledge first.", 409);
   const job = knowledgeLock(agentId, async () => {
     const agent = requireAgent(userId, agentId, true);
     try {
@@ -580,11 +489,7 @@ export async function refreshKnowledge(
       await recoverMemories(agentId);
       const workerPlan = await plan(agent, allowDownloads);
       const updated = workerStatusSchema.parse(
-        await callKnowledgeWorker(
-          workerPlan,
-          { op: "update" },
-          maintenance.signal,
-        ),
+        await callKnowledgeWorker(workerPlan, { op: "update" }, maintenance.signal),
       );
       setStatus(
         agentId,
@@ -593,22 +498,14 @@ export async function refreshKnowledge(
       );
       if (deep) {
         setStatus(agentId, { state: "embedding" });
-        await callKnowledgeWorker(
-          workerPlan,
-          { op: "prepare" },
-          maintenance.signal,
-        );
+        await callKnowledgeWorker(workerPlan, { op: "prepare" }, maintenance.signal);
         setStatus(agentId, { state: "ready" });
       }
       if (embed) {
         setStatus(agentId, { state: "embedding" });
         const embedded = workerStatusSchema.parse(
           await knowledgeLock("$gpu", () =>
-            callKnowledgeWorker(
-              workerPlan,
-              { op: "embed" },
-              maintenance.signal,
-            ),
+            callKnowledgeWorker(workerPlan, { op: "embed" }, maintenance.signal),
           ),
         );
         setStatus(agentId, { ...embedded, state: "ready" });
@@ -616,10 +513,7 @@ export async function refreshKnowledge(
     } catch (error) {
       setStatus(agentId, {
         state: "error",
-        error: String(error instanceof Error ? error.message : error).slice(
-          0,
-          2000,
-        ),
+        error: String(error instanceof Error ? error.message : error).slice(0, 2000),
       });
     }
   });
@@ -635,9 +529,7 @@ export function startKnowledgeScheduler() {
     if (row.settings.enabled) setStatus(row.agentId, { state: "idle" }, true);
   timer = setInterval(
     () =>
-      void tickKnowledge().catch((error) =>
-        console.error("Knowledge maintenance failed", error),
-      ),
+      void tickKnowledge().catch((error) => console.error("Knowledge maintenance failed", error)),
     30_000,
   );
   timer.unref();
@@ -647,18 +539,10 @@ export async function tickKnowledge() {
   if (jobs.size || maintenance.signal.aborted) return;
   for (const row of db.select().from(knowledgeConfigs).all()) {
     if (!row.settings.enabled) continue;
-    if (!row.dirty && Date.now() - (row.status.lastUpdatedAt ?? 0) < 5 * 60_000)
-      continue;
-    const agent = db
-      .select()
-      .from(agents)
-      .where(eq(agents.id, row.agentId))
-      .get();
+    if (!row.dirty && Date.now() - (row.status.lastUpdatedAt ?? 0) < 5 * 60_000) continue;
+    const agent = db.select().from(agents).where(eq(agents.id, row.agentId)).get();
     if (!agent?.permissions.read) continue;
-    if (
-      row.status.state === "error" &&
-      Date.now() - (lastRetry.get(agent.id) ?? 0) < 5 * 60_000
-    )
+    if (row.status.state === "error" && Date.now() - (lastRetry.get(agent.id) ?? 0) < 5 * 60_000)
       continue;
     lastRetry.set(agent.id, Date.now());
     await refreshKnowledge(agent.ownerUserId, agent.id, false).catch(() => {});
@@ -707,12 +591,7 @@ async function listMemories(agentId: string): Promise<SavedMemory[]> {
   const rows = db
     .select()
     .from(knowledgeMemories)
-    .where(
-      and(
-        eq(knowledgeMemories.agentId, agentId),
-        isNull(knowledgeMemories.deletedAt),
-      ),
-    )
+    .where(and(eq(knowledgeMemories.agentId, agentId), isNull(knowledgeMemories.deletedAt)))
     .all();
   return Promise.all(
     rows
@@ -722,10 +601,7 @@ async function listMemories(agentId: string): Promise<SavedMemory[]> {
         agentId,
         title: row.title,
         content: (
-          await readFile(
-            resolve(knowledgeDir(agentId), "notes", `${row.id}.md`),
-            "utf8",
-          )
+          await readFile(resolve(knowledgeDir(agentId), "notes", `${row.id}.md`), "utf8")
         ).replace(/^# [^\n]*\n\n/, ""),
         revision: row.revision,
         contributorId: row.contributorId,
@@ -760,8 +636,7 @@ export async function saveMemory(
           )
           .get()
       : undefined;
-    if (memoryId && !previous)
-      throw new KnowledgeError("Memory not found.", 404);
+    if (memoryId && !previous) throw new KnowledgeError("Memory not found.", 404);
     if (previous && data.expectedRevision !== previous.revision)
       throw new KnowledgeError("Memory changed. Reload before editing.", 409);
     const content = `# ${data.title.replaceAll("\n", " ")}\n\n${data.content}\n`;
@@ -809,10 +684,7 @@ export async function forgetMemory(
       .get();
     if (!previous) throw new KnowledgeError("Memory not found.", 404);
     if (previous.revision !== expectedRevision)
-      throw new KnowledgeError(
-        "Memory changed. Reload before forgetting it.",
-        409,
-      );
+      throw new KnowledgeError("Memory changed. Reload before forgetting it.", 409);
     db.update(knowledgeMemories)
       .set({ deletedAt: Date.now(), pendingContent: null })
       .where(eq(knowledgeMemories.id, memoryId))

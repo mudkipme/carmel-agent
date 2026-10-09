@@ -23,29 +23,19 @@ export function createIssueSlice(
       const revision = (revisions.get(agentId) ?? 0) + 1;
       revisions.set(agentId, revision);
       const loaded = await api.listIssues(agentId, signal);
-      if (
-        signal?.aborted ||
-        revisions.get(agentId) !== revision ||
-        get().activeUserId !== userId
-      )
+      if (signal?.aborted || revisions.get(agentId) !== revision || get().activeUserId !== userId)
         return loaded;
       set((state) => {
-        const current = state.issues.filter(
-          (issue) => issue.agentId === agentId,
-        );
+        const current = state.issues.filter((issue) => issue.agentId === agentId);
         // Polls mostly come back unchanged; keeping the array avoids re-rendering
         // everything that reads it.
         if (JSON.stringify(current) === JSON.stringify(loaded)) return state;
         return {
-          issues: [
-            ...state.issues.filter((issue) => issue.agentId !== agentId),
-            ...loaded,
-          ],
+          issues: [...state.issues.filter((issue) => issue.agentId !== agentId), ...loaded],
         };
       });
       return loaded;
     },
-    createIssue: async (agentId, input) =>
-      cache(await api.createIssue(agentId, input)),
+    createIssue: async (agentId, input) => cache(await api.createIssue(agentId, input)),
   };
 }

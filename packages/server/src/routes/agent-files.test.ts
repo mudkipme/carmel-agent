@@ -29,7 +29,9 @@ test("file routes reject path traversal outside the working directory", async ()
   await mkdir(workspace);
   await writeFile(outside, "outside");
 
-  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), read: true } }));
+  const app = createTestApp(
+    makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), read: true } }),
+  );
   const response = await app.request("/agent_1/files/content?path=../outside.txt");
 
   assert.equal(response.status, 400);
@@ -56,7 +58,9 @@ test("file routes allow edit-only content updates but still reject file creation
     body: JSON.stringify({ path: "new.txt", type: "file" }),
   });
   assert.equal(createResponse.status, 403);
-  assert.deepEqual(await createResponse.json(), { error: "Write permission is disabled for this agent." });
+  assert.deepEqual(await createResponse.json(), {
+    error: "Write permission is disabled for this agent.",
+  });
 });
 
 test("file routes do not create files outside the working directory", async () => {
@@ -65,7 +69,9 @@ test("file routes do not create files outside the working directory", async () =
   const outside = join(root, "escaped.txt");
   await mkdir(workspace);
 
-  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), write: true } }));
+  const app = createTestApp(
+    makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), write: true } }),
+  );
   const response = await app.request("/agent_1/files", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -78,7 +84,10 @@ test("file routes do not create files outside the working directory", async () =
 });
 
 test("write-only file routes can create and rename inside the workspace", async () => {
-  const agent = makeAgent({ workingDirMode: "default", permissions: { ...allPermissions(false), write: true } });
+  const agent = makeAgent({
+    workingDirMode: "default",
+    permissions: { ...allPermissions(false), write: true },
+  });
   const app = createTestApp(agent);
 
   const createResponse = await app.request("/agent_1/files", {
@@ -107,7 +116,9 @@ test("file routes reject reads through symlinks outside the working directory", 
   await writeFile(outside, "outside");
   await symlink(outside, join(workspace, "linked.txt"));
 
-  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), read: true } }));
+  const app = createTestApp(
+    makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), read: true } }),
+  );
   const response = await app.request("/agent_1/files/content?path=linked.txt");
 
   assert.equal(response.status, 400);
@@ -122,7 +133,9 @@ test("file routes reject writes through symlinks outside the working directory",
   await writeFile(outside, "outside");
   await symlink(outside, join(workspace, "linked.txt"));
 
-  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), edit: true } }));
+  const app = createTestApp(
+    makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), edit: true } }),
+  );
   const response = await app.request("/agent_1/files/content", {
     method: "PUT",
     headers: { "content-type": "application/json" },
@@ -141,7 +154,9 @@ test("file routes reject creating through broken symlinks", async () => {
   await mkdir(workspace);
   await symlink(outside, join(workspace, "linked.txt"));
 
-  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), write: true } }));
+  const app = createTestApp(
+    makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), write: true } }),
+  );
   const response = await app.request("/agent_1/files/content", {
     method: "PUT",
     headers: { "content-type": "application/json" },
@@ -161,7 +176,9 @@ test("file routes omit symlinks outside the working directory from listings", as
   await writeFile(outside, "outside");
   await symlink(outside, join(workspace, "linked.txt"));
 
-  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), read: true } }));
+  const app = createTestApp(
+    makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), read: true } }),
+  );
   const response = await app.request("/agent_1/files");
 
   assert.equal(response.status, 200);
@@ -172,7 +189,10 @@ test("file routes omit symlinks outside the working directory from listings", as
 });
 
 test("file routes reject deleting the working directory root", async () => {
-  const agent = makeAgent({ workingDirMode: "default", permissions: { ...allPermissions(false), write: true } });
+  const agent = makeAgent({
+    workingDirMode: "default",
+    permissions: { ...allPermissions(false), write: true },
+  });
   const app = createTestApp(agent);
 
   const response = await app.request("/agent_1/files?path=", { method: "DELETE" });
@@ -187,11 +207,16 @@ test("file routes stream a single file as a download attachment", async () => {
   await writeFile(join(agent.workingDir, "notes déjà.txt"), "downloaded");
   const app = createTestApp(agent);
 
-  const response = await app.request(`/agent_1/files/download?path=${encodeURIComponent("notes déjà.txt")}`);
+  const response = await app.request(
+    `/agent_1/files/download?path=${encodeURIComponent("notes déjà.txt")}`,
+  );
 
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "application/octet-stream");
-  assert.match(response.headers.get("content-disposition") ?? "", /filename\*=UTF-8''notes%20d%C3%A9j%C3%A0\.txt/);
+  assert.match(
+    response.headers.get("content-disposition") ?? "",
+    /filename\*=UTF-8''notes%20d%C3%A9j%C3%A0\.txt/,
+  );
   assert.equal(await response.text(), "downloaded");
 });
 
@@ -221,7 +246,9 @@ test("file routes refuse to download outside the working directory", async () =>
   await mkdir(workspace);
   await writeFile(join(root, "outside.txt"), "outside");
 
-  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), read: true } }));
+  const app = createTestApp(
+    makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), read: true } }),
+  );
   const response = await app.request("/agent_1/files/download?path=../outside.txt");
 
   assert.equal(response.status, 400);
@@ -232,7 +259,10 @@ test("uploads create nested files and refuse to clobber without overwrite", asyn
   const agent = makeAgent({ permissions: { ...allPermissions(false), write: true } });
   const app = createTestApp(agent);
 
-  const created = await app.request("/agent_1/files/upload?path=assets/logo.txt", { method: "PUT", body: "first" });
+  const created = await app.request("/agent_1/files/upload?path=assets/logo.txt", {
+    method: "PUT",
+    body: "first",
+  });
   assert.equal(created.status, 201);
   const entry = await created.json();
   assert.deepEqual(entry, {
@@ -245,7 +275,10 @@ test("uploads create nested files and refuse to clobber without overwrite", asyn
   });
   assert.equal(await readFile(join(agent.workingDir, "assets", "logo.txt"), "utf-8"), "first");
 
-  const conflict = await app.request("/agent_1/files/upload?path=assets/logo.txt", { method: "PUT", body: "second" });
+  const conflict = await app.request("/agent_1/files/upload?path=assets/logo.txt", {
+    method: "PUT",
+    body: "second",
+  });
   assert.equal(conflict.status, 409);
   assert.equal(await readFile(join(agent.workingDir, "assets", "logo.txt"), "utf-8"), "first");
 
@@ -262,8 +295,13 @@ test("uploads stay inside the working directory", async () => {
   const workspace = join(root, "workspace");
   await mkdir(workspace);
 
-  const app = createTestApp(makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), write: true } }));
-  const response = await app.request("/agent_1/files/upload?path=../escaped.txt", { method: "PUT", body: "nope" });
+  const app = createTestApp(
+    makeAgent({ workingDir: workspace, permissions: { ...allPermissions(false), write: true } }),
+  );
+  const response = await app.request("/agent_1/files/upload?path=../escaped.txt", {
+    method: "PUT",
+    body: "nope",
+  });
 
   assert.equal(response.status, 400);
   assert.equal(existsSync(join(root, "escaped.txt")), false);
@@ -285,7 +323,10 @@ test("batch delete reports each path it could not remove", async () => {
   assert.equal(response.status, 200);
   const result = await response.json();
   assert.deepEqual(result.completed, ["logs"]);
-  assert.deepEqual(result.failed.map((failure: { path: string }) => failure.path), ["missing.txt"]);
+  assert.deepEqual(
+    result.failed.map((failure: { path: string }) => failure.path),
+    ["missing.txt"],
+  );
   assert.equal(existsSync(join(agent.workingDir, "logs")), false);
   assert.equal(existsSync(join(agent.workingDir, "keep.txt")), true);
 });
@@ -349,11 +390,18 @@ function createTestApp(agent: AgentRecord) {
     });
     await next();
   });
-  app.route("/", createAgentFilesRoute((userId, agentId) => (userId === "user_1" && agentId === agent.id ? agent : undefined)));
+  app.route(
+    "/",
+    createAgentFilesRoute((userId, agentId) =>
+      userId === "user_1" && agentId === agent.id ? agent : undefined,
+    ),
+  );
   return app;
 }
 
-function makeAgent(overrides: Partial<AgentRecord> & { permissions?: AgentRecord["permissions"] }): AgentRecord {
+function makeAgent(
+  overrides: Partial<AgentRecord> & { permissions?: AgentRecord["permissions"] },
+): AgentRecord {
   return {
     id: "agent_1",
     ownerUserId: "user_1",

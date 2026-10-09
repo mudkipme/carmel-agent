@@ -81,7 +81,9 @@ export function ImportSessionsDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Import Sessions</DialogTitle>
-          <DialogDescription>Import Open WebUI JSON exports into the selected agent.</DialogDescription>
+          <DialogDescription>
+            Import Open WebUI JSON exports into the selected agent.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
           <input
@@ -94,7 +96,8 @@ export function ImportSessionsDialog({
           />
           <p className="text-xs text-muted-foreground">
             Target: {activeAgent?.name ?? "No agent"} ·{" "}
-            {modelRefs.find((model) => model.id === activeAgent?.defaultModelRefId)?.label ?? "No model"}
+            {modelRefs.find((model) => model.id === activeAgent?.defaultModelRefId)?.label ??
+              "No model"}
           </p>
           {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
         </div>

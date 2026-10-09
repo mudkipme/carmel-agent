@@ -7,12 +7,12 @@ path.
 
 ## Layout
 
-| Path | Rule |
-| --- | --- |
-| `contracts/` | Carmel's ports and shared message/tool types. Pi details are confined to their adapters. |
-| `pi-durable/` | Adapters onto Pi Durable's native harness, tools, and SQLite storage. |
-| `testing/` | Fakes, plus contract suites that any implementation must pass. |
-| `dispatch-prompt.ts` | Policy over a port. Pi-free by construction. |
+| Path                 | Rule                                                                                     |
+| -------------------- | ---------------------------------------------------------------------------------------- |
+| `contracts/`         | Carmel's ports and shared message/tool types. Pi details are confined to their adapters. |
+| `pi-durable/`        | Adapters onto Pi Durable's native harness, tools, and SQLite storage.                    |
+| `testing/`           | Fakes, plus contract suites that any implementation must pass.                           |
+| `dispatch-prompt.ts` | Policy over a port. Pi-free by construction.                                             |
 
 Two ports, not one, because upstream reshapes the loop and the store on
 independent schedules:
@@ -72,7 +72,7 @@ still pending when a run is cancelled -- so the only way Carmel reaches an
 invalid branch is by moving the leaf itself.
 
 Truncate and fork both do that by entry id, and both now refuse a cut that would
-strand a tool call, answering `409` with the nearest entry that *would* be safe.
+strand a tool call, answering `409` with the nearest entry that _would_ be safe.
 The refusal is offered rather than applied: silently extending the cut would
 mean `truncate(entryId)` keeps messages the caller asked to drop. The UI never
 hit this (it only offers these on user messages); the API had no guard at all.
@@ -96,7 +96,7 @@ Two call sites, because there are two failure paths:
   Pi turns them into an assistant message with `stopReason: "error"`. This is the
   common case, so classifying only in `createAgentError` would have missed it.
 
-Pi's `isRetryableAssistantError` rides in as a *hint* rather than a dependency,
+Pi's `isRetryableAssistantError` rides in as a _hint_ rather than a dependency,
 so its pattern list stays the source of truth for "transient" while the
 classifier itself stays Pi-free. The hint only promotes an unrecognised failure;
 it never overrides a specific match, because Pi reads any 429 as transient and
@@ -113,7 +113,7 @@ Three gaps made it necessary, each verified rather than assumed:
 - **Pi's agent loop has no iteration cap.** It runs until the model stops asking
   for tools. `grep maxIterations|maxSteps|maxTurns` over `agent-loop.js` returns
   nothing.
-- **The bash tool only times out when the *model* passes a timeout.**
+- **The bash tool only times out when the _model_ passes a timeout.**
   `bash-operations.ts` guards on `typeof options.timeout === "number"`; omit the
   argument and the command runs until the container does.
 - **`streamOptions.timeoutMs` was never set.** A provider connection that opened

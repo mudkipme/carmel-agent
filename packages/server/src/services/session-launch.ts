@@ -24,7 +24,15 @@ export function insertSession(fields: NewSession): SessionRecord {
   const timestamp = now();
   const sessionId = id("session");
   db.insert(sessions)
-    .values(toSessionRow({ ...fields, id: sessionId, revision: 0, createdAt: timestamp, updatedAt: timestamp }))
+    .values(
+      toSessionRow({
+        ...fields,
+        id: sessionId,
+        revision: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }),
+    )
     .run();
   return db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
 }
@@ -43,7 +51,9 @@ export async function prepareSessionRun(options: {
   modelRefId?: string;
   thinkingLevel?: AgentThinkingLevel;
   session: Pick<NewSession, "title" | "taskId" | "issueId">;
-}): Promise<{ ok: true; value: PreparedSessionRun } | { ok: false; reason: "not_found" | "no_auth" }> {
+}): Promise<
+  { ok: true; value: PreparedSessionRun } | { ok: false; reason: "not_found" | "no_auth" }
+> {
   const { agent, userId } = options;
   const model = await resolveRunModel(
     userId,
@@ -59,5 +69,8 @@ export async function prepareSessionRun(options: {
     modelRefId: modelRef.id,
     thinkingLevel,
   });
-  return { ok: true, value: { agent, session, modelRef, providerConfig, modelRuntime, thinkingLevel } };
+  return {
+    ok: true,
+    value: { agent, session, modelRef, providerConfig, modelRuntime, thinkingLevel },
+  };
 }

@@ -8,7 +8,14 @@ import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import type { AgentRunResult } from "@carmel-agent/shared";
 import { db, initialize, sqlite } from "../db/index.ts";
-import { agents, agentTasks, knowledgeConfigs, knowledgeSources, modelRefs, sessions } from "../db/schema.ts";
+import {
+  agents,
+  agentTasks,
+  knowledgeConfigs,
+  knowledgeSources,
+  modelRefs,
+  sessions,
+} from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { loadSession } from "../services/session-store.ts";
@@ -37,7 +44,7 @@ test("a run that gets its reply succeeds", async () => {
 test("ordinary and Codemode chat calls persist a scheduled reminder and return its confirmation", async () => {
   for (const codemodeEnabled of [false, true]) {
     const firstRequest = provider.systemPrompts.length;
-    const run = await startRun(codemodeEnabled ? "schedule-codemode" : "schedule", sessionId => {
+    const run = await startRun(codemodeEnabled ? "schedule-codemode" : "schedule", (sessionId) => {
       const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
       db.update(agents).set({ codemodeEnabled }).where(eq(agents.id, session.agentId)).run();
     });
@@ -49,7 +56,9 @@ test("ordinary and Codemode chat calls persist a scheduled reminder and return i
     assert.equal(tasks[0].modelRefId, session.modelRefId);
     assert.equal(tasks[0].nextRunAt, Date.parse("2099-01-01T01:00:00Z"));
     assert.match(JSON.stringify(session.messages), /Tasks run history/);
-    const prompt = provider.systemPrompts.slice(firstRequest).find(text => text.includes("Current working directory:"))!;
+    const prompt = provider.systemPrompts
+      .slice(firstRequest)
+      .find((text) => text.includes("Current working directory:"))!;
     assert.match(prompt, /Current time: \d{4}-/);
     assert.match(prompt, /browser time zone: Asia\/Singapore/);
     assert.match(prompt, /use schedule_task/);
@@ -60,41 +69,69 @@ test("the model sees runner paths for its cwd, project instructions, and workspa
   const workingDir = mkdtempSync(join(tmpdir(), "carmel-run-paths-"));
   mkdirSync(join(workingDir, ".agents", "skills", "review"), { recursive: true });
   writeFileSync(join(workingDir, "AGENTS.md"), "Review the project.");
-  writeFileSync(join(workingDir, ".agents", "skills", "review", "SKILL.md"), "---\nname: review\ndescription: Review changes\n---\nRead the source.");
+  writeFileSync(
+    join(workingDir, ".agents", "skills", "review", "SKILL.md"),
+    "---\nname: review\ndescription: Review changes\n---\nRead the source.",
+  );
   const firstRequest = provider.systemPrompts.length;
   try {
-    const run = await startRun("reply", sessionId => {
+    const run = await startRun("reply", (sessionId) => {
       const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
-      db.update(agents).set({ workingDirMode: "default", workingDir }).where(eq(agents.id, session.agentId)).run();
+      db.update(agents)
+        .set({ workingDirMode: "default", workingDir })
+        .where(eq(agents.id, session.agentId))
+        .run();
     });
     assert.equal((await finished(run)).outcome, "succeeded");
-    const prompt = provider.systemPrompts.slice(firstRequest).find(text => text.includes("Current working directory:"));
+    const prompt = provider.systemPrompts
+      .slice(firstRequest)
+      .find((text) => text.includes("Current working directory:"));
     assert.ok(prompt);
     assert.ok(prompt.includes("Current working directory: /workspace"));
     assert.ok(prompt.includes('path="/workspace/AGENTS.md"'));
     assert.ok(prompt.includes("/workspace/.agents/skills/review/SKILL.md"));
     assert.ok(!prompt.includes(workingDir));
-  } finally { rmSync(workingDir, { recursive: true, force: true }); }
+  } finally {
+    rmSync(workingDir, { recursive: true, force: true });
+  }
 });
 
 test("ordinary and Codemode runs send memory guidance and the source catalog to the model", async () => {
   for (const codemodeEnabled of [false, true]) {
     const firstRequest = provider.systemPrompts.length;
-    const run = await startRun("reply", sessionId => {
+    const run = await startRun("reply", (sessionId) => {
       const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
       db.update(agents).set({ codemodeEnabled }).where(eq(agents.id, session.agentId)).run();
-      db.insert(knowledgeConfigs).values({
-        agentId: session.agentId,
-        settings: { enabled: true, acceleration: "cpu" },
-        status: { state: "idle", lastUpdatedAt: null, documents: 0, needsEmbedding: 0, error: null, backend: null, devices: [] },
-      }).run();
-      db.insert(knowledgeSources).values({
-        id: id("source"), agentId: session.agentId, name: "Family vault",
-        path: "/unavailable-vault", description: "Household budgets", createdAt: now(),
-      }).run();
+      db.insert(knowledgeConfigs)
+        .values({
+          agentId: session.agentId,
+          settings: { enabled: true, acceleration: "cpu" },
+          status: {
+            state: "idle",
+            lastUpdatedAt: null,
+            documents: 0,
+            needsEmbedding: 0,
+            error: null,
+            backend: null,
+            devices: [],
+          },
+        })
+        .run();
+      db.insert(knowledgeSources)
+        .values({
+          id: id("source"),
+          agentId: session.agentId,
+          name: "Family vault",
+          path: "/unavailable-vault",
+          description: "Household budgets",
+          createdAt: now(),
+        })
+        .run();
     });
     assert.equal((await finished(run)).outcome, "succeeded");
-    const prompt = provider.systemPrompts.slice(firstRequest).find(text => text.includes("Current working directory:"))!;
+    const prompt = provider.systemPrompts
+      .slice(firstRequest)
+      .find((text) => text.includes("Current working directory:"))!;
     assert.ok(prompt);
     assert.match(prompt, /## Knowledge and shared memory/);
     assert.match(prompt, /Family vault/);
@@ -103,7 +140,10 @@ test("ordinary and Codemode runs send memory guidance and the source catalog to 
     assert.match(prompt, /Use knowledge_read/);
     assert.match(prompt, /shared across all of its users/);
     assert.ok(!prompt.includes("/unavailable-vault"));
-    assert.ok(!prompt.includes("Use memory_save"), "read-only agent must not be instructed to save");
+    assert.ok(
+      !prompt.includes("Use memory_save"),
+      "read-only agent must not be instructed to save",
+    );
     assert.ok(!prompt.includes("Use memory_forget"));
   }
 });
@@ -194,7 +234,16 @@ async function startRun(mode: ProviderMode, beforeStart?: (sessionId: string) =>
   const agentId = createAgent({ ownerUserId: userId, defaultModelRefId: modelRefId });
   const sessionId = id("session");
   db.insert(sessions)
-    .values({ id: sessionId, title: "Test", userId, agentId, modelRefId, thinkingLevel: "off", createdAt: timestamp, updatedAt: timestamp })
+    .values({
+      id: sessionId,
+      title: "Test",
+      userId,
+      agentId,
+      modelRefId,
+      thinkingLevel: "off",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
     .run();
 
   const context = await resolveModelContext(userId, modelRefId);
@@ -226,10 +275,19 @@ async function startFakeProvider() {
     let body = "";
     for await (const chunk of request) body += chunk;
     const payload = JSON.parse(body) as { messages: Array<{ role: string; content: string }> };
-    systemPrompts.push(...payload.messages.filter(message => message.role === "system").map(message => message.content));
+    systemPrompts.push(
+      ...payload.messages
+        .filter((message) => message.role === "system")
+        .map((message) => message.content),
+    );
     for (const resolve of waiters) resolve();
     waiters = [];
-    respond(state.mode, request, response, payload.messages.some(message => message.role === "tool"));
+    respond(
+      state.mode,
+      request,
+      response,
+      payload.messages.some((message) => message.role === "tool"),
+    );
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
@@ -250,10 +308,23 @@ async function startFakeProvider() {
   };
 }
 
-function respond(mode: ProviderMode, request: IncomingMessage, response: ServerResponse, hasToolResult: boolean) {
+function respond(
+  mode: ProviderMode,
+  request: IncomingMessage,
+  response: ServerResponse,
+  hasToolResult: boolean,
+) {
   if (mode === "reject") {
     response.writeHead(401, { "content-type": "application/json" });
-    response.end(JSON.stringify({ error: { message: "Incorrect API key provided.", type: "invalid_request_error", code: "invalid_api_key" } }));
+    response.end(
+      JSON.stringify({
+        error: {
+          message: "Incorrect API key provided.",
+          type: "invalid_request_error",
+          code: "invalid_api_key",
+        },
+      }),
+    );
     return;
   }
   response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
@@ -266,15 +337,43 @@ function respond(mode: ProviderMode, request: IncomingMessage, response: ServerR
   const chunk = (delta: object, finishReason: string | null = null) =>
     `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`;
   if ((mode === "schedule" || mode === "schedule-codemode") && !hasToolResult) {
-    const args = { name: "Report reminder", prompt: "Remind the user to submit the report.", scheduleKind: "once", scheduleValue: "2099-01-01T09:00:00+08:00" };
-    const call = mode === "schedule"
-      ? { name: "schedule_task", arguments: JSON.stringify(args) }
-      : { name: "codemode", arguments: JSON.stringify({ code: `text(await tools.schedule_task(${JSON.stringify(args)}));` }) };
-    response.write(chunk({ role: "assistant", tool_calls: [{ index: 0, id: "call_schedule", type: "function", function: call }] }));
+    const args = {
+      name: "Report reminder",
+      prompt: "Remind the user to submit the report.",
+      scheduleKind: "once",
+      scheduleValue: "2099-01-01T09:00:00+08:00",
+    };
+    const call =
+      mode === "schedule"
+        ? { name: "schedule_task", arguments: JSON.stringify(args) }
+        : {
+            name: "codemode",
+            arguments: JSON.stringify({
+              code: `text(await tools.schedule_task(${JSON.stringify(args)}));`,
+            }),
+          };
+    response.write(
+      chunk({
+        role: "assistant",
+        tool_calls: [{ index: 0, id: "call_schedule", type: "function", function: call }],
+      }),
+    );
     response.write(chunk({}, "tool_calls"));
   } else if (mode === "tool-loop") {
     // Asks for the same tool every turn, so only the guard ends the run.
-    response.write(chunk({ role: "assistant", tool_calls: [{ index: 0, id: `call_${Date.now()}`, type: "function", function: { name: "read", arguments: JSON.stringify({ path: "missing.txt" }) } }] }));
+    response.write(
+      chunk({
+        role: "assistant",
+        tool_calls: [
+          {
+            index: 0,
+            id: `call_${Date.now()}`,
+            type: "function",
+            function: { name: "read", arguments: JSON.stringify({ path: "missing.txt" }) },
+          },
+        ],
+      }),
+    );
     response.write(chunk({}, "tool_calls"));
   } else {
     response.write(chunk({ role: "assistant", content: "Hi there." }));

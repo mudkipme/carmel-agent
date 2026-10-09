@@ -4,7 +4,13 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useUserAdministration } from "@/hooks/use-user-administration";
 import { useHarnessStore } from "@/store/harness-store";
 import type { UserRole } from "@carmel-agent/shared";
@@ -44,13 +50,18 @@ export function UserSettings() {
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{user.username ?? user.name}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {user.email}
+                    </span>
                   </span>
                   {isSelf ? (
                     <Badge variant="default">{user.role} (you)</Badge>
                   ) : (
                     <div className="flex shrink-0 items-center gap-2">
-                      <Select value={user.role} onValueChange={(value: UserRole) => void admin.changeRole(user.id, value)}>
+                      <Select
+                        value={user.role}
+                        onValueChange={(value: UserRole) => void admin.changeRole(user.id, value)}
+                      >
                         <SelectTrigger className="h-8 w-28">
                           <SelectValue />
                         </SelectTrigger>
@@ -69,7 +80,12 @@ export function UserSettings() {
                       >
                         <KeyRoundIcon className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon-sm" title="Delete user" onClick={() => void admin.removeUser(user)}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Delete user"
+                        onClick={() => void admin.removeUser(user)}
+                      >
                         <Trash2Icon className="size-4" />
                       </Button>
                     </div>
@@ -103,14 +119,26 @@ export function UserSettings() {
       </section>
 
       <section className="grid gap-3 border-t pt-6">
-        <SectionHeader title="Create User" description="Add a new account with a username, email, and password." />
+        <SectionHeader
+          title="Create User"
+          description="Add a new account with a username, email, and password."
+        />
         <Field>
           <FieldLabel>Username</FieldLabel>
-          <Input value={username} autoComplete="off" onChange={(event) => setUsername(event.target.value)} />
+          <Input
+            value={username}
+            autoComplete="off"
+            onChange={(event) => setUsername(event.target.value)}
+          />
         </Field>
         <Field>
           <FieldLabel>Email</FieldLabel>
-          <Input value={email} type="email" autoComplete="off" onChange={(event) => setEmail(event.target.value)} />
+          <Input
+            value={email}
+            type="email"
+            autoComplete="off"
+            onChange={(event) => setEmail(event.target.value)}
+          />
         </Field>
         <Field>
           <FieldLabel>Password</FieldLabel>

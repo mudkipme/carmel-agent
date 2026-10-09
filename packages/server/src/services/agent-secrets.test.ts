@@ -24,7 +24,10 @@ test("a stored secret is listed by name and never by value", () => {
   const { ownerUserId, agentId } = fixture();
   const secret = writeAgentSecret(ownerUserId, agentId, "GITHUB_TOKEN", "ghp_example");
   assert.deepEqual(Object.keys(secret).sort(), ["agentId", "name", "updatedAt"]);
-  assert.deepEqual(readAgentSecrets(ownerUserId, agentId).map((item) => item.name), ["GITHUB_TOKEN"]);
+  assert.deepEqual(
+    readAgentSecrets(ownerUserId, agentId).map((item) => item.name),
+    ["GITHUB_TOKEN"],
+  );
 });
 
 test("writing the same name twice rotates the value instead of duplicating it", () => {

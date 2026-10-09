@@ -36,117 +36,78 @@ export function createIssueRoutes() {
   route.post("/agents/:agentId/issues", jsonValidator(issueCreateSchema), (c) =>
     respond(
       c,
-      () =>
-        createIssue(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.valid("json"),
-        ),
+      () => createIssue(c.get("user").id, c.req.param("agentId"), c.req.valid("json")),
       201,
     ),
   );
 
   route.get("/agents/:agentId/issues/:issueId", (c) =>
     respond(c, () =>
-      readIssueView(
+      readIssueView(c.get("user").id, c.req.param("agentId"), c.req.param("issueId")),
+    ),
+  );
+
+  route.patch("/agents/:agentId/issues/:issueId", jsonValidator(issuePatchSchema), (c) =>
+    respond(c, () =>
+      updateIssue(
         c.get("user").id,
         c.req.param("agentId"),
         c.req.param("issueId"),
+        c.req.valid("json"),
       ),
     ),
   );
 
-  route.patch(
-    "/agents/:agentId/issues/:issueId",
-    jsonValidator(issuePatchSchema),
-    (c) =>
-      respond(c, () =>
-        updateIssue(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.param("issueId"),
-          c.req.valid("json"),
-        ),
-      ),
-  );
-
   route.delete("/agents/:agentId/issues/:issueId", (c) =>
     respond(c, async () => {
-      await deleteIssue(
-        c.get("user").id,
-        c.req.param("agentId"),
-        c.req.param("issueId"),
-      );
+      await deleteIssue(c.get("user").id, c.req.param("agentId"), c.req.param("issueId"));
       return { ok: true };
     }),
   );
 
   route.post("/agents/:agentId/issues/:issueId/interrupt", (c) =>
     respond(c, () =>
-      interruptIssue(
-        c.get("user").id,
-        c.req.param("agentId"),
-        c.req.param("issueId"),
-      ),
+      interruptIssue(c.get("user").id, c.req.param("agentId"), c.req.param("issueId")),
     ),
   );
 
   route.post("/agents/:agentId/issues/:issueId/cancel", (c) =>
+    respond(c, () => cancelIssue(c.get("user").id, c.req.param("agentId"), c.req.param("issueId"))),
+  );
+
+  route.post("/agents/:agentId/issues/:issueId/runs", jsonValidator(issueRunSchema), (c) =>
     respond(c, () =>
-      cancelIssue(
+      runIssue(
         c.get("user").id,
         c.req.param("agentId"),
         c.req.param("issueId"),
+        c.req.valid("json"),
       ),
     ),
   );
-
-  route.post(
-    "/agents/:agentId/issues/:issueId/runs",
-    jsonValidator(issueRunSchema),
-    (c) =>
-      respond(c, () =>
-        runIssue(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.param("issueId"),
-          c.req.valid("json"),
-        ),
-      ),
-  );
-  route.post(
-    "/agents/:agentId/issues/:issueId/notes",
-    jsonValidator(issueNoteSchema),
-    (c) =>
-      respond(c, () =>
-        addIssueNote(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.param("issueId"),
-          c.req.valid("json").body,
-        ),
-      ),
-  );
-  route.post(
-    "/agents/:agentId/issues/:issueId/updates",
-    jsonValidator(issueNoteSchema),
-    (c) =>
-      respond(c, () =>
-        sendIssueUpdate(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.param("issueId"),
-          c.req.valid("json").body,
-        ),
-      ),
-  );
-  route.delete("/agents/:agentId/issues/:issueId/queue", (c) =>
+  route.post("/agents/:agentId/issues/:issueId/notes", jsonValidator(issueNoteSchema), (c) =>
     respond(c, () =>
-      removeIssueFromQueue(
+      addIssueNote(
         c.get("user").id,
         c.req.param("agentId"),
         c.req.param("issueId"),
+        c.req.valid("json").body,
       ),
+    ),
+  );
+  route.post("/agents/:agentId/issues/:issueId/updates", jsonValidator(issueNoteSchema), (c) =>
+    respond(c, () =>
+      sendIssueUpdate(
+        c.get("user").id,
+        c.req.param("agentId"),
+        c.req.param("issueId"),
+        c.req.valid("json").body,
+      ),
+    ),
+  );
+  route.delete("/agents/:agentId/issues/:issueId/queue", (c) =>
+    respond(c, () =>
+      removeIssueFromQueue(c.get("user").id, c.req.param("agentId"), c.req.param("issueId")),
     ),
   );
   route.post(
@@ -163,22 +124,10 @@ export function createIssueRoutes() {
       ),
   );
   route.post("/agents/:agentId/issues/:issueId/accept", (c) =>
-    respond(c, () =>
-      acceptIssue(
-        c.get("user").id,
-        c.req.param("agentId"),
-        c.req.param("issueId"),
-      ),
-    ),
+    respond(c, () => acceptIssue(c.get("user").id, c.req.param("agentId"), c.req.param("issueId"))),
   );
   route.post("/agents/:agentId/issues/:issueId/reopen", (c) =>
-    respond(c, () =>
-      reopenIssue(
-        c.get("user").id,
-        c.req.param("agentId"),
-        c.req.param("issueId"),
-      ),
-    ),
+    respond(c, () => reopenIssue(c.get("user").id, c.req.param("agentId"), c.req.param("issueId"))),
   );
 
   return route;
@@ -194,8 +143,7 @@ async function respond<T>(
   try {
     return c.json((await read()) as object, status);
   } catch (error) {
-    if (error instanceof IssueError)
-      return c.json({ error: error.message }, error.status);
+    if (error instanceof IssueError) return c.json({ error: error.message }, error.status);
     throw error;
   }
 }

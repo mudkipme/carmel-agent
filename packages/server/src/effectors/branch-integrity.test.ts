@@ -108,7 +108,10 @@ function user(entryId: string, text: string): BranchMessage {
 }
 
 function assistant(entryId: string, text: string): BranchMessage {
-  return { entryId, message: { role: "assistant", content: [{ type: "text", text }] } as SessionMessage };
+  return {
+    entryId,
+    message: { role: "assistant", content: [{ type: "text", text }] } as SessionMessage,
+  };
 }
 
 function assistantWithCalls(entryId: string, calls: { id: string; name: string }[]): BranchMessage {
@@ -116,7 +119,12 @@ function assistantWithCalls(entryId: string, calls: { id: string; name: string }
     entryId,
     message: {
       role: "assistant",
-      content: calls.map((call) => ({ type: "toolCall", id: call.id, name: call.name, arguments: {} })),
+      content: calls.map((call) => ({
+        type: "toolCall",
+        id: call.id,
+        name: call.name,
+        arguments: {},
+      })),
     } as SessionMessage,
   };
 }
@@ -124,6 +132,12 @@ function assistantWithCalls(entryId: string, calls: { id: string; name: string }
 function toolResult(entryId: string, toolCallId: string, toolName: string): BranchMessage {
   return {
     entryId,
-    message: { role: "toolResult", toolCallId, toolName, content: [], isError: false } as unknown as SessionMessage,
+    message: {
+      role: "toolResult",
+      toolCallId,
+      toolName,
+      content: [],
+      isError: false,
+    } as unknown as SessionMessage,
   };
 }

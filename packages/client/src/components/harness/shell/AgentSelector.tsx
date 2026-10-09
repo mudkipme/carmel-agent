@@ -49,7 +49,8 @@ export function AgentSelector({
      so it deserves a shortcut rather than a trip to a dropdown. */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== "j") return;
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== "j")
+        return;
       event.preventDefault();
       setSwitcherOpen((open) => !open);
     };
@@ -99,14 +100,18 @@ export function AgentSelector({
         onClick={() => setSwitcherOpen(true)}
       >
         <AgentAvatar agent={activeAgent} />
-        <span className="truncate text-[13px] font-medium text-foreground">{activeAgent?.name ?? "Select agent"}</span>
+        <span className="truncate text-[13px] font-medium text-foreground">
+          {activeAgent?.name ?? "Select agent"}
+        </span>
         {activeAgent?.shared ? (
           <Badge variant="secondary" className="shrink-0">
             Shared
           </Badge>
         ) : null}
         <span className="ml-auto flex shrink-0 items-center gap-1.5 text-faint">
-          <kbd className="text-ui-smaller hidden rounded border px-1 font-sans text-muted-foreground sm:inline">{shortcutHint()}</kbd>
+          <kbd className="text-ui-smaller hidden rounded border px-1 font-sans text-muted-foreground sm:inline">
+            {shortcutHint()}
+          </kbd>
           <ChevronsUpDownIcon className="size-3.5" />
         </span>
       </button>
@@ -127,7 +132,10 @@ export function AgentSelector({
                   value={`${agent.name} ${agent.description} ${agent.workingDir}`}
                   onSelect={() => selectAgent(agent.id)}
                 >
-                  <AgentAvatar agent={agent} className={cn(agent.id !== activeAgent?.id && "opacity-70")} />
+                  <AgentAvatar
+                    agent={agent}
+                    className={cn(agent.id !== activeAgent?.id && "opacity-70")}
+                  />
                   <div className="flex min-w-0 flex-col">
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="truncate">{agent.name}</span>
@@ -142,7 +150,9 @@ export function AgentSelector({
                     </span>
                   </div>
                   <span className="text-ui-smaller ml-auto shrink-0 text-faint">
-                    {sessionCount ? `${sessionCount} session${sessionCount === 1 ? "" : "s"}` : "No sessions"}
+                    {sessionCount
+                      ? `${sessionCount} session${sessionCount === 1 ? "" : "s"}`
+                      : "No sessions"}
                     {lastActiveAt ? ` · ${formatRelativeTime(lastActiveAt)}` : ""}
                   </span>
                 </CommandItem>
@@ -151,7 +161,11 @@ export function AgentSelector({
           ) : null}
           <CommandSeparator />
           <CommandGroup heading="Actions">
-            <CommandItem value="new agent create" disabled={!modelRefs.length} onSelect={() => void createAgent()}>
+            <CommandItem
+              value="new agent create"
+              disabled={!modelRefs.length}
+              onSelect={() => void createAgent()}
+            >
               <PlusIcon />
               New agent
             </CommandItem>
@@ -172,7 +186,11 @@ export function AgentSelector({
 }
 
 /** Most-recently-worked-in first: the order you actually think about agents in. */
-function buildEntries(agents: AgentConfig[], sessions: SessionMetadata[], activeUserId: string): AgentEntry[] {
+function buildEntries(
+  agents: AgentConfig[],
+  sessions: SessionMetadata[],
+  activeUserId: string,
+): AgentEntry[] {
   const counts = new Map<string, { sessionCount: number; lastActiveAt: number }>();
   for (const session of sessions) {
     if (session.userId !== activeUserId || !isListedSession(session)) continue;
@@ -188,6 +206,8 @@ function buildEntries(agents: AgentConfig[], sessions: SessionMetadata[], active
 }
 
 function shortcutHint() {
-  const isApple = typeof navigator !== "undefined" && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
+  const isApple =
+    typeof navigator !== "undefined" &&
+    /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
   return isApple ? "⌘J" : "Ctrl J";
 }

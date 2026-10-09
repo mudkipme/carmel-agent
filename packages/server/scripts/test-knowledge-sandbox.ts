@@ -10,21 +10,18 @@ process.env.CARMEL_AGENT_DATA_DIR = root;
 process.env.DATABASE_URL = ":memory:";
 process.env.CARMEL_HOST_DATA_DIR = "";
 process.env.CARMEL_CONTAINERIZED = "0";
-process.env.CARMEL_KNOWLEDGE_EMBED_MODEL =
-  process.env.CARMEL_TEST_EMBED_MODEL ?? "";
+process.env.CARMEL_KNOWLEDGE_EMBED_MODEL = process.env.CARMEL_TEST_EMBED_MODEL ?? "";
 process.env.CARMEL_KNOWLEDGE_GPU = process.env.CARMEL_TEST_GPU ?? "";
 const { callKnowledgeWorker, stopKnowledgeWorker } =
   await import("../src/runtime/knowledge/worker-client.ts");
-const { knowledgeModelPlan } =
-  await import("../src/runtime/knowledge/models.ts");
+const { knowledgeModelPlan } = await import("../src/runtime/knowledge/models.ts");
 const agentId = `test-${randomUUID()}`;
 const stateDir = join(root, "state"),
   sourceDir = join(root, "source");
 await Promise.all(
-  [
-    sourceDir,
-    ...["home", "cache", "config", "notes"].map((p) => join(stateDir, p)),
-  ].map((p) => mkdir(p, { recursive: true })),
+  [sourceDir, ...["home", "cache", "config", "notes"].map((p) => join(stateDir, p))].map((p) =>
+    mkdir(p, { recursive: true }),
+  ),
 );
 await writeFile(
   join(sourceDir, "household.md"),
@@ -36,9 +33,7 @@ const plan = {
   agentId,
   stateDir,
   ...(await knowledgeModelPlan()),
-  sources: [
-    { id: "family", hostPath: sourceDir, description: "Family decisions" },
-  ],
+  sources: [{ id: "family", hostPath: sourceDir, description: "Family decisions" }],
   network: false,
   settings: {
     enabled: true,
@@ -86,9 +81,7 @@ try {
     await stopKnowledgeWorker(agentId);
     const secondState = join(root, "second-state");
     await Promise.all(
-      ["home", "cache", "config"].map((p) =>
-        mkdir(join(secondState, p), { recursive: true }),
-      ),
+      ["home", "cache", "config"].map((p) => mkdir(join(secondState, p), { recursive: true })),
     );
     const second = {
       ...plan,
@@ -103,9 +96,7 @@ try {
         needsEmbedding: number;
       };
       assert.equal(reused.needsEmbedding, 0);
-      console.log(
-        "A second offline agent reused the shared model cache successfully.",
-      );
+      console.log("A second offline agent reused the shared model cache successfully.");
     } finally {
       await stopKnowledgeWorker(second.agentId);
     }
@@ -129,9 +120,7 @@ try {
     limit: 5,
   })) as { hits: unknown[] };
   assert.equal(removed.hits.length, 0);
-  console.log(
-    "Runner-only indexing, lexical search, persistence, and deletion passed.",
-  );
+  console.log("Runner-only indexing, lexical search, persistence, and deletion passed.");
   await stopKnowledgeWorker(agentId);
 
   process.env.CARMEL_KNOWLEDGE_EMBED_MODEL = "";
@@ -164,10 +153,7 @@ try {
       enabled: true,
       acceleration: "cpu",
     });
-    await writeFile(
-      join(sourceDir, "household.md"),
-      "# Family budget\nThe meeting is Sunday.\n",
-    );
+    await writeFile(join(sourceDir, "household.md"), "# Family budget\nThe meeting is Sunday.\n");
     await service.addKnowledgeSource(fixture.userId, fixture.agentId, {
       name: "Family",
       path: sourceDir,
@@ -183,14 +169,9 @@ try {
     });
     assert.equal(matches.hits.length, 2);
     assert.ok(
-      matches.hits.every((hit) =>
-        hit.citation.startsWith(`/agents/${fixture.agentId}/knowledge?`),
-      ),
+      matches.hits.every((hit) => hit.citation.startsWith(`/agents/${fixture.agentId}/knowledge?`)),
     );
-    await writeFile(
-      join(sourceDir, "household.md"),
-      "# Family schedule\nUpdated content.\n",
-    );
+    await writeFile(join(sourceDir, "household.md"), "# Family schedule\nUpdated content.\n");
     const stale = await service.searchKnowledge(member, fixture.agentId, {
       query: "budget",
     });
@@ -204,12 +185,7 @@ try {
     });
     assert.equal(fallback.mode, "fast");
     assert.match(fallback.warning ?? "", /not cached/);
-    await service.forgetMemory(
-      fixture.userId,
-      fixture.agentId,
-      memory.id,
-      memory.revision,
-    );
+    await service.forgetMemory(fixture.userId, fixture.agentId, memory.id, memory.revision);
     assert.equal(
       (
         await service.searchKnowledge(member, fixture.agentId, {

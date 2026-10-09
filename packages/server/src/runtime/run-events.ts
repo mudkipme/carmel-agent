@@ -7,7 +7,11 @@ import {
   type ToolCall,
 } from "@earendil-works/pi-ai";
 import { codemodeCallsSchema, type AgentRunEvent } from "@carmel-agent/shared";
-import { classifyTurnFailure, formatTurnFailure, type TurnFailure } from "../effectors/failure-classifier.ts";
+import {
+  classifyTurnFailure,
+  formatTurnFailure,
+  type TurnFailure,
+} from "../effectors/failure-classifier.ts";
 
 /**
  * Project one Pi harness event onto the client's wire protocol, or drop it.
@@ -64,24 +68,39 @@ export function classifyHarnessTurnFailure(
  * -- a `stop` that overran the window -- is recovered on the server while the
  * client is told nothing went wrong.
  */
-export function projectRunEvent(event: HarnessEvent, contextWindow?: number): AgentRunEvent | undefined {
+export function projectRunEvent(
+  event: HarnessEvent,
+  contextWindow?: number,
+): AgentRunEvent | undefined {
   switch (event.type) {
     case "message_start":
       // Only an assistant message seeds delta accumulation. Every other role is
       // emitted as a `message_start`/`message_end` pair in the same tick, so
       // forwarding the start would send that payload -- a whole tool result, or
       // a user message's base64 images -- a second time for no observable gain.
-      return event.message.role === "assistant" ? { type: "message_start", message: event.message } : undefined;
+      return event.message.role === "assistant"
+        ? { type: "message_start", message: event.message }
+        : undefined;
     case "message_update":
       return projectMessageUpdate(event.event);
     case "message_part":
-      return { ...event, part: event.part.type === "toolCall" ? toolCallPart(event.part, event.part.arguments) : event.part };
+      return {
+        ...event,
+        part:
+          event.part.type === "toolCall"
+            ? toolCallPart(event.part, event.part.arguments)
+            : event.part,
+      };
     case "message_end":
       return { type: "message_end", message: event.message };
     case "tool_start":
       // `args` is dropped: the tool call itself already reached the client as a
       // `message_part`, and a write/edit call carries the entire file content.
-      return { type: "tool_execution_start", toolCallId: event.toolCallId, toolName: event.toolName };
+      return {
+        type: "tool_execution_start",
+        toolCallId: event.toolCallId,
+        toolName: event.toolName,
+      };
     case "tool_end":
       // `result` is dropped for the same reason -- the authoritative tool result
       // arrives as its own `message_end`.
@@ -94,18 +113,26 @@ export function projectRunEvent(event: HarnessEvent, contextWindow?: number): Ag
     case "tool_update": {
       const details = event.partialResult.details as { codemodeCalls?: unknown } | undefined;
       const parsed = codemodeCallsSchema.safeParse(details?.codemodeCalls);
-      return parsed.success ? { type: "tool_execution_update", toolCallId: event.toolCallId, codemodeCalls: parsed.data } : undefined;
+      return parsed.success
+        ? {
+            type: "tool_execution_update",
+            toolCallId: event.toolCallId,
+            codemodeCalls: parsed.data,
+          }
+        : undefined;
     }
     case "turn_end":
-      // The other failure path. A provider rejection does not throw -- Pi turns
-      // it into an assistant message with `stopReason: "error"` -- so classifying
-      // only in `createAgentError` would leave the common case unimproved. Pi's
-      // own transient verdict rides along as a hint; this is the layer that is
-      // allowed to know Pi, so the classifier itself stays free of it.
-      {
-        const failure = classifyHarnessTurnFailure(event, contextWindow);
-        return failure ? { type: "turn_end", errorMessage: formatTurnFailure(failure) } : { type: "turn_end" };
-      }
+    // The other failure path. A provider rejection does not throw -- Pi turns
+    // it into an assistant message with `stopReason: "error"` -- so classifying
+    // only in `createAgentError` would leave the common case unimproved. Pi's
+    // own transient verdict rides along as a hint; this is the layer that is
+    // allowed to know Pi, so the classifier itself stays free of it.
+    {
+      const failure = classifyHarnessTurnFailure(event, contextWindow);
+      return failure
+        ? { type: "turn_end", errorMessage: formatTurnFailure(failure) }
+        : { type: "turn_end" };
+    }
     case "run_end":
       // All committed messages have already been delivered to the client.
       return { type: "agent_end" };
@@ -117,15 +144,29 @@ export function projectRunEvent(event: HarnessEvent, contextWindow?: number): Ag
 function projectMessageUpdate(event: AssistantMessageEvent): AgentRunEvent | undefined {
   switch (event.type) {
     case "text_delta":
-      return { type: "message_delta", contentIndex: event.contentIndex, field: "text", delta: event.delta };
+      return {
+        type: "message_delta",
+        contentIndex: event.contentIndex,
+        field: "text",
+        delta: event.delta,
+      };
     case "thinking_delta":
-      return { type: "message_delta", contentIndex: event.contentIndex, field: "thinking", delta: event.delta };
+      return {
+        type: "message_delta",
+        contentIndex: event.contentIndex,
+        field: "thinking",
+        delta: event.delta,
+      };
     case "toolcall_start": {
       // Announce the call so its name and spinner render immediately; the
       // arguments follow once they have finished streaming.
       const part = event.partial.content[event.contentIndex];
       if (part?.type !== "toolCall") return undefined;
-      return { type: "message_part", contentIndex: event.contentIndex, part: toolCallPart(part, {}) };
+      return {
+        type: "message_part",
+        contentIndex: event.contentIndex,
+        part: toolCallPart(part, {}),
+      };
     }
     case "toolcall_end":
       return {
@@ -144,7 +185,12 @@ function projectMessageUpdate(event: AssistantMessageEvent): AgentRunEvent | und
 
 /** Rebuild the part explicitly: providers hang scratch fields (`partialJson`, `index`) off it. */
 function toolCallPart(source: ToolCall, args: ToolCall["arguments"]): ToolCall {
-  const part: ToolCall = { type: "toolCall", id: source.id, name: source.name, arguments: args ?? {} };
+  const part: ToolCall = {
+    type: "toolCall",
+    id: source.id,
+    name: source.name,
+    arguments: args ?? {},
+  };
   if (source.thoughtSignature !== undefined) part.thoughtSignature = source.thoughtSignature;
   return part;
 }

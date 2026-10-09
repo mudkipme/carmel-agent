@@ -1,5 +1,10 @@
 import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
-import { agentConfigRequestSchema, agentMcpServerSchema, skillCommandName, slashCommandText } from "@carmel-agent/shared";
+import {
+  agentConfigRequestSchema,
+  agentMcpServerSchema,
+  skillCommandName,
+  slashCommandText,
+} from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -44,7 +49,8 @@ export function createAgentRoutes() {
     const agent = c.req.valid("json");
     const agentId = c.req.param("id");
     const current = db.select().from(agents).where(eq(agents.id, agentId)).get();
-    if (current && current.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
+    if (current && current.ownerUserId !== currentUserId)
+      return c.json({ error: "Agent not found." }, 404);
     const activeRun = current ? readActiveRunLeaseForAgent(agentId) : undefined;
     if (activeRun) return activeRunConflictResponse(c, activeRun);
     try {
@@ -57,7 +63,10 @@ export function createAgentRoutes() {
     if (!defaultModelRef) {
       return c.json({ error: "Model not found." }, 404);
     }
-    const defaultThinkingLevel = resolveSupportedThinkingLevel(defaultModelRef, agent.defaultThinkingLevel ?? "off");
+    const defaultThinkingLevel = resolveSupportedThinkingLevel(
+      defaultModelRef,
+      agent.defaultThinkingLevel ?? "off",
+    );
     const workingDir = resolveAgentWorkingDir(agent, agentId, current);
     if (!workingDir) return c.json({ error: "Manual working directory is required." }, 400);
     const timestamp = now();
@@ -101,14 +110,17 @@ export function createAgentRoutes() {
     closeAgentTerminals(agentId, "The agent settings changed.");
     closeAgentBrowsers(agentId);
     if (!agent.permissions.bash) deleteBrowserControl(agentId);
-    return c.json(serializePublicAgent(db.select().from(agents).where(eq(agents.id, agentId)).get()!));
+    return c.json(
+      serializePublicAgent(db.select().from(agents).where(eq(agents.id, agentId)).get()!),
+    );
   });
 
   route.delete("/agents/:id", async (c) => {
     const currentUserId = c.get("user").id;
     const agentId = c.req.param("id");
     const agent = db.select().from(agents).where(eq(agents.id, agentId)).get();
-    if (!agent || agent.ownerUserId !== currentUserId) return c.json({ error: "Agent not found." }, 404);
+    if (!agent || agent.ownerUserId !== currentUserId)
+      return c.json({ error: "Agent not found." }, 404);
     const activeRun = readActiveRunLeaseForAgent(agentId);
     if (activeRun) return activeRunConflictResponse(c, activeRun);
     // Tasks first: they reference sessions, and a task left behind would fire
@@ -129,23 +141,41 @@ export function createAgentRoutes() {
   });
 
   route.get("/agents/:id/settings", (c) => {
-    const agent = db.select().from(agents).where(eq(agents.id, c.req.param("id"))).get();
+    const agent = db
+      .select()
+      .from(agents)
+      .where(eq(agents.id, c.req.param("id")))
+      .get();
     if (!agent) return c.json({ error: "Agent not found" }, 404);
-    if (agent.ownerUserId !== c.get("user").id) return c.json({ error: "Agent settings are owner-only." }, 403);
+    if (agent.ownerUserId !== c.get("user").id)
+      return c.json({ error: "Agent settings are owner-only." }, 403);
     return c.json(serializeAgentSettings(agent));
   });
 
   route.post("/agents/:id/mcp/test", jsonValidator(agentMcpServerSchema), async (c) => {
-    const agent = db.select().from(agents).where(eq(agents.id, c.req.param("id"))).get();
+    const agent = db
+      .select()
+      .from(agents)
+      .where(eq(agents.id, c.req.param("id")))
+      .get();
     if (!agent) return c.json({ error: "Agent not found." }, 404);
-    if (agent.ownerUserId !== c.get("user").id) return c.json({ error: "MCP settings are owner-only." }, 403);
+    if (agent.ownerUserId !== c.get("user").id)
+      return c.json({ error: "MCP settings are owner-only." }, 403);
     const activeRun = readActiveRunLeaseForAgent(agent.id);
     if (activeRun) return activeRunConflictResponse(c, activeRun);
     const server = c.req.valid("json");
     if (!agent.permissions[server.transport === "http" ? "network" : "bash"]) {
-      return c.json({ error: `Enable and save ${server.transport === "http" ? "network" : "bash"} permission before testing this server.` }, 403);
+      return c.json(
+        {
+          error: `Enable and save ${server.transport === "http" ? "network" : "bash"} permission before testing this server.`,
+        },
+        403,
+      );
     }
-    const mcp = new AgentMcpTools({ ...agent, mcpServers: [{ ...server, enabled: true, tools: undefined }] }, resolveAgentWorkingDirPath(agent));
+    const mcp = new AgentMcpTools(
+      { ...agent, mcpServers: [{ ...server, enabled: true, tools: undefined }] },
+      resolveAgentWorkingDirPath(agent),
+    );
     try {
       await mcp.connect({ signal: c.req.raw.signal });
       return c.json({ tools: mcp.discoveredTools });
@@ -196,7 +226,8 @@ export function createAgentRoutes() {
   route.get("/agents/:id/browser", (c) => {
     const agent = readVisibleAgent(c.get("user").id, c.req.param("id"));
     if (!agent) return c.json({ error: "Agent not found." }, 404);
-    if (!agent.permissions.bash) return c.json({ error: "Browser access requires bash permission." }, 403);
+    if (!agent.permissions.bash)
+      return c.json({ error: "Browser access requires bash permission." }, 403);
     return c.json({ control: browserControl(agent.id).state, available: isSandboxConfigured() });
   });
 

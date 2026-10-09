@@ -88,13 +88,20 @@ export async function readGitFileDiff(
   const { area } = request;
 
   const originalSpec =
-    area === "staged" ? `HEAD:${originalPath ?? path}` : area === "unstaged" ? `:0:${path}` : area === "conflicted" ? `:2:${path}` : undefined;
+    area === "staged"
+      ? `HEAD:${originalPath ?? path}`
+      : area === "unstaged"
+        ? `:0:${path}`
+        : area === "conflicted"
+          ? `:2:${path}`
+          : undefined;
   const first = await readBlob(agent, originalSpec);
   if (!first.repository) throw new GitRequestError("This workspace is not a git repository.");
 
-  const modified = area === "staged"
-    ? await readIndexSide(agent, path)
-    : await readWorktreeSide(env, workspacePrefix(agent, first.toplevel), path);
+  const modified =
+    area === "staged"
+      ? await readIndexSide(agent, path)
+      : await readWorktreeSide(env, workspacePrefix(agent, first.toplevel), path);
   return { path, originalPath, area, original: first.side, modified };
 }
 
@@ -131,11 +138,21 @@ export function parsePorcelainV2(listing: string, options: { truncated?: boolean
       const originalPath = renamed ? records[++index] : undefined;
       const [indexStatus, worktreeStatus] = fields[1]!;
       if (indexStatus !== ".") {
-        changes.push({ path, ...(originalPath ? { originalPath } : {}), area: "staged", kind: changeKind(indexStatus!) });
+        changes.push({
+          path,
+          ...(originalPath ? { originalPath } : {}),
+          area: "staged",
+          kind: changeKind(indexStatus!),
+        });
       }
-      if (worktreeStatus !== ".") changes.push({ path, area: "unstaged", kind: changeKind(worktreeStatus!) });
+      if (worktreeStatus !== ".")
+        changes.push({ path, area: "unstaged", kind: changeKind(worktreeStatus!) });
     } else if (record.startsWith("u ")) {
-      changes.push({ path: record.split(" ").slice(10).join(" "), area: "conflicted", kind: "conflicted" });
+      changes.push({
+        path: record.split(" ").slice(10).join(" "),
+        area: "conflicted",
+        kind: "conflicted",
+      });
     } else if (record.startsWith("? ")) {
       changes.push({ path: record.slice(2), area: "untracked", kind: "untracked" });
     }
@@ -149,11 +166,22 @@ export function parsePorcelainV2(listing: string, options: { truncated?: boolean
  * `:/text` after a stage prefix is a commit-message search.
  */
 export function normalizeRepoPath(path: string) {
-  if (!path || path.length > 4096 || path.includes("\0") || posix.isAbsolute(path) || path.includes("\\")) {
+  if (
+    !path ||
+    path.length > 4096 ||
+    path.includes("\0") ||
+    posix.isAbsolute(path) ||
+    path.includes("\\")
+  ) {
     throw new GitRequestError("Invalid path.");
   }
   const normalized = posix.normalize(path);
-  if (normalized === "." || normalized === ".." || normalized.startsWith("../") || normalized.startsWith("/")) {
+  if (
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.startsWith("../") ||
+    normalized.startsWith("/")
+  ) {
     throw new GitRequestError("Invalid path.");
   }
   return normalized;
@@ -220,8 +248,13 @@ async function readIndexSide(agent: AgentRecord, path: string): Promise<GitDiffS
   return blob.side;
 }
 
-async function readWorktreeSide(env: AgentExecutionEnv, prefix: string | undefined, path: string): Promise<GitDiffSide> {
-  if (prefix === undefined) throw new GitRequestError("This repository's root is outside the agent's workspace.");
+async function readWorktreeSide(
+  env: AgentExecutionEnv,
+  prefix: string | undefined,
+  path: string,
+): Promise<GitDiffSide> {
+  if (prefix === undefined)
+    throw new GitRequestError("This repository's root is outside the agent's workspace.");
   // The same path authority the file editor uses: inside the workspace, with
   // the agent's read permission.
   const absolute = env.resolveBrowserPath(posix.join(prefix, path), "read");
@@ -237,7 +270,9 @@ async function readWorktreeSide(env: AgentExecutionEnv, prefix: string | undefin
     if (!stats.isFile()) return { kind: "absent" };
     if (stats.size > MAX_DIFF_SIDE_BYTES) return { kind: "too_large", bytes: stats.size };
     const buffer = await handle.readFile();
-    return buffer.subarray(0, 8000).includes(0) ? { kind: "binary" } : { kind: "text", text: buffer.toString("utf8") };
+    return buffer.subarray(0, 8000).includes(0)
+      ? { kind: "binary" }
+      : { kind: "text", text: buffer.toString("utf8") };
   } finally {
     await handle.close();
   }
@@ -258,7 +293,12 @@ export function setGitExecutorForTests(executor: GitExecutor | undefined) {
   executeGit = executor ?? execSandboxCommand;
 }
 
-async function runGit(agent: AgentRecord, script: string, env: Record<string, string>, maxBytes: number) {
+async function runGit(
+  agent: AgentRecord,
+  script: string,
+  env: Record<string, string>,
+  maxBytes: number,
+) {
   let stdout = "";
   let stdoutBytes = 0;
   let stderr = "";

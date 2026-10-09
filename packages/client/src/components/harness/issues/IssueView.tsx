@@ -49,8 +49,7 @@ export function IssueView({
   } = useRemoteResource({
     key: `${agent.id}:${issueId}`,
     load: (signal) => api.getIssue(agent.id, issueId, signal),
-    pollInterval: (data) =>
-      !data || data.running || data.status === "queued" ? 4_000 : 30_000,
+    pollInterval: (data) => (!data || data.running || data.status === "queued" ? 4_000 : 30_000),
   });
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -85,11 +84,7 @@ export function IssueView({
       <div className="flex flex-col gap-4 p-8">
         {loading ? <ResourceLoading label="Loading issue" /> : null}
         {error ? (
-          <ResourceError
-            error={error}
-            title="Unable to load issue"
-            onRetry={refresh}
-          />
+          <ResourceError error={error} title="Unable to load issue" onRetry={refresh} />
         ) : null}
         <Button asChild variant="link">
           <Link to={listPath}>Back to issues</Link>
@@ -100,13 +95,8 @@ export function IssueView({
   const closed = isClosedIssue(issue);
   const queued = issue.status === "queued";
   const latest = issue.attempts[0];
-  const stopped =
-    issue.lastRunOutcome === "interrupted" ||
-    issue.lastRunOutcome === "cancelled";
-  const failed =
-    !issue.running &&
-    issue.lastRunOutcome &&
-    issue.lastRunOutcome !== "succeeded";
+  const stopped = issue.lastRunOutcome === "interrupted" || issue.lastRunOutcome === "cancelled";
+  const failed = !issue.running && issue.lastRunOutcome && issue.lastRunOutcome !== "succeeded";
   const queueWork = () =>
     act(async () => {
       await api.runIssue(agent.id, issueId, {
@@ -137,11 +127,7 @@ export function IssueView({
           </Link>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant={
-                  state.attention === "blocking" ? "destructive" : "secondary"
-                }
-              >
+              <Badge variant={state.attention === "blocking" ? "destructive" : "secondary"}>
                 <state.Icon />
                 {state.label}
               </Badge>
@@ -160,9 +146,7 @@ export function IssueView({
                 <Button
                   variant="outline"
                   disabled={busy}
-                  onClick={() =>
-                    void act(() => api.interruptIssue(agent.id, issueId))
-                  }
+                  onClick={() => void act(() => api.interruptIssue(agent.id, issueId))}
                 >
                   <SquareIcon data-icon="inline-start" />
                   Stop run
@@ -171,18 +155,14 @@ export function IssueView({
                 <Button
                   variant="outline"
                   disabled={busy}
-                  onClick={() =>
-                    void act(() => api.removeIssueFromQueue(agent.id, issueId))
-                  }
+                  onClick={() => void act(() => api.removeIssueFromQueue(agent.id, issueId))}
                 >
                   Remove from queue
                 </Button>
               ) : closed ? (
                 <Button
                   disabled={busy}
-                  onClick={() =>
-                    void act(() => api.reopenIssue(agent.id, issueId))
-                  }
+                  onClick={() => void act(() => api.reopenIssue(agent.id, issueId))}
                 >
                   Reopen issue
                 </Button>
@@ -190,9 +170,7 @@ export function IssueView({
                 <>
                   <Button
                     disabled={busy || editing}
-                    onClick={() =>
-                      void act(() => api.acceptIssue(agent.id, issueId))
-                    }
+                    onClick={() => void act(() => api.acceptIssue(agent.id, issueId))}
                   >
                     <CheckIcon data-icon="inline-start" />
                     Accept result
@@ -204,10 +182,7 @@ export function IssueView({
               ) : issue.status === "needs_input" ? (
                 <Button onClick={focusReply}>Reply to agent</Button>
               ) : (
-                <Button
-                  disabled={busy || editing}
-                  onClick={() => void queueWork()}
-                >
+                <Button disabled={busy || editing} onClick={() => void queueWork()}>
                   <PlayIcon data-icon="inline-start" />
                   {failed ? "Retry & queue" : "Queue work"}
                 </Button>
@@ -226,24 +201,11 @@ export function IssueView({
               ) : null}
             </div>
           </div>
-          {error ? (
-            <ResourceError
-              error={error}
-              title="Connection lost"
-              onRetry={refresh}
-            />
-          ) : null}
-          {failed ||
-          (!issue.running &&
-            issue.status === "needs_input" &&
-            issue.lastRunDetail) ? (
+          {error ? <ResourceError error={error} title="Connection lost" onRetry={refresh} /> : null}
+          {failed || (!issue.running && issue.status === "needs_input" && issue.lastRunDetail) ? (
             <Alert variant={failed ? "destructive" : "default"}>
               <AlertTitle>
-                {failed
-                  ? stopped
-                    ? "Run stopped"
-                    : "Run failed"
-                  : "No result delivered"}
+                {failed ? (stopped ? "Run stopped" : "Run failed") : "No result delivered"}
               </AlertTitle>
               <AlertDescription>
                 {issue.lastRunDetail ??
@@ -257,12 +219,9 @@ export function IssueView({
             <Alert>
               <AlertTitle>Waiting in the agent’s queue</AlertTitle>
               <AlertDescription>
-                This agent runs one issue at a time. Reorder jobs in the issue
-                list.
+                This agent runs one issue at a time. Reorder jobs in the issue list.
                 {issue.queuedInstructions ? (
-                  <p className="mt-2 whitespace-pre-wrap break-words">
-                    {issue.queuedInstructions}
-                  </p>
+                  <p className="mt-2 whitespace-pre-wrap break-words">{issue.queuedInstructions}</p>
                 ) : null}
               </AlertDescription>
             </Alert>
@@ -292,10 +251,7 @@ export function IssueView({
               />
             </div>
           ) : (
-            <details
-              className="rounded-lg border"
-              open={!issue.sessionId || undefined}
-            >
+            <details className="rounded-lg border" open={!issue.sessionId || undefined}>
               <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
                 Brief & acceptance criteria
               </summary>
@@ -386,10 +342,7 @@ export function IssueView({
                   checked={fresh}
                   onCheckedChange={(value) => setFresh(value === true)}
                 />
-                <FieldLabel
-                  htmlFor="issue-fresh"
-                  className="text-xs font-normal"
-                >
+                <FieldLabel htmlFor="issue-fresh" className="text-xs font-normal">
                   Start a fresh conversation for the next run
                 </FieldLabel>
               </Field>
@@ -398,12 +351,7 @@ export function IssueView({
               <Button
                 variant="outline"
                 disabled={busy || !message.trim()}
-                onClick={() =>
-                  void act(
-                    () => api.addIssueNote(agent.id, issueId, message),
-                    true,
-                  )
-                }
+                onClick={() => void act(() => api.addIssueNote(agent.id, issueId, message), true)}
               >
                 Save note
               </Button>
@@ -413,15 +361,11 @@ export function IssueView({
                     busy ||
                     editing ||
                     (!message.trim() &&
-                      (issue.running ||
-                        ["in_review", "needs_input"].includes(issue.status)))
+                      (issue.running || ["in_review", "needs_input"].includes(issue.status)))
                   }
                   onClick={() =>
                     void (issue.running
-                      ? act(
-                          () => api.sendIssueUpdate(agent.id, issueId, message),
-                          true,
-                        )
+                      ? act(() => api.sendIssueUpdate(agent.id, issueId, message), true)
                       : queueWork())
                   }
                 >
@@ -446,8 +390,7 @@ export function IssueView({
                       {attempt.instructions ? (
                         <MarkdownContent content={attempt.instructions} />
                       ) : null}
-                      {attempt.sessionId &&
-                      attempt.sessionId !== issue.sessionId ? (
+                      {attempt.sessionId && attempt.sessionId !== issue.sessionId ? (
                         <Button asChild variant="outline" size="sm">
                           <Link
                             to={sessionPath({
@@ -459,9 +402,7 @@ export function IssueView({
                           </Link>
                         </Button>
                       ) : null}
-                      {attempt.outcome !== "running" ? (
-                        <IssueResult attempt={attempt} />
-                      ) : null}
+                      {attempt.outcome !== "running" ? <IssueResult attempt={attempt} /> : null}
                       <details>
                         <summary className="cursor-pointer text-xs text-muted-foreground">
                           Brief used for this run

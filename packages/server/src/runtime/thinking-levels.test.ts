@@ -37,7 +37,10 @@ test("Ollama models expose effort levels and compatibility", () => {
     reasoning: false,
   });
   assert.equal(resolved.reasoning, true);
-  assert.equal((resolved.compat as { supportsReasoningEffort?: boolean } | undefined)?.supportsReasoningEffort, true);
+  assert.equal(
+    (resolved.compat as { supportsReasoningEffort?: boolean } | undefined)?.supportsReasoningEffort,
+    true,
+  );
   assert.deepEqual(getSupportedThinkingLevels(resolved), ["off", "low", "medium", "high", "max"]);
 });
 
@@ -147,7 +150,14 @@ test("catalog-supplied levels are not persisted back onto the model entry", asyn
   const edited = {
     provider,
     modelId: "catalog-model",
-    thinkingLevelMap: { minimal: null, low: null, medium: null, high: "high", max: "max", xhigh: "xhigh" },
+    thinkingLevelMap: {
+      minimal: null,
+      low: null,
+      medium: null,
+      high: "high",
+      max: "max",
+      xhigh: "xhigh",
+    },
   };
   assert.deepEqual(thinkingLevelOverrides(edited), { xhigh: "xhigh" });
 

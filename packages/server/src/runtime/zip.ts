@@ -41,7 +41,9 @@ type CentralEntry = {
   directory: boolean;
 };
 
-export async function* zipArchive(entries: AsyncIterable<ZipEntry> | Iterable<ZipEntry>): AsyncGenerator<Uint8Array> {
+export async function* zipArchive(
+  entries: AsyncIterable<ZipEntry> | Iterable<ZipEntry>,
+): AsyncGenerator<Uint8Array> {
   const encoder = new TextEncoder();
   const central: CentralEntry[] = [];
   let offset = 0;
@@ -99,7 +101,18 @@ export async function* zipArchive(entries: AsyncIterable<ZipEntry> | Iterable<Zi
       offset += compressedSize + descriptor.length;
     }
 
-    central.push({ name, flags, method, time, date, crc, compressedSize, uncompressedSize, headerOffset, directory });
+    central.push({
+      name,
+      flags,
+      method,
+      time,
+      date,
+      crc,
+      compressedSize,
+      uncompressedSize,
+      headerOffset,
+      directory,
+    });
   }
 
   const directoryOffset = offset;
@@ -151,17 +164,25 @@ function buildCrcTable() {
   const table = new Uint32Array(256);
   for (let index = 0; index < 256; index += 1) {
     let value = index;
-    for (let bit = 0; bit < 8; bit += 1) value = value & 1 ? (value >>> 1) ^ 0xedb88320 : value >>> 1;
+    for (let bit = 0; bit < 8; bit += 1)
+      value = value & 1 ? (value >>> 1) ^ 0xedb88320 : value >>> 1;
     table[index] = value >>> 0;
   }
   return table;
 }
 
 function toBytes(chunk: Uint8Array | string) {
-  return typeof chunk === "string" ? new TextEncoder().encode(chunk) : new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+  return typeof chunk === "string"
+    ? new TextEncoder().encode(chunk)
+    : new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
 }
 
-function assertRepresentable(name: string, uncompressedSize: number, compressedSize: number, offset: number) {
+function assertRepresentable(
+  name: string,
+  uncompressedSize: number,
+  compressedSize: number,
+  offset: number,
+) {
   if (uncompressedSize > MAX_UINT32 || compressedSize > MAX_UINT32 || offset > MAX_UINT32) {
     throw new Error(`File is too large to archive: ${name}`);
   }

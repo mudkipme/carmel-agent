@@ -5,7 +5,14 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useModelManagement } from "@/hooks/use-model-management";
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
@@ -43,7 +50,9 @@ export function ModelSettings({
           <Select
             value={fastTaskModelRefId || "__session_model__"}
             disabled={updating}
-            onValueChange={(value) => onFastTaskModelChange(value === "__session_model__" ? "" : value)}
+            onValueChange={(value) =>
+              onFastTaskModelChange(value === "__session_model__" ? "" : value)
+            }
           >
             <SelectTrigger className="w-full">
               <SelectValue />
@@ -64,20 +73,29 @@ export function ModelSettings({
       </section>
 
       <section className="grid min-w-0 gap-4 border-t pt-6">
-        <SectionHeader title="Model Management" description="Each provider config can have one entry per model." />
+        <SectionHeader
+          title="Model Management"
+          description="Each provider config can have one entry per model."
+        />
         <div className="grid gap-2">
           {modelRefs.map((model) => {
-            const providerConfig = providerConfigs.find((item) => item.id === model.providerConfigId);
+            const providerConfig = providerConfigs.find(
+              (item) => item.id === model.providerConfigId,
+            );
             const owned = model.ownerUserId === activeUserId;
             return (
-              <div key={model.id} className="flex min-w-0 flex-col gap-3 rounded-md border bg-card p-2 sm:flex-row sm:items-center sm:justify-between">
+              <div
+                key={model.id}
+                className="flex min-w-0 flex-col gap-3 rounded-md border bg-card p-2 sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 truncate">
                     <span className="truncate text-sm font-medium">{model.label}</span>
                     {model.shared ? <Badge variant="secondary">shared</Badge> : null}
                   </div>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {providerConfig?.label ?? (owned ? model.provider : "Shared provider")} · {model.modelId}
+                    {providerConfig?.label ?? (owned ? model.provider : "Shared provider")} ·{" "}
+                    {model.modelId}
                   </p>
                 </div>
                 {owned ? (
@@ -106,14 +124,22 @@ export function ModelSettings({
           })}
         </div>
         {status ? (
-          <p className={cn("text-sm", status.tone === "destructive" ? "text-destructive" : "text-muted-foreground")}>
+          <p
+            className={cn(
+              "text-sm",
+              status.tone === "destructive" ? "text-destructive" : "text-muted-foreground",
+            )}
+          >
             {status.message}
           </p>
         ) : null}
       </section>
 
       <section className="grid min-w-0 gap-4 border-t pt-6">
-        <SectionHeader title="Add Model" description="Adding an existing provider/model pair will reuse the existing entry." />
+        <SectionHeader
+          title="Add Model"
+          description="Adding an existing provider/model pair will reuse the existing entry."
+        />
         <div className="grid gap-3">
           <Select
             value={management.providerConfigId}
@@ -184,7 +210,11 @@ function ModelPicker({
   const selectedModel = models.find((model) => model.id === value);
   const normalizedQuery = query.trim().toLowerCase();
   const visibleModels = normalizedQuery
-    ? models.filter((model) => model.name.toLowerCase().includes(normalizedQuery) || model.id.toLowerCase().includes(normalizedQuery))
+    ? models.filter(
+        (model) =>
+          model.name.toLowerCase().includes(normalizedQuery) ||
+          model.id.toLowerCase().includes(normalizedQuery),
+      )
     : models;
 
   return (
@@ -208,7 +238,9 @@ function ModelPicker({
                 className="flex w-full min-w-0 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
                 onClick={() => onValueChange(model.id)}
               >
-                <CheckIcon className={model.id === value ? "size-4 opacity-100" : "size-4 opacity-0"} />
+                <CheckIcon
+                  className={model.id === value ? "size-4 opacity-100" : "size-4 opacity-0"}
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{model.name}</span>
                   <span className="block truncate text-xs text-muted-foreground">{model.id}</span>
@@ -216,7 +248,9 @@ function ModelPicker({
               </button>
             ))
           ) : (
-            <div className="px-2 py-6 text-center text-sm text-muted-foreground">No models found.</div>
+            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+              No models found.
+            </div>
           )}
         </div>
       </div>

@@ -37,13 +37,22 @@ export function collectAgentTools(
   for (const provider of providers) {
     for (const provided of provider.provide(context)) {
       if (provided.requires && !context.permissions[provided.requires]) {
-        skipped.push({ providerId: provider.id, toolName: provided.tool.name, reason: "missing_permission" });
+        skipped.push({
+          providerId: provider.id,
+          toolName: provided.tool.name,
+          reason: "missing_permission",
+        });
         continue;
       }
       // The first registration owns a tool name.
       const owner = claimed.get(provided.tool.name);
       if (owner) {
-        skipped.push({ providerId: provider.id, toolName: provided.tool.name, reason: "name_taken", takenBy: owner });
+        skipped.push({
+          providerId: provider.id,
+          toolName: provided.tool.name,
+          reason: "name_taken",
+          takenBy: owner,
+        });
         continue;
       }
       claimed.set(provided.tool.name, provider.id);

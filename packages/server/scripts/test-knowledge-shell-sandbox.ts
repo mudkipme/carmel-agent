@@ -17,26 +17,51 @@ const { db, initialize } = await import("../src/db/index.ts");
 const { agents, knowledgeConfigs } = await import("../src/db/schema.ts");
 const { createSession } = await import("../src/test-support.ts");
 const { execSandboxCommand } = await import("../src/runtime/sandbox/bash-operations.ts");
-const { discardAgentContainer, shutdownContainerManager } = await import("../src/runtime/sandbox/container-manager.ts");
+const { discardAgentContainer, shutdownContainerManager } =
+  await import("../src/runtime/sandbox/container-manager.ts");
 const { knowledgeModelPlan } = await import("../src/runtime/knowledge/models.ts");
 initialize();
 const fixture = createSession();
 const workspace = join(root, "workspace");
 const backend = process.env.CARMEL_TEST_GPU ? "vulkan" : "cpu";
 await mkdir(workspace);
-db.update(agents).set({ workingDir: workspace, permissions: { read: true, write: true, edit: true, bash: true, network: false } })
-  .where(eq(agents.id, fixture.agentId)).run();
-db.insert(knowledgeConfigs).values({
-  agentId: fixture.agentId, settings: { enabled: false, acceleration: backend },
-  status: { state: "disabled", lastUpdatedAt: null, documents: 0, needsEmbedding: 0, error: null, backend: null, devices: [] },
-}).run();
+db.update(agents)
+  .set({
+    workingDir: workspace,
+    permissions: { read: true, write: true, edit: true, bash: true, network: false },
+  })
+  .where(eq(agents.id, fixture.agentId))
+  .run();
+db.insert(knowledgeConfigs)
+  .values({
+    agentId: fixture.agentId,
+    settings: { enabled: false, acceleration: backend },
+    status: {
+      state: "disabled",
+      lastUpdatedAt: null,
+      documents: 0,
+      needsEmbedding: 0,
+      error: null,
+      backend: null,
+      devices: [],
+    },
+  })
+  .run();
 const agent = db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!;
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 async function run(command: string, env?: Record<string, string>) {
-  let stdout = "", stderr = "";
+  let stdout = "",
+    stderr = "";
   const result = await execSandboxCommand(agent, command, workspace, {
-    env, timeout: 180, signal: AbortSignal.timeout(190_000),
-    onStdout: chunk => { stdout += chunk; }, onStderr: chunk => { stderr += chunk; },
+    env,
+    timeout: 180,
+    signal: AbortSignal.timeout(190_000),
+    onStdout: (chunk) => {
+      stdout += chunk;
+    },
+    onStderr: (chunk) => {
+      stderr += chunk;
+    },
   });
   assert.equal(result.exitCode, 0, stderr || stdout);
   return stdout;
@@ -60,13 +85,21 @@ try {
   assert.equal(state.cache, "/home/agent/.cache/qmd/models");
   assert.equal(state.before, "shared weights directory");
   assert.equal(state.readonly, true);
-  await writeFile(join(workspace, "notes.md"), "# Shell notes\nThe marmalade committee meets on Sunday.\n");
+  await writeFile(
+    join(workspace, "notes.md"),
+    "# Shell notes\nThe marmalade committee meets on Sunday.\n",
+  );
   await run("qmd collection add . --name shell-notes --mask '*.md'");
   const hits = JSON.parse(await run("qmd search marmalade --json"));
   assert.equal(hits.length, 1);
   assert.match(JSON.stringify(hits), /notes\.md/);
   // Explicit custom cache locations remain available without moving the first index.
-  const custom = JSON.parse(await run(`node -e ${quote(probe.replace("const before = fs.readFileSync(cache + '/shared-marker', 'utf8');", "const before = null;"))}`, { XDG_CACHE_HOME: "/tmp/custom-cache" }));
+  const custom = JSON.parse(
+    await run(
+      `node -e ${quote(probe.replace("const before = fs.readFileSync(cache + '/shared-marker', 'utf8');", "const before = null;"))}`,
+      { XDG_CACHE_HOME: "/tmp/custom-cache" },
+    ),
+  );
   assert.equal(custom.cache, "/tmp/custom-cache/qmd/models");
   if (process.env.CARMEL_TEST_EMBED_MODEL) {
     await run("qmd embed");
@@ -74,7 +107,9 @@ try {
     assert.match(status, /1 embedded/);
     assert.ok(status.includes(plan.model!.containerPath));
   }
-  console.log(`Shell qmd defaults, read-only shared cache, independent index, and overrides passed${process.env.CARMEL_TEST_EMBED_MODEL ? `, including embeddings with ${backend} configured` : ""}.`);
+  console.log(
+    `Shell qmd defaults, read-only shared cache, independent index, and overrides passed${process.env.CARMEL_TEST_EMBED_MODEL ? `, including embeddings with ${backend} configured` : ""}.`,
+  );
 } finally {
   await discardAgentContainer(agent.id);
   await shutdownContainerManager();

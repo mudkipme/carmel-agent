@@ -38,7 +38,8 @@ export function readOidcConfig(env: Env = process.env): OidcConfig | undefined {
   if (!issuer) return undefined;
 
   const clientId = value(env.CARMEL_OIDC_CLIENT_ID);
-  if (!clientId) throw new OidcConfigError("CARMEL_OIDC_CLIENT_ID is required when CARMEL_OIDC_ISSUER is set.");
+  if (!clientId)
+    throw new OidcConfigError("CARMEL_OIDC_CLIENT_ID is required when CARMEL_OIDC_ISSUER is set.");
 
   const publicUrl = value(env.CARMEL_PUBLIC_URL);
   if (!publicUrl) {
@@ -50,15 +51,25 @@ export function readOidcConfig(env: Env = process.env): OidcConfig | undefined {
   const allowedGroups = list(env.CARMEL_OIDC_ALLOWED_GROUPS);
   const adminGroups = list(env.CARMEL_OIDC_ADMIN_GROUPS);
   // Pocket ID (and most providers) only emit the groups claim when asked for it.
-  const defaultScopes = ["openid", "profile", "email", ...(allowedGroups.length || adminGroups.length ? ["groups"] : [])];
-  const scopes = env.CARMEL_OIDC_SCOPES === undefined ? defaultScopes : list(env.CARMEL_OIDC_SCOPES, /[\s,]+/);
-  if (!scopes.includes("openid")) throw new OidcConfigError("CARMEL_OIDC_SCOPES must include openid.");
+  const defaultScopes = [
+    "openid",
+    "profile",
+    "email",
+    ...(allowedGroups.length || adminGroups.length ? ["groups"] : []),
+  ];
+  const scopes =
+    env.CARMEL_OIDC_SCOPES === undefined ? defaultScopes : list(env.CARMEL_OIDC_SCOPES, /[\s,]+/);
+  if (!scopes.includes("openid"))
+    throw new OidcConfigError("CARMEL_OIDC_SCOPES must include openid.");
 
   return {
     issuer: parseHttpUrl("CARMEL_OIDC_ISSUER", issuer),
     clientId,
     clientSecret: value(env.CARMEL_OIDC_CLIENT_SECRET),
-    redirectUri: new URL(callbackPath, withTrailingSlash(parseHttpUrl("CARMEL_PUBLIC_URL", publicUrl))).toString(),
+    redirectUri: new URL(
+      callbackPath,
+      withTrailingSlash(parseHttpUrl("CARMEL_PUBLIC_URL", publicUrl)),
+    ).toString(),
     providerName: value(env.CARMEL_OIDC_PROVIDER_NAME) ?? "SSO",
     scopes,
     claims: {
@@ -68,7 +79,11 @@ export function readOidcConfig(env: Env = process.env): OidcConfig | undefined {
       groups: value(env.CARMEL_OIDC_GROUPS_CLAIM) ?? "groups",
     },
     matchBy: parseMatchBy(env.CARMEL_OIDC_MATCH_BY),
-    requireVerifiedEmail: parseBoolean("CARMEL_OIDC_REQUIRE_VERIFIED_EMAIL", env.CARMEL_OIDC_REQUIRE_VERIFIED_EMAIL, true),
+    requireVerifiedEmail: parseBoolean(
+      "CARMEL_OIDC_REQUIRE_VERIFIED_EMAIL",
+      env.CARMEL_OIDC_REQUIRE_VERIFIED_EMAIL,
+      true,
+    ),
     autoCreate: parseBoolean("CARMEL_OIDC_AUTO_CREATE", env.CARMEL_OIDC_AUTO_CREATE, true),
     allowedGroups,
     adminGroups,
@@ -84,7 +99,9 @@ export function isPasswordLoginEnabled(env: Env = process.env) {
 export function assertOidcConfig(env: Env = process.env) {
   const config = readOidcConfig(env);
   if (!config && !isPasswordLoginEnabled(env)) {
-    throw new OidcConfigError("CARMEL_PASSWORD_LOGIN=false requires OIDC to be configured, or nobody could sign in.");
+    throw new OidcConfigError(
+      "CARMEL_PASSWORD_LOGIN=false requires OIDC to be configured, or nobody could sign in.",
+    );
   }
   return config;
 }
@@ -99,7 +116,9 @@ function parseMatchBy(raw: string | undefined): OidcMatchField[] {
   if (fields.length === 1 && fields[0] === "none") return [];
   for (const field of fields) {
     if (field !== "username" && field !== "email") {
-      throw new OidcConfigError(`CARMEL_OIDC_MATCH_BY accepts "username", "email", or "none"; got "${field}".`);
+      throw new OidcConfigError(
+        `CARMEL_OIDC_MATCH_BY accepts "username", "email", or "none"; got "${field}".`,
+      );
     }
   }
   return [...new Set(fields as OidcMatchField[])];

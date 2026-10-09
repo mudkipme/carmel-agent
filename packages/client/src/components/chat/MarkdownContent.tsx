@@ -1,4 +1,11 @@
-import { isValidElement, memo, useContext, useMemo, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import {
+  isValidElement,
+  memo,
+  useContext,
+  useMemo,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from "react";
 import Markdown, { type Components } from "react-markdown";
 import { Link } from "react-router-dom";
 import remarkGfm from "remark-gfm";
@@ -23,13 +30,20 @@ const components: Components = {
   pre: ({ children }) => {
     const code = isValidElement<ComponentPropsWithoutRef<"code">>(children) ? children : null;
     const language = languageFromClassName(code?.props.className);
-    return <div className="mt-2"><CodeBlock code={childrenToText(code?.props.children)} language={language} /></div>;
+    return (
+      <div className="mt-2">
+        <CodeBlock code={childrenToText(code?.props.children)} language={language} />
+      </div>
+    );
   },
 };
 
 // Memoized because each render re-runs the full remark parse; unchanged content
 // (everything but the actively streaming part) must skip it.
-export const MarkdownContent = memo(function MarkdownContent({ content, thinking = false }: MarkdownContentProps) {
+export const MarkdownContent = memo(function MarkdownContent({
+  content,
+  thinking = false,
+}: MarkdownContentProps) {
   const source = useMemo(() => preserveSoftLineBreaks(content), [content]);
 
   return (
@@ -46,7 +60,12 @@ export const MarkdownContent = memo(function MarkdownContent({ content, thinking
   );
 });
 
-function MarkdownLink({ children, href, node: _node, ...props }: ComponentPropsWithoutRef<"a"> & { node?: unknown }) {
+function MarkdownLink({
+  children,
+  href,
+  node: _node,
+  ...props
+}: ComponentPropsWithoutRef<"a"> & { node?: unknown }) {
   const agentId = useContext(WorkspaceFileLinkAgentContext);
   const filePath = agentId ? workspaceFileFromHref(href) : undefined;
   if (agentId && filePath) {
@@ -71,7 +90,8 @@ function languageFromClassName(className?: string) {
 function childrenToText(children: ReactNode): string {
   if (typeof children === "string") return children.replace(/\n$/, "");
   if (Array.isArray(children)) return children.map(childrenToText).join("");
-  if (isValidElement<{ children?: ReactNode }>(children)) return childrenToText(children.props.children);
+  if (isValidElement<{ children?: ReactNode }>(children))
+    return childrenToText(children.props.children);
   if (children == null || children === false) return "";
   return String(children);
 }

@@ -1,6 +1,10 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { CodemodeCallInfo } from "@carmel-agent/shared";
-import type { AssistantMessage as AssistantMessageType, ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
+import type {
+  AssistantMessage as AssistantMessageType,
+  ToolCall,
+  ToolResultMessage,
+} from "@earendil-works/pi-ai";
 import { AlertCircleIcon, ChevronRightIcon, Loader2Icon } from "lucide-react";
 import { memo, useMemo, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -38,12 +42,14 @@ type MessageSegment =
   | { kind: "message"; message: AgentMessage; index: number }
   | { kind: "run"; messages: Array<{ message: AgentMessage; index: number }> };
 
-type DisplayAssistantContentPart = AssistantMessageType["content"][number] | {
-  type: "image";
-  data?: string;
-  url?: string;
-  mimeType: string;
-};
+type DisplayAssistantContentPart =
+  | AssistantMessageType["content"][number]
+  | {
+      type: "image";
+      data?: string;
+      url?: string;
+      mimeType: string;
+    };
 
 type MessagePresentation = { hideAnswer?: boolean; hideRunEnding?: boolean };
 
@@ -67,7 +73,11 @@ export const ChatMessages = memo(function ChatMessages({
       ? [...messages, streamingMessage]
       : messages;
 
-  const renderMessage = (message: AgentMessage, index: number, presentation: MessagePresentation = {}) => {
+  const renderMessage = (
+    message: AgentMessage,
+    index: number,
+    presentation: MessagePresentation = {},
+  ) => {
     if (message.role === "artifact" || message.role === "toolResult") return null;
     const streaming = isStreaming && message === streamingMessage;
     return (
@@ -89,7 +99,11 @@ export const ChatMessages = memo(function ChatMessages({
   };
 
   if (!collapseRunDetails) {
-    return <div className="flex min-w-0 flex-col gap-4">{renderMessages.map((message, index) => renderMessage(message, index))}</div>;
+    return (
+      <div className="flex min-w-0 flex-col gap-4">
+        {renderMessages.map((message, index) => renderMessage(message, index))}
+      </div>
+    );
   }
 
   const segments = segmentByRun(renderMessages);
@@ -142,18 +156,30 @@ function CollapsedRun({
   messages: Array<{ message: AgentMessage; index: number }>;
   /** The agent is still working on this run. */
   active: boolean;
-  renderMessage: (message: AgentMessage, index: number, presentation?: MessagePresentation) => ReactNode;
+  renderMessage: (
+    message: AgentMessage,
+    index: number,
+    presentation?: MessagePresentation,
+  ) => ReactNode;
   onEditMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const assistants = messages.filter(
-    (entry): entry is { message: AssistantMessageType; index: number } => entry.message.role === "assistant",
+    (entry): entry is { message: AssistantMessageType; index: number } =>
+      entry.message.role === "assistant",
   );
-  const answer = [...assistants].reverse().find((entry) => hasText(entry.message) || entry.message.content.some((part) => (part as { type: string }).type === "image"));
+  const answer = [...assistants]
+    .reverse()
+    .find(
+      (entry) =>
+        hasText(entry.message) ||
+        entry.message.content.some((part) => (part as { type: string }).type === "image"),
+    );
   const last = assistants.at(-1);
   const toolCalls = assistants.reduce(
-    (count, entry) => count + entry.message.content.filter((part) => part.type === "toolCall").length,
+    (count, entry) =>
+      count + entry.message.content.filter((part) => part.type === "toolCall").length,
     0,
   );
   const thought = assistants.some((entry) =>
@@ -162,12 +188,15 @@ function CollapsedRun({
   const remarks = assistants.filter((entry) => entry !== answer && hasText(entry.message)).length;
   const folded = toolCalls > 0 || thought || remarks > 0;
 
-  if (!folded && !active) return <>{messages.map((entry) => renderMessage(entry.message, entry.index))}</>;
+  if (!folded && !active)
+    return <>{messages.map((entry) => renderMessage(entry.message, entry.index))}</>;
 
   const summary = [
     toolCalls > 0 ? `${toolCalls} tool call${toolCalls === 1 ? "" : "s"}` : "",
     thought ? "thinking" : "",
-  ].filter(Boolean).join(" · ");
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const currentTool = active ? runningToolName(last?.message) : undefined;
 
   return (
@@ -181,23 +210,37 @@ function CollapsedRun({
         {active ? (
           <Loader2Icon className="size-3.5 shrink-0 animate-spin" />
         ) : (
-          <ChevronRightIcon className={cn("size-3.5 shrink-0 transition-transform", expanded && "rotate-90")} />
+          <ChevronRightIcon
+            className={cn("size-3.5 shrink-0 transition-transform", expanded && "rotate-90")}
+          />
         )}
         <span className="truncate">
-          {active ? (currentTool ? `Working · ${currentTool}` : "Working") : expanded ? "Hide work" : "Show work"}
+          {active
+            ? currentTool
+              ? `Working · ${currentTool}`
+              : "Working"
+            : expanded
+              ? "Hide work"
+              : "Show work"}
           {summary ? ` · ${summary}` : ""}
         </span>
       </button>
       {expanded ? (
         <div className="flex min-w-0 flex-col gap-4 border-l-2 border-border/60 pl-1">
-          {messages.map((entry) => renderMessage(entry.message, entry.index, {
-            hideAnswer: entry === answer,
-            hideRunEnding: entry === last,
-          }))}
+          {messages.map((entry) =>
+            renderMessage(entry.message, entry.index, {
+              hideAnswer: entry === answer,
+              hideRunEnding: entry === last,
+            }),
+          )}
         </div>
       ) : null}
       {answer ? (
-        <AnswerOnly message={answer.message} onEditMessage={active ? undefined : onEditMessage} onForkMessage={onForkMessage} />
+        <AnswerOnly
+          message={answer.message}
+          onEditMessage={active ? undefined : onEditMessage}
+          onForkMessage={onForkMessage}
+        />
       ) : null}
       {last ? <RunEnding message={last.message} /> : null}
     </div>
@@ -229,9 +272,17 @@ function AnswerOnly({
   return (
     <div className="group flex min-w-0 flex-col gap-1 px-4 text-sm">
       <MarkdownContent content={text} />
-      {(message.content as DisplayAssistantContentPart[]).map((part, index) => part.type === "image" ? (
-        <ImagePreview key={index} data={part.data} url={part.url} mimeType={part.mimeType} label="Image" />
-      ) : null)}
+      {(message.content as DisplayAssistantContentPart[]).map((part, index) =>
+        part.type === "image" ? (
+          <ImagePreview
+            key={index}
+            data={part.data}
+            url={part.url}
+            mimeType={part.mimeType}
+            label="Image"
+          />
+        ) : null,
+      )}
       <div className="-mt-1">
         <MessageActions message={message} onEdit={onEditMessage} onFork={onForkMessage} />
       </div>
@@ -249,7 +300,8 @@ function RunEnding({ message }: { message: AssistantMessageType }) {
       </div>
     );
   }
-  if (message.stopReason === "aborted") return <div className="px-4 text-sm italic text-destructive">Interrupted</div>;
+  if (message.stopReason === "aborted")
+    return <div className="px-4 text-sm italic text-destructive">Interrupted</div>;
   return null;
 }
 
@@ -327,7 +379,9 @@ function UserMessage({ message }: { message: AgentMessage }) {
       <div className="min-w-0 max-w-full rounded-lg bg-secondary px-3.5 py-2 text-sm">
         {skill ? (
           <details>
-            <summary className="cursor-pointer text-sm font-medium">Using skill: {skill.name}</summary>
+            <summary className="cursor-pointer text-sm font-medium">
+              Using skill: {skill.name}
+            </summary>
             <div className="mt-2 border-l pl-3 text-xs text-muted-foreground">
               <div className="truncate">{skill.location}</div>
               <MarkdownContent content={skill.body} />
@@ -385,8 +439,9 @@ function AssistantMessage({
   onForkMessage?: (message: AgentMessage) => void;
 }) {
   const usageText = !streaming ? formatUsage(message.usage) : "";
-  const assistantContent = (message.content as DisplayAssistantContentPart[]).filter((part) =>
-    part.type !== "toolCall" && (!hideAnswer || (part.type !== "text" && part.type !== "image")),
+  const assistantContent = (message.content as DisplayAssistantContentPart[]).filter(
+    (part) =>
+      part.type !== "toolCall" && (!hideAnswer || (part.type !== "text" && part.type !== "image")),
   );
   const toolCalls = message.content.filter((part) => part.type === "toolCall");
   const lastTextIndex = assistantContent.reduce(
@@ -415,7 +470,11 @@ function AssistantMessage({
         }
         if (part.type === "thinking" && part.thinking.trim()) {
           return (
-            <details key={index} className="min-w-0 border-l pl-3 text-muted-foreground" open={streaming}>
+            <details
+              key={index}
+              className="min-w-0 border-l pl-3 text-muted-foreground"
+              open={streaming}
+            >
               <summary className="cursor-pointer text-xs font-medium">Thinking</summary>
               <div className="mt-2">
                 <MarkdownContent content={part.thinking} thinking />
@@ -427,7 +486,12 @@ function AssistantMessage({
           const image = part as typeof part & { data?: string; url?: string };
           return (
             <div key={index}>
-              <ImagePreview data={image.data} url={image.url} mimeType={image.mimeType} label="Image" />
+              <ImagePreview
+                data={image.data}
+                url={image.url}
+                mimeType={image.mimeType}
+                label="Image"
+              />
             </div>
           );
         }
@@ -457,12 +521,24 @@ function AssistantMessage({
           <span>{message.errorMessage}</span>
         </div>
       ) : null}
-      {!hideRunEnding && message.stopReason === "aborted" ? <div className="text-sm italic text-destructive">Request aborted</div> : null}
+      {!hideRunEnding && message.stopReason === "aborted" ? (
+        <div className="text-sm italic text-destructive">Request aborted</div>
+      ) : null}
     </div>
   );
 }
 
-function ImagePreview({ data, url, mimeType, label }: { data?: string; url?: string; mimeType: string; label: string }) {
+function ImagePreview({
+  data,
+  url,
+  mimeType,
+  label,
+}: {
+  data?: string;
+  url?: string;
+  mimeType: string;
+  label: string;
+}) {
   const src = imageSrc({ url, data, mimeType });
   if (!src) return null;
 

@@ -1,10 +1,5 @@
 import { useEffect } from "react";
-import type {
-  AgentConfig,
-  IssueNote,
-  ModelRef,
-  Session,
-} from "@carmel-agent/shared";
+import type { AgentConfig, IssueNote, ModelRef, Session } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { api } from "@/lib/api";
 import { useHarnessStore } from "@/store/harness-store";
@@ -38,11 +33,7 @@ export function IssueConversation({
   const modelRef = modelRefs.find((m) => m.id === session?.modelRefId);
   if (!session)
     return error ? (
-      <ResourceError
-        error={error}
-        title="Unable to load conversation"
-        onRetry={refresh}
-      />
+      <ResourceError error={error} title="Unable to load conversation" onRetry={refresh} />
     ) : (
       <ResourceLoading label="Connecting to conversation" />
     );
@@ -89,12 +80,7 @@ function ConnectedConversation({
   useEffect(() => {
     if (!agent || !connection.data || agent.getSnapshot().isStreaming) return;
     const { activeRun, session: saved } = connection.data;
-    if (activeRun)
-      void agent.attachToRun(
-        activeRun.runId,
-        saved.messages,
-        activeRun.eventCursor,
-      );
+    if (activeRun) void agent.attachToRun(activeRun.runId, saved.messages, activeRun.eventCursor);
     else agent.setMessages(saved.messages);
   }, [agent, connection.data]);
   return (
@@ -120,10 +106,7 @@ function ConnectedConversation({
   );
 }
 
-function withNotes(
-  messages: AgentMessage[],
-  notes: IssueNote[],
-): AgentMessage[] {
+function withNotes(messages: AgentMessage[], notes: IssueNote[]): AgentMessage[] {
   const merged = messages.map((message) => {
     if (message.role !== "user") return message;
     const text =
@@ -141,9 +124,7 @@ function withNotes(
       return message;
     // Old runs embedded the app's full brief and event log in a user message.
     // The brief and exact run input remain available in the issue's history.
-    const instructions = text
-      .split(/## Instructions for (?:this attempt|this run)/)[1]
-      ?.trim();
+    const instructions = text.split(/## Instructions for (?:this attempt|this run)/)[1]?.trim();
     return {
       ...message,
       content:
@@ -152,9 +133,7 @@ function withNotes(
           : "Work on this issue.",
     };
   });
-  for (const note of notes.filter(
-    (n) => n.kind === "note" && n.delivery !== "delivered",
-  )) {
+  for (const note of notes.filter((n) => n.kind === "note" && n.delivery !== "delivered")) {
     const label =
       note.delivery === "queued"
         ? "Update queued"
@@ -167,10 +146,7 @@ function withNotes(
       timestamp: note.createdAt,
     };
     const index = merged.findIndex(
-      (m) =>
-        "timestamp" in m &&
-        typeof m.timestamp === "number" &&
-        m.timestamp > note.createdAt,
+      (m) => "timestamp" in m && typeof m.timestamp === "number" && m.timestamp > note.createdAt,
     );
     merged.splice(index < 0 ? merged.length : index, 0, message);
   }

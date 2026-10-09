@@ -8,7 +8,10 @@ import type { HarnessState } from "@/store/harness-types";
 type SetState = StoreApi<HarnessState>["setState"];
 type GetState = StoreApi<HarnessState>["getState"];
 
-export function createAuthSlice(set: SetState, get: GetState): Pick<
+export function createAuthSlice(
+  set: SetState,
+  get: GetState,
+): Pick<
   HarnessState,
   "bootstrap" | "login" | "setup" | "logout" | "updateAccount" | "rememberAgent"
 > {
@@ -24,11 +27,16 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
           set((state) => ({
             ...resetState({ status: authOptions?.needsSetup ? "setup" : "unauthenticated" }, state),
             authOptions,
-            error: oidcErrorCode ? oidcErrorMessage(oidcErrorCode, authOptions?.oidc?.providerName) : undefined,
+            error: oidcErrorCode
+              ? oidcErrorMessage(oidcErrorCode, authOptions?.oidc?.providerName)
+              : undefined,
           }));
           return;
         }
-        set({ status: "error", error: errorMessage(error, "Something went wrong while loading your workspace.") });
+        set({
+          status: "error",
+          error: errorMessage(error, "Something went wrong while loading your workspace."),
+        });
       }
     },
     setup: async (input) => {
@@ -36,7 +44,10 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
       try {
         set(resolveBootstrapState(await api.setup(input), get()));
       } catch (error) {
-        set((state) => ({ ...resetState({ status: "setup" }, state), error: errorMessage(error, "Setup failed") }));
+        set((state) => ({
+          ...resetState({ status: "setup" }, state),
+          error: errorMessage(error, "Setup failed"),
+        }));
       }
     },
     login: async (username, password) => {
@@ -44,7 +55,10 @@ export function createAuthSlice(set: SetState, get: GetState): Pick<
       try {
         set(resolveBootstrapState(await api.login(username, password), get()));
       } catch (error) {
-        set((state) => ({ ...resetState({ status: "unauthenticated" }, state), error: errorMessage(error, "Login failed") }));
+        set((state) => ({
+          ...resetState({ status: "unauthenticated" }, state),
+          error: errorMessage(error, "Login failed"),
+        }));
       }
     },
     logout: async () => {

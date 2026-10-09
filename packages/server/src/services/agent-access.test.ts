@@ -3,7 +3,13 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { db, initialize } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
-import { createAgent, createModelRef, createProviderConfig, createSession, createUser } from "../test-support.ts";
+import {
+  createAgent,
+  createModelRef,
+  createProviderConfig,
+  createSession,
+  createUser,
+} from "../test-support.ts";
 import {
   assertAgentHostPathAccess,
   readUsableModelRef,
@@ -79,10 +85,16 @@ test("regular users cannot configure manual host paths or mounts", () => {
     /Manual working directories are admin-only/,
   );
   assert.throws(
-    () => assertAgentHostPathAccess("user", { workingDirMode: "default", mounts: [{ source: "/srv" }] }),
+    () =>
+      assertAgentHostPathAccess("user", {
+        workingDirMode: "default",
+        mounts: [{ source: "/srv" }],
+      }),
     /Host mounts are admin-only/,
   );
-  assert.doesNotThrow(() => assertAgentHostPathAccess("user", { workingDirMode: "default", mounts: [] }));
+  assert.doesNotThrow(() =>
+    assertAgentHostPathAccess("user", { workingDirMode: "default", mounts: [] }),
+  );
   assert.doesNotThrow(() =>
     assertAgentHostPathAccess("admin", { workingDirMode: "manual", mounts: [{ source: "/srv" }] }),
   );

@@ -64,7 +64,10 @@ function getTitleThinkingLevel(
 
 export function shouldGenerateSessionTitle(title: string, messages: AgentMessage[]) {
   if (!isPlaceholderTitle(title)) return false;
-  return countUserMessages(messages) > 0 && messages.some((message) => message.role === "assistant" && !message.errorMessage);
+  return (
+    countUserMessages(messages) > 0 &&
+    messages.some((message) => message.role === "assistant" && !message.errorMessage)
+  );
 }
 
 function buildTitleTranscript(messages: AgentMessage[]) {
@@ -103,7 +106,11 @@ function cleanSessionTitle(title: string) {
 
 function isPlaceholderTitle(title: string) {
   const normalized = title.trim().toLowerCase();
-  return normalized === "untitled session" || normalized === "new chat" || normalized.startsWith("session_");
+  return (
+    normalized === "untitled session" ||
+    normalized === "new chat" ||
+    normalized.startsWith("session_")
+  );
 }
 
 function countUserMessages(messages: AgentMessage[]) {

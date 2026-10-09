@@ -2,14 +2,28 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { createModels } from "@earendil-works/pi-ai";
-import { fauxAssistantMessage, fauxProvider, fauxText, fauxThinking } from "@earendil-works/pi-ai/providers/faux";
+import {
+  fauxAssistantMessage,
+  fauxProvider,
+  fauxText,
+  fauxThinking,
+} from "@earendil-works/pi-ai/providers/faux";
 import { applyStreamingEvent, isStreamingEvent, type AgentRunEvent } from "@carmel-agent/shared";
 import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
-import { closePiSession, openPiSession, readPiSessionBranch } from "../services/pi-session-storage.ts";
+import {
+  closePiSession,
+  openPiSession,
+  readPiSessionBranch,
+} from "../services/pi-session-storage.ts";
 import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
 import { projectRunEvent } from "./run-events.ts";
-import { createActiveAgentRun, emitRunEvent, finishAgentRun, getActiveAgentRunForSessionId } from "./run-stream.ts";
+import {
+  createActiveAgentRun,
+  emitRunEvent,
+  finishAgentRun,
+  getActiveAgentRunForSessionId,
+} from "./run-stream.ts";
 
 initialize();
 
@@ -52,16 +66,31 @@ class ClientView {
  */
 async function streamTurnRecordingReconnects() {
   const { sessionId, userId } = createSession();
-  const faux = fauxProvider({ provider: `faux-reopen-${crypto.randomUUID()}`, tokensPerSecond: 120 });
+  const faux = fauxProvider({
+    provider: `faux-reopen-${crypto.randomUUID()}`,
+    tokensPerSecond: 120,
+  });
   const models = createModels();
   models.setProvider(faux.provider);
   faux.setResponses([
-    fauxAssistantMessage([fauxThinking("weighing it up, at some length"), fauxText("Hello, world. ".repeat(20))]),
+    fauxAssistantMessage([
+      fauxThinking("weighing it up, at some length"),
+      fauxText("Hello, world. ".repeat(20)),
+    ]),
   ]);
 
   const piSession = await openPiSession(sessionId);
-  const run = createActiveAgentRun({ runId: `run_${sessionId}`, userId, sessionId, abort: () => {} });
-  const pi = await attachTestHarness(piSession, { models, model: faux.getModel(), systemPrompt: "Test assistant" });
+  const run = createActiveAgentRun({
+    runId: `run_${sessionId}`,
+    userId,
+    sessionId,
+    abort: () => {},
+  });
+  const pi = await attachTestHarness(piSession, {
+    models,
+    model: faux.getModel(),
+    systemPrompt: "Test assistant",
+  });
 
   // What `readSessionConnection` would answer, captured as the run produces it.
   const reconnectPoints: Array<{ boundary: number; cursor: number }> = [];
@@ -77,7 +106,11 @@ async function streamTurnRecordingReconnects() {
     if (event.type === "message_end") {
       // A reconnect's snapshot is only safe if Pi persists before it notifies.
       const branch = await transcript(sessionId);
-      if (!branch.some((message: AgentMessage) => JSON.stringify(message) === JSON.stringify(event.message))) {
+      if (
+        !branch.some(
+          (message: AgentMessage) => JSON.stringify(message) === JSON.stringify(event.message),
+        )
+      ) {
         lostBeforePersist.push(`sequence ${run.nextSequence - 1}`);
       }
       persistedAfter.push({ sequence: run.nextSequence - 1, messages: branch });
@@ -88,7 +121,10 @@ async function streamTurnRecordingReconnects() {
     const boundary = run.nextSequence - 1;
     if (boundary <= lastBoundary) return;
     lastBoundary = boundary;
-    reconnectPoints.push({ boundary, cursor: getActiveAgentRunForSessionId(sessionId)!.eventCursor });
+    reconnectPoints.push({
+      boundary,
+      cursor: getActiveAgentRunForSessionId(sessionId)!.eventCursor,
+    });
   });
 
   try {
@@ -99,7 +135,13 @@ async function streamTurnRecordingReconnects() {
     await pi.close();
   }
 
-  return { run, reconnectPoints, persistedAfter, lostBeforePersist, final: await transcript(sessionId) };
+  return {
+    run,
+    reconnectPoints,
+    persistedAfter,
+    lostBeforePersist,
+    final: await transcript(sessionId),
+  };
 }
 
 /**
@@ -108,7 +150,10 @@ async function streamTurnRecordingReconnects() {
  * Pi Durable commits messages before announcing their `message_end`. Reads
  * include committed live progress, so a reconnect also sees the reply in flight.
  */
-function snapshotAt(persistedAfter: Array<{ sequence: number; messages: AgentMessage[] }>, boundary: number) {
+function snapshotAt(
+  persistedAfter: Array<{ sequence: number; messages: AgentMessage[] }>,
+  boundary: number,
+) {
   let messages: AgentMessage[] = [];
   for (const entry of persistedAfter) {
     if (entry.sequence <= boundary) messages = entry.messages;
@@ -121,7 +166,9 @@ function summarize(view: ClientView) {
   return view
     .onScreen()
     .map((message) => {
-      const parts = Array.isArray(message.content) ? message.content : [{ type: "raw", text: message.content }];
+      const parts = Array.isArray(message.content)
+        ? message.content
+        : [{ type: "raw", text: message.content }];
       const shape = (parts as Array<{ type: string; text?: string; thinking?: string }>)
         .map((part) => `${part.type}:${(part.text ?? part.thinking ?? "").length}`)
         .join(",");
@@ -133,7 +180,9 @@ function summarize(view: ClientView) {
 async function transcript(sessionId: string): Promise<AgentMessage[]> {
   const session = await openPiSession(sessionId);
   try {
-    return (await readPiSessionBranch(session)).flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
+    return (await readPiSessionBranch(session)).flatMap((entry) =>
+      entry.type === "message" ? [entry.message] : [],
+    );
   } finally {
     await closePiSession(session);
   }
@@ -185,7 +234,9 @@ test("reopening mid-stream shows exactly what a session that stayed open shows",
   // What no longer holds is byte-identity. Inside the settle window the reopened
   // client holds the in-flight copy of the last message, whose `stopReason` and
   // usage Pi fills in when the operation commits. Same content, later metadata.
-  const renderedDifferently = divergences.filter((entry) => !entry.renderedTheSame).map((entry) => entry.detail);
+  const renderedDifferently = divergences
+    .filter((entry) => !entry.renderedTheSame)
+    .map((entry) => entry.detail);
   assert.deepEqual(
     renderedDifferently,
     [],
@@ -197,5 +248,9 @@ test("reopening mid-stream shows exactly what a session that stayed open shows",
 
   const fromStream = new ClientView([]);
   for (const envelope of run.events) fromStream.apply(envelope.event);
-  assert.deepEqual(fromStream.onScreen(), JSON.parse(JSON.stringify(final)), "the stream must fold to the persisted transcript");
+  assert.deepEqual(
+    fromStream.onScreen(),
+    JSON.parse(JSON.stringify(final)),
+    "the stream must fold to the persisted transcript",
+  );
 });

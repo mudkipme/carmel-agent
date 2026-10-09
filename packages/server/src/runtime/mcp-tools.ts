@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import type { AgentMcpServer } from "@carmel-agent/shared";
-import type { AgentHarnessTool, ExecutionToolContext, JsonValue } from "../effectors/pi-durable/index.ts";
+import type {
+  AgentHarnessTool,
+  ExecutionToolContext,
+  JsonValue,
+} from "../effectors/pi-durable/index.ts";
 import {
   McpClient,
   StreamableHttpTransport,
@@ -12,7 +16,12 @@ import type { agents } from "../db/schema.ts";
 import { readAgentSecretEnv } from "../services/agent-secrets.ts";
 import { errorMessage } from "../errors.ts";
 import { sandboxEnv } from "./sandbox/bash-operations.ts";
-import { ensureAgentContainer, holdAgentContainer, releaseAgentContainer, toContainerWorkdir } from "./sandbox/container-manager.ts";
+import {
+  ensureAgentContainer,
+  holdAgentContainer,
+  releaseAgentContainer,
+  toContainerWorkdir,
+} from "./sandbox/container-manager.ts";
 import { attachExecStdio } from "./sandbox/runtime-client.ts";
 import { SandboxMcpTransport, sandboxMcpCommand } from "./sandbox/mcp-transport.ts";
 import { createSecretRedactor } from "./sandbox/redaction.ts";
@@ -29,7 +38,10 @@ export type McpToolConnectionOptions = {
 
 /** Stable, provider-safe names even when raw names contain punctuation or exceed 64 chars. */
 export function mcpToolName(serverId: string, toolName: string) {
-  const hash = createHash("sha256").update(JSON.stringify([serverId, toolName])).digest("hex").slice(0, 12);
+  const hash = createHash("sha256")
+    .update(JSON.stringify([serverId, toolName]))
+    .digest("hex")
+    .slice(0, 12);
   return `mcp_${serverId}_${toolName}`.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 51) + `_${hash}`;
 }
 
@@ -51,7 +63,10 @@ export class AgentMcpTools {
   private closing?: Promise<void>;
   private closed = false;
 
-  constructor(private readonly agent: AgentRecord, private readonly cwd: string) {}
+  constructor(
+    private readonly agent: AgentRecord,
+    private readonly cwd: string,
+  ) {}
 
   async connect(options: McpToolConnectionOptions = {}) {
     if (this.closed) throw new Error("MCP connections are closed.");
@@ -60,18 +75,34 @@ export class AgentMcpTools {
       if (!server.enabled || server.tools?.length === 0) continue;
       if (server.transport === "http" && !this.agent.permissions.network) continue;
       if (server.transport === "stdio" && !this.agent.permissions.bash) continue;
-      const signal = AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(server.timeoutMs)]);
+      const signal = AbortSignal.any([
+        ...(options.signal ? [options.signal] : []),
+        AbortSignal.timeout(server.timeoutMs),
+      ]);
       signal.throwIfAborted();
       const client = new McpClient({
-        name: "carmel-agent", version: "0.1.0", requestTimeoutMs: server.timeoutMs,
-        roots: [{ uri: pathToFileURL(server.transport === "stdio" ? toContainerWorkdir(this.agent, this.cwd) : this.cwd).href, name: "workspace" }],
+        name: "carmel-agent",
+        version: "0.1.0",
+        requestTimeoutMs: server.timeoutMs,
+        roots: [
+          {
+            uri: pathToFileURL(
+              server.transport === "stdio" ? toContainerWorkdir(this.agent, this.cwd) : this.cwd,
+            ).href,
+            name: "workspace",
+          },
+        ],
       });
       this.clients.push(client);
-      const onAbort = () => { this.pendingCloses.push(client.close()); };
+      const onAbort = () => {
+        this.pendingCloses.push(client.close());
+      };
       signal.addEventListener("abort", onAbort, { once: true });
       let cancelConnect: (() => void) | undefined;
       try {
-        const transport = options.createTransport?.(server, signal) ?? this.createTransport(server, secrets, signal);
+        const transport =
+          options.createTransport?.(server, signal) ??
+          this.createTransport(server, secrets, signal);
         const cancelled = new Promise<never>((_resolve, reject) => {
           cancelConnect = () => reject(signal.reason);
           signal.addEventListener("abort", cancelConnect, { once: true });
@@ -79,7 +110,12 @@ export class AgentMcpTools {
         await Promise.race([client.connect(transport), cancelled]);
         signal.throwIfAborted();
         const definitions = await client.listTools({ signal });
-        this.discoveredTools.push(...definitions.map((tool) => ({ name: tool.name, label: redact(tool.title ?? tool.name, secrets) })));
+        this.discoveredTools.push(
+          ...definitions.map((tool) => ({
+            name: tool.name,
+            label: redact(tool.title ?? tool.name, secrets),
+          })),
+        );
         const names = new Set(definitions.map((tool) => tool.name));
         for (const selected of server.tools ?? []) {
           if (!names.has(selected)) throw new Error(`MCP tool '${selected}' is unavailable.`);
@@ -89,29 +125,66 @@ export class AgentMcpTools {
           const tool: Tool = {
             name: mcpToolName(server.id, definition.name),
             label: redact(`MCP · ${server.id} · ${definition.title ?? definition.name}`, secrets),
-            description: redact(`MCP server ${server.id}: ${definition.description ?? definition.name}`, secrets),
+            description: redact(
+              `MCP server ${server.id}: ${definition.description ?? definition.name}`,
+              secrets,
+            ),
             // Pi accepts a JSON schema; keep the server's schema rather than rebuilding it.
-            parameters: { ...definition.inputSchema, type: "object", properties: definition.inputSchema.properties ?? {} } as Tool["parameters"],
+            parameters: {
+              ...definition.inputSchema,
+              type: "object",
+              properties: definition.inputSchema.properties ?? {},
+            } as Tool["parameters"],
             outputSchema: definition.outputSchema as Tool["outputSchema"],
             async execute(_id, params, onUpdate, _context, _invocation, context) {
               try {
-                const result = await client.callTool(definition.name, params as Record<string, unknown>, {
-                  signal: context.abortSignal,
-                  timeoutMs: server.timeoutMs,
-                  onProgress: (progress) => onUpdate({
-                    content: [{ type: "text", text: redact(progress.message ?? `Progress: ${progress.progress}${progress.total === undefined ? "" : `/${progress.total}`}`, secrets) }],
-                    details: { serverId: server.id, toolName: definition.name, progress: progress.progress, ...(progress.total === undefined ? {} : { total: progress.total }) },
-                  }),
-                });
-                const structuredContent = result.structuredContent === undefined ? undefined : redactValue(result.structuredContent, secrets) as JsonValue;
+                const result = await client.callTool(
+                  definition.name,
+                  params as Record<string, unknown>,
+                  {
+                    signal: context.abortSignal,
+                    timeoutMs: server.timeoutMs,
+                    onProgress: (progress) =>
+                      onUpdate({
+                        content: [
+                          {
+                            type: "text",
+                            text: redact(
+                              progress.message ??
+                                `Progress: ${progress.progress}${progress.total === undefined ? "" : `/${progress.total}`}`,
+                              secrets,
+                            ),
+                          },
+                        ],
+                        details: {
+                          serverId: server.id,
+                          toolName: definition.name,
+                          progress: progress.progress,
+                          ...(progress.total === undefined ? {} : { total: progress.total }),
+                        },
+                      }),
+                  },
+                );
+                const structuredContent =
+                  result.structuredContent === undefined
+                    ? undefined
+                    : (redactValue(result.structuredContent, secrets) as JsonValue);
                 return {
-                  content: toLlmContent(result).map((part) => part.type === "text" ? { ...part, text: redact(part.text, secrets) } : part),
-                  details: { serverId: server.id, toolName: definition.name, ...(structuredContent === undefined ? {} : { structuredContent }) },
+                  content: toLlmContent(result).map((part) =>
+                    part.type === "text" ? { ...part, text: redact(part.text, secrets) } : part,
+                  ),
+                  details: {
+                    serverId: server.id,
+                    toolName: definition.name,
+                    ...(structuredContent === undefined ? {} : { structuredContent }),
+                  },
                   structuredContent,
                   isError: result.isError === true,
                 };
               } catch (error) {
-                throw new Error(redact(`MCP ${server.id}/${definition.name}: ${errorMessage(error)}`, secrets));
+                throw new Error(
+                  redact(`MCP ${server.id}/${definition.name}: ${errorMessage(error)}`, secrets),
+                );
               }
             },
           };
@@ -127,29 +200,57 @@ export class AgentMcpTools {
     }
   }
 
-  private createTransport(server: AgentMcpServer, secrets: Secret[], signal: AbortSignal): McpTransport {
-    const expand = (values: Record<string, string>) => Object.fromEntries(Object.entries(values).map(([key, value]) => [key, expandMcpSecrets(value, secrets)]));
-    if (server.transport === "http") return new StreamableHttpTransport({ url: server.url, headers: expand(server.headers) });
+  private createTransport(
+    server: AgentMcpServer,
+    secrets: Secret[],
+    signal: AbortSignal,
+  ): McpTransport {
+    const expand = (values: Record<string, string>) =>
+      Object.fromEntries(
+        Object.entries(values).map(([key, value]) => [key, expandMcpSecrets(value, secrets)]),
+      );
+    if (server.transport === "http")
+      return new StreamableHttpTransport({ url: server.url, headers: expand(server.headers) });
     let held = false;
-    return new SandboxMcpTransport(async () => {
-      const agent = this.agent;
-      const containerId = await ensureAgentContainer(agent, { network: agent.permissions.network });
-      signal.throwIfAborted();
-      holdAgentContainer(agent.id);
-      held = true;
-      const { socket } = await attachExecStdio(containerId, {
-        cmd: sandboxMcpCommand(server.command, server.args.map((arg) => expandMcpSecrets(arg, secrets))),
-        workingDir: toContainerWorkdir(agent, this.cwd),
-        env: sandboxEnv(expand(server.env), secrets),
-      }, signal);
-      return socket;
-    }, () => { if (held) { held = false; releaseAgentContainer(this.agent.id); } });
+    return new SandboxMcpTransport(
+      async () => {
+        const agent = this.agent;
+        const containerId = await ensureAgentContainer(agent, {
+          network: agent.permissions.network,
+        });
+        signal.throwIfAborted();
+        holdAgentContainer(agent.id);
+        held = true;
+        const { socket } = await attachExecStdio(
+          containerId,
+          {
+            cmd: sandboxMcpCommand(
+              server.command,
+              server.args.map((arg) => expandMcpSecrets(arg, secrets)),
+            ),
+            workingDir: toContainerWorkdir(agent, this.cwd),
+            env: sandboxEnv(expand(server.env), secrets),
+          },
+          signal,
+        );
+        return socket;
+      },
+      () => {
+        if (held) {
+          held = false;
+          releaseAgentContainer(this.agent.id);
+        }
+      },
+    );
   }
 
   async close() {
     if (this.closing) return this.closing;
     this.closed = true;
-    this.closing = Promise.allSettled([...this.pendingCloses, ...this.clients.map((client) => client.close())]).then(() => {});
+    this.closing = Promise.allSettled([
+      ...this.pendingCloses,
+      ...this.clients.map((client) => client.close()),
+    ]).then(() => {});
     return this.closing;
   }
 }
@@ -162,6 +263,9 @@ function redact(value: string, secrets: readonly Secret[]) {
 function redactValue(value: unknown, secrets: readonly Secret[]): unknown {
   if (typeof value === "string") return redact(value, secrets);
   if (Array.isArray(value)) return value.map((entry) => redactValue(entry, secrets));
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, redactValue(entry, secrets)]));
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, redactValue(entry, secrets)]),
+    );
   return value;
 }

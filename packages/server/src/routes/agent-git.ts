@@ -42,11 +42,18 @@ export function createAgentGitRoute(readVisibleAgent: ReadVisibleAgent) {
     if (refusal) return c.json({ error: refusal.error }, refusal.status);
     const path = c.req.query("path");
     const area = c.req.query("area") as GitChangeArea | undefined;
-    if (!path || !area || !AREAS.includes(area)) return c.json({ error: "path and area are required." }, 400);
+    if (!path || !area || !AREAS.includes(area))
+      return c.json({ error: "path and area are required." }, 400);
 
     const env = new AgentExecutionEnv(agent);
     try {
-      return c.json(await readGitFileDiff(agent, env, { path, area, originalPath: c.req.query("originalPath") || undefined }));
+      return c.json(
+        await readGitFileDiff(agent, env, {
+          path,
+          area,
+          originalPath: c.req.query("originalPath") || undefined,
+        }),
+      );
     } catch (error) {
       return c.json({ error: errorMessage(error) }, isGitRequestError(error) ? 400 : 502);
     } finally {
@@ -58,7 +65,8 @@ export function createAgentGitRoute(readVisibleAgent: ReadVisibleAgent) {
 }
 
 function refuse(agent: AgentRecord): { error: string; status: 403 | 503 } | undefined {
-  if (!agent.permissions.read) return { error: "Read permission is disabled for this agent.", status: 403 };
+  if (!agent.permissions.read)
+    return { error: "Read permission is disabled for this agent.", status: 403 };
   if (!isSandboxConfigured()) {
     return {
       error:

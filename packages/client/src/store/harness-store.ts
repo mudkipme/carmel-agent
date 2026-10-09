@@ -32,7 +32,9 @@ export const useHarnessStore = create<HarnessState>()(
       version: 3,
       // Versions 1 and 2 stored a selection; only the agent survives, as a memory.
       migrate: (persisted) => {
-        const stored = (persisted ?? {}) as Partial<HarnessPersistedState> & { activeAgentId?: string };
+        const stored = (persisted ?? {}) as Partial<HarnessPersistedState> & {
+          activeAgentId?: string;
+        };
         return { lastAgentId: stored.lastAgentId ?? stored.activeAgentId ?? "" };
       },
     },

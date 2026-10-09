@@ -5,7 +5,12 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { AuthorizationResponseError } from "openid-client";
 import { createAuthSession, type AuthVariables } from "../auth.ts";
 import { OidcLoginError, readOidcProfile, resolveOidcUser } from "../oidc/accounts.ts";
-import { buildOidcAuthorizationUrl, completeOidcLogin, discoveredIssuer, type PendingOidcLogin } from "../oidc/client.ts";
+import {
+  buildOidcAuthorizationUrl,
+  completeOidcLogin,
+  discoveredIssuer,
+  type PendingOidcLogin,
+} from "../oidc/client.ts";
 import { readOidcConfig } from "../oidc/config.ts";
 
 const flowCookieName = "carmel_oidc";
@@ -76,7 +81,9 @@ export function createOidcAuthRoutes() {
       }
       if (error instanceof AuthorizationResponseError) {
         // The provider sent the person back with error=... (cancelled, denied).
-        console.warn(`OIDC: ${config.providerName} returned ${error.error}: ${error.error_description ?? ""}`);
+        console.warn(
+          `OIDC: ${config.providerName} returned ${error.error}: ${error.error_description ?? ""}`,
+        );
         return redirectWithError(c, error.error === "access_denied" ? "denied" : "failed");
       }
       console.error(`OIDC: sign-in with ${config.providerName} failed:`, error);

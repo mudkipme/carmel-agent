@@ -11,7 +11,9 @@ export function agentFilesPath(agentId: string, path = "") {
 /** The Changes view, optionally opened on one file's diff in one area. */
 export function agentChangesPath(agentId: string, change?: { path: string; area: string }) {
   const changesPath = `/agents/${agentId}/changes`;
-  return change ? `${changesPath}/${encodeFilePath(change.path)}?${new URLSearchParams({ area: change.area })}` : changesPath;
+  return change
+    ? `${changesPath}/${encodeFilePath(change.path)}?${new URLSearchParams({ area: change.area })}`
+    : changesPath;
 }
 
 /**

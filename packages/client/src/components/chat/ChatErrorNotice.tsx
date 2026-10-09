@@ -12,7 +12,13 @@ import { isReconnectingMessage } from "@/lib/remote-agent";
  * comes back and hiding it would leave the user watching a chat that is not
  * receiving anything.
  */
-export function ChatErrorNotice({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+export function ChatErrorNotice({
+  message,
+  onDismiss,
+}: {
+  message: string;
+  onDismiss: () => void;
+}) {
   const reconnecting = isReconnectingMessage(message);
   return (
     <div

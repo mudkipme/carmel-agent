@@ -37,7 +37,10 @@ export async function loadSession(sessionId: string): Promise<SessionWithMessage
   return record ? attachMessages(record) : undefined;
 }
 
-export async function loadOwnedSession(userId: string, sessionId: string): Promise<SessionWithMessages | undefined> {
+export async function loadOwnedSession(
+  userId: string,
+  sessionId: string,
+): Promise<SessionWithMessages | undefined> {
   const session = await loadSession(sessionId);
   return session?.userId === userId ? session : undefined;
 }

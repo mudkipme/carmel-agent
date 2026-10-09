@@ -27,10 +27,7 @@ import { readVisibleAgent } from "./agent-access.ts";
 import { NO_PROVIDER_AUTH_MESSAGE, resolveRunModel } from "./model-context.ts";
 import { deletePiSession } from "./pi-session-storage.ts";
 import { insertSession } from "./session-launch.ts";
-import {
-  captureIssueWorkspace,
-  compareIssueWorkspace,
-} from "./issue-results.ts";
+import { captureIssueWorkspace, compareIssueWorkspace } from "./issue-results.ts";
 
 type IssueRecord = typeof issues.$inferSelect;
 export class IssueError extends Error {
@@ -53,22 +50,14 @@ export function readIssues(userId: string, agentId: string): Issue[] {
     .all()
     .map(serializeIssue);
 }
-export function readIssue(
-  userId: string,
-  agentId: string,
-  issueId: string,
-): IssueRecord {
+export function readIssue(userId: string, agentId: string, issueId: string): IssueRecord {
   assertAgentVisible(userId, agentId);
   const row = db.select().from(issues).where(eq(issues.id, issueId)).get();
   if (!row || row.agentId !== agentId || row.userId !== userId)
     throw new IssueError("Issue not found.", 404);
   return row;
 }
-export function readIssueView(
-  userId: string,
-  agentId: string,
-  issueId: string,
-): IssueDetail {
+export function readIssueView(userId: string, agentId: string, issueId: string): IssueDetail {
   const issue = readIssue(userId, agentId, issueId);
   const canReadFiles = assertAgentVisible(userId, agentId).permissions.read;
   return {
@@ -137,10 +126,7 @@ export function addIssueNote(
 ): IssueDetail {
   readIssue(userId, agentId, issueId);
   addEvent(issueId, body, "note");
-  db.update(issues)
-    .set({ updatedAt: now() })
-    .where(eq(issues.id, issueId))
-    .run();
+  db.update(issues).set({ updatedAt: now() }).where(eq(issues.id, issueId)).run();
   return readIssueView(userId, agentId, issueId);
 }
 
@@ -175,26 +161,13 @@ function wakeQueue(agentId: string) {
     if (queueEnabled) void pumpIssueQueue(agentId).catch(() => undefined);
   });
 }
-function enqueueIssue(
-  userId: string,
-  agentId: string,
-  issueId: string,
-  command: IssueRunCommand,
-) {
+function enqueueIssue(userId: string, agentId: string, issueId: string, command: IssueRunCommand) {
   const current = readIssue(userId, agentId, issueId);
   requireIdle(current);
-  if (closed(current))
-    throw new IssueError("Reopen the issue before queueing work.", 409);
-  if (current.status === "queued")
-    throw new IssueError("This issue is already queued.", 409);
-  if (
-    ["in_review", "needs_input"].includes(current.status) &&
-    !command.instructions?.trim()
-  )
-    throw new IssueError(
-      "Provide feedback or an answer before starting another run.",
-      400,
-    );
+  if (closed(current)) throw new IssueError("Reopen the issue before queueing work.", 409);
+  if (current.status === "queued") throw new IssueError("This issue is already queued.", 409);
+  if (["in_review", "needs_input"].includes(current.status) && !command.instructions?.trim())
+    throw new IssueError("Provide feedback or an answer before starting another run.", 400);
   const last = db
     .select()
     .from(issues)
@@ -212,9 +185,7 @@ function enqueueIssue(
     .run();
   addEvent(
     issueId,
-    command.instructions
-      ? `Queued instructions:\n${command.instructions}`
-      : "Queued work.",
+    command.instructions ? `Queued instructions:\n${command.instructions}` : "Queued work.",
   );
 }
 export async function runIssue(
@@ -240,9 +211,7 @@ export async function pumpIssueQueue(agentId: string) {
     .select({ id: issueAttempts.id })
     .from(issueAttempts)
     .innerJoin(issues, eq(issues.id, issueAttempts.issueId))
-    .where(
-      and(eq(issues.agentId, agentId), eq(issueAttempts.outcome, "running")),
-    )
+    .where(and(eq(issues.agentId, agentId), eq(issueAttempts.outcome, "running")))
     .get();
   if (active) return;
   const current = db
@@ -281,42 +250,29 @@ export async function pumpIssueQueue(agentId: string) {
       })
       .where(eq(issues.id, issueId))
       .run();
-    addEvent(
-      issueId,
-      command.fresh ? "Started work in a fresh conversation." : "Started work.",
-    );
+    addEvent(issueId, command.fresh ? "Started work in a fresh conversation." : "Started work.");
   });
   try {
     const agent = assertAgentVisible(userId, agentId);
     const previous =
       !command.fresh && current.sessionId
-        ? db
-            .select()
-            .from(sessions)
-            .where(eq(sessions.id, current.sessionId))
-            .get()
+        ? db.select().from(sessions).where(eq(sessions.id, current.sessionId)).get()
         : undefined;
     const model = await resolveRunModel(
       userId,
       command.modelRefId ?? previous?.modelRefId ?? agent.defaultModelRefId,
-      command.thinkingLevel ??
-        previous?.thinkingLevel ??
-        agent.defaultThinkingLevel ??
-        "off",
+      command.thinkingLevel ?? previous?.thinkingLevel ?? agent.defaultThinkingLevel ?? "off",
     );
     checkClaim();
     const currentAgent = assertAgentVisible(userId, agentId);
     if (!model.ok)
       throw new IssueError(
-        model.reason === "not_found"
-          ? "Model not found."
-          : NO_PROVIDER_AUTH_MESSAGE,
+        model.reason === "not_found" ? "Model not found." : NO_PROVIDER_AUTH_MESSAGE,
         400,
       );
     const baseline = await captureIssueWorkspace(currentAgent);
     checkClaim();
-    const { modelRef, providerConfig, modelRuntime, thinkingLevel } =
-      model.value;
+    const { modelRef, providerConfig, modelRuntime, thinkingLevel } = model.value;
     const session =
       previous ??
       insertSession({
@@ -331,10 +287,7 @@ export async function pumpIssueQueue(agentId: string) {
       .set({ sessionId: session.id })
       .where(eq(issueAttempts.id, attemptId))
       .run();
-    db.update(issues)
-      .set({ sessionId: session.id })
-      .where(eq(issues.id, issueId))
-      .run();
+    db.update(issues).set({ sessionId: session.id }).where(eq(issues.id, issueId)).run();
     const run = startDetachedAgentRun({
       agent: currentAgent,
       session,
@@ -348,14 +301,8 @@ export async function pumpIssueQueue(agentId: string) {
     onRunFinished(run, (result) => {
       // Keep the claim until the immutable result has been saved; the next job cannot overwrite it.
       const settlement = (async () => {
-        const snapshot = compareIssueWorkspace(
-          baseline,
-          await captureIssueWorkspace(currentAgent),
-        );
-        db.update(issueAttempts)
-          .set({ snapshot })
-          .where(eq(issueAttempts.id, attemptId))
-          .run();
+        const snapshot = compareIssueWorkspace(baseline, await captureIssueWorkspace(currentAgent));
+        db.update(issueAttempts).set({ snapshot }).where(eq(issueAttempts.id, attemptId)).run();
       })()
         .catch(() => {
           db.update(issueAttempts)
@@ -386,16 +333,8 @@ export async function pumpIssueQueue(agentId: string) {
     wakeQueue(agentId);
   }
   function checkClaim() {
-    if (!queueEnabled)
-      throw new IssueError(
-        "The server stopped before this run could start.",
-        409,
-      );
-    const attempt = db
-      .select()
-      .from(issueAttempts)
-      .where(eq(issueAttempts.id, attemptId))
-      .get();
+    if (!queueEnabled) throw new IssueError("The server stopped before this run could start.", 409);
+    const attempt = db.select().from(issueAttempts).where(eq(issueAttempts.id, attemptId)).get();
     if (!attempt || attempt.outcome !== "running")
       throw new IssueError("This attempt was stopped before it started.", 409);
     readIssue(userId, agentId, issueId);
@@ -409,10 +348,7 @@ export function removeIssueFromQueue(
 ): IssueDetail {
   const current = readIssue(userId, agentId, issueId);
   if (current.status !== "queued")
-    throw new IssueError(
-      "Only queued work can be removed from the queue.",
-      409,
-    );
+    throw new IssueError("Only queued work can be removed from the queue.", 409);
   if (current.queuedCommand?.instructions)
     addEvent(issueId, current.queuedCommand.instructions, "note");
   db.update(issues)
@@ -424,10 +360,7 @@ export function removeIssueFromQueue(
     })
     .where(eq(issues.id, issueId))
     .run();
-  addEvent(
-    issueId,
-    "Removed from the queue. Instructions remain in the discussion.",
-  );
+  addEvent(issueId, "Removed from the queue. Instructions remain in the discussion.");
   return readIssueView(userId, agentId, issueId);
 }
 export function moveQueuedIssue(
@@ -437,8 +370,7 @@ export function moveQueuedIssue(
   direction: "up" | "down",
 ): IssueDetail {
   const current = readIssue(userId, agentId, issueId);
-  if (current.status !== "queued")
-    throw new IssueError("Only queued work can be reordered.", 409);
+  if (current.status !== "queued") throw new IssueError("Only queued work can be reordered.", 409);
   // Users can reorder their own jobs without exposing another owner's private queue.
   const queue = readIssues(userId, agentId)
     .filter((i) => i.status === "queued")
@@ -466,15 +398,9 @@ export async function sendIssueUpdate(
 ): Promise<IssueDetail> {
   const current = readIssue(userId, agentId, issueId);
   if (!activeAttempt(issueId) || !current.sessionId)
-    throw new IssueError(
-      "The agent is not running. Queue your instructions instead.",
-      409,
-    );
+    throw new IssueError("The agent is not running. Queue your instructions instead.", 409);
   const noteId = addEvent(issueId, body, "note");
-  db.update(issueNotes)
-    .set({ delivery: "queued" })
-    .where(eq(issueNotes.id, noteId))
-    .run();
+  db.update(issueNotes).set({ delivery: "queued" }).where(eq(issueNotes.id, noteId)).run();
   try {
     const queued = await steerAgentRun(current.sessionId, body);
     if (!queued)
@@ -490,10 +416,7 @@ export async function sendIssueUpdate(
       .where(eq(issueNotes.id, noteId))
       .run();
   } catch (error) {
-    db.update(issueNotes)
-      .set({ delivery: "not_delivered" })
-      .where(eq(issueNotes.id, noteId))
-      .run();
+    db.update(issueNotes).set({ delivery: "not_delivered" }).where(eq(issueNotes.id, noteId)).run();
     throw error;
   }
   return readIssueView(userId, agentId, issueId);
@@ -510,12 +433,7 @@ export function issueRunAddons(
       for (const note of db
         .select()
         .from(issueNotes)
-        .where(
-          and(
-            eq(issueNotes.issueId, issueId),
-            eq(issueNotes.delivery, "queued"),
-          ),
-        )
+        .where(and(eq(issueNotes.issueId, issueId), eq(issueNotes.delivery, "queued")))
         .all())
         if (note.entryId && !entryIds.includes(note.entryId))
           db.update(issueNotes)
@@ -526,18 +444,11 @@ export function issueRunAddons(
     async onRunSettling(lane, aborted) {
       const watch = await lane.watch(BACKGROUND_CONTEXT);
       try {
-        const pending = new Set(
-          watch.snapshot.queues.map((item) => item.entryId),
-        );
+        const pending = new Set(watch.snapshot.queues.map((item) => item.entryId));
         for (const note of db
           .select()
           .from(issueNotes)
-          .where(
-            and(
-              eq(issueNotes.issueId, issueId),
-              eq(issueNotes.delivery, "queued"),
-            ),
-          )
+          .where(and(eq(issueNotes.issueId, issueId), eq(issueNotes.delivery, "queued")))
           .all()) {
           if (!note.entryId) continue;
           const undelivered = aborted || pending.has(note.entryId);
@@ -547,8 +458,7 @@ export function issueRunAddons(
             .set({ delivery: undelivered ? "not_delivered" : "delivered" })
             .where(eq(issueNotes.id, note.id))
             .run();
-          if (undelivered)
-            await lane.cancelQueued(note.entryId, BACKGROUND_CONTEXT);
+          if (undelivered) await lane.cancelQueued(note.entryId, BACKGROUND_CONTEXT);
         }
       } finally {
         watch.unsubscribe();
@@ -566,8 +476,7 @@ export function issueRunAddons(
             summary: { type: "string" },
             evidence: {
               type: "string",
-              description:
-                "Checks performed, results, artifacts, and any remaining uncertainty.",
+              description: "Checks performed, results, artifacts, and any remaining uncertainty.",
             },
           },
           required: ["state", "summary", "evidence"],
@@ -586,19 +495,13 @@ export function issueRunAddons(
             !args.summary.trim() ||
             typeof args.evidence !== "string"
           )
-            throw new Error(
-              "A valid state, summary, and evidence are required.",
-            );
+            throw new Error("A valid state, summary, and evidence are required.");
           const attempt = db
             .select()
             .from(issueAttempts)
             .where(eq(issueAttempts.id, attemptId))
             .get();
-          const issue = db
-            .select()
-            .from(issues)
-            .where(eq(issues.id, issueId))
-            .get();
+          const issue = db.select().from(issues).where(eq(issues.id, issueId)).get();
           if (
             !attempt ||
             attempt.issueId !== issueId ||
@@ -639,17 +542,9 @@ export function issueRunAddons(
 }
 
 export function finishIssueAttempt(attemptId: string, result: AgentRunResult) {
-  const attempt = db
-    .select()
-    .from(issueAttempts)
-    .where(eq(issueAttempts.id, attemptId))
-    .get();
+  const attempt = db.select().from(issueAttempts).where(eq(issueAttempts.id, attemptId)).get();
   if (!attempt || attempt.outcome !== "running") return;
-  const issue = db
-    .select()
-    .from(issues)
-    .where(eq(issues.id, attempt.issueId))
-    .get();
+  const issue = db.select().from(issues).where(eq(issues.id, attempt.issueId)).get();
   if (!issue) return;
   db.transaction(() => {
     db.update(issueAttempts)
@@ -694,12 +589,7 @@ export function finishIssueAttempt(attemptId: string, result: AgentRunResult) {
     );
     db.update(issueNotes)
       .set({ delivery: "not_delivered" })
-      .where(
-        and(
-          eq(issueNotes.issueId, issue.id),
-          eq(issueNotes.delivery, "queued"),
-        ),
-      )
+      .where(and(eq(issueNotes.issueId, issue.id), eq(issueNotes.delivery, "queued")))
       .run();
   });
   wakeQueue(issue.agentId);
@@ -713,26 +603,16 @@ export function updateIssue(
 ): IssueDetail {
   const current = readIssue(userId, agentId, issueId);
   requireIdle(current);
-  if (closed(current))
-    throw new IssueError("Reopen the issue before editing its brief.", 409);
+  if (closed(current)) throw new IssueError("Reopen the issue before editing its brief.", 409);
   if (current.status === "queued")
-    throw new IssueError(
-      "Remove this issue from the queue before editing its brief.",
-      409,
-    );
+    throw new IssueError("Remove this issue from the queue before editing its brief.", 409);
   if (patch.status && !["backlog", "todo"].includes(current.status))
-    throw new IssueError(
-      "Only unstarted issues can move between Backlog and To do.",
-      409,
-    );
+    throw new IssueError("Only unstarted issues can move between Backlog and To do.", 409);
   db.transaction(() => {
     db.update(issues)
       .set({
         ...patch,
-        status:
-          current.status === "in_review"
-            ? "todo"
-            : (patch.status ?? current.status),
+        status: current.status === "in_review" ? "todo" : (patch.status ?? current.status),
         updatedAt: now(),
       })
       .where(eq(issues.id, issueId))
@@ -741,11 +621,7 @@ export function updateIssue(
   });
   return readIssueView(userId, agentId, issueId);
 }
-export function acceptIssue(
-  userId: string,
-  agentId: string,
-  issueId: string,
-): IssueDetail {
+export function acceptIssue(userId: string, agentId: string, issueId: string): IssueDetail {
   const current = readIssue(userId, agentId, issueId);
   requireIdle(current);
   if (current.status !== "in_review")
@@ -757,15 +633,10 @@ export function acceptIssue(
   addEvent(issueId, "Accepted the result and marked Done.");
   return readIssueView(userId, agentId, issueId);
 }
-export function reopenIssue(
-  userId: string,
-  agentId: string,
-  issueId: string,
-): IssueDetail {
+export function reopenIssue(userId: string, agentId: string, issueId: string): IssueDetail {
   const current = readIssue(userId, agentId, issueId);
   requireIdle(current);
-  if (!closed(current))
-    throw new IssueError("This issue is already open.", 409);
+  if (!closed(current)) throw new IssueError("This issue is already open.", 409);
   db.update(issues)
     .set({ status: "backlog", closedAt: null, updatedAt: now() })
     .where(eq(issues.id, issueId))
@@ -773,18 +644,11 @@ export function reopenIssue(
   addEvent(issueId, "Reopened. No run started.");
   return readIssueView(userId, agentId, issueId);
 }
-export function interruptIssue(
-  userId: string,
-  agentId: string,
-  issueId: string,
-): IssueDetail {
+export function interruptIssue(userId: string, agentId: string, issueId: string): IssueDetail {
   const issue = readIssue(userId, agentId, issueId);
-  if (issue.status === "queued")
-    return removeIssueFromQueue(userId, agentId, issueId);
+  if (issue.status === "queued") return removeIssueFromQueue(userId, agentId, issueId);
   const attempt = activeAttempt(issueId);
-  const run = attempt?.sessionId
-    ? getActiveAgentRunForSessionId(attempt.sessionId)
-    : undefined;
+  const run = attempt?.sessionId ? getActiveAgentRunForSessionId(attempt.sessionId) : undefined;
   if (run) abortAgentRun(userId, run.runId);
   else if (attempt && !settling.has(attempt.id))
     finishIssueAttempt(attempt.id, {
@@ -794,11 +658,7 @@ export function interruptIssue(
   addEvent(issue.id, "Stop requested.");
   return readIssueView(userId, agentId, issueId);
 }
-export function cancelIssue(
-  userId: string,
-  agentId: string,
-  issueId: string,
-): IssueDetail {
+export function cancelIssue(userId: string, agentId: string, issueId: string): IssueDetail {
   readIssue(userId, agentId, issueId);
   db.update(issues)
     .set({
@@ -814,17 +674,9 @@ export function cancelIssue(
   addEvent(issueId, "Cancelled issue.");
   return readIssueView(userId, agentId, issueId);
 }
-export async function deleteIssue(
-  userId: string,
-  agentId: string,
-  issueId: string,
-) {
+export async function deleteIssue(userId: string, agentId: string, issueId: string) {
   requireIdle(readIssue(userId, agentId, issueId));
-  const rows = db
-    .select()
-    .from(sessions)
-    .where(eq(sessions.issueId, issueId))
-    .all();
+  const rows = db.select().from(sessions).where(eq(sessions.issueId, issueId)).all();
   db.transaction(() => {
     db.delete(issues).where(eq(issues.id, issueId)).run();
     db.delete(sessions).where(eq(sessions.issueId, issueId)).run();
@@ -851,20 +703,12 @@ function activeAttempt(issueId: string) {
   return db
     .select()
     .from(issueAttempts)
-    .where(
-      and(
-        eq(issueAttempts.issueId, issueId),
-        eq(issueAttempts.outcome, "running"),
-      ),
-    )
+    .where(and(eq(issueAttempts.issueId, issueId), eq(issueAttempts.outcome, "running")))
     .get();
 }
 function requireIdle(issue: IssueRecord) {
   if (activeAttempt(issue.id))
-    throw new IssueError(
-      "The agent is still working. Stop it before changing this issue.",
-      409,
-    );
+    throw new IssueError("The agent is still working. Stop it before changing this issue.", 409);
 }
 function closed(issue: IssueRecord) {
   return issue.status === "done" || issue.status === "cancelled";
@@ -874,15 +718,9 @@ function assertAgentVisible(userId: string, agentId: string) {
   if (!agent) throw new IssueError("Agent not found.", 404);
   return agent;
 }
-function addEvent(
-  issueId: string,
-  body: string,
-  kind: "note" | "action" | "result" = "action",
-) {
+function addEvent(issueId: string, body: string, kind: "note" | "action" | "result" = "action") {
   const noteId = id("note");
-  db.insert(issueNotes)
-    .values({ id: noteId, issueId, kind, body, createdAt: now() })
-    .run();
+  db.insert(issueNotes).values({ id: noteId, issueId, kind, body, createdAt: now() }).run();
   return noteId;
 }
 function issuePrompt(issue: IssueRecord) {

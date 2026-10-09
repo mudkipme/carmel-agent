@@ -1,8 +1,4 @@
-import type {
-  AgentTask,
-  AgentTaskCreateCommand,
-  AgentTaskRun,
-} from "@carmel-agent/shared";
+import type { AgentTask, AgentTaskCreateCommand, AgentTaskRun } from "@carmel-agent/shared";
 
 export function localTimezone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -59,9 +55,7 @@ export function describeTaskSchedule(
   }
   if (task.scheduleKind === "once")
     return `Once at ${formatTaskTime(Date.parse(task.scheduleValue))}`;
-  const [minute, hour, day, month, weekday, extra] = task.scheduleValue
-    .trim()
-    .split(/\s+/);
+  const [minute, hour, day, month, weekday, extra] = task.scheduleValue.trim().split(/\s+/);
   const timezone = task.timezone ? ` (${task.timezone})` : "";
   if (
     !extra &&
@@ -96,14 +90,10 @@ export function describeTaskState(task: AgentTask) {
   if (task.status === "completed") return "Completed";
   if (task.status === "disabled")
     return `Disabled · ${task.lastError ?? "Unable to read the schedule"}`;
-  const next = task.nextRunAt
-    ? `Next run: ${formatTaskTime(task.nextRunAt)}`
-    : "Not scheduled";
+  const next = task.nextRunAt ? `Next run: ${formatTaskTime(task.nextRunAt)}` : "Not scheduled";
   if (!task.lastRunAt) return next;
   const last = `${next} · Last run: ${describeTaskOutcome(task.lastOutcome ?? "succeeded")} · ${formatTaskTime(task.lastRunAt)}`;
-  return task.lastError && task.lastOutcome !== "succeeded"
-    ? `${last} · ${task.lastError}`
-    : last;
+  return task.lastError && task.lastOutcome !== "succeeded" ? `${last} · ${task.lastError}` : last;
 }
 
 export function describeTaskOutcome(outcome: AgentTaskRun["outcome"]) {

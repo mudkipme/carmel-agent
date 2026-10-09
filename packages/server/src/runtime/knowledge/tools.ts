@@ -4,10 +4,7 @@ import {
   knowledgeReadSchema,
   memoryInputSchema,
 } from "@carmel-agent/shared";
-import type {
-  AgentHarnessTool,
-  ExecutionToolContext,
-} from "../../effectors/pi-durable/index.ts";
+import type { AgentHarnessTool, ExecutionToolContext } from "../../effectors/pi-durable/index.ts";
 import { readVisibleAgent } from "../../services/agent-access.ts";
 import {
   knowledgeEnabled,
@@ -55,9 +52,7 @@ export function createKnowledgeTools(
       executionMode: "parallel",
       replay: "safe",
       execute: async (_id, args) =>
-        result(
-          await readKnowledge(userId, agentId, knowledgeReadSchema.parse(args)),
-        ),
+        result(await readKnowledge(userId, agentId, knowledgeReadSchema.parse(args))),
     },
   ];
   if (agent.permissions.write || agent.permissions.edit) {
@@ -91,12 +86,7 @@ export function createKnowledgeTools(
       executionMode: "sequential",
       execute: async (_id, args) => {
         const input = schema.parse(args);
-        await forgetMemory(
-          userId,
-          agentId,
-          input.memoryId,
-          input.expectedRevision,
-        );
+        await forgetMemory(userId, agentId, input.memoryId, input.expectedRevision);
         return result({ forgotten: input.memoryId });
       },
     });

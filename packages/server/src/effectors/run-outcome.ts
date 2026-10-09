@@ -56,16 +56,23 @@ export class RunOutcome {
   result(abortReason?: RunAbortReason): AgentRunResult {
     const ended = this.#endedAs(abortReason);
     if (!this.#persistenceFailure || ended.outcome === "failed") return ended;
-    return { outcome: "failed", detail: `The run's result could not be saved: ${this.#persistenceFailure}` };
+    return {
+      outcome: "failed",
+      detail: `The run's result could not be saved: ${this.#persistenceFailure}`,
+    };
   }
 
   #endedAs(abortReason?: RunAbortReason): AgentRunResult {
     if (abortReason === "user") return { outcome: "cancelled" };
     if (abortReason === "shutdown") return { outcome: "interrupted", detail: INTERRUPTED_DETAIL };
-    if (abortReason === "guard") return { outcome: "failed", detail: this.#thrown ?? "The run guard stopped this run." };
+    if (abortReason === "guard")
+      return { outcome: "failed", detail: this.#thrown ?? "The run guard stopped this run." };
     if (this.#thrown) return { outcome: "failed", detail: this.#thrown };
     if (this.#lastTurn?.stopReason === "error") {
-      return { outcome: "failed", detail: this.#lastTurn.detail ?? "The provider returned an error." };
+      return {
+        outcome: "failed",
+        detail: this.#lastTurn.detail ?? "The provider returned an error.",
+      };
     }
     if (this.#lastTurn?.stopReason === "aborted") {
       // Nothing here asked for it, so something below the run did.

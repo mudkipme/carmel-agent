@@ -61,7 +61,10 @@ export class RunGuard {
     this.recordActivity();
     this.#toolCalls += 1;
     if (this.#toolCalls <= this.#limits.maxToolCalls) return undefined;
-    return this.#record("tool_ceiling", `This run was stopped after ${this.#limits.maxToolCalls} tool calls.`);
+    return this.#record(
+      "tool_ceiling",
+      `This run was stopped after ${this.#limits.maxToolCalls} tool calls.`,
+    );
   }
 
   /** Checked on a timer. Returns a stop when nothing has happened for too long. */
@@ -69,7 +72,10 @@ export class RunGuard {
     if (this.#stop) return this.#stop;
     const idleMs = this.#now() - this.#lastActivityAt;
     if (idleMs < this.#limits.stallTimeoutMs) return undefined;
-    return this.#record("stalled", `This run was stopped after ${Math.round(idleMs / 60_000)} minutes without progress.`);
+    return this.#record(
+      "stalled",
+      `This run was stopped after ${Math.round(idleMs / 60_000)} minutes without progress.`,
+    );
   }
 
   /** The stop that ended this run, once one has been recorded. */
@@ -84,7 +90,12 @@ export class RunGuard {
   // First stop wins and is final: a run being torn down still emits events, and
   // a second verdict would overwrite the reason the user is about to be given.
   #record(reason: RunGuardStopReason, message: string): RunGuardStop {
-    this.#stop ??= { reason, message, toolCalls: this.#toolCalls, idleMs: this.#now() - this.#lastActivityAt };
+    this.#stop ??= {
+      reason,
+      message,
+      toolCalls: this.#toolCalls,
+      idleMs: this.#now() - this.#lastActivityAt,
+    };
     return this.#stop;
   }
 }

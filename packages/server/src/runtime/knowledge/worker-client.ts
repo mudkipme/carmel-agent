@@ -16,10 +16,7 @@ import {
   removeContainer,
   startContainer,
 } from "../sandbox/runtime-client.ts";
-import {
-  resolveSandboxIdentity,
-  type SandboxIdentity,
-} from "../sandbox/runtime-identity.ts";
+import { resolveSandboxIdentity, type SandboxIdentity } from "../sandbox/runtime-identity.ts";
 
 export type KnowledgeWorkerPlan = {
   agentId: string;
@@ -33,47 +30,29 @@ export type KnowledgeWorkerPlan = {
 };
 const code = readFileSync(new URL("./worker.mjs", import.meta.url), "utf8");
 const label = "carmel.knowledge";
-const workers = new Map<
-  string,
-  { signature: string; client: WorkerClient; lastUsed: number }
->();
+const workers = new Map<string, { signature: string; client: WorkerClient; lastUsed: number }>();
 let reaper: ReturnType<typeof setInterval> | undefined;
 const MAX_RESPONSE = 512 * 1024;
 
 function hostPath(path: string) {
   const rel = relative(dataDir, path);
-  return process.env.CARMEL_HOST_DATA_DIR &&
-    !rel.startsWith("..") &&
-    !isAbsolute(rel)
+  return process.env.CARMEL_HOST_DATA_DIR && !rel.startsWith("..") && !isAbsolute(rel)
     ? resolve(process.env.CARMEL_HOST_DATA_DIR, rel)
     : path;
 }
-export function knowledgeContainerSpec(
-  plan: KnowledgeWorkerPlan,
-  identity: SandboxIdentity,
-) {
-  const gpu = (
-    process.env.CARMEL_KNOWLEDGE_GPU ??
-    process.env.CARMEL_BASH_GPU ??
-    ""
-  )
+export function knowledgeContainerSpec(plan: KnowledgeWorkerPlan, identity: SandboxIdentity) {
+  const gpu = (process.env.CARMEL_KNOWLEDGE_GPU ?? process.env.CARMEL_BASH_GPU ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const backend =
-    plan.settings.acceleration === "cpu" ? "false" : plan.settings.acceleration;
-  const relabel =
-    process.env.CARMEL_BASH_SELINUX_RELABEL !== "false" ? ",z" : "";
+  const backend = plan.settings.acceleration === "cpu" ? "false" : plan.settings.acceleration;
+  const relabel = process.env.CARMEL_BASH_SELINUX_RELABEL !== "false" ? ",z" : "";
   const binds = [
     `${hostPath(plan.stateDir)}:/state:rw${relabel}`,
     `${hostPath(plan.modelCacheDir)}:/models/cache:${plan.network ? "rw" : "ro"}${relabel}`,
-    ...plan.sources.map(
-      (s) => `${hostPath(s.hostPath)}:/sources/${s.id}:ro${relabel}`,
-    ),
+    ...plan.sources.map((s) => `${hostPath(s.hostPath)}:/sources/${s.id}:ro${relabel}`),
     ...(plan.model
-      ? [
-          `${hostPath(plan.model.hostPath)}:${plan.model.containerPath}:ro${relabel}`,
-        ]
+      ? [`${hostPath(plan.model.hostPath)}:${plan.model.containerPath}:ro${relabel}`]
       : []),
   ];
   if (binds.some((bind) => bind.split(":").length !== 3))
@@ -101,8 +80,7 @@ export function knowledgeContainerSpec(
       Binds: binds,
       ReadonlyRootfs: true,
       Tmpfs: { "/tmp": "rw,nosuid,nodev,size=256m" },
-      Memory:
-        positive(process.env.CARMEL_KNOWLEDGE_MEMORY_MB, 4096) * 1024 * 1024,
+      Memory: positive(process.env.CARMEL_KNOWLEDGE_MEMORY_MB, 4096) * 1024 * 1024,
       NanoCpus: positive(process.env.CARMEL_KNOWLEDGE_CPUS, 2) * 1e9,
       PidsLimit: 128,
       CapDrop: ["ALL"],
@@ -137,13 +115,9 @@ async function callWorker(
   signal?: AbortSignal,
 ): Promise<unknown> {
   if (!isSandboxConfigured())
-    throw new Error(
-      "Knowledge runner unavailable. Configure a Podman or Docker socket.",
-    );
+    throw new Error("Knowledge runner unavailable. Configure a Podman or Docker socket.");
   signal?.throwIfAborted();
-  const signature = createHash("sha256")
-    .update(JSON.stringify(plan))
-    .digest("hex");
+  const signature = createHash("sha256").update(JSON.stringify(plan)).digest("hex");
   let entry = workers.get(plan.agentId);
   if (entry && (entry.signature !== signature || entry.client.closed)) {
     await stopKnowledgeWorker(plan.agentId);
@@ -156,10 +130,7 @@ async function callWorker(
       throw new Error(
         `Knowledge runner image is unavailable: ${spec.Image}. Pull it before enabling knowledge.`,
       );
-    const containerId = await createContainer(
-      `carmel-knowledge-${randomUUID()}`,
-      spec,
-    );
+    const containerId = await createContainer(`carmel-knowledge-${randomUUID()}`, spec);
     try {
       await startContainer(containerId);
       const attaching = new AbortController();
@@ -209,10 +180,7 @@ async function callWorker(
       if (!reaper) {
         reaper = setInterval(() => {
           for (const [id, worker] of workers)
-            if (
-              !worker.client.busy &&
-              Date.now() - worker.lastUsed > 5 * 60_000
-            )
+            if (!worker.client.busy && Date.now() - worker.lastUsed > 5 * 60_000)
               void stopKnowledgeWorker(id).catch((error) =>
                 console.error("Knowledge runner cleanup failed", error),
               );
@@ -302,8 +270,7 @@ export class WorkerClient {
           throw new Error("Unexpected knowledge runner response.");
         const pending = this.pending;
         this.pending = undefined;
-        if (typeof message.error === "string")
-          pending.reject(new Error(message.error));
+        if (typeof message.error === "string") pending.reject(new Error(message.error));
         else pending.resolve(message.result);
       }
     }, MAX_RESPONSE);
@@ -314,23 +281,13 @@ export class WorkerClient {
         this.close(new Error("Invalid knowledge runner response."));
       }
     });
-    socket.on("error", () =>
-      this.close(new Error("Knowledge runner connection failed.")),
-    );
-    socket.on("close", () =>
-      this.close(new Error(`Knowledge runner stopped. ${this.stderr}`)),
-    );
+    socket.on("error", () => this.close(new Error("Knowledge runner connection failed.")));
+    socket.on("close", () => this.close(new Error(`Knowledge runner stopped. ${this.stderr}`)));
   }
-  async request(
-    payload: Record<string, unknown>,
-    timeout: number,
-    signal?: AbortSignal,
-  ) {
-    if (this.closed || this.pending)
-      throw new Error("Knowledge runner is unavailable or busy.");
+  async request(payload: Record<string, unknown>, timeout: number, signal?: AbortSignal) {
+    if (this.closed || this.pending) throw new Error("Knowledge runner is unavailable or busy.");
     signal?.throwIfAborted();
-    const abort = () =>
-      this.close(new Error("Knowledge runner operation cancelled."));
+    const abort = () => this.close(new Error("Knowledge runner operation cancelled."));
     const timer = setTimeout(
       () => this.close(new Error("Knowledge runner operation timed out.")),
       timeout,
@@ -340,12 +297,9 @@ export class WorkerClient {
       return await new Promise<unknown>((resolve, reject) => {
         const id = randomUUID();
         this.pending = { id, resolve, reject };
-        this.socket.write(
-          `${JSON.stringify({ ...payload, id })}\n`,
-          (error) => {
-            if (error) this.close(error);
-          },
-        );
+        this.socket.write(`${JSON.stringify({ ...payload, id })}\n`, (error) => {
+          if (error) this.close(error);
+        });
       });
     } finally {
       clearTimeout(timer);

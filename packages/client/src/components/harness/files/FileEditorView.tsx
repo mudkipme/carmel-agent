@@ -107,17 +107,31 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Button size="sm" variant="outline" title="Download this file" onClick={() => downloadFile(agent.id, filePath)}>
+          <Button
+            size="sm"
+            variant="outline"
+            title="Download this file"
+            onClick={() => downloadFile(agent.id, filePath)}
+          >
             <DownloadIcon />
             Download
           </Button>
           {!isImage ? (
             <>
-              <Button size="sm" variant="outline" disabled={!isDirty || saving || loading} onClick={() => setContent(savedContent)}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!isDirty || saving || loading}
+                onClick={() => setContent(savedContent)}
+              >
                 <RotateCcwIcon />
                 Discard
               </Button>
-              <Button size="sm" disabled={!isDirty || saving || loading} onClick={() => void saveFile()}>
+              <Button
+                size="sm"
+                disabled={!isDirty || saving || loading}
+                onClick={() => void saveFile()}
+              >
                 <SaveIcon />
                 {saving ? "Saving..." : "Save"}
               </Button>

@@ -37,7 +37,9 @@ export function ModelCommandDialog({
         <CommandEmpty>No configured models found.</CommandEmpty>
         <CommandGroup heading="Models">
           {modelRefs.map((configuredModel) => {
-            const configuredProvider = providerConfigs.find((item) => item.id === configuredModel.providerConfigId);
+            const configuredProvider = providerConfigs.find(
+              (item) => item.id === configuredModel.providerConfigId,
+            );
             const selected = configuredModel.id === selectedModelRefId;
             const providerLabel = configuredProvider?.label ?? configuredModel.provider;
             return (

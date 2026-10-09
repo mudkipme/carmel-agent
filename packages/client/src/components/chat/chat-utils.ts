@@ -1,5 +1,11 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage, Usage } from "@earendil-works/pi-ai";
+import type {
+  AssistantMessage,
+  ImageContent,
+  TextContent,
+  ToolResultMessage,
+  Usage,
+} from "@earendil-works/pi-ai";
 import { type ChatAttachment, isUserMessage } from "@carmel-agent/shared";
 
 type DisplayImageContent = ImageContent & {
@@ -9,7 +15,11 @@ type DisplayImageContent = ImageContent & {
 
 // Build a displayable image source from a stored image part: an explicit URL
 // wins, otherwise fall back to an inline base64 data URL.
-export function imageSrc(image: { url?: string; data?: string; mimeType?: string }): string | undefined {
+export function imageSrc(image: {
+  url?: string;
+  data?: string;
+  mimeType?: string;
+}): string | undefined {
   if (image.url) return image.url;
   if (image.data) return `data:${image.mimeType ?? "image/png"};base64,${image.data}`;
   return undefined;
@@ -69,7 +79,8 @@ export function findMessageIndex(messages: AgentMessage[], target: AgentMessage)
     (message) =>
       message.role === target.role &&
       message.timestamp === target.timestamp &&
-      JSON.stringify(getComparableMessageContent(message)) === JSON.stringify(getComparableMessageContent(target)),
+      JSON.stringify(getComparableMessageContent(message)) ===
+        JSON.stringify(getComparableMessageContent(target)),
   );
 }
 
@@ -156,7 +167,9 @@ export function attachmentToImageContent(attachment: ChatAttachment): ImageConte
 }
 
 export function parseSkillInvocation(text: string) {
-  const match = text.match(/^<skill name="([^"]+)" location="([^"]+)">\n([\s\S]*?)\n<\/skill>(?:\n\n([\s\S]+))?$/);
+  const match = text.match(
+    /^<skill name="([^"]+)" location="([^"]+)">\n([\s\S]*?)\n<\/skill>(?:\n\n([\s\S]+))?$/,
+  );
   if (!match) return undefined;
   return {
     name: match[1],
@@ -167,11 +180,15 @@ export function parseSkillInvocation(text: string) {
 }
 
 function isTextContent(content: unknown): content is TextContent {
-  return typeof content === "object" && content !== null && (content as TextContent).type === "text";
+  return (
+    typeof content === "object" && content !== null && (content as TextContent).type === "text"
+  );
 }
 
 function isImageContent(content: unknown): content is DisplayImageContent {
-  return typeof content === "object" && content !== null && (content as ImageContent).type === "image";
+  return (
+    typeof content === "object" && content !== null && (content as ImageContent).type === "image"
+  );
 }
 
 function getComparableMessageContent(message: AgentMessage) {
@@ -194,7 +211,9 @@ function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
-    reader.addEventListener("error", () => reject(reader.error ?? new Error("Failed to read file.")));
+    reader.addEventListener("error", () =>
+      reject(reader.error ?? new Error("Failed to read file.")),
+    );
     reader.readAsDataURL(file);
   });
 }

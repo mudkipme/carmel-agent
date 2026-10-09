@@ -56,7 +56,10 @@ const pendingStops = new Map<string, Promise<void>>();
 let imageReady: Promise<void> | undefined;
 let reaper: ReturnType<typeof setInterval> | undefined;
 
-export async function ensureAgentContainer(agent: AgentRecord, options: { network: boolean }): Promise<string> {
+export async function ensureAgentContainer(
+  agent: AgentRecord,
+  options: { network: boolean },
+): Promise<string> {
   if (!isSandboxConfigured()) throw new Error(sandboxUnavailableMessage());
   const stopping = pendingStops.get(agent.id);
   if (stopping) await stopping;
@@ -70,7 +73,8 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
     // workspace dir or extra mounts changed so stale binds are not kept.
     if (existing.signature === signature && (await isContainerRunning(existing.containerId))) {
       // A reaper/abort may have started teardown while the running check waited.
-      if (pendingStops.has(agent.id) || containers.get(agent.id) !== existing) return ensureAgentContainer(agent, options);
+      if (pendingStops.has(agent.id) || containers.get(agent.id) !== existing)
+        return ensureAgentContainer(agent, options);
       existing.lastUsedAt = Date.now();
       return existing.containerId;
     }
@@ -83,11 +87,13 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
     // The in-flight creation may have used different mounts or identity.
     return ensureAgentContainer(agent, options);
   }
-  const starting = createAgentContainer(agent, options, identity, knowledge).then((containerId) => {
-    containers.set(agent.id, { containerId, lastUsedAt: Date.now(), signature });
-    startReaper();
-    return containerId;
-  }).finally(() => pendingStarts.delete(agent.id));
+  const starting = createAgentContainer(agent, options, identity, knowledge)
+    .then((containerId) => {
+      containers.set(agent.id, { containerId, lastUsedAt: Date.now(), signature });
+      startReaper();
+      return containerId;
+    })
+    .finally(() => pendingStarts.delete(agent.id));
   pendingStarts.set(agent.id, starting);
   return starting;
 }
@@ -95,7 +101,12 @@ export async function ensureAgentContainer(agent: AgentRecord, options: { networ
 // Identifies the bind-relevant inputs of a runner container. When this changes
 // for an agent (workspace dir, mount path, extra mounts, network), the existing
 // container is torn down and recreated on the next command.
-export function containerSignature(agent: AgentRecord, options: { network: boolean }, identity?: SandboxIdentity, knowledge?: KnowledgeShellResources) {
+export function containerSignature(
+  agent: AgentRecord,
+  options: { network: boolean },
+  identity?: SandboxIdentity,
+  knowledge?: KnowledgeShellResources,
+) {
   const workspaceHostPath = toHostPath(resolveAgentWorkingDirPath(agent));
   const tmpHostPath = toHostPath(resolveAgentTmpDirPath(agent));
   const homeHostPath = toHostPath(resolveAgentHomeDirPath(agent));
@@ -142,7 +153,11 @@ export async function killAgentContainer(agentId: string) {
 }
 
 /** Keep the owner tracked and block replacement until removal is confirmed. */
-function stopTrackedContainer(agentId: string, entry: ContainerEntry, clearTmp = false): Promise<void> {
+function stopTrackedContainer(
+  agentId: string,
+  entry: ContainerEntry,
+  clearTmp = false,
+): Promise<void> {
   const pending = pendingStops.get(agentId);
   if (pending) return pending;
   const stopping = (async () => {
@@ -205,9 +220,11 @@ export function toContainerWorkdir(agent: AgentRecord, cwd: string) {
     { source: workspaceRoot, target: mountPath },
     { source: resolveAgentTmpDirPath(agent), target: "/tmp" },
     { source: resolveAgentHomeDirPath(agent), target: containerHome },
-    ...agent.mounts.flatMap(mount => {
+    ...agent.mounts.flatMap((mount) => {
       const source = mount.source?.trim();
-      return source ? [{ source: resolve(source), target: resolve(mount.target?.trim() || source) }] : [];
+      return source
+        ? [{ source: resolve(source), target: resolve(mount.target?.trim() || source) }]
+        : [];
     }),
   ].sort((left, right) => right.source.length - left.source.length);
   for (const { source, target } of mappings) {
@@ -260,7 +277,10 @@ export async function reapManagedContainers() {
 }
 
 async function removeContainerConfirmed(containerId: string) {
-  if (!await removeContainer(containerId)) throw new Error(`Could not remove sandbox ${containerId}; refusing to reuse its browser profile.`);
+  if (!(await removeContainer(containerId)))
+    throw new Error(
+      `Could not remove sandbox ${containerId}; refusing to reuse its browser profile.`,
+    );
 }
 
 export async function shutdownContainerManager() {
@@ -273,7 +293,12 @@ export async function shutdownContainerManager() {
   await Promise.all(entries.map((entry) => removeContainer(entry.containerId)));
 }
 
-async function createAgentContainer(agent: AgentRecord, options: { network: boolean }, identity: SandboxIdentity, knowledge: KnowledgeShellResources) {
+async function createAgentContainer(
+  agent: AgentRecord,
+  options: { network: boolean },
+  identity: SandboxIdentity,
+  knowledge: KnowledgeShellResources,
+) {
   await ensureImage();
 
   const workspacePath = resolveAgentWorkingDirPath(agent);
@@ -286,11 +311,21 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
   const workspaceHostPath = toHostPath(workspacePath);
   const tmpHostPath = toHostPath(tmpPath);
   const homeHostPath = toHostPath(homePath);
-  const knowledgeMounts = knowledge.mounts.map(mount => ({ ...mount, source: toHostPath(mount.source) }));
+  const knowledgeMounts = knowledge.mounts.map((mount) => ({
+    ...mount,
+    source: toHostPath(mount.source),
+  }));
   // Reject overlapping mounts instead of silently shadowing an operator mount.
   for (const mount of agent.mounts) {
     const target = resolve(mount.target?.trim() || mount.source);
-    if (knowledgeMounts.some(shared => target === shared.target || shared.target.startsWith(`${target}/`) || target.startsWith(`${shared.target}/`))) {
+    if (
+      knowledgeMounts.some(
+        (shared) =>
+          target === shared.target ||
+          shared.target.startsWith(`${target}/`) ||
+          target.startsWith(`${shared.target}/`),
+      )
+    ) {
       throw new Error(`Agent mount overlaps the shared qmd model mount: ${target}`);
     }
   }
@@ -299,10 +334,13 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
     { source: workspacePath, target: mountPath },
     { source: tmpPath, target: "/tmp" },
     { source: homePath, target: containerHome },
-    ...agent.mounts.filter((mount) => mount.source?.trim()).map((mount) => ({
-      source: toServerPath(mount.source.trim()), target: mount.target?.trim() || mount.source.trim(),
-      readOnly: mount.readOnly,
-    })),
+    ...agent.mounts
+      .filter((mount) => mount.source?.trim())
+      .map((mount) => ({
+        source: toServerPath(mount.source.trim()),
+        target: mount.target?.trim() || mount.source.trim(),
+        readOnly: mount.readOnly,
+      })),
     ...knowledge.mounts,
   ]);
 
@@ -314,12 +352,17 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
     Cmd: ["sleep", "infinity"],
     WorkingDir: mountPath,
     Labels: { [managedLabel]: managedLabelValue, [agentLabel]: agent.id },
-    Env: Object.entries({ ...runnerEnvironment, ...knowledge.env }).map(([key, value]) => `${key}=${value}`),
+    Env: Object.entries({ ...runnerEnvironment, ...knowledge.env }).map(
+      ([key, value]) => `${key}=${value}`,
+    ),
     HostConfig: {
       // Reap Chromium descendants when a launch fails or its parent exits.
       Init: true,
       UsernsMode: identity.usernsMode,
-      Binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, [...agent.mounts, ...knowledgeMounts]),
+      Binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, [
+        ...agent.mounts,
+        ...knowledgeMounts,
+      ]),
       Memory: config.memoryBytes,
       NanoCpus: config.nanoCpus,
       PidsLimit: config.pidsLimit,
@@ -337,21 +380,47 @@ async function createAgentContainer(agent: AgentRecord, options: { network: bool
   try {
     await startContainer(containerId);
     let setupError = "";
-    const initialized = await execInContainer(containerId, {
-      cmd: ["node", "-e", prepareRunnerScript, String(identity.uid), String(identity.gid), mountPath],
-      workingDir: mountPath, env: [],
-    }, {
-      onStdout: () => {}, onStderr: (chunk) => { setupError = (setupError + chunk.toString()).slice(-4000); },
-      signal: AbortSignal.timeout(60000),
-    });
-    if (initialized.exitCode !== 0) throw new Error(`Unable to initialize the non-root sandbox: ${setupError || "check runner image, host ownership, and UID/GID configuration"}`);
+    const initialized = await execInContainer(
+      containerId,
+      {
+        cmd: [
+          "node",
+          "-e",
+          prepareRunnerScript,
+          String(identity.uid),
+          String(identity.gid),
+          mountPath,
+        ],
+        workingDir: mountPath,
+        env: [],
+      },
+      {
+        onStdout: () => {},
+        onStderr: (chunk) => {
+          setupError = (setupError + chunk.toString()).slice(-4000);
+        },
+        signal: AbortSignal.timeout(60000),
+      },
+    );
+    if (initialized.exitCode !== 0)
+      throw new Error(
+        `Unable to initialize the non-root sandbox: ${setupError || "check runner image, host ownership, and UID/GID configuration"}`,
+      );
     // This runs inside the sandbox, never against agent-controlled host paths.
     // No browser can have started in this fresh container through Carmel yet.
-    const prepared = await execInContainer(containerId, {
-      cmd: ["node", "-e", prepareBrowserProfileScript, `${containerHome}/.agent-browser/profile`],
-      workingDir: mountPath, env: [],
-    }, { onStdout: () => {}, onStderr: () => {}, signal: AbortSignal.timeout(10000) });
-    if (prepared.exitCode !== 0) throw new Error("Unable to prepare the sandbox browser profile; saved profile data was retained.");
+    const prepared = await execInContainer(
+      containerId,
+      {
+        cmd: ["node", "-e", prepareBrowserProfileScript, `${containerHome}/.agent-browser/profile`],
+        workingDir: mountPath,
+        env: [],
+      },
+      { onStdout: () => {}, onStderr: () => {}, signal: AbortSignal.timeout(10000) },
+    );
+    if (prepared.exitCode !== 0)
+      throw new Error(
+        "Unable to prepare the sandbox browser profile; saved profile data was retained.",
+      );
     return containerId;
   } catch (error) {
     await removeContainer(containerId);
@@ -397,8 +466,11 @@ async function reapIdleContainers() {
   }
   await Promise.all(
     stale.map(async ([agentId, entry]) => {
-      try { await stopTrackedContainer(agentId, entry, true); }
-      catch (error) { console.warn("Failed to reap sandbox container:", errorMessage(error)); }
+      try {
+        await stopTrackedContainer(agentId, entry, true);
+      } catch (error) {
+        console.warn("Failed to reap sandbox container:", errorMessage(error));
+      }
     }),
   );
   await reapUntrackedContainers();
@@ -445,7 +517,9 @@ function toServerPath(hostPath: string) {
   const hostDataDir = process.env.CARMEL_HOST_DATA_DIR?.trim();
   if (!hostDataDir) return hostPath;
   const rel = relative(hostDataDir, hostPath);
-  return rel === ".." || rel.startsWith(`..${posix.sep}`) || isAbsolute(rel) ? hostPath : resolve(dataDir, rel);
+  return rel === ".." || rel.startsWith(`..${posix.sep}`) || isAbsolute(rel)
+    ? hostPath
+    : resolve(dataDir, rel);
 }
 
 function sanitizeName(value: string) {

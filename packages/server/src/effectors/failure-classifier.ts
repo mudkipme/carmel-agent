@@ -72,30 +72,36 @@ const PATTERNS: readonly { category: FailureCategory; pattern: RegExp }[] = [
   },
   {
     category: "quota",
-    pattern: /insufficient_quota|exceeded your current quota|billing|payment required|\b402\b|out of budget|usage limit reached|credit balance/i,
+    pattern:
+      /insufficient_quota|exceeded your current quota|billing|payment required|\b402\b|out of budget|usage limit reached|credit balance/i,
   },
   {
     category: "auth",
-    pattern: /\b401\b|\b403\b|unauthori[sz]ed|authentication|invalid[^\n]{0,12}api[_ -]?key|permission denied|expired[^.]{0,15}token|invalid[^.]{0,15}credential|OAuth/i,
+    pattern:
+      /\b401\b|\b403\b|unauthori[sz]ed|authentication|invalid[^\n]{0,12}api[_ -]?key|permission denied|expired[^.]{0,15}token|invalid[^.]{0,15}credential|OAuth/i,
   },
   {
     category: "model_unavailable",
-    pattern: /model[^\n]{0,40}(?:not found|does not exist|is not supported|unavailable|not available)|unknown model|no such model/i,
+    pattern:
+      /model[^\n]{0,40}(?:not found|does not exist|is not supported|unavailable|not available)|unknown model|no such model/i,
   },
   {
     category: "transient",
-    pattern: /overloaded|rate.?limit|too many requests|\b429\b|\b5[0-9]{2}\b|service.?unavailable|server.?error|timed? ?out|ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket hang up|fetch failed|network/i,
+    pattern:
+      /overloaded|rate.?limit|too many requests|\b429\b|\b5[0-9]{2}\b|service.?unavailable|server.?error|timed? ?out|ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket hang up|fetch failed|network/i,
   },
 ];
 
 const REMEDIES: Partial<Record<FailureCategory, string>> = {
   auth: "Ask an administrator to re-check this provider's credentials in Settings → Providers.",
-  quota: "The provider account is out of quota or credit. Use a different model, or top the account up.",
+  quota:
+    "The provider account is out of quota or credit. Use a different model, or top the account up.",
   context_overflow:
     "The session is too large for this model's context window. Compaction runs automatically, so if this repeats, move to a model with a larger window or start a new session.",
   tool_history:
     "The session's tool history is not in a state the provider accepts. Fork or truncate at the last complete exchange to continue.",
-  model_unavailable: "Check this model's entry in Settings → Models against what the provider actually serves.",
+  model_unavailable:
+    "Check this model's entry in Settings → Models against what the provider actually serves.",
   transient: "A temporary provider problem. Send the message again.",
 };
 

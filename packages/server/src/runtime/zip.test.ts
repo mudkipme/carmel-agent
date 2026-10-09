@@ -8,7 +8,11 @@ test("zipArchive round-trips file contents and directory entries", async () => {
   const archive = await collect(
     zipArchive([
       { name: "docs/", mtimeMs: Date.UTC(2024, 0, 2, 3, 4, 6) },
-      { name: "docs/readme.md", mtimeMs: Date.UTC(2024, 0, 2, 3, 4, 6), open: () => chunks("# hello", "\nworld") },
+      {
+        name: "docs/readme.md",
+        mtimeMs: Date.UTC(2024, 0, 2, 3, 4, 6),
+        open: () => chunks("# hello", "\nworld"),
+      },
       { name: "big.txt", mtimeMs: Date.now(), open: () => chunks(large) },
     ]),
   );

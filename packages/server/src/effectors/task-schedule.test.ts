@@ -12,7 +12,10 @@ import {
 const at = (iso: string) => Date.parse(iso);
 
 test("an interval schedule advances from the moment it last ran", () => {
-  const next = computeNextRun({ kind: "interval", value: String(60_000) }, at("2026-08-24T10:00:00Z"));
+  const next = computeNextRun(
+    { kind: "interval", value: String(60_000) },
+    at("2026-08-24T10:00:00Z"),
+  );
   assert.deepEqual(next, { ok: true, at: at("2026-08-24T10:01:00Z") });
 });
 
@@ -44,28 +47,41 @@ test("an unparseable cron expression is reported, not silently dropped", () => {
 
 test("a one-shot disarms itself once its instant has passed", () => {
   const schedule: TaskSchedule = { kind: "once", value: "2026-08-24T10:00:00Z" };
-  assert.deepEqual(computeNextRun(schedule, at("2026-08-24T09:00:00Z")), { ok: true, at: at("2026-08-24T10:00:00Z") });
+  assert.deepEqual(computeNextRun(schedule, at("2026-08-24T09:00:00Z")), {
+    ok: true,
+    at: at("2026-08-24T10:00:00Z"),
+  });
   // Re-armed after firing: nothing left, which is what completes the task.
   assert.deepEqual(computeNextRun(schedule, at("2026-08-24T10:00:00Z")), { ok: true, at: null });
 });
 
 test("a task that is not yet due stays idle", () => {
-  assert.deepEqual(plan({ nextRunAt: at("2026-08-24T10:00:00Z"), now: at("2026-08-24T09:59:00Z") }), { action: "idle" });
+  assert.deepEqual(
+    plan({ nextRunAt: at("2026-08-24T10:00:00Z"), now: at("2026-08-24T09:59:00Z") }),
+    { action: "idle" },
+  );
 });
 
 test("a paused task never fires, however overdue", () => {
   assert.deepEqual(
-    plan({ status: "paused", nextRunAt: at("2026-08-01T10:00:00Z"), now: at("2026-08-24T10:00:00Z") }),
+    plan({
+      status: "paused",
+      nextRunAt: at("2026-08-01T10:00:00Z"),
+      now: at("2026-08-24T10:00:00Z"),
+    }),
     { action: "idle" },
   );
 });
 
 test("a due task fires and reports how late it was", () => {
-  assert.deepEqual(plan({ nextRunAt: at("2026-08-24T10:00:00Z"), now: at("2026-08-24T10:00:30Z") }), {
-    action: "fire",
-    scheduledFor: at("2026-08-24T10:00:00Z"),
-    lateMs: 30_000,
-  });
+  assert.deepEqual(
+    plan({ nextRunAt: at("2026-08-24T10:00:00Z"), now: at("2026-08-24T10:00:30Z") }),
+    {
+      action: "fire",
+      scheduledFor: at("2026-08-24T10:00:00Z"),
+      lateMs: 30_000,
+    },
+  );
 });
 
 test("an occurrence past the grace window is skipped and the schedule moves on", () => {

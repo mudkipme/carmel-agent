@@ -44,14 +44,23 @@ test("every run gets its own session, kept out of the session list and linked fr
   });
 
   await tick(Date.now() + 120_000);
-  db.update(agentTasks).set({ nextRunAt: Date.now() - 1_000 }).where(eq(agentTasks.id, task.id)).run();
+  db.update(agentTasks)
+    .set({ nextRunAt: Date.now() - 1_000 })
+    .where(eq(agentTasks.id, task.id))
+    .run();
   await tick(Date.now());
 
   const runs = runsFor(task.id);
   assert.equal(runs.length, 2);
   const runSessionIds = runs.map((run) => run.sessionId);
-  assert.ok(runSessionIds[0] && runSessionIds[1] && runSessionIds[0] !== runSessionIds[1], "runs shared a session");
-  assert.deepEqual(new Set(sessionsFor(task.id).map((session) => session.id)), new Set(runSessionIds));
+  assert.ok(
+    runSessionIds[0] && runSessionIds[1] && runSessionIds[0] !== runSessionIds[1],
+    "runs shared a session",
+  );
+  assert.deepEqual(
+    new Set(sessionsFor(task.id).map((session) => session.id)),
+    new Set(runSessionIds),
+  );
   assert.ok(sessionsFor(task.id).every((session) => session.title === "Digest"));
 
   const listed = readBootstrapPayload(user.id).sessions.map((session) => session.id);
@@ -121,7 +130,8 @@ test("deleting a task deletes its run sessions but not ones moved to the session
 
   await deleteAgentTask(user, agentId, task.id);
 
-  const remaining = (sessionId: string) => db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+  const remaining = (sessionId: string) =>
+    db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   assert.ok(remaining(kept!));
   assert.equal(remaining(dropped!), undefined);
   assert.deepEqual(runsFor(task.id), []);
@@ -152,7 +162,10 @@ test("an occurrence missed while the server was down is recorded, not replayed",
     timezone: "UTC",
   });
   // Backdate as though the process had been off for three days.
-  db.update(agentTasks).set({ nextRunAt: Date.now() - 3 * 86_400_000 }).where(eq(agentTasks.id, task.id)).run();
+  db.update(agentTasks)
+    .set({ nextRunAt: Date.now() - 3 * 86_400_000 })
+    .where(eq(agentTasks.id, task.id))
+    .run();
 
   await tick(Date.now());
 
@@ -174,7 +187,10 @@ test("a paused task is never fired however overdue", async () => {
     scheduleValue: String(60_000),
     status: "paused",
   });
-  db.update(agentTasks).set({ nextRunAt: Date.now() - 86_400_000 }).where(eq(agentTasks.id, task.id)).run();
+  db.update(agentTasks)
+    .set({ nextRunAt: Date.now() - 86_400_000 })
+    .where(eq(agentTasks.id, task.id))
+    .run();
 
   await tick(Date.now());
   assert.deepEqual(runsFor(task.id), []);
@@ -199,8 +215,16 @@ test("a one-shot completes after firing instead of re-arming", async () => {
 
 test("tasks appear on the agent they belong to", async () => {
   const { user, agentId } = fixture();
-  createAgentTask(user, agentId, { name: "A", prompt: "x", scheduleKind: "interval", scheduleValue: String(60_000) });
-  assert.deepEqual(readAgentTasks(user, agentId).map((task) => task.name), ["A"]);
+  createAgentTask(user, agentId, {
+    name: "A",
+    prompt: "x",
+    scheduleKind: "interval",
+    scheduleValue: String(60_000),
+  });
+  assert.deepEqual(
+    readAgentTasks(user, agentId).map((task) => task.name),
+    ["A"],
+  );
 });
 
 test("a task stops running once its agent is no longer shared with its owner", async () => {
@@ -237,7 +261,11 @@ test("an admin's task on another user's private agent keeps running, as creating
   await tick(Date.now() + 120_000);
 
   assert.doesNotMatch(row(task.id).lastError ?? "", /no longer available/);
-  assert.equal(sessionsFor(task.id).length, 1, "the run should have started in a session of its own");
+  assert.equal(
+    sessionsFor(task.id).length,
+    1,
+    "the run should have started in a session of its own",
+  );
 });
 
 test("deleting a task's model hands the task back to its agent's default", () => {

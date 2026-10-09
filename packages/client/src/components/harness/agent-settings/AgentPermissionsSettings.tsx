@@ -1,7 +1,13 @@
 import { SectionHeader, ToggleRow } from "@/components/harness/form-primitives";
 import type { AgentPermissions } from "@carmel-agent/shared";
 
-const configurablePermissions: Array<keyof AgentPermissions> = ["read", "write", "edit", "bash", "network"];
+const configurablePermissions: Array<keyof AgentPermissions> = [
+  "read",
+  "write",
+  "edit",
+  "bash",
+  "network",
+];
 
 export function AgentPermissionsSettings({
   permissions,

@@ -16,7 +16,11 @@ import {
   replacePiSessionMessages,
   rewritePiSessionMessage,
 } from "./pi-session-storage.ts";
-import { attachTestHarness, fauxHarnessModels, TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
+import {
+  attachTestHarness,
+  fauxHarnessModels,
+  TEST_CONTEXT,
+} from "../effectors/testing/pi-harness.ts";
 import { loadSession, readSessionMessages } from "./session-store.ts";
 import { loadBuiltinSkills } from "../runtime/builtin-skills.ts";
 
@@ -64,7 +68,9 @@ test("Pi native SQLite storage persists entries and lane configuration", async (
     await pi.lane.setThinkingLevel("high", pi.context);
     await pi.log.appendMessage(userMessage("b"));
 
-    const messages = (await pi.branch()).flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
+    const messages = (await pi.branch()).flatMap((entry) =>
+      entry.type === "message" ? [entry.message] : [],
+    );
     assert.deepEqual(
       messages.map((message) => (message as { content: string }).content),
       ["a", "b"],
@@ -95,8 +101,14 @@ test("AgentHarness persists a complete turn directly into Pi SQLite", async () =
   }
 
   const messages = await readSessionMessages(sessionId);
-  assert.deepEqual(messages.map((message) => message.role), ["user", "assistant"]);
-  assert.equal((messages[1] as { content: Array<{ type: string; text: string }> }).content[0]?.text, "persisted reply");
+  assert.deepEqual(
+    messages.map((message) => message.role),
+    ["user", "assistant"],
+  );
+  assert.equal(
+    (messages[1] as { content: Array<{ type: string; text: string }> }).content[0]?.text,
+    "persisted reply",
+  );
 });
 
 test("retrying a stored user entry does not persist an empty message", async () => {
@@ -111,7 +123,11 @@ test("retrying a stored user entry does not persist an empty message", async () 
   const models = createModels();
   models.setProvider(faux.provider);
   faux.setResponses([fauxAssistantMessage("retried reply")]);
-  const pi = await attachTestHarness(piSession, { models, model: faux.getModel(), systemPrompt: "Test assistant" });
+  const pi = await attachTestHarness(piSession, {
+    models,
+    model: faux.getModel(),
+    systemPrompt: "Test assistant",
+  });
   try {
     const prepared = await prepareAgentRunPrompt(pi.log);
     await runHarnessPrompt(pi, prepared.promptInput.text, prepared.promptInput.images);
@@ -120,9 +136,14 @@ test("retrying a stored user entry does not persist an empty message", async () 
   }
 
   const messages = await readSessionMessages(sessionId);
-  assert.deepEqual(messages.map((message) => message.role), ["user", "assistant", "user", "assistant"]);
   assert.deepEqual(
-    messages.filter((message) => message.role === "user").map((message) => userMessageText(message)),
+    messages.map((message) => message.role),
+    ["user", "assistant", "user", "assistant"],
+  );
+  assert.deepEqual(
+    messages
+      .filter((message) => message.role === "user")
+      .map((message) => userMessageText(message)),
     ["first question", "retry this question"],
   );
 });
@@ -132,14 +153,28 @@ test("native harness commands expand file prompts and skills", async () => {
   const faux = fauxProvider({ provider: `faux-commands-${crypto.randomUUID()}` });
   const models = createModels();
   models.setProvider(faux.provider);
-  faux.setResponses([fauxAssistantMessage("first"), fauxAssistantMessage("second"), fauxAssistantMessage("third")]);
-  const builtins = await loadBuiltinSkills({ permissions: { read: false, write: false, edit: false, bash: true, network: true } });
+  faux.setResponses([
+    fauxAssistantMessage("first"),
+    fauxAssistantMessage("second"),
+    fauxAssistantMessage("third"),
+  ]);
+  const builtins = await loadBuiltinSkills({
+    permissions: { read: false, write: false, edit: false, bash: true, network: true },
+  });
   const pi = await attachTestHarness(await openPiSession(sessionId), {
     models,
     model: faux.getModel(),
     resources: {
       promptTemplates: [{ name: "review", content: "Review $1" }],
-      skills: [{ name: "inspect", description: "Inspect carefully", content: "Inspect the target carefully.", filePath: "/skills/inspect/SKILL.md" }, ...builtins],
+      skills: [
+        {
+          name: "inspect",
+          description: "Inspect carefully",
+          content: "Inspect the target carefully.",
+          filePath: "/skills/inspect/SKILL.md",
+        },
+        ...builtins,
+      ],
     },
   });
   try {
@@ -150,7 +185,9 @@ test("native harness commands expand file prompts and skills", async () => {
     await pi.close();
   }
 
-  const userMessages = (await readSessionMessages(sessionId)).filter((message) => message.role === "user");
+  const userMessages = (await readSessionMessages(sessionId)).filter(
+    (message) => message.role === "user",
+  );
   assert.equal(userMessageText(userMessages[0]), "Review some file");
   assert.match(userMessageText(userMessages[1]), /<skill name="inspect"/);
   assert.match(userMessageText(userMessages[1]), /focus on safety/);
@@ -192,8 +229,13 @@ test("non-truncating entry edit preserves the message suffix and lane configurat
   const edited = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
     assert.equal(await edited.lane.getThinkingLevel(edited.context), "high");
-    const messages = (await edited.branch()).flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
-    assert.deepEqual(messages.map((message) => userMessageText(message as { content?: unknown })), ["edited", "b"]);
+    const messages = (await edited.branch()).flatMap((entry) =>
+      entry.type === "message" ? [entry.message] : [],
+    );
+    assert.deepEqual(
+      messages.map((message) => userMessageText(message as { content?: unknown })),
+      ["edited", "b"],
+    );
   } finally {
     await edited.close();
   }
@@ -207,7 +249,10 @@ test("loadSession and entry reads expose the active native branch", async () => 
   assert.equal(session.userId, userId);
   assert.equal(session.messages.length, 3);
   const secondEntryId = session.messageEntryIds[1]!;
-  assert.equal((await readPiSessionMessageEntry(sessionId, secondEntryId) as { content: string }).content, "b");
+  assert.equal(
+    ((await readPiSessionMessageEntry(sessionId, secondEntryId)) as { content: string }).content,
+    "b",
+  );
   assert.equal(await readPiSessionMessageEntry(sessionId, "missing-entry"), undefined);
   assert.equal(await loadSession("missing"), undefined);
 });
@@ -228,7 +273,13 @@ function userMessageText(message: { content?: unknown } | undefined) {
   if (!Array.isArray(message?.content)) return "";
   return message.content
     .filter((part): part is { type: "text"; text: string } =>
-      Boolean(part && typeof part === "object" && "type" in part && part.type === "text" && "text" in part),
+      Boolean(
+        part &&
+        typeof part === "object" &&
+        "type" in part &&
+        part.type === "text" &&
+        "text" in part,
+      ),
     )
     .map((part) => part.text)
     .join("\n");

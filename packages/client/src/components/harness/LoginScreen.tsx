@@ -35,18 +35,32 @@ export function LoginScreen() {
         <CardHeader>
           <CardTitle>Carmel Agent</CardTitle>
           <CardDescription>
-            {passwordLogin ? "Sign in with a server-created account." : `Sign in with ${oidc?.providerName ?? "single sign-on"}.`}
+            {passwordLogin
+              ? "Sign in with a server-created account."
+              : `Sign in with ${oidc?.providerName ?? "single sign-on"}.`}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {oidc ? <OidcLoginButton providerName={oidc.providerName} variant={passwordLogin ? "outline" : "default"} /> : null}
-          {oidc && passwordLogin ? <FieldSeparator className="[&>span]:bg-card">or</FieldSeparator> : null}
+          {oidc ? (
+            <OidcLoginButton
+              providerName={oidc.providerName}
+              variant={passwordLogin ? "outline" : "default"}
+            />
+          ) : null}
+          {oidc && passwordLogin ? (
+            <FieldSeparator className="[&>span]:bg-card">or</FieldSeparator>
+          ) : null}
           {passwordLogin ? (
             <form className="flex flex-col gap-4" onSubmit={submit}>
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="login-username">Username</FieldLabel>
-                  <Input id="login-username" value={username} autoComplete="username" onChange={(event) => setUsername(event.target.value)} />
+                  <Input
+                    id="login-username"
+                    value={username}
+                    autoComplete="username"
+                    onChange={(event) => setUsername(event.target.value)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="login-password">Password</FieldLabel>

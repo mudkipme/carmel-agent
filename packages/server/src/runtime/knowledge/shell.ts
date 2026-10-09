@@ -7,9 +7,10 @@ import { knowledgeModelPlan } from "./models.ts";
 export async function knowledgeShellResources(agent: typeof agents.$inferSelect) {
   const plan = await knowledgeModelPlan();
   const settings = agent.permissions?.read
-    ? db.select().from(knowledgeConfigs).where(eq(knowledgeConfigs.agentId, agent.id)).get()?.settings
+    ? db.select().from(knowledgeConfigs).where(eq(knowledgeConfigs.agentId, agent.id)).get()
+        ?.settings
     : undefined;
-  const backend = settings?.acceleration === "cpu" ? "false" : settings?.acceleration ?? "auto";
+  const backend = settings?.acceleration === "cpu" ? "false" : (settings?.acceleration ?? "auto");
   return {
     env: {
       QMD_EMBED_MODEL: plan.model?.containerPath ?? plan.embeddingModel,
@@ -20,7 +21,9 @@ export async function knowledgeShellResources(agent: typeof agents.$inferSelect)
       // qmd 2.8.3 derives its CLI model cache from HOME/XDG_CACHE_HOME.
       // Do not override XDG_CACHE_HOME: that would also move existing indexes.
       { source: plan.modelCacheDir, target: "/home/agent/.cache/qmd/models", readOnly: true },
-      ...(plan.model ? [{ source: plan.model.hostPath, target: plan.model.containerPath, readOnly: true }] : []),
+      ...(plan.model
+        ? [{ source: plan.model.hostPath, target: plan.model.containerPath, readOnly: true }]
+        : []),
     ],
     modelRevision: plan.model?.revision,
   };

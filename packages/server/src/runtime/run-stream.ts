@@ -205,7 +205,11 @@ export async function whenRunFinished(run: ActiveAgentRun, pollMs = 200): Promis
   return runResultOf(run);
 }
 
-export function createRunStream(run: ActiveAgentRun, encoder = new TextEncoder(), afterSequence = 0) {
+export function createRunStream(
+  run: ActiveAgentRun,
+  encoder = new TextEncoder(),
+  afterSequence = 0,
+) {
   let subscriber: RunSubscriber | undefined;
   return new Response(
     new ReadableStream({
@@ -304,7 +308,8 @@ function publishRunEvent(run: ActiveAgentRun, event: RunEvent) {
   else if (event.type === "message_end") run.streamingSince = undefined;
 
   run.events.push(envelope);
-  if (run.events.length > maxReplayEvents) run.events.splice(0, run.events.length - maxReplayEvents);
+  if (run.events.length > maxReplayEvents)
+    run.events.splice(0, run.events.length - maxReplayEvents);
 
   for (const subscriber of run.subscribers) {
     if (!subscriber.enqueue(envelope)) run.subscribers.delete(subscriber);

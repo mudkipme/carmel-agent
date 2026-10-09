@@ -6,13 +6,30 @@ import { users } from "../db/schema.ts";
 import type { AgentHarnessTool, ExecutionToolContext } from "../effectors/pi-durable/index.ts";
 import { createAgentTask } from "../services/agent-tasks.ts";
 
-const scheduleTaskSchema = z.object({
-  name: z.string().trim().min(1).describe("Short title for the reminder or scheduled task."),
-  prompt: z.string().trim().min(1).describe("Self-contained instructions to execute when due. Include the reminder text and necessary context; the future run cannot see this conversation. Do not ask it to schedule the reminder again."),
-  scheduleKind: z.enum(["once", "cron", "interval"]),
-  scheduleValue: z.string().min(1).describe("once: ISO 8601 date-time with Z or an explicit UTC offset; cron: cron expression; interval: milliseconds, at least 30000."),
-  timezone: timezoneSchema.optional().describe("IANA time zone for calendar schedules, e.g. Asia/Singapore. Defaults to the browser time zone when known."),
-}).strict();
+const scheduleTaskSchema = z
+  .object({
+    name: z.string().trim().min(1).describe("Short title for the reminder or scheduled task."),
+    prompt: z
+      .string()
+      .trim()
+      .min(1)
+      .describe(
+        "Self-contained instructions to execute when due. Include the reminder text and necessary context; the future run cannot see this conversation. Do not ask it to schedule the reminder again.",
+      ),
+    scheduleKind: z.enum(["once", "cron", "interval"]),
+    scheduleValue: z
+      .string()
+      .min(1)
+      .describe(
+        "once: ISO 8601 date-time with Z or an explicit UTC offset; cron: cron expression; interval: milliseconds, at least 30000.",
+      ),
+    timezone: timezoneSchema
+      .optional()
+      .describe(
+        "IANA time zone for calendar schedules, e.g. Asia/Singapore. Defaults to the browser time zone when known.",
+      ),
+  })
+  .strict();
 
 type SchedulingContext = {
   userId: string;
@@ -23,11 +40,14 @@ type SchedulingContext = {
 };
 
 /** Identity and model settings come from the run, never from model arguments. */
-export function createScheduleTaskTool(context: SchedulingContext): AgentHarnessTool<ExecutionToolContext> {
+export function createScheduleTaskTool(
+  context: SchedulingContext,
+): AgentHarnessTool<ExecutionToolContext> {
   return {
     name: "schedule_task",
     label: "Schedule task",
-    description: "Create an active reminder or scheduled task when the user asks to be reminded or to run something later/repeatedly. Use once for a single reminder, cron for calendar recurrence, interval for elapsed-time recurrence. Ask about missing or ambiguous timing before calling. Runs use this agent and the current model, with results in the agent's Tasks history; no automatic push/email notification. Only confirm scheduling after this tool succeeds.",
+    description:
+      "Create an active reminder or scheduled task when the user asks to be reminded or to run something later/repeatedly. Use once for a single reminder, cron for calendar recurrence, interval for elapsed-time recurrence. Ask about missing or ambiguous timing before calling. Runs use this agent and the current model, with results in the agent's Tasks history; no automatic push/email notification. Only confirm scheduling after this tool succeeds.",
     parameters: z.toJSONSchema(scheduleTaskSchema) as never,
     executionMode: "sequential",
     // A crash after the database write must not replay the creation.
@@ -54,7 +74,8 @@ export function createScheduleTaskTool(context: SchedulingContext): AgentHarness
       const result = {
         task,
         nextRunAt: new Date(task.nextRunAt!).toISOString(),
-        delivery: "The result will appear in this agent's Tasks run history. No push or email notification is sent automatically.",
+        delivery:
+          "The result will appear in this agent's Tasks run history. No push or email notification is sent automatically.",
       };
       return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
     },

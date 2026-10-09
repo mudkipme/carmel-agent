@@ -31,9 +31,9 @@ test("OpenAPI operations exactly cover the registered API router", async () => {
     ),
   );
   const registered = new Set(
-    createApiRoutes().routes.filter(({ method }) => methods.has(method.toLowerCase())).map(
-      ({ method, path }) => `${method.toUpperCase()} ${normalizeRoutePath(path)}`,
-    ),
+    createApiRoutes()
+      .routes.filter(({ method }) => methods.has(method.toLowerCase()))
+      .map(({ method, path }) => `${method.toUpperCase()} ${normalizeRoutePath(path)}`),
   );
 
   assert.deepEqual([...documented].sort(), [...registered].sort());
@@ -46,17 +46,106 @@ test("representative response fixtures satisfy every response component", async 
     $ref: `#/components/schemas/${name}`,
     components: spec.components,
   });
-  const user = { id: "u1", username: "admin", name: "Admin", email: "a@example.test", role: "admin" };
-  const model = { id: "m1", ownerUserId: "u1", shared: false, label: "Local", provider: "ollama", modelId: "qwen" };
-  const provider = { id: "p1", userId: "u1", label: "Local", provider: "ollama", hasApiKey: false, hasOAuth: false, createdAt: 1, updatedAt: 1 };
+  const user = {
+    id: "u1",
+    username: "admin",
+    name: "Admin",
+    email: "a@example.test",
+    role: "admin",
+  };
+  const model = {
+    id: "m1",
+    ownerUserId: "u1",
+    shared: false,
+    label: "Local",
+    provider: "ollama",
+    modelId: "qwen",
+  };
+  const provider = {
+    id: "p1",
+    userId: "u1",
+    label: "Local",
+    provider: "ollama",
+    hasApiKey: false,
+    hasOAuth: false,
+    createdAt: 1,
+    updatedAt: 1,
+  };
   const permissions = { read: true, write: true, edit: true, bash: false, network: false };
-  const agent = { id: "a1", ownerUserId: "u1", shared: false, name: "Agent", description: "", workingDirMode: "default", workingDir: "/work", mounts: [], systemPrompt: "", promptTemplates: [], permissions, defaultModelRefId: "m1", defaultThinkingLevel: "off", createdAt: 1, updatedAt: 1 };
-  const metadata = { id: "s1", title: "Chat", userId: "u1", agentId: "a1", modelRefId: "m1", thinkingLevel: "off", revision: 1, createdAt: 1, updatedAt: 1 };
+  const agent = {
+    id: "a1",
+    ownerUserId: "u1",
+    shared: false,
+    name: "Agent",
+    description: "",
+    workingDirMode: "default",
+    workingDir: "/work",
+    mounts: [],
+    systemPrompt: "",
+    promptTemplates: [],
+    permissions,
+    defaultModelRefId: "m1",
+    defaultThinkingLevel: "off",
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  const metadata = {
+    id: "s1",
+    title: "Chat",
+    userId: "u1",
+    agentId: "a1",
+    modelRefId: "m1",
+    thinkingLevel: "off",
+    revision: 1,
+    createdAt: 1,
+    updatedAt: 1,
+  };
   const session = { ...metadata, messages: [], messageEntryIds: [] };
-  const file = { name: "README.md", path: "README.md", type: "file", size: 12, updatedAt: 1, hidden: false };
-  const task = { id: "t1", agentId: "a1", userId: "u1", name: "Check", prompt: "Check", scheduleKind: "interval", scheduleValue: "3600", status: "active", createdAt: 1, updatedAt: 1 };
-  const issue = { id: "i1", agentId: "a1", userId: "u1", title: "Fix it", description: "It is broken", status: "todo", criteria: [], priority: "normal", running: false, createdAt: 1, updatedAt: 1 };
-  const attempt = { id: "r1", issueId: "i1", sessionId: null, instructions: "", brief: "Fix", outcome: "failed", summary: "No model", evidence: null, createdAt: 1, finishedAt: 2 };
+  const file = {
+    name: "README.md",
+    path: "README.md",
+    type: "file",
+    size: 12,
+    updatedAt: 1,
+    hidden: false,
+  };
+  const task = {
+    id: "t1",
+    agentId: "a1",
+    userId: "u1",
+    name: "Check",
+    prompt: "Check",
+    scheduleKind: "interval",
+    scheduleValue: "3600",
+    status: "active",
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  const issue = {
+    id: "i1",
+    agentId: "a1",
+    userId: "u1",
+    title: "Fix it",
+    description: "It is broken",
+    status: "todo",
+    criteria: [],
+    priority: "normal",
+    running: false,
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  const attempt = {
+    id: "r1",
+    issueId: "i1",
+    sessionId: null,
+    instructions: "",
+    brief: "Fix",
+    outcome: "failed",
+    summary: "No model",
+    evidence: null,
+    createdAt: 1,
+    finishedAt: 2,
+  };
   const note = { id: "n1", issueId: "i1", kind: "note", body: "Context", createdAt: 1 };
   const fixtures: Record<string, unknown> = {
     IssueDetail: { ...issue, attempts: [attempt], notes: [note] },
@@ -70,7 +159,13 @@ test("representative response fixtures satisfy every response component", async 
     ModelRef: model,
     ProviderConfig: provider,
     ProviderModel: { id: "qwen", name: "Qwen" },
-    OAuthFlow: { id: "o1", providerConfigId: "p1", provider: "openai", providerName: "OpenAI", status: "pending" },
+    OAuthFlow: {
+      id: "o1",
+      providerConfigId: "p1",
+      provider: "openai",
+      providerName: "OpenAI",
+      status: "pending",
+    },
     AgentConfig: agent,
     SessionMetadata: metadata,
     Session: session,
@@ -80,11 +175,37 @@ test("representative response fixtures satisfy every response component", async 
     FileContent: { path: "README.md", content: "hello", updatedAt: 1 },
     FileBatchResult: { completed: ["a.txt"], failed: [{ path: "b.txt", error: "Nope" }] },
     AgentTask: task,
-    Issue: { id: "i1", agentId: "a1", userId: "u1", sessionId: "s1", title: "Fix it", description: "It is broken", status: "in_progress", criteria: [], priority: "normal", running: true, createdAt: 1, updatedAt: 1 },
+    Issue: {
+      id: "i1",
+      agentId: "a1",
+      userId: "u1",
+      sessionId: "s1",
+      title: "Fix it",
+      description: "It is broken",
+      status: "in_progress",
+      criteria: [],
+      priority: "normal",
+      running: true,
+      createdAt: 1,
+      updatedAt: 1,
+    },
     AgentSecret: { agentId: "a1", name: "GITHUB_TOKEN", updatedAt: 1 },
     ApiKey: { id: "k1", name: "laptop", prefix: "carmel-abc123", createdAt: 1 },
-    ApiKeyCreated: { id: "k1", name: "laptop", prefix: "carmel-abc123", createdAt: 1, key: "carmel-abc123secret" },
-    BootstrapPayload: { users: [user], agents: [agent], providerConfigs: [provider], modelRefs: [model], modelCatalog: {}, sessions: [metadata] },
+    ApiKeyCreated: {
+      id: "k1",
+      name: "laptop",
+      prefix: "carmel-abc123",
+      createdAt: 1,
+      key: "carmel-abc123secret",
+    },
+    BootstrapPayload: {
+      users: [user],
+      agents: [agent],
+      providerConfigs: [provider],
+      modelRefs: [model],
+      modelCatalog: {},
+      sessions: [metadata],
+    },
   };
 
   for (const [name, fixture] of Object.entries(fixtures)) {

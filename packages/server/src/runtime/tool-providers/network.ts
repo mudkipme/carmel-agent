@@ -89,7 +89,8 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
           },
           signal,
         });
-        if (!response.ok) throw new Error(`Fetch failed with ${response.status}: ${await response.text()}`);
+        if (!response.ok)
+          throw new Error(`Fetch failed with ${response.status}: ${await response.text()}`);
 
         const contentType = response.headers.get("content-type");
         const body = await response.text();
@@ -184,20 +185,27 @@ function formatExaSearchResults(data: unknown) {
         url ? `URL: ${url}` : "",
         publishedDate ? `Published: ${publishedDate}` : "",
         author ? `Author: ${author}` : "",
-        highlights.length > 0 ? `Highlights:\n${highlights.map((highlight) => `- ${highlight}`).join("\n")}` : "",
+        highlights.length > 0
+          ? `Highlights:\n${highlights.map((highlight) => `- ${highlight}`).join("\n")}`
+          : "",
         text ? `Text:\n${text}` : "",
-      ].filter(Boolean).join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
     })
     .join("\n\n");
 }
 
 function getResults(data: unknown): Array<Record<string, unknown>> {
-  if (!data || typeof data !== "object" || !("results" in data) || !Array.isArray(data.results)) return [];
-  return data.results.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object");
+  if (!data || typeof data !== "object" || !("results" in data) || !Array.isArray(data.results))
+    return [];
+  return data.results.filter(
+    (item): item is Record<string, unknown> => Boolean(item) && typeof item === "object",
+  );
 }
 
 function parseRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
 
 function requireString(value: unknown, name: string) {
@@ -220,9 +228,18 @@ const exaSearchSchema = {
   type: "object",
   properties: {
     query: { type: "string", description: "Search query." },
-    numResults: { type: "number", description: "Number of results to return. Defaults to 5, maximum 10." },
-    includeText: { type: "boolean", description: "Whether to include page text snippets in addition to highlights." },
-    maxCharacters: { type: "number", description: "Maximum text characters per result when includeText is true." },
+    numResults: {
+      type: "number",
+      description: "Number of results to return. Defaults to 5, maximum 10.",
+    },
+    includeText: {
+      type: "boolean",
+      description: "Whether to include page text snippets in addition to highlights.",
+    },
+    maxCharacters: {
+      type: "number",
+      description: "Maximum text characters per result when includeText is true.",
+    },
   },
   required: ["query"],
   additionalProperties: false,
@@ -238,7 +255,10 @@ const fetchUrlSchema = {
       description:
         "markdown (default) extracts the page's main content; html/text return the raw response body.",
     },
-    maxCharacters: { type: "number", description: "Maximum characters to return. Defaults to 12000." },
+    maxCharacters: {
+      type: "number",
+      description: "Maximum characters to return. Defaults to 12000.",
+    },
   },
   required: ["url"],
   additionalProperties: false,

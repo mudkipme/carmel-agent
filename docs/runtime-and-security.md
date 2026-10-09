@@ -138,7 +138,7 @@ browser, from the terminal button in the session header.
 - **Requires the `bash` permission.** With bash off, no terminal is offered.
 - **Same environment as the agent's own commands**, secrets included, so the
   terminal can be used to debug what the agent actually sees (`gh auth status`,
-  `psql "$DATABASE_URL"`). Terminal output is *not* redacted: nothing here is
+  `psql "$DATABASE_URL"`). Terminal output is _not_ redacted: nothing here is
   persisted to a transcript or sent to a model, and rewriting a live PTY stream
   would corrupt the escape sequences the emulator depends on.
 - **One shell per agent per user.** Two browser tabs on the same agent drive the
@@ -311,7 +311,7 @@ stored on disk and replayed into model context on every later turn.
 
 It is a guard against accidents, not a containment boundary. An agent that has a
 secret can always encode it, and redaction only covers the sandbox streams —
-output the agent writes to a file and a *host-side* file tool then reads back is
+output the agent writes to a file and a _host-side_ file tool then reads back is
 not scanned. Values shorter than four characters are left alone, since matching
 them would shred unrelated output.
 

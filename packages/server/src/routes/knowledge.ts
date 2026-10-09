@@ -25,8 +25,7 @@ import {
 export function createKnowledgeRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
   route.onError((error, c) => {
-    if (error instanceof KnowledgeError)
-      return c.json({ error: error.message }, error.status);
+    if (error instanceof KnowledgeError) return c.json({ error: error.message }, error.status);
     throw error;
   });
   route.get("/agents/:agentId/knowledge", async (c) =>
@@ -37,11 +36,7 @@ export function createKnowledgeRoutes() {
     jsonValidator(knowledgeSettingsSchema),
     async (c) =>
       c.json(
-        await saveKnowledgeSettings(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.valid("json"),
-        ),
+        await saveKnowledgeSettings(c.get("user").id, c.req.param("agentId"), c.req.valid("json")),
       ),
   );
   route.post(
@@ -49,46 +44,26 @@ export function createKnowledgeRoutes() {
     jsonValidator(knowledgeSourceInputSchema),
     async (c) =>
       c.json(
-        await addKnowledgeSource(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.valid("json"),
-        ),
+        await addKnowledgeSource(c.get("user").id, c.req.param("agentId"), c.req.valid("json")),
         201,
       ),
   );
   route.delete("/agents/:agentId/knowledge/sources/:sourceId", async (c) => {
-    await deleteKnowledgeSource(
-      c.get("user").id,
-      c.req.param("agentId"),
-      c.req.param("sourceId"),
-    );
+    await deleteKnowledgeSource(c.get("user").id, c.req.param("agentId"), c.req.param("sourceId"));
     return c.json({ ok: true });
   });
-  route.post(
-    "/agents/:agentId/knowledge/search",
-    jsonValidator(knowledgeSearchSchema),
-    async (c) =>
-      c.json(
-        await searchKnowledge(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.valid("json"),
-          c.req.raw.signal,
-        ),
+  route.post("/agents/:agentId/knowledge/search", jsonValidator(knowledgeSearchSchema), async (c) =>
+    c.json(
+      await searchKnowledge(
+        c.get("user").id,
+        c.req.param("agentId"),
+        c.req.valid("json"),
+        c.req.raw.signal,
       ),
+    ),
   );
-  route.post(
-    "/agents/:agentId/knowledge/read",
-    jsonValidator(knowledgeReadSchema),
-    async (c) =>
-      c.json(
-        await readKnowledge(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.valid("json"),
-        ),
-      ),
+  route.post("/agents/:agentId/knowledge/read", jsonValidator(knowledgeReadSchema), async (c) =>
+    c.json(await readKnowledge(c.get("user").id, c.req.param("agentId"), c.req.valid("json"))),
   );
   route.post(
     "/agents/:agentId/knowledge/refresh",
@@ -101,28 +76,12 @@ export function createKnowledgeRoutes() {
     ),
     async (c) => {
       const { embed, allowDownloads, deep } = c.req.valid("json");
-      await refreshKnowledge(
-        c.get("user").id,
-        c.req.param("agentId"),
-        embed,
-        allowDownloads,
-        deep,
-      );
+      await refreshKnowledge(c.get("user").id, c.req.param("agentId"), embed, allowDownloads, deep);
       return c.json({ ok: true }, 202);
     },
   );
-  route.post(
-    "/agents/:agentId/knowledge/memories",
-    jsonValidator(memoryInputSchema),
-    async (c) =>
-      c.json(
-        await saveMemory(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.valid("json"),
-        ),
-        201,
-      ),
+  route.post("/agents/:agentId/knowledge/memories", jsonValidator(memoryInputSchema), async (c) =>
+    c.json(await saveMemory(c.get("user").id, c.req.param("agentId"), c.req.valid("json")), 201),
   );
   route.put(
     "/agents/:agentId/knowledge/memories/:memoryId",

@@ -20,9 +20,18 @@ export const PI_COMPACTION_SETTINGS: CompactionSettings = DEFAULT_COMPACTION_SET
 export function compactionSettingsForWindow(contextWindow: number) {
   return {
     ...DEFAULT_COMPACTION_SETTINGS,
-    reserveTokens: Math.min(DEFAULT_COMPACTION_SETTINGS.reserveTokens, Math.max(1, Math.floor(contextWindow / 4))),
-    keepRecentTokens: Math.min(DEFAULT_COMPACTION_SETTINGS.keepRecentTokens, Math.max(0, Math.floor(contextWindow / 3))),
-    backgroundTokens: Math.min(DEFAULT_COMPACTION_SETTINGS.backgroundTokens, Math.max(0, Math.floor(contextWindow / 10))),
+    reserveTokens: Math.min(
+      DEFAULT_COMPACTION_SETTINGS.reserveTokens,
+      Math.max(1, Math.floor(contextWindow / 4)),
+    ),
+    keepRecentTokens: Math.min(
+      DEFAULT_COMPACTION_SETTINGS.keepRecentTokens,
+      Math.max(0, Math.floor(contextWindow / 3)),
+    ),
+    backgroundTokens: Math.min(
+      DEFAULT_COMPACTION_SETTINGS.backgroundTokens,
+      Math.max(0, Math.floor(contextWindow / 10)),
+    ),
   };
 }
 
@@ -32,7 +41,10 @@ export type ImpossibleReason = "window_below_reserve" | "retained_tail_exceeds_h
  * `headroom` is the usable context: everything the reserve does not claim. Pi
  * compares against exactly this, and it can be negative.
  */
-export function contextHeadroom(contextWindow: number, settings: CompactionSettings = PI_COMPACTION_SETTINGS) {
+export function contextHeadroom(
+  contextWindow: number,
+  settings: CompactionSettings = PI_COMPACTION_SETTINGS,
+) {
   return contextWindow - settings.reserveTokens;
 }
 

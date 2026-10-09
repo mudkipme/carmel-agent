@@ -38,7 +38,9 @@ export function SettingsPage() {
   const { section } = useParams();
   const modelRefs = useHarnessStore((state) => state.modelRefs);
   const providerConfigs = useHarnessStore((state) => state.providerConfigs);
-  const activeUser = useHarnessStore((state) => state.users.find((item) => item.id === state.activeUserId));
+  const activeUser = useHarnessStore((state) =>
+    state.users.find((item) => item.id === state.activeUserId),
+  );
   const isAdmin = activeUser?.role === "admin";
   const settingsSections = allSettingsSections.filter((item) => !item.adminOnly || isAdmin);
   const activeSection = settingsSections.some((item) => item.id === section)
@@ -47,21 +49,31 @@ export function SettingsPage() {
   const upsertUser = useHarnessStore((state) => state.upsertUser);
   const upsertModelRef = useHarnessStore((state) => state.upsertModelRef);
   const themePreference = useThemePreference();
-  const [draftThemePreference, setDraftThemePreference] = useState<ThemePreference>(() => themePreference);
+  const [draftThemePreference, setDraftThemePreference] = useState<ThemePreference>(
+    () => themePreference,
+  );
   const [oauthProviders, setOAuthProviders] = useState<OAuthProviderSummary[]>([]);
-  const [modelStatus, setModelStatus] = useState<{ tone: "muted" | "destructive"; message: string } | null>(null);
+  const [modelStatus, setModelStatus] = useState<{
+    tone: "muted" | "destructive";
+    message: string;
+  } | null>(null);
   const [updatingModelSettings, setUpdatingModelSettings] = useState(false);
   const [appearanceSaveMessage, setAppearanceSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const valid = allSettingsSections.some((item) => item.id === section && (!item.adminOnly || isAdmin));
+    const valid = allSettingsSections.some(
+      (item) => item.id === section && (!item.adminOnly || isAdmin),
+    );
     if (section && !valid) {
       navigate("/settings/models", { replace: true });
     }
   }, [navigate, section, isAdmin]);
 
   useEffect(() => {
-    void api.getOAuthProviders().then(setOAuthProviders).catch(() => setOAuthProviders([]));
+    void api
+      .getOAuthProviders()
+      .then(setOAuthProviders)
+      .catch(() => setOAuthProviders([]));
   }, []);
 
   const updateFastTaskModel = async (modelRefId: string) => {
@@ -109,7 +121,12 @@ export function SettingsPage() {
     <main className="flex h-[100dvh] min-h-0 flex-col bg-background pr-[var(--safe-right)] pl-[var(--safe-left)] text-foreground">
       <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center gap-3 border-b px-3 pt-[var(--safe-top)]">
         <div className="flex min-w-0 items-center gap-2">
-          <Button variant="ghost" size="icon-sm" title="Back to harness" onClick={() => navigate("/")}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Back to harness"
+            onClick={() => navigate("/")}
+          >
             <ArrowLeftIcon />
           </Button>
           <h1 className="min-w-0 truncate text-sm font-medium">Harness Settings</h1>
@@ -126,7 +143,10 @@ export function SettingsPage() {
                   to={`/settings/${item.id}`}
                   data-active={item.id === activeSection}
                   className={({ isActive }) =>
-                    cn("nav-item flex h-8 items-center gap-2 rounded-md px-2.5 text-[13px]", isActive && "font-medium")
+                    cn(
+                      "nav-item flex h-8 items-center gap-2 rounded-md px-2.5 text-[13px]",
+                      isActive && "font-medium",
+                    )
                   }
                 >
                   <Icon data-icon="inline-start" />
@@ -172,9 +192,7 @@ export function SettingsPage() {
             ) : null}
             {activeSection === "api-keys" ? <ApiKeySettings /> : null}
             {activeSection === "users" ? <UserSettings /> : null}
-            {activeSection === "account" ? (
-              <AccountSettings />
-            ) : null}
+            {activeSection === "account" ? <AccountSettings /> : null}
           </div>
         </section>
       </div>

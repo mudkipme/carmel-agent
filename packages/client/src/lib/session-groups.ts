@@ -7,7 +7,10 @@ type Groupable = Pick<SessionMetadata, "title" | "pinnedAt" | "updatedAt">;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Pinned first, newest pin first; the rest by last activity. */
-export function sortSessions<T extends Pick<SessionMetadata, "pinnedAt" | "updatedAt">>(a: T, b: T) {
+export function sortSessions<T extends Pick<SessionMetadata, "pinnedAt" | "updatedAt">>(
+  a: T,
+  b: T,
+) {
   if (a.pinnedAt && b.pinnedAt) return b.pinnedAt - a.pinnedAt;
   if (a.pinnedAt) return -1;
   if (b.pinnedAt) return 1;
@@ -25,7 +28,10 @@ export function matchesSessionQuery(session: Pick<SessionMetadata, "title">, que
  * Pinned sessions, then recency buckets by local calendar day, then one group
  * per month. Groups keep the list's own order and empty ones are left out.
  */
-export function groupSessions<T extends Groupable>(sessions: readonly T[], now = Date.now()): SessionGroup<T>[] {
+export function groupSessions<T extends Groupable>(
+  sessions: readonly T[],
+  now = Date.now(),
+): SessionGroup<T>[] {
   const todayStart = startOfDay(now);
   const buckets: Array<{ label: string; from: number }> = [
     { label: "Today", from: todayStart },
@@ -82,5 +88,8 @@ function startOfDay(time: number) {
 function monthLabel(time: number, now: number) {
   const date = new Date(time);
   const sameYear = date.getFullYear() === new Date(now).getFullYear();
-  return date.toLocaleDateString("en-US", sameYear ? { month: "long" } : { month: "long", year: "numeric" });
+  return date.toLocaleDateString(
+    "en-US",
+    sameYear ? { month: "long" } : { month: "long", year: "numeric" },
+  );
 }

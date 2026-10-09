@@ -1,8 +1,19 @@
-import { InMemoryCredentialStore, isModelType, type AnyModel, type Api, type CredentialStore, type Model, type ModelsStore } from "@earendil-works/pi-ai";
+import {
+  InMemoryCredentialStore,
+  isModelType,
+  type AnyModel,
+  type Api,
+  type CredentialStore,
+  type Model,
+  type ModelsStore,
+} from "@earendil-works/pi-ai";
 import { ModelRuntime, type CreateModelRuntimeOptions } from "@earendil-works/pi-coding-agent";
 import { modelCatalogStore } from "./model-store.ts";
 
-type CarmelModelRuntimeOptions = Pick<CreateModelRuntimeOptions, "allowModelNetwork" | "catalogBaseUrl" | "modelRefreshTimeoutMs"> & {
+type CarmelModelRuntimeOptions = Pick<
+  CreateModelRuntimeOptions,
+  "allowModelNetwork" | "catalogBaseUrl" | "modelRefreshTimeoutMs"
+> & {
   modelsStore?: ModelsStore;
 };
 
@@ -21,16 +32,21 @@ export function createCarmelModelRuntime(
 }
 
 export function bindResolvedModel(runtime: ModelRuntime, model: Model<Api>): ModelRuntime {
-  const isBound = (provider: string, modelId: string) => provider === model.provider && modelId === model.id;
+  const isBound = (provider: string, modelId: string) =>
+    provider === model.provider && modelId === model.id;
   const substitute = (models: readonly Model<Api>[]) =>
     models.map((candidate) => (isBound(candidate.provider, candidate.id) ? model : candidate));
   // A provider can now have chat, image and classifier entries with the same
   // ID. Only the chat entry belongs to this run's resolved configuration.
   const substituteAll = <T extends AnyModel>(models: readonly T[]): T[] =>
-    models.map((candidate) => (isModelType(candidate, "chat") && isBound(candidate.provider, candidate.id) ? model as unknown as T : candidate));
+    models.map((candidate) =>
+      isModelType(candidate, "chat") && isBound(candidate.provider, candidate.id)
+        ? (model as unknown as T)
+        : candidate,
+    );
   const getModelOfType: ModelRuntime["getModelOfType"] = (type, provider, modelId) =>
     type === "chat" && isBound(provider, modelId)
-      ? model as ReturnType<typeof runtime.getModelOfType<typeof type>>
+      ? (model as ReturnType<typeof runtime.getModelOfType<typeof type>>)
       : runtime.getModelOfType(type, provider, modelId);
   const getModelsOfType: ModelRuntime["getModelsOfType"] = (type, provider) =>
     substituteAll(runtime.getModelsOfType(type, provider));
@@ -46,9 +62,12 @@ export function bindResolvedModel(runtime: ModelRuntime, model: Model<Api>): Mod
         case "getPhysicalModel":
           return (provider: string, modelId: string) =>
             isBound(provider, modelId) ? model : target[property](provider, modelId);
-        case "getModelOfType": return getModelOfType;
-        case "getModelsOfType": return getModelsOfType;
-        case "getAvailableOfType": return getAvailableOfType;
+        case "getModelOfType":
+          return getModelOfType;
+        case "getModelsOfType":
+          return getModelsOfType;
+        case "getAvailableOfType":
+          return getAvailableOfType;
         case "getAllModels":
           return (provider?: string) => substituteAll(target.getAllModels(provider));
         case "getAllAvailable": {

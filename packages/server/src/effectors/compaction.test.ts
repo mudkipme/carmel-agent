@@ -26,7 +26,10 @@ test("a window smaller than the reserve cannot be compacted, even when empty", (
   // Pi's own predicate reads `tokens > windowMinusReserve`, which is true at
   // zero tokens when the reserve exceeds the window.
   assert.equal(compactionCannotHelp(50, SETTINGS), "window_below_reserve");
-  assert.equal(describePreflightPressure({ tokens: 0, contextWindow: 50, settings: SETTINGS })?.level, "critical");
+  assert.equal(
+    describePreflightPressure({ tokens: 0, contextWindow: 50, settings: SETTINGS })?.level,
+    "critical",
+  );
 });
 
 test("a retained tail larger than the headroom cannot be compacted under budget", () => {
@@ -45,8 +48,17 @@ test("Pi's shipped defaults make every window at or below 36,384 tokens uncompac
 test("the pre-flight notice waits until the session is actually over budget", () => {
   // An uncompactable window is only worth interrupting the user for once the
   // session no longer fits; before that, there is nothing to act on.
-  assert.equal(describePreflightPressure({ tokens: 100, contextWindow: 250, settings: SETTINGS }), undefined);
-  assert.equal(describePreflightPressure({ tokens: 300, contextWindow: 250, settings: SETTINGS })?.level, "critical");
+  assert.equal(
+    describePreflightPressure({ tokens: 100, contextWindow: 250, settings: SETTINGS }),
+    undefined,
+  );
+  assert.equal(
+    describePreflightPressure({ tokens: 300, contextWindow: 250, settings: SETTINGS })?.level,
+    "critical",
+  );
   // A compactable window never gets a pre-flight notice: Pi handles it.
-  assert.equal(describePreflightPressure({ tokens: 5_000, contextWindow: 1_000, settings: SETTINGS }), undefined);
+  assert.equal(
+    describePreflightPressure({ tokens: 5_000, contextWindow: 1_000, settings: SETTINGS }),
+    undefined,
+  );
 });

@@ -19,8 +19,18 @@ export function upsertById<T extends { id: string }>(items: T[], saved: T) {
 }
 
 export function toAgentCommand(agent: AgentConfig): AgentConfigCommand {
-  const { id: _id, ownerUserId: _ownerUserId, createdAt: _createdAt, updatedAt: _updatedAt, ...command } = agent;
-  return { ...command, codemodeEnabled: command.codemodeEnabled ?? false, mcpServers: command.mcpServers ?? [] };
+  const {
+    id: _id,
+    ownerUserId: _ownerUserId,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    ...command
+  } = agent;
+  return {
+    ...command,
+    codemodeEnabled: command.codemodeEnabled ?? false,
+    mcpServers: command.mcpServers ?? [],
+  };
 }
 
 export function toModelRefCommand(model: ModelRef): ModelRefCommand {
@@ -50,7 +60,9 @@ export function isListedSession(session: SessionMetadata) {
 
 export function cacheSession(state: HarnessState, session: Session) {
   return {
-    sessions: state.sessions.map((item) => (item.id === session.id ? toSessionMetadata(session) : item)),
+    sessions: state.sessions.map((item) =>
+      item.id === session.id ? toSessionMetadata(session) : item,
+    ),
     sessionDetails: { ...state.sessionDetails, [session.id]: session },
   };
 }
@@ -75,7 +87,10 @@ export function resetState(
 }
 
 /** Bootstrap returns exactly the signed-in user, with what they can see. */
-export function resolveBootstrapState(payload: BootstrapPayload, current: Pick<HarnessState, "sessionDetails">) {
+export function resolveBootstrapState(
+  payload: BootstrapPayload,
+  current: Pick<HarnessState, "sessionDetails">,
+) {
   const activeUserId = payload.users[0]?.id ?? "";
   const sessions = payload.sessions.filter((session) => session.userId === activeUserId);
   const agents = payload.agents.filter((agent) => canUserSeeAgent(agent, activeUserId));

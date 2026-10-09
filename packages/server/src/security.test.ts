@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allowedCorsOrigin, isAllowedBrowserOrigin, protectJsonSecret, protectSecret, revealJsonSecret, revealSecret } from "./security.ts";
+import {
+  allowedCorsOrigin,
+  isAllowedBrowserOrigin,
+  protectJsonSecret,
+  protectSecret,
+  revealJsonSecret,
+  revealSecret,
+} from "./security.ts";
 
 test("browser origin policy allows default dev origins", () => {
   const previous = process.env.CARMEL_ALLOWED_ORIGINS;
@@ -25,7 +32,10 @@ test("browser origin policy allows configured origins", () => {
 });
 
 test("browser origin policy allows same request host", () => {
-  assert.equal(allowedCorsOrigin("https://api.example.test", "api.example.test"), "https://api.example.test");
+  assert.equal(
+    allowedCorsOrigin("https://api.example.test", "api.example.test"),
+    "https://api.example.test",
+  );
 });
 
 test("browser origin policy rejects unknown or invalid origins", () => {

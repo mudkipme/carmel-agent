@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Hono } from "hono";
-import { hashPassword, readSessionCookie, requireAuth, verifyPassword, type AuthVariables } from "./auth.ts";
+import {
+  hashPassword,
+  readSessionCookie,
+  requireAuth,
+  verifyPassword,
+  type AuthVariables,
+} from "./auth.ts";
 import { db, initialize } from "./db/index.ts";
 import { users } from "./db/schema.ts";
 import { id, now } from "./db/seed.ts";
@@ -79,7 +85,10 @@ test("login issues a session cookie that authorizes protected routes; otherwise 
   assert.deepEqual(await authed.json(), { id: userId });
 
   assert.equal((await app.request("/api/me")).status, 401);
-  assert.equal((await app.request("/api/me", { headers: { cookie: "carmel_session=bogus" } })).status, 401);
+  assert.equal(
+    (await app.request("/api/me", { headers: { cookie: "carmel_session=bogus" } })).status,
+    401,
+  );
 });
 
 test("readSessionCookie finds the session in a raw Cookie header", () => {

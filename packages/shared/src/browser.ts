@@ -11,7 +11,12 @@ export type BrowserFrame = {
   type: "frame";
   seq: number;
   data: string;
-  metadata: { deviceWidth: number; deviceHeight: number; pageScaleFactor?: number; offsetTop?: number };
+  metadata: {
+    deviceWidth: number;
+    deviceHeight: number;
+    pageScaleFactor?: number;
+    offsetTop?: number;
+  };
 };
 export type BrowserServerMessage =
   | BrowserFrame
@@ -28,5 +33,24 @@ export type BrowserClientMessage =
   | { type: "navigate"; url: string }
   | { type: "tab"; id: string }
   | { type: "back" | "forward" | "reload" }
-  | { type: "input_mouse"; eventType: "mousePressed" | "mouseReleased" | "mouseMoved" | "mouseWheel"; x: number; y: number; button?: "left" | "right" | "middle"; clickCount?: number; deltaX?: number; deltaY?: number; buttons?: number; modifiers?: number }
-  | { type: "input_keyboard"; eventType: "keyDown" | "keyUp" | "char"; key?: string; code?: string; text?: string; modifiers?: number; windowsVirtualKeyCode?: number };
+  | {
+      type: "input_mouse";
+      eventType: "mousePressed" | "mouseReleased" | "mouseMoved" | "mouseWheel";
+      x: number;
+      y: number;
+      button?: "left" | "right" | "middle";
+      clickCount?: number;
+      deltaX?: number;
+      deltaY?: number;
+      buttons?: number;
+      modifiers?: number;
+    }
+  | {
+      type: "input_keyboard";
+      eventType: "keyDown" | "keyUp" | "char";
+      key?: string;
+      code?: string;
+      text?: string;
+      modifiers?: number;
+      windowsVirtualKeyCode?: number;
+    };

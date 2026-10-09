@@ -56,7 +56,9 @@ export function AgentSettingsPage() {
   const owned = agent?.ownerUserId === activeUserId;
   const sections = owned ? agentSettingsSections : sharedAgentSettingsSections;
   const defaultSection: AgentSettingsSection = owned ? "general" : "archived";
-  const activeSection = sections.some((item) => item.id === section) ? (section as AgentSettingsSection) : defaultSection;
+  const activeSection = sections.some((item) => item.id === section)
+    ? (section as AgentSettingsSection)
+    : defaultSection;
   const callerSection = activeSection === "archived";
   const [draft, setDraft] = useState<AgentConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -117,7 +119,10 @@ export function AgentSettingsPage() {
       defaultModelRefId,
       defaultThinkingLevel:
         nextModelRef && draft
-          ? (clampThinkingLevel(resolveModelRef(nextModelRef), draft.defaultThinkingLevel) as AgentThinkingLevel)
+          ? (clampThinkingLevel(
+              resolveModelRef(nextModelRef),
+              draft.defaultThinkingLevel,
+            ) as AgentThinkingLevel)
           : "off",
     });
   };
@@ -128,7 +133,11 @@ export function AgentSettingsPage() {
     setSaveError(null);
     setSaveMessage(null);
     try {
-      await upsertAgent({ ...draft, defaultThinkingLevel: selectedThinkingLevel, updatedAt: Date.now() });
+      await upsertAgent({
+        ...draft,
+        defaultThinkingLevel: selectedThinkingLevel,
+        updatedAt: Date.now(),
+      });
       setSaveMessage("Agent saved.");
     } catch (error) {
       setSaveError(errorMessage(error, "Unable to save agent"));
@@ -184,7 +193,10 @@ export function AgentSettingsPage() {
                   to={`/agents/${agent.id}/settings/${item.id}`}
                   data-active={item.id === activeSection}
                   className={({ isActive }) =>
-                    cn("nav-item flex h-8 items-center gap-2 rounded-md px-2.5 text-[13px]", isActive && "font-medium")
+                    cn(
+                      "nav-item flex h-8 items-center gap-2 rounded-md px-2.5 text-[13px]",
+                      isActive && "font-medium",
+                    )
                   }
                 >
                   <Icon data-icon="inline-start" />
@@ -201,7 +213,9 @@ export function AgentSettingsPage() {
               className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-4 p-3 pb-[calc(0.75rem+var(--safe-bottom))] sm:p-4 sm:pb-[calc(1rem+var(--safe-bottom))] md:p-6 md:pb-[calc(1.5rem+var(--safe-bottom))]"
             >
               {/* Archived sessions are the caller's own, not part of the owner-only draft. */}
-              {activeSection === "archived" ? <AgentArchivedSessionsSettings agentId={agent.id} /> : null}
+              {activeSection === "archived" ? (
+                <AgentArchivedSessionsSettings agentId={agent.id} />
+              ) : null}
               {owned && !callerSection && loadError ? (
                 <p className="text-sm text-destructive">{loadError}</p>
               ) : null}
@@ -239,11 +253,18 @@ export function AgentSettingsPage() {
                     <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
                   ) : null}
                   {activeSection === "codemode" ? (
-                    <AgentCodemodeSettings enabled={draft.codemodeEnabled ?? false} onChange={(codemodeEnabled) => updateDraft({ codemodeEnabled })} />
+                    <AgentCodemodeSettings
+                      enabled={draft.codemodeEnabled ?? false}
+                      onChange={(codemodeEnabled) => updateDraft({ codemodeEnabled })}
+                    />
                   ) : null}
                   {activeSection === "mcp" ? (
-                    <AgentMcpSettings agentId={agent.id} servers={draft.mcpServers ?? []} permissions={draft.permissions}
-                      onChange={(mcpServers) => updateDraft({ mcpServers })} />
+                    <AgentMcpSettings
+                      agentId={agent.id}
+                      servers={draft.mcpServers ?? []}
+                      permissions={draft.permissions}
+                      onChange={(mcpServers) => updateDraft({ mcpServers })}
+                    />
                   ) : null}
                 </>
               ) : null}

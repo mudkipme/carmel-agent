@@ -1,15 +1,7 @@
 import type { FormEvent } from "react";
-import {
-  agentTaskCreateSchema,
-  type AgentTaskCreateCommand,
-} from "@carmel-agent/shared";
+import { agentTaskCreateSchema, type AgentTaskCreateCommand } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -45,27 +37,24 @@ export function TaskForm({
       // Incomplete text fields are valid drafts, but never valid API submissions.
       Boolean(
         value &&
-          typeof value === "object" &&
-          "name" in value &&
-          typeof value.name === "string" &&
-          "prompt" in value &&
-          typeof value.prompt === "string" &&
-          "scheduleValue" in value &&
-          typeof value.scheduleValue === "string" &&
-          agentTaskCreateSchema.safeParse({
-            ...value,
-            name: "Draft",
-            prompt: "Draft",
-            scheduleValue: "Pending",
-          }).success,
+        typeof value === "object" &&
+        "name" in value &&
+        typeof value.name === "string" &&
+        "prompt" in value &&
+        typeof value.prompt === "string" &&
+        "scheduleValue" in value &&
+        typeof value.scheduleValue === "string" &&
+        agentTaskCreateSchema.safeParse({
+          ...value,
+          name: "Draft",
+          prompt: "Draft",
+          scheduleValue: "Pending",
+        }).success,
       ),
   );
-  const update = (patch: Partial<AgentTaskCreateCommand>) =>
-    setDraft({ ...draft, ...patch });
+  const update = (patch: Partial<AgentTaskCreateCommand>) => setDraft({ ...draft, ...patch });
   const intervalMinutes =
-    draft.scheduleKind === "interval"
-      ? Number(draft.scheduleValue) / 60_000
-      : 0;
+    draft.scheduleKind === "interval" ? Number(draft.scheduleValue) / 60_000 : 0;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (busy || !draft.name.trim() || !draft.prompt.trim()) return;
@@ -77,13 +66,8 @@ export function TaskForm({
     });
   };
   return (
-    <form
-      onSubmit={submit}
-      className="flex min-w-0 flex-col gap-5 rounded-lg border p-4 sm:p-6"
-    >
-      <h2 className="text-lg font-semibold">
-        {editing ? "Edit task" : "New task"}
-      </h2>
+    <form onSubmit={submit} className="flex min-w-0 flex-col gap-5 rounded-lg border p-4 sm:p-6">
+      <h2 className="text-lg font-semibold">{editing ? "Edit task" : "New task"}</h2>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="task-name">Name</FieldLabel>
@@ -184,22 +168,12 @@ export function TaskForm({
           </Field>
         ) : null}
       </FieldGroup>
-      <p className="text-sm text-muted-foreground">
-        {describeTaskSchedule(draft)}
-      </p>
+      <p className="text-sm text-muted-foreground">{describeTaskSchedule(draft)}</p>
       <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={busy}
-          onClick={onCancel}
-        >
+        <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>
           Cancel
         </Button>
-        <Button
-          type="submit"
-          disabled={busy || !draft.name.trim() || !draft.prompt.trim()}
-        >
+        <Button type="submit" disabled={busy || !draft.name.trim() || !draft.prompt.trim()}>
           {busy ? "Saving…" : editing ? "Save task" : "Create task"}
         </Button>
       </div>

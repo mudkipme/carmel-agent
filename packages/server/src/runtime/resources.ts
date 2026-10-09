@@ -33,7 +33,10 @@ export type AgentResources = {
 };
 
 /** Workspace resources use agent authority; built-ins come from the application bundle. */
-export async function loadAgentResources(agent: AgentRecord, env: ExecutionEnv): Promise<AgentResources> {
+export async function loadAgentResources(
+  agent: AgentRecord,
+  env: ExecutionEnv,
+): Promise<AgentResources> {
   const cwd = env.cwd;
   const [skillResult, promptResult, contextResult, builtins] = await Promise.all([
     loadSkills(env, resolve(cwd, ".agents", "skills"), ctx),
@@ -48,15 +51,26 @@ export async function loadAgentResources(agent: AgentRecord, env: ExecutionEnv):
     // that shifts silently invalidates the cached prompt prefix for the whole
     // session, which costs far more than the sort.
     // Carmel's workflow wins a name collision with a workspace copy of upstream.
-    skills: sortByName([...skillResult.skills.filter((skill) => !builtins.some((builtin) => builtin.name === skill.name)), ...builtins]),
+    skills: sortByName([
+      ...skillResult.skills.filter(
+        (skill) => !builtins.some((builtin) => builtin.name === skill.name),
+      ),
+      ...builtins,
+    ]),
     promptTemplates: sortByName(promptResult.promptTemplates),
     contextFiles: contextResult.contextFiles,
-    diagnostics: [...skillResult.diagnostics, ...promptResult.diagnostics, ...contextResult.diagnostics],
+    diagnostics: [
+      ...skillResult.diagnostics,
+      ...promptResult.diagnostics,
+      ...contextResult.diagnostics,
+    ],
   };
 }
 
 function sortByName<T extends { name: string }>(items: T[]): T[] {
-  return [...items].sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
+  return [...items].sort((left, right) =>
+    left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+  );
 }
 
 export function resolveAgentWorkingDirPath(agent: AgentRecord) {
@@ -73,13 +87,23 @@ async function loadWorkspaceContext(
     const info = await env.fileInfo(path, ctx);
     if (!info.ok) {
       if (info.error.code !== "not_found") {
-        diagnostics.push({ type: "warning", code: "file_info_failed", message: info.error.message, path });
+        diagnostics.push({
+          type: "warning",
+          code: "file_info_failed",
+          message: info.error.message,
+          path,
+        });
       }
       continue;
     }
     const content = await env.readTextFile(path, ctx);
     if (!content.ok) {
-      diagnostics.push({ type: "warning", code: "read_failed", message: content.error.message, path });
+      diagnostics.push({
+        type: "warning",
+        code: "read_failed",
+        message: content.error.message,
+        path,
+      });
       continue;
     }
     return { contextFiles: [{ path, content: content.value }], diagnostics };

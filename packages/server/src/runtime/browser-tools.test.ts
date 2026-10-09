@@ -10,11 +10,24 @@ test("manual handoff invalidates a prepared action even when it was not waiting 
   const agentId = `browser-test-${randomUUID()}`;
   let effects = 0;
   const tool: AgentHarnessTool<ExecutionToolContext> = {
-    name: "effect", label: "Effect", description: "test", parameters: { type: "object", properties: {} },
-    execute: async () => { effects++; return { content: [], details: {} }; },
+    name: "effect",
+    label: "Effect",
+    description: "test",
+    parameters: { type: "object", properties: {} },
+    execute: async () => {
+      effects++;
+      return { content: [], details: {} };
+    },
   };
   const wrapped = guardBrowserHandoff(agentId, tool, { revision: 0 });
-  const args = ["call", {}, () => {}, {} as ExecutionToolContext, {} as Parameters<typeof wrapped.execute>[4], TEST_CONTEXT] as const;
+  const args = [
+    "call",
+    {},
+    () => {},
+    {} as ExecutionToolContext,
+    {} as Parameters<typeof wrapped.execute>[4],
+    TEST_CONTEXT,
+  ] as const;
   try {
     await wrapped.execute(...args);
     assert.equal(effects, 1);
@@ -26,5 +39,7 @@ test("manual handoff invalidates a prepared action even when it was not waiting 
     assert.match(JSON.stringify(stale), /not executed/);
     await wrapped.execute(...args);
     assert.equal(effects, 2);
-  } finally { deleteBrowserControl(agentId); }
+  } finally {
+    deleteBrowserControl(agentId);
+  }
 });

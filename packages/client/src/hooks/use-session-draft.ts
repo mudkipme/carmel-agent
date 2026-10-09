@@ -7,16 +7,11 @@ export function useSessionDraft<T>(
   initial: T,
   valid: (value: unknown) => value is T,
 ) {
-  const [value, setValue] = useState(() =>
-    readSessionDraft(key, initial, valid),
-  );
+  const [value, setValue] = useState(() => readSessionDraft(key, initial, valid));
   const current = useRef(value);
   const update = useCallback(
     (next: SetStateAction<T>) => {
-      const draft =
-        typeof next === "function"
-          ? (next as (value: T) => T)(current.current)
-          : next;
+      const draft = typeof next === "function" ? (next as (value: T) => T)(current.current) : next;
       current.current = draft;
       writeSessionDraft(key, draft);
       setValue(draft);

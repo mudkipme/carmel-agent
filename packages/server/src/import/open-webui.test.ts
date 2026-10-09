@@ -28,7 +28,13 @@ test("imports the current Open WebUI history branch", () => {
                 content: "wrong branch",
                 timestamp: 1_700_000_002,
               },
-              user_2: { id: "user_2", parentId: "user_1", role: "user", content: "use this", timestamp: 1_700_000_003 },
+              user_2: {
+                id: "user_2",
+                parentId: "user_1",
+                role: "user",
+                content: "use this",
+                timestamp: 1_700_000_003,
+              },
               assistant_2: {
                 id: "assistant_2",
                 parentId: "user_2",
@@ -51,7 +57,10 @@ test("imports the current Open WebUI history branch", () => {
   assert.deepEqual(
     result.sessions[0]?.messages.map((message) =>
       message.role === "assistant" && Array.isArray(message.content)
-        ? { role: message.role, content: message.content[0]?.type === "text" ? message.content[0].text : "" }
+        ? {
+            role: message.role,
+            content: message.content[0]?.type === "text" ? message.content[0].text : "",
+          }
         : { role: message.role, content: "content" in message ? message.content : "" },
     ),
     [
@@ -99,7 +108,7 @@ test("converts Open WebUI reasoning details to thinking content", () => {
           {
             role: "assistant",
             content:
-              "<details type=\"reasoning\" done=\"true\"><summary>Thought</summary>&gt; hidden idea\n&gt; more</details>\nvisible answer",
+              '<details type="reasoning" done="true"><summary>Thought</summary>&gt; hidden idea\n&gt; more</details>\nvisible answer',
           },
         ],
       },
@@ -124,9 +133,13 @@ test("prefers structured Open WebUI output reasoning over HTML content", () => {
           { role: "user", content: "question" },
           {
             role: "assistant",
-            content: "<details type=\"reasoning\"><summary>Thought</summary>html reasoning</details>\nhtml answer",
+            content:
+              '<details type="reasoning"><summary>Thought</summary>html reasoning</details>\nhtml answer',
             output: [
-              { type: "reasoning", content: [{ type: "output_text", text: "structured reasoning" }] },
+              {
+                type: "reasoning",
+                content: [{ type: "output_text", text: "structured reasoning" }],
+              },
               { type: "message", content: [{ type: "output_text", text: "structured answer" }] },
             ],
           },
@@ -179,7 +192,11 @@ test("imports an image-only user message with no text", () => {
       chat: {
         title: "Image only",
         messages: [
-          { role: "user", content: "", files: [{ type: "image", url: "data:image/png;base64,BBBB" }] },
+          {
+            role: "user",
+            content: "",
+            files: [{ type: "image", url: "data:image/png;base64,BBBB" }],
+          },
           { role: "assistant", content: "ok" },
         ],
       },

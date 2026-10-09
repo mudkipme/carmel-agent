@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { defaultBaseUrlForProvider, type ModelRef, type OAuthProviderSummary, type ProviderConfig } from "@carmel-agent/shared";
+import {
+  defaultBaseUrlForProvider,
+  type ModelRef,
+  type OAuthProviderSummary,
+  type ProviderConfig,
+} from "@carmel-agent/shared";
 import { confirmAction } from "@/lib/action-dialogs";
 import { createClientId } from "@/lib/id";
 import { showError } from "@/lib/errors";

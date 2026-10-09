@@ -48,7 +48,9 @@ const weatherTool = {
 
 test("requests without a valid key are refused in OpenAI's error shape", async () => {
   for (const authorization of [undefined, "Bearer nope", "Bearer carmel-not-a-real-key"]) {
-    const response = await app.request("/v1/models", { headers: authorization ? { authorization } : {} });
+    const response = await app.request("/v1/models", {
+      headers: authorization ? { authorization } : {},
+    });
     assert.equal(response.status, 401);
     const body = (await response.json()) as { error: { code: string } };
     assert.equal(body.error.code, "invalid_api_key");
@@ -69,19 +71,37 @@ test("keys are created once, listed without the secret, and revoked by their own
   assert.match(key.key, /^carmel-/);
   assert.ok(key.key.startsWith(key.prefix));
 
-  const listed = (await (await app.request("/api/api-keys", { headers: { cookie: owner.cookie } })).json()) as ApiKey[];
-  assert.deepEqual(listed.map((item) => item.id), [key.id]);
+  const listed = (await (
+    await app.request("/api/api-keys", { headers: { cookie: owner.cookie } })
+  ).json()) as ApiKey[];
+  assert.deepEqual(
+    listed.map((item) => item.id),
+    [key.id],
+  );
   assert.equal("key" in listed[0]!, false);
-  assert.deepEqual(await (await app.request("/api/api-keys", { headers: { cookie: other.cookie } })).json(), []);
+  assert.deepEqual(
+    await (await app.request("/api/api-keys", { headers: { cookie: other.cookie } })).json(),
+    [],
+  );
 
-  const models = await app.request("/v1/models", { headers: { authorization: `Bearer ${key.key}` } });
+  const models = await app.request("/v1/models", {
+    headers: { authorization: `Bearer ${key.key}` },
+  });
   assert.equal(models.status, 200);
 
-  const foreignDelete = await app.request(`/api/api-keys/${key.id}`, { method: "DELETE", headers: { cookie: other.cookie } });
+  const foreignDelete = await app.request(`/api/api-keys/${key.id}`, {
+    method: "DELETE",
+    headers: { cookie: other.cookie },
+  });
   assert.equal(foreignDelete.status, 404);
-  const deleted = await app.request(`/api/api-keys/${key.id}`, { method: "DELETE", headers: { cookie: owner.cookie } });
+  const deleted = await app.request(`/api/api-keys/${key.id}`, {
+    method: "DELETE",
+    headers: { cookie: owner.cookie },
+  });
   assert.equal(deleted.status, 200);
-  const revoked = await app.request("/v1/models", { headers: { authorization: `Bearer ${key.key}` } });
+  const revoked = await app.request("/v1/models", {
+    headers: { authorization: `Bearer ${key.key}` },
+  });
   assert.equal(revoked.status, 401);
 });
 
@@ -93,7 +113,9 @@ test("a key sees its user's own and shared models, not another user's private on
   const bobPrivate = insertModel(bob, { shared: false });
   const bobKey = createApiKey(bob, "test").key;
 
-  const listed = (await (await app.request("/v1/models", { headers: { authorization: `Bearer ${bobKey}` } })).json()) as {
+  const listed = (await (
+    await app.request("/v1/models", { headers: { authorization: `Bearer ${bobKey}` } })
+  ).json()) as {
     data: Array<{ id: string }>;
   };
   const ids = listed.data.map((item) => item.id);
@@ -101,7 +123,10 @@ test("a key sees its user's own and shared models, not another user's private on
   assert.ok(ids.includes(`ollama/${aliceShared}`));
   assert.ok(!ids.includes(`ollama/${alicePrivate}`));
 
-  const denied = await chat(bobKey, { model: `ollama/${alicePrivate}`, messages: [{ role: "user", content: "hi" }] });
+  const denied = await chat(bobKey, {
+    model: `ollama/${alicePrivate}`,
+    messages: [{ role: "user", content: "hi" }],
+  });
   assert.equal(denied.status, 404);
 });
 
@@ -119,7 +144,11 @@ test("a completion goes out as pi, not as the caller", async () => {
       ],
       tools: [weatherTool],
     },
-    { "user-agent": "OpenAI/Python 1.99.0", "x-stainless-lang": "python", "x-custom-client": "leak-me" },
+    {
+      "user-agent": "OpenAI/Python 1.99.0",
+      "x-stainless-lang": "python",
+      "x-custom-client": "leak-me",
+    },
   );
   assert.equal(response.status, 200);
   const body = (await response.json()) as any;
@@ -132,7 +161,11 @@ test("a completion goes out as pi, not as the caller", async () => {
   assert.match(upstream.headers["user-agent"] ?? "", /^pi \(/);
   assert.equal(upstream.headers["x-stainless-lang"] === "python", false);
   assert.equal(upstream.headers["x-custom-client"], undefined);
-  assert.notEqual(upstream.headers.authorization, `Bearer ${key}`, "the Carmel key must never reach the provider");
+  assert.notEqual(
+    upstream.headers.authorization,
+    `Bearer ${key}`,
+    "the Carmel key must never reach the provider",
+  );
 
   // The caller's tool definition is what the provider sees.
   assert.equal(upstream.body.tools[0].function.name, "get_weather");
@@ -162,7 +195,10 @@ test("tool calls stream back to the caller, and its tool results go upstream", a
   const argumentsText = toolDeltas.map((delta: any) => delta.function?.arguments ?? "").join("");
   assert.deepEqual(JSON.parse(argumentsText), { city: "Paris" });
   assert.ok(events.some((event: any) => event.choices[0]?.finish_reason === "tool_calls"));
-  assert.ok(events.some((event: any) => event.usage?.total_tokens > 0), "include_usage adds a usage chunk");
+  assert.ok(
+    events.some((event: any) => event.usage?.total_tokens > 0),
+    "include_usage adds a usage chunk",
+  );
 
   // Carmel did not run the tool: the next turn is the caller's.
   provider.mode = "text";
@@ -173,7 +209,13 @@ test("tool calls stream back to the caller, and its tool results go upstream", a
       {
         role: "assistant",
         content: null,
-        tool_calls: [{ id: "call_weather_1", type: "function", function: { name: "get_weather", arguments: '{"city":"Paris"}' } }],
+        tool_calls: [
+          {
+            id: "call_weather_1",
+            type: "function",
+            function: { name: "get_weather", arguments: '{"city":"Paris"}' },
+          },
+        ],
       },
       { role: "tool", tool_call_id: "call_weather_1", content: "Sunny, 21C" },
     ],
@@ -191,7 +233,11 @@ test("tool calls stream back to the caller, and its tool results go upstream", a
 test("a provider rejection is an HTTP error, not a 200 stream", async () => {
   provider.mode = "reject";
   const { key, modelId } = setupUserWithModel();
-  const response = await chat(key, { model: `ollama/${modelId}`, stream: true, messages: [{ role: "user", content: "hi" }] });
+  const response = await chat(key, {
+    model: `ollama/${modelId}`,
+    stream: true,
+    messages: [{ role: "user", content: "hi" }],
+  });
   assert.equal(response.status, 502);
   const body = (await response.json()) as { error: { message: string } };
   assert.match(body.error.message, /API key|401/i);
@@ -201,10 +247,19 @@ test("unsupported request shapes are rejected up front", async () => {
   const { key, modelId } = setupUserWithModel();
   const remoteImage = await chat(key, {
     model: `ollama/${modelId}`,
-    messages: [{ role: "user", content: [{ type: "image_url", image_url: { url: "http://169.254.169.254/latest" } }] }],
+    messages: [
+      {
+        role: "user",
+        content: [{ type: "image_url", image_url: { url: "http://169.254.169.254/latest" } }],
+      },
+    ],
   });
   assert.equal(remoteImage.status, 400);
-  const multiple = await chat(key, { model: `ollama/${modelId}`, n: 2, messages: [{ role: "user", content: "hi" }] });
+  const multiple = await chat(key, {
+    model: `ollama/${modelId}`,
+    n: 2,
+    messages: [{ role: "user", content: "hi" }],
+  });
   assert.equal(multiple.status, 400);
 });
 
@@ -250,7 +305,10 @@ function insertModel(ownerUserId: string, options: { shared: boolean }) {
 async function createLoginUser() {
   const userId = createUser();
   const username = `user_${userId}`;
-  db.update(users).set({ username, passwordHash: await hashPassword("password123") }).where(eq(users.id, userId)).run();
+  db.update(users)
+    .set({ username, passwordHash: await hashPassword("password123") })
+    .where(eq(users.id, userId))
+    .run();
   const login = await app.request("/api/auth/login", {
     method: "POST",
     headers: json,
@@ -280,15 +338,31 @@ async function startFakeProvider() {
 
     if (state.mode === "reject") {
       response.writeHead(401, { "content-type": "application/json" });
-      response.end(JSON.stringify({ error: { message: "Incorrect API key provided.", type: "invalid_request_error" } }));
+      response.end(
+        JSON.stringify({
+          error: { message: "Incorrect API key provided.", type: "invalid_request_error" },
+        }),
+      );
       return;
     }
     response.writeHead(200, { "content-type": "text/event-stream" });
     const base = { id: "chatcmpl-up", object: "chat.completion.chunk", created: 0, model: "fake" };
     const write = (delta: object, finishReason: string | null = null) =>
-      response.write(`data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`);
+      response.write(
+        `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`,
+      );
     if (state.mode === "tool") {
-      write({ role: "assistant", tool_calls: [{ index: 0, id: "call_weather_1", type: "function", function: { name: "get_weather", arguments: "" } }] });
+      write({
+        role: "assistant",
+        tool_calls: [
+          {
+            index: 0,
+            id: "call_weather_1",
+            type: "function",
+            function: { name: "get_weather", arguments: "" },
+          },
+        ],
+      });
       write({ tool_calls: [{ index: 0, function: { arguments: '{"city":' } }] });
       write({ tool_calls: [{ index: 0, function: { arguments: '"Paris"}' } }] });
       write({}, "tool_calls");
@@ -297,7 +371,9 @@ async function startFakeProvider() {
       write({ content: "there." });
       write({}, "stop");
     }
-    response.write(`data: ${JSON.stringify({ ...base, choices: [], usage: { prompt_tokens: 12, completion_tokens: 3, total_tokens: 15 } })}\n\n`);
+    response.write(
+      `data: ${JSON.stringify({ ...base, choices: [], usage: { prompt_tokens: 12, completion_tokens: 3, total_tokens: 15 } })}\n\n`,
+    );
     response.end("data: [DONE]\n\n");
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

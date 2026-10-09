@@ -36,7 +36,9 @@ const imagePartSchema = z
     image_url: z.union([z.string(), z.object({ url: z.string() }).passthrough()]),
   })
   .passthrough();
-const refusalPartSchema = z.object({ type: z.literal("refusal"), refusal: z.string() }).passthrough();
+const refusalPartSchema = z
+  .object({ type: z.literal("refusal"), refusal: z.string() })
+  .passthrough();
 const textContentSchema = z.union([z.string(), z.array(textPartSchema)]).nullish();
 
 const toolCallSchema = z
@@ -59,11 +61,15 @@ const messageSchema = z.discriminatedUnion("role", [
   z
     .object({
       role: z.literal("assistant"),
-      content: z.union([z.string(), z.array(z.union([textPartSchema, refusalPartSchema]))]).nullish(),
+      content: z
+        .union([z.string(), z.array(z.union([textPartSchema, refusalPartSchema]))])
+        .nullish(),
       tool_calls: z.array(toolCallSchema).nullish(),
     })
     .passthrough(),
-  z.object({ role: z.literal("tool"), tool_call_id: z.string(), content: textContentSchema }).passthrough(),
+  z
+    .object({ role: z.literal("tool"), tool_call_id: z.string(), content: textContentSchema })
+    .passthrough(),
 ]);
 
 const toolSchema = z
@@ -88,13 +94,18 @@ export const chatCompletionRequestSchema = z
     stream_options: z.object({ include_usage: z.boolean().optional() }).passthrough().nullish(),
     tools: z.array(toolSchema).nullish(),
     tool_choice: z
-      .union([z.enum(["auto", "none", "required"]), z.object({ type: z.literal("function") }).passthrough()])
+      .union([
+        z.enum(["auto", "none", "required"]),
+        z.object({ type: z.literal("function") }).passthrough(),
+      ])
       .nullish(),
     temperature: z.number().nullish(),
     top_p: z.number().nullish(),
     max_tokens: z.number().int().positive().nullish(),
     max_completion_tokens: z.number().int().positive().nullish(),
-    reasoning_effort: z.enum(["none", "minimal", "low", "medium", "high", "xhigh", "max"]).nullish(),
+    reasoning_effort: z
+      .enum(["none", "minimal", "low", "medium", "high", "xhigh", "max"])
+      .nullish(),
     n: z.number().int().nullish(),
     response_format: z.object({ type: z.string() }).passthrough().nullish(),
     user: z.string().nullish(),
@@ -120,7 +131,11 @@ export class OpenAICompatError extends Error {
  * the target provider (Anthropic rejects OpenAI's `call_...|...` IDs) instead of
  * being replayed as if the provider had minted them.
  */
-const REPLAY_ORIGIN = { api: "openai-completions", provider: "openai-compat-client", model: "client-history" } as const;
+const REPLAY_ORIGIN = {
+  api: "openai-completions",
+  provider: "openai-compat-client",
+  model: "client-history",
+} as const;
 
 const EMPTY_USAGE: Usage = {
   input: 0,
@@ -134,7 +149,9 @@ const EMPTY_USAGE: Usage = {
 export function toPiContext(request: ChatCompletionRequest): Context {
   if ((request.n ?? 1) !== 1) throw new OpenAICompatError("Only n=1 is supported.");
   if (request.response_format && request.response_format.type !== "text") {
-    throw new OpenAICompatError(`response_format "${request.response_format.type}" is not supported.`);
+    throw new OpenAICompatError(
+      `response_format "${request.response_format.type}" is not supported.`,
+    );
   }
 
   const systemParts: string[] = [];
@@ -161,7 +178,9 @@ export function toPiContext(request: ChatCompletionRequest): Context {
         const text =
           typeof message.content === "string"
             ? message.content
-            : (message.content ?? []).map((part) => ("text" in part ? part.text : part.refusal)).join("");
+            : (message.content ?? [])
+                .map((part) => ("text" in part ? part.text : part.refusal))
+                .join("");
         if (text) content.push({ type: "text", text });
         for (const call of message.tool_calls ?? []) {
           toolNames.set(call.id, call.function.name);
@@ -211,7 +230,10 @@ export function toPiContext(request: ChatCompletionRequest): Context {
 }
 
 /** The per-request options pi takes from the caller. Auth and headers are deliberately not among them. */
-export function toPiStreamOptions(request: ChatCompletionRequest, model: Model<Api>): SimpleStreamOptions {
+export function toPiStreamOptions(
+  request: ChatCompletionRequest,
+  model: Model<Api>,
+): SimpleStreamOptions {
   const options: SimpleStreamOptions = {};
   if (request.temperature != null) options.temperature = request.temperature;
   const maxTokens = request.max_completion_tokens ?? request.max_tokens;
@@ -257,7 +279,10 @@ export function createChunkTranslator(envelope: ChunkEnvelope, includeUsage: boo
   };
 
   /** The tool-call header (id, name) is sent once, as soon as the provider has named the call. */
-  const toolHeader = (contentIndex: number, block: AssistantMessage["content"][number] | undefined) => {
+  const toolHeader = (
+    contentIndex: number,
+    block: AssistantMessage["content"][number] | undefined,
+  ) => {
     if (block?.type !== "toolCall" || !block.name) return undefined;
     if (toolIndexByContent.has(contentIndex)) return undefined;
     const index = toolIndexByContent.size;
@@ -265,7 +290,12 @@ export function createChunkTranslator(envelope: ChunkEnvelope, includeUsage: boo
     return chunk(
       withRole({
         tool_calls: [
-          { index, id: block.id || `call_${randomUUID().replaceAll("-", "")}`, type: "function", function: { name: block.name, arguments: "" } },
+          {
+            index,
+            id: block.id || `call_${randomUUID().replaceAll("-", "")}`,
+            type: "function",
+            function: { name: block.name, arguments: "" },
+          },
         ],
       }),
     );
@@ -305,7 +335,13 @@ export function createChunkTranslator(envelope: ChunkEnvelope, includeUsage: boo
         // the name did) still owes the caller its arguments.
         if (index !== undefined && !argumentsSent.has(event.contentIndex)) {
           argumentsSent.add(event.contentIndex);
-          out.push(chunk({ tool_calls: [{ index, function: { arguments: JSON.stringify(event.toolCall.arguments) } }] }));
+          out.push(
+            chunk({
+              tool_calls: [
+                { index, function: { arguments: JSON.stringify(event.toolCall.arguments) } },
+              ],
+            }),
+          );
         }
         return out;
       }
@@ -339,7 +375,13 @@ export function toChatCompletion(envelope: ChunkEnvelope, message: AssistantMess
     .join("");
   const toolCalls = message.content.flatMap((block) =>
     block.type === "toolCall"
-      ? [{ id: block.id, type: "function", function: { name: block.name, arguments: JSON.stringify(block.arguments) } }]
+      ? [
+          {
+            id: block.id,
+            type: "function",
+            function: { name: block.name, arguments: JSON.stringify(block.arguments) },
+          },
+        ]
       : [],
   );
   return {
@@ -423,7 +465,9 @@ function parseToolArguments(raw: string | undefined): ToolCall["arguments"] {
   try {
     const parsed = JSON.parse(raw) as unknown;
     // JSON.parse guarantees JSON-compatible nested values once the root is an object.
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as ToolCall["arguments"]) : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as ToolCall["arguments"])
+      : {};
   } catch {
     throw new OpenAICompatError("tool_calls[].function.arguments must be a JSON object.");
   }

@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { OLLAMA_PROVIDER, type ModelRef, type ProviderConfig, type ProviderModelSummary } from "@carmel-agent/shared";
+import {
+  OLLAMA_PROVIDER,
+  type ModelRef,
+  type ProviderConfig,
+  type ProviderModelSummary,
+} from "@carmel-agent/shared";
 import { api } from "@/lib/api";
 import { confirmAction } from "@/lib/action-dialogs";
 import { errorMessage, showError } from "@/lib/errors";
@@ -77,12 +82,14 @@ export function useModelManagement(modelRefs: ModelRef[], providerConfigs: Provi
     const trimmedModelId = modelId.trim();
     if (existingModel || !trimmedModelId || !selectedProviderConfig) return;
     const selectedModel = providerModels.find((model) => model.id === trimmedModelId);
-    const summary = selectedModel ?? ({
-      id: trimmedModelId,
-      name: trimmedModelId,
-      api: isOllamaProvider ? "openai-completions" : undefined,
-      input: ["text"],
-    } satisfies ProviderModelSummary);
+    const summary =
+      selectedModel ??
+      ({
+        id: trimmedModelId,
+        name: trimmedModelId,
+        api: isOllamaProvider ? "openai-completions" : undefined,
+        input: ["text"],
+      } satisfies ProviderModelSummary);
     await upsertModelRef({
       ...makeModelRef(provider, trimmedModelId, selectedProviderConfig.id, summary),
       ownerUserId: activeUserId,

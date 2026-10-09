@@ -11,7 +11,9 @@ export function isUserMessage(message: AgentMessage): boolean {
   return role === "user";
 }
 
-export function isEditableAssistantMessage(message: AgentMessage): message is AgentMessage & AssistantMessage {
+export function isEditableAssistantMessage(
+  message: AgentMessage,
+): message is AgentMessage & AssistantMessage {
   const current = message as { role?: string; content?: unknown };
   if (current.role !== "assistant" || !Array.isArray(current.content)) return false;
   let hasText = false;
@@ -67,7 +69,10 @@ export function updateUserMessageContent(
   return { ...message, content: nextContent } as AgentMessage;
 }
 
-export function updateAssistantMessageContent(message: AgentMessage, content: string): AgentMessage {
+export function updateAssistantMessageContent(
+  message: AgentMessage,
+  content: string,
+): AgentMessage {
   const current = message as AgentMessage & { content?: unknown };
   if (!Array.isArray(current.content)) return message;
 

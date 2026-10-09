@@ -65,7 +65,10 @@ export default function App() {
     return (
       <Splash
         title="Can't reach Carmel Agent"
-        detail={error ?? "We couldn't connect to the server. Check that it's running, then reload this page."}
+        detail={
+          error ??
+          "We couldn't connect to the server. Check that it's running, then reload this page."
+        }
       />
     );
   }

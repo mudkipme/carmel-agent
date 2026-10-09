@@ -160,7 +160,10 @@ export class RemoteAgent {
     this.notify();
   }
 
-  async prompt(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]): Promise<PromptOutcome> {
+  async prompt(
+    input: string | AgentMessage | AgentMessage[],
+    images?: ImageContent[],
+  ): Promise<PromptOutcome> {
     if (this.abortController) throw new Error("Agent is already processing.");
     const promptInput = normalizePromptInput(input, images);
     const controller = this.beginRun();
@@ -197,7 +200,9 @@ export class RemoteAgent {
         throw error;
       }
       if (response.status === 409) {
-        const summary = (await response.json().catch(() => undefined)) as Partial<ActiveAgentRunSummary> | undefined;
+        const summary = (await response.json().catch(() => undefined)) as
+          | Partial<ActiveAgentRunSummary>
+          | undefined;
         const activeRunId = response.headers.get("x-agent-run-id") ?? summary?.runId;
         // The session already had a run in flight, so this message was refused.
         // The client still follows the run that holds the session -- but it is
@@ -336,7 +341,9 @@ export class RemoteAgent {
       let response: Response;
       try {
         const query = new URLSearchParams({ after: String(this.lastSequence) });
-        response = await apiFetch(`/api/agent-runs/${encodeURIComponent(runId)}/events?${query}`, { signal });
+        response = await apiFetch(`/api/agent-runs/${encodeURIComponent(runId)}/events?${query}`, {
+          signal,
+        });
       } catch (error) {
         if (signal.aborted) throw error;
         this.markReconnecting(error);
@@ -361,7 +368,9 @@ export class RemoteAgent {
       }
       if (!response.ok || !response.body) {
         if (response.status === 400) throw await apiError(response, "Invalid agent event cursor.");
-        this.markReconnecting(await apiError(response, `Agent event stream failed with ${response.status}`));
+        this.markReconnecting(
+          await apiError(response, `Agent event stream failed with ${response.status}`),
+        );
         retryDelayMs = nextReconnectDelay(retryDelayMs);
         continue;
       }
@@ -438,7 +447,9 @@ export class RemoteAgent {
     }
     if (envelope.sequence <= this.lastSequence) return;
     if (envelope.sequence !== this.lastSequence + 1) {
-      throw new Error(`Agent event sequence gap: expected ${this.lastSequence + 1}, received ${envelope.sequence}.`);
+      throw new Error(
+        `Agent event sequence gap: expected ${this.lastSequence + 1}, received ${envelope.sequence}.`,
+      );
     }
     this.lastSequence = envelope.sequence;
     this.processEvent(envelope.event);
@@ -516,7 +527,10 @@ export class RemoteAgent {
         // The server's verdict on the whole run. A failed turn has usually said
         // so already, and its wording is the more specific; this covers what no
         // turn reports -- a result that could not be saved, or a shutdown.
-        if ((event.result.outcome === "failed" || event.result.outcome === "interrupted") && !this.errorMessage) {
+        if (
+          (event.result.outcome === "failed" || event.result.outcome === "interrupted") &&
+          !this.errorMessage
+        ) {
           this.errorMessage = event.result.detail ?? "This run did not finish successfully.";
         }
         break;
@@ -532,8 +546,12 @@ export function isReconnectingMessage(message: string) {
   return message.startsWith(RECONNECTING_PREFIX);
 }
 
-function normalizePromptInput(input: string | AgentMessage | AgentMessage[], images?: ImageContent[]): PromptInput | undefined {
-  if (typeof input === "string") return { text: input, images: images?.length ? images : undefined };
+function normalizePromptInput(
+  input: string | AgentMessage | AgentMessage[],
+  images?: ImageContent[],
+): PromptInput | undefined {
+  if (typeof input === "string")
+    return { text: input, images: images?.length ? images : undefined };
   const messages = Array.isArray(input) ? input : [input];
   const textParts: string[] = [];
   const imageParts: ImageContent[] = [];

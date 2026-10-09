@@ -29,9 +29,15 @@ export function MessageEditDialog({
 }: {
   value: MessageEditState | null;
   onChange: (value: MessageEditState | null) => void;
-  onSave: (value: MessageEditState, submit: boolean, removals: UserMessageEditOptions) => Promise<void>;
+  onSave: (
+    value: MessageEditState,
+    submit: boolean,
+    removals: UserMessageEditOptions,
+  ) => Promise<void>;
 }) {
-  const survivingImages = value ? value.images.filter((image) => !value.removedKeys.has(image.key)) : [];
+  const survivingImages = value
+    ? value.images.filter((image) => !value.removedKeys.has(image.key))
+    : [];
   const canCommit = value
     ? value.kind === "assistant"
       ? Boolean(value.draft.trim())
@@ -80,7 +86,11 @@ export function MessageEditDialog({
           <div className="flex shrink-0 flex-wrap gap-2">
             {survivingImages.map((image) => (
               <div key={image.key} className="relative">
-                <img className="size-20 rounded-md border object-cover" src={image.src} alt={image.label} />
+                <img
+                  className="size-20 rounded-md border object-cover"
+                  src={image.src}
+                  alt={image.label}
+                />
                 <Button
                   type="button"
                   variant="secondary"
@@ -96,12 +106,20 @@ export function MessageEditDialog({
           </div>
         ) : null}
         <DialogFooter className="shrink-0">
-          <Button variant="outline" onClick={() => onChange(null)}>Cancel</Button>
-          <Button variant={value?.kind === "assistant" ? undefined : "outline"} disabled={!canCommit} onClick={() => void save(false)}>
+          <Button variant="outline" onClick={() => onChange(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant={value?.kind === "assistant" ? undefined : "outline"}
+            disabled={!canCommit}
+            onClick={() => void save(false)}
+          >
             Save
           </Button>
           {value?.kind === "assistant" ? null : (
-            <Button disabled={!canCommit} onClick={() => void save(true)}>Submit</Button>
+            <Button disabled={!canCommit} onClick={() => void save(true)}>
+              Submit
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>
@@ -109,7 +127,10 @@ export function MessageEditDialog({
   );
 }
 
-function computeImageRemovals(images: EditableUserImage[], removedKeys: Set<string>): UserMessageEditOptions {
+function computeImageRemovals(
+  images: EditableUserImage[],
+  removedKeys: Set<string>,
+): UserMessageEditOptions {
   const removedImageIndexes: number[] = [];
   for (const image of images) {
     if (!removedKeys.has(image.key)) continue;

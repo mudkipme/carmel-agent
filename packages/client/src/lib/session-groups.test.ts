@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { groupSessions, limitGroups, matchesSessionQuery } from "./session-groups.ts";
 
 const now = new Date(2026, 8, 19, 15, 0).getTime();
-const at = (month: number, day: number, hour = 12, year = 2026) => new Date(year, month, day, hour).getTime();
+const at = (month: number, day: number, hour = 12, year = 2026) =>
+  new Date(year, month, day, hour).getTime();
 
 test("sessions group into pinned, recency buckets, then months", () => {
   const groups = groupSessions(

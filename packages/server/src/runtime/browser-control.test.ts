@@ -11,7 +11,10 @@ test("takeover drains all agent calls before allowing human input and blocks new
   assert.equal(control.canInput("alice-tab"), false);
   assert.throws(() => control.resume("alice-tab"), /current tool call/);
   let started = false;
-  const pending = control.enter().then((lease) => { started = true; return lease; });
+  const pending = control.enter().then((lease) => {
+    started = true;
+    return lease;
+  });
   first.release();
   assert.equal(control.state.phase, "pausing");
   second.release();
@@ -67,7 +70,9 @@ test("cancelling a queued tool releases its waiter without opening the gate", as
   await assert.rejects(waiting, /Stopped/);
   assert.equal(control.state.phase, "human");
   control.resume("alice");
-  const lease = await control.enter(); lease.release(); lease.release();
+  const lease = await control.enter();
+  lease.release();
+  lease.release();
   control.take("bob", "Bob");
   assert.equal(control.state.phase, "human", "release must be idempotent");
 });

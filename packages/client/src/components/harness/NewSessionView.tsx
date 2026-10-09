@@ -10,7 +10,12 @@ import { errorMessage, showError } from "@/lib/errors";
 import { setPendingPrompt } from "@/lib/pending-prompts";
 import type { PromptOutcome } from "@/lib/remote-agent";
 import { useHarnessStore } from "@/store/harness-store";
-import { resolveModelRef, type AgentConfig, type ModelRef, type ProviderConfig } from "@carmel-agent/shared";
+import {
+  resolveModelRef,
+  type AgentConfig,
+  type ModelRef,
+  type ProviderConfig,
+} from "@carmel-agent/shared";
 
 type NewSessionViewProps = {
   agent: AgentConfig;
@@ -28,7 +33,9 @@ export function NewSessionView({ agent, modelRefs, providerConfigs }: NewSession
   const creatingRef = useRef(false);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [selectedModelRefId, setSelectedModelRefId] = useState(agent.defaultModelRefId);
-  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(agent.defaultThinkingLevel ?? "off");
+  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(
+    agent.defaultThinkingLevel ?? "off",
+  );
   const modelRef =
     modelRefs.find((model) => model.id === selectedModelRefId) ??
     modelRefs.find((model) => model.id === agent.defaultModelRefId) ??
@@ -44,7 +51,8 @@ export function NewSessionView({ agent, modelRefs, providerConfigs }: NewSession
   }
 
   const send = async (text: string, images?: ImageContent[]): Promise<PromptOutcome> => {
-    if (creatingRef.current) return { status: "rejected", error: "A session is already being created." };
+    if (creatingRef.current)
+      return { status: "rejected", error: "A session is already being created." };
     creatingRef.current = true;
     try {
       const session = await createSession({
@@ -76,7 +84,12 @@ export function NewSessionView({ agent, modelRefs, providerConfigs }: NewSession
             ref={chatInputRef}
             autoFocus
             textareaClassName="min-h-32"
-            leadingActions={<AgentCommandPalette agent={agent} onInsert={(text) => chatInputRef.current?.insertText(text)} />}
+            leadingActions={
+              <AgentCommandPalette
+                agent={agent}
+                onInsert={(text) => chatInputRef.current?.insertText(text)}
+              />
+            }
             currentModel={model}
             thinkingLevel={thinkingLevel}
             isStreaming={false}

@@ -8,7 +8,9 @@ import { useHarnessStore } from "@/store/harness-store";
 import { errorMessage } from "@/lib/errors";
 
 export function AccountSettings() {
-  const user = useHarnessStore((state) => state.users.find((item) => item.id === state.activeUserId));
+  const user = useHarnessStore((state) =>
+    state.users.find((item) => item.id === state.activeUserId),
+  );
   const updateAccount = useHarnessStore((state) => state.updateAccount);
   const logout = useHarnessStore((state) => state.logout);
   const [email, setEmail] = useState(user?.email ?? "");
@@ -37,7 +39,10 @@ export function AccountSettings() {
   return (
     <div className="grid gap-6">
       <section className="grid gap-4">
-        <SectionHeader title="Account" description={user ? `Signed in as ${user.username ?? user.name}.` : "Signed in."} />
+        <SectionHeader
+          title="Account"
+          description={user ? `Signed in as ${user.username ?? user.name}.` : "Signed in."}
+        />
         <Button variant="outline" onClick={() => void logout()}>
           <LogOutIcon data-icon="inline-start" />
           Sign out
@@ -59,7 +64,13 @@ export function AccountSettings() {
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="account-email">Email</FieldLabel>
-              <Input id="account-email" value={email} type="email" autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
+              <Input
+                id="account-email"
+                value={email}
+                type="email"
+                autoComplete="email"
+                onChange={(event) => setEmail(event.target.value)}
+              />
             </Field>
             <Field>
               <FieldLabel htmlFor="account-current-password">Current password</FieldLabel>

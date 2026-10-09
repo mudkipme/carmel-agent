@@ -25,20 +25,40 @@ server.listen(0, "127.0.0.1");
 await once(server, "listening");
 const port = (server.address() as { port: number }).port;
 const origin = `http://127.0.0.1:${port}`;
-after(() => { for (const client of wss.clients) client.terminate(); wss.close(); server.close(); });
+after(() => {
+  for (const client of wss.clients) client.terminate();
+  wss.close();
+  server.close();
+});
 
 function cookie(userId: string) {
   const token = randomUUID();
-  db.insert(authSessions).values({ id: randomUUID(), userId, tokenHash: createHash("sha256").update(token).digest("hex"), expiresAt: Date.now() + 60000, createdAt: Date.now() }).run();
+  db.insert(authSessions)
+    .values({
+      id: randomUUID(),
+      userId,
+      tokenHash: createHash("sha256").update(token).digest("hex"),
+      expiresAt: Date.now() + 60000,
+      createdAt: Date.now(),
+    })
+    .run();
   return `carmel_session=${token}`;
 }
 function fixture() {
   const fixture = createSession();
-  db.update(agents).set({ shared: true, permissions: { read: true, write: false, edit: false, bash: true, network: false } }).where(eq(agents.id, fixture.agentId)).run();
+  db.update(agents)
+    .set({
+      shared: true,
+      permissions: { read: true, write: false, edit: false, bash: true, network: false },
+    })
+    .where(eq(agents.id, fixture.agentId))
+    .run();
   return fixture;
 }
 async function connect(agentId: string, credential: string, requestOrigin = origin) {
-  const ws = new WebSocket(`ws://127.0.0.1:${port}/api/browser?agent=${agentId}`, { headers: { cookie: credential, origin: requestOrigin } });
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/api/browser?agent=${agentId}`, {
+    headers: { cookie: credential, origin: requestOrigin },
+  });
   const messages: BrowserServerMessage[] = [];
   ws.on("message", (data) => messages.push(JSON.parse(data.toString())));
   await once(ws, "open");
@@ -50,7 +70,15 @@ async function connect(agentId: string, credential: string, requestOrigin = orig
     }
   };
   await wait((message) => message.type === "ready");
-  return { ws, messages, wait, send: (message: unknown) => { messages.length = 0; ws.send(JSON.stringify(message)); } };
+  return {
+    ws,
+    messages,
+    wait,
+    send: (message: unknown) => {
+      messages.length = 0;
+      ws.send(JSON.stringify(message));
+    },
+  };
 }
 
 test("a shared agent exposes one browser to its users, but only its controller can send input", async () => {
@@ -80,7 +108,11 @@ test("a shared agent exposes one browser to its users, but only its controller c
     await owner.wait((message) => message.type === "control" && message.hasControl);
     owner.send({ type: "resume" });
     await owner.wait((message) => message.type === "control" && message.state.phase === "agent");
-  } finally { owner.ws.close(); guest.ws.close(); deleteBrowserControl(f.agentId); }
+  } finally {
+    owner.ws.close();
+    guest.ws.close();
+    deleteBrowserControl(f.agentId);
+  }
 });
 
 test("browser websocket rejects cross-origin, unauthenticated, private-agent, and disabled access", async () => {
@@ -91,7 +123,10 @@ test("browser websocket rejects cross-origin, unauthenticated, private-agent, an
   await assert.rejects(connect(f.agentId, "carmel_session=%GG"), /401/);
   db.update(agents).set({ shared: false }).where(eq(agents.id, f.agentId)).run();
   await assert.rejects(connect(f.agentId, credential), /404/);
-  db.update(agents).set({ permissions: { read: true, write: false, edit: false, bash: false, network: false } }).where(eq(agents.id, f.agentId)).run();
+  db.update(agents)
+    .set({ permissions: { read: true, write: false, edit: false, bash: false, network: false } })
+    .where(eq(agents.id, f.agentId))
+    .run();
   await assert.rejects(connect(f.agentId, cookie(f.userId)), /403/);
 });
 
@@ -104,7 +139,10 @@ test("revoking a shared user's access closes their connection before the next in
   const closed = once(guest.ws, "close");
   guest.send({ type: "input_keyboard", eventType: "char", text: "revoked" });
   await closed;
-  assert.equal(forwarded.some((message) => (message as { text?: string }).text === "revoked"), false);
+  assert.equal(
+    forwarded.some((message) => (message as { text?: string }).text === "revoked"),
+    false,
+  );
   assert.equal(browserControl(f.agentId).state.phase, "waiting");
   deleteBrowserControl(f.agentId);
 });

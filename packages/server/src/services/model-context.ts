@@ -24,18 +24,28 @@ export type ModelContextResult =
   | { ok: true; value: ResolvedModelContext }
   | { ok: false; reason: "not_found" | "no_auth" };
 
-export const NO_PROVIDER_AUTH_MESSAGE = "No API key or OAuth login configured for this model provider.";
+export const NO_PROVIDER_AUTH_MESSAGE =
+  "No API key or OAuth login configured for this model provider.";
 
-export async function resolveModelContext(userId: string, modelRefId: string): Promise<ModelContextResult> {
+export async function resolveModelContext(
+  userId: string,
+  modelRefId: string,
+): Promise<ModelContextResult> {
   const modelRef = readUsableModelRef(userId, modelRefId);
   if (!modelRef) {
     return { ok: false, reason: "not_found" };
   }
   const providerConfig = modelRef.providerConfigId
-    ? db.select().from(providerConfigs).where(eq(providerConfigs.id, modelRef.providerConfigId)).get()
+    ? db
+        .select()
+        .from(providerConfigs)
+        .where(eq(providerConfigs.id, modelRef.providerConfigId))
+        .get()
     : undefined;
   const modelRuntime = await createCarmelModelRuntime(
-    providerConfig ? createProviderConfigCredentialStore(providerConfig, modelRef.provider) : undefined,
+    providerConfig
+      ? createProviderConfigCredentialStore(providerConfig, modelRef.provider)
+      : undefined,
   );
   if (!providerConfig) {
     const providerKey = db
@@ -45,10 +55,17 @@ export async function resolveModelContext(userId: string, modelRefId: string): P
       .all()
       .find((item) => item.provider === modelRef.provider);
     if (providerKey?.apiKey) {
-      await modelRuntime.setRuntimeApiKey(modelRef.provider, revealSecret(providerKey.apiKey) ?? "");
+      await modelRuntime.setRuntimeApiKey(
+        modelRef.provider,
+        revealSecret(providerKey.apiKey) ?? "",
+      );
     }
   }
-  await ensureOptionalProviderAuth(modelRuntime, modelRef.provider, providerConfig?.baseUrl ?? modelRef.baseUrl ?? undefined);
+  await ensureOptionalProviderAuth(
+    modelRuntime,
+    modelRef.provider,
+    providerConfig?.baseUrl ?? modelRef.baseUrl ?? undefined,
+  );
   if (!(await hasProviderAuth(modelRuntime, modelRef.provider))) {
     return { ok: false, reason: "no_auth" };
   }
@@ -88,6 +105,9 @@ export async function resolveRunModel(
   if (!context.ok) return context;
   return {
     ok: true,
-    value: { ...context.value, thinkingLevel: resolveSupportedThinkingLevel(context.value.modelRef, thinkingLevel) },
+    value: {
+      ...context.value,
+      thinkingLevel: resolveSupportedThinkingLevel(context.value.modelRef, thinkingLevel),
+    },
   };
 }

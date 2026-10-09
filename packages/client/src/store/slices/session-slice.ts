@@ -6,24 +6,41 @@ import { toSessionMetadata } from "@carmel-agent/shared";
 import type { HarnessState } from "@/store/harness-types";
 
 type SetState = StoreApi<HarnessState>["setState"];
-type SessionActions = Pick<HarnessState,
-  "createSession" | "importOpenWebuiSessions" | "updateSession" | "truncateSessionMessages" |
-  "editSessionMessage" | "connectSession" | "refreshSession" | "forkSession" | "deleteSession" |
-  "archiveSession" | "restoreSession" | "loadUnlistedSession" | "moveSessionToList"
+type SessionActions = Pick<
+  HarnessState,
+  | "createSession"
+  | "importOpenWebuiSessions"
+  | "updateSession"
+  | "truncateSessionMessages"
+  | "editSessionMessage"
+  | "connectSession"
+  | "refreshSession"
+  | "forkSession"
+  | "deleteSession"
+  | "archiveSession"
+  | "restoreSession"
+  | "loadUnlistedSession"
+  | "moveSessionToList"
 >;
 
 export function createSessionSlice(set: SetState): SessionActions {
   return {
     createSession: async (draft) => {
       const session = await api.createSession(draft);
-      set((state) => ({ sessions: [toSessionMetadata(session), ...state.sessions], sessionDetails: { ...state.sessionDetails, [session.id]: session } }));
+      set((state) => ({
+        sessions: [toSessionMetadata(session), ...state.sessions],
+        sessionDetails: { ...state.sessionDetails, [session.id]: session },
+      }));
       return session;
     },
     importOpenWebuiSessions: async (draft) => {
       const imported = (await api.importOpenWebuiSessions(draft)).sessions;
       set((state) => ({
         sessions: [...imported.map(toSessionMetadata), ...state.sessions],
-        sessionDetails: { ...state.sessionDetails, ...Object.fromEntries(imported.map((session) => [session.id, session])) },
+        sessionDetails: {
+          ...state.sessionDetails,
+          ...Object.fromEntries(imported.map((session) => [session.id, session])),
+        },
       }));
       return imported;
     },
@@ -53,7 +70,10 @@ export function createSessionSlice(set: SetState): SessionActions {
     },
     forkSession: async (sessionId, entryId) => {
       const session = await api.forkSession(sessionId, entryId);
-      set((state) => ({ sessions: [toSessionMetadata(session), ...state.sessions], sessionDetails: { ...state.sessionDetails, [session.id]: session } }));
+      set((state) => ({
+        sessions: [toSessionMetadata(session), ...state.sessions],
+        sessionDetails: { ...state.sessionDetails, [session.id]: session },
+      }));
       return session;
     },
     deleteSession: async (sessionId) => {
@@ -69,14 +89,20 @@ export function createSessionSlice(set: SetState): SessionActions {
     restoreSession: async (sessionId) => {
       const saved = await api.updateSession(sessionId, { archivedAt: null });
       set((state) => ({
-        sessions: [toSessionMetadata(saved), ...state.sessions.filter((item) => item.id !== saved.id)],
+        sessions: [
+          toSessionMetadata(saved),
+          ...state.sessions.filter((item) => item.id !== saved.id),
+        ],
         sessionDetails: { ...state.sessionDetails, [saved.id]: saved },
       }));
     },
     loadUnlistedSession: async (sessionId) => {
       const { session } = await readSessionConnection(sessionId);
       set((state) => ({
-        sessions: [...state.sessions.filter((item) => item.id !== session.id), toSessionMetadata(session)],
+        sessions: [
+          ...state.sessions.filter((item) => item.id !== session.id),
+          toSessionMetadata(session),
+        ],
         sessionDetails: { ...state.sessionDetails, [session.id]: session },
       }));
     },

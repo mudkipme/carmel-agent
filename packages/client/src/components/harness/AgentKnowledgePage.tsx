@@ -1,11 +1,6 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import {
-  BookOpenIcon,
-  PlusIcon,
-  RefreshCwIcon,
-  SearchIcon,
-} from "lucide-react";
+import { BookOpenIcon, PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
 import type {
   AgentConfig,
   KnowledgeSettings,
@@ -21,12 +16,7 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import {
-  Field,
-  FieldLabel,
-  FieldDescription,
-  FieldGroup,
-} from "@/components/ui/field";
+import { Field, FieldLabel, FieldDescription, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -39,12 +29,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import {
-  Empty,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-} from "@/components/ui/empty";
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
 import { confirmAction } from "@/lib/action-dialogs";
@@ -69,11 +54,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
     key: `knowledge-doc:${agent.id}:${sourceId}:${path}:${fromLine}`,
     enabled: Boolean(sourceId && path),
     load: (signal) =>
-      api.readKnowledge(
-        agent.id,
-        { sourceId: sourceId!, path: path!, fromLine },
-        signal,
-      ),
+      api.readKnowledge(agent.id, { sourceId: sourceId!, path: path!, fromLine }, signal),
   });
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"fast" | "semantic" | "deep">("fast");
@@ -104,8 +85,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
             <p className="mb-1 text-sm text-muted-foreground">{agent.name}</p>
             <h1 className="text-2xl font-semibold">Knowledge</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Sources and saved memories shared with everyone who can use this
-              agent.
+              Sources and saved memories shared with everyone who can use this agent.
             </p>
           </div>
           {owner && data ? (
@@ -117,9 +97,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
         {overview.error ? (
           <ResourceError error={overview.error} onRetry={overview.refresh} />
         ) : null}
-        {overview.loading ? (
-          <ResourceLoading label="Loading knowledge" />
-        ) : null}
+        {overview.loading ? <ResourceLoading label="Loading knowledge" /> : null}
         {data ? (
           <>
             {settings ? (
@@ -150,34 +128,21 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                   className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground"
                   role="status"
                 >
-                  <Badge
-                    variant={
-                      data.status.state === "error"
-                        ? "destructive"
-                        : "secondary"
-                    }
-                  >
+                  <Badge variant={data.status.state === "error" ? "destructive" : "secondary"}>
                     {data.status.state}
                   </Badge>
                   <span>{data.status.documents} documents</span>
                   {data.status.needsEmbedding > 0 ? (
-                    <span>
-                      {data.status.needsEmbedding} awaiting embeddings
-                    </span>
+                    <span>{data.status.needsEmbedding} awaiting embeddings</span>
                   ) : null}
                   {data.status.backend ? (
                     <span>
                       {data.status.backend}
-                      {data.status.devices.length
-                        ? ` · ${data.status.devices.join(", ")}`
-                        : ""}
+                      {data.status.devices.length ? ` · ${data.status.devices.join(", ")}` : ""}
                     </span>
                   ) : null}
                   {data.status.lastUpdatedAt ? (
-                    <span>
-                      Updated{" "}
-                      {new Date(data.status.lastUpdatedAt).toLocaleString()}
-                    </span>
+                    <span>Updated {new Date(data.status.lastUpdatedAt).toLocaleString()}</span>
                   ) : null}
                 </div>
                 {data.status.error ? (
@@ -192,9 +157,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                     event.preventDefault();
                     setSearching(true);
                     try {
-                      setResults(
-                        await api.searchKnowledge(agent.id, { query, mode }),
-                      );
+                      setResults(await api.searchKnowledge(agent.id, { query, mode }));
                     } catch (error) {
                       showError("Search failed", error);
                     } finally {
@@ -203,9 +166,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                   }}
                 >
                   <Field className="min-w-40 flex-1">
-                    <FieldLabel htmlFor="knowledge-query">
-                      Search knowledge
-                    </FieldLabel>
+                    <FieldLabel htmlFor="knowledge-query">Search knowledge</FieldLabel>
                     <Input
                       id="knowledge-query"
                       value={query}
@@ -216,13 +177,8 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                     />
                   </Field>
                   <Field className="w-36">
-                    <FieldLabel htmlFor="knowledge-mode">
-                      Search mode
-                    </FieldLabel>
-                    <Select
-                      value={mode}
-                      onValueChange={(value) => setMode(value as typeof mode)}
-                    >
+                    <FieldLabel htmlFor="knowledge-mode">Search mode</FieldLabel>
+                    <Select value={mode} onValueChange={(value) => setMode(value as typeof mode)}>
                       <SelectTrigger id="knowledge-mode">
                         <SelectValue />
                       </SelectTrigger>
@@ -269,9 +225,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                             </CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <p className="whitespace-pre-wrap break-words text-sm">
-                              {hit.excerpt}
-                            </p>
+                            <p className="whitespace-pre-wrap break-words text-sm">{hit.excerpt}</p>
                           </CardContent>
                           <CardFooter>
                             <Button variant="outline" size="sm" asChild>
@@ -295,12 +249,8 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                   <CardDescription>{path}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {doc.loading ? (
-                    <ResourceLoading label="Loading source" />
-                  ) : null}
-                  {doc.error ? (
-                    <ResourceError error={doc.error} onRetry={doc.refresh} />
-                  ) : null}
+                  {doc.loading ? <ResourceLoading label="Loading source" /> : null}
+                  {doc.error ? <ResourceError error={doc.error} onRetry={doc.refresh} /> : null}
                   {doc.data ? (
                     <pre className="whitespace-pre-wrap break-words font-mono text-sm">
                       {doc.data.content
@@ -331,10 +281,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                 </CardFooter>
               </Card>
             ) : null}
-            <section
-              className="flex flex-col gap-3"
-              aria-label="Saved memories"
-            >
+            <section className="flex flex-col gap-3" aria-label="Saved memories">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">Saved memories</h2>
                 {agent.permissions.write && data.settings.enabled ? (
@@ -361,8 +308,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                         {
                           title,
                           content,
-                          expectedRevision:
-                            editor === "new" ? undefined : editor.revision,
+                          expectedRevision: editor === "new" ? undefined : editor.revision,
                         },
                         editor === "new" ? undefined : editor.id,
                       );
@@ -376,8 +322,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                   <EmptyHeader>
                     <EmptyTitle>No saved memories</EmptyTitle>
                     <EmptyDescription>
-                      Ask the agent to remember a fact or decision, or add one
-                      here.
+                      Ask the agent to remember a fact or decision, or add one here.
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
@@ -388,24 +333,19 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                       <CardTitle>{memory.title}</CardTitle>
                       <CardDescription>
                         Saved by{" "}
-                        {users.find((u) => u.id === memory.contributorId)
-                          ?.name ?? "an agent user"}{" "}
+                        {users.find((u) => u.id === memory.contributorId)?.name ?? "an agent user"}{" "}
                         · {new Date(memory.updatedAt).toLocaleString()}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p className="whitespace-pre-wrap break-words text-sm">
-                        {memory.content}
-                      </p>
+                      <p className="whitespace-pre-wrap break-words text-sm">{memory.content}</p>
                     </CardContent>
                     {agent.permissions.edit ? (
                       <CardFooter className="gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={
-                            busy || Boolean(editor) || !data.settings.enabled
-                          }
+                          disabled={busy || Boolean(editor) || !data.settings.enabled}
                           onClick={() => setEditor(memory)}
                         >
                           Edit memory
@@ -423,9 +363,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                                 actionLabel: "Forget memory",
                               })
                             )
-                              void act(() =>
-                                api.forgetMemory(agent.id, memory),
-                              );
+                              void act(() => api.forgetMemory(agent.id, memory));
                           }}
                         >
                           Forget memory
@@ -436,10 +374,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                 ))
               )}
             </section>
-            <section
-              className="flex flex-col gap-3"
-              aria-label="Knowledge sources"
-            >
+            <section className="flex flex-col gap-3" aria-label="Knowledge sources">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">Sources</h2>
                 {owner && data.settings.enabled ? (
@@ -447,9 +382,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                     <Button
                       variant="outline"
                       disabled={busy || working}
-                      onClick={() =>
-                        void act(() => api.refreshKnowledge(agent.id))
-                      }
+                      onClick={() => void act(() => api.refreshKnowledge(agent.id))}
                     >
                       <RefreshCwIcon data-icon="inline-start" />
                       Refresh index
@@ -459,11 +392,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                       disabled={busy || working}
                       onClick={() =>
                         void act(() =>
-                          api.refreshKnowledge(
-                            agent.id,
-                            true,
-                            agent.permissions.network,
-                          ),
+                          api.refreshKnowledge(agent.id, true, agent.permissions.network),
                         )
                       }
                     >
@@ -474,12 +403,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                       disabled={busy || working}
                       onClick={() =>
                         void act(() =>
-                          api.refreshKnowledge(
-                            agent.id,
-                            true,
-                            agent.permissions.network,
-                            true,
-                          ),
+                          api.refreshKnowledge(agent.id, true, agent.permissions.network, true),
                         )
                       }
                     >
@@ -498,9 +422,8 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
               </div>
               {owner && data.settings.enabled ? (
                 <p className="text-sm text-muted-foreground">
-                  Markdown directories from this agent's workspace or mounts.
-                  Embeddings use the configured model; missing models can
-                  download when the agent has network access.
+                  Markdown directories from this agent's workspace or mounts. Embeddings use the
+                  configured model; missing models can download when the agent has network access.
                 </p>
               ) : null}
               {addSource ? (
@@ -523,9 +446,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                 <Card key={source.id}>
                   <CardHeader>
                     <CardTitle>{source.name}</CardTitle>
-                    <CardDescription className="break-all">
-                      {source.path}
-                    </CardDescription>
+                    <CardDescription className="break-all">{source.path}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
@@ -539,9 +460,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                         size="sm"
                         disabled={busy}
                         onClick={() =>
-                          void act(() =>
-                            api.deleteKnowledgeSource(agent.id, source.id),
-                          )
+                          void act(() => api.deleteKnowledgeSource(agent.id, source.id))
                         }
                       >
                         Disconnect source
@@ -582,16 +501,13 @@ function KnowledgeSettingsForm({
         <CardHeader>
           <CardTitle>Knowledge settings</CardTitle>
           <CardDescription>
-            Memory is shared by all users of this agent. Conversations remain
-            separate.
+            Memory is shared by all users of this agent. Conversations remain separate.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="knowledge-enabled">
-                Knowledge and memory
-              </FieldLabel>
+              <FieldLabel htmlFor="knowledge-enabled">Knowledge and memory</FieldLabel>
               <Select
                 value={enabled ? "on" : "off"}
                 onValueChange={(value) => setEnabled(value === "on")}
@@ -607,19 +523,15 @@ function KnowledgeSettingsForm({
                 </SelectContent>
               </Select>
               <FieldDescription>
-                Agents save memories only when asked. Existing memories are
-                retained when switched off.
+                Agents save memories only when asked. Existing memories are retained when switched
+                off.
               </FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="knowledge-acceleration">
-                Acceleration
-              </FieldLabel>
+              <FieldLabel htmlFor="knowledge-acceleration">Acceleration</FieldLabel>
               <Select
                 value={acceleration}
-                onValueChange={(value) =>
-                  setAcceleration(value as typeof acceleration)
-                }
+                onValueChange={(value) => setAcceleration(value as typeof acceleration)}
               >
                 <SelectTrigger id="knowledge-acceleration">
                   <SelectValue />
@@ -635,16 +547,15 @@ function KnowledgeSettingsForm({
                 </SelectContent>
               </Select>
               <FieldDescription>
-                Uses GPUs exposed to the runner. Vulkan works with compatible
-                NVIDIA and AMD drivers.
+                Uses GPUs exposed to the runner. Vulkan works with compatible NVIDIA and AMD
+                drivers.
               </FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="knowledge-model">Embedding model</FieldLabel>
               <Input id="knowledge-model" value={embeddingModel} readOnly />
               <FieldDescription>
-                Shared by all agents. The server administrator configures this
-                model.
+                Shared by all agents. The server administrator configures this model.
               </FieldDescription>
             </Field>
           </FieldGroup>
@@ -682,8 +593,7 @@ function MemoryForm({
         <CardHeader>
           <CardTitle>{memory ? "Edit memory" : "New memory"}</CardTitle>
           <CardDescription>
-            Keep facts specific and identify whose preferences or decisions they
-            describe.
+            Keep facts specific and identify whose preferences or decisions they describe.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -715,12 +625,7 @@ function MemoryForm({
           <Button type="submit" disabled={busy}>
             Save memory
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={onCancel}
-          >
+          <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
             Cancel
           </Button>
         </CardFooter>
@@ -750,9 +655,7 @@ function SourceForm({
       <Card>
         <CardHeader>
           <CardTitle>Add source</CardTitle>
-          <CardDescription>
-            The original files stay in their existing location.
-          </CardDescription>
+          <CardDescription>The original files stay in their existing location.</CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
@@ -793,12 +696,7 @@ function SourceForm({
           <Button type="submit" disabled={busy}>
             Add source
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={onCancel}
-          >
+          <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
             Cancel
           </Button>
         </CardFooter>

@@ -1,4 +1,8 @@
-import type { AgentHarnessTool, Context, ExecutionToolContext } from "../effectors/pi-durable/index.ts";
+import type {
+  AgentHarnessTool,
+  Context,
+  ExecutionToolContext,
+} from "../effectors/pi-durable/index.ts";
 import { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { builtinToolProviders } from "./tool-providers/index.ts";
@@ -17,8 +21,14 @@ export { remapContainerPath } from "./execution-env.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
-export function createServerExecution(agent: AgentRecord, codemodeHooks?: CodemodeHooks, userId?: string) {
-  const browserRevision = { revision: agent.permissions.bash ? browserControl(agent.id).state.revision : 0 };
+export function createServerExecution(
+  agent: AgentRecord,
+  codemodeHooks?: CodemodeHooks,
+  userId?: string,
+) {
+  const browserRevision = {
+    revision: agent.permissions.bash ? browserControl(agent.id).state.revision : 0,
+  };
   const env = new AgentExecutionEnv(agent);
   const mcp = new AgentMcpTools(agent, env.hostCwd);
   const tools = createServerToolDefinitions(agent, env);
@@ -34,17 +44,28 @@ export function createServerExecution(agent: AgentRecord, codemodeHooks?: Codemo
     /** Compose session overrides before exposing the same tool set to codemode. */
     resolveTools(sessionTools: readonly AgentHarnessTool<ExecutionToolContext>[] = []) {
       const overrides = new Set(sessionTools.map((tool) => tool.name));
-      const available = [...tools.filter((tool) => !overrides.has(tool.name)), ...sessionTools]
-        .filter((tool) => tool.name !== "codemode" && tool.name !== "load_builtin_skill");
+      const available = [
+        ...tools.filter((tool) => !overrides.has(tool.name)),
+        ...sessionTools,
+      ].filter((tool) => tool.name !== "codemode" && tool.name !== "load_builtin_skill");
       if (hasBrowserSkill(agent)) available.push(builtinSkillTool(agent));
-      const composed = agent.codemodeEnabled ? [...available, createCodemodeTool(available, codemodeHooks)] : available;
+      const composed = agent.codemodeEnabled
+        ? [...available, createCodemodeTool(available, codemodeHooks)]
+        : available;
       // Gate the entire codemode batch so its deadline starts after human control ends.
       return agent.permissions.bash
-        ? [...composed.map((tool) => guardBrowserHandoff(agent.id, tool, browserRevision)), browserHelpTool(agent)]
+        ? [
+            ...composed.map((tool) => guardBrowserHandoff(agent.id, tool, browserRevision)),
+            browserHelpTool(agent),
+          ]
         : composed;
     },
     async cleanup(context: Context) {
-      try { await mcp.close(); } finally { await env.cleanup(context); }
+      try {
+        await mcp.close();
+      } finally {
+        await env.cleanup(context);
+      }
     },
   };
 }

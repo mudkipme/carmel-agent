@@ -1,8 +1,21 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { TextContent, ThinkingContent, ToolCall } from "@earendil-works/pi-ai";
-import type { AgentMcpServer, AgentMount, AgentPermissions, AgentThinkingLevel, CodemodeCallInfo, PromptTemplate } from "./schemas.ts";
+import type {
+  AgentMcpServer,
+  AgentMount,
+  AgentPermissions,
+  AgentThinkingLevel,
+  CodemodeCallInfo,
+  PromptTemplate,
+} from "./schemas.ts";
 import type { Session } from "./sessions.ts";
-export type { BrowserControlState, BrowserTab, BrowserFrame, BrowserClientMessage, BrowserServerMessage } from "./browser.ts";
+export type {
+  BrowserControlState,
+  BrowserTab,
+  BrowserFrame,
+  BrowserClientMessage,
+  BrowserServerMessage,
+} from "./browser.ts";
 
 export type ChatAttachment = {
   id: string;
@@ -297,7 +310,16 @@ export type AgentTaskRun = {
 };
 
 /** Durable work owned by one agent; runs share a conversation unless explicitly started fresh. */
-export type IssueStatus = "backlog" | "todo" | "queued" | "in_progress" | "needs_input" | "blocked" | "in_review" | "done" | "cancelled";
+export type IssueStatus =
+  | "backlog"
+  | "todo"
+  | "queued"
+  | "in_progress"
+  | "needs_input"
+  | "blocked"
+  | "in_review"
+  | "done"
+  | "cancelled";
 export type IssueVerdict = "done" | "needs_input" | "blocked";
 export type IssuePriority = "low" | "normal" | "high" | "urgent";
 export type Issue = {
@@ -345,7 +367,13 @@ export type IssueNote = {
 };
 export type IssueDetail = Issue & { attempts: IssueAttempt[]; notes: IssueNote[] };
 export type IssueResultSnapshot = {
-  files: { path: string; change: "added" | "modified" | "deleted"; before: string | null; after: string | null; omitted?: boolean }[];
+  files: {
+    path: string;
+    change: "added" | "modified" | "deleted";
+    before: string | null;
+    after: string | null;
+    omitted?: boolean;
+  }[];
   warning?: string;
   capturedAt: number;
 };
@@ -373,7 +401,15 @@ export type AgentFileContent = {
 /** Where a change sits: in the index, only in the working tree, new, or mid-merge. */
 export type GitChangeArea = "staged" | "unstaged" | "untracked" | "conflicted";
 
-export type GitChangeKind = "added" | "modified" | "deleted" | "renamed" | "copied" | "type_changed" | "untracked" | "conflicted";
+export type GitChangeKind =
+  | "added"
+  | "modified"
+  | "deleted"
+  | "renamed"
+  | "copied"
+  | "type_changed"
+  | "untracked"
+  | "conflicted";
 
 export type GitChange = {
   /** Relative to the repository root. */

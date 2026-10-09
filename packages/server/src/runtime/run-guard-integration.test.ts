@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createModels } from "@earendil-works/pi-ai";
-import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
+import {
+  fauxAssistantMessage,
+  fauxProvider,
+  fauxToolCall,
+} from "@earendil-works/pi-ai/providers/faux";
 import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
@@ -15,11 +19,17 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
   // Pi's agent loop has no iteration cap, so without the guard this prompt does
   // not return. The faux model asks for the same tool every turn.
   const { sessionId } = createSession();
-  const faux = fauxProvider({ provider: `faux-guard-${crypto.randomUUID()}`, tokensPerSecond: 10_000 });
+  const faux = fauxProvider({
+    provider: `faux-guard-${crypto.randomUUID()}`,
+    tokensPerSecond: 10_000,
+  });
   const models = createModels();
   models.setProvider(faux.provider);
   faux.setResponses(
-    Array.from({ length: 50 }, () => () => fauxAssistantMessage([fauxToolCall("spin", {})], { stopReason: "toolUse" })) as never,
+    Array.from(
+      { length: 50 },
+      () => () => fauxAssistantMessage([fauxToolCall("spin", {})], { stopReason: "toolUse" }),
+    ) as never,
   );
 
   const piSession = await openPiSession(sessionId);
@@ -47,7 +57,8 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
   const abort = new HarnessAbortGate();
   abort.attach(lane);
   const unsubscribe = pi.observe((event) => {
-    const stop = event.type === "tool_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
+    const stop =
+      event.type === "tool_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
     if (stop) abort.request();
   });
 
@@ -75,7 +86,11 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
       }
       if (message.role === "toolResult" && message.toolCallId) results.add(message.toolCallId);
     }
-    assert.deepEqual([...calls].filter((id) => !results.has(id)), [], "guard abort left an unanswered tool call");
+    assert.deepEqual(
+      [...calls].filter((id) => !results.has(id)),
+      [],
+      "guard abort left an unanswered tool call",
+    );
   } finally {
     unsubscribe();
     await pi.close();

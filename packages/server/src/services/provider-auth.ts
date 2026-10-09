@@ -10,7 +10,11 @@ export async function hasProviderAuth(modelRuntime: ModelRuntime, provider: stri
   return isAuthOptionalProvider(provider) || Boolean(await modelRuntime.checkAuth(provider));
 }
 
-export async function ensureOptionalProviderAuth(modelRuntime: ModelRuntime, provider: string, baseUrl?: string) {
+export async function ensureOptionalProviderAuth(
+  modelRuntime: ModelRuntime,
+  provider: string,
+  baseUrl?: string,
+) {
   if (!isAuthOptionalProvider(provider)) return;
 
   // Pi's ModelRuntime requires the provider to be registered before it can
@@ -35,10 +39,17 @@ export async function listOllamaModels(baseUrl: string): Promise<ProviderModelSu
   try {
     const response = await fetch(resolveOllamaTagsUrl(baseUrl), { signal: controller.signal });
     if (!response.ok) throw new Error(`Ollama returned ${response.status}.`);
-    const payload = (await response.json()) as { models?: Array<{ name?: unknown; model?: unknown }> };
+    const payload = (await response.json()) as {
+      models?: Array<{ name?: unknown; model?: unknown }>;
+    };
     const modelIds = (payload.models ?? [])
       .map((model) => {
-        const modelId = typeof model.name === "string" ? model.name : typeof model.model === "string" ? model.model : "";
+        const modelId =
+          typeof model.name === "string"
+            ? model.name
+            : typeof model.model === "string"
+              ? model.model
+              : "";
         return modelId.trim();
       })
       .filter(Boolean);

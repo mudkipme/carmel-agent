@@ -38,7 +38,9 @@ export function buildKnowledgeInstructions(
     );
   }
   if (tools.has("memory_forget") && context.permissions.edit) {
-    lines.push("Use memory_forget only when the user requests forgetting a saved memory. Read it first and supply its memoryId and current expectedRevision. Forgetting affects every user of this agent; it leaves original source documents and conversations intact.");
+    lines.push(
+      "Use memory_forget only when the user requests forgetting a saved memory. Read it first and supply its memoryId and current expectedRevision. Forgetting affects every user of this agent; it leaves original source documents and conversations intact.",
+    );
   }
   lines.push(
     "Use the memory tools for managed memory changes; do not edit their backing files directly. Do not claim a save or deletion succeeded unless its tool call succeeded.",
@@ -62,9 +64,13 @@ export function buildKnowledgeInstructions(
   }
   lines.push("</knowledge_sources>");
   if (included < context.sources.length) {
-    lines.push("Additional registered sources are omitted to keep this catalog compact. Search without sourceId to include them.");
+    lines.push(
+      "Additional registered sources are omitted to keep this catalog compact. Search without sourceId to include them.",
+    );
   } else if (context.sources.length === 0) {
-    lines.push("No document directories are registered. Only shared saved memories are searchable.");
+    lines.push(
+      "No document directories are registered. Only shared saved memories are searchable.",
+    );
   }
   return lines.join("\n");
 }

@@ -40,13 +40,22 @@ export function createApiKey(userId: string, name: string): ApiKeyCreated {
 
 /** False when the key does not exist or belongs to someone else; the route reports both as 404. */
 export function deleteApiKey(userId: string, apiKeyId: string) {
-  return db.delete(apiKeys).where(and(eq(apiKeys.id, apiKeyId), eq(apiKeys.userId, userId))).run().changes > 0;
+  return (
+    db
+      .delete(apiKeys)
+      .where(and(eq(apiKeys.id, apiKeyId), eq(apiKeys.userId, userId)))
+      .run().changes > 0
+  );
 }
 
 /** The user an `Authorization: Bearer` key belongs to, or undefined. */
 export function authenticateApiKey(key: string | undefined) {
   if (!key?.startsWith(KEY_PREFIX)) return undefined;
-  const record = db.select().from(apiKeys).where(eq(apiKeys.keyHash, hashApiKey(key))).get();
+  const record = db
+    .select()
+    .from(apiKeys)
+    .where(eq(apiKeys.keyHash, hashApiKey(key)))
+    .get();
   if (!record) return undefined;
   const user = db.select().from(users).where(eq(users.id, record.userId)).get();
   if (!user) return undefined;

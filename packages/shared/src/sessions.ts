@@ -40,7 +40,10 @@ export type SessionImportResult = {
  * Anything the metadata projection can be built from: a `Session`, another
  * `SessionMetadata`, or a database row (which stores the optional columns as null).
  */
-export type SessionMetadataSource = Omit<SessionMetadata, "forkedFrom" | "pinnedAt" | "archivedAt" | "taskId" | "issueId"> & {
+export type SessionMetadataSource = Omit<
+  SessionMetadata,
+  "forkedFrom" | "pinnedAt" | "archivedAt" | "taskId" | "issueId"
+> & {
   forkedFrom?: SessionFork | null;
   pinnedAt?: number | null;
   archivedAt?: number | null;
