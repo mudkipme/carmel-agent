@@ -65,7 +65,13 @@ function click(role: string, name: string, exact = true) {
     "--fn",
     `Array.from(document.querySelectorAll(${JSON.stringify(selector)})).some(element => {
     const label = element.getAttribute("aria-label") || element.getAttribute("title") || element.textContent.trim();
-    return element.getClientRects().length && !element.closest("[inert]") && ${exact ? `label === ${JSON.stringify(name)}` : `label.includes(${JSON.stringify(name)})`};
+    if (!element.getClientRects().length || element.closest("[inert]") || element.matches(":disabled") || !(${exact ? `label === ${JSON.stringify(name)}` : `label.includes(${JSON.stringify(name)})`})) return false;
+    // Mobile reflow can put a rendered control below the scroll viewport or
+    // behind a transitioning panel. Wait for a real pointer hit, not just a box.
+    element.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+    const rect = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return hit !== null && element.contains(hit);
   })`,
   );
   browser("find", "role", role, "click", "--name", name, ...(exact ? ["--exact"] : []));
