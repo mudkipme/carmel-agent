@@ -177,7 +177,7 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        "chat-composer @container relative min-w-0 rounded-2xl border border-border bg-card shadow-sm transition-[border-color,box-shadow] focus-within:border-primary/50 focus-within:shadow-md",
+        "chat-composer @container relative min-w-0 rounded-xl border border-border bg-card shadow-sm transition-[border-color,box-shadow] focus-within:border-primary/50 focus-within:shadow-md",
         dragging && "border-primary bg-primary/5",
       )}
       onDragOver={(event) => {
@@ -251,7 +251,7 @@ export function ChatInput({
         placeholder="Type a message..."
         aria-label="Message"
         className={cn(
-          "max-h-60 min-h-24 px-4 pt-4 pb-2 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0",
+          "max-h-60 min-h-16 px-3 pt-3 pb-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0",
           textareaClassName,
         )}
         onChange={(event) => updateValue(event.target.value)}
@@ -288,7 +288,7 @@ export function ChatInput({
         }}
       />
       {/* Use the composer's width so this also fits beside an open workspace pane. */}
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 pt-1 pb-3">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 px-2 pt-1 pb-2">
         <div className="col-start-1 row-start-2 flex items-center gap-2 @[28rem]:row-start-1">
           {leadingActions}
           {supportsImages ? (

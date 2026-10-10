@@ -51,8 +51,8 @@ export function SettingsLayout({
         ) : null}
       </header>
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <aside className="shrink-0 border-b bg-sidebar p-2 md:w-60 md:border-r md:border-b-0 md:p-4">
-          <p className="nav-label hidden px-3 pt-2 pb-4 md:block">
+        <aside className="shrink-0 border-b bg-sidebar p-2 md:w-52 md:border-r md:border-b-0 md:p-3">
+          <p className="nav-label hidden px-2 pt-1 pb-2 md:block">
             {subtitle ? "Agent preferences" : "Workspace preferences"}
           </p>
           <nav
@@ -66,7 +66,7 @@ export function SettingsLayout({
                 to={to}
                 data-active={id === activeSection}
                 className={cn(
-                  "nav-item flex min-h-10 shrink-0 items-center gap-2.5 rounded-lg px-3 text-[13px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+                  "nav-item flex min-h-8 shrink-0 items-center gap-2 rounded-md px-2 text-[13px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
                   id === activeSection && "font-medium",
                 )}
               >
@@ -80,7 +80,7 @@ export function SettingsLayout({
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div
               data-settings-content
-              className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-6 px-4 py-6 pb-[calc(1.5rem+var(--safe-bottom))] sm:px-8 sm:py-10"
+              className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-5 px-4 py-4 pb-[calc(1rem+var(--safe-bottom))] sm:px-6 sm:py-6"
             >
               {children}
             </div>

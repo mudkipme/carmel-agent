@@ -100,7 +100,7 @@ export const ChatMessages = memo(function ChatMessages({
 
   if (!collapseRunDetails) {
     return (
-      <div className="flex min-w-0 flex-col gap-7">
+      <div className="flex min-w-0 flex-col gap-5">
         {renderMessages.map((message, index) => renderMessage(message, index))}
       </div>
     );
@@ -108,7 +108,7 @@ export const ChatMessages = memo(function ChatMessages({
 
   const segments = segmentByRun(renderMessages);
   return (
-    <div className="flex min-w-0 flex-col gap-7">
+    <div className="flex min-w-0 flex-col gap-5">
       {segments.map((segment, segmentIndex) =>
         segment.kind === "message" ? (
           renderMessage(segment.message, segment.index)
@@ -209,7 +209,7 @@ function CollapsedRun({
         type="button"
         aria-expanded={expanded}
         aria-controls={workId}
-        className="mx-1 flex min-h-9 w-fit max-w-[calc(100%-0.5rem)] items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        className="mx-1 flex min-h-8 w-fit max-w-[calc(100%-0.5rem)] items-center gap-2 rounded-lg px-2 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         onClick={() => setExpanded((value) => !value)}
       >
         {active ? (
@@ -234,7 +234,7 @@ function CollapsedRun({
         ) : null}
       </button>
       {expanded ? (
-        <div id={workId} className="mx-3 flex min-w-0 flex-col gap-4 border-l border-border pl-3">
+        <div id={workId} className="mx-3 flex min-w-0 flex-col gap-2 border-l border-border pl-3">
           {messages.map((entry) =>
             renderMessage(entry.message, entry.index, {
               hideAnswer: entry === answer,
@@ -384,7 +384,7 @@ function UserMessage({ message }: { message: AgentMessage }) {
 
   return (
     <div className="flex min-w-0 justify-end px-3">
-      <div className="min-w-0 max-w-[92%] rounded-2xl rounded-tr-md border border-border/50 bg-secondary px-4 py-3 text-sm sm:max-w-[85%]">
+      <div className="min-w-0 max-w-[92%] rounded-2xl rounded-tr-md border border-border/50 bg-secondary px-3 py-2 text-sm sm:max-w-[85%]">
         {skill ? (
           <details>
             <summary className="cursor-pointer text-sm font-medium">

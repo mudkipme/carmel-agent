@@ -68,9 +68,9 @@ export function TaskForm({
   return (
     <form
       onSubmit={submit}
-      className="flex min-w-0 flex-col gap-5 rounded-xl border bg-card p-4 sm:p-6"
+      className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-3 sm:p-4"
     >
-      <h2 className="text-lg font-semibold">{editing ? "Edit task" : "New task"}</h2>
+      <h2 className="text-sm font-semibold">{editing ? "Edit task" : "New task"}</h2>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="task-name">Name</FieldLabel>

@@ -70,8 +70,8 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
     setEditor(undefined);
   };
   return (
-    <div className="h-full min-w-0 overflow-y-auto px-4 py-6 sm:px-8">
-      <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-6">
+    <div className="h-full min-w-0 overflow-y-auto px-4 py-4 sm:px-6">
+      <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4">
         <PageHeader
           title="Tasks"
 
@@ -112,7 +112,7 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
         {tasks.loading ? (
           <ResourceLoading label="Loading tasks" />
         ) : tasks.data?.length === 0 && !tasks.error ? (
-          <Empty className="min-h-64 border">
+          <Empty className="min-h-48 border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <CalendarClockIcon />
@@ -128,11 +128,11 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
             {tasks.data?.map((task) => (
               <li
                 key={task.id}
-                className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4 sm:p-5"
+                className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-3"
               >
                 <div className="flex min-w-0 flex-col gap-4">
                   <div className="min-w-0 flex-1">
-                    <div className="mb-3">
+                    <div className="mb-2">
                       <Badge variant={task.status === "disabled" ? "destructive" : "secondary"}>
                         {task.status === "paused" ? <PauseIcon /> : <ClockIcon />}
                         {task.status === "active"
@@ -144,7 +144,7 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
                               : "Disabled"}
                       </Badge>
                     </div>
-                    <h2 className="text-base font-medium break-words">{task.name}</h2>
+                    <h2 className="text-sm font-medium break-words">{task.name}</h2>
                     <p className="mt-1 text-sm break-words text-muted-foreground">
                       {describeTaskSchedule(task)}
                     </p>
@@ -154,7 +154,7 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
                       </p>
                     ) : null}
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-1 border-t border-border/60 pt-3">
+                  <div className="flex shrink-0 flex-wrap items-center gap-1 border-t border-border/60 pt-2">
                     <Button
                       variant="outline"
                       size="sm"

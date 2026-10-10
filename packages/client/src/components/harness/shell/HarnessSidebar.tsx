@@ -108,7 +108,7 @@ export function HarnessSidebar({
             <PanelLeftCloseIcon />
           </Button>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
           <AgentSelector
             activeAgent={activeAgent}
             visibleAgents={visibleAgents}
@@ -183,7 +183,7 @@ export function HarnessSidebar({
           </div>
         </div>
         <Separator />
-        <footer className="flex shrink-0 items-center gap-2 px-3 py-3">
+        <footer className="flex shrink-0 items-center gap-2 px-3 py-2">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold tracking-tight">{activeUser?.name}</p>
             <p className="text-ui-smaller truncate text-muted-foreground" title={activeUser?.email}>

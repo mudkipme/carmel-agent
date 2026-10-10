@@ -73,14 +73,14 @@ export function IssuesOverview({
     }
   };
   const rows = filtered.length ? (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <div className="overflow-hidden rounded-lg border bg-card">
       {filtered.map((issue) => {
         const state = describeIssue(issue);
         return (
           <div key={issue.id} className="flex min-w-0 items-center border-b last:border-0">
             <Link
               to={`/agents/${agent.id}/issues/${issue.id}${listSearch}`}
-              className="flex min-w-0 flex-1 items-start gap-3 px-4 py-4 transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+              className="flex min-w-0 flex-1 items-start gap-2 px-3 py-2.5 transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
             >
               <state.Icon className={cn("mt-0.5 size-4 shrink-0", state.className)} />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -124,7 +124,7 @@ export function IssuesOverview({
       })}
     </div>
   ) : (
-    <Empty className="min-h-64 border">
+    <Empty className="min-h-48 border">
       <EmptyHeader>
         <EmptyMedia variant="icon">{query ? <SearchIcon /> : <ListTodoIcon />}</EmptyMedia>
         <EmptyTitle>
@@ -147,8 +147,8 @@ export function IssuesOverview({
     </Empty>
   );
   return (
-    <div className="h-full overflow-y-auto px-4 py-6 sm:px-8">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="h-full overflow-y-auto px-4 py-4 sm:px-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <PageHeader
           title="Issues"
 

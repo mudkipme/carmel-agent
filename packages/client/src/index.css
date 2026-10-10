@@ -134,6 +134,8 @@
   --radius-4xl: calc(var(--radius) * 2.6);
   --color-faint: var(--faint-foreground);
   --color-link: var(--link);
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
   --font-sans: var(--font-interface);
   --font-mono: var(--font-monospace);
 }
@@ -179,7 +181,7 @@
   /* Minimal's reading measure is 40rem. The chat column runs wider because it
      also carries code blocks, diffs and tool output. */
   --line-width: 52rem;
-  --header-height: 56px;
+  --header-height: 44px;
   --input-height: 32px;
   --font-ui-smaller: 11px;
 
@@ -222,6 +224,8 @@
     min-height: 40px;
   }
 
+  [data-slot="input"],
+  .tool-call > button,
   [data-slot="select-trigger"],
   [data-slot="dropdown-menu-item"],
   [data-slot="select-item"] {
@@ -389,6 +393,7 @@
     min-height: 100%;
     overflow: hidden;
     font-family: var(--font-interface);
+    font-size: var(--text-sm);
     line-height: var(--line-height);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -502,12 +507,12 @@
 }
 
 .agent-chat-host {
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 
 .agent-chat-host .markdown-content {
-  font-size: 14px;
-  line-height: 1.75;
+  font-size: var(--text-sm);
+  line-height: 1.6;
   max-width: 100%;
   min-width: 0;
   overflow-wrap: anywhere;

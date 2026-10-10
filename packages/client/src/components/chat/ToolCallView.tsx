@@ -84,7 +84,7 @@ export function ToolCallView({
         type="button"
         aria-expanded={open}
         aria-controls={detailsId}
-        className="flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        className="flex min-h-8 w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         onClick={() => setOpen((value) => !value)}
       >
         <ToolIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />

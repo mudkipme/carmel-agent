@@ -73,8 +73,8 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
   const data = overview.data;
   const working = data && ["updating", "embedding"].includes(data.status.state);
   return (
-    <div className="h-full min-w-0 overflow-y-auto px-4 py-6 sm:px-8">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="h-full min-w-0 overflow-y-auto px-4 py-4 sm:px-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <PageHeader
           title="Knowledge"
 
@@ -263,7 +263,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
             ) : null}
             <section className="flex flex-col gap-3" aria-label="Saved memories">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold">Saved memories</h2>
+                <h2 className="text-sm font-semibold">Saved memories</h2>
                 {agent.permissions.write && data.settings.enabled ? (
                   <Button
                     variant="outline"
@@ -356,7 +356,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
             </section>
             <section className="flex flex-col gap-3" aria-label="Knowledge sources">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold">Sources</h2>
+                <h2 className="text-sm font-semibold">Sources</h2>
                 {owner && data.settings.enabled ? (
                   <div className="flex flex-wrap gap-2">
                     <Button

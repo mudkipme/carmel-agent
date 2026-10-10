@@ -27,13 +27,13 @@ export function NewIssueView({ agent }: { agent: AgentConfig }) {
     }
   };
   return (
-    <div className="h-full overflow-y-auto px-5 py-8">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="h-full overflow-y-auto px-4 py-4 sm:px-6">
+      <div className="mx-auto flex max-w-3xl flex-col gap-4">
         <Link className="text-sm text-muted-foreground hover:underline" to={listPath}>
           {agent.name} / Issues
         </Link>
         <div>
-          <h1 className="text-2xl font-semibold">New issue</h1>
+          <h1 className="text-base font-semibold">New issue</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Define the outcome for {agent.name}. Save it for later or add it to the queue.
           </p>
