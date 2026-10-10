@@ -322,7 +322,8 @@ test("issue replies survive leaving the conversation and clear after saving", ()
   assert.equal(value("#issue-reply"), "");
 });
 
-test("long task titles and controls fit mobile; creation controls have accessible labels", () => {
+test("long task titles and controls fit mobile; creation controls have accessible labels", (t) => {
+  t.after(() => browser("set", "viewport", "1440", "900"));
   browser("set", "viewport", "390", "844");
   open(agentPath("tasks"));
   browser("wait", "--text", fixture.taskName);
@@ -335,7 +336,20 @@ test("long task titles and controls fit mobile; creation controls have accessibl
   assert.match(snapshot(), /Edit Review/);
   click("button", "New task");
   browser("find", "label", "Name", "fill", "A labelled task");
-  browser("find", "label", "Prompt", "fill", "Check the guide");
+  // Sample the first enabled frame in the same browser call as the input event.
+  // CLI latency otherwise hides an opacity fade from the disabled appearance.
+  const enabledAppearance = evaluate<{ disabled: boolean; opacity: string }>(`(async () => {
+    const prompt = document.querySelector('#task-prompt');
+    const submit = document.querySelector('button[type="submit"]');
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(prompt, 'Check the guide');
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    for (let frame = 0; frame < 60; frame++) {
+      await new Promise(requestAnimationFrame);
+      if (!submit.disabled) break;
+    }
+    return { disabled: submit.disabled, opacity: getComputedStyle(submit).opacity };
+  })()`);
+  assert.deepEqual(enabledAppearance, { disabled: false, opacity: "1" });
   assert.equal(value("#task-name"), "A labelled task");
   assert.equal(
     evaluate<boolean>('Boolean(document.querySelector("#task-repeats").labels.length)'),
@@ -344,7 +358,6 @@ test("long task titles and controls fit mobile; creation controls have accessibl
   const audit = browser<{ violations: { id: string }[] }>("a11y", "--tags", "wcag2a,wcag2aa");
   assert.deepEqual(audit.violations, []);
   click("button", "Cancel");
-  browser("set", "viewport", "1440", "900");
 });
 
 test("existing tasks can be edited without changing their paused state", () => {
