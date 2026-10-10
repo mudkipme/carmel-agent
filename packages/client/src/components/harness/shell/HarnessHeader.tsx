@@ -63,7 +63,7 @@ export function HarnessHeader({
       : "";
 
   return (
-    <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-2 border-b bg-background px-2 pt-[var(--safe-top)] sm:gap-3 sm:px-3">
+    <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-2 border-b bg-background px-2 pt-[var(--safe-top)] sm:gap-3 sm:px-5">
       <div className="flex min-w-0 items-center gap-2">
         {/* An open sidebar carries its own collapse button; on desktop it sits
             beside this header, so the toggle here would be a duplicate. */}
@@ -77,7 +77,7 @@ export function HarnessHeader({
           <PanelLeftIcon />
         </Button>
         <div className="min-w-0">
-          <h2 className="truncate text-[13px] font-medium">{title}</h2>
+          <h2 className="truncate text-sm font-medium">{title}</h2>
           <p className="text-ui-smaller truncate text-muted-foreground">
             {activeAgent?.name ?? "No agent"}
             {customWorkingDir ? ` · ${customWorkingDir}` : ""}

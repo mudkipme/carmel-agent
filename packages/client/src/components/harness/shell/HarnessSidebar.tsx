@@ -100,13 +100,15 @@ export function HarnessSidebar({
     >
       <div className="flex min-h-0 w-full flex-1 flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] lg:w-[var(--sidebar-width)] lg:pl-0">
         <div className="flex h-[var(--header-height)] shrink-0 items-center gap-2 px-3">
-          <img src="/apple-touch-icon.png" alt="" className="size-6 rounded" draggable={false} />
-          <h1 className="min-w-0 flex-1 truncate text-[13px] font-medium">Carmel Agent</h1>
+          <img src="/apple-touch-icon.png" alt="" className="size-7 rounded-lg" draggable={false} />
+          <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
+            Carmel Agent
+          </h1>
           <Button size="icon-sm" variant="ghost" title="Collapse sidebar" onClick={onClose}>
             <PanelLeftCloseIcon />
           </Button>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
           <AgentSelector
             activeAgent={activeAgent}
             visibleAgents={visibleAgents}
@@ -183,7 +185,7 @@ export function HarnessSidebar({
         <Separator />
         <footer className="flex shrink-0 items-center gap-2 px-3 py-3">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-medium">{activeUser?.name}</p>
+            <p className="truncate text-sm font-semibold tracking-tight">{activeUser?.name}</p>
             <p className="text-ui-smaller truncate text-muted-foreground" title={activeUser?.email}>
               {activeUser?.email}
             </p>

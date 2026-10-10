@@ -75,10 +75,15 @@ export function NewSessionView({ agent, modelRefs, providerConfigs }: NewSession
       <div className="agent-chat-host flex h-full min-h-0 flex-col overflow-y-auto bg-background px-3 pb-[calc(0.75rem+var(--safe-bottom))] text-foreground">
         {/* Margins rather than justify-center, so a composer taller than the
             viewport scrolls instead of being clipped at the top. */}
-        <div className="mx-auto my-auto flex w-full max-w-[var(--line-width)] min-w-0 flex-col gap-6 py-8">
+        <div className="mx-auto my-auto flex w-full max-w-[var(--line-width)] min-w-0 flex-col gap-8 px-1 py-8 sm:px-5">
           <div className="flex flex-col items-center gap-3 text-center">
             <AgentAvatar agent={agent} className="size-12 rounded-xl text-base" />
-            <h1 className="text-xl font-medium">What can {agent.name} help with?</h1>
+            <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">
+              What can {agent.name} help with?
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              A fresh conversation. A place to move things forward.
+            </p>
           </div>
           <ChatInput
             ref={chatInputRef}

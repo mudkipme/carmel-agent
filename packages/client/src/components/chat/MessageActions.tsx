@@ -1,5 +1,7 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { CopyIcon, GitForkIcon, PencilIcon, RotateCcwIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, GitForkIcon, PencilIcon, RotateCcwIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { copyText, getMessageText } from "./chat-utils";
 import { isEditableAssistantMessage, isUserMessage } from "@carmel-agent/shared";
@@ -12,6 +14,12 @@ type MessageActionsProps = {
 };
 
 export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActionsProps) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timeout = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
   const copyValue = getMessageText(message);
   const isUser = isUserMessage(message);
   const canEdit = isUser || isEditableAssistantMessage(message);
@@ -23,11 +31,15 @@ export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActi
           type="button"
           variant="ghost"
           size="icon-xs"
-          title="Copy message"
-          aria-label="Copy message"
-          onClick={() => void copyText(copyValue)}
+          title={copied ? "Copied" : "Copy message"}
+          aria-label={copied ? "Copied" : "Copy message"}
+          onClick={() =>
+            void copyText(copyValue)
+              .then(() => setCopied(true))
+              .catch(() => toast.error("Unable to copy message"))
+          }
         >
-          <CopyIcon />
+          {copied ? <CheckIcon /> : <CopyIcon />}
         </Button>
       ) : null}
       {onFork ? (

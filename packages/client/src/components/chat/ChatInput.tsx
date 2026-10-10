@@ -6,7 +6,7 @@ import {
   BrainIcon,
   Loader2Icon,
   PaperclipIcon,
-  SendIcon,
+  ArrowUpIcon,
   SparklesIcon,
   SquareIcon,
   XIcon,
@@ -177,7 +177,7 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        "@container relative min-w-0 rounded-lg border bg-background transition-colors focus-within:border-[var(--border-hover)]",
+        "chat-composer @container relative min-w-0 rounded-2xl border border-border bg-card shadow-sm transition-[border-color,box-shadow] focus-within:border-primary/50 focus-within:shadow-md",
         dragging && "border-primary bg-primary/5",
       )}
       onDragOver={(event) => {
@@ -249,8 +249,9 @@ export function ChatInput({
         autoFocus={autoFocus && !isTouchPrimaryInput()}
         enterKeyHint="enter"
         placeholder="Type a message..."
+        aria-label="Message"
         className={cn(
-          "max-h-60 min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0",
+          "max-h-60 min-h-24 px-4 pt-4 pb-2 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0",
           textareaClassName,
         )}
         onChange={(event) => updateValue(event.target.value)}
@@ -287,7 +288,7 @@ export function ChatInput({
         }}
       />
       {/* Use the composer's width so this also fits beside an open workspace pane. */}
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 pt-1 pb-2">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 pt-1 pb-3">
         <div className="col-start-1 row-start-2 flex items-center gap-2 @[28rem]:row-start-1">
           {leadingActions}
           {supportsImages ? (
@@ -359,14 +360,15 @@ export function ChatInput({
           ) : (
             <Button
               type="button"
-              variant="ghost"
+              variant="default"
               size="icon-sm"
+              className="rounded-full"
               disabled={!canSend}
               aria-label="Send"
               title="Send"
               onClick={send}
             >
-              <SendIcon />
+              <ArrowUpIcon />
             </Button>
           )}
         </div>

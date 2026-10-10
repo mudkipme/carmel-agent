@@ -85,10 +85,11 @@ export function SessionList({
               <div
                 key={session.id}
                 data-active={session.id === activeSessionId}
-                className="nav-item group flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5"
+                className="nav-item group flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5"
               >
                 <button
-                  className="flex h-full min-w-0 flex-1 items-center text-left"
+                  aria-current={session.id === activeSessionId ? "page" : undefined}
+                  className="flex h-full min-w-0 flex-1 items-center rounded-md text-left focus-visible:outline-2 focus-visible:outline-ring"
                   onClick={() => {
                     navigate(sessionPath(session));
                     onOpenSession();

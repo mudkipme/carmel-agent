@@ -112,7 +112,7 @@ export function ChatPanel({
       >
         <div
           ref={contentRef}
-          className="mx-auto flex w-full max-w-[var(--line-width)] min-w-0 flex-col px-3 py-4"
+          className="mx-auto flex w-full max-w-[var(--line-width)] min-w-0 flex-col px-2 pt-8 pb-6 sm:px-5"
         >
           <ChatMessages
             messages={messages}
@@ -128,7 +128,7 @@ export function ChatPanel({
         </div>
       </div>
       {!readOnly ? (
-        <div className="shrink-0 px-3 pb-[calc(0.75rem+var(--safe-bottom))]">
+        <div className="shrink-0 px-3 pt-3 pb-[calc(1rem+var(--safe-bottom))] sm:px-5">
           <div className="mx-auto w-full max-w-[var(--line-width)] min-w-0">
             <ChatInput
               ref={inputRef}

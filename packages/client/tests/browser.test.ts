@@ -14,6 +14,7 @@ type Fixture = {
   pendingSessionId: string;
   taskSessionId: string;
   taskName: string;
+  chatSessionId: string;
 };
 const binary = process.env.AGENT_BROWSER_BIN ?? "agent-browser";
 const session = `carmel-regression-${randomUUID()}`;
@@ -160,6 +161,39 @@ after(async () => {
       await stopped;
     }
   }
+});
+
+test("tool disclosures preserve their output and fit desktop and mobile conversations", () => {
+  for (const width of [1280, 390]) {
+    browser("set", "viewport", String(width), "900");
+    open(agentPath(`sessions/${fixture.chatSessionId}`));
+    click("button", "Show work", false);
+    assert.match(snapshot(), /1 failed/);
+    click("button", "Run command", false);
+    browser("wait", "--text", "All checks passed.");
+    const output = evaluate<string>(
+      `Array.from(document.querySelectorAll('.tool-call pre')).map(el => el.textContent).join('\\n')`,
+    );
+    assert.match(output, /<script>This is plain tool output, not markup\.<\/script>/);
+    assert.match(snapshot(), /Copy input/);
+    assert.match(snapshot(), /Copy output/);
+    assert.equal(
+      evaluate(`Array.from(document.querySelectorAll('.tool-call')).every(el => {
+      const rect = el.getBoundingClientRect();
+      return rect.left >= 0 && rect.right <= innerWidth;
+    })`),
+      true,
+    );
+    click("button", "Run command", false);
+    assert.equal(evaluate(`document.querySelectorAll('.tool-call pre').length`), 0);
+    click("button", "Hide work", false);
+    assert.equal(evaluate(`document.querySelectorAll('.tool-call').length`), 0);
+    assert.match(
+      evaluate<string>(`document.querySelector('.agent-chat-host').textContent`),
+      /A clearer path to deployment/,
+    );
+  }
+  browser("set", "viewport", "1280", "900");
 });
 
 test("earlier issue conversations open the correct persisted session", () => {

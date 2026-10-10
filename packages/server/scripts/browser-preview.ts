@@ -201,6 +201,65 @@ db.insert(agentTaskRuns)
     sessionId: taskSessionId,
   })
   .run();
+// A persisted tool-heavy conversation for transcript and disclosure regressions.
+const chatSessionId = "browser-chat-session";
+db.insert(sessions)
+  .values({
+    id: chatSessionId,
+    title: "Make the deployment guide easier to follow",
+    userId: fixture.userId,
+    agentId: fixture.agentId,
+    modelRefId: fixture.modelRefId,
+    thinkingLevel: "off",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  })
+  .run();
+const { replacePiSessionMessages } = await import("../src/services/pi-session-storage.ts");
+const chatCalls = [
+  fauxToolCall("read", { path: "docs/deployment.md" }, { id: "preview-read" }),
+  fauxToolCall("bash", { command: "pnpm check" }, { id: "preview-bash" }),
+  fauxToolCall("mcp__docs__search", { query: "deployment checklist" }, { id: "preview-search" }),
+];
+await replacePiSessionMessages(chatSessionId, [
+  {
+    role: "user",
+    content: "Review the deployment guide and make the setup instructions easier to follow.",
+    timestamp,
+  },
+  fauxAssistantMessage(
+    [
+      {
+        type: "thinking",
+        thinking:
+          "I’ll check the guide against the project configuration, then verify the commands.",
+      },
+      { type: "text", text: "I’ll read the current guide and check the setup steps." },
+      ...chatCalls,
+    ],
+    { stopReason: "toolUse" },
+  ),
+  ...chatCalls.map((call, index) => ({
+    role: "toolResult" as const,
+    toolCallId: call.id,
+    toolName: call.name,
+    content: [
+      {
+        type: "text" as const,
+        text: [
+          "# Deployment\n\nInstall dependencies and configure your environment.",
+          "All checks passed.\n<script>This is plain tool output, not markup.</script>",
+          "Search service unavailable. The local guide is still available.",
+        ][index]!,
+      },
+    ],
+    isError: index === 2,
+    timestamp,
+  })),
+  fauxAssistantMessage(
+    "## A clearer path to deployment\n\nThe guide now separates **initial setup** from **everyday updates**, with a short checklist for each.\n\n- Start with the required environment variables.\n- Install dependencies and run the checks.\n- Build the app, then start the server.\n\n```bash\npnpm install --frozen-lockfile\npnpm check\npnpm build\n```\n\nThe local checks passed. The documentation search was unavailable, so I used the repository’s guide.",
+  ),
+]);
 const server = serve({ fetch: createApp().fetch, port: 0, hostname: "127.0.0.1" }, (address) => {
   console.log(
     JSON.stringify({
@@ -213,6 +272,7 @@ const server = serve({ fetch: createApp().fetch, port: 0, hostname: "127.0.0.1" 
       pendingSessionId,
       taskSessionId,
       taskName,
+      chatSessionId,
     }),
   );
 });

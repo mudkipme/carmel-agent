@@ -5,8 +5,8 @@ import type {
   ToolCall,
   ToolResultMessage,
 } from "@earendil-works/pi-ai";
-import { AlertCircleIcon, ChevronRightIcon, Loader2Icon } from "lucide-react";
-import { memo, useMemo, useState, type ReactNode } from "react";
+import { AlertCircleIcon, BrainIcon, ChevronRightIcon, Loader2Icon } from "lucide-react";
+import { memo, useId, useMemo, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { MessageActions } from "./MessageActions";
 import { MarkdownContent } from "./MarkdownContent";
@@ -100,7 +100,7 @@ export const ChatMessages = memo(function ChatMessages({
 
   if (!collapseRunDetails) {
     return (
-      <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-7">
         {renderMessages.map((message, index) => renderMessage(message, index))}
       </div>
     );
@@ -108,7 +108,7 @@ export const ChatMessages = memo(function ChatMessages({
 
   const segments = segmentByRun(renderMessages);
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-7">
       {segments.map((segment, segmentIndex) =>
         segment.kind === "message" ? (
           renderMessage(segment.message, segment.index)
@@ -165,6 +165,7 @@ function CollapsedRun({
   onForkMessage?: (message: AgentMessage) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const workId = useId();
   const assistants = messages.filter(
     (entry): entry is { message: AssistantMessageType; index: number } =>
       entry.message.role === "assistant",
@@ -197,6 +198,9 @@ function CollapsedRun({
   ]
     .filter(Boolean)
     .join(" · ");
+  const failedTools = messages.filter(
+    (entry) => entry.message.role === "toolResult" && entry.message.isError,
+  ).length;
   const currentTool = active ? runningToolName(last?.message) : undefined;
 
   return (
@@ -204,11 +208,12 @@ function CollapsedRun({
       <button
         type="button"
         aria-expanded={expanded}
-        className="mx-4 flex w-fit max-w-[calc(100%-2rem)] items-center gap-1.5 rounded-md py-0.5 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
+        aria-controls={workId}
+        className="mx-1 flex min-h-9 w-fit max-w-[calc(100%-0.5rem)] items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         onClick={() => setExpanded((value) => !value)}
       >
         {active ? (
-          <Loader2Icon className="size-3.5 shrink-0 animate-spin" />
+          <Loader2Icon className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none text-primary" />
         ) : (
           <ChevronRightIcon
             className={cn("size-3.5 shrink-0 transition-transform", expanded && "rotate-90")}
@@ -224,9 +229,12 @@ function CollapsedRun({
               : "Show work"}
           {summary ? ` · ${summary}` : ""}
         </span>
+        {failedTools > 0 ? (
+          <span className="shrink-0 text-destructive">{failedTools} failed</span>
+        ) : null}
       </button>
       {expanded ? (
-        <div className="flex min-w-0 flex-col gap-4 border-l-2 border-border/60 pl-1">
+        <div id={workId} className="mx-3 flex min-w-0 flex-col gap-4 border-l border-border pl-3">
           {messages.map((entry) =>
             renderMessage(entry.message, entry.index, {
               hideAnswer: entry === answer,
@@ -270,7 +278,7 @@ function AnswerOnly({
     .map((part) => (part as { text: string }).text)
     .join("\n\n");
   return (
-    <div className="group flex min-w-0 flex-col gap-1 px-4 text-sm">
+    <div className="group flex min-w-0 flex-col gap-2 px-3 text-sm">
       <MarkdownContent content={text} />
       {(message.content as DisplayAssistantContentPart[]).map((part, index) =>
         part.type === "image" ? (
@@ -283,7 +291,7 @@ function AnswerOnly({
           />
         ) : null,
       )}
-      <div className="-mt-1">
+      <div className="mt-1">
         <MessageActions message={message} onEdit={onEditMessage} onFork={onForkMessage} />
       </div>
     </div>
@@ -354,7 +362,7 @@ const MessageItem = memo(function MessageItem({
     return (
       <div className="group flex min-w-0 flex-col gap-1">
         <UserMessage message={message} />
-        <div className="px-4">
+        <div className="flex justify-end px-3">
           <MessageActions
             message={message}
             onEdit={onEditMessage}
@@ -375,8 +383,8 @@ function UserMessage({ message }: { message: AgentMessage }) {
   const images = getMessageImages(message);
 
   return (
-    <div className="flex min-w-0 justify-start px-4">
-      <div className="min-w-0 max-w-full rounded-lg bg-secondary px-3.5 py-2 text-sm">
+    <div className="flex min-w-0 justify-end px-3">
+      <div className="min-w-0 max-w-[92%] rounded-2xl rounded-tr-md border border-border/50 bg-secondary px-4 py-3 text-sm sm:max-w-[85%]">
         {skill ? (
           <details>
             <summary className="cursor-pointer text-sm font-medium">
@@ -450,14 +458,14 @@ function AssistantMessage({
   );
 
   return (
-    <div className="flex min-w-0 flex-col gap-3 px-4 text-sm">
+    <div className="flex min-w-0 flex-col gap-3 px-3 text-sm">
       {assistantContent.map((part, index) => {
         if (part.type === "text" && part.text.trim()) {
           return (
             <div key={index} className="flex min-w-0 flex-col gap-1">
               <MarkdownContent content={part.text} />
               {index === lastTextIndex ? (
-                <div className="-mt-1">
+                <div className="mt-1">
                   <MessageActions
                     message={messageForActions}
                     onEdit={streaming ? undefined : onEditMessage}
@@ -472,10 +480,14 @@ function AssistantMessage({
           return (
             <details
               key={index}
-              className="min-w-0 border-l pl-3 text-muted-foreground"
+              className="thinking-details min-w-0 rounded-lg bg-muted/50 px-3 py-2 text-muted-foreground"
               open={streaming}
             >
-              <summary className="cursor-pointer text-xs font-medium">Thinking</summary>
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium">
+                <BrainIcon className="size-3.5" />
+                Thinking
+                <ChevronRightIcon className="thinking-chevron ml-auto size-3.5" />
+              </summary>
               <div className="mt-2">
                 <MarkdownContent content={part.thinking} thinking />
               </div>
@@ -514,7 +526,9 @@ function AssistantMessage({
           />
         );
       })}
-      {usageText ? <div className="text-xs text-muted-foreground">{usageText}</div> : null}
+      {usageText ? (
+        <div className="text-[11px] text-muted-foreground/80 tabular-nums">{usageText}</div>
+      ) : null}
       {!hideRunEnding && message.stopReason === "error" && message.errorMessage ? (
         <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           <AlertCircleIcon />
