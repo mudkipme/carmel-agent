@@ -271,7 +271,7 @@ test("returning from an issue preserves the selected tab and search", () => {
   browser("find", "label", "Search issues", "fill", "guide");
   click("link", "Review the deployment guide", false);
   click("link", "Browser test agent / Issues");
-  browser("wait", '[role="tab"][aria-selected="true"]');
+  browser("wait", '[role="tab"][aria-label="Needs you"][aria-selected="true"]');
   assert.match(snapshot(), /tab "Needs you" \[selected/);
   assert.equal(value('[aria-label="Search issues"]'), "guide");
   assert.match(browser<{ url: string }>("get", "url").url, /filter=attention&q=guide$/);
@@ -446,6 +446,8 @@ test("failed issue loading shows an error and Retry instead of an empty list", (
   click("button", "Retry");
   browser("wait", "--fn", '!document.body.innerText.includes("Unable to load issues")');
   click("tab", "Backlog");
+  // Retry clears the error before the response and route transition finish.
+  browser("wait", `[role="tabpanel"] a[href^="${agentPath(`issues/${fixture.backlogIssueId}`)}"]`);
   assert.match(snapshot(), /Explain backups/);
 });
 
