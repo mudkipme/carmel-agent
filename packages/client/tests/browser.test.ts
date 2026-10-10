@@ -196,17 +196,27 @@ test("tool disclosures preserve their output and fit desktop and mobile conversa
   browser("set", "viewport", "1280", "900");
 });
 
-test("mobile settings keep the selected section visible and permission labels toggle their switches", () => {
+test("mobile settings keep the selected section visible and permission labels toggle their switches", (t) => {
+  t.after(() => browser("set", "viewport", "1280", "900"));
+  const waitForSelectedSection = (section: string) => {
+    // The URL can change before React commits the new selection and scrolls
+    // the navigation. Wait for that visible state without scrolling it ourselves.
+    browser(
+      "wait",
+      "--fn",
+      `(() => {
+        const active = document.querySelector('nav a[aria-current="page"][href$="/settings/${section}"]');
+        if (!active) return false;
+        const rect = active.getBoundingClientRect();
+        const nav = active.closest('nav').getBoundingClientRect();
+        return rect.width > 0 && rect.left >= Math.max(0, nav.left) && rect.right <= Math.min(innerWidth, nav.right);
+      })()`,
+    );
+  };
   browser("set", "viewport", "320", "740");
   browser("open", `${fixture.url}/settings/appearance`);
   browser("wait", "#appearance-theme");
-  assert.equal(
-    evaluate(`(() => {
-    const rect = document.querySelector('nav a[aria-current="page"]').getBoundingClientRect();
-    return rect.left >= 0 && rect.right <= innerWidth;
-  })()`),
-    true,
-  );
+  waitForSelectedSection("appearance");
   click("link", "Account");
   browser("wait", "#account-email");
   assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
@@ -226,13 +236,7 @@ test("mobile settings keep the selected section visible and permission labels to
   assert.match(snapshot(), /switch "Write files".*checked/);
   click("link", "Archived");
   browser("wait", "--url", "**/settings/archived");
-  assert.equal(
-    evaluate(`(() => {
-    const rect = document.querySelector('nav a[aria-current="page"]').getBoundingClientRect();
-    return rect.left >= 0 && rect.right <= innerWidth;
-  })()`),
-    true,
-  );
+  waitForSelectedSection("archived");
   assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
   click("button", "Back to agent");
   open(agentPath("issues"));
@@ -244,7 +248,6 @@ test("mobile settings keep the selected section visible and permission labels to
   })`),
     true,
   );
-  browser("set", "viewport", "1280", "900");
 });
 
 test("earlier issue conversations open the correct persisted session", () => {
