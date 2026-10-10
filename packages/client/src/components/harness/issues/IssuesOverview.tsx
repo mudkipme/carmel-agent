@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { PlusIcon, ArrowUpIcon, ArrowDownIcon } from "lucide-react";
+import { PlusIcon, ArrowUpIcon, ArrowDownIcon, ListTodoIcon, SearchIcon } from "lucide-react";
 import type { AgentConfig, Issue } from "@carmel-agent/shared";
+import { PageHeader } from "../form-primitives";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyMedia,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
@@ -66,14 +73,14 @@ export function IssuesOverview({
     }
   };
   const rows = filtered.length ? (
-    <div className="overflow-hidden rounded-lg border">
+    <div className="overflow-hidden rounded-xl border bg-card">
       {filtered.map((issue) => {
         const state = describeIssue(issue);
         return (
           <div key={issue.id} className="flex min-w-0 items-center border-b last:border-0">
             <Link
               to={`/agents/${agent.id}/issues/${issue.id}${listSearch}`}
-              className="flex min-w-0 flex-1 items-start gap-3 px-4 py-4 hover:bg-muted/50"
+              className="flex min-w-0 flex-1 items-start gap-3 px-4 py-4 transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
             >
               <state.Icon className={cn("mt-0.5 size-4 shrink-0", state.className)} />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -117,8 +124,9 @@ export function IssuesOverview({
       })}
     </div>
   ) : (
-    <Empty>
+    <Empty className="min-h-64 border">
       <EmptyHeader>
+        <EmptyMedia variant="icon">{query ? <SearchIcon /> : <ListTodoIcon />}</EmptyMedia>
         <EmptyTitle>
           {query
             ? "No matching issues"
@@ -141,40 +149,79 @@ export function IssuesOverview({
   return (
     <div className="h-full overflow-y-auto px-4 py-6 sm:px-8">
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="mb-1 text-sm text-muted-foreground">{agent.name}</p>
-            <h1 className="text-2xl font-semibold">Issues</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Queue work for this agent, answer questions, and review delivered results.
-            </p>
-          </div>
-          <Button asChild>
-            <Link to={`/agents/${agent.id}/issues/new${listSearch}`}>
-              <PlusIcon data-icon="inline-start" />
-              New issue
-            </Link>
-          </Button>
-        </div>
+        <PageHeader
+          title="Issues"
+
+          icon={ListTodoIcon}
+          actions={
+            <Button asChild>
+              <Link to={`/agents/${agent.id}/issues/new${listSearch}`}>
+                <PlusIcon data-icon="inline-start" />
+                New issue
+              </Link>
+            </Button>
+          }
+        />
         <Tabs
           value={filter}
           onValueChange={(value) => updateParams("filter", value)}
           className="flex flex-col gap-4"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <TabsList>
-              <TabsTrigger value="queue">Queue</TabsTrigger>
-              <TabsTrigger value="attention">Needs you</TabsTrigger>
-              <TabsTrigger value="backlog">Backlog</TabsTrigger>
-              <TabsTrigger value="done">Done</TabsTrigger>
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="queue" aria-label="Queue">
+                Queue
+                <span
+                  aria-hidden="true"
+                  className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
+                >
+                  {
+                    issues.filter((issue) => ["Working", "Queued"].includes(issueGroup(issue)))
+                      .length
+                  }
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="attention" aria-label="Needs you">
+                Needs you
+                <span
+                  aria-hidden="true"
+                  className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
+                >
+                  {issues.filter((issue) => ["Needs you"].includes(issueGroup(issue))).length}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="backlog" aria-label="Backlog">
+                Backlog
+                <span
+                  aria-hidden="true"
+                  className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
+                >
+                  {issues.filter((issue) => ["Backlog"].includes(issueGroup(issue))).length}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="done" aria-label="Done">
+                Done
+                <span
+                  aria-hidden="true"
+                  className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
+                >
+                  {issues.filter((issue) => ["Done"].includes(issueGroup(issue))).length}
+                </span>
+              </TabsTrigger>
             </TabsList>
-            <Input
-              className="max-w-64"
-              aria-label="Search issues"
-              placeholder="Search issues…"
-              value={query}
-              onChange={(e) => updateParams("q", e.target.value, true)}
-            />
+            <div className="relative w-full sm:w-auto">
+              <SearchIcon
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                className="w-full pl-9 sm:w-56"
+                aria-label="Search issues"
+                placeholder="Search issues…"
+                value={query}
+                onChange={(e) => updateParams("q", e.target.value, true)}
+              />
+            </div>
           </div>
           {error ? (
             <ResourceError error={error} title="Unable to load issues" onRetry={onRefresh} />

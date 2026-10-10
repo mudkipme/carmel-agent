@@ -46,7 +46,7 @@ export function ModelSettings({
           description="Used for lightweight background tasks such as session title generation."
         />
         <Field>
-          <FieldLabel>Model</FieldLabel>
+          <FieldLabel htmlFor="fast-task-model">Model</FieldLabel>
           <Select
             value={fastTaskModelRefId || "__session_model__"}
             disabled={updating}
@@ -54,7 +54,7 @@ export function ModelSettings({
               onFastTaskModelChange(value === "__session_model__" ? "" : value)
             }
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger id="fast-task-model" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="max-w-[calc(100vw-2rem)]">
@@ -73,10 +73,7 @@ export function ModelSettings({
       </section>
 
       <section className="grid min-w-0 gap-4 border-t pt-6">
-        <SectionHeader
-          title="Model Management"
-          description="Each provider config can have one entry per model."
-        />
+        <SectionHeader title="Model Management" />
         <div className="grid gap-2">
           {modelRefs.map((model) => {
             const providerConfig = providerConfigs.find(
@@ -86,7 +83,7 @@ export function ModelSettings({
             return (
               <div
                 key={model.id}
-                className="flex min-w-0 flex-col gap-3 rounded-md border bg-card p-2 sm:flex-row sm:items-center sm:justify-between"
+                className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 truncate">
@@ -136,17 +133,15 @@ export function ModelSettings({
       </section>
 
       <section className="grid min-w-0 gap-4 border-t pt-6">
-        <SectionHeader
-          title="Add Model"
-          description="Adding an existing provider/model pair will reuse the existing entry."
-        />
+        <SectionHeader title="Add Model" />
         <div className="grid gap-3">
           <Select
             value={management.providerConfigId}
+            disabled={providerConfigs.length === 0}
             onValueChange={management.selectProviderConfig}
           >
-            <SelectTrigger className="w-full">
-              <SelectValue />
+            <SelectTrigger aria-label="Model provider" className="w-full">
+              <SelectValue placeholder="Choose a provider" />
             </SelectTrigger>
             <SelectContent className="max-w-[calc(100vw-2rem)]">
               <SelectGroup>
@@ -177,8 +172,9 @@ export function ModelSettings({
           <Button
             type="button"
             variant="outline"
+            className="justify-self-start"
             onClick={() => void management.loadProviderModels()}
-            disabled={management.loadingProviderModels}
+            disabled={management.loadingProviderModels || !management.selectedProviderConfig}
           >
             {management.loadingProviderModels ? "Refreshing..." : "Refresh models"}
           </Button>
@@ -186,6 +182,7 @@ export function ModelSettings({
             <p className="text-xs text-destructive">{management.providerModelsError}</p>
           ) : null}
           <Button
+            className="justify-self-start"
             onClick={() => void management.addModel()}
             disabled={!management.modelId.trim() || !management.selectedProviderConfig}
           >
@@ -225,6 +222,7 @@ function ModelPicker({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            aria-label="Search models"
             placeholder={`Search ${models.length} models...`}
             className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
           />
@@ -235,7 +233,8 @@ function ModelPicker({
               <button
                 key={model.id}
                 type="button"
-                className="flex w-full min-w-0 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                aria-pressed={model.id === value}
+                className="flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                 onClick={() => onValueChange(model.id)}
               >
                 <CheckIcon

@@ -14,6 +14,7 @@ import {
   PencilIcon,
   RefreshCwIcon,
   ScissorsIcon,
+  SearchIcon,
   Trash2Icon,
   UploadIcon,
   XIcon,
@@ -29,6 +30,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyMedia,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
   formatFileSize,
@@ -189,6 +197,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
         <Input
           value={browser.filter}
+          aria-label="Filter this folder"
           placeholder="Filter this folder"
           className="h-8 max-w-64 flex-1"
           onChange={(event) => browser.setFilter(event.target.value)}
@@ -265,7 +274,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <div className="flex h-8 items-center gap-3 border-b px-3 text-ui-smaller text-muted-foreground">
+        <div className="sticky top-0 z-10 flex h-10 items-center gap-3 border-b bg-muted px-4 text-ui-smaller text-muted-foreground">
           <Checkbox
             className="shrink-0"
             aria-label="Select all"
@@ -287,25 +296,47 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
             onClick={() => browser.navigate(parentPath(browser.path))}
           >
             <span className="size-4 shrink-0" />
-            <FolderIcon className="size-4 shrink-0 text-faint" />
+            <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
             <span className="flex-1">..</span>
           </button>
         ) : null}
         {browser.loading ? (
           <p className="px-3 py-3 text-xs text-muted-foreground">Loading files...</p>
         ) : null}
-        {!browser.loading && entries.length === 0 ? (
-          <p className="px-3 py-3 text-xs text-muted-foreground">
-            {browser.filter
-              ? "Nothing matches this filter."
-              : "This folder is empty. Drop files here to upload."}
-          </p>
+        {!browser.loading && !browser.error && entries.length === 0 ? (
+          <Empty className="min-h-64">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                {browser.filter ? <SearchIcon /> : <FolderIcon />}
+              </EmptyMedia>
+              <EmptyTitle>
+                {browser.filter ? "No matching files" : "This folder is empty"}
+              </EmptyTitle>
+              <EmptyDescription>
+                {browser.filter
+                  ? "Try a different name or clear the filter to see all files."
+                  : canWrite
+                    ? "Drop files here, upload them, or create a new file to get started."
+                    : "Files in this folder will appear here."}
+              </EmptyDescription>
+            </EmptyHeader>
+            {browser.filter ? (
+              <Button variant="outline" size="sm" onClick={() => browser.setFilter("")}>
+                Clear filter
+              </Button>
+            ) : canWrite ? (
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <UploadIcon data-icon="inline-start" />
+                Upload files
+              </Button>
+            ) : null}
+          </Empty>
         ) : null}
         {entries.map((entry) => (
           <div
             key={entry.path}
             data-active={selectedSet.has(entry.path)}
-            className="nav-item group flex cursor-default items-center gap-3 px-3 py-2"
+            className="nav-item group flex min-h-11 cursor-default items-center gap-3 border-b border-border/40 px-4 py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
             role="button"
             tabIndex={0}
             onClick={(event) => rowClick(event, entry)}
@@ -325,9 +356,9 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
               }}
             />
             {entry.type === "directory" ? (
-              <FolderIcon className="size-4 shrink-0 text-faint" />
+              <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
             ) : (
-              <FileIcon className="size-4 shrink-0 text-faint" />
+              <FileIcon className="size-4 shrink-0 text-muted-foreground" />
             )}
             <span
               className={cn("flex-1 truncate text-[13px]", entry.hidden && "text-muted-foreground")}
@@ -390,7 +421,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
       </div>
 
       {uploads.length > 0 ? (
-        <div className="max-h-40 shrink-0 space-y-1.5 overflow-auto border-t px-3 py-2">
+        <div className="flex max-h-40 shrink-0 flex-col gap-1.5 overflow-auto border-t px-3 py-2">
           {uploads.map((upload) => (
             <div key={upload.id} className="flex items-center gap-2 text-xs">
               <span className="w-40 truncate">{upload.name}</span>
@@ -450,7 +481,10 @@ function Breadcrumbs({ path, onNavigate }: { path: string; onNavigate: (path: st
   const segments = path.split("/").filter(Boolean);
 
   return (
-    <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-[13px]">
+    <nav
+      aria-label="File location"
+      className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-[13px]"
+    >
       <Button
         size="icon-xs"
         variant="ghost"

@@ -30,6 +30,7 @@ import { showError } from "@/lib/errors";
 import { confirmAction } from "@/lib/action-dialogs";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { useHarnessStore } from "@/store/harness-store";
+import { PageHeader } from "./form-primitives";
 import { ResourceError, ResourceLoading } from "./ResourceFeedback";
 
 export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
@@ -74,20 +75,18 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
   return (
     <div className="h-full min-w-0 overflow-y-auto px-4 py-6 sm:px-8">
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="mb-1 text-sm text-muted-foreground">{agent.name}</p>
-            <h1 className="text-2xl font-semibold">Knowledge</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Sources and saved memories shared with everyone who can use this agent.
-            </p>
-          </div>
-          {owner ? (
-            <Button variant="outline" asChild>
-              <Link to={`/agents/${agent.id}/settings/knowledge`}>Knowledge settings</Link>
-            </Button>
-          ) : null}
-        </div>
+        <PageHeader
+          title="Knowledge"
+
+          icon={BookOpenIcon}
+          actions={
+            owner ? (
+              <Button variant="outline" asChild>
+                <Link to={`/agents/${agent.id}/settings/knowledge`}>Knowledge settings</Link>
+              </Button>
+            ) : null
+          }
+        />
         {overview.error ? (
           <ResourceError error={overview.error} onRetry={overview.refresh} />
         ) : null}

@@ -1,28 +1,69 @@
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useId, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 
-export function SectionHeader({ title, description }: { title: string; description: string }) {
+export function PageHeader({
+  title,
+  icon: Icon,
+  actions,
+}: {
+  title: string;
+  icon: LucideIcon;
+  actions?: ReactNode;
+}) {
   return (
-    <div className="grid gap-1">
-      <h3 className="text-sm leading-none font-medium">{title}</h3>
-      <p className="text-sm text-muted-foreground">{description}</p>
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex min-w-fit flex-1 items-center gap-3">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border bg-muted/50 text-muted-foreground">
+          <Icon aria-hidden="true" className="size-5" />
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      </div>
+      {actions}
+    </div>
+  );
+}
+
+export function SectionHeader({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+      {description ? (
+        <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+      ) : null}
     </div>
   );
 }
 
 export function ToggleRow({
   label,
+  description,
   checked,
   onCheckedChange,
 }: {
   label: string;
+  description?: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
 }) {
+  const id = useId();
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-      <Label className="capitalize">{label}</Label>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    <div className="flex items-center justify-between gap-4 rounded-xl border bg-card px-4 py-3.5">
+      <div className="flex min-w-0 flex-col gap-1">
+        <Label htmlFor={id}>{label}</Label>
+        {description ? (
+          <p id={`${id}-description`} className="text-xs leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
+      </div>
+      <Switch
+        id={id}
+        aria-describedby={description ? `${id}-description` : undefined}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+      />
     </div>
   );
 }

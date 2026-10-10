@@ -196,6 +196,57 @@ test("tool disclosures preserve their output and fit desktop and mobile conversa
   browser("set", "viewport", "1280", "900");
 });
 
+test("mobile settings keep the selected section visible and permission labels toggle their switches", () => {
+  browser("set", "viewport", "320", "740");
+  browser("open", `${fixture.url}/settings/appearance`);
+  browser("wait", "#appearance-theme");
+  assert.equal(
+    evaluate(`(() => {
+    const rect = document.querySelector('nav a[aria-current="page"]').getBoundingClientRect();
+    return rect.left >= 0 && rect.right <= innerWidth;
+  })()`),
+    true,
+  );
+  click("link", "Account");
+  browser("wait", "#account-email");
+  assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+
+  browser("open", `${fixture.url}${agentPath("settings/permissions")}`);
+  browser("wait", '[role="switch"]');
+  assert.match(snapshot(), /switch "Write files".*checked/);
+  browser("find", "text", "Write files", "click", "--exact");
+  assert.equal(
+    evaluate(`(() => {
+    const label = [...document.querySelectorAll('label')].find(el => el.textContent === 'Write files');
+    return document.getElementById(label.htmlFor).getAttribute('aria-checked');
+  })()`),
+    "false",
+  );
+  browser("find", "text", "Write files", "click", "--exact");
+  assert.match(snapshot(), /switch "Write files".*checked/);
+  click("link", "Archived");
+  browser("wait", "--url", "**/settings/archived");
+  assert.equal(
+    evaluate(`(() => {
+    const rect = document.querySelector('nav a[aria-current="page"]').getBoundingClientRect();
+    return rect.left >= 0 && rect.right <= innerWidth;
+  })()`),
+    true,
+  );
+  assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+  click("button", "Back to agent");
+  open(agentPath("issues"));
+  browser("wait", '[role="tab"]');
+  assert.equal(
+    evaluate(`Array.from(document.querySelectorAll('[role="tab"]')).every(el => {
+    const rect = el.getBoundingClientRect();
+    return rect.left >= 0 && rect.right <= innerWidth;
+  })`),
+    true,
+  );
+  browser("set", "viewport", "1280", "900");
+});
+
 test("earlier issue conversations open the correct persisted session", () => {
   open(agentPath(`issues/${fixture.reviewIssueId}`));
   browser("wait", "--text", "Run history & issue events");

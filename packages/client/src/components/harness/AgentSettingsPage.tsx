@@ -1,7 +1,6 @@
 import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import {
   ArchiveIcon,
-  ArrowLeftIcon,
   BookOpenIcon,
   CodeIcon,
   FileTextIcon,
@@ -11,7 +10,7 @@ import {
   SlidersHorizontalIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { NavLink, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { AgentArchivedSessionsSettings } from "@/components/harness/agent-settings/AgentArchivedSessionsSettings";
 import { AgentGeneralSettings } from "@/components/harness/agent-settings/AgentGeneralSettings";
 import { AgentKnowledgeSettings } from "@/components/harness/agent-settings/AgentKnowledgeSettings";
@@ -24,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { confirmAction } from "@/lib/action-dialogs";
 import { api } from "@/lib/api";
 import { errorMessage, showError } from "@/lib/errors";
-import { cn } from "@/lib/utils";
+import { SettingsLayout } from "./SettingsLayout";
 import { useHarnessStore } from "@/store/harness-store";
 import { resolveModelRef, type AgentConfig, type AgentThinkingLevel } from "@carmel-agent/shared";
 
@@ -168,130 +167,85 @@ export function AgentSettingsPage() {
   if (!agent) return null;
 
   return (
-    <main className="flex h-[100dvh] min-h-0 flex-col bg-background pr-[var(--safe-right)] pl-[var(--safe-left)] text-foreground">
-      <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center gap-3 border-b px-3 pt-[var(--safe-top)]">
-        <div className="flex min-w-0 items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            title="Back to agent"
-            onClick={() => navigate(`/agents/${agent.id}`)}
-          >
-            <ArrowLeftIcon />
-          </Button>
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-medium">Agent Settings</h1>
-            <p className="text-ui-smaller truncate text-muted-foreground">{agent.name}</p>
-          </div>
-        </div>
-      </header>
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <aside className="shrink-0 border-b bg-sidebar p-2 md:w-56 md:border-r md:border-b-0">
-          <nav className="grid grid-cols-2 gap-1 md:grid-cols-1">
-            {sections.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.id}
-                  to={`/agents/${agent.id}/settings/${item.id}`}
-                  data-active={item.id === activeSection}
-                  className={({ isActive }) =>
-                    cn(
-                      "nav-item flex h-8 items-center gap-2 rounded-md px-2.5 text-[13px]",
-                      isActive && "font-medium",
-                    )
-                  }
-                >
-                  <Icon data-icon="inline-start" />
-                  <span className="truncate">{item.label}</span>
-                </NavLink>
-              );
-            })}
-          </nav>
-        </aside>
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div
-              data-settings-content
-              className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-4 p-3 pb-[calc(0.75rem+var(--safe-bottom))] sm:p-4 sm:pb-[calc(1rem+var(--safe-bottom))] md:p-6 md:pb-[calc(1.5rem+var(--safe-bottom))]"
-            >
-              {/* Archived sessions are the caller's own, not part of the owner-only draft. */}
-              {activeSection === "archived" ? (
-                <AgentArchivedSessionsSettings agentId={agent.id} />
-              ) : null}
-              {owned && !callerSection && loadError ? (
-                <p className="text-sm text-destructive">{loadError}</p>
-              ) : null}
-              {owned && !callerSection && !draft && !loadError ? (
-                <p className="text-sm text-muted-foreground">Loading agent settings...</p>
-              ) : null}
-              {draft ? (
-                <>
-                  {activeSection === "general" ? (
-                    <AgentGeneralSettings
-                      draft={draft}
-                      modelRefs={modelRefs}
-                      providerConfigs={providerConfigs}
-                      canConfigureHostPaths={canConfigureHostPaths}
-                      thinkingLevels={thinkingLevels}
-                      selectedThinkingLevel={selectedThinkingLevel}
-                      onChange={updateDraft}
-                      onSelectModel={selectModel}
-                      onDelete={() => void removeAgent()}
-                    />
-                  ) : null}
-                  {activeSection === "templates" ? (
-                    <AgentTemplatesSettings
-                      templates={draft.promptTemplates}
-                      onChange={(promptTemplates) => updateDraft({ promptTemplates })}
-                    />
-                  ) : null}
-                  {activeSection === "permissions" ? (
-                    <AgentPermissionsSettings
-                      permissions={draft.permissions}
-                      onChange={(permissions) => updateDraft({ permissions })}
-                    />
-                  ) : null}
-                  {activeSection === "secrets" ? (
-                    <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
-                  ) : null}
-                  {activeSection === "knowledge" ? (
-                    <AgentKnowledgeSettings key={agent.id} agentId={agent.id} />
-                  ) : null}
-                  {activeSection === "codemode" ? (
-                    <AgentCodemodeSettings
-                      enabled={draft.codemodeEnabled ?? false}
-                      onChange={(codemodeEnabled) => updateDraft({ codemodeEnabled })}
-                    />
-                  ) : null}
-                  {activeSection === "mcp" ? (
-                    <AgentMcpSettings
-                      agentId={agent.id}
-                      servers={draft.mcpServers ?? []}
-                      permissions={draft.permissions}
-                      onChange={(mcpServers) => updateDraft({ mcpServers })}
-                    />
-                  ) : null}
-                </>
-              ) : null}
-            </div>
-          </div>
-          {/* Knowledge, secrets, and archived sessions are their own resources and save
-              themselves, so the draft's save bar would only be a misleading no-op there. */}
-          {draft &&
-          !callerSection &&
-          activeSection !== "secrets" &&
-          activeSection !== "knowledge" ? (
-            <footer className="flex shrink-0 items-center justify-end gap-3 border-t px-3 py-2 pb-[calc(0.5rem+var(--safe-bottom))]">
-              {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
-              {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
-              <Button type="button" onClick={() => void saveAgent()} disabled={saving}>
-                {saving ? "Saving..." : "Save"}
-              </Button>
-            </footer>
+    <SettingsLayout
+      title="Agent Settings"
+      subtitle={agent.name}
+      backLabel="Back to agent"
+      onBack={() => navigate(`/agents/${agent.id}`)}
+      activeSection={activeSection}
+      sections={sections.map((item) => ({
+        ...item,
+        to: `/agents/${agent.id}/settings/${item.id}`,
+      }))}
+      footer={
+        draft && !callerSection && activeSection !== "secrets" && activeSection !== "knowledge" ? (
+          <footer className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t bg-muted/30 px-4 py-3 pb-[calc(0.75rem+var(--safe-bottom))] sm:px-8">
+            {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
+            {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
+            <Button type="button" onClick={() => void saveAgent()} disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </footer>
+        ) : null
+      }
+    >
+      {/* Archived sessions are the caller's own, not part of the owner-only draft. */}
+      {activeSection === "archived" ? <AgentArchivedSessionsSettings agentId={agent.id} /> : null}
+      {owned && !callerSection && loadError ? (
+        <p className="text-sm text-destructive">{loadError}</p>
+      ) : null}
+      {owned && !callerSection && !draft && !loadError ? (
+        <p className="text-sm text-muted-foreground">Loading agent settings...</p>
+      ) : null}
+      {draft ? (
+        <>
+          {activeSection === "general" ? (
+            <AgentGeneralSettings
+              draft={draft}
+              modelRefs={modelRefs}
+              providerConfigs={providerConfigs}
+              canConfigureHostPaths={canConfigureHostPaths}
+              thinkingLevels={thinkingLevels}
+              selectedThinkingLevel={selectedThinkingLevel}
+              onChange={updateDraft}
+              onSelectModel={selectModel}
+              onDelete={() => void removeAgent()}
+            />
           ) : null}
-        </section>
-      </div>
-    </main>
+          {activeSection === "templates" ? (
+            <AgentTemplatesSettings
+              templates={draft.promptTemplates}
+              onChange={(promptTemplates) => updateDraft({ promptTemplates })}
+            />
+          ) : null}
+          {activeSection === "permissions" ? (
+            <AgentPermissionsSettings
+              permissions={draft.permissions}
+              onChange={(permissions) => updateDraft({ permissions })}
+            />
+          ) : null}
+          {activeSection === "secrets" ? (
+            <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
+          ) : null}
+          {activeSection === "knowledge" ? (
+            <AgentKnowledgeSettings key={agent.id} agentId={agent.id} />
+          ) : null}
+          {activeSection === "codemode" ? (
+            <AgentCodemodeSettings
+              enabled={draft.codemodeEnabled ?? false}
+              onChange={(codemodeEnabled) => updateDraft({ codemodeEnabled })}
+            />
+          ) : null}
+          {activeSection === "mcp" ? (
+            <AgentMcpSettings
+              agentId={agent.id}
+              servers={draft.mcpServers ?? []}
+              permissions={draft.permissions}
+              onChange={(mcpServers) => updateDraft({ mcpServers })}
+            />
+          ) : null}
+        </>
+      ) : null}
+    </SettingsLayout>
   );
 }

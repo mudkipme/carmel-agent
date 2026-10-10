@@ -66,7 +66,10 @@ export function TaskForm({
     });
   };
   return (
-    <form onSubmit={submit} className="flex min-w-0 flex-col gap-5 rounded-lg border p-4 sm:p-6">
+    <form
+      onSubmit={submit}
+      className="flex min-w-0 flex-col gap-5 rounded-xl border bg-card p-4 sm:p-6"
+    >
       <h2 className="text-lg font-semibold">{editing ? "Edit task" : "New task"}</h2>
       <FieldGroup>
         <Field>

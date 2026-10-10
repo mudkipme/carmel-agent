@@ -43,7 +43,7 @@ export function AccountSettings() {
           title="Account"
           description={user ? `Signed in as ${user.username ?? user.name}.` : "Signed in."}
         />
-        <Button variant="outline" onClick={() => void logout()}>
+        <Button variant="outline" className="justify-self-start" onClick={() => void logout()}>
           <LogOutIcon data-icon="inline-start" />
           Sign out
         </Button>
@@ -99,6 +99,7 @@ export function AccountSettings() {
           ) : null}
           {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
           <Button
+            className="justify-self-start"
             onClick={() => void save()}
             disabled={saving || !currentPassword || !email.trim() || newPasswordTooShort}
           >

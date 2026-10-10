@@ -11,10 +11,7 @@ export function AgentCodemodeSettings({
 }) {
   return (
     <section className="flex min-w-0 flex-col gap-4">
-      <SectionHeader
-        title="Codemode"
-        description="Let the agent combine tool calls in JavaScript, process results, and return a summary. Save changes to apply them to the next run."
-      />
+      <SectionHeader title="Codemode" description="Combine tool calls in JavaScript." />
       <FieldGroup>
         <Field>
           <Field orientation="horizontal">

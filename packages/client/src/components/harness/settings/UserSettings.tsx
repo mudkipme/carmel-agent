@@ -40,7 +40,7 @@ export function UserSettings() {
   return (
     <div className="grid gap-6">
       <section className="grid gap-3">
-        <SectionHeader title="Users" description="Accounts that can sign in to this server." />
+        <SectionHeader title="Users" />
         {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
         <div className="grid gap-2 rounded-md border p-2">
           {users.map((user) => {
@@ -119,10 +119,7 @@ export function UserSettings() {
       </section>
 
       <section className="grid gap-3 border-t pt-6">
-        <SectionHeader
-          title="Create User"
-          description="Add a new account with a username, email, and password."
-        />
+        <SectionHeader title="Create User" />
         <Field>
           <FieldLabel>Username</FieldLabel>
           <Input

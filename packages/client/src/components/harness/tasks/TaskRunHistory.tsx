@@ -40,7 +40,7 @@ export function TaskRunHistory({
   }, [running, onRunFinished]);
 
   return (
-    <div className="flex min-w-0 flex-col gap-3 border-t pt-3">
+    <div className="flex min-w-0 flex-col gap-3 rounded-lg bg-muted/50 p-3">
       <h3 className="text-sm font-medium">Run history</h3>
       {error ? (
         <ResourceError error={error} title="Unable to load run history" onRetry={refresh} />
@@ -54,7 +54,7 @@ export function TaskRunHistory({
           {runs?.map((run) => (
             <li
               key={run.id}
-              className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-sm"
+              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 bg-background p-3 text-sm"
             >
               <div className="min-w-0 flex-1">
                 <p>

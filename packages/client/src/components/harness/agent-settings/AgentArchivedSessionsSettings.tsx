@@ -60,10 +60,7 @@ export function AgentArchivedSessionsSettings({ agentId }: { agentId: string }) 
 
   return (
     <section className="grid gap-4">
-      <SectionHeader
-        title="Archived sessions"
-        description="Archived sessions are hidden from the session list. Restore one to bring it back, or delete it for good."
-      />
+      <SectionHeader title="Archived sessions" />
 
       {sessions === undefined ? (
         error ? null : (

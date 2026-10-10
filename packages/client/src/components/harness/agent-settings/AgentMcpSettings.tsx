@@ -136,10 +136,7 @@ export function AgentMcpSettings({
 
   return (
     <section className="flex min-w-0 flex-col gap-4">
-      <SectionHeader
-        title="MCP servers"
-        description="Connect this agent to tools from Model Context Protocol servers. Save changes to apply them to the next run."
-      />
+      <SectionHeader title="MCP servers" />
       {servers.map((server) => (
         <FieldSet key={server.id} className="min-w-0 rounded-md border p-3">
           <FieldLegend>{server.id}</FieldLegend>

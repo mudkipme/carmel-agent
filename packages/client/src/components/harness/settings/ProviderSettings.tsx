@@ -46,10 +46,7 @@ export function ProviderSettings({
   return (
     <div className="grid gap-6">
       <section className="grid gap-4">
-        <SectionHeader
-          title="Provider Configs"
-          description="Each config can have its own provider type, API key, and base URL."
-        />
+        <SectionHeader title="Provider Configs" />
         <div className="grid gap-2">
           {providerConfigs.map((item) => {
             const relatedModels = modelRefs.filter((model) => model.providerConfigId === item.id);

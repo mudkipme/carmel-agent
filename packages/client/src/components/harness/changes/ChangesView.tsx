@@ -12,6 +12,13 @@ import type {
 import { DiffViewer, type DiffLayout } from "@/components/harness/changes/DiffViewer";
 import { inferLanguage, isDarkTheme } from "@/components/harness/files/editor-extensions";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyMedia,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
 import { agentChangesPath, agentFilesPath } from "@/lib/file-links";
@@ -152,12 +159,38 @@ export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
             onBack={() => navigate(agentChangesPath(agent.id))}
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-sm text-muted-foreground">
-            {changePath && status
-              ? "This file no longer has changes here."
-              : changes.length > 0
-                ? "Select a changed file to see its diff."
-                : null}
+          <Empty className="h-full">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <GitBranchIcon />
+              </EmptyMedia>
+              <EmptyTitle>
+                {loading
+                  ? "Loading changes"
+                  : statusError
+                    ? "Changes unavailable"
+                    : changePath
+                      ? "No diff to show"
+                      : changes.length > 0
+                        ? "Select a file"
+                        : status?.repository
+                          ? "Working tree is clean"
+                          : "No Git repository"}
+              </EmptyTitle>
+              <EmptyDescription>
+                {loading
+                  ? "Reading the working directory."
+                  : statusError
+                    ? "Refresh to try reading the repository again."
+                    : changePath
+                      ? "This file no longer has changes here."
+                      : changes.length > 0
+                        ? "Choose a changed file to review its diff."
+                        : status?.repository
+                          ? "Uncommitted changes will appear here as you work."
+                          : "Changes appear when this agent works in a Git repository."}
+              </EmptyDescription>
+            </EmptyHeader>
             {changePath ? (
               <Button
                 size="sm"
@@ -169,7 +202,7 @@ export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
                 All changes
               </Button>
             ) : null}
-          </div>
+          </Empty>
         )}
       </div>
     </div>

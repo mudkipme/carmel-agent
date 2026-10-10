@@ -1,9 +1,26 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { HistoryIcon, PencilIcon, PlayIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  CalendarClockIcon,
+  ClockIcon,
+  HistoryIcon,
+  PauseIcon,
+  PencilIcon,
+  PlayIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
 import type { AgentConfig, AgentTaskCreateCommand } from "@carmel-agent/shared";
+import { PageHeader } from "./form-primitives";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { confirmAction } from "@/lib/action-dialogs";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
@@ -55,22 +72,20 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
   return (
     <div className="h-full min-w-0 overflow-y-auto px-4 py-6 sm:px-8">
       <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="mb-1 text-sm text-muted-foreground">{agent.name}</p>
-            <h1 className="text-2xl font-semibold">Tasks</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Schedule work for this agent. Each run has its own conversation and result.
-            </p>
-          </div>
-          <Button
-            disabled={busy || Boolean(editor)}
-            onClick={() => setEditor({ initial: emptyTaskDraft() })}
-          >
-            <PlusIcon data-icon="inline-start" />
-            New task
-          </Button>
-        </div>
+        <PageHeader
+          title="Tasks"
+
+          icon={CalendarClockIcon}
+          actions={
+            <Button
+              disabled={busy || Boolean(editor)}
+              onClick={() => setEditor({ initial: emptyTaskDraft() })}
+            >
+              <PlusIcon data-icon="inline-start" />
+              New task
+            </Button>
+          }
+        />
         {tasks.error ? (
           <ResourceError error={tasks.error} title="Unable to load tasks" onRetry={tasks.refresh} />
         ) : null}
@@ -97,8 +112,11 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
         {tasks.loading ? (
           <ResourceLoading label="Loading tasks" />
         ) : tasks.data?.length === 0 && !tasks.error ? (
-          <Empty>
+          <Empty className="min-h-64 border">
             <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <CalendarClockIcon />
+              </EmptyMedia>
               <EmptyTitle>No scheduled tasks</EmptyTitle>
               <EmptyDescription>
                 Create a task to run this agent on a schedule, even while the app is closed.
@@ -108,21 +126,38 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
         ) : (
           <ul className="flex min-w-0 flex-col gap-3">
             {tasks.data?.map((task) => (
-              <li key={task.id} className="flex min-w-0 flex-col gap-3 rounded-lg border p-4">
-                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <li
+                key={task.id}
+                className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4 sm:p-5"
+              >
+                <div className="flex min-w-0 flex-col gap-4">
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-sm font-medium break-words">{task.name}</h2>
+                    <div className="mb-3">
+                      <Badge variant={task.status === "disabled" ? "destructive" : "secondary"}>
+                        {task.status === "paused" ? <PauseIcon /> : <ClockIcon />}
+                        {task.status === "active"
+                          ? "Scheduled"
+                          : task.status === "paused"
+                            ? "Paused"
+                            : task.status === "completed"
+                              ? "Completed"
+                              : "Disabled"}
+                      </Badge>
+                    </div>
+                    <h2 className="text-base font-medium break-words">{task.name}</h2>
                     <p className="mt-1 text-sm break-words text-muted-foreground">
                       {describeTaskSchedule(task)}
                     </p>
-                    <p className="mt-1 text-xs break-words text-muted-foreground">
-                      {describeTaskState(task)}
-                    </p>
+                    {task.status === "active" || task.status === "disabled" ? (
+                      <p className="mt-1 text-xs break-words text-muted-foreground">
+                        {describeTaskState(task)}
+                      </p>
+                    ) : null}
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-1">
+                  <div className="flex shrink-0 flex-wrap items-center gap-1 border-t border-border/60 pt-3">
                     <Button
-                      variant="ghost"
-                      size="icon-sm"
+                      variant="outline"
+                      size="sm"
                       aria-label={`Run ${task.name} now`}
                       disabled={busy}
                       onClick={() =>
@@ -135,18 +170,20 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
                         }, "Unable to run task")
                       }
                     >
-                      <PlayIcon />
+                      <PlayIcon data-icon="inline-start" />
+                      Run now
                     </Button>
                     <Button
                       variant={historyTaskId === task.id ? "secondary" : "ghost"}
-                      size="icon-sm"
+                      size="sm"
                       aria-label={`Run history for ${task.name}`}
                       aria-expanded={historyTaskId === task.id}
                       onClick={() =>
                         setHistoryTaskId(historyTaskId === task.id ? undefined : task.id)
                       }
                     >
-                      <HistoryIcon />
+                      <HistoryIcon data-icon="inline-start" />
+                      History
                     </Button>
                     <Button
                       variant="ghost"
@@ -177,6 +214,7 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
                     <Button
                       variant="ghost"
                       size="icon-sm"
+                      className="ml-auto"
                       aria-label={`Delete ${task.name}`}
                       disabled={busy}
                       onClick={async () => {

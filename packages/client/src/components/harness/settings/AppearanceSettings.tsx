@@ -24,14 +24,11 @@ export function AppearanceSettings({
 }) {
   return (
     <div className="grid gap-4">
-      <SectionHeader
-        title="Appearance"
-        description="Choose how Carmel Agent follows your display theme."
-      />
+      <SectionHeader title="Appearance" />
       <Field>
-        <FieldLabel>Theme</FieldLabel>
+        <FieldLabel htmlFor="appearance-theme">Theme</FieldLabel>
         <Select value={value} onValueChange={(nextValue) => onChange(nextValue as ThemePreference)}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger id="appearance-theme" className="w-full sm:max-w-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -43,8 +40,12 @@ export function AppearanceSettings({
           </SelectContent>
         </Select>
       </Field>
-      {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
-      <Button type="button" onClick={onSave}>
+      {saveMessage ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {saveMessage}
+        </p>
+      ) : null}
+      <Button type="button" className="justify-self-start" onClick={onSave}>
         Save appearance
       </Button>
     </div>
