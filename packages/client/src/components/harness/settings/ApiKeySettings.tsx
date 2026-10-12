@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
 
 /**
- * Keys for the OpenAI-compatible `/v1` endpoint. A key is shown once, right
+ * Keys for the OpenAI-compatible `/api/v1` endpoint. A key is shown once, right
  * after it is created: the server keeps only a hash, so a lost key is revoked
  * and replaced, never recovered.
  */
@@ -20,7 +20,7 @@ export function ApiKeySettings() {
   const [busy, setBusy] = useState(false);
   const [draftName, setDraftName] = useState<string>();
   const [created, setCreated] = useState<ApiKeyCreated>();
-  const baseUrl = `${window.location.origin}/v1`;
+  const baseUrl = `${window.location.origin}/api/v1`;
 
   const reload = useCallback(async () => {
     try {

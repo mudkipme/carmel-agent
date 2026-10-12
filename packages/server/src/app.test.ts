@@ -33,3 +33,28 @@ test("same-origin and configured-origin mutating requests are allowed through", 
   });
   assert.equal(res.status, 401);
 });
+
+test("OpenAI preflights allow browser SDK headers without cookie authentication", async () => {
+  const app = createApp();
+  const headers = ["authorization", "content-type", "x-session-id", "x-stainless-lang"];
+  for (const baseUrl of ["/api/v1", "/v1"]) {
+    for (const [path, method] of [
+      ["/models", "GET"],
+      ["/chat/completions", "POST"],
+    ] as const) {
+      const res = await app.request(`${baseUrl}${path}`, {
+        method: "OPTIONS",
+        headers: {
+          origin: "https://client.test",
+          "access-control-request-method": method,
+          "access-control-request-headers": headers.join(", "),
+        },
+      });
+      assert.equal(res.status, 204);
+      assert.equal(res.headers.get("access-control-allow-origin"), "*");
+      assert.equal(res.headers.get("access-control-allow-credentials"), null);
+      assert.ok(res.headers.get("access-control-allow-methods")?.split(",").includes(method));
+      assert.deepEqual(res.headers.get("access-control-allow-headers")?.split(","), headers);
+    }
+  }
+});

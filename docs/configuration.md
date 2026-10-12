@@ -28,7 +28,7 @@ The `data/` directory stays sensitive even with encryption enabled: it contains 
 - `CARMEL_ALLOWED_ORIGINS` — comma-separated extra browser origins allowed to make mutating API requests with cookies.
 - `CARMEL_TRUSTED_PROXY` — comma-separated IPs of trusted reverse proxies. `X-Forwarded-For` is honored for the login rate limiter only when the connection comes from one of these addresses.
 
-The server applies secure headers, CORS for `/api/*`, cross-origin mutation checks, and cookie-based authentication (for password and single sign-on logins alike). Repeated failed logins for the same username and source are rate limited.
+The server applies secure headers, CORS for `/api/*`, cross-origin mutation checks, and cookie-based authentication (for password and single sign-on logins alike). The OpenAI-compatible API uses bearer keys and allows any browser origin, as described below. Repeated failed logins for the same username and source are rate limited.
 
 ## Single Sign-On (OpenID Connect)
 
@@ -118,16 +118,18 @@ Each user can also pick a **fast task model** in **Settings → Models**. It is 
 Every user can create API keys under **Settings → API Keys** and use them with any OpenAI-compatible client:
 
 ```text
-Base URL: https://<your-carmel-host>/v1
+Base URL: https://<your-carmel-host>/api/v1
 Authorization: Bearer carmel-...
 ```
 
-- `GET /v1/models` lists the models the key's user can pick in the app (their own, shared, and unbound ones). Model IDs are `provider/modelId`, e.g. `anthropic/claude-sonnet-5`; if two visible entries share that name, both are listed by their model entry ID instead.
-- `POST /v1/chat/completions` supports streaming (`stream`, `stream_options.include_usage`), `tools`, `tool_choice` (`auto`/`none`; `required` and named functions fall back to `auto`), `temperature`, `top_p`, `max_tokens`/`max_completion_tokens`, and `reasoning_effort`. Reasoning text is returned as `reasoning_content`.
+- `GET /api/v1/models` lists the models the key's user can pick in the app (their own, shared, and unbound ones). Model IDs are `provider/modelId`, e.g. `anthropic/claude-sonnet-5`; if two visible entries share that name, both are listed by their model entry ID instead.
+- `POST /api/v1/chat/completions` supports streaming (`stream`, `stream_options.include_usage`), `tools`, `tool_choice` (`auto`/`none`; `required` and named functions fall back to `auto`), `temperature`, `top_p`, `max_tokens`/`max_completion_tokens`, and `reasoning_effort`. Reasoning text is returned as `reasoning_content`.
 - **Tools are passed through.** Carmel does not run tool calls on this endpoint: they come back as `tool_calls`, and your client sends the results as `tool` messages on its next request, the same as with OpenAI.
 - Requests go out through Pi with the model's server-side credentials, so the provider sees Pi's `User-Agent` and attribution headers. None of the caller's headers are forwarded, and the Carmel key never reaches the provider.
 - Images must be base64 `data:` URLs; the server does not fetch remote image URLs. `n > 1` and structured `response_format` are rejected.
 - Pi's session ID (used by some providers for prompt-cache routing) is derived from the conversation's system prompt and first user message. A client can send `x-session-id` to set it explicitly.
+
+Browser clients may call these endpoints from any origin using a bearer key. CORS preflights allow client SDK headers, including `Authorization`, `Content-Type`, and `x-session-id`; cookies do not authenticate these requests. `/v1` remains available as an alias on the server, while `/api/v1` also works through the development client's `/api` proxy.
 
 Keys are stored hashed and shown only once when created. Revoking a key, or deleting its user, takes effect immediately.
 

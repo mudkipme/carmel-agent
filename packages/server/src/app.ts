@@ -49,6 +49,13 @@ export function createApp() {
       },
     }),
   );
+
+  // Mount before the cookie-authenticated API middleware: these endpoints use
+  // bearer keys and allow browser clients from any origin.
+  const openai = createOpenAIRoutes();
+  app.route("/api/v1", openai);
+  app.route("/v1", openai);
+
   app.use(
     "/api/*",
     cors({
@@ -61,14 +68,6 @@ export function createApp() {
   app.use("/api/*", rejectCrossOriginMutations);
   app.use("/api/*", requireAuth);
   app.route("/api", createApiRoutes());
-
-  // Bearer-key auth, not cookies, so any origin may call it: a browser holding
-  // the key already has everything the key grants.
-  app.use(
-    "/v1/*",
-    cors({ origin: "*", allowHeaders: ["authorization", "content-type", "x-session-id"] }),
-  );
-  app.route("/v1", createOpenAIRoutes());
 
   mountClient(app);
   return app;

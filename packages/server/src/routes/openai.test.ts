@@ -2,22 +2,18 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
-import { Hono } from "hono";
 import type { ApiKey, ApiKeyCreated } from "@carmel-agent/shared";
-import { requireAuth, type AuthVariables } from "../auth.ts";
+import { hashPassword } from "../auth.ts";
+import { createApp } from "../app.ts";
 import { db, initialize } from "../db/index.ts";
 import { modelRefs, users } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createApiKey } from "../services/api-keys.ts";
 import { createUser } from "../test-support.ts";
-import { createApiKeyRoutes } from "./api-keys.ts";
-import { createAuthRoutes } from "./auth.ts";
-import { createOpenAIRoutes } from "./openai.ts";
-import { hashPassword } from "../auth.ts";
 import { eq } from "drizzle-orm";
 
 /**
- * The `/v1` endpoint end to end: key auth, model visibility, and a real pi-ai
+ * The `/api/v1` endpoint end to end: key auth, model visibility, and a real pi-ai
  * request to a provider on localhost that records what it was sent. The
  * provider's view is the point -- it must see pi, with the caller's tools, and
  * none of the caller's own headers.
@@ -30,11 +26,7 @@ type ProviderMode = "text" | "tool" | "reject";
 const provider = await startFakeProvider();
 after(() => provider.close());
 
-const app = new Hono<{ Variables: AuthVariables }>();
-app.use("/api/*", requireAuth);
-app.route("/api/auth", createAuthRoutes());
-app.route("/api", createApiKeyRoutes());
-app.route("/v1", createOpenAIRoutes());
+const app = createApp();
 
 const json = { "content-type": "application/json" };
 const weatherTool = {
@@ -47,13 +39,17 @@ const weatherTool = {
 };
 
 test("requests without a valid key are refused in OpenAI's error shape", async () => {
-  for (const authorization of [undefined, "Bearer nope", "Bearer carmel-not-a-real-key"]) {
-    const response = await app.request("/v1/models", {
-      headers: authorization ? { authorization } : {},
-    });
-    assert.equal(response.status, 401);
-    const body = (await response.json()) as { error: { code: string } };
-    assert.equal(body.error.code, "invalid_api_key");
+  for (const baseUrl of ["/api/v1", "/v1"]) {
+    for (const authorization of [undefined, "Bearer nope", "Bearer carmel-not-a-real-key"]) {
+      const response = await app.request(`${baseUrl}/models`, {
+        headers: { origin: "https://client.test", ...(authorization ? { authorization } : {}) },
+      });
+      assert.equal(response.status, 401);
+      assert.equal(response.headers.get("access-control-allow-origin"), "*");
+      assert.equal(response.headers.get("access-control-allow-credentials"), null);
+      const body = (await response.json()) as { error: { code: string } };
+      assert.equal(body.error.code, "invalid_api_key");
+    }
   }
 });
 
@@ -84,10 +80,20 @@ test("keys are created once, listed without the secret, and revoked by their own
     [],
   );
 
-  const models = await app.request("/v1/models", {
-    headers: { authorization: `Bearer ${key.key}` },
+  const cookieOnly = await app.request("/api/v1/models", {
+    headers: { cookie: owner.cookie },
   });
-  assert.equal(models.status, 200);
+  assert.equal(cookieOnly.status, 401);
+  assert.equal((await cookieOnly.json()).error.code, "invalid_api_key");
+
+  for (const baseUrl of ["/api/v1", "/v1"]) {
+    const models = await app.request(`${baseUrl}/models`, {
+      headers: { authorization: `Bearer ${key.key}`, origin: "https://client.test" },
+    });
+    assert.equal(models.status, 200);
+    assert.equal(models.headers.get("access-control-allow-origin"), "*");
+    assert.equal(models.headers.get("access-control-allow-credentials"), null);
+  }
 
   const foreignDelete = await app.request(`/api/api-keys/${key.id}`, {
     method: "DELETE",
@@ -99,7 +105,7 @@ test("keys are created once, listed without the secret, and revoked by their own
     headers: { cookie: owner.cookie },
   });
   assert.equal(deleted.status, 200);
-  const revoked = await app.request("/v1/models", {
+  const revoked = await app.request("/api/v1/models", {
     headers: { authorization: `Bearer ${key.key}` },
   });
   assert.equal(revoked.status, 401);
@@ -114,7 +120,7 @@ test("a key sees its user's own and shared models, not another user's private on
   const bobKey = createApiKey(bob, "test").key;
 
   const listed = (await (
-    await app.request("/v1/models", { headers: { authorization: `Bearer ${bobKey}` } })
+    await app.request("/api/v1/models", { headers: { authorization: `Bearer ${bobKey}` } })
   ).json()) as {
     data: Array<{ id: string }>;
   };
@@ -263,12 +269,15 @@ test("unsupported request shapes are rejected up front", async () => {
   assert.equal(multiple.status, 400);
 });
 
-function chat(key: string, body: object, headers: Record<string, string> = {}) {
-  return app.request("/v1/chat/completions", {
+async function chat(key: string, body: object, headers: Record<string, string> = {}) {
+  const response = await app.request("/api/v1/chat/completions", {
     method: "POST",
-    headers: { ...json, ...headers, authorization: `Bearer ${key}` },
+    headers: { ...json, origin: "https://client.test", ...headers, authorization: `Bearer ${key}` },
     body: JSON.stringify(body),
   });
+  assert.equal(response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(response.headers.get("access-control-allow-credentials"), null);
+  return response;
 }
 
 function setupUserWithModel() {

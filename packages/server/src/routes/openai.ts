@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { AssistantMessageEvent, Context as PiContext } from "@earendil-works/pi-ai";
 import { Hono, type Context } from "hono";
+import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import type { AuthVariables } from "../auth.ts";
 import { errorMessage } from "../errors.ts";
@@ -21,8 +22,8 @@ import {
 type OpenAIContext = Context<{ Variables: AuthVariables }>;
 
 /**
- * OpenAI-compatible API, mounted at `/v1` and authenticated by per-user API
- * key rather than by session cookie.
+ * OpenAI-compatible API, mounted at `/api/v1` (with `/v1` as an alias) and
+ * authenticated by per-user API key rather than by session cookie.
  *
  * A user reaches exactly the models they could pick in the app -- their own,
  * shared ones, and unbound ones -- with the same provider credentials. Requests
@@ -32,6 +33,11 @@ type OpenAIContext = Context<{ Variables: AuthVariables }>;
  */
 export function createOpenAIRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
+
+  // Bearer-key auth grants no ambient cookie access, so any origin holding a
+  // key may call these routes. Let preflights echo requested headers, including
+  // SDK metadata and x-session-id, before checking authentication.
+  route.use("*", cors({ origin: "*", allowMethods: ["GET", "POST", "OPTIONS"] }));
 
   route.use("*", async (c, next) => {
     const header = c.req.header("authorization");

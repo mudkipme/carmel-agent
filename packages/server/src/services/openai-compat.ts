@@ -21,7 +21,7 @@ import { z } from "zod";
 /**
  * Translation between the OpenAI Chat Completions wire format and pi-ai.
  *
- * The `/v1` endpoint is a pass-through: tools are the caller's, so Carmel never
+ * The `/api/v1` endpoint is a pass-through: tools are the caller's, so Carmel never
  * executes a tool call here -- it reports it back as `tool_calls` and the caller
  * answers with a `tool` message on its next request, exactly as it would with
  * OpenAI. Everything provider-facing (auth, User-Agent, attribution headers,

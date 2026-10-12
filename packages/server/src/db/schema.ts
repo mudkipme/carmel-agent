@@ -65,7 +65,7 @@ export const userIdentities = sqliteTable(
 );
 
 /**
- * A per-user bearer token for the OpenAI-compatible `/v1` endpoint.
+ * A per-user bearer token for the OpenAI-compatible `/api/v1` endpoint.
  *
  * Only a SHA-256 of the key is stored: the plaintext is shown once, when the
  * key is created. Keys are random 32-byte values, so a fast unsalted hash is
