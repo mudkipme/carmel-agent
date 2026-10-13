@@ -127,7 +127,7 @@ export function mergeProviderAttributionHeaders(
  * `transformHeaders` is the same seam the CLI uses, and it runs after `pi-ai`
  * has assembled model, auth and request headers -- so this cannot shadow a
  * credential the way a plain `streamOptions.headers` merge could. Wrapping the
- * runtime rather than the one `AgentHarness.create` call also covers the
+ * runtime rather than the one `PiRun.open` call also covers the
  * requests that do not come from a turn, compaction summaries above all.
  */
 export function withProviderAttribution(runtime: ModelRuntime): ModelRuntime {

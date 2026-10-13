@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { timezoneSchema, type AgentThinkingLevel } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { users } from "../db/schema.ts";
-import type { AgentHarnessTool, ExecutionToolContext } from "../effectors/pi-durable/index.ts";
+import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
 import { createAgentTask } from "../services/agent-tasks.ts";
 
 const scheduleTaskSchema = z
@@ -40,19 +40,16 @@ type SchedulingContext = {
 };
 
 /** Identity and model settings come from the run, never from model arguments. */
-export function createScheduleTaskTool(
-  context: SchedulingContext,
-): AgentHarnessTool<ExecutionToolContext> {
+export function createScheduleTaskTool(context: SchedulingContext): ToolRegistration {
   return {
     name: "schedule_task",
-    label: "Schedule task",
     description:
       "Create an active reminder or scheduled task when the user asks to be reminded or to run something later/repeatedly. Use once for a single reminder, cron for calendar recurrence, interval for elapsed-time recurrence. Ask about missing or ambiguous timing before calling. Runs use this agent and the current model, with results in the agent's Tasks history; no automatic push/email notification. Only confirm scheduling after this tool succeeds.",
     parameters: z.toJSONSchema(scheduleTaskSchema) as never,
     executionMode: "sequential",
     // A crash after the database write must not replay the creation.
     replay: "unsafe",
-    async execute(_id, args, _update, _tools, _invocation, executionContext) {
+    async execute(args, _api, executionContext) {
       executionContext.abortSignal?.throwIfAborted();
       const input = scheduleTaskSchema.parse(args);
       const timezone = input.timezone ?? context.timezone;
@@ -77,7 +74,7 @@ export function createScheduleTaskTool(
         delivery:
           "The result will appear in this agent's Tasks run history. No push or email notification is sent automatically.",
       };
-      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+      return { output: [{ type: "text", text: JSON.stringify(result) }], details: result };
     },
   };
 }

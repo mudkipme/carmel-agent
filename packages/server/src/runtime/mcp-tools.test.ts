@@ -1,3 +1,4 @@
+import { executeNativeTool } from "../effectors/testing/tools.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { eq } from "drizzle-orm";
@@ -237,16 +238,19 @@ test("MCP progress, structured content, and tool failure flags survive the adapt
   try {
     await mcp.connect({ secrets: [{ name: "TOKEN", value: secret }] });
     const updates: unknown[] = [];
-    const result = await mcp.tools[0]!.execute(
-      "call",
+    const result = await executeNativeTool(
+      mcp.tools[0]!,
       { text: "hello" },
-      (update) => updates.push(update),
-      {} as never,
-      {} as never,
-      {} as never,
+      undefined,
+      BACKGROUND_CONTEXT,
+      (event) => {
+        if (event.type === "tool_execution_update") updates.push(event);
+      },
     );
     assert.equal(result.isError, true);
-    assert.deepEqual(result.structuredContent, { token: "[redacted:TOKEN]" });
+    assert.deepEqual((result.details as { structuredContent: unknown }).structuredContent, {
+      token: "[redacted:TOKEN]",
+    });
     assert.equal(updates.length, 1);
     assert.equal(JSON.stringify([result, updates]).includes(secret), false);
   } finally {
@@ -277,14 +281,9 @@ test("MCP cancellation reaches Pi and server request notifications", async () =>
   try {
     await mcp.connect({ secrets: [] });
     const controller = new AbortController();
-    const pending = mcp.tools[0]!.execute(
-      "call",
-      {},
-      () => {},
-      {} as never,
-      {} as never,
-      { abortSignal: controller.signal } as never,
-    );
+    const pending = executeNativeTool(mcp.tools[0]!, { text: "wait" }, undefined, {
+      abortSignal: controller.signal,
+    } as never);
     const rejected = assert.rejects(pending, /abort/i);
     await ready;
     controller.abort();
@@ -387,20 +386,39 @@ test("an allowlist exposes only selected tools and preserves structured and imag
       [mcpToolName("remote", "selected")],
     );
     assert.equal(mcp.discoveredTools.length, 2);
-    assert.deepEqual(mcp.tools[0]?.outputSchema, {
+    assert.deepEqual(mcp.tools[0]?.structuredOutputSchema, {
       type: "object",
       properties: { value: { type: "number" } },
     });
-    const result = await mcp.tools[0]!.execute(
-      "call",
-      {},
-      () => {},
-      {} as never,
-      {} as never,
-      {} as never,
-    );
-    assert.deepEqual(result.content, [{ type: "image", data: "aGVsbG8=", mimeType: "image/png" }]);
-    assert.deepEqual(result.structuredContent, { value: 42 });
+    const result = await executeNativeTool(mcp.tools[0]!, {}, undefined, BACKGROUND_CONTEXT);
+    assert.deepEqual(result.output, [{ type: "image", data: "aGVsbG8=", mimeType: "image/png" }]);
+    assert.deepEqual(result.structuredOutput, { value: 42 });
+  } finally {
+    await mcp.close();
+    await remote.close();
+  }
+});
+
+test("MCP structured results preserve arrays, primitives, and null", async () => {
+  const values = [["value", 42], "value", 42, true, null];
+  let structuredContent: unknown;
+  const remote = await startMcpTestServer({
+    onCall: () => ({ content: [{ type: "text", text: "result" }], structuredContent }),
+  });
+  const mcp = new AgentMcpTools(agent([http(remote.url)]), "/tmp/test");
+  try {
+    await mcp.connect({ secrets: [] });
+    for (const value of values) {
+      structuredContent = value;
+      const result = await executeNativeTool(
+        mcp.tools[0]!,
+        { text: "result" },
+        undefined,
+        BACKGROUND_CONTEXT,
+      );
+      assert.deepEqual((result.details as { structuredContent: unknown }).structuredContent, value);
+      assert.equal(result.isError ?? false, false);
+    }
   } finally {
     await mcp.close();
     await remote.close();

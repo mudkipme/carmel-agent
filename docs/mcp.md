@@ -1,6 +1,6 @@
 # MCP tools
 
-Carmel uses `@earendil-works/pi-mcp` to connect MCP servers directly to its `AgentHarness` runtime. Pi handles protocol negotiation, tool discovery, requests, progress, cancellation, and content conversion. Carmel supplies per-agent configuration and the sandbox transport.
+Carmel uses `@earendil-works/pi-mcp` to connect MCP servers directly to native Pi Durable tool tasks. Pi handles protocol negotiation, tool discovery, requests, progress, cancellation, and content conversion. Carmel supplies per-agent configuration and the sandbox transport.
 
 ## Configure a server
 

@@ -54,7 +54,7 @@ test("replacing a transcript moves the native leaf but retains the abandoned bra
   const session = await openPiSession(sessionId);
   try {
     // Counts every message entry in the session, abandoned branches included.
-    assert.equal((await session.findEntries({ type: "message" }, TEST_CONTEXT)).length, 4);
+    assert.equal((await allMessages(session)).length, 4);
   } finally {
     await closePiSession(session);
   }
@@ -76,7 +76,7 @@ test("Pi native SQLite storage persists entries and lane configuration", async (
       ["a", "b"],
     );
     assert.equal((await pi.session.conversation.agent(pi.context)).thinkingLevel, "high");
-    assert.equal(pi.session.metadata.id, sessionId);
+    assert.equal(pi.session.id, sessionId);
   } finally {
     await pi.close();
   }
@@ -205,7 +205,7 @@ test("entry-ID leaf navigation retains the abandoned branch", async () => {
   const pi = await attachTestHarness(await openPiSession(sessionId), fauxHarnessModels());
   try {
     await pi.log.appendMessage(userMessage("d"));
-    assert.equal((await pi.session.findEntries({ type: "message" }, TEST_CONTEXT)).length, 4);
+    assert.equal((await allMessages(pi.session)).length, 4);
   } finally {
     await pi.close();
   }
@@ -296,8 +296,20 @@ test("Pi storage provisions an empty session on first open", async () => {
   // Opening provisions it on first use rather than failing.
   const session = await openPiSession(sessionId);
   try {
-    assert.equal(session.metadata.id, sessionId);
+    assert.equal(session.id, sessionId);
   } finally {
     await closePiSession(session);
   }
 });
+
+async function allMessages(session: import("../services/pi-session-storage.ts").PiSession) {
+  const { scanEntries } = await import("../services/pi-session-storage.ts");
+  return session.native.commit(async (tx) => {
+    const conversations = await tx.scanConversations({}, 100, undefined);
+    const entries = new Map();
+    for (const conversation of conversations.items)
+      for (const entry of await scanEntries(tx, conversation.id))
+        if (entry.model?.[0]) entries.set(entry.id, entry);
+    return [...entries.values()];
+  }, TEST_CONTEXT);
+}

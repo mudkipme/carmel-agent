@@ -1,5 +1,5 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { Context, JsonValue } from "@earendil-works/chord";
+import type { JsonValue } from "@earendil-works/chord";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { createModels, type Models, type Message } from "@earendil-works/pi-ai";
 import {
@@ -32,7 +32,6 @@ import { dataDir } from "../paths.ts";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
 
 const ctx = BACKGROUND_CONTEXT;
-export const PI_MAIN_BRANCH = "main";
 export const PENDING_ENTRY_ID_PREFIX = "pending:";
 export const ActiveConversation = defineDoc({
   kind: "carmel.active",
@@ -54,7 +53,7 @@ export type DisplayEntry = {
   timestamp: number;
 } & ({ type: "message"; message: AgentMessage } | { type: "other"; native: EntryRecord });
 export type PiSession = {
-  metadata: { id: string };
+  id: string;
   native: Harness;
   registry: Registry;
   settings: HarnessSettings;
@@ -62,7 +61,6 @@ export type PiSession = {
   env?: ExecutionEnv;
   conversation: Conversation;
   path: string;
-  findEntries(query: { type?: string }, context: Context): Promise<DisplayEntry[]>;
 };
 const directory = resolvePiStorageDirectory();
 mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -111,20 +109,22 @@ async function openNative(id: string): Promise<PiSession> {
       return typeof value === "function" ? value.bind(state.models) : value;
     },
   });
-  const settings = new Proxy({} as HarnessSettings, {
-    get(_target, key) {
-      return Reflect.get(state.settings, key);
-    },
-  });
   const native = await Harness.open(
     await openNodeSqliteStorage(path),
-    { models, registry, settings, env: () => state.env },
+    {
+      models,
+      registry,
+      get settings() {
+        return state.settings;
+      },
+      env: () => state.env,
+    },
     ctx,
   );
   try {
     const root = await native.root(ctx);
     const session: PiSession = {
-      metadata: { id },
+      id,
       native,
       registry,
       conversation: root,
@@ -147,22 +147,6 @@ async function openNative(id: string): Promise<PiSession> {
       set env(value) {
         state.env = value;
       },
-      async findEntries(query) {
-        const entries = new Map<number, EntryRecord>();
-        await native.commit(async (tx) => {
-          let cursor: Cursor | undefined;
-          do {
-            const page = await tx.scanConversations({}, 100, cursor);
-            for (const conversation of page.items)
-              for (const entry of await scanEntries(tx, conversation.id))
-                entries.set(entry.id, entry);
-            cursor = page.next;
-          } while (cursor);
-        }, ctx);
-        return displayEntries([...entries.values()].sort((a, b) => a.id - b.id)).filter(
-          (e) => !query.type || e.type === query.type,
-        );
-      },
     };
     const saved = await native.snapshot(ActiveConversation, ctx);
     session.conversation = saved?.id
@@ -175,16 +159,16 @@ async function openNative(id: string): Promise<PiSession> {
   }
 }
 export async function closePiSession(session: PiSession) {
-  const lease = leases.get(session.metadata.id);
+  const lease = leases.get(session.id);
   if (!lease || lease.session !== session) return;
   if (--lease.holders > 0) return;
-  leases.delete(session.metadata.id);
+  leases.delete(session.id);
   const closed = session.native.close(ctx);
-  closing.set(session.metadata.id, closed);
+  closing.set(session.id, closed);
   try {
     await closed;
   } finally {
-    closing.delete(session.metadata.id);
+    closing.delete(session.id);
   }
 }
 export async function withPiSession<T>(

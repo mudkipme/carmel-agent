@@ -1,99 +1,94 @@
 import {
-  AgentHarness,
+  PiRun,
   BACKGROUND_CONTEXT,
-  type AgentHarnessOptions,
-  type AgentLane,
+  type PiRunOptions,
   type Context,
-  type Entry,
-  type ExecutionToolContext,
-  type HarnessEvent,
-  type Session,
+  type Skill,
+  type PromptTemplate,
 } from "../pi-durable/index.ts";
+import type { AgentEvent, AgentChange, HarnessSettings } from "@earendil-works/pi-durable";
+import type { Api, Model, ImageContent } from "@earendil-works/pi-ai";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxProvider } from "@earendil-works/pi-ai/providers/faux";
 import {
   closePiSession,
   openPiSession,
   readPiSessionBranch,
+  type PiSession,
 } from "../../services/pi-session-storage.ts";
-import { createPiSessionLog, PI_MAIN_BRANCH } from "../pi-durable/session-log.ts";
-import { observeHarnessEvents } from "../pi-durable/agent-driver.ts";
-import type { SessionLog } from "../contracts/session-log.ts";
+import { createPiSessionLog } from "../pi-durable/session-log.ts";
+import { dispatchPrompt } from "../dispatch-prompt.ts";
 
-/**
- * Open a Pi Durable harness and its selected conversation for integration tests.
- */
-
-/** Tests are not cancellable, so they run on the background context like the run path. */
 export const TEST_CONTEXT: Context = BACKGROUND_CONTEXT;
-
-export type TestHarness = {
-  session: Session;
-  harness: AgentHarness<ExecutionToolContext>;
-  lane: AgentLane;
-  log: SessionLog;
-  context: Context;
-  /** Reads the conversation branch oldest-first, as `session.getBranch()` used to. */
-  branch(): Promise<Entry[]>;
-  observe(listener: (event: HarnessEvent) => void): () => void;
-  close(): Promise<void>;
+type Options = Omit<PiRunOptions, "agent"> & {
+  model: Model<Api>;
+  thinkingLevel?: AgentChange["thinkingLevel"];
+  systemPrompt?: string;
+  promptSections?: Record<string, string | undefined>;
+  resources?: { skills?: Skill[]; promptTemplates?: PromptTemplate[] };
+  retry?: { enabled: boolean; maxRetries: number; baseDelayMs?: number };
+  compaction?: HarnessSettings["compaction"];
 };
 
-export async function openTestHarness(
-  sessionId: string,
-  options: Omit<AgentHarnessOptions<ExecutionToolContext>, "session">,
-): Promise<TestHarness> {
-  const session = await openPiSession(sessionId);
-  return attachTestHarness(session, options);
-}
-
-/** For tests that opened the session themselves and still need it afterwards. */
-export async function attachTestHarness(
-  session: Session,
-  options: Omit<AgentHarnessOptions<ExecutionToolContext>, "session">,
-): Promise<TestHarness> {
-  const { harness } = await AgentHarness.create<ExecutionToolContext>(
+/** Test conveniences only; production uses native conversations directly. */
+export async function attachTestHarness(session: PiSession, options: Options) {
+  const context = TEST_CONTEXT;
+  const harness = await PiRun.open(
+    session,
     {
-      // Disable automatic retry for deterministic faux-provider call counts.
-      // The production run path sets its own policy explicitly.
-      retry: { enabled: false, maxRetries: 0, baseDelayMs: 0 },
       ...options,
-      session,
+      agent: {
+        model: { provider: options.model.provider, modelId: options.model.id },
+        thinkingLevel: options.thinkingLevel ?? "off",
+        tools: options.tools ?? [],
+      },
+      sections: options.promptSections ?? { system: options.systemPrompt },
+      settings: {
+        retry: {
+          maxRetries: options.retry?.enabled ? options.retry.maxRetries : 0,
+          baseDelayMs: options.retry?.baseDelayMs ?? 0,
+        },
+        compaction: options.compaction,
+        progress: { partialIntervalMs: 20, outputIntervalMs: 50 },
+      },
     },
-    TEST_CONTEXT,
+    context,
   );
-  const lane = await harness.lane(PI_MAIN_BRANCH, TEST_CONTEXT);
-  const log = createPiSessionLog({ session, lane, context: TEST_CONTEXT });
+  const log = createPiSessionLog({ session, onNavigate: () => harness.attach() });
+  const prompt = (text: string, images?: ImageContent[]) => harness.prompt(text, images, context);
+  const resources = options.resources ?? {};
   return {
     session,
     harness,
-    lane,
     log,
-    context: TEST_CONTEXT,
+    context,
+    resources,
+    prompt,
     branch: () => readPiSessionBranch(session),
-    observe: (listener) => observeHarnessEvents(harness, listener),
-    /**
-     * Closes the harness first, then releases the session lease.
-     *
-     * `session.close()` seals the mutation line and waits for it to drain, so
-     * closing a session whose harness is still open hangs. `harness.close()`
-     * tears down hooks, events and idle callbacks and closes the session itself;
-     * the lease release afterwards is idempotent and drops the holder count.
-     */
+    observe: (listener: (event: AgentEvent) => void | Promise<void>) => harness.observe(listener),
+    lane: {
+      prompt: (text: string, images: ImageContent[] | undefined, ctx: Context) =>
+        harness.prompt(text, images, ctx),
+      resume: (ctx: Context) => harness.resume(ctx),
+      hasPending: (ctx: Context) => harness.hasPending(ctx),
+      configure: (change: AgentChange, ctx: Context) => session.conversation.configure(change, ctx),
+      abort: (ctx: Context) => session.conversation.abort(ctx),
+      navigateTree: (id: string | null, _options: unknown, _ctx: Context) => log.moveTo(id),
+      skill: (name: string, instructions: string | undefined, _ctx: Context) =>
+        dispatchPrompt({ resources, prompt }, `/skill:${name} ${instructions ?? ""}`),
+      promptFromTemplate: (name: string, args: string[], _ctx: Context) =>
+        dispatchPrompt({ resources, prompt }, `/${name} ${args.join(" ")}`),
+    },
     async close() {
-      await harness.close(TEST_CONTEXT);
+      await harness.close();
       await closePiSession(session);
     },
   };
 }
-
-/**
- * A models/model pair for tests that need a harness but never let it talk.
- *
- * `AgentHarness.create` requires both, and a lane cannot be acquired without a
- * harness -- so a test that only wants to read or rewind a branch still has to
- * supply a provider it will never call.
- */
+export type TestHarness = Awaited<ReturnType<typeof attachTestHarness>>;
+export async function openTestHarness(sessionId: string, options: Options) {
+  return attachTestHarness(await openPiSession(sessionId), options);
+}
 export function fauxHarnessModels() {
   const faux = fauxProvider({ provider: `faux-harness-${crypto.randomUUID()}` });
   const models = createModels();

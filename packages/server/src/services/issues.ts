@@ -1,3 +1,4 @@
+import { InboxDoc, type SubmissionId } from "@earendil-works/pi-durable";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
 import type {
@@ -441,33 +442,36 @@ export function issueRunAddons(
             .where(eq(issueNotes.id, note.id))
             .run();
     },
-    async onRunSettling(lane, aborted) {
-      const watch = await lane.watch(BACKGROUND_CONTEXT);
-      try {
-        const pending = new Set(watch.snapshot.queues.map((item) => item.entryId));
-        for (const note of db
-          .select()
-          .from(issueNotes)
-          .where(and(eq(issueNotes.issueId, issueId), eq(issueNotes.delivery, "queued")))
-          .all()) {
-          if (!note.entryId) continue;
-          const undelivered = aborted || pending.has(note.entryId);
-          // Set the state before cancellation emits queue_update, so removal
-          // cannot be mistaken for successful delivery.
-          db.update(issueNotes)
-            .set({ delivery: undelivered ? "not_delivered" : "delivered" })
-            .where(eq(issueNotes.id, note.id))
-            .run();
-          if (undelivered) await lane.cancelQueued(note.entryId, BACKGROUND_CONTEXT);
-        }
-      } finally {
-        watch.unsubscribe();
+    async onRunSettling(session, aborted) {
+      const inbox = await session.native.snapshot(
+        InboxDoc,
+        session.conversation.id,
+        BACKGROUND_CONTEXT,
+      );
+      const pending = new Set((inbox?.items ?? []).map((item) => `submission:${item.id}`));
+      for (const note of db
+        .select()
+        .from(issueNotes)
+        .where(and(eq(issueNotes.issueId, issueId), eq(issueNotes.delivery, "queued")))
+        .all()) {
+        if (!note.entryId) continue;
+        const undelivered = aborted || pending.has(note.entryId);
+        // Record cancellation before native inbox events can be mistaken for delivery.
+        db.update(issueNotes)
+          .set({ delivery: undelivered ? "not_delivered" : "delivered" })
+          .where(eq(issueNotes.id, note.id))
+          .run();
+        if (undelivered && note.entryId.startsWith("submission:"))
+          await session.native.abortSubmission(
+            Number(note.entryId.slice(11)) as SubmissionId,
+            BACKGROUND_CONTEXT,
+            session.conversation.id,
+          );
       }
     },
     tools: [
       {
         name: "report_issue",
-        label: "Report issue result",
         description: "Report the outcome and evidence for human review.",
         parameters: {
           type: "object",
@@ -483,7 +487,7 @@ export function issueRunAddons(
           additionalProperties: false,
         } as never,
         executionMode: "sequential",
-        execute: async (_call, params) => {
+        execute: async (params) => {
           const args = params as {
             state?: IssueVerdict;
             summary?: string;
@@ -527,7 +531,7 @@ export function issueRunAddons(
               .run();
           });
           return {
-            content: [
+            output: [
               {
                 type: "text",
                 text: "Report saved. End your turn with a short message for the user.",

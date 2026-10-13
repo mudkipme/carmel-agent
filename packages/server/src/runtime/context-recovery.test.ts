@@ -104,9 +104,10 @@ test("an overflow Pi declined to compact says there was nothing to summarize", (
   const emitted: AgentRunEvent[] = [];
   const reporter = new ContextReporter(undefined, (event) => emitted.push(event));
   reporter.observe({
-    type: "turn_end",
-    message: { ...fauxAssistantMessage(""), stopReason: "error", errorMessage: OVERFLOW },
-    toolResults: [],
+    type: "message_end",
+    entry: {
+      model: [{ ...fauxAssistantMessage(""), stopReason: "error", errorMessage: OVERFLOW }],
+    },
   } as never);
   reporter.reportUnrecoveredOverflow();
 
@@ -115,6 +116,24 @@ test("an overflow Pi declined to compact says there was nothing to summarize", (
     ["context_pressure"],
   );
   assert.match((emitted[0] as { message: string }).message, /no older history to summarize/);
+});
+
+test("native compaction failure snapshots warn once across repeated snapshots and end events", () => {
+  const emitted: AgentRunEvent[] = [];
+  const reporter = new ContextReporter(undefined, (event) => emitted.push(event));
+  const failure = { taskId: 42 as never, reason: "overflow" as const, error: "failed summary" };
+  reporter.observe({ type: "snapshot", compactionFailure: failure } as never);
+  reporter.observe({ type: "snapshot", compactionFailure: failure } as never);
+  reporter.observe({ type: "compaction_end", ...failure });
+  assert.equal(emitted.length, 1);
+  assert.ok(emitted[0]?.type === "context_pressure");
+});
+
+test("an overflow compaction with no summary entry does not claim recovery", () => {
+  const emitted: AgentRunEvent[] = [];
+  const reporter = new ContextReporter(undefined, (event) => emitted.push(event));
+  reporter.observe({ type: "compaction_end", taskId: 42 as never, reason: "overflow" });
+  assert.deepEqual(emitted, []);
 });
 
 async function setupScene(respond: (callCount: number) => AgentMessage) {

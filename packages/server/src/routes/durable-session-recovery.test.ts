@@ -37,11 +37,10 @@ test("restart reports pending work without executing it and Stop settles it with
     tools: [
       {
         name: "lookup",
-        label: "Lookup",
         description: "Read-only lookup",
         replay: "safe",
         parameters: { type: "object", properties: {}, additionalProperties: false },
-        async execute(_id, _args, _update, _tools, _invocation, context) {
+        async execute(_args, _api, context) {
           executions++;
           started();
           await new Promise((_, reject) =>
@@ -51,7 +50,7 @@ test("restart reports pending work without executing it and Stop settles it with
               { once: true },
             ),
           );
-          return { content: [{ type: "text", text: "done" }] };
+          return { output: [{ type: "text", text: "done" }] };
         },
       },
     ],

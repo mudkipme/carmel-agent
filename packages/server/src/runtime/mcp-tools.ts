@@ -1,11 +1,7 @@
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import type { AgentMcpServer } from "@carmel-agent/shared";
-import type {
-  AgentHarnessTool,
-  ExecutionToolContext,
-  JsonValue,
-} from "../effectors/pi-durable/index.ts";
+import type { ToolRegistration, JsonValue } from "../effectors/pi-durable/index.ts";
 import {
   McpClient,
   StreamableHttpTransport,
@@ -27,7 +23,7 @@ import { SandboxMcpTransport, sandboxMcpCommand } from "./sandbox/mcp-transport.
 import { createSecretRedactor } from "./sandbox/redaction.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
-type Tool = AgentHarnessTool<ExecutionToolContext>;
+type Tool = ToolRegistration;
 type Secret = { name: string; value: string };
 export type McpToolConnectionOptions = {
   signal?: AbortSignal;
@@ -127,7 +123,6 @@ export class AgentMcpTools {
           if (server.tools && !server.tools.includes(definition.name)) continue;
           const tool: Tool = {
             name: mcpToolName(server.id, definition.name),
-            label: redact(`MCP · ${server.id} · ${definition.title ?? definition.name}`, secrets),
             description: redact(
               `MCP server ${server.id}: ${definition.description ?? definition.name}`,
               secrets,
@@ -138,8 +133,8 @@ export class AgentMcpTools {
               type: "object",
               properties: definition.inputSchema.properties ?? {},
             } as Tool["parameters"],
-            outputSchema: definition.outputSchema as Tool["outputSchema"],
-            async execute(_id, params, onUpdate, _context, _invocation, context) {
+            structuredOutputSchema: definition.outputSchema as Tool["structuredOutputSchema"],
+            async execute(params, api, context) {
               try {
                 const result = await client.callTool(
                   definition.name,
@@ -148,24 +143,9 @@ export class AgentMcpTools {
                     signal: context.abortSignal,
                     timeoutMs: server.timeoutMs,
                     onProgress: (progress) =>
-                      onUpdate({
-                        content: [
-                          {
-                            type: "text",
-                            text: redact(
-                              progress.message ??
-                                `Progress: ${progress.progress}${progress.total === undefined ? "" : `/${progress.total}`}`,
-                              secrets,
-                            ),
-                          },
-                        ],
-                        details: {
-                          serverId: server.id,
-                          toolName: definition.name,
-                          progress: progress.progress,
-                          ...(progress.total === undefined ? {} : { total: progress.total }),
-                        },
-                      }),
+                      api.output(
+                        redact(progress.message ?? `Progress: ${progress.progress}`, secrets),
+                      ),
                   },
                 );
                 const structuredContent =
@@ -173,7 +153,7 @@ export class AgentMcpTools {
                     ? undefined
                     : (redactValue(result.structuredContent, secrets) as JsonValue);
                 return {
-                  content: toLlmContent(result).map((part) =>
+                  output: toLlmContent(result).map((part) =>
                     part.type === "text" ? { ...part, text: redact(part.text, secrets) } : part,
                   ),
                   details: {
@@ -181,7 +161,9 @@ export class AgentMcpTools {
                     toolName: definition.name,
                     ...(structuredContent === undefined ? {} : { structuredContent }),
                   },
-                  structuredContent,
+                  ...(definition.outputSchema && structuredContent !== undefined
+                    ? { structuredOutput: structuredContent }
+                    : {}),
                   isError: result.isError === true,
                 };
               } catch (error) {

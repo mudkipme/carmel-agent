@@ -108,7 +108,8 @@ async function streamTurnRecordingReconnects() {
       const branch = await transcript(sessionId);
       if (
         !branch.some(
-          (message: AgentMessage) => JSON.stringify(message) === JSON.stringify(event.message),
+          (message: AgentMessage) =>
+            JSON.stringify(message) === JSON.stringify(event.entry.model?.[0]),
         )
       ) {
         lostBeforePersist.push(`sequence ${run.nextSequence - 1}`);

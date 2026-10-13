@@ -99,7 +99,7 @@ function ConnectedConversation({
         messages={withNotes(snapshot.messages, notes)}
         streamingMessage={snapshot.streamingMessage}
         pendingToolCalls={snapshot.pendingToolCalls}
-        codemodeCalls={snapshot.codemodeCalls}
+        nestedTools={snapshot.nestedTools}
         isStreaming={snapshot.isStreaming}
       />
     </div>

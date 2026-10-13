@@ -1,4 +1,4 @@
-import { DEFAULT_COMPACTION_SETTINGS } from "./pi-durable/index.ts";
+import { DEFAULT_COMPACTION_POLICY } from "@earendil-works/pi-durable";
 
 /**
  * Pi Durable owns compaction. Carmel scales its defaults for small model
@@ -9,17 +9,17 @@ import { DEFAULT_COMPACTION_SETTINGS } from "./pi-durable/index.ts";
 /** Durable's enabled flag covers overflow recovery too; scale its policy for small model windows. */
 export function compactionSettingsForWindow(contextWindow: number) {
   return {
-    ...DEFAULT_COMPACTION_SETTINGS,
+    ...DEFAULT_COMPACTION_POLICY,
     reserveTokens: Math.min(
-      DEFAULT_COMPACTION_SETTINGS.reserveTokens,
+      DEFAULT_COMPACTION_POLICY.reserveTokens,
       Math.max(1, Math.floor(contextWindow / 4)),
     ),
     keepRecentTokens: Math.min(
-      DEFAULT_COMPACTION_SETTINGS.keepRecentTokens,
+      DEFAULT_COMPACTION_POLICY.keepRecentTokens,
       Math.max(0, Math.floor(contextWindow / 3)),
     ),
     backgroundTokens: Math.min(
-      DEFAULT_COMPACTION_SETTINGS.backgroundTokens,
+      DEFAULT_COMPACTION_POLICY.backgroundTokens,
       Math.max(0, Math.floor(contextWindow / 10)),
     ),
   };

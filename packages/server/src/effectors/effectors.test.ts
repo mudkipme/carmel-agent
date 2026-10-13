@@ -1,4 +1,5 @@
 import test from "node:test";
+import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
 import assert from "node:assert/strict";
 import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
@@ -8,7 +9,7 @@ import { AgentDoc, type AgentState } from "@earendil-works/pi-durable";
 import { FakeSessionLog } from "./testing/fake-session-log.ts";
 import { runSessionLogContract } from "./testing/session-log-contract.ts";
 import { dispatchPrompt } from "./dispatch-prompt.ts";
-import type { DriverResources, PromptDispatcher } from "./contracts/agent-driver.ts";
+import type { PromptDispatch } from "./dispatch-prompt.ts";
 
 initialize();
 
@@ -40,11 +41,10 @@ test("native configuration is atomic, preserves tool order, and makes identical 
   const { sessionId } = createSession();
   const tools = ["read", "bash"].map((name) => ({
     name,
-    label: name,
     description: name,
     parameters: { type: "object", properties: {} },
     async execute() {
-      return { content: [] };
+      return { output: [] };
     },
   }));
   const pi = await attachTestHarness(await openPiSession(sessionId), {
@@ -92,60 +92,85 @@ test("plain text goes straight to prompt", async () => {
   assert.deepEqual(calls, [["prompt", "hello", undefined]]);
 });
 
-test("a namespaced skill command invokes the skill with trimmed arguments", async () => {
-  const { driver, calls } = recordingDriver({ skills: [{ name: "pdf" }], promptTemplates: [] });
-  await dispatchPrompt(driver, "/skill:pdf   summarise it  ");
-  assert.deepEqual(calls, [["invokeSkill", "pdf", "summarise it", undefined]]);
-});
-
-test("a skill command with no arguments passes undefined, not an empty string", async () => {
-  const { driver, calls } = recordingDriver({ skills: [{ name: "pdf" }], promptTemplates: [] });
-  await dispatchPrompt(driver, "/skill:pdf");
-  assert.deepEqual(calls, [["invokeSkill", "pdf", undefined, undefined]]);
-});
-
-test("a template command keeps its arguments untrimmed for the driver to parse", async () => {
-  const { driver, calls } = recordingDriver({ skills: [], promptTemplates: [{ name: "review" }] });
-  await dispatchPrompt(driver, "/review a=1 b=2");
-  assert.deepEqual(calls, [["invokeTemplate", "review", "a=1 b=2", undefined]]);
-});
-
-test("a skill: token matching no skill falls through to a template of that exact name", async () => {
+test("skill instructions and attachments use the ordinary native input path", async () => {
+  const images = [{ type: "image" as const, data: "AA==", mimeType: "image/png" }];
   const { driver, calls } = recordingDriver({
-    skills: [],
-    promptTemplates: [{ name: "skill:pdf" }],
+    skills: [
+      { name: "pdf", description: "PDF", content: "Read PDFs", filePath: "/skills/pdf/SKILL.md" },
+    ],
   });
-  await dispatchPrompt(driver, "/skill:pdf go");
-  assert.deepEqual(calls, [["invokeTemplate", "skill:pdf", "go", undefined]]);
+  await dispatchPrompt(driver, "/skill:pdf   summarise it  ", images);
+  assert.match(calls[0]![1] as string, /<skill.*Read PDFs.*<\/skill>\n\nsummarise it/s);
+  assert.equal(calls[0]![2], images);
+  await dispatchPrompt(driver, "/skill:pdf");
+  assert.match(calls[1]![1] as string, /<\/skill>$/);
 });
 
-test("an unknown command is sent as ordinary text, slash and all", async () => {
+test("templates retain quoted argument, fallback, and skill-name precedence", async () => {
+  const { driver, calls } = recordingDriver({
+    promptTemplates: [
+      { name: "review", content: "$1 | ${2:-default} | $ARGUMENTS" },
+      { name: "skill:pdf", content: "$1" },
+    ],
+  });
+  await dispatchPrompt(driver, '/review "some file"');
+  await dispatchPrompt(driver, "/skill:pdf go");
+  assert.deepEqual(calls, [
+    ["prompt", "some file | default | some file", undefined],
+    ["prompt", "go", undefined],
+  ]);
+});
+
+test("unknown commands preserve their original composer text", async () => {
   const { driver, calls } = recordingDriver();
   await dispatchPrompt(driver, "/nope do a thing");
   assert.deepEqual(calls, [["prompt", "/nope do a thing", undefined]]);
 });
 
-test("images ride along with a named invocation rather than forcing plain text", async () => {
-  // The inlining workaround belongs to the driver; dispatch must not pre-empt it.
-  const images = [{ type: "image" as const, data: "AA==", mimeType: "image/png" }];
-  const { driver, calls } = recordingDriver({ skills: [{ name: "pdf" }], promptTemplates: [] });
-  await dispatchPrompt(driver, "/skill:pdf look", images);
-  assert.deepEqual(calls, [["invokeSkill", "pdf", "look", images]]);
-});
-
-function recordingDriver(resources: DriverResources = { skills: [], promptTemplates: [] }) {
+function recordingDriver(resources: PromptDispatch["resources"] = {}) {
   const calls: unknown[][] = [];
-  const driver: PromptDispatcher = {
-    listResources: async () => resources,
+  const driver: PromptDispatch = {
+    resources,
     async prompt(text, images) {
       calls.push(["prompt", text, images]);
-    },
-    async invokeSkill(name, instructions, images) {
-      calls.push(["invokeSkill", name, instructions, images]);
-    },
-    async invokeTemplate(name, args, images) {
-      calls.push(["invokeTemplate", name, args, images]);
     },
   };
   return { driver, calls };
 }
+
+test("a new run selects only its current extensions and refreshes models on an existing storage lease", async () => {
+  const { sessionId } = createSession();
+  const firstModels = fauxHarnessModels();
+  const session = await openPiSession(sessionId);
+  const first = await attachTestHarness(session, {
+    ...firstModels,
+    extensions: [{ name: "previous-run", sections: [] }],
+  });
+  assert.ok(
+    (await session.conversation.agent(first.context)).extensions.some(
+      (extension) => extension.name === "previous-run",
+    ),
+  );
+  await first.harness.close();
+  const secondModels = fauxHarnessModels();
+  secondModels.faux.setResponses([() => fauxAssistantMessage("Fresh model.")]);
+  const second = await attachTestHarness(session, secondModels);
+  try {
+    assert.deepEqual(
+      (await session.conversation.agent(second.context)).extensions.map(
+        (extension) => extension.name,
+      ),
+      ["carmel"],
+    );
+    await session.conversation.configure(
+      { model: { provider: secondModels.model.provider, modelId: secondModels.model.id } },
+      second.context,
+    );
+    await second.prompt("Use the new model");
+    assert.equal(firstModels.faux.state.callCount, 0);
+    assert.equal(secondModels.faux.state.callCount, 1);
+    assert.match(JSON.stringify((await second.branch()).at(-1)), /Fresh model/);
+  } finally {
+    await second.close();
+  }
+});

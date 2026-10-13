@@ -1,3 +1,4 @@
+import { executeNativeTool } from "../effectors/testing/tools.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
@@ -379,7 +380,7 @@ function activeFixture(options?: { shared?: boolean }) {
 }
 function report(f: ReturnType<typeof activeFixture>, params: unknown) {
   const tool = issueRunAddons(f.issueId, f.attemptId).tools[0]!;
-  return (tool.execute as (...args: unknown[]) => Promise<unknown>)("call", params);
+  return executeNativeTool(tool, params);
 }
 async function waitFor(condition: () => boolean) {
   const deadline = Date.now() + 15000;

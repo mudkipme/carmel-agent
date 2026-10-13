@@ -1,3 +1,4 @@
+import { executeNativeTool } from "../../effectors/testing/tools.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
@@ -141,16 +142,10 @@ async function runFetchUrl(params: Record<string, unknown>) {
   assert.ok(tool);
 
   const context = withAbortSignal(new AbortController().signal, TEST_CONTEXT);
-  const result = (await (tool.execute as (...args: unknown[]) => unknown)(
-    "call_1",
-    params,
-    () => {},
-    undefined,
-    { invocationId: "inv_1", operationId: "op_1", turnId: "turn_1" },
-    context,
-  )) as { content: Array<{ text: string }>; details: Record<string, unknown> };
-
-  return { text: result.content[0]!.text, details: result.details };
+  const result = await executeNativeTool(tool, params, undefined, context);
+  const output = result.output?.[0];
+  assert.ok(output?.type === "text");
+  return { text: output.text, details: result.details as Record<string, unknown> };
 }
 
 async function withServer(

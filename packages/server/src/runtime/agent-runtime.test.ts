@@ -107,12 +107,18 @@ test("an armed retry branch is abandoned until its replacement user message land
   assert.equal(retry.isAbandoned, true);
 
   // Only a persisted *user* message clears it; assistant traffic must not.
-  retry.observe({ type: "message_end", message: { role: "assistant", content: [] } } as never);
+  retry.observe({
+    type: "message_end",
+    entry: { model: [{ role: "assistant", content: [] }] },
+  } as never);
   assert.equal(retry.isAbandoned, true);
   retry.observe({ type: "message_start", message: { role: "user", content: "x" } } as never);
   assert.equal(retry.isAbandoned, true);
 
-  retry.observe({ type: "message_end", message: { role: "user", content: "x" } } as never);
+  retry.observe({
+    type: "message_end",
+    entry: { model: [{ role: "user", content: "x" }] },
+  } as never);
   assert.equal(retry.isAbandoned, false);
 });
 

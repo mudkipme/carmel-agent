@@ -1,5 +1,5 @@
 import type { ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
-import { codemodeCallsSchema, type CodemodeCallInfo } from "@carmel-agent/shared";
+import type { NestedToolSlot, CodemodeToolDetails, CodemodeNestedCall } from "@carmel-agent/shared";
 import {
   CheckIcon,
   ChevronRightIcon,
@@ -27,7 +27,7 @@ type ToolCallViewProps = {
   pending?: boolean;
   streaming?: boolean;
   aborted?: boolean;
-  codemodeCalls?: CodemodeCallInfo[];
+  nestedTools?: readonly NestedToolSlot[];
 };
 
 export function ToolCallView({
@@ -36,7 +36,7 @@ export function ToolCallView({
   pending = false,
   streaming = false,
   aborted = false,
-  codemodeCalls,
+  nestedTools,
 }: ToolCallViewProps) {
   const [open, setOpen] = useState(false);
   const detailsId = useId();
@@ -64,13 +64,7 @@ export function ToolCallView({
       tool: CodeIcon,
     }[presentation.kind] ?? CodeIcon;
   const images = getToolResultImages(result);
-  const details = result?.details as { codemodeCalls?: unknown } | undefined;
-  const savedCalls = codemodeCallsSchema.safeParse(details?.codemodeCalls);
-  const calls = (savedCalls.success ? savedCalls.data : (codemodeCalls ?? [])).map((call) =>
-    call.status === "running" && (aborted || result)
-      ? { ...call, status: "cancelled" as const }
-      : call,
-  );
+  const calls = (result?.details as CodemodeToolDetails | undefined)?.calls;
 
   return (
     <div
@@ -137,35 +131,11 @@ export function ToolCallView({
         >
           <div className="break-all font-mono text-xs text-muted-foreground">{toolCall.name}</div>
           <CodePanel label="Input" value={formatJson(toolCall.arguments)} />
-          {calls.length > 0 ? (
-            <div className="flex min-w-0 flex-col gap-2">
-              <div className="text-xs font-medium text-muted-foreground">
-                Nested tool calls ({calls.length})
-              </div>
-              {calls.map((call) => (
-                <div
-                  key={call.id}
-                  className="flex min-w-0 items-center justify-between gap-2 text-sm"
-                >
-                  <span className="truncate" title={call.name}>
-                    {call.label}
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{call.durationMs} ms</span>
-                    <Badge variant={call.status === "error" ? "destructive" : "secondary"}>
-                      {call.status === "running"
-                        ? "Running"
-                        : call.status === "ok"
-                          ? "Complete"
-                          : call.status === "cancelled"
-                            ? "Cancelled"
-                            : "Error"}
-                    </Badge>
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : null}
+          <NestedCalls
+            calls={calls}
+            slots={nestedTools ?? []}
+            stopped={aborted || Boolean(result)}
+          />
           <CodePanel
             label="Output"
             value={aborted ? "Tool call aborted." : formatToolResult(result)}
@@ -202,5 +172,63 @@ function getToolResultImages(result?: ToolResultMessage) {
       });
       return src ? [{ src }] : [];
     }) ?? []
+  );
+}
+
+function NestedCalls({
+  calls,
+  slots,
+  stopped,
+}: {
+  calls?: CodemodeNestedCall[];
+  slots: readonly NestedToolSlot[];
+  stopped: boolean;
+}) {
+  if (!calls?.length && !slots.length) return null;
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="text-xs font-medium text-muted-foreground">
+        Nested tool calls ({calls?.length ?? slots.length})
+      </div>
+      {(calls ?? slots).map((call) => {
+        const saved = "id" in call;
+        const state = saved
+          ? call.status
+          : call.status === "done"
+            ? !call.summary
+              ? "cancelled"
+              : call.summary.isError
+                ? "error"
+                : "ok"
+            : stopped
+              ? "cancelled"
+              : "running";
+        const duration = saved ? call.durationMs : call.summary?.durationMs;
+        return (
+          <div
+            key={saved ? call.id : call.callId}
+            className="flex min-w-0 items-center justify-between gap-2 text-sm"
+          >
+            <span className="truncate" title={call.name}>
+              {toolPresentation(call.name, {}).label}
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              {duration !== undefined ? (
+                <span className="text-xs text-muted-foreground">{Math.round(duration)} ms</span>
+              ) : null}
+              <Badge variant={state === "error" ? "destructive" : "secondary"}>
+                {state === "running"
+                  ? "Running"
+                  : state === "ok"
+                    ? "Complete"
+                    : state === "cancelled"
+                      ? "Cancelled"
+                      : "Error"}
+              </Badge>
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }

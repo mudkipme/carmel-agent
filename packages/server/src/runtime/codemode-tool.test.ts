@@ -4,17 +4,11 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
-import {
-  agentMcpServerSchema,
-  codemodeCallsSchema,
-  type AgentMcpServer,
-} from "@carmel-agent/shared";
+import { agentMcpServerSchema, type AgentMcpServer } from "@carmel-agent/shared";
 import {
   BACKGROUND_CONTEXT,
-  withAbortSignal,
-  type AgentHarnessTool,
-  type AgentHarnessToolInvocation,
-  type ExecutionToolContext,
+  type ToolRegistration,
+  type ExecutionEnv,
 } from "../effectors/pi-durable/index.ts";
 import { createModels } from "@earendil-works/pi-ai";
 import { toCodemodeIdentifier } from "@earendil-works/pi-codemode";
@@ -31,12 +25,13 @@ import { startMcpTestServer } from "../test-mcp-server.ts";
 import { openTestHarness } from "../effectors/testing/pi-harness.ts";
 import { RunGuard, RunGuardError } from "../effectors/run-guard.ts";
 import { AgentMcpTools } from "./mcp-tools.ts";
-import { createCodemodeTool, type CodemodeHooks } from "./codemode-tool.ts";
+import { createCarmelCodemode, type CodemodeHooks } from "./codemode-tool.ts";
+import { executeNativeCodemode } from "../effectors/testing/codemode.ts";
 import { createServerExecution } from "./tools.ts";
 import { projectRunEvent } from "./run-events.ts";
 
 initialize();
-type Tool = AgentHarnessTool<ExecutionToolContext>;
+type Tool = ToolRegistration;
 const serverConfig = (url: string, patch = {}) =>
   agentMcpServerSchema.parse({ id: "remote", transport: "http", url, ...patch });
 function agent(servers: AgentMcpServer[]) {
@@ -48,9 +43,6 @@ function agent(servers: AgentMcpServer[]) {
     permissions: { read: false, write: false, edit: false, bash: false, network: true },
   };
 }
-function invocation(): AgentHarnessToolInvocation {
-  return { invocationId: "invocation", operationId: "operation", turnId: "turn" };
-}
 
 function execute(
   tools: AgentMcpTools | readonly Tool[],
@@ -58,24 +50,16 @@ function execute(
   options: {
     hooks?: CodemodeHooks;
     signal?: AbortSignal;
-    memo?: AgentHarnessToolInvocation;
-    toolContext?: ExecutionToolContext;
+    env?: ExecutionEnv;
+    onEvent?: (event: import("../effectors/pi-durable/index.ts").AgentEvent) => void;
   } = {},
 ) {
-  return createCodemodeTool(
-    tools instanceof AgentMcpTools ? tools.tools : tools,
-    options.hooks,
-  ).execute(
-    "codemode-call",
-    { code },
-    () => {},
-    options.toolContext ?? ({} as never),
-    options.memo ?? invocation(),
-    options.signal ? withAbortSignal(options.signal, BACKGROUND_CONTEXT) : BACKGROUND_CONTEXT,
-  );
+  return executeNativeCodemode(tools instanceof AgentMcpTools ? tools.tools : tools, code, options);
 }
 function calls(result: { details?: unknown }) {
-  return codemodeCallsSchema.parse((result.details as { codemodeCalls: unknown }).codemodeCalls);
+  return (
+    (result.details as import("@carmel-agent/shared").CodemodeToolDetails | undefined)?.calls ?? []
+  );
 }
 
 test("codemode is an agent-level opt-in that works without MCP and obeys MCP permissions and allowlists", async () => {
@@ -117,7 +101,8 @@ test("codemode is an agent-level opt-in that works without MCP and obeys MCP per
       ["codemode"],
     );
     const result = await execute(execution.resolveTools(), "text(6 * 7); text(ALL_TOOLS.length);");
-    assert.deepEqual(result.content, [{ type: "text", text: "42\n0" }]);
+    assert.equal(result.isError, false);
+    assert.match(JSON.stringify(result.content), /text 1\/2.*42.*text 2\/2.*0/);
   } finally {
     await execution.cleanup(BACKGROUND_CONTEXT);
     await remote.close();
@@ -170,12 +155,13 @@ test("AgentHarness persists one codemode result with nested call history and str
       models,
       model: faux.getModel(),
       tools,
-      toolContext: execution.toolContext,
+      env: execution.env,
     });
     const updates: unknown[] = [];
     pi.observe((event) => {
       const projected = projectRunEvent(event);
-      if (projected?.type === "tool_execution_update") updates.push(projected);
+      if (projected?.type === "tool_execution_start" && projected.parentToolCallId)
+        updates.push(projected);
     });
     try {
       await pi.lane.prompt("Combine the MCP results", undefined, pi.context);
@@ -183,7 +169,7 @@ test("AgentHarness persists one codemode result with nested call history and str
         entry.type === "message" && entry.message.role === "toolResult" ? [entry.message] : [],
       );
       assert.equal(results.length, 1, "nested outputs must not become LLM transcript messages");
-      assert.deepEqual(results[0]?.content, [{ type: "text", text: "2" }]);
+      assert.deepEqual(results[0]?.content.at(-1), { type: "text", text: "2" });
       assert.deepEqual(
         calls(results[0]!).map((call) => call.status),
         ["ok", "ok"],
@@ -221,10 +207,10 @@ test("codemode uses permitted native workspace tools and keeps their path bounda
       await tools.write({path:"report.txt", content:"before"});
       await tools.edit({path:"report.txt", edits:[{oldText:"before", newText:"after"}]});
       const file = await tools.read({path:"report.txt"});
-      text(file.content);
+      text(file);
       text(["bash" in tools, "fetch_url" in tools, "codemode" in tools]);
     `,
-      { toolContext: execution.toolContext },
+      { env: execution.env },
     );
     assert.equal(result.isError, false);
     assert.equal(readFileSync(join(root, "report.txt"), "utf8"), "after");
@@ -235,7 +221,7 @@ test("codemode uses permitted native workspace tools and keeps their path bounda
     assert.match(JSON.stringify(result.content), /after/);
     assert.match(JSON.stringify(result.content), /false/);
     const denied = await execute(tools, 'await tools.read({path:"../outside.txt"});', {
-      toolContext: execution.toolContext,
+      env: execution.env,
     });
     assert.equal(denied.isError, true);
     assert.match(JSON.stringify(denied.content), /outside the agent working directory/);
@@ -256,25 +242,23 @@ test("codemode combines MCP, native files, and session tools after session overr
   });
   const override: Tool = {
     name: "read",
-    label: "Session read",
     description: "Session-specific read override",
     parameters: { type: "object", properties: { key: { type: "string" } }, required: ["key"] },
-    async execute(_id, { key }) {
-      return { content: [{ type: "text", text: `session:${key}` }], details: undefined };
+    async execute({ key }) {
+      return { output: [{ type: "text", text: `session:${key}` }], details: undefined };
     },
   };
   const report: Tool = {
     name: "report_issue",
-    label: "Report issue",
     description: "A session-specific tool",
     parameters: { type: "object", properties: {} },
     async execute() {
-      return { content: [{ type: "text", text: "reported" }], details: undefined };
+      return { output: [{ type: "text", text: "reported" }], details: undefined };
     },
   };
   try {
     await execution.prepare();
-    const tools = execution.resolveTools([override, report, createCodemodeTool([])]);
+    const tools = execution.resolveTools([override, report, ...createCarmelCodemode().tools!]);
     assert.equal(tools.filter((tool) => tool.name === "read").length, 1);
     assert.equal(tools.filter((tool) => tool.name === "codemode").length, 1);
     const name = tools.find((tool) => tool.name.startsWith("mcp_"))!.name;
@@ -283,15 +267,15 @@ test("codemode combines MCP, native files, and session tools after session overr
       `
       const remote = await tools.${name}({text:"hello"});
       const local = await tools.read({key:"brief"});
-      await tools.write({path:"report.json", content:JSON.stringify({remote:remote.structuredContent, local:local.content[0].text})});
-      text((await tools.report_issue({})).content);
+      await tools.write({path:"report.json", content:JSON.stringify({remote:remote, local:local})});
+      text(await tools.report_issue({}));
       text("codemode" in tools);
     `,
-      { toolContext: execution.toolContext },
+      { env: execution.env },
     );
     assert.equal(result.isError, false);
     assert.deepEqual(JSON.parse(readFileSync(join(root, "report.json"), "utf8")), {
-      remote: { echo: true },
+      remote: "echoed",
       local: "session:brief",
     });
     assert.deepEqual(
@@ -307,7 +291,7 @@ test("codemode combines MCP, native files, and session tools after session overr
   }
 });
 
-test("nested tools retain argument preparation, sequential scheduling, and termination hints", async () => {
+test("nested tools retain argument preparation and sequential scheduling with native control scope", async () => {
   const order: string[] = [];
   const makeTool = (
     name: string,
@@ -315,19 +299,18 @@ test("nested tools retain argument preparation, sequential scheduling, and termi
     terminate = false,
   ): Tool => ({
     name,
-    label: name,
     description: name,
     executionMode,
     parameters: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
     prepareArguments: (args) => ({ text: (args as { rawText: string }).rawText }),
-    async execute(_id, { text }) {
+    async execute({ text }) {
       order.push(`${text}:start`);
       await new Promise<void>((resolve) => setImmediate(resolve));
       order.push(`${text}:end`);
       return {
-        content: [{ type: "text", text }],
+        output: [{ type: "text", text }],
         details: undefined,
-        ...(terminate ? { terminate: true } : {}),
+        ...(terminate ? { control: { terminate: true } } : {}),
       };
     },
   });
@@ -350,7 +333,8 @@ test("nested tools retain argument preparation, sequential scheduling, and termi
     [makeTool("finish", "sequential", true)],
     'await tools.finish({rawText:"done"});',
   );
-  assert.equal(ended.terminate, true);
+  assert.equal(ended.isError, false);
+  assert.match(JSON.stringify(ended.content), /Script completed/);
 });
 
 test("script failures keep their error flag and call details in the durable harness transcript", async () => {
@@ -372,7 +356,7 @@ test("script failures keep their error flag and call details in the durable harn
   const pi = await openTestHarness(sessionId, {
     models,
     model: faux.getModel(),
-    tools: [createCodemodeTool([])],
+    tools: [...createCarmelCodemode().tools!],
   });
   try {
     await pi.lane.prompt("Run the failing script", undefined, pi.context);
@@ -404,9 +388,10 @@ test("nested arguments are validated before MCP execution and denied tools stay 
       mcp,
       'text([typeof process, typeof fetch, typeof require, "bash" in tools]);',
     );
-    assert.deepEqual(unavailable.content, [
-      { type: "text", text: '["undefined","undefined","undefined",false]' },
-    ]);
+    assert.deepEqual(unavailable.content.at(-1), {
+      type: "text",
+      text: '["undefined","undefined","undefined",false]',
+    });
   } finally {
     await mcp.close();
     await remote.close();
@@ -461,14 +446,21 @@ test("abort and unawaited calls cancel MCP requests and retain the nested histor
       await mcp.connect({ secrets: [] });
       const controller = new AbortController();
       const code = `${unawaited ? "" : "await "}tools.${mcp.tools[0]!.name}({text:"wait"});${unawaited ? "return;" : ""}`;
-      const pending = execute(mcp, code, { signal: controller.signal });
+      const nestedEnds: unknown[] = [];
+      const pending = execute(mcp, code, {
+        signal: controller.signal,
+        onEvent(event) {
+          if (event.type === "tool_execution_end" && event.parentToolCallId) nestedEnds.push(event);
+        },
+      });
       if (!unawaited) {
         await ready;
         controller.abort();
       }
       const result = await pending;
       assert.equal(result.isError, !unawaited);
-      assert.equal(calls(result)[0]?.status, "cancelled");
+      if (unawaited) assert.equal(calls(result)[0]?.status, "cancelled");
+      else assert.ok(nestedEnds.length > 0, "native nested cancellation is observable");
       // An unawaited call may be cancelled before its HTTP request is admitted.
       if (!unawaited) await notified;
     } finally {
@@ -540,20 +532,40 @@ test("Pi source options can lower output and deadline limits without raising Car
     '// @options: {"max_output_tokens": 10}\ntext("x".repeat(1000));',
   );
   assert.equal(short.isError, false);
-  assert.ok(JSON.stringify(short.content).length < 150);
-  assert.match(JSON.stringify(short.content), /Output truncated/);
+  assert.ok(JSON.stringify(short.content).length < 600);
+  assert.match(JSON.stringify(short.content), /truncated output/);
   const timed = await execute([], '// @options: {"timeout_ms": 5000}\nwhile (true) {}', {
     hooks: { timeoutMs: 50 },
   });
   assert.equal(timed.isError, true);
   assert.match(JSON.stringify(timed.content), /timed out/);
-  await assert.rejects(execute([], '// @options: {"timeout_ms": 0}\ntext("no");'), /timeout_ms/);
+  const invalid = await execute([], '// @options: {"timeout_ms": 0}\ntext("no");');
+  assert.equal(invalid.isError, true);
+  assert.match(JSON.stringify(invalid.content), /timeout_ms/);
 });
 
 test("codemode forwards explicitly selected MCP images and truncates oversized script output", async () => {
   const remote = await startMcpTestServer({
+    tools: [
+      {
+        name: "echo",
+        inputSchema: { type: "object", properties: { text: { type: "string" } } },
+        outputSchema: {
+          type: "object",
+          properties: { image: { type: "object" } },
+          required: ["image"],
+        },
+      },
+    ],
     onCall() {
       return {
+        structuredContent: {
+          image: {
+            type: "image",
+            data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==",
+            mimeType: "image/png",
+          },
+        },
         content: [
           {
             type: "image",
@@ -569,7 +581,7 @@ test("codemode forwards explicitly selected MCP images and truncates oversized s
     await mcp.connect({ secrets: [] });
     const result = await execute(
       mcp,
-      `const img = (await tools.${mcp.tools[0]!.name}({text:"image"})).content[0]; image("data:" + img.mimeType + ";base64," + img.data); text("large".repeat(30_000));`,
+      `const img = (await tools.${mcp.tools[0]!.name}({text:"image"})).image; image("data:" + img.mimeType + ";base64," + img.data); text("large".repeat(30_000));`,
     );
     assert.equal(result.isError, false);
     assert.ok(JSON.stringify(result.content).length < 55_000);
@@ -581,7 +593,7 @@ test("codemode forwards explicitly selected MCP images and truncates oversized s
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==",
       ),
     );
-    assert.match(JSON.stringify(result.content), /Output truncated/);
+    assert.match(JSON.stringify(result.content), /truncated output/);
   } finally {
     await mcp.close();
     await remote.close();

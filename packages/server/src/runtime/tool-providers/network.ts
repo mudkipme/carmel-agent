@@ -1,8 +1,8 @@
-import type { AgentHarnessTool, ExecutionToolContext } from "../../effectors/pi-durable/index.ts";
+import type { ToolRegistration } from "../../effectors/pi-durable/index.ts";
 import type { ProvidedTool, ToolProvider } from "../../effectors/contracts/tool-provider.ts";
 import { extractArticleMarkdown, looksLikeHtml } from "./web-markdown.ts";
 
-type ServerToolDefinition = AgentHarnessTool<ExecutionToolContext>;
+type ServerToolDefinition = ToolRegistration;
 
 /** Identifies us without tripping the servers that 403 unfamiliar agents. */
 const USER_AGENT = "Mozilla/5.0 (compatible; CarmelAgent/0.1)";
@@ -32,12 +32,11 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
   return [
     {
       name: "exa_search",
-      label: "Exa Search",
       description:
         "Search the web with Exa. Use this when current external information, documentation, sources, or web discovery is needed.",
       parameters: exaSearchSchema as never,
       executionMode: "parallel",
-      execute: async (_toolCallId, params, _onUpdate, _toolContext, _invocation, context) => {
+      execute: async (params, _api, context) => {
         const signal = context.abortSignal;
         const args = parseRecord(params);
         const query = requireString(args.query, "query");
@@ -63,19 +62,18 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
         });
         const data = await readJsonResponse(response, "Exa search failed");
         return {
-          content: [{ type: "text", text: formatExaSearchResults(data) }],
-          details: data,
+          output: [{ type: "text", text: formatExaSearchResults(data) }],
+          details: JSON.parse(JSON.stringify(data)),
         };
       },
     },
     {
       name: "fetch_url",
-      label: "Fetch URL",
       description:
         "Fetch a URL. The default markdown format strips navigation, ads, and boilerplate and returns the page's main content; html/text return the response body as sent.",
       parameters: fetchUrlSchema as never,
       executionMode: "parallel",
-      execute: async (_toolCallId, params, _onUpdate, _toolContext, _invocation, context) => {
+      execute: async (params, _api, context) => {
         const signal = context.abortSignal;
         const args = parseRecord(params);
         const url = requireString(args.url, "url");
@@ -109,7 +107,7 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
           if (article) {
             const { text, truncated } = truncate(article.markdown, maxCharacters);
             return {
-              content: [{ type: "text", text }],
+              output: [{ type: "text", text }],
               details: {
                 ...details,
                 extracted: true,
@@ -118,7 +116,7 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
                 published: article.published,
                 site: article.site,
                 wordCount: article.wordCount,
-                extractorType: article.extractorType,
+                extractorType: article.extractorType ?? null,
                 truncated,
               },
             };
@@ -127,7 +125,7 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
 
         const { text, truncated } = truncate(body, maxCharacters);
         return {
-          content: [{ type: "text", text }],
+          output: [{ type: "text", text }],
           details: { ...details, extracted: false, truncated },
         };
       },

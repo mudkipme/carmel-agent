@@ -46,6 +46,7 @@ export async function resolveModelContext(
     providerConfig
       ? createProviderConfigCredentialStore(providerConfig, modelRef.provider)
       : undefined,
+    { personalizedCatalogScope: providerConfig?.baseUrl ?? undefined },
   );
   if (!providerConfig) {
     const providerKey = db

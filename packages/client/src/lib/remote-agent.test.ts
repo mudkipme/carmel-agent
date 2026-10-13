@@ -318,17 +318,30 @@ test("the streaming message is rebuilt from deltas and tool-call parts", async (
       return eventResponse([
         envelope(1, { type: "message_start", message: assistantMessage("") }),
         envelope(2, {
-          type: "message_delta",
-          contentIndex: 0,
-          field: "thinking",
-          delta: "let me think",
+          type: "message_update",
+          usage: (answer as import("@earendil-works/pi-ai").AssistantMessage).usage,
+          changes: [{ type: "thinking_delta", contentIndex: 0, delta: "let me think" }],
         }),
-        envelope(3, { type: "message_delta", contentIndex: 1, field: "text", delta: "Hello, " }),
-        envelope(4, { type: "message_delta", contentIndex: 1, field: "text", delta: "world" }),
+        envelope(3, {
+          type: "message_update",
+          usage: (answer as import("@earendil-works/pi-ai").AssistantMessage).usage,
+          changes: [{ type: "text_delta", contentIndex: 1, delta: "Hello, " }],
+        }),
+        envelope(4, {
+          type: "message_update",
+          usage: (answer as import("@earendil-works/pi-ai").AssistantMessage).usage,
+          changes: [{ type: "text_delta", contentIndex: 1, delta: "world" }],
+        }),
         envelope(5, {
-          type: "message_part",
-          contentIndex: 2,
-          part: { type: "toolCall", id: "call_1", name: "read", arguments: { path: "a.ts" } },
+          type: "message_update",
+          usage: (answer as import("@earendil-works/pi-ai").AssistantMessage).usage,
+          changes: [
+            {
+              type: "block",
+              contentIndex: 2,
+              block: { type: "toolCall", id: "call_1", name: "read", arguments: { path: "a.ts" } },
+            },
+          ],
         }),
         envelope(6, { type: "message_end", message: answer }),
         envelope(7, runFinished()),
@@ -551,42 +564,108 @@ test("dismissing an error clears it from the snapshot", async () => {
   }
 });
 
-test("codemode progress stays outside messages and is cleared when observation finishes", async () => {
+test("native nested progress stays outside messages and is cleared when observation finishes", async () => {
   const originalFetch = globalThis.fetch;
-  const codemodeCalls = [
+  const slots = [
     {
-      id: "nested",
-      name: "mcp_echo",
-      label: "MCP echo",
-      status: "running" as const,
-      durationMs: 0,
+      callId: "parent/c1",
+      name: "read",
+      status: "running",
+      taskId: 2,
+      parentTaskId: 1,
+      parentCallId: "parent",
+      arguments: {},
     },
-  ];
+  ] as import("@carmel-agent/shared").NestedToolSlot[];
   globalThis.fetch = async () =>
     eventResponse([
-      envelope(1, { type: "tool_execution_start", toolCallId: "call", toolName: "codemode" }),
-      envelope(2, { type: "tool_execution_update", toolCallId: "call", codemodeCalls }),
-      envelope(3, {
-        type: "tool_execution_end",
-        toolCallId: "call",
+      envelope(1, {
+        type: "tool_execution_start",
+        args: {},
+        toolCallId: "parent",
         toolName: "codemode",
-        isError: false,
       }),
+      envelope(2, { type: "nested_tools", tools: slots }),
+      envelope(3, { type: "tool_execution_end", toolCallId: "parent", toolName: "codemode" }),
       envelope(4, runFinished()),
     ]);
   try {
     const agent = createAgent([]);
     let sawProgress = false;
     agent.subscribeStore(() => {
-      if (agent.getSnapshot().codemodeCalls?.get("call")) {
+      if (agent.getSnapshot().nestedTools?.length) {
         sawProgress = true;
-        assert.deepEqual(agent.getSnapshot().codemodeCalls?.get("call"), codemodeCalls);
+        assert.deepEqual(agent.getSnapshot().nestedTools, slots);
         assert.deepEqual(agent.getSnapshot().messages, []);
       }
     });
     await agent.attachToRun("run_codemode", [], 0);
     assert.equal(sawProgress, true);
-    assert.equal(agent.getSnapshot().codemodeCalls?.size, 0);
+    assert.equal(agent.getSnapshot().nestedTools?.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("native nested lifecycle updates bounded output without creating transcript messages", async () => {
+  const originalFetch = globalThis.fetch;
+  const nested = {
+    toolCallId: "parent/c1",
+    toolName: "read",
+    taskId: 2 as never,
+    parentToolCallId: "parent",
+    parentTaskId: 1 as never,
+  };
+  globalThis.fetch = async () =>
+    eventResponse([
+      envelope(1, {
+        type: "tool_execution_start",
+        toolCallId: "parent",
+        toolName: "codemode",
+        args: {},
+      }),
+      envelope(2, { type: "tool_execution_start", ...nested, args: { path: "file" } }),
+      envelope(3, { type: "tool_execution_update", ...nested, output: { set: "old" } }),
+      envelope(4, {
+        type: "tool_execution_update",
+        ...nested,
+        output: { trimStart: 1, append: "!" },
+        details: { progress: 1 },
+        diagnostics: [],
+      }),
+      envelope(5, {
+        type: "tool_execution_end",
+        ...nested,
+        result: { taskId: 2 as never, isError: false, diagnostics: [], durationMs: 12 },
+      }),
+      envelope(6, { type: "tool_execution_end", toolCallId: "parent", toolName: "codemode" }),
+      envelope(7, runFinished()),
+    ]);
+  try {
+    const agent = createAgent([]);
+    const states: import("@carmel-agent/shared").NestedToolSlot[] = [];
+    agent.subscribeStore(() => {
+      const snapshot = agent.getSnapshot();
+      if (snapshot.nestedTools?.[0]) states.push(snapshot.nestedTools[0]);
+      assert.deepEqual(snapshot.messages, []);
+      assert.equal(snapshot.pendingToolCalls.has(nested.toolCallId), false);
+    });
+    await agent.attachToRun("run_native_lifecycle", [], 0);
+    assert.ok(states.some((call) => call.status === "running" && call.arguments.path === "file"));
+    assert.ok(
+      states.some(
+        (call) => call.output === "ld!" && JSON.stringify(call.details) === '{"progress":1}',
+      ),
+    );
+    assert.ok(
+      states.some(
+        (call) =>
+          call.status === "done" &&
+          call.summary?.durationMs === 12 &&
+          call.summary.isError === false,
+      ),
+    );
+    assert.deepEqual(agent.getSnapshot().nestedTools, []);
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -1,3 +1,4 @@
+import { executeNativeTool } from "../effectors/testing/tools.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { eq } from "drizzle-orm";
@@ -6,7 +7,6 @@ import { db, initialize } from "../db/index.ts";
 import { agents } from "../db/schema.ts";
 import { createAgent, createModelRef, createUser } from "../test-support.ts";
 import { readAgentTasks } from "../services/agent-tasks.ts";
-import type { ExecutionToolContext } from "../effectors/pi-durable/index.ts";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import { createScheduleTaskTool } from "./task-tools.ts";
 
@@ -29,14 +29,7 @@ function fixture() {
     timezone: "Asia/Singapore",
   });
   const invoke = (args: Record<string, unknown>) =>
-    tool.execute(
-      "call",
-      args,
-      () => {},
-      {} as ExecutionToolContext,
-      {} as Parameters<typeof tool.execute>[4],
-      TEST_CONTEXT,
-    );
+    executeNativeTool(tool, args, undefined, TEST_CONTEXT);
   return { agentId, user: { id: userId, role: "user" as const }, modelRefId, invoke };
 }
 
@@ -54,7 +47,7 @@ test("chat scheduling belongs to the speaker on a shared agent and uses their mo
   assert.equal(task.timezone, "Asia/Singapore");
   assert.equal(task.status, "active");
   assert.ok(task.nextRunAt! > Date.now());
-  assert.match(JSON.stringify(result.content), /Tasks run history/);
+  assert.match(JSON.stringify(result.output), /Tasks run history/);
   const other = { id: createUser(), role: "user" as const };
   assert.deepEqual(readAgentTasks(other, f.agentId), []);
 });
@@ -76,7 +69,15 @@ test("invalid or past times and model-supplied identity never create a task", as
     { userId: createUser() },
     { agentId: "another-agent" },
   ])
-    await assert.rejects(f.invoke({ ...draft, ...patch }));
+    await f.invoke({ ...draft, ...patch }).then(
+      (result) =>
+        assert.equal(
+          result.isError,
+          true,
+          "native validation must reject invalid scheduling arguments",
+        ),
+      (error: unknown) => assert.ok(error instanceof Error),
+    );
   assert.deepEqual(readAgentTasks(f.user, f.agentId), []);
   await f.invoke(draft);
   assert.equal(readAgentTasks(f.user, f.agentId)[0].nextRunAt, Date.parse("2099-01-01T01:00:00Z"));

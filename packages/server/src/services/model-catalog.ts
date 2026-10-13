@@ -58,7 +58,7 @@ export async function readProviderModels(
 const backgroundRefreshes = new Map<string, Promise<unknown>>();
 
 function queueCatalogRefresh(providerConfig: ProviderConfigRecord, options: CatalogReadOptions) {
-  const provider = providerConfig.provider;
+  const provider = catalogRefreshKey(providerConfig);
   if (backgroundRefreshes.has(provider)) return;
   const task = refreshProviderModelCatalog(providerConfig, {
     ...options,
@@ -76,23 +76,21 @@ export async function refreshConfiguredModelCatalogs(): Promise<Map<string, Erro
   const configsByProvider = new Map<string, ProviderConfigRecord[]>();
   for (const config of db.select().from(providerConfigs).all()) {
     if (config.provider === OLLAMA_PROVIDER) continue;
-    configsByProvider.set(config.provider, [
-      ...(configsByProvider.get(config.provider) ?? []),
-      config,
-    ]);
+    const key = catalogRefreshKey(config);
+    configsByProvider.set(key, [...(configsByProvider.get(key) ?? []), config]);
   }
 
   // Credential refresh may update SQLite. Keep provider refreshes sequential so
   // two expired OAuth credentials cannot open overlapping write transactions.
-  for (const [provider, configs] of configsByProvider) {
+  for (const configs of configsByProvider.values()) {
     const config = configs.find((item) => item.apiKey || item.oauthCredential) ?? configs[0];
     if (!config) continue;
     try {
       const result = await refreshProviderModelCatalog(config, { allowNetwork: true });
-      const error = result.refresh.errors.get(provider);
-      if (error) errors.set(provider, error);
+      const error = result.refresh.errors.get(config.provider);
+      if (error) errors.set(config.provider, error);
     } catch (error) {
-      errors.set(provider, error instanceof Error ? error : new Error(String(error)));
+      errors.set(config.provider, error instanceof Error ? error : new Error(String(error)));
     }
   }
   return errors;
@@ -108,6 +106,7 @@ async function refreshProviderModelCatalog(
       allowModelNetwork: false,
       catalogBaseUrl: options.catalogBaseUrl,
       modelsStore: options.modelsStore,
+      personalizedCatalogScope: providerConfig.baseUrl ?? undefined,
     },
   );
   const controller = new AbortController();
@@ -137,4 +136,8 @@ async function refreshProviderModelCatalog(
     })),
     refresh,
   };
+}
+
+function catalogRefreshKey(config: ProviderConfigRecord) {
+  return config.provider === "openrouter" ? `openrouter:${config.id}` : config.provider;
 }

@@ -41,12 +41,11 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
     tools: [
       {
         name: "spin",
-        label: "Spin",
         description: "Does nothing, forever.",
         parameters: { type: "object", properties: {}, additionalProperties: false },
         execute: async () => {
           executions += 1;
-          return { content: [{ type: "text", text: "spun" }] };
+          return { output: [{ type: "text", text: "spun" }] };
         },
       } as never,
     ],
@@ -58,7 +57,9 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
   abort.attach(lane);
   const unsubscribe = pi.observe((event) => {
     const stop =
-      event.type === "tool_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
+      event.type === "tool_execution_end"
+        ? guard.recordToolCall()
+        : (guard.recordActivity(), undefined);
     if (stop) abort.request();
   });
 

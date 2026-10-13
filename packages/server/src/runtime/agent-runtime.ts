@@ -1,12 +1,11 @@
+import { CompactionEntry, GenerationTask, hook } from "@earendil-works/pi-durable";
 import {
-  AgentHarness,
+  PiRun,
   BACKGROUND_CONTEXT,
-  type AgentHarnessTool,
   formatSkillsForSystemPrompt,
-  type AgentLane,
+  type Conversation,
   type Context as PiContext,
-  type ExecutionToolContext,
-  type HarnessEvent,
+  type AgentEvent,
   type AgentMessage,
 } from "../effectors/pi-durable/index.ts";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
@@ -27,7 +26,7 @@ import { type AgentRunEvent, type PromptInput, type Session } from "@carmel-agen
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { loadAgentResources } from "./resources.ts";
-import { classifyHarnessTurnFailure, projectRunEvent } from "./run-events.ts";
+import { classifyAssistantFailure, projectRunEvent } from "./run-events.ts";
 import {
   createActiveAgentRun,
   emitRunEvent,
@@ -41,12 +40,8 @@ import {
 } from "./session-title.ts";
 import { createServerExecution } from "./tools.ts";
 import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
-import {
-  createPiPromptDispatcher,
-  observeHarnessEvents,
-  type PiDispatcherOptions,
-} from "../effectors/pi-durable/agent-driver.ts";
-import { createPiSessionLog, PI_MAIN_BRANCH } from "../effectors/pi-durable/session-log.ts";
+import { type PromptDispatch } from "../effectors/dispatch-prompt.ts";
+import { createPiSessionLog } from "../effectors/pi-durable/session-log.ts";
 import {
   compactionSettingsForWindow,
   describeCompactionFailure,
@@ -98,7 +93,7 @@ export function normalizePromptInput(input?: PromptInput) {
 }
 
 type PiSession = Awaited<ReturnType<typeof openPiSession>>;
-type RunHarness = AgentHarness<ExecutionToolContext>;
+type RunHarness = PiRun;
 
 /**
  * The invocation context every Pi call in a run is made under.
@@ -130,28 +125,26 @@ export type AgentRunInput = {
 };
 
 export type SessionRunAddons = {
-  tools: AgentHarnessTool<ExecutionToolContext>[];
+  tools: ToolRegistration[];
   instructions: string;
   onQueueUpdate?: (entryIds: string[]) => void;
-  onRunSettling?: (lane: AgentLane, aborted: boolean) => Promise<void>;
+  onRunSettling?: (session: PiSession, aborted: boolean) => Promise<void>;
 };
 
-const runningLanes = new Map<string, AgentLane>();
-/** Issue access is checked by the caller; Pi owns admission and delivery. */
+const runningConversations = new Map<string, Conversation>();
+/** Native submission records own steering admission and queue state. */
 export async function steerAgentRun(sessionId: string, text: string) {
-  const lane = runningLanes.get(sessionId);
-  if (!lane) return undefined;
-  const result = await lane.steer(text, undefined, runContext);
-  if (!result.ok) return undefined;
-  const watch = await lane.watch(runContext);
-  try {
-    return {
-      entryId: result.value.entryId,
-      pending: watch.snapshot.queues.some((item) => item.entryId === result.value.entryId),
-    };
-  } finally {
-    watch.unsubscribe();
-  }
+  const conversation = runningConversations.get(sessionId);
+  if (!conversation) return undefined;
+  const submission = await conversation.submit(
+    { type: "input", content: text, whenBusy: "steer" },
+    runContext,
+  );
+  const record = await submission.status(runContext);
+  return {
+    entryId: record.status === "placed" ? `durable:${record.entry}` : `submission:${submission.id}`,
+    pending: record.status === "queued",
+  };
 }
 
 /** Everything the run body and its finalization share, fixed at run startup. */
@@ -233,37 +226,44 @@ async function startAgentRun(context: AgentRun) {
             throw new RunGuardError(stop);
           }
         },
-        onActivity: () => guard.recordActivity(),
       },
       session.userId,
     );
     await execution.prepare(abort.signal);
     const opened = await openRunHarness({ ...context, piSession, execution });
-    const { lane, tools } = opened;
-    runningLanes.set(session.id, lane);
+    const { conversation, tools, resources } = opened;
+    runningConversations.set(session.id, conversation);
     harness = opened.harness;
-    abort.attach(lane);
-    unsubscribe = observeHarnessEvents(harness, (event: HarnessEvent) => {
-      if (event.type === "queue_update" && !abort.requested)
-        context.sessionAddons?.onQueueUpdate?.(event.queues.map((item) => item.entryId));
+    abort.attach(conversation);
+    unsubscribe = harness.observe((event: AgentEvent) => {
+      if (!abort.requested && (event.type === "inbox_update" || event.type === "snapshot"))
+        context.sessionAddons?.onQueueUpdate?.(
+          (event.type === "inbox_update" ? event.items : event.inbox).map(
+            (item) => `submission:${item.id}`,
+          ),
+        );
       retry.observe(event);
       contextReporter.observe(event);
-      if (event.type === "turn_end") {
+      if (event.type === "message_end" && event.entry.model?.[0]?.role === "assistant") {
+        const message = event.entry.model[0];
         const failure = contextReporter.lastTurnFailure;
         outcome.recordTurnEnd({
-          stopReason: event.message.stopReason,
-          detail: failure ? formatTurnFailure(failure) : event.message.errorMessage,
+          stopReason: message.stopReason,
+          detail: failure ? formatTurnFailure(failure) : message.errorMessage,
         });
       }
       // Every event is a sign of life; only finished tool calls count against
       // the ceiling. Aborting through the same gate the HTTP path uses means a
       // guard stop tears down exactly like a user stop.
       const stop =
-        event.type === "tool_end" ? guard.recordToolCall() : (guard.recordActivity(), undefined);
+        event.type === "tool_execution_end" && !event.parentToolCallId
+          ? guard.recordToolCall()
+          : (guard.recordActivity(), undefined);
       if (stop) abort.request("guard");
-      const projected = projectRunEvent(event, model.contextWindow);
+      const projected = projectRunEvent(event, contextReporter.lastTurnFailure);
       if (projected) emitRunEvent(run, projected);
     });
+    contextReporter.observe(harness.snapshot);
     // Catches what events cannot: a provider connection that opened and went
     // quiet, or a bash command the model launched without a timeout.
     guardTimer = setInterval(() => {
@@ -277,33 +277,33 @@ async function startAgentRun(context: AgentRun) {
       }
       if (guard.poll()) abort.request("guard");
     }, RUN_GUARD_POLL_MS);
-    log = createPiSessionLog({ session: piSession, lane, context: runContext });
+    log = createPiSessionLog({ session: piSession, onNavigate: () => harness!.attach() });
 
     // Abort can land at any moment; check wherever the run can still stop without
     // leaving the session branch half-rewound.
     if (abort.requested) {
-      await lane.abort(runContext);
+      await conversation.abort(runContext);
       return;
     }
 
-    await lane.configure(
+    await conversation.configure(
       { model: { provider: model.provider, modelId: model.id }, thinkingLevel, tools },
       runContext,
     );
     if (abort.requested) {
       await retry.restore(log);
-      await lane.abort(runContext);
+      await conversation.abort(runContext);
       return;
     }
 
-    if (!promptInput && (await lane.hasPending(runContext))) {
+    if (!promptInput && (await harness.hasPending(runContext))) {
       // A restart continues Durable's checkpoint instead of rewinding and resubmitting the user input.
-      await lane.resume(runContext);
+      await harness.resume(runContext);
     } else {
       const prepared = await prepareAgentRunPrompt(log, promptInput);
       retry.arm(prepared.retryOriginalLeafId);
       await runHarnessPrompt(
-        { harness, lane, context: runContext },
+        { resources, prompt: (text, images) => harness!.prompt(text, images, runContext) },
         prepared.promptInput.text,
         prepared.promptInput.images,
       );
@@ -318,11 +318,10 @@ async function startAgentRun(context: AgentRun) {
     await reportRunFailure(context, { log, retry, error });
   } finally {
     if (guardTimer) clearInterval(guardTimer);
-    const lane = runningLanes.get(session.id);
-    runningLanes.delete(session.id);
-    if (lane && context.sessionAddons?.onRunSettling) {
+    runningConversations.delete(session.id);
+    if (piSession && context.sessionAddons?.onRunSettling) {
       try {
-        await context.sessionAddons.onRunSettling(lane, abort.requested);
+        await context.sessionAddons.onRunSettling(piSession, abort.requested);
       } catch (error) {
         console.warn("Unable to settle issue updates:", errorMessage(error));
       }
@@ -342,7 +341,7 @@ export class HarnessAbortGate {
   #requested = false;
   #reason?: RunAbortReason;
   /** Abort the selected native conversation once it is attached. */
-  #lane?: Pick<AgentLane, "abort">;
+  #lane?: Pick<Conversation, "abort">;
 
   get requested() {
     return this.#requested;
@@ -365,7 +364,7 @@ export class HarnessAbortGate {
     void this.#lane?.abort(runContext);
   }
 
-  attach(lane: Pick<AgentLane, "abort">) {
+  attach(lane: Pick<Conversation, "abort">) {
     this.#lane = lane;
   }
 
@@ -389,8 +388,12 @@ export class RetryBranch {
     this.#originalLeafId = leafId;
   }
 
-  observe(event: HarnessEvent) {
-    if (this.#originalLeafId && event.type === "message_end" && event.message.role === "user") {
+  observe(event: AgentEvent) {
+    if (
+      this.#originalLeafId &&
+      event.type === "message_end" &&
+      event.entry.model?.[0]?.role === "user"
+    ) {
       this.#messagePersisted = true;
     }
   }
@@ -408,7 +411,7 @@ export class RetryBranch {
 
 async function openRunHarness(
   context: AgentRun & { piSession: PiSession; execution: ServerExecution },
-): Promise<{ harness: RunHarness; lane: AgentLane; tools: ToolRegistration[] }> {
+) {
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } =
     context;
   const resources = await loadAgentResources(agent, execution.env);
@@ -426,13 +429,12 @@ async function openRunHarness(
   const tools = execution.resolveTools([...schedulingTools, ...(sessionAddons?.tools ?? [])]);
   const activeToolNames = tools.map((tool) => tool.name);
   // Install this run's credentials, resources, and permitted tools before native scheduling.
-  const { harness, tools: durableTools } = await AgentHarness.create<ExecutionToolContext>(
+  const harness = await PiRun.open(
+    piSession,
     {
-      session: piSession,
       models: modelRuntime,
-      model,
-      thinkingLevel,
-      promptSections: {
+      agent: { model: { provider: model.provider, modelId: model.id }, thinkingLevel, tools },
+      sections: {
         ...buildHarnessPromptSections({
           base: agent.systemPrompt.trim() || "You are a helpful assistant.",
           cwd: execution.env.cwd,
@@ -449,43 +451,55 @@ async function openRunHarness(
           ? buildSchedulingInstructions(context.timezone)
           : undefined,
       },
-      resources: {
-        skills: resources.skills,
-        promptTemplates: [
-          ...resources.promptTemplates,
-          ...agent.promptTemplates.map((template) => ({
-            name: template.name,
-            content: template.body,
-          })),
-        ],
-      },
       tools,
-      toolContext: execution.toolContext,
-      activeToolNames,
-      // `timeoutMs` was missing, so a provider connection that opened and never
-      // answered held the run -- and the session's mutation lease -- for the life
-      // of the process.
-      streamOptions: {
-        timeoutMs: providerRequestTimeoutMs(),
-        maxRetries: 2,
-        maxRetryDelayMs: 60_000,
+      env: execution.env,
+      extensions: [
+        ...execution.extensions,
+        ...(agent.permissions.bash
+          ? [
+              {
+                name: "carmel.browser",
+                hooks: [
+                  hook(GenerationTask, {
+                    async beforeRequest() {
+                      await browserControl(agent.id).wait(context.abort.signal);
+                    },
+                  }),
+                ],
+              },
+            ]
+          : []),
+      ],
+      settings: {
+        progress: { partialIntervalMs: 50, outputIntervalMs: 50 },
+        // `timeoutMs` was missing, so a provider connection that opened and never
+        // answered held the run -- and the session's mutation lease -- for the life
+        // of the process.
+        stream: {
+          timeoutMs: providerRequestTimeoutMs(),
+          maxRetries: 2,
+          maxRetryDelayMs: 60_000,
+        },
+        // Distinct from `stream settings`, which only covers turn streaming. Without
+        // this, a transient provider error during summarization ended compaction for
+        // the turn -- on the one call the session most needs to succeed.
+        retry: { maxRetries: 2, baseDelayMs: 1_000 },
+        compaction: compactionSettingsForWindow(model.contextWindow),
       },
-      // Distinct from `streamOptions`, which only covers turn streaming. Without
-      // this, a transient provider error during summarization ended compaction for
-      // the turn -- on the one call the session most needs to succeed.
-      retry: { enabled: true, maxRetries: 2, baseDelayMs: 1_000 },
-      compaction: compactionSettingsForWindow(model.contextWindow),
     },
     runContext,
   );
-  if (agent.permissions.bash)
-    harness.hooks.on("before_request", async () => {
-      await browserControl(agent.id).wait(context.abort.signal);
-      return undefined;
-    });
-  // The run handle follows the conversation selected in native storage.
-  const lane = await harness.lane(PI_MAIN_BRANCH, runContext);
-  return { harness, lane, tools: durableTools };
+  const dispatchResources = {
+    skills: resources.skills,
+    promptTemplates: [
+      ...resources.promptTemplates,
+      ...agent.promptTemplates.map((template) => ({
+        name: template.name,
+        content: template.body,
+      })),
+    ],
+  };
+  return { harness, conversation: piSession.conversation, tools, resources: dispatchResources };
 }
 
 /** Restore an abandoned retry branch, then persist and emit the failure. */
@@ -549,7 +563,7 @@ async function finalizeRun(
     try {
       // Detach event delivery before releasing native storage. HTTP readers
       // retain their own leases and continue reading committed progress.
-      await harness?.close(runContext);
+      await harness?.close();
       await (log ? log.close() : closePiSession(piSession));
     } catch (error) {
       // Closing is what drains the session's pending writes, so a failure here
@@ -590,7 +604,7 @@ async function finalizeRun(
 /**
  * A run without prompt input is a retry/edit-and-resend. The active branch
  * already ends in the user message, so rewind to its parent and send that same
- * content through AgentHarness.prompt(). This preserves the abandoned branch
+ * content through native Conversation.submit(). This preserves the abandoned branch
  * without inserting the empty user message that prompt("") would create.
  */
 export async function prepareAgentRunPrompt(
@@ -624,11 +638,11 @@ export async function prepareAgentRunPrompt(
  * invocation that carries an attachment) live in the `pi-durable` adapter.
  */
 export async function runHarnessPrompt(
-  dispatch: PiDispatcherOptions,
+  dispatch: PromptDispatch,
   text: string,
   images?: PromptInput["images"],
 ) {
-  return dispatchPrompt(createPiPromptDispatcher(dispatch), text, images);
+  return dispatchPrompt(dispatch, text, images);
 }
 
 function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user" }>): PromptInput {
@@ -661,6 +675,7 @@ function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user
 export class ContextReporter {
   #lastTurnFailure?: TurnFailure;
   #overflowCompaction: "none" | "completed" | "failed" = "none";
+  #reportedCompactionFailure?: number;
   readonly #contextWindow?: number;
   readonly #emit: (event: AgentRunEvent) => void;
 
@@ -670,21 +685,31 @@ export class ContextReporter {
     this.#emit = emit;
   }
 
-  observe(event: HarnessEvent) {
-    if (event.type === "turn_end") {
-      // A clean turn clears the record: only the last turn decides the run.
-      this.#lastTurnFailure = classifyHarnessTurnFailure(event, this.#contextWindow);
+  observe(event: AgentEvent) {
+    if (event.type === "message_end" && event.entry.model?.[0]?.role === "assistant") {
+      this.#lastTurnFailure = classifyAssistantFailure(event.entry.model[0], this.#contextWindow);
       return;
     }
-    if (event.type !== "compaction_end") return;
-    if (event.status === "failed") {
-      if (event.reason === "overflow") this.#overflowCompaction = "failed";
-      const notice = describeCompactionFailure(event.error.message);
-      this.#emit({ type: "context_pressure", level: notice.level, message: notice.message });
-    } else if (event.status === "completed" && event.reason === "overflow") {
+    if (
+      (event.type === "message_end" || event.type === "entry_appended") &&
+      event.entry.kind === CompactionEntry.kind &&
+      (event.entry.data as { reason?: string } | undefined)?.reason === "overflow"
+    ) {
       this.#overflowCompaction = "completed";
       this.#emit({ type: "run_recovered", message: OVERFLOW_RECOVERED });
+      return;
     }
+    const failure =
+      event.type === "snapshot"
+        ? event.compactionFailure
+        : event.type === "compaction_end" && event.error
+          ? event
+          : undefined;
+    if (!failure || failure.taskId === this.#reportedCompactionFailure) return;
+    this.#reportedCompactionFailure = failure.taskId;
+    if (failure.reason === "overflow") this.#overflowCompaction = "failed";
+    const notice = describeCompactionFailure(failure.error!);
+    this.#emit({ type: "context_pressure", level: notice.level, message: notice.message });
   }
 
   /** The failure the most recent turn ended with, if any. */

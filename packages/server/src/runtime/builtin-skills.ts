@@ -2,8 +2,7 @@ import {
   BACKGROUND_CONTEXT,
   formatSkillInvocation,
   loadSkills,
-  type AgentHarnessTool,
-  type ExecutionToolContext,
+  type ToolRegistration,
   type Skill,
 } from "../effectors/pi-durable/index.ts";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
@@ -57,11 +56,10 @@ export function formatBuiltinSkillsForSystemPrompt(skills: Skill[]) {
 }
 
 /** Bounded resource access also works when workspace read permission is disabled. */
-export function builtinSkillTool(agent: AgentCapabilities): AgentHarnessTool<ExecutionToolContext> {
+export function builtinSkillTool(agent: AgentCapabilities): ToolRegistration {
   return {
     name: "load_builtin_skill",
     replay: "safe",
-    label: "Load built-in skill",
     description:
       "Load a built-in skill's instructions by name before using its workflow. Available skill: agent-browser (Carmel browser automation and human sign-in handoff).",
     parameters: {
@@ -70,13 +68,13 @@ export function builtinSkillTool(agent: AgentCapabilities): AgentHarnessTool<Exe
       required: ["name"],
       additionalProperties: false,
     },
-    async execute(_id, args, _update, _tools, _invocation, context) {
+    async execute(args, _api, context) {
       context.abortSignal?.throwIfAborted();
       const skill = (await loadBuiltinSkills(agent)).find(
         (skill) => skill.name === (args as { name: string }).name,
       );
       if (!skill) throw new Error("Built-in skill is unavailable for this agent.");
-      return { content: [{ type: "text", text: formatSkillInvocation(skill) }], details: {} };
+      return { output: [{ type: "text", text: formatSkillInvocation(skill) }], details: {} };
     },
   };
 }

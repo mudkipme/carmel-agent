@@ -3,17 +3,7 @@ import { INTERRUPTED_DETAIL, type RunAbortReason } from "../effectors/run-outcom
 
 const maxReplayEvents = 1_000;
 
-/**
- * Text and thinking deltas are buffered for this long and emitted as one event.
- * A model streams tokens far faster than a person reads them, and on a slow link
- * the per-frame overhead costs more than the bytes; ~20 updates/second still
- * reads as continuous typing.
- */
-const deltaCoalesceMs = 50;
-
 export type RunEvent = AgentRunEvent;
-
-type PendingDelta = Extract<AgentRunEvent, { type: "message_delta" }>;
 
 export type ActiveAgentRun = {
   runId: string;
@@ -28,9 +18,6 @@ export type ActiveAgentRun = {
   /** How the run ended. Set when it finishes. */
   result?: AgentRunResult;
   started: boolean;
-  /** Deltas accumulated since the last flush, not yet sequenced. */
-  pendingDelta?: PendingDelta;
-  flushTimer?: ReturnType<typeof setTimeout>;
   /** Sequence of the `message_start` whose message is still streaming. */
   streamingSince?: number;
   /** Called with the result as the run is released; see `onRunFinished`. */
@@ -150,11 +137,6 @@ export async function shutdownActiveRuns(timeoutMs = 10_000) {
 
 export function finishAgentRun(run: ActiveAgentRun, result?: AgentRunResult) {
   run.result = result;
-  if (run.flushTimer !== undefined) {
-    clearTimeout(run.flushTimer);
-    run.flushTimer = undefined;
-  }
-  flushRunEvents(run);
   run.finished = true;
   activeAgentRuns.delete(run.runId);
   activeSessionRuns.delete(run.sessionId);
@@ -263,46 +245,8 @@ export function createRunStream(
   );
 }
 
-/**
- * Publish an event to every subscriber and to the replay buffer.
- *
- * Consecutive deltas for the same content part are merged and held for
- * `deltaCoalesceMs` first. Any other event flushes them, so the pending buffer
- * can never reorder a delta past the event that ends the part it belongs to.
- */
+/** Native Durable already batches progress; HTTP only sequences and replays it. */
 export function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
-  if (event.type === "message_delta") {
-    const pending = run.pendingDelta;
-    if (pending && pending.contentIndex === event.contentIndex && pending.field === event.field) {
-      pending.delta += event.delta;
-    } else {
-      flushRunEvents(run);
-      run.pendingDelta = { ...event };
-    }
-    if (run.flushTimer === undefined) {
-      run.flushTimer = setTimeout(() => {
-        run.flushTimer = undefined;
-        flushRunEvents(run);
-      }, deltaCoalesceMs);
-      // A buffered delta must never be the reason the process stays alive.
-      run.flushTimer.unref?.();
-    }
-    return run.subscribers.size > 0;
-  }
-
-  flushRunEvents(run);
-  return publishRunEvent(run, event);
-}
-
-/** Emit any buffered delta immediately. Safe to call when nothing is pending. */
-function flushRunEvents(run: ActiveAgentRun) {
-  const pending = run.pendingDelta;
-  if (!pending) return;
-  run.pendingDelta = undefined;
-  publishRunEvent(run, pending);
-}
-
-function publishRunEvent(run: ActiveAgentRun, event: RunEvent) {
   const envelope: AgentRunEventEnvelope = { sequence: run.nextSequence++, event };
   if (event.type === "message_start") run.streamingSince = envelope.sequence;
   else if (event.type === "message_end") run.streamingSince = undefined;

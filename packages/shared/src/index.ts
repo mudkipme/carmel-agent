@@ -1,11 +1,12 @@
+import type { AgentEvent, NestedToolSlot } from "@earendil-works/pi-durable";
+export type { NestedToolSlot } from "@earendil-works/pi-durable";
+export type { CodemodeToolDetails, CodemodeNestedCall } from "@earendil-works/pi-durable/codemode";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { TextContent, ThinkingContent, ToolCall } from "@earendil-works/pi-ai";
 import type {
   AgentMcpServer,
   AgentMount,
   AgentPermissions,
   AgentThinkingLevel,
-  CodemodeCallInfo,
   PromptTemplate,
 } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
@@ -135,14 +136,13 @@ export type AgentRunFinishedEvent = {
  */
 export type AgentRunEvent =
   | { type: "message_start"; message: AgentMessage }
-  /** Append `delta` to the `text`/`thinking` of the content part at `contentIndex`. */
-  | { type: "message_delta"; contentIndex: number; field: "text" | "thinking"; delta: string }
-  /** Replace the whole content part at `contentIndex`. Tool calls arrive this way, not as deltas. */
-  | { type: "message_part"; contentIndex: number; part: TextContent | ThinkingContent | ToolCall }
+  | Extract<AgentEvent, { type: "message_update" }>
   | { type: "message_end"; message: AgentMessage }
-  | { type: "tool_execution_start"; toolCallId: string; toolName: string }
-  | { type: "tool_execution_end"; toolCallId: string; toolName: string; isError: boolean }
-  | { type: "tool_execution_update"; toolCallId: string; codemodeCalls: CodemodeCallInfo[] }
+  | Extract<
+      AgentEvent,
+      { type: "tool_execution_start" | "tool_execution_update" | "tool_execution_end" }
+    >
+  | { type: "nested_tools"; tools: readonly NestedToolSlot[] }
   | { type: "turn_end"; errorMessage?: string }
   /**
    * Automatic compaction could not keep the session inside its context budget.

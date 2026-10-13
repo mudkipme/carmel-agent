@@ -1,10 +1,10 @@
-import type { AgentHarnessTool, ExecutionToolContext } from "../effectors/pi-durable/index.ts";
+import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
 import type { agents } from "../db/schema.ts";
 import { browserControl } from "./browser-control.ts";
 import { execSandboxCommand } from "./sandbox/bash-operations.ts";
 import { resolveAgentWorkingDirPath } from "./resources.ts";
 
-type Tool = AgentHarnessTool<ExecutionToolContext>;
+type Tool = ToolRegistration;
 
 export function guardBrowserHandoff(
   agentId: string,
@@ -15,12 +15,12 @@ export function guardBrowserHandoff(
     ...tool,
     async execute(...args) {
       const control = browserControl(agentId);
-      const lease = await control.enter(args[5].abortSignal);
+      const lease = await control.enter(args[2].abortSignal);
       try {
         if (lease.interrupted || observed.revision !== control.state.revision) {
           observed.revision = control.state.revision;
           return {
-            content: [
+            output: [
               {
                 type: "text",
                 text: "This tool call was not executed: a human took control of the browser since your last action. Take a fresh agent-browser snapshot, verify the current page, and reconsider this call before continuing.",
@@ -41,7 +41,7 @@ export function guardBrowserHandoff(
 export function browserHelpTool(agent: typeof agents.$inferSelect): Tool {
   return {
     name: "request_browser_help",
-    label: "Browser assistance",
+    callers: ["model"],
     description:
       "Pause this agent's tools and ask a person to help in the shared browser, for example to sign in or complete verification. Open the site with agent-browser first. Call this tool directly, outside codemode. It waits until a person selects Resume agent and returns a fresh browser snapshot. Never ask for passwords in chat.",
     executionMode: "sequential",
@@ -59,16 +59,13 @@ export function browserHelpTool(agent: typeof agents.$inferSelect): Tool {
       required: ["reason"],
       additionalProperties: false,
     },
-    async execute(_id, args, onUpdate, _toolContext, _invocation, context) {
+    async execute(args, api, context) {
       const reason = String((args as { reason: string }).reason).trim();
       if (!reason || reason.length > 1000)
         throw new Error("Give a brief reason for browser assistance.");
       const control = browserControl(agent.id);
       const waiting = control.requestHelp(reason, context.abortSignal);
-      onUpdate({
-        content: [{ type: "text", text: `Waiting for browser assistance: ${reason}` }],
-        details: {},
-      });
+      api.output(`Waiting for browser assistance: ${reason}`);
       await waiting;
       const lease = await control.enter(context.abortSignal);
       try {
@@ -86,7 +83,7 @@ export function browserHelpTool(agent: typeof agents.$inferSelect): Tool {
           },
         );
         return {
-          content: [
+          output: [
             {
               type: "text",
               text: `The person resumed the agent. Verify whether the requested action succeeded before continuing. Previous browser refs are stale.\n${result.exitCode === 0 ? snapshot : "Take a fresh browser snapshot before continuing."}`,

@@ -1,39 +1,28 @@
 # Effectors
 
-Carmel drives Pi's agent loop rather than merely assembling one, which is why
-upstream churn costs us anything. This directory keeps the Pi-facing edits a
-new release forces in a few adapter files instead of scattered through the run
-path.
+Pi Durable owns agent execution, native tool contracts, conversation configuration,
+submissions, compaction, and committed progress. Carmel supplies application policy
+and the guarded execution environment.
 
 ## Layout
 
-| Path                 | Rule                                                                                     |
-| -------------------- | ---------------------------------------------------------------------------------------- |
-| `contracts/`         | Carmel's ports and shared message/tool types. Pi details are confined to their adapters. |
-| `pi-durable/`        | Adapters onto Pi Durable's native harness, tools, and SQLite storage.                    |
-| `testing/`           | Fakes, plus contract suites that any implementation must pass.                           |
-| `dispatch-prompt.ts` | Policy over a port. Pi-free by construction.                                             |
+| Path                        | Purpose                                                                                                                  |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `pi-durable/run.ts`         | Observe native batches, recover missing history after a backlog snapshot, and join input settlement with event delivery. |
+| `pi-durable/session-log.ts` | Public branch IDs and retry restoration over native storage operations.                                                  |
+| `pi-durable/resources.ts`   | Guarded resource discovery and prompt helpers that Pi does not export publicly.                                          |
+| `contracts/`                | Branch, message, and tool-provider contracts used by application policy.                                                 |
+| `testing/`                  | Native integration fixtures, fakes, and branch contract checks.                                                          |
+| `dispatch-prompt.ts`        | Expand Carmel slash commands into ordinary native input, including attachments.                                          |
 
-Two ports, not one, because upstream reshapes the loop and the store on
-independent schedules:
+There is no parallel harness/lane interface or generic prompt driver. Runs use native
+`Conversation` handles, `AgentEvent` batches, `Submission` records, and `InboxDoc`.
+The client consumes native batched message changes; Durable owns batching. HTTP adds
+sequencing and bounded replay. Configuration is native conversation state, written
+atomically through `configure`; identical updates are native no-ops.
 
-- **`PromptDispatcher`** — sending composer text as a prompt, skill, or template.
-- **`SessionLog`** — reading, rewinding and appending to the conversation branch.
-
-Run configuration (model, thinking level, active tools) is native conversation
-state, written atomically through Durable's `configure`. Identical updates are
-native no-ops.
-
-## Porting to a new Pi
-
-1. Update `pi-durable/` against the pinned release's public APIs.
-2. Run the contracts in `effectors.test.ts` and the storage, recovery, and
-   streaming integration tests.
-3. Document storage or replay changes in [the storage guide](../../../../docs/pi-durable.md).
-
-The suite is the deliverable. A v2 adapter is not reviewed into correctness; it
-is pointed at `testing/session-log-contract.ts`, which either passes or names the
-operation whose meaning changed.
+Run the storage, recovery, streaming, compaction, and branch integration tests when
+updating Pi. Document changes in [the storage guide](../../../../docs/pi-durable.md).
 
 ## Compaction
 
@@ -177,10 +166,9 @@ invalidation**, since it rewrites the history. That is the link between the
 compaction work above and cache economics, and the reason avoiding futile
 summaries matters beyond saving a model call.
 
-## What is still on the far side of the seam
+## Application boundaries
 
-- `runtime/agent-runtime.ts` constructs `AgentHarness`, acquires the lane and
-  subscribes to its events (through `observeHarnessEvents`) directly.
-- `services/pi-session-storage.ts` owns session open/close, fork, transcript
-  replace and entry rewrites against Pi's storage API.
-- `runtime/run-events.ts` projects Pi's harness events onto the wire protocol.
+- `runtime/agent-runtime.ts` installs native tools, sections, and hooks before scheduling, then observes native events through `PiRun`.
+- `services/pi-session-storage.ts` owns shared session leases, stable public IDs, fork, transcript replacement, and entry rewrites against native storage APIs.
+- `runtime/run-events.ts` forwards native batches and omits unused bulk fields from the HTTP protocol.
+- Guarded paths, credentials, personalized catalogs, provider attribution, retries, issue review, and cron scheduling remain application responsibilities.

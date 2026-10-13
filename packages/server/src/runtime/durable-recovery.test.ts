@@ -9,8 +9,8 @@ import {
 import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openTestHarness } from "../effectors/testing/pi-harness.ts";
-import type { AgentHarnessTool, ExecutionToolContext } from "../effectors/pi-durable/index.ts";
-import { createCodemodeTool } from "./codemode-tool.ts";
+import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
+import { createCarmelCodemode } from "./codemode-tool.ts";
 import { projectRunEvent } from "./run-events.ts";
 import type { AgentRunEvent } from "@carmel-agent/shared";
 import type { LiveState } from "@earendil-works/pi-durable";
@@ -26,23 +26,23 @@ test("SQLite restart resumes a codemode checkpoint without repeating nested side
   const committed = new Promise<void>((resolve) => {
     progress = resolve;
   });
-  const nested: AgentHarnessTool<ExecutionToolContext>[] = [
+  const nested: ToolRegistration[] = [
     {
       name: "effect",
-      label: "Effect",
       description: "An external effect",
       parameters,
       async execute() {
         effects++;
-        return { content };
+        return { output: content };
       },
     },
     {
       name: "wait",
-      label: "Wait",
       description: "Wait until shutdown",
       parameters,
-      async execute(_id, _args, _update, _tools, _invocation, context) {
+      async execute(_args, _api, context) {
+        context.abortSignal!.throwIfAborted();
+        progress();
         await new Promise((_, reject) =>
           context.abortSignal!.addEventListener(
             "abort",
@@ -50,7 +50,7 @@ test("SQLite restart resumes a codemode checkpoint without repeating nested side
             { once: true },
           ),
         );
-        return { content };
+        return { output: content };
       },
     },
   ];
@@ -71,20 +71,14 @@ test("SQLite restart resumes a codemode checkpoint without repeating nested side
     ),
     fauxAssistantMessage("Recovered without repeating the effect."),
   ]);
+  const codemode = createCarmelCodemode();
   const options = {
     models,
     model: faux.getModel(),
-    tools: [createCodemodeTool(nested)],
-    toolContext: {} as ExecutionToolContext,
+    tools: [...nested, ...codemode.tools!],
+    extensions: [codemode],
   };
   const first = await openTestHarness(sessionId, options);
-  first.observe((event) => {
-    if (
-      event.type === "tool_update" &&
-      (event.partialResult.details as { codemodeCalls?: unknown[] })?.codemodeCalls?.length === 2
-    )
-      progress();
-  });
   await first.session.conversation.submit(
     { type: "input", content: "Run the batch", whenBusy: "reject" },
     first.context,
@@ -105,7 +99,7 @@ test("SQLite restart resumes a codemode checkpoint without repeating nested side
     const result = messages.find((message) => message.role === "toolResult");
     assert.ok(result?.role === "toolResult" && result.isError);
     assert.match(JSON.stringify(result.content), /interrupted/);
-    assert.equal((result.details as { codemodeCalls: unknown[] }).codemodeCalls.length, 2);
+    assert.equal((result.details as { calls: unknown[] }).calls.length, 2);
     assert.match(JSON.stringify(messages.at(-1)), /Recovered without repeating/);
     assert.equal(await reopened.lane.hasPending(reopened.context), false);
   } finally {
@@ -120,13 +114,12 @@ test("SQLite restart can replay a tool explicitly declared safe", async () => {
   const entered = new Promise<void>((resolve) => {
     started = resolve;
   });
-  const safe: AgentHarnessTool<ExecutionToolContext> = {
+  const safe: ToolRegistration = {
     name: "safe_read",
-    label: "Read",
     description: "Read-only lookup",
     parameters,
     replay: "safe",
-    async execute(_id, _args, _update, _tools, _invocation, context) {
+    async execute(_args, _api, context) {
       executions++;
       if (executions === 1) {
         started();
@@ -138,7 +131,7 @@ test("SQLite restart can replay a tool explicitly declared safe", async () => {
           ),
         );
       }
-      return { content };
+      return { output: content };
     },
   };
   const faux = fauxProvider({
@@ -191,13 +184,12 @@ test(
       ),
       fauxAssistantMessage("All lookups complete."),
     ]);
-    const lookup: AgentHarnessTool<ExecutionToolContext> = {
+    const lookup: ToolRegistration = {
       name: "lookup",
-      label: "Lookup",
       description: "Lookup",
       parameters,
       async execute() {
-        return { content };
+        return { output: content };
       },
     };
     const pi = await openTestHarness(sessionId, {
@@ -234,7 +226,11 @@ test(
         event.type === "message_end" ? [event.message] : [],
       );
       assert.deepEqual(received, expected);
-      assert.equal(wire.filter((event) => event.type === "tool_execution_end").length, 40);
+      assert.equal(
+        wire.filter((event) => event.type === "tool_execution_end" && !event.parentToolCallId)
+          .length,
+        40,
+      );
       assert.equal(wire.at(-1)?.type, "agent_end");
     } finally {
       release();
@@ -274,33 +270,28 @@ test(
       ),
       fauxAssistantMessage("Finished."),
     ]);
-    const wait: AgentHarnessTool<ExecutionToolContext> = {
+    const wait: ToolRegistration = {
       name: "wait",
-      label: "Wait",
       description: "Wait",
       parameters,
       async execute() {
         await toolGate.promise;
-        return { content };
+        return { output: content };
       },
     };
+    const codemode = createCarmelCodemode();
     const pi = await openTestHarness(sessionId, {
       models,
       model: faux.getModel(),
-      tools: [createCodemodeTool([wait])],
-      toolContext: {} as ExecutionToolContext,
+      tools: [wait, ...codemode.tools!],
+      extensions: [codemode],
     });
     const unsubscribe = pi.session.native.subscribeCommits((publication) => {
       for (const change of publication.changes) {
         if (change.type !== "document" || change.record.kind !== "pi.live" || !change.value)
           continue;
         const live = change.value as LiveState;
-        if (
-          live.tools?.some(
-            (slot) => (slot.details as { codemodeCalls?: unknown[] })?.codemodeCalls?.length === 1,
-          )
-        )
-          committed.resolve();
+        if (live.nestedTools?.length === 1) committed.resolve();
       }
     });
     const wire: AgentRunEvent[] = [];
@@ -310,10 +301,7 @@ test(
         await observerGate.promise;
       const projected = projectRunEvent(event);
       if (projected) wire.push(projected);
-      if (
-        event.type === "tool_update" &&
-        (event.partialResult.details as { codemodeCalls?: unknown[] })?.codemodeCalls?.length === 1
-      ) {
+      if (event.type === "snapshot" && event.nestedTools.length === 1) {
         if (++progressCount === 1) {
           restored.resolve();
           await progressGate.promise;
@@ -330,15 +318,27 @@ test(
       await overflow();
       observerGate.resolve();
       await restored.promise;
-      assert.equal(wire.filter((event) => event.type === "tool_execution_start").length, 1);
-      assert.equal(wire.filter((event) => event.type === "tool_execution_update").length, 1);
+      assert.equal(
+        wire.filter((event) => event.type === "tool_execution_start" && !event.parentToolCallId)
+          .length,
+        1,
+      );
+      assert.equal(wire.filter((event) => event.type === "nested_tools").length, 1);
       await overflow();
       progressGate.resolve();
       await restoredAgain.promise;
-      assert.equal(wire.filter((event) => event.type === "tool_execution_start").length, 1);
+      assert.equal(
+        wire.filter((event) => event.type === "tool_execution_start" && !event.parentToolCallId)
+          .length,
+        1,
+      );
       toolGate.resolve();
       await prompt;
-      assert.equal(wire.filter((event) => event.type === "tool_execution_end").length, 1);
+      assert.equal(
+        wire.filter((event) => event.type === "tool_execution_end" && !event.parentToolCallId)
+          .length,
+        1,
+      );
       assert.equal(wire.at(-1)?.type, "agent_end");
     } finally {
       observerGate.resolve();

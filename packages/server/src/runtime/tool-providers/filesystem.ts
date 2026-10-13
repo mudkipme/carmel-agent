@@ -10,9 +10,8 @@ import {
   createEditTool,
   createReadTool,
   createWriteTool,
-  type AgentHarnessTool,
+  type ToolRegistration,
   type AgentTool,
-  type ExecutionToolContext,
 } from "../../effectors/pi-durable/index.ts";
 import type { AgentExecutionEnv } from "../execution-env.ts";
 import { createGrepOperations, createLsOperations } from "../search-operations.ts";
@@ -22,21 +21,19 @@ import type {
   ToolProvisionContext,
 } from "../../effectors/contracts/tool-provider.ts";
 
-type ServerToolDefinition = AgentHarnessTool<ExecutionToolContext>;
+type ServerToolDefinition = ToolRegistration;
 
-/**
- * Present an `Agent`-loop tool as a harness tool.
- *
- * Pi coding-agent's grep/find/ls take an abort signal third. Carmel's tool
- * providers share an invocation context, so this adapter extracts the signal
- * and passes the update callback in coding-agent's expected position.
- */
-function asHarnessTool(tool: AgentTool): ServerToolDefinition {
+/** Only grep/find/ls still come from Pi's Agent-loop package. */
+function asDurableTool(tool: AgentTool): ServerToolDefinition {
   return {
-    ...tool,
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
     replay: "safe",
-    execute: (toolCallId, params, onUpdate, _toolContext, _invocation, context) =>
-      tool.execute(toolCallId, params, context.abortSignal, onUpdate),
+    async execute(args, api, context) {
+      const result = await tool.execute(api.callId, args, context.abortSignal);
+      return { output: result.content, details: result.details };
+    },
   };
 }
 
@@ -60,17 +57,12 @@ export const filesystemToolProvider: ToolProvider = {
     });
 
     return [
-      own(
-        "read",
-        createReadTool<ExecutionToolContext>({
-          resolveImagePath: (path) => env.resolveAuthorizedPath(path, "read"),
-        }),
-      ),
+      own("read", createReadTool()),
       own("read", createAuthorizedGrepTool(env)),
       own("read", createAuthorizedFindTool(env)),
-      own("read", asHarnessTool(createPiLsTool(env.cwd, { operations: createLsOperations(env) }))),
-      own("write", createWriteTool<ExecutionToolContext>()),
-      own("edit", createEditTool<ExecutionToolContext>()),
+      own("read", asDurableTool(createPiLsTool(env.cwd, { operations: createLsOperations(env) }))),
+      own("write", createWriteTool()),
+      own("edit", createEditTool()),
     ];
   },
 };
@@ -84,7 +76,7 @@ export const bashToolProvider: ToolProvider = {
       {
         providerId: bashToolProvider.id,
         requires: "bash",
-        tool: createBashTool<ExecutionToolContext>(),
+        tool: createBashTool(),
       },
     ];
   },
@@ -93,7 +85,7 @@ export const bashToolProvider: ToolProvider = {
 function createAuthorizedFindTool(env: AgentExecutionEnv): ServerToolDefinition {
   // Pi spawns fd/rg in the server. Only their structured search paths use host storage.
   const tool = createPiFindTool(env.hostCwd);
-  return asHarnessTool({
+  return asDurableTool({
     ...tool,
     async execute(toolCallId, params, signal, onUpdate) {
       const args = params as FindToolInput;
@@ -112,7 +104,7 @@ function createAuthorizedFindTool(env: AgentExecutionEnv): ServerToolDefinition 
 // mount aliases are remapped and rg never receives an unauthorized host path.
 function createAuthorizedGrepTool(env: AgentExecutionEnv): ServerToolDefinition {
   const tool = createPiGrepTool(env.hostCwd, { operations: createGrepOperations(env) });
-  return asHarnessTool({
+  return asDurableTool({
     ...tool,
     async execute(toolCallId, params, signal, onUpdate) {
       const args = params as GrepToolInput;

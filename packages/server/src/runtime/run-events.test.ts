@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { AgentMessage, HarnessEvent } from "../effectors/pi-durable/index.ts";
+import type { AgentMessage } from "../effectors/pi-durable/index.ts";
 import { createModels, type AssistantMessage } from "@earendil-works/pi-ai";
 import {
   fauxAssistantMessage,
@@ -14,271 +14,177 @@ import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
 import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
 import { classifyTurnFailure } from "../effectors/failure-classifier.ts";
-import { isOverflowMessage, projectRunEvent } from "./run-events.ts";
+import { isOverflowMessage, projectRunEvent, classifyAssistantFailure } from "./run-events.ts";
 
 initialize();
 
-test("streamed text and thinking are projected to deltas, not snapshots", () => {
-  assert.deepEqual(
-    projectRunEvent(
-      messageUpdate({
-        type: "text_delta",
-        contentIndex: 0,
-        delta: "wor",
-        partial: partial("Hello, wor"),
-      }),
-    ),
-    { type: "message_delta", contentIndex: 0, field: "text", delta: "wor" },
-  );
-  assert.deepEqual(
-    projectRunEvent(
-      messageUpdate({ type: "thinking_delta", contentIndex: 1, delta: "hm", partial: partial("") }),
-    ),
-    { type: "message_delta", contentIndex: 1, field: "thinking", delta: "hm" },
-  );
+test("native text/thinking batches pass through and rebuild every content part", () => {
+  const event = {
+    type: "message_update" as const,
+    usage: assistantMessage().usage,
+    changes: [
+      { type: "thinking_delta" as const, contentIndex: 0, delta: "hm" },
+      { type: "text_delta" as const, contentIndex: 1, delta: "Hello" },
+    ],
+  };
+  const projected = projectRunEvent(event)!;
+  assert.deepEqual(projected, event);
+  assert.ok(isStreamingEvent(projected));
+  const result = applyStreamingEvent(assistantMessage(), projected) as AssistantMessage;
+  assert.deepEqual(result.content, [
+    { type: "thinking", thinking: "hm" },
+    { type: "text", text: "Hello" },
+  ]);
+  assert.equal(applyStreamingEvent(undefined, projected), undefined);
 });
 
-test("events the client cannot use are dropped rather than forwarded", () => {
-  // `partial` repeats the whole message; the deltas already carry the content.
-  assert.equal(
-    projectRunEvent(messageUpdate({ type: "text_start", contentIndex: 0, partial: partial("") })),
-    undefined,
-  );
-  assert.equal(
-    projectRunEvent(
-      messageUpdate({
-        type: "text_end",
-        contentIndex: 0,
-        content: "Hello",
-        partial: partial("Hello"),
-      }),
-    ),
-    undefined,
-  );
-  assert.equal(
-    projectRunEvent(harnessEvent({ type: "run_start", runId: "run_1", startedAt: 1 })),
-    undefined,
-  );
-  assert.equal(
-    projectRunEvent(harnessEvent({ type: "turn_start", runId: "run_1", turnId: "turn_1" })),
-    undefined,
-  );
-  assert.equal(
-    projectRunEvent(
-      harnessEvent({
-        type: "tool_update",
-        runId: "run_1",
-        turnId: "turn_1",
-        toolCallId: "call_1",
-        toolName: "bash",
-        partialResult: { content: [{ type: "text", text: "x".repeat(100_000) }] },
-      }),
-    ),
-    undefined,
-  );
-});
-
-test("codemode progress projects only validated nested call metadata", () => {
-  const codemodeCalls = [
-    { id: "nested", name: "mcp_echo", label: "MCP echo", status: "running", durationMs: 0 },
-  ];
-  const event = harnessEvent({
-    type: "tool_update",
-    runId: "run",
-    turnId: "turn",
-    toolCallId: "call",
-    toolName: "codemode",
-    partialResult: {
-      content: [{ type: "text", text: "private output" }],
-      details: { codemodeCalls, other: "not forwarded" },
-    },
-  });
+test("partial tool argument JSON is omitted and completed calls shed provider scratch fields", () => {
+  const call = {
+    type: "toolCall" as const,
+    id: "c1",
+    name: "read",
+    arguments: { path: "file" },
+    partialJson: "ignored",
+    index: 1,
+  };
+  const event = {
+    type: "message_update" as const,
+    usage: assistantMessage().usage,
+    changes: [
+      { type: "toolcall_delta" as const, contentIndex: 0, path: ["path"], delta: "fil" },
+      { type: "block" as const, contentIndex: 0, block: call },
+    ],
+  };
   assert.deepEqual(projectRunEvent(event), {
-    type: "tool_execution_update",
-    toolCallId: "call",
-    codemodeCalls,
-  });
-  assert.equal(
-    projectRunEvent(
-      harnessEvent({
-        ...event,
-        partialResult: { content: [], details: { codemodeCalls: [{ status: "invalid" }] } },
-      }),
-    ),
-    undefined,
-  );
-});
-
-test("tool calls arrive whole, without their streamed argument JSON", () => {
-  const started = partial("");
-  started.content = [
-    {
-      type: "toolCall",
-      id: "call_1",
-      name: "read",
-      arguments: {},
-      partialJson: "",
-      index: 0,
-    } as never,
-  ];
-  assert.deepEqual(
-    projectRunEvent(messageUpdate({ type: "toolcall_start", contentIndex: 0, partial: started })),
-    {
-      type: "message_part",
-      contentIndex: 0,
-      part: { type: "toolCall", id: "call_1", name: "read", arguments: {} },
-    },
-  );
-
-  // Partial JSON needs Pi's salvage parser to read, so it never goes on the wire.
-  assert.equal(
-    projectRunEvent(
-      messageUpdate({ type: "toolcall_delta", contentIndex: 0, delta: '{"pa', partial: started }),
-    ),
-    undefined,
-  );
-
-  assert.deepEqual(
-    projectRunEvent(
-      messageUpdate({
-        type: "toolcall_end",
+    type: "message_update",
+    usage: event.usage,
+    changes: [
+      {
+        type: "block",
         contentIndex: 0,
-        toolCall: { type: "toolCall", id: "call_1", name: "read", arguments: { path: "a.ts" } },
-        partial: started,
-      }),
-    ),
-    {
-      type: "message_part",
-      contentIndex: 0,
-      part: { type: "toolCall", id: "call_1", name: "read", arguments: { path: "a.ts" } },
-    },
-  );
+        block: { type: "toolCall", id: "c1", name: "read", arguments: { path: "file" } },
+      },
+    ],
+  });
+  assert.equal(projectRunEvent({ ...event, changes: [event.changes[0]!] }), undefined);
 });
 
-test("only an assistant message_start is forwarded", () => {
-  const assistant = assistantMessage();
-  assert.deepEqual(projectRunEvent(harnessEvent({ type: "message_start", message: assistant })), {
-    type: "message_start",
-    message: assistant,
-  });
+test("a native message replacement restores streamed state after a backlog gap", () => {
+  const replacement = {
+    ...assistantMessage(),
+    content: [{ type: "text" as const, text: "replacement" }],
+  };
+  const event = {
+    type: "message_update" as const,
+    usage: replacement.usage,
+    changes: [{ type: "message" as const, message: replacement }],
+  };
+  assert.deepEqual(applyStreamingEvent(undefined, event), replacement);
+});
 
-  // A tool result is emitted as start/end in the same tick; forwarding the start
-  // would put the whole result on the wire twice.
-  const toolResult = {
+test("native transcript entries project once, with user/tool starts omitted", () => {
+  const message = { role: "user", content: "question", timestamp: 1 } as const;
+  assert.equal(projectRunEvent({ type: "message_start", message }), undefined);
+  const tool = {
     role: "toolResult",
-    toolCallId: "call_1",
+    toolCallId: "c1",
     toolName: "read",
-    content: [{ type: "text", text: "x".repeat(50_000) }],
+    content: [{ type: "text", text: "output" }],
     isError: false,
     timestamp: 1,
-  } as unknown as AgentMessage;
-  assert.equal(
-    projectRunEvent(harnessEvent({ type: "message_start", message: toolResult })),
-    undefined,
+  } as const;
+  assert.deepEqual(
+    projectRunEvent({
+      type: "message_end",
+      entry: { id: 1, kind: "pi.tool-result", model: [tool] } as never,
+    }),
+    { type: "message_end", message: tool },
   );
-  assert.deepEqual(projectRunEvent(harnessEvent({ type: "message_end", message: toolResult })), {
-    type: "message_end",
-    message: toolResult,
-  });
 });
 
-test("bulk payloads are stripped from lifecycle events", () => {
+test("native nested snapshots and output progress retain their native shape", () => {
+  const tools = [
+    {
+      callId: "parent/c1",
+      name: "read",
+      status: "running",
+      taskId: 2,
+      parentTaskId: 1,
+      parentCallId: "parent",
+      arguments: {},
+    },
+  ];
+  assert.deepEqual(projectRunEvent({ type: "snapshot", nestedTools: tools } as never), {
+    type: "nested_tools",
+    tools,
+  });
+  const event = {
+    type: "tool_execution_update" as const,
+    toolCallId: "parent/c1",
+    toolName: "read",
+    parentToolCallId: "parent",
+    output: { trimStart: 2, append: "next" },
+    details: { progress: 1 },
+    diagnostics: [],
+  };
+  assert.deepEqual(projectRunEvent(event), event);
+  assert.equal(projectRunEvent({ ...event, parentToolCallId: undefined }), undefined);
+});
+
+test("native completion summaries omit duplicate result bodies", () => {
+  const start = {
+    type: "tool_execution_start" as const,
+    toolCallId: "c1",
+    toolName: "write",
+    args: { content: "large" },
+  };
+  assert.deepEqual(projectRunEvent(start), start);
   assert.deepEqual(
-    projectRunEvent(
-      harnessEvent({
-        type: "tool_start",
-        runId: "run_1",
-        turnId: "turn_1",
-        toolCallId: "call_1",
-        toolName: "write",
-        args: { content: "x".repeat(50_000) },
-      }),
-    ),
-    { type: "tool_execution_start", toolCallId: "call_1", toolName: "write" },
+    projectRunEvent({
+      type: "tool_execution_end",
+      toolCallId: "c1",
+      toolName: "write",
+      entry: { data: "large" } as never,
+    }),
+    { type: "tool_execution_end", toolCallId: "c1", toolName: "write" },
   );
   assert.deepEqual(
-    projectRunEvent(
-      harnessEvent({
-        type: "tool_end",
-        runId: "run_1",
-        turnId: "turn_1",
-        toolCallId: "call_1",
-        toolName: "write",
-        result: { content: [{ type: "text", text: "x".repeat(50_000) }] },
+    projectRunEvent({
+      type: "tool_execution_end",
+      toolCallId: "parent/c1",
+      toolName: "read",
+      result: {
+        taskId: 2 as never,
         isError: false,
-        terminate: false,
-      }),
-    ),
-    { type: "tool_execution_end", toolCallId: "call_1", toolName: "write", isError: false },
-  );
-  assert.deepEqual(
-    projectRunEvent(
-      harnessEvent({
-        type: "run_end",
-        runId: "run_1",
-        status: "completed",
-        fromTipId: null,
-        tipId: "e1",
-        endedAt: 1,
-      }),
-    ),
-    { type: "agent_end" },
-  );
-});
-
-test("turn_end carries only the error the client renders", () => {
-  assert.deepEqual(
-    projectRunEvent(
-      harnessEvent({
-        type: "turn_end",
-        runId: "run_1",
-        turnId: "turn_1",
-        message: assistantMessage(),
-        toolResults: [],
-      }),
-    ),
+        diagnostics: [],
+        durationMs: 4,
+        structuredOutput: "large",
+      },
+    }),
     {
-      type: "turn_end",
-    },
-  );
-  const failed = assistantMessage();
-  failed.errorMessage = "Provider failed";
-  assert.deepEqual(
-    projectRunEvent(
-      harnessEvent({
-        type: "turn_end",
-        runId: "run_1",
-        turnId: "turn_1",
-        message: failed,
-        toolResults: [],
-      }),
-    ),
-    {
-      type: "turn_end",
-      errorMessage: "Provider failed",
+      type: "tool_execution_end",
+      toolCallId: "parent/c1",
+      toolName: "read",
+      result: { taskId: 2 as never, isError: false, diagnostics: [], durationMs: 4 },
     },
   );
 });
 
-test("turn_end reports a silent overflow when it knows the window, as the run does", () => {
-  // A provider that answers `stop` on a request already past the window: no
-  // error text at all, so only the window reveals the overflow.
-  const overran = assistantMessage();
-  overran.usage = { ...overran.usage, input: 9_000, totalTokens: 9_000 };
-  const event = harnessEvent({
+test("native turn-end uses the committed assistant's classified error", () => {
+  assert.deepEqual(projectRunEvent({ type: "turn_end" }), { type: "turn_end" });
+  const failed = {
+    ...assistantMessage(),
+    errorMessage: "Provider failed",
+    stopReason: "error" as const,
+  };
+  assert.deepEqual(projectRunEvent({ type: "turn_end" }, classifyAssistantFailure(failed)), {
     type: "turn_end",
-    runId: "run_1",
-    turnId: "turn_1",
-    message: overran,
-    toolResults: [],
+    errorMessage: "Provider failed",
   });
-
-  assert.deepEqual(projectRunEvent(event), { type: "turn_end" });
-  const projected = projectRunEvent(event, 8_192) as { errorMessage?: string };
-  assert.ok(
-    projected.errorMessage,
-    "the client must hear about the overflow the server is recovering from",
-  );
+  const overran = assistantMessage();
+  overran.usage = { ...overran.usage, input: 9000, totalTokens: 9000 };
+  const projected = projectRunEvent({ type: "turn_end" }, classifyAssistantFailure(overran, 8192));
+  assert.ok(projected?.type === "turn_end" && projected.errorMessage);
 });
 
 test("a real streamed turn reassembles byte-for-byte from the projected events", async () => {
@@ -325,11 +231,13 @@ test("a real streamed turn reassembles byte-for-byte from the projected events",
   let streaming: AgentMessage | undefined;
   for (const event of projected) {
     if (isStreamingEvent(event)) streaming = applyStreamingEvent(streaming, event);
+    else if (event.type === "message_end" && event.message.role === "assistant")
+      streaming = event.message;
   }
 
   assert.ok(final && final.role === "assistant");
   assert.ok(
-    projected.some((event) => event.type === "message_delta"),
+    projected.some((event) => event.type === "message_update"),
     "the turn must actually have streamed",
   );
   assert.deepEqual(
@@ -349,19 +257,6 @@ test("a real streamed turn reassembles byte-for-byte from the projected events",
   );
 });
 
-function messageUpdate(event: unknown): HarnessEvent {
-  return harnessEvent({
-    type: "message_update",
-    runId: "run_1",
-    message: assistantMessage(),
-    event,
-  });
-}
-
-function partial(text: string): AssistantMessage {
-  return { ...assistantMessage(), content: text ? [{ type: "text", text }] : [] };
-}
-
 function assistantMessage(): AgentMessage & AssistantMessage {
   return {
     role: "assistant",
@@ -380,12 +275,6 @@ function assistantMessage(): AgentMessage & AssistantMessage {
     stopReason: "stop",
     timestamp: 1,
   } as AgentMessage & AssistantMessage;
-}
-
-function harnessEvent(
-  payload: { type: HarnessEvent["type"] } & Record<string, unknown>,
-): HarnessEvent {
-  return payload as unknown as HarnessEvent;
 }
 
 /**

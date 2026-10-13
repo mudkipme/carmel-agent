@@ -1,4 +1,4 @@
-import type { AgentHarnessTool, ExecutionToolContext } from "../pi-durable/index.ts";
+import type { ToolRegistration } from "../pi-durable/index.ts";
 
 /** The agent capability a tool needs before it may be offered to the model. */
 export type ToolCapability = "read" | "write" | "edit" | "bash" | "network";
@@ -7,7 +7,7 @@ export type ProvidedTool = {
   readonly providerId: string;
   /** Gate on an agent permission, or offer unconditionally when absent. */
   readonly requires?: ToolCapability;
-  readonly tool: AgentHarnessTool<ExecutionToolContext>;
+  readonly tool: ToolRegistration;
 };
 
 /** The execution environment and permissions used to build an agent's tools. */
@@ -16,7 +16,7 @@ export type ToolProvisionContext = {
   readonly workingDir: string;
   readonly permissions: Readonly<Record<ToolCapability, boolean>>;
   /** The sandboxed execution environment. */
-  readonly env: ExecutionToolContext["env"];
+  readonly env: import("@earendil-works/pi-durable/env").ExecutionEnv;
 };
 
 export interface ToolProvider {
@@ -29,8 +29,8 @@ export interface ToolProvider {
 export function collectAgentTools(
   providers: readonly ToolProvider[],
   context: ToolProvisionContext,
-): { tools: AgentHarnessTool<ExecutionToolContext>[]; skipped: SkippedTool[] } {
-  const tools: AgentHarnessTool<ExecutionToolContext>[] = [];
+): { tools: ToolRegistration[]; skipped: SkippedTool[] } {
+  const tools: ToolRegistration[] = [];
   const skipped: SkippedTool[] = [];
   const claimed = new Map<string, string>();
 

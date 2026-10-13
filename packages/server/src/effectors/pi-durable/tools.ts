@@ -1,129 +1,18 @@
-import {
-  createBashTool as bash,
-  createEditTool as edit,
-  createReadTool as read,
-  createWriteTool as write,
-} from "@earendil-works/pi-durable/tools";
-import type {
-  ToolExecutionApi,
-  ToolExecutionResult,
-  ToolRegistration,
-} from "@earendil-works/pi-durable";
-import type { AgentHarnessTool, ExecutionToolContext } from "./index.ts";
-import { getOrThrow, StreamDecoder } from "@earendil-works/pi-durable/env";
-import {
-  createReadTool as codingRead,
-  detectSupportedImageMimeTypeFromFile,
-  truncateTail,
-  DEFAULT_MAX_BYTES,
-} from "@earendil-works/pi-coding-agent";
-import { errorMessage } from "../../errors.ts";
-/** Adapt native tools for Carmel's tool providers and nested codemode calls. */
-function adapt<T extends ExecutionToolContext>(native: ToolRegistration): AgentHarnessTool<T> {
+import { createReadTool as read } from "@earendil-works/pi-durable/tools";
+import { createNodePhotonImages } from "@earendil-works/pi-durable/images/node";
+export { createWriteTool, createEditTool, createBashTool } from "@earendil-works/pi-durable/tools";
+
+let images: ReturnType<typeof createNodePhotonImages> | undefined;
+export function createReadTool() {
   return {
-    ...native,
-    label: native.name,
-    async execute(_id, args, onUpdate, tools, invocation, context) {
-      if (invocation.durableApi) {
-        const result = await native.execute(args, invocation.durableApi, context);
-        return {
-          ...result,
-          content: result.content ?? [],
-          useStreamedOutput: result.content === undefined,
-          terminate: result.control?.terminate,
-        };
-      }
-      let output = "";
-      const decoder = new StreamDecoder();
-      let truncated = false;
-      const diagnostics: string[] = [];
-      const api = {
-        env: tools.env,
-        callId: _id,
-        outputWindow: undefined,
-        output(text: string | Uint8Array) {
-          const combined = output + (typeof text === "string" ? text : decoder.decode(text));
-          const newline = combined.endsWith("\n");
-          const bounded = truncateTail(combined, {
-            ...native.outputLimits,
-            maxBytes: (native.outputLimits?.maxBytes ?? DEFAULT_MAX_BYTES) - Number(newline),
-          });
-          output = bounded.content + (bounded.truncated && newline ? "\n" : "");
-          truncated ||= output !== combined;
-          onUpdate({ content: [{ type: "text", text: output }] });
+    ...read({
+      images: {
+        async prepare(bytes, mimeType, limits) {
+          images ??= createNodePhotonImages();
+          return (await images).prepare(bytes, mimeType, limits);
         },
-        diagnostic(value: { message: string }) {
-          diagnostics.push(value.message);
-        },
-        async details(value: unknown) {
-          onUpdate({ content: [], details: value });
-        },
-      } as unknown as ToolExecutionApi;
-      let result: ToolExecutionResult;
-      try {
-        result = await native.execute(args, api, context);
-      } catch (error) {
-        context.abortSignal?.throwIfAborted();
-        if (native.name !== "bash") throw error;
-        result = {
-          isError: true,
-          diagnostics: [{ severity: "error", code: "tool_error", message: errorMessage(error) }],
-        };
-      }
-      const remainder = decoder.decode();
-      if (remainder) api.output(remainder);
-      if (truncated) diagnostics.push("Output truncated; showing the retained tail.");
-      return {
-        ...result,
-        content: [
-          ...(result.content ?? (output ? [{ type: "text" as const, text: output }] : [])),
-          ...[...diagnostics, ...(result.diagnostics ?? []).map((item) => item.message)].map(
-            (text) => ({ type: "text" as const, text }),
-          ),
-        ],
-        terminate: result.control?.terminate,
-      };
-    },
+      },
+    }),
+    replay: "safe" as const,
   };
-}
-export function createReadTool<T extends ExecutionToolContext>(options?: {
-  resolveImagePath: (path: string) => string;
-}): AgentHarnessTool<T> {
-  const native = adapt<T>(read());
-  return {
-    ...native,
-    replay: "safe",
-    description: native.description + " Images can also be read.",
-    async execute(id, args, update, tools, invocation, context) {
-      const result = await native.execute(id, args, update, tools, invocation, context);
-      if (!result.diagnostics?.some((diagnostic) => diagnostic.code === "unsupported_image"))
-        return result;
-      // Durable 1.1.0 reads text only. Keep Pi's native image reader behind the same guarded environment.
-      const imageReader = codingRead(tools.env.cwd, {
-        operations: {
-          readFile: async (path) =>
-            Buffer.from(getOrThrow(await tools.env.readBinaryFile(path, context))),
-          access: async (path) => {
-            getOrThrow(await tools.env.readBinaryFile(path, context));
-          },
-          detectImageMimeType: async (path) => {
-            const canonical = getOrThrow(await tools.env.canonicalPath(path, context));
-            return detectSupportedImageMimeTypeFromFile(
-              options?.resolveImagePath(canonical) ?? canonical,
-            );
-          },
-        },
-      });
-      return imageReader.execute(id, args, context.abortSignal, update);
-    },
-  };
-}
-export function createWriteTool<T extends ExecutionToolContext>() {
-  return adapt<T>(write());
-}
-export function createEditTool<T extends ExecutionToolContext>() {
-  return adapt<T>(edit());
-}
-export function createBashTool<T extends ExecutionToolContext>() {
-  return adapt<T>(bash());
 }

@@ -9,22 +9,54 @@ import {
 } from "@earendil-works/pi-ai";
 import { ModelRuntime, type CreateModelRuntimeOptions } from "@earendil-works/pi-coding-agent";
 import { modelCatalogStore } from "./model-store.ts";
+import { createHash } from "node:crypto";
 
 type CarmelModelRuntimeOptions = Pick<
   CreateModelRuntimeOptions,
   "allowModelNetwork" | "catalogBaseUrl" | "modelRefreshTimeoutMs"
 > & {
   modelsStore?: ModelsStore;
+  personalizedCatalogScope?: string;
 };
 
-export function createCarmelModelRuntime(
+export async function createCarmelModelRuntime(
   credentials: CredentialStore = new InMemoryCredentialStore(),
   options: CarmelModelRuntimeOptions = {},
 ) {
+  const store = options.modelsStore ?? modelCatalogStore;
+  const credential = await credentials.read("openrouter");
+  // Pi 1.2 saves OpenRouter's per-key allowlist and prices in ModelsStore.
+  // Capture the credential now so a key rotation during refresh cannot publish
+  // the old key's catalog under the new key. Never reuse the old shared row.
+  const personalizedKey = credential
+    ? `openrouter:${createHash("sha256")
+        .update(JSON.stringify([options.personalizedCatalogScope ?? "", credential]))
+        .digest("hex")}`
+    : undefined;
+  const scopedStore: ModelsStore = {
+    read: (provider, operation) =>
+      provider !== "openrouter"
+        ? store.read(provider, operation)
+        : personalizedKey
+          ? store.read(personalizedKey, operation)
+          : Promise.resolve(undefined),
+    write: (provider, entry, operation) =>
+      provider !== "openrouter"
+        ? store.write(provider, entry, operation)
+        : personalizedKey
+          ? store.write(personalizedKey, entry, operation)
+          : Promise.resolve(),
+    delete: (provider, operation) =>
+      provider !== "openrouter"
+        ? store.delete(provider, operation)
+        : personalizedKey
+          ? store.delete(personalizedKey, operation)
+          : Promise.resolve(),
+  };
   return ModelRuntime.create({
     credentials,
     modelsPath: null,
-    modelsStore: options.modelsStore ?? modelCatalogStore,
+    modelsStore: scopedStore,
     allowModelNetwork: options.allowModelNetwork ?? false,
     catalogBaseUrl: options.catalogBaseUrl,
     modelRefreshTimeoutMs: options.modelRefreshTimeoutMs,

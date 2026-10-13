@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   InMemoryModelsStore,
+  InMemoryCredentialStore,
   isModelType,
   type ClassifierModel,
   type ImageModel,
@@ -13,6 +14,79 @@ import { resolveServerModelRef } from "./model.ts";
 initialize();
 
 const OPENAI_MODEL_ID = "gpt-4o-mini";
+
+test("OpenRouter personalized catalogs stay isolated by key and endpoint, including offline and after rotation", async (t) => {
+  const store = new InMemoryModelsStore();
+  const firstCredentials = new InMemoryCredentialStore();
+  const secondCredentials = new InMemoryCredentialStore();
+  await firstCredentials.modify("openrouter", async () => ({ type: "api_key", key: "first-key" }));
+  await secondCredentials.modify("openrouter", async () => ({
+    type: "api_key",
+    key: "second-key",
+  }));
+  const models = ["first-model", "second-model"].map(
+    (id) =>
+      ({
+        id,
+        name: id,
+        api: "openai-completions",
+        provider: "openrouter",
+        baseUrl: "https://openrouter.ai/api/v1",
+        reasoning: false,
+        input: ["text"],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 32_000,
+        maxTokens: 4_096,
+      }) satisfies import("@earendil-works/pi-ai").Model<"openai-completions">,
+  );
+  // A legacy shared row must never be restored into a personalized runtime.
+  await store.write("openrouter", { models: [models[1]!] });
+  const options = { modelsStore: store, catalogBaseUrl: "https://catalog.test" };
+  const first = await createCarmelModelRuntime(firstCredentials, options);
+  assert.equal(first.getModel("openrouter", "second-model"), undefined);
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input.toString());
+    if (url.pathname.endsWith("/models/user")) {
+      const key = new Headers(init?.headers).get("authorization");
+      return Response.json({
+        data: [
+          {
+            id: key === "Bearer first-key" ? "first-model" : "second-model",
+            context_length: key === "Bearer first-key" ? 16_000 : 24_000,
+            top_provider: { max_completion_tokens: 2_000 },
+          },
+        ],
+      });
+    }
+    return url.pathname.endsWith("/openrouter")
+      ? Response.json(models, { headers: { "last-modified": "Mon, 01 Jan 2035 00:00:00 GMT" } })
+      : new Response(null, { status: 404 });
+  });
+  await first.refresh({ allowNetwork: true, force: true });
+  const second = await createCarmelModelRuntime(secondCredentials, options);
+  await second.refresh({ allowNetwork: true, force: true });
+  t.mock.method(globalThis, "fetch", async () => {
+    throw new Error("Must remain offline");
+  });
+  const restoredFirst = await createCarmelModelRuntime(firstCredentials, options);
+  const restoredSecond = await createCarmelModelRuntime(secondCredentials, options);
+  assert.equal(restoredFirst.getModel("openrouter", "first-model")?.contextWindow, 16_000);
+  assert.equal(restoredFirst.getModel("openrouter", "second-model"), undefined);
+  assert.equal(restoredSecond.getModel("openrouter", "second-model")?.contextWindow, 24_000);
+  assert.equal(restoredSecond.getModel("openrouter", "first-model"), undefined);
+  const otherEndpoint = await createCarmelModelRuntime(firstCredentials, {
+    ...options,
+    personalizedCatalogScope: "https://us.openrouter.ai/api/v1",
+  });
+  assert.equal(otherEndpoint.getModel("openrouter", "first-model"), undefined);
+  await firstCredentials.modify("openrouter", async () => ({
+    type: "api_key",
+    key: "rotated-key",
+  }));
+  const rotated = await createCarmelModelRuntime(firstCredentials, options);
+  assert.equal(rotated.getModel("openrouter", "first-model"), undefined);
+  assert.equal((await store.read("openrouter"))?.models[0]?.id, "second-model");
+});
 
 /**
  * Resolve a model ref the way a run does, through the same runtime the run will

@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { setTimeout as delay } from "node:timers/promises";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AgentRunEventEnvelope } from "@carmel-agent/shared";
 import {
@@ -24,7 +23,12 @@ test("run events are sequenced and reconnect replays only events after the curso
   });
   try {
     emitRunEvent(run, { type: "turn_end" });
-    emitRunEvent(run, { type: "tool_execution_start", toolCallId: "call_1", toolName: "read" });
+    emitRunEvent(run, {
+      type: "tool_execution_start",
+      args: {},
+      toolCallId: "call_1",
+      toolName: "read",
+    });
     assert.equal(getActiveAgentRunForSession(run.userId, run.sessionId)?.eventCursor, 2);
 
     const replay = createAgentRunEventStream(run.userId, run.runId, 1);
@@ -74,61 +78,31 @@ test("a replay buffer gap requires a fresh authoritative snapshot cursor", async
   }
 });
 
-test("consecutive deltas for one content part are merged into a single event", async () => {
+test("native batches are sequenced immediately and retain part ordering", () => {
   const run = createActiveAgentRun({
-    runId: "run_coalesce",
-    userId: "user_coalesce",
-    sessionId: "session_coalesce",
+    runId: "native_batches",
+    userId: "native_user",
+    sessionId: "native_session",
     abort: () => {},
   });
   try {
     emitRunEvent(run, { type: "message_start", message: assistantMessage() });
-    for (const delta of ["Hel", "lo, ", "wor", "ld"]) {
-      emitRunEvent(run, { type: "message_delta", contentIndex: 0, field: "text", delta });
-    }
-    assert.equal(run.nextSequence, 2, "buffered deltas must not consume sequence numbers yet");
-
-    // A non-delta event flushes whatever is buffered ahead of itself.
-    emitRunEvent(run, { type: "message_end", message: assistantMessage("Hello, world") });
-
+    const update = {
+      type: "message_update" as const,
+      usage: (assistantMessage() as import("@earendil-works/pi-ai").AssistantMessage).usage,
+      changes: [
+        { type: "thinking_delta" as const, contentIndex: 0, delta: "hmm" },
+        { type: "text_delta" as const, contentIndex: 1, delta: "answer" },
+      ],
+    };
+    emitRunEvent(run, update);
+    assert.equal(run.nextSequence, 3);
+    emitRunEvent(run, { type: "message_end", message: assistantMessage("answer") });
     assert.deepEqual(
       run.events.map((entry) => entry.event.type),
-      ["message_start", "message_delta", "message_end"],
+      ["message_start", "message_update", "message_end"],
     );
-    assert.deepEqual(run.events[1].event, {
-      type: "message_delta",
-      contentIndex: 0,
-      field: "text",
-      delta: "Hello, world",
-    });
-  } finally {
-    finishAgentRun(run);
-  }
-});
-
-test("deltas for different content parts stay separate and flush on their own timer", async () => {
-  const run = createActiveAgentRun({
-    runId: "run_parts",
-    userId: "user_parts",
-    sessionId: "session_parts",
-    abort: () => {},
-  });
-  try {
-    emitRunEvent(run, { type: "message_start", message: assistantMessage() });
-    emitRunEvent(run, { type: "message_delta", contentIndex: 0, field: "thinking", delta: "hmm" });
-    // A different part must not be appended onto the pending one.
-    emitRunEvent(run, { type: "message_delta", contentIndex: 1, field: "text", delta: "answer" });
-
-    await delay(120);
-
-    assert.deepEqual(
-      run.events.map((entry) => entry.event),
-      [
-        { type: "message_start", message: assistantMessage() },
-        { type: "message_delta", contentIndex: 0, field: "thinking", delta: "hmm" },
-        { type: "message_delta", contentIndex: 1, field: "text", delta: "answer" },
-      ],
-    );
+    assert.deepEqual(run.events[1]!.event, update);
   } finally {
     finishAgentRun(run);
   }
@@ -144,8 +118,17 @@ test("a client attaching mid-message rewinds to the message_start it needs to re
   try {
     emitRunEvent(run, { type: "turn_end" });
     emitRunEvent(run, { type: "message_start", message: assistantMessage() });
-    emitRunEvent(run, { type: "message_delta", contentIndex: 0, field: "text", delta: "partial" });
-    emitRunEvent(run, { type: "tool_execution_start", toolCallId: "call_1", toolName: "read" });
+    emitRunEvent(run, {
+      type: "message_update",
+      usage: (assistantMessage() as import("@earendil-works/pi-ai").AssistantMessage).usage,
+      changes: [{ type: "text_delta", contentIndex: 0, delta: "partial" }],
+    });
+    emitRunEvent(run, {
+      type: "tool_execution_start",
+      args: {},
+      toolCallId: "call_1",
+      toolName: "read",
+    });
 
     // message_start is sequence 2, so the cursor must sit just before it.
     assert.equal(getActiveAgentRunForSession(run.userId, run.sessionId)?.eventCursor, 1);
@@ -181,6 +164,7 @@ test("the attach cursor never rewinds past the replay buffer", async () => {
     for (let index = 0; index < 1_100; index += 1) {
       emitRunEvent(run, {
         type: "tool_execution_start",
+        args: {},
         toolCallId: `call_${index}`,
         toolName: "read",
       });

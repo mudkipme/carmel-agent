@@ -1,6 +1,6 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import type { CodemodeCallInfo } from "@carmel-agent/shared";
+import type { NestedToolSlot } from "@carmel-agent/shared";
 import {
   useCallback,
   useEffect,
@@ -20,7 +20,7 @@ type ChatPanelProps = {
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
   pendingToolCalls: ReadonlySet<string>;
-  codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
+  nestedTools?: readonly NestedToolSlot[];
   isStreaming: boolean;
   collapseRunDetails?: boolean;
   currentModel: Model<Api>;
@@ -44,7 +44,7 @@ export function ChatPanel({
   messages,
   streamingMessage,
   pendingToolCalls,
-  codemodeCalls,
+  nestedTools,
   isStreaming,
   collapseRunDetails,
   currentModel,
@@ -118,7 +118,7 @@ export function ChatPanel({
             messages={messages}
             streamingMessage={streamingMessage}
             pendingToolCalls={pendingToolCalls}
-            codemodeCalls={codemodeCalls}
+            nestedTools={nestedTools}
             isStreaming={isStreaming}
             collapseRunDetails={collapseRunDetails}
             onEditMessage={readOnly ? undefined : onEditMessage}

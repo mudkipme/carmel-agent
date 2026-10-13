@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
-import type { AgentHarnessTool, ExecutionToolContext } from "../effectors/pi-durable/index.ts";
+import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
 import { guardBrowserHandoff } from "./browser-tools.ts";
 import { browserControl, deleteBrowserControl } from "./browser-control.ts";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
@@ -9,23 +9,19 @@ import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 test("manual handoff invalidates a prepared action even when it was not waiting inside a tool", async () => {
   const agentId = `browser-test-${randomUUID()}`;
   let effects = 0;
-  const tool: AgentHarnessTool<ExecutionToolContext> = {
+  const tool: ToolRegistration = {
     name: "effect",
-    label: "Effect",
     description: "test",
     parameters: { type: "object", properties: {} },
     execute: async () => {
       effects++;
-      return { content: [], details: {} };
+      return { output: [], details: {} };
     },
   };
   const wrapped = guardBrowserHandoff(agentId, tool, { revision: 0 });
   const args = [
-    "call",
     {},
-    () => {},
-    {} as ExecutionToolContext,
-    {} as Parameters<typeof wrapped.execute>[4],
+    {} as import("@earendil-works/pi-durable").ToolExecutionApi,
     TEST_CONTEXT,
   ] as const;
   try {

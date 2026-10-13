@@ -6,7 +6,7 @@ import type {
   AgentRunEventEnvelope,
   PromptInput,
   SessionConnection,
-  CodemodeCallInfo,
+  NestedToolSlot,
 } from "@carmel-agent/shared";
 import { applyStreamingEvent } from "@carmel-agent/shared";
 
@@ -23,7 +23,7 @@ export type AgentSnapshot = {
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
   pendingToolCalls: Set<string>;
-  codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
+  nestedTools?: readonly NestedToolSlot[];
   isStreaming: boolean;
   hasPendingWork: boolean;
   model: Model<Api>;
@@ -56,7 +56,7 @@ export class RemoteAgent {
   private messages: AgentMessage[];
   private streamingMessage?: AgentMessage;
   private pendingToolCalls = new Set<string>();
-  private codemodeCalls = new Map<string, CodemodeCallInfo[]>();
+  private nestedTools = [] as readonly NestedToolSlot[];
   private isStreaming = false;
   private hasPendingWork = false;
   private model: Model<Api>;
@@ -115,7 +115,7 @@ export class RemoteAgent {
       messages: this.messages,
       streamingMessage: this.streamingMessage,
       pendingToolCalls: this.pendingToolCalls,
-      codemodeCalls: this.codemodeCalls,
+      nestedTools: this.nestedTools,
       isStreaming: this.isStreaming,
       hasPendingWork: this.hasPendingWork,
       model: this.model,
@@ -344,7 +344,7 @@ export class RemoteAgent {
     this.isStreaming = false;
     this.streamingMessage = undefined;
     this.pendingToolCalls = new Set();
-    this.codemodeCalls = new Map();
+    this.nestedTools = [];
     this.abortController = undefined;
     this.runId = undefined;
     this.detachRequested = false;
@@ -451,7 +451,7 @@ export class RemoteAgent {
     this.thinkingLevel = connection.session.thinkingLevel;
     this.streamingMessage = undefined;
     this.pendingToolCalls = new Set();
-    this.codemodeCalls = new Map();
+    this.nestedTools = [];
     this.notify();
   }
 
@@ -500,8 +500,7 @@ export class RemoteAgent {
   private processEvent(event: AgentRunEvent) {
     switch (event.type) {
       case "message_start":
-      case "message_delta":
-      case "message_part":
+      case "message_update":
         // Text and thinking arrive as deltas, so the streaming message is
         // rebuilt here rather than replaced wholesale.
         this.streamingMessage = applyStreamingEvent(this.streamingMessage, event);
@@ -516,19 +515,69 @@ export class RemoteAgent {
         }
         break;
       case "tool_execution_start": {
-        const pendingToolCalls = new Set(this.pendingToolCalls);
-        pendingToolCalls.add(event.toolCallId);
-        this.pendingToolCalls = pendingToolCalls;
-        break;
-      }
-      case "tool_execution_end": {
-        const pendingToolCalls = new Set(this.pendingToolCalls);
-        pendingToolCalls.delete(event.toolCallId);
-        this.pendingToolCalls = pendingToolCalls;
+        if (event.parentToolCallId && event.taskId && event.parentTaskId) {
+          const slot: NestedToolSlot = {
+            callId: event.toolCallId,
+            name: event.toolName,
+            taskId: event.taskId,
+            parentCallId: event.parentToolCallId,
+            parentTaskId: event.parentTaskId,
+            arguments: event.args,
+            status: "running",
+          };
+          this.nestedTools = [
+            ...this.nestedTools.filter((call) => call.callId !== slot.callId),
+            slot,
+          ];
+        } else this.pendingToolCalls = new Set(this.pendingToolCalls).add(event.toolCallId);
         break;
       }
       case "tool_execution_update":
-        this.codemodeCalls = new Map(this.codemodeCalls).set(event.toolCallId, event.codemodeCalls);
+        this.nestedTools = this.nestedTools.map((call) => {
+          if (call.callId !== event.toolCallId) return call;
+          const { output, details, diagnostics } = event;
+          return {
+            ...call,
+            ...(output
+              ? {
+                  output:
+                    "set" in output
+                      ? output.set
+                      : (call.output ?? "").slice(output.trimStart ?? 0) + (output.append ?? ""),
+                }
+              : {}),
+            ...(details !== undefined ? { details } : {}),
+            ...(diagnostics ? { diagnostics: [...diagnostics] } : {}),
+          };
+        });
+        break;
+      case "tool_execution_end": {
+        if (event.parentToolCallId)
+          this.nestedTools = this.nestedTools.map((call) =>
+            call.callId === event.toolCallId
+              ? {
+                  ...call,
+                  status: "done",
+                  ...(event.result
+                    ? {
+                        summary: {
+                          isError: event.result.isError,
+                          durationMs: event.result.durationMs,
+                        },
+                      }
+                    : {}),
+                }
+              : call,
+          );
+        else {
+          const pending = new Set(this.pendingToolCalls);
+          pending.delete(event.toolCallId);
+          this.pendingToolCalls = pending;
+        }
+        break;
+      }
+      case "nested_tools":
+        this.nestedTools = event.tools;
         break;
       case "turn_end":
         if (event.errorMessage) this.errorMessage = event.errorMessage;
@@ -547,7 +596,7 @@ export class RemoteAgent {
         this.contextPressure = { level: event.level, message: event.message };
         break;
       case "agent_end":
-        // AgentHarness has stopped producing messages, but server persistence and
+        // The native conversation has stopped producing messages, but server persistence and
         // title generation still follow, so this is not terminal authority.
         this.streamingMessage = undefined;
         break;

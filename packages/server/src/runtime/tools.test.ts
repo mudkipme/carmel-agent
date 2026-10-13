@@ -1,3 +1,4 @@
+import { executeNativeTool } from "../effectors/testing/tools.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -13,7 +14,7 @@ import type { agents } from "../db/schema.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
-test("Durable's text reader retains Pi image reading through the guarded environment", async () => {
+test("Durable reads images through the guarded environment", async () => {
   const workingDir = mkdtempSync(join(tmpdir(), "carmel-image-read-"));
   const png =
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==";
@@ -28,10 +29,10 @@ test("Durable's text reader retains Pi image reading through the guarded environ
       "image",
       { path: "pixel.png" },
       new AbortController().signal,
-      execution.toolContext,
-    )) as { content: Array<{ type: string; mimeType?: string }> };
+      execution.env,
+    )) as { output: Array<{ type: string; mimeType?: string }> };
     assert.ok(
-      result.content.some((part) => part.type === "image" && part.mimeType === "image/png"),
+      result.output.some((part) => part.type === "image" && part.mimeType === "image/png"),
       JSON.stringify(result),
     );
     await assert.rejects(
@@ -40,10 +41,46 @@ test("Durable's text reader retains Pi image reading through the guarded environ
         "outside",
         { path: "../outside.png" },
         new AbortController().signal,
-        execution.toolContext,
+        execution.env,
       ),
       /outside the agent working directory/,
     );
+  } finally {
+    await execution.cleanup(TEST_CONTEXT);
+    rmSync(workingDir, { recursive: true, force: true });
+  }
+});
+
+test("Durable converts and resizes images through the guarded environment", async () => {
+  const workingDir = mkdtempSync(join(tmpdir(), "carmel-image-resize-"));
+  // A minimal 24-bit BMP wider than Pi's default 2000-pixel image limit.
+  const width = 2400;
+  const height = 2;
+  const bitmap = Buffer.alloc(54 + width * height * 3, 255);
+  bitmap.fill(0, 0, 54);
+  bitmap.write("BM");
+  bitmap.writeUInt32LE(bitmap.length, 2);
+  bitmap.writeUInt32LE(54, 10);
+  bitmap.writeUInt32LE(40, 14);
+  bitmap.writeInt32LE(width, 18);
+  bitmap.writeInt32LE(height, 22);
+  bitmap.writeUInt16LE(1, 26);
+  bitmap.writeUInt16LE(24, 28);
+  writeFileSync(join(workingDir, "wide.bmp"), bitmap);
+  const execution = createServerExecution(
+    makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }),
+  );
+  try {
+    const result = (await executeTool(
+      execution.tools.find((tool) => tool.name === "read")!,
+      "image",
+      { path: "wide.bmp" },
+      new AbortController().signal,
+      execution.env,
+    )) as { output: Array<{ type: string; mimeType?: string }> };
+    assert.ok(result.output.some((part) => part.type === "image" && part.mimeType === "image/png"));
+    assert.match(JSON.stringify(result), /Converted from image\/bmp to image\/png/);
+    assert.match(JSON.stringify(result), /Resized from 2400x2 to 2000x2/);
   } finally {
     await execution.cleanup(TEST_CONTEXT);
     rmSync(workingDir, { recursive: true, force: true });
@@ -93,7 +130,7 @@ test("server filesystem tools accept runner paths across workspace, tmp, home, a
       name,
       args,
       new AbortController().signal,
-      execution.toolContext,
+      execution.env,
     );
   try {
     assert.equal(env.cwd, "/workspace");
@@ -162,9 +199,9 @@ test("server filesystem tools accept runner paths across workspace, tmp, home, a
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==";
     writeFileSync(join(workingDir, "pixel.png"), Buffer.from(png, "base64"));
     const image = (await call("read", { path: "/workspace/pixel.png" })) as {
-      content: Array<{ type: string }>;
+      output: Array<{ type: string }>;
     };
-    assert.ok(image.content.some((part) => part.type === "image"));
+    assert.ok(image.output.some((part) => part.type === "image"));
 
     const manual = createServerExecution(
       makeAgent({
@@ -243,7 +280,7 @@ test("generated paths and filesystem errors use runner paths", async () => {
           "missing",
           { path: "/workspace/missing", pattern: "needle" },
           new AbortController().signal,
-          execution.toolContext,
+          execution.env,
         ),
         (error) => {
           assert.ok(error instanceof Error);
@@ -326,21 +363,22 @@ test("the built-in skill loader is permission gated and returns the registered s
             "load_browser",
             { name: "agent-browser" },
             new AbortController().signal,
-            execution.toolContext,
+            execution.env,
           );
           const [skill] = await loadBuiltinSkills(agent);
           assert.equal(readToolText(result), formatSkillInvocation(skill!));
           assert.ok(!readToolText(result).includes(skill!.filePath));
-          await assert.rejects(
-            () =>
-              executeTool(
-                loader,
-                "load_path",
-                { name: "../../etc/passwd" },
-                new AbortController().signal,
-                execution.toolContext,
-              ),
-            /unavailable/,
+          const invalid = await executeTool(
+            loader,
+            "load_path",
+            { name: "../../etc/passwd" },
+            new AbortController().signal,
+            execution.env,
+          );
+          assert.equal(
+            (invalid as { isError: boolean }).isError,
+            true,
+            "native validation rejects unregistered skill names",
           );
           agent.permissions.network = false;
           await assert.rejects(
@@ -350,7 +388,7 @@ test("the built-in skill loader is permission gated and returns the registered s
                 "load_revoked",
                 { name: "agent-browser" },
                 new AbortController().signal,
-                execution.toolContext,
+                execution.env,
               ),
             /unavailable/,
           );
@@ -361,7 +399,7 @@ test("the built-in skill loader is permission gated and returns the registered s
 });
 
 test("read tools reject paths outside the readable runtime roots", async () => {
-  const { tools, toolContext } = createServerExecution(
+  const { tools, env } = createServerExecution(
     makeAgent({ permissions: { ...allPermissions(false), read: true } }),
   );
   const readTool = tools.find((tool) => tool.name === "read");
@@ -374,14 +412,14 @@ test("read tools reject paths outside the readable runtime roots", async () => {
         "call_1",
         { path: "../outside.txt" },
         new AbortController().signal,
-        toolContext,
+        env,
       ),
     /outside the agent working directory/,
   );
 });
 
 test("write tools reject paths outside the writable runtime root", async () => {
-  const { tools, toolContext } = createServerExecution(
+  const { tools, env } = createServerExecution(
     makeAgent({ permissions: { ...allPermissions(false), write: true } }),
   );
   const writeTool = tools.find((tool) => tool.name === "write");
@@ -394,7 +432,7 @@ test("write tools reject paths outside the writable runtime root", async () => {
         "call_1",
         { path: "../outside.txt", content: "should not be written" },
         new AbortController().signal,
-        toolContext,
+        env,
       ),
     /outside the agent working directory/,
   );
@@ -408,21 +446,14 @@ test("read tools reject a symlink inside the workspace that points outside it", 
   // lives in the workspace but resolves to a host path outside every root.
   symlinkSync(join(secretDir, "secret.txt"), join(workingDir, "escape"));
 
-  const { tools, toolContext } = createServerExecution(
+  const { tools, env } = createServerExecution(
     makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }),
   );
   const readTool = tools.find((tool) => tool.name === "read");
 
   assert.ok(readTool);
   await assert.rejects(
-    () =>
-      executeTool(
-        readTool,
-        "call_1",
-        { path: "escape" },
-        new AbortController().signal,
-        toolContext,
-      ),
+    () => executeTool(readTool, "call_1", { path: "escape" }, new AbortController().signal, env),
     /outside the agent working directory/,
   );
 });
@@ -433,7 +464,7 @@ test("write tools reject writing through a symlink that points outside the works
   writeFileSync(join(outsideDir, "target.txt"), "original");
   symlinkSync(join(outsideDir, "target.txt"), join(workingDir, "escape"));
 
-  const { tools, toolContext } = createServerExecution(
+  const { tools, env } = createServerExecution(
     makeAgent({ workingDir, permissions: { ...allPermissions(false), write: true } }),
   );
   const writeTool = tools.find((tool) => tool.name === "write");
@@ -446,7 +477,7 @@ test("write tools reject writing through a symlink that points outside the works
         "call_1",
         { path: "escape", content: "overwritten" },
         new AbortController().signal,
-        toolContext,
+        env,
       ),
     /outside the agent working directory/,
   );
@@ -457,7 +488,7 @@ test("grep rejects an explicit symlink outside AgentExecutionEnv roots", async (
   const outsideDir = mkdtempSync(join(tmpdir(), "carmel-agent-outside-"));
   writeFileSync(join(outsideDir, "secret.txt"), "top secret");
   symlinkSync(join(outsideDir, "secret.txt"), join(workingDir, "escape"));
-  const { tools, toolContext } = createServerExecution(
+  const { tools, env } = createServerExecution(
     makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }),
   );
   const grepTool = tools.find((tool) => tool.name === "grep");
@@ -470,12 +501,12 @@ test("grep rejects an explicit symlink outside AgentExecutionEnv roots", async (
         "call_1",
         { pattern: "secret", path: "escape" },
         new AbortController().signal,
-        toolContext,
+        env,
       ),
     /outside the agent working directory/,
   );
   await assert.rejects(
-    async () => createGrepOperations(toolContext.env).readFile(join(workingDir, "escape")),
+    async () => createGrepOperations(env).readFile(join(workingDir, "escape")),
     /outside the agent working directory/,
   );
 });
@@ -486,7 +517,7 @@ test("ls omits external symlinks while preserving safe directory symlinks", asyn
   mkdirSync(join(workingDir, "inside"));
   symlinkSync(join(workingDir, "inside"), join(workingDir, "inside-link"));
   symlinkSync(outsideDir, join(workingDir, "escape"));
-  const { tools, toolContext } = createServerExecution(
+  const { tools, env } = createServerExecution(
     makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }),
   );
   const lsTool = tools.find((tool) => tool.name === "ls");
@@ -497,7 +528,7 @@ test("ls omits external symlinks while preserving safe directory symlinks", asyn
     "call_1",
     { path: "." },
     new AbortController().signal,
-    toolContext,
+    env,
   );
   const output = readToolText(result);
   assert.match(output, /^inside\/$/m);
@@ -510,7 +541,7 @@ test("Pi find rejects an explicit symlink outside AgentExecutionEnv roots", asyn
   const outsideDir = mkdtempSync(join(tmpdir(), "carmel-agent-outside-"));
   writeFileSync(join(outsideDir, "secret.txt"), "top secret");
   symlinkSync(outsideDir, join(workingDir, "escape"));
-  const { tools, toolContext } = createServerExecution(
+  const { tools, env } = createServerExecution(
     makeAgent({ workingDir, permissions: { ...allPermissions(false), read: true } }),
   );
   const findTool = tools.find((tool) => tool.name === "find");
@@ -523,7 +554,7 @@ test("Pi find rejects an explicit symlink outside AgentExecutionEnv roots", asyn
         "call_find",
         { pattern: "**/*.txt", path: "escape" },
         new AbortController().signal,
-        toolContext,
+        env,
       ),
     /outside the agent working directory/,
   );
@@ -549,22 +580,16 @@ test("bash stays unavailable when no container socket exists", async () => {
 
 function executeTool(
   tool: { execute: unknown },
-  toolCallId: string,
+  _id: string,
   params: Record<string, unknown>,
   signal: AbortSignal,
-  toolContext?: unknown,
-): Promise<unknown> {
-  const context = withAbortSignal(signal, TEST_CONTEXT);
-  const invocation = { invocationId: "inv_1", operationId: "op_1", turnId: "turn_1" };
-  return Promise.resolve(
-    (tool.execute as (...args: unknown[]) => unknown)(
-      toolCallId,
-      params,
-      () => {},
-      toolContext,
-      invocation,
-      context,
-    ),
+  env?: unknown,
+) {
+  return executeNativeTool(
+    tool as import("@earendil-works/pi-durable").ToolRegistration,
+    params,
+    env as import("@earendil-works/pi-durable/env").ExecutionEnv,
+    withAbortSignal(signal, TEST_CONTEXT),
   );
 }
 
@@ -572,11 +597,11 @@ function readToolText(result: unknown) {
   if (
     !result ||
     typeof result !== "object" ||
-    !("content" in result) ||
-    !Array.isArray(result.content)
+    !("output" in result) ||
+    !Array.isArray(result.output)
   )
     return "";
-  return result.content
+  return result.output
     .flatMap((part) =>
       part && typeof part === "object" && "type" in part && part.type === "text" && "text" in part
         ? [String(part.text)]

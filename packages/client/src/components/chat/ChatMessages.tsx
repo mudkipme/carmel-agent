@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { CodemodeCallInfo } from "@carmel-agent/shared";
+import type { NestedToolSlot } from "@carmel-agent/shared";
 import type {
   AssistantMessage as AssistantMessageType,
   ToolCall,
@@ -25,7 +25,7 @@ type ChatMessagesProps = {
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
   pendingToolCalls: ReadonlySet<string>;
-  codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
+  nestedTools?: readonly NestedToolSlot[];
   isStreaming: boolean;
   /**
    * Fold each run's working -- thinking, tool calls, and the remarks the agent
@@ -60,7 +60,7 @@ export const ChatMessages = memo(function ChatMessages({
   messages,
   streamingMessage,
   pendingToolCalls,
-  codemodeCalls,
+  nestedTools,
   isStreaming,
   collapseRunDetails = true,
   onEditMessage,
@@ -86,7 +86,7 @@ export const ChatMessages = memo(function ChatMessages({
         message={message}
         toolResultsById={toolResultsById}
         pendingToolCalls={pendingToolCalls}
-        codemodeCalls={codemodeCalls}
+        nestedTools={nestedTools}
         streaming={streaming}
         hidePendingToolCalls={!streaming && isStreaming}
         hideAnswer={presentation.hideAnswer}
@@ -317,7 +317,7 @@ const MessageItem = memo(function MessageItem({
   message,
   toolResultsById,
   pendingToolCalls,
-  codemodeCalls,
+  nestedTools,
   streaming,
   hidePendingToolCalls,
   hideAnswer,
@@ -329,7 +329,7 @@ const MessageItem = memo(function MessageItem({
   message: AgentMessage;
   toolResultsById: Map<string, ToolResultMessage>;
   pendingToolCalls: ReadonlySet<string>;
-  codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
+  nestedTools?: readonly NestedToolSlot[];
   streaming: boolean;
   hidePendingToolCalls: boolean;
   hideAnswer?: boolean;
@@ -346,7 +346,7 @@ const MessageItem = memo(function MessageItem({
           message={message as AssistantMessageType}
           toolResultsById={toolResultsById}
           pendingToolCalls={pendingToolCalls}
-          codemodeCalls={codemodeCalls}
+          nestedTools={nestedTools}
           streaming={streaming}
           hidePendingToolCalls={hidePendingToolCalls}
           hideAnswer={hideAnswer}
@@ -426,7 +426,7 @@ function AssistantMessage({
   message,
   toolResultsById,
   pendingToolCalls,
-  codemodeCalls,
+  nestedTools,
   streaming,
   hidePendingToolCalls,
   hideAnswer = false,
@@ -438,7 +438,7 @@ function AssistantMessage({
   message: AssistantMessageType;
   toolResultsById: Map<string, ToolResultMessage>;
   pendingToolCalls: ReadonlySet<string>;
-  codemodeCalls?: ReadonlyMap<string, CodemodeCallInfo[]>;
+  nestedTools?: readonly NestedToolSlot[];
   streaming: boolean;
   hidePendingToolCalls: boolean;
   hideAnswer?: boolean;
@@ -519,7 +519,7 @@ function AssistantMessage({
             key={toolCall.id}
             toolCall={toolCall}
             result={result}
-            codemodeCalls={codemodeCalls?.get(toolCall.id)}
+            nestedTools={nestedTools?.filter((slot) => slot.parentCallId === toolCall.id)}
             pending={pending}
             streaming={streaming}
             aborted={message.stopReason === "aborted" && !result}
