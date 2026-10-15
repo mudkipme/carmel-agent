@@ -348,14 +348,25 @@ async function registration(
   } catch {
     throw new ImError("Cannot reach Feishu/Lark registration. Retry or connect an existing app.");
   }
-  if (!response.ok) throw new ImError(`Feishu/Lark registration returned HTTP ${response.status}.`);
   const raw = await response.text();
   if (raw.length > 1024 * 1024) throw new ImError("Invalid registration response.");
+  let result: Record<string, any>;
   try {
-    return JSON.parse(raw) as Record<string, any>;
+    result = JSON.parse(raw);
   } catch {
     throw new ImError("Invalid registration response.");
   }
+  // Device registration uses HTTP 400 for normal OAuth polling states, including
+  // authorization_pending before the person has scanned or approved the QR code.
+  const pollingState =
+    action === "poll" &&
+    response.status === 400 &&
+    ["authorization_pending", "slow_down", "access_denied", "expired_token"].includes(
+      result?.error,
+    );
+  if (!response.ok && !pollingState)
+    throw new ImError(`Feishu/Lark registration returned HTTP ${response.status}.`);
+  return result;
 }
 export async function beginImQr(userId: string, agentId: string, platform: "feishu" | "lark") {
   assertImAccess(userId, agentId);

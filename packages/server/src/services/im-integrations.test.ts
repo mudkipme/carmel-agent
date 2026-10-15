@@ -223,8 +223,8 @@ test("QR registration follows pending, slow_down and Lark switching without expo
       });
     if (action === "poll") {
       poll++;
-      if (poll === 1) return json({ error: "authorization_pending" });
-      if (poll === 2) return json({ error: "slow_down" });
+      if (poll === 1) return Response.json({ error: "authorization_pending" }, { status: 400 });
+      if (poll === 2) return Response.json({ error: "slow_down" }, { status: 400 });
       if (poll === 3) return json({ user_info: { tenant_brand: "lark" } });
       return json({
         client_id: "cli_lark",
@@ -263,6 +263,76 @@ test("QR registration follows pending, slow_down and Lark switching without expo
   assert.ok(completeImPair(setup.id, incoming(publicSetup.pairCommand!)));
   assert.equal(listImIntegrations(f.userId, f.agentId)[0].senderId, "person-1");
 });
+test("HTTP 400 pending polls keep the QR visible and respect polling intervals until denial or expiry", async () => {
+  const f = fixture();
+  let error = "authorization_pending";
+  let polls = 0;
+  globalThis.fetch = async (_input, init) => {
+    const action = new URLSearchParams(String(init?.body)).get("action");
+    if (action === "init") return json({});
+    if (action === "begin")
+      return json({
+        device_code: "private-device",
+        verification_uri_complete: "https://accounts.feishu.cn/verify",
+        expire_in: 600,
+        interval: 5,
+      });
+    polls++;
+    return Response.json({ error }, { status: 400 });
+  };
+  const manager = new ImManager(() => {
+    throw new Error("An unscanned QR must not start a bot transport.");
+  });
+  try {
+    const setup = await beginImQr(f.userId, f.agentId, "feishu");
+    const forcePoll = async (setupId: string) => {
+      db.update(imSetups).set({ nextPollAt: 0 }).where(eq(imSetups.id, setupId)).run();
+      await manager.tick();
+      await manager.drain();
+    };
+    await forcePoll(setup.id);
+    const pending = serializeImSetup(ownedSetup(f.userId, f.agentId, setup.id));
+    assert.equal(pending.status, "authorizing");
+    assert.equal(pending.qrDataUrl, setup.qrDataUrl);
+    assert.equal(pending.verificationUrl, setup.verificationUrl);
+    assert.equal(pending.expiresAt, setup.expiresAt);
+    assert.equal(pending.error, undefined);
+    await manager.tick();
+    await manager.drain();
+    assert.equal(polls, 1, "the manager must not poll again before the provider interval");
+    error = "slow_down";
+    await forcePoll(setup.id);
+    assert.equal(ownedSetup(f.userId, f.agentId, setup.id).interval, 10_000);
+    assert.equal(ownedSetup(f.userId, f.agentId, setup.id).status, "authorizing");
+    error = "access_denied";
+    await forcePoll(setup.id);
+    assert.equal(ownedSetup(f.userId, f.agentId, setup.id).status, "denied");
+    const next = await beginImQr(f.userId, f.agentId, "feishu");
+    error = "expired_token";
+    await forcePoll(next.id);
+    assert.equal(ownedSetup(f.userId, f.agentId, next.id).status, "expired");
+  } finally {
+    manager.stop();
+  }
+});
+
+test("unexpected registration HTTP failures are still rejected instead of treated as pending", async () => {
+  const f = fixture();
+  globalThis.fetch = async (_input, init) => {
+    const action = new URLSearchParams(String(init?.body)).get("action");
+    if (action === "init") return json({});
+    if (action === "begin")
+      return json({
+        device_code: "private-device",
+        verification_uri_complete: "https://accounts.feishu.cn/verify",
+        expire_in: 600,
+      });
+    return Response.json({ error: "server_error" }, { status: 503 });
+  };
+  const setup = await beginImQr(f.userId, f.agentId, "feishu");
+  await assert.rejects(pollImQr(ownedSetup(f.userId, f.agentId, setup.id)), /HTTP 503/);
+});
+
 test("a QR response arriving after cancellation cannot install credentials", async () => {
   const f = fixture();
   let release: (() => void) | undefined;
