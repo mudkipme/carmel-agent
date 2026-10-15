@@ -241,6 +241,7 @@ export const agentTaskScheduleSchema = z.object({
 });
 export const agentTaskCreateSchema = agentTaskScheduleSchema
   .extend({
+    notifyPlatform: z.enum(["telegram", "feishu", "lark"]).optional(),
     name: z.string().min(1),
     prompt: z.string().min(1),
     modelRefId: optionalStringSchema,
@@ -250,6 +251,7 @@ export const agentTaskCreateSchema = agentTaskScheduleSchema
   .strict();
 export const agentTaskPatchSchema = z
   .object({
+    notifyPlatform: z.enum(["telegram", "feishu", "lark"]).nullable().optional(),
     name: z.string().min(1).optional(),
     prompt: z.string().min(1).optional(),
     modelRefId: optionalStringSchema,

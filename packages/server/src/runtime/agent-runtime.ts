@@ -60,6 +60,11 @@ import { browserInstructions } from "./browser-tools.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 import { buildKnowledgeInstructions } from "./knowledge/prompt.ts";
 import { createScheduleTaskTool, buildSchedulingInstructions } from "./task-tools.ts";
+import {
+  createSendUserMessageTool,
+  messagingInstructions,
+  notificationPlatforms,
+} from "./im-tools.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
@@ -106,6 +111,7 @@ const runContext: PiContext = BACKGROUND_CONTEXT;
 type ServerExecution = ReturnType<typeof createServerExecution>;
 
 export type AgentRunInput = {
+  notifyPlatform?: import("@carmel-agent/shared").ImPlatform;
   agent: AgentRecord;
   session: SessionRecord;
   modelRef: ModelRefRecord;
@@ -415,6 +421,7 @@ async function openRunHarness(
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } =
     context;
   const resources = await loadAgentResources(agent, execution.env);
+  const messagingPlatforms = notificationPlatforms(context.session.userId, agent.id);
   const schedulingTools = context.session.taskId
     ? []
     : [
@@ -426,7 +433,20 @@ async function openRunHarness(
           timezone: context.timezone,
         }),
       ];
-  const tools = execution.resolveTools([...schedulingTools, ...(sessionAddons?.tools ?? [])]);
+  const messagingTools = messagingPlatforms.length
+    ? [
+        createSendUserMessageTool({
+          userId: context.session.userId,
+          agentId: agent.id,
+          sessionId: context.session.id,
+        }),
+      ]
+    : [];
+  const tools = execution.resolveTools([
+    ...schedulingTools,
+    ...messagingTools,
+    ...(sessionAddons?.tools ?? []),
+  ]);
   const activeToolNames = tools.map((tool) => tool.name);
   // Install this run's credentials, resources, and permitted tools before native scheduling.
   const harness = await PiRun.open(
@@ -435,6 +455,10 @@ async function openRunHarness(
       models: modelRuntime,
       agent: { model: { provider: model.provider, modelId: model.id }, thinkingLevel, tools },
       sections: {
+        messaging:
+          messagingPlatforms.length || context.notifyPlatform
+            ? messagingInstructions(messagingPlatforms, context.notifyPlatform)
+            : undefined,
         ...buildHarnessPromptSections({
           base: agent.systemPrompt.trim() || "You are a helpful assistant.",
           cwd: execution.env.cwd,
@@ -448,7 +472,7 @@ async function openRunHarness(
           buildKnowledgeInstructions(context.session.userId, agent.id, activeToolNames) ||
           undefined,
         scheduling: schedulingTools.length
-          ? buildSchedulingInstructions(context.timezone)
+          ? buildSchedulingInstructions(context.timezone, messagingPlatforms)
           : undefined,
       },
       tools,

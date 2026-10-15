@@ -12,10 +12,11 @@ Carmel Agent reads `.env`, `.env.local`, `packages/server/.env`, and `packages/s
 - `CARMEL_AGENT_DATA_DIR` — base data directory for databases and default agent workspaces. The container image sets `/data`.
 - `CARMEL_AGENT_DIR` — Pi agent runtime directory. Defaults to `data/pi-agent`.
 - `CLIENT_DIST_DIR` — override for the built web client directory.
+- `CARMEL_PUBLIC_URL` — absolute browser URL, also used by IM `/web` links. Required when OIDC is enabled.
 
 ## Secrets
 
-- `CARMEL_SECRET_KEY` — encrypts stored provider API keys, OAuth credentials, custom headers, and per-agent secrets at rest.
+- `CARMEL_SECRET_KEY` — encrypts stored provider API keys, OAuth credentials, custom headers, per-agent secrets, and IM setup/credentials at rest. IM connections always require this key, including in development.
 
 Set it before adding any provider credentials and keep it stable. If it changes, previously encrypted values can no longer be decrypted.
 

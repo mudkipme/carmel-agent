@@ -16,6 +16,7 @@ import { AgentGeneralSettings } from "@/components/harness/agent-settings/AgentG
 import { AgentKnowledgeSettings } from "@/components/harness/agent-settings/AgentKnowledgeSettings";
 import { AgentPermissionsSettings } from "@/components/harness/agent-settings/AgentPermissionsSettings";
 import { AgentSecretsSettings } from "@/components/harness/agent-settings/AgentSecretsSettings";
+import { AgentIntegrationsSettings } from "@/components/harness/agent-settings/AgentIntegrationsSettings";
 import { AgentTemplatesSettings } from "@/components/harness/agent-settings/AgentTemplatesSettings";
 import { AgentMcpSettings } from "@/components/harness/agent-settings/AgentMcpSettings";
 import { AgentCodemodeSettings } from "@/components/harness/agent-settings/AgentCodemodeSettings";
@@ -35,13 +36,16 @@ const agentSettingsSections = [
   { id: "codemode", label: "Codemode", icon: CodeIcon },
   { id: "secrets", label: "Secrets", icon: KeyRoundIcon },
   { id: "mcp", label: "MCP", icon: PlugIcon },
+  { id: "integrations", label: "Integrations", icon: PlugIcon },
   { id: "archived", label: "Archived", icon: ArchiveIcon },
 ] as const;
 type AgentSettingsSection = (typeof agentSettingsSections)[number]["id"];
 
 /* A shared agent's settings belong to its owner. Everyone can manage their
-   own archived sessions. */
-const sharedAgentSettingsSections = agentSettingsSections.filter((item) => item.id === "archived");
+   own archived sessions and IM integrations. */
+const sharedAgentSettingsSections = agentSettingsSections.filter(
+  (item) => item.id === "archived" || item.id === "integrations",
+);
 
 export function AgentSettingsPage() {
   const navigate = useNavigate();
@@ -61,7 +65,7 @@ export function AgentSettingsPage() {
   const activeSection = sections.some((item) => item.id === section)
     ? (section as AgentSettingsSection)
     : defaultSection;
-  const callerSection = activeSection === "archived";
+  const callerSection = activeSection === "archived" || activeSection === "integrations";
   const [draft, setDraft] = useState<AgentConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -84,8 +88,8 @@ export function AgentSettingsPage() {
     }
   }, [activeSection, agent, agentId, navigate, section]);
 
-  /* Only the owner configures an agent — everyone else sees just their archived
-     sessions — and a stale link points at nothing at all. */
+  /* Only the owner configures an agent. Other users manage their personal
+     archived sessions and integrations; a stale link points at nothing. */
   useEffect(() => {
     if (!agent) navigate("/", { replace: true });
   }, [agent, navigate]);
@@ -191,6 +195,9 @@ export function AgentSettingsPage() {
     >
       {/* Archived sessions are the caller's own, not part of the owner-only draft. */}
       {activeSection === "archived" ? <AgentArchivedSessionsSettings agentId={agent.id} /> : null}
+      {activeSection === "integrations" ? (
+        <AgentIntegrationsSettings key={`${agent.id}:${activeUserId}`} agentId={agent.id} />
+      ) : null}
       {owned && !callerSection && loadError ? (
         <p className="text-sm text-destructive">{loadError}</p>
       ) : null}

@@ -71,6 +71,14 @@ export function TaskRunHistory({
                 {run.detail ? (
                   <p className="break-words text-muted-foreground">{run.detail}</p>
                 ) : null}
+                {canOpenSessions
+                  ? run.deliveries?.map((delivery) => (
+                      <p key={delivery.id} className="break-words text-muted-foreground">
+                        {delivery.platform} notification: {delivery.status}
+                        {delivery.error ? ` · ${delivery.error}` : ""}
+                      </p>
+                    ))
+                  : null}
               </div>
               {run.sessionId && canOpenSessions ? (
                 <Button asChild variant="ghost" size="sm">

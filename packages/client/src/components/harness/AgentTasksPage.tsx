@@ -100,7 +100,11 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
             onSave={(draft) =>
               act(
                 async () => {
-                  if (editor.id) await api.updateAgentTask(agent.id, editor.id, draft);
+                  if (editor.id)
+                    await api.updateAgentTask(agent.id, editor.id, {
+                      ...draft,
+                      notifyPlatform: draft.notifyPlatform ?? null,
+                    });
                   else await api.createAgentTask(agent.id, draft);
                   closeEditor();
                 },

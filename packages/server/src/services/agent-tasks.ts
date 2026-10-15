@@ -6,8 +6,9 @@ import { id, now } from "../db/seed.ts";
 import { computeNextRun, validateSchedule, type TaskSchedule } from "../effectors/task-schedule.ts";
 import { INTERRUPTED_DETAIL } from "../effectors/run-outcome.ts";
 import { readActiveRunLeaseForSession } from "./active-run-lease.ts";
-import { readTaskAgent, readUsableModelRef } from "./agent-access.ts";
+import { readTaskAgent, readUsableModelRef, readVisibleAgent } from "./agent-access.ts";
 import { deletePiSession } from "./pi-session-storage.ts";
+import { ImError, listImDeliveries, resolveNotificationIntegration } from "./im-integrations.ts";
 
 type TaskRecord = typeof agentTasks.$inferSelect;
 
@@ -62,6 +63,7 @@ export function readAgentTask(
 }
 
 export type AgentTaskDraft = {
+  notifyPlatform?: import("@carmel-agent/shared").ImPlatform | null;
   name: string;
   prompt: string;
   modelRefId?: string;
@@ -79,6 +81,7 @@ export function createAgentTask(
 ): AgentTask {
   assertAgentVisible(user, agentId);
   assertUsableModel(user.id, draft.modelRefId);
+  if (draft.notifyPlatform) assertNotification(user.id, agentId, draft.notifyPlatform);
 
   const timestamp = now();
   const schedule = scheduleOf(draft);
@@ -100,6 +103,7 @@ export function createAgentTask(
     scheduleKind: draft.scheduleKind,
     scheduleValue: draft.scheduleValue,
     timezone: draft.timezone ?? null,
+    notifyPlatform: draft.notifyPlatform ?? null,
     status,
     nextRunAt: next.ok ? next.at : null,
     lastRunAt: null,
@@ -119,6 +123,7 @@ export function updateAgentTask(
   patch: Partial<AgentTaskDraft>,
 ): AgentTask {
   const current = readAgentTask(user, agentId, taskId);
+  if (patch.notifyPlatform) assertNotification(current.userId, agentId, patch.notifyPlatform);
   if (patch.modelRefId !== undefined) assertUsableModel(current.userId, patch.modelRefId);
 
   const timestamp = now();
@@ -152,6 +157,7 @@ export function updateAgentTask(
     scheduleKind: merged.scheduleKind,
     scheduleValue: merged.scheduleValue,
     timezone: merged.timezone ?? null,
+    notifyPlatform: merged.notifyPlatform ?? null,
     status: patch.status ?? current.status,
     nextRunAt,
     updatedAt: timestamp,
@@ -328,6 +334,18 @@ function assertUsableModel(userId: string, modelRefId: string | undefined) {
   if (!modelRefId) return;
   if (!readUsableModelRef(userId, modelRefId)) throw new AgentTaskError("Model not found.", 404);
 }
+function assertNotification(
+  userId: string,
+  agentId: string,
+  platform: import("@carmel-agent/shared").ImPlatform,
+) {
+  try {
+    resolveNotificationIntegration(userId, agentId, platform);
+  } catch (error) {
+    if (error instanceof ImError) throw new AgentTaskError(error.message, 400);
+    throw error;
+  }
+}
 
 function valueOrNull(next: ReturnType<typeof computeNextRun>) {
   return next.ok ? next.at : null;
@@ -351,6 +369,7 @@ function serializeTask(row: TaskRecord): AgentTask {
     scheduleKind: row.scheduleKind,
     scheduleValue: row.scheduleValue,
     timezone: row.timezone ?? undefined,
+    notifyPlatform: row.notifyPlatform ?? undefined,
     status: row.status,
     nextRunAt: row.nextRunAt ?? undefined,
     lastRunAt: row.lastRunAt ?? undefined,
@@ -362,6 +381,7 @@ function serializeTask(row: TaskRecord): AgentTask {
 }
 
 function serializeRun(row: typeof agentTaskRuns.$inferSelect): AgentTaskRun {
+  const task = db.select().from(agentTasks).where(eq(agentTasks.id, row.taskId)).get();
   return {
     id: row.id,
     taskId: row.taskId,
@@ -371,5 +391,9 @@ function serializeRun(row: typeof agentTaskRuns.$inferSelect): AgentTaskRun {
     outcome: row.outcome,
     detail: row.detail ?? undefined,
     sessionId: row.sessionId ?? undefined,
+    deliveries:
+      task && row.sessionId && readVisibleAgent(task.userId, task.agentId)
+        ? listImDeliveries(task.userId, task.agentId, row.sessionId)
+        : [],
   };
 }

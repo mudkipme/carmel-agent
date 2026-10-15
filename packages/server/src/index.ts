@@ -19,6 +19,7 @@ import { attachBrowserSocket } from "./browser-socket.ts";
 import { shutdownBrowsers } from "./runtime/sandbox/browser-sessions.ts";
 import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
 import { startTaskScheduler } from "./runtime/task-scheduler.ts";
+import { startImManager, stopImManager, drainImManager } from "./runtime/im-manager.ts";
 import { errorMessage } from "./errors.ts";
 import { assertOidcConfig } from "./oidc/config.ts";
 import { startKnowledgeScheduler, stopKnowledgeScheduler } from "./services/knowledge.ts";
@@ -62,6 +63,7 @@ void refreshConfiguredModelCatalogs()
   });
 
 startTaskScheduler();
+startImManager();
 startKnowledgeScheduler();
 startIssueQueue();
 
@@ -82,9 +84,11 @@ async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
   stopIssueQueue();
+  stopImManager();
   console.log(`Received ${signal}, draining active runs...`);
   try {
     await shutdownActiveRuns();
+    await drainImManager();
     await drainIssueResults();
   } catch (error) {
     console.warn("Failed to drain active runs:", errorMessage(error));

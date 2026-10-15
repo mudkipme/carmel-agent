@@ -1,6 +1,7 @@
 import { z } from "zod";
 import * as S from "../src/schemas.ts";
 import * as K from "../src/knowledge.ts";
+import * as IM from "../src/im.ts";
 
 const requestSchemas = {
   KnowledgeSettings: K.knowledgeSettingsSchema,
@@ -20,6 +21,9 @@ const requestSchemas = {
   OAuthInputRequest: S.oauthInputRequestSchema,
   AgentRequest: S.agentConfigRequestSchema,
   AgentSecretRequest: S.agentSecretWriteSchema,
+  ImConnectRequest: IM.imConnectSchema,
+  ImSettingsRequest: IM.imSettingsSchema,
+  ImQrBeginRequest: IM.imQrBeginSchema,
   ApiKeyCreateRequest: S.apiKeyCreateSchema,
   AgentTaskCreateRequest: S.agentTaskCreateSchema,
   AgentTaskPatchRequest: S.agentTaskPatchSchema,

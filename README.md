@@ -15,6 +15,7 @@ It runs on your machine or your server. Agents contact the model providers, webs
 - **Files in the browser.** A full file manager for an agent's workspace: browse, edit, upload (drag and drop, including folders), download files or a folder as a zip, and select several entries to move, copy, or delete — all under the same permissions the agent has.
 - **Per-agent secrets.** Give an agent a `GITHUB_TOKEN` or a registry password; it is encrypted at rest, available to that agent's sandbox and configured MCP connections, and redacted out of tool output.
 - **MCP tools.** Connect each agent to remote HTTP servers or stdio servers inside its sandbox, with tool allowlists and credentials from agent secrets.
+- **Private IM integrations.** Connect your own Telegram bot or Feishu/Lark app to an agent, including QR setup for Feishu/Lark. Chat through IM and let scheduled tasks send you private alerts. See [IM integrations](docs/im-integrations.md).
 - **Your own skills.** Drop skills into `.agents/skills` in an agent's workspace and they show up as slash commands in the chat.
 - **Issues.** Queue work for an agent, continue the discussion, send live updates, and review saved results before accepting them. See [the Issues workflow](docs/issues.md).
 - **Conversation control.** Fork a session from any earlier message, edit your own messages, truncate a branch, pin the sessions you keep coming back to, attach images.

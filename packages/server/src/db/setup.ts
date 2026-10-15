@@ -2,8 +2,55 @@ import type BetterSqlite3 from "better-sqlite3";
 
 /** Create the current metadata schema. Existing tables and data are left intact. */
 export function initializeSchema(sqlite: BetterSqlite3.Database) {
-  sqlite.transaction(() => sqlite.exec(CURRENT_SCHEMA))();
+  sqlite.transaction(() => {
+    sqlite.exec(CURRENT_SCHEMA);
+    const columns = sqlite.pragma("table_info(agent_tasks)") as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "notify_platform"))
+      sqlite.exec("ALTER TABLE agent_tasks ADD COLUMN notify_platform TEXT");
+    sqlite.exec(IM_SCHEMA);
+  })();
 }
+
+const IM_SCHEMA = `
+ CREATE TABLE IF NOT EXISTS im_integrations (
+  id TEXT PRIMARY KEY NOT NULL, agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, platform TEXT NOT NULL,
+  bot_id TEXT NOT NULL, bot_name TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
+  proactive INTEGER NOT NULL DEFAULT 1, notification_default INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL, error TEXT, offset INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL
+ );
+ CREATE UNIQUE INDEX IF NOT EXISTS im_integrations_owner_platform ON im_integrations(agent_id, user_id, platform);
+ CREATE UNIQUE INDEX IF NOT EXISTS im_integrations_bot ON im_integrations(platform, bot_id);
+ CREATE TABLE IF NOT EXISTS im_credentials (
+  integration_id TEXT PRIMARY KEY NOT NULL REFERENCES im_integrations(id) ON DELETE CASCADE, value TEXT NOT NULL
+ );
+ CREATE TABLE IF NOT EXISTS im_bindings (
+  integration_id TEXT PRIMARY KEY NOT NULL REFERENCES im_integrations(id) ON DELETE CASCADE,
+  sender_id TEXT NOT NULL, chat_id TEXT NOT NULL, session_id TEXT
+ );
+ CREATE TABLE IF NOT EXISTS im_setup_attempts (
+  id TEXT PRIMARY KEY NOT NULL, agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, platform TEXT NOT NULL, status TEXT NOT NULL,
+  state TEXT NOT NULL, bot_id TEXT, bot_name TEXT, offset INTEGER NOT NULL DEFAULT 0,
+  expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, next_poll_at INTEGER NOT NULL, interval INTEGER NOT NULL DEFAULT 5000, error TEXT
+ );
+ CREATE INDEX IF NOT EXISTS im_setup_owner ON im_setup_attempts(agent_id, user_id);
+ CREATE TABLE IF NOT EXISTS im_inbox (
+  id TEXT PRIMARY KEY NOT NULL, integration_id TEXT NOT NULL REFERENCES im_integrations(id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL, prompt TEXT NOT NULL, image_keys TEXT NOT NULL DEFAULT '[]', message_id TEXT,
+  status TEXT NOT NULL, session_id TEXT, run_id TEXT, created_at INTEGER NOT NULL
+ );
+ CREATE UNIQUE INDEX IF NOT EXISTS im_inbox_event ON im_inbox(integration_id, event_id);
+ CREATE INDEX IF NOT EXISTS im_inbox_queue ON im_inbox(status, created_at);
+ CREATE TABLE IF NOT EXISTS im_outbox (
+  id TEXT PRIMARY KEY NOT NULL, integration_id TEXT NOT NULL REFERENCES im_integrations(id) ON DELETE CASCADE,
+  dedup_key TEXT NOT NULL UNIQUE, text TEXT NOT NULL, proactive INTEGER NOT NULL, session_id TEXT,
+  status TEXT NOT NULL, provider_ids TEXT NOT NULL DEFAULT '[]', next_chunk INTEGER NOT NULL DEFAULT 0,
+  attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at INTEGER NOT NULL, error TEXT, created_at INTEGER NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS im_outbox_pending ON im_outbox(status, next_attempt_at);
+ CREATE INDEX IF NOT EXISTS im_outbox_session ON im_outbox(session_id);
+`;
 
 const CURRENT_SCHEMA = `
   CREATE TABLE IF NOT EXISTS knowledge_configs (

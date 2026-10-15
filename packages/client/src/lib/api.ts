@@ -22,6 +22,10 @@ import type {
   AgentFileEntry,
   AgentFileList,
   AgentSecret,
+  ImIntegration,
+  ImSetup,
+  ImPlatform,
+  ImDelivery,
   AgentTask,
   AgentTaskCreateCommand,
   AgentTaskPatchCommand,
@@ -163,6 +167,42 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
 }
 
 export const api = {
+  listImIntegrations: (agentId: string, signal?: AbortSignal) =>
+    request<ImIntegration[]>(`/api/agents/${agentId}/integrations`, { signal }),
+  listImSetups: (agentId: string, signal?: AbortSignal) =>
+    request<ImSetup[]>(`/api/agents/${agentId}/integrations/setups`, { signal }),
+  listImDeliveries: (agentId: string, signal?: AbortSignal) =>
+    request<ImDelivery[]>(`/api/agents/${agentId}/integrations/deliveries`, { signal }),
+  connectIm: (
+    agentId: string,
+    input: { platform: ImPlatform; token?: string; appId?: string; appSecret?: string },
+  ) =>
+    request<ImSetup>(`/api/agents/${agentId}/integrations/connect`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  beginImQr: (agentId: string, platform: "feishu" | "lark") =>
+    request<ImSetup>(`/api/agents/${agentId}/integrations/qr`, {
+      method: "POST",
+      body: JSON.stringify({ platform }),
+    }),
+  cancelImSetup: (agentId: string, setupId: string) =>
+    request<{ ok: true }>(`/api/agents/${agentId}/integrations/setup/${setupId}`, {
+      method: "DELETE",
+    }),
+  updateIm: (
+    agentId: string,
+    integrationId: string,
+    patch: { enabled?: boolean; proactive?: boolean; notificationDefault?: boolean },
+  ) =>
+    request<{ ok: true }>(`/api/agents/${agentId}/integrations/${integrationId}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  disconnectIm: (agentId: string, integrationId: string) =>
+    request<{ ok: true }>(`/api/agents/${agentId}/integrations/${integrationId}`, {
+      method: "DELETE",
+    }),
   browserStatus: (agentId: string, signal?: AbortSignal) =>
     request<{ control: BrowserControlState; available: boolean }>(
       `/api/agents/${encodeURIComponent(agentId)}/browser`,

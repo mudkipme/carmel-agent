@@ -53,7 +53,9 @@ paths:
       tags:
         - Knowledge
       summary: Read the agent's knowledge settings
-      description: Available to users who can access the agent when its read permission is enabled. Returns settings without loading memories or starting a knowledge worker.
+      description:
+        Available to users who can access the agent when its read permission is enabled. Returns settings without
+        loading memories or starting a knowledge worker.
       responses:
         "200":
           description: Current knowledge settings, including defaults when not configured.
@@ -428,7 +430,9 @@ paths:
         operationId: startOidcLogin,
         tags: [Auth],
         security: [],
-        description: Browser navigation only. Redirects to the configured OpenID Connect provider and sets a short-lived flow cookie.,
+        description:
+          Browser navigation only. Redirects to the configured OpenID Connect provider and sets a short-lived flow
+          cookie.,
         responses:
           {
             "302":
@@ -1312,7 +1316,9 @@ paths:
       {
         operationId: getAgentGitStatus,
         tags: [Files],
-        description: Read-only working-tree status of the repository containing the agent's working directory. Runs git in the agent's sandbox.,
+        description:
+          Read-only working-tree status of the repository containing the agent's working directory. Runs git in the
+          agent's sandbox.,
         responses:
           {
             "200":
@@ -1812,6 +1818,214 @@ paths:
           "404": { $ref: "#/components/responses/Error" },
           "409": { $ref: "#/components/responses/Error" },
         }
+  /api/agents/{agentId}/integrations:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    get:
+      operationId: listImIntegrations
+      tags:
+        - Integrations
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ImIntegration"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/integrations/setups:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    get:
+      operationId: listImSetups
+      tags:
+        - Integrations
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ImSetup"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/integrations/deliveries:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    get:
+      operationId: listImDeliveries
+      tags:
+        - Integrations
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ImDelivery"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/integrations/connect:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    post:
+      operationId: connectIm
+      tags:
+        - Integrations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImConnectRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImSetup"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/integrations/qr:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+    post:
+      operationId: beginImQr
+      tags:
+        - Integrations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImQrBeginRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImSetup"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/integrations/setup/{setupId}:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+      - in: path
+        name: setupId
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getImSetup
+      tags:
+        - Integrations
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImSetup"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: cancelImSetup
+      tags:
+        - Integrations
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OK"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/integrations/{integrationId}:
+    parameters:
+      - $ref: "#/components/parameters/AgentID"
+      - in: path
+        name: integrationId
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: updateIm
+      tags:
+        - Integrations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImSettingsRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OK"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: disconnectIm
+      tags:
+        - Integrations
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OK"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     carmelSession: { type: apiKey, in: cookie, name: carmel_session }
@@ -3107,6 +3321,7 @@ components:
             status: { type: string },
             createdAt: { type: number },
             updatedAt: { type: number },
+            notifyPlatform: { type: string, enum: [telegram, feishu, lark] },
           },
       }
     IssueCreateRequest:
@@ -3413,3 +3628,249 @@ components:
             "entryId": { "type": "string", "nullable": true },
           },
       }
+    ImConnectRequest:
+      type: object
+      properties:
+        platform:
+          type: string
+          enum:
+            - telegram
+            - feishu
+            - lark
+        token:
+          type: string
+          minLength: 1
+          maxLength: 512
+        appId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        appSecret:
+          type: string
+          minLength: 1
+          maxLength: 512
+      required:
+        - platform
+      additionalProperties: false
+    ImSettingsRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        proactive:
+          type: boolean
+        notificationDefault:
+          type: boolean
+      additionalProperties: false
+    ImQrBeginRequest:
+      type: object
+      properties:
+        platform:
+          type: string
+          enum:
+            - feishu
+            - lark
+      required:
+        - platform
+      additionalProperties: false
+    AgentTaskCreateRequest:
+      type: object
+      properties:
+        scheduleKind:
+          type: string
+          enum:
+            - cron
+            - interval
+            - once
+        scheduleValue:
+          type: string
+          minLength: 1
+        timezone:
+          type: string
+        notifyPlatform:
+          type: string
+          enum:
+            - telegram
+            - feishu
+            - lark
+        name:
+          type: string
+          minLength: 1
+        prompt:
+          type: string
+          minLength: 1
+        modelRefId:
+          type: string
+        thinkingLevel:
+          type: string
+          enum:
+            - off
+            - minimal
+            - low
+            - medium
+            - high
+            - xhigh
+            - max
+        status:
+          type: string
+          enum:
+            - active
+            - paused
+      required:
+        - scheduleKind
+        - scheduleValue
+        - name
+        - prompt
+      additionalProperties: false
+    AgentTaskPatchRequest:
+      type: object
+      properties:
+        notifyPlatform:
+          nullable: true
+          type: string
+          enum:
+            - telegram
+            - feishu
+            - lark
+        name:
+          type: string
+          minLength: 1
+        prompt:
+          type: string
+          minLength: 1
+        modelRefId:
+          type: string
+        thinkingLevel:
+          type: string
+          enum:
+            - off
+            - minimal
+            - low
+            - medium
+            - high
+            - xhigh
+            - max
+        scheduleKind:
+          type: string
+          enum:
+            - cron
+            - interval
+            - once
+        scheduleValue:
+          type: string
+          minLength: 1
+        timezone:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - paused
+      additionalProperties: false
+    ImIntegration:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - agentId
+        - platform
+        - botId
+        - botName
+        - enabled
+        - proactive
+        - notificationDefault
+        - status
+        - senderId
+        - updatedAt
+      properties:
+        id: &a4
+          type: string
+        agentId: *a4
+        platform:
+          type: string
+          enum:
+            - telegram
+            - feishu
+            - lark
+        botId: *a4
+        botName: *a4
+        enabled: &a5
+          type: boolean
+        proactive: *a5
+        notificationDefault: *a5
+        status:
+          type: string
+          enum:
+            - connecting
+            - connected
+            - disabled
+            - error
+        error: *a4
+        senderId: *a4
+        sessionId: *a4
+        updatedAt:
+          type: number
+    ImSetup:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - platform
+        - status
+        - expiresAt
+      properties:
+        id: &a4
+          type: string
+        platform:
+          type: string
+          enum:
+            - telegram
+            - feishu
+            - lark
+        status:
+          type: string
+          enum:
+            - authorizing
+            - pairing
+            - completed
+            - expired
+            - denied
+            - error
+            - cancelled
+        expiresAt:
+          type: number
+        verificationUrl: *a4
+        qrDataUrl: *a4
+        pairCommand: *a4
+        botUrl: *a4
+        botName: *a4
+        error: *a4
+    ImDelivery:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - platform
+        - status
+        - createdAt
+      properties:
+        id: &a4
+          type: string
+        platform:
+          type: string
+          enum:
+            - telegram
+            - feishu
+            - lark
+        status:
+          type: string
+          enum:
+            - pending
+            - sending
+            - sent
+            - failed
+            - cancelled
+            - uncertain
+        error: *a4
+        createdAt:
+          type: number

@@ -244,6 +244,7 @@ export const agentTasks = sqliteTable("agent_tasks", {
   scheduleKind: text("schedule_kind").$type<TaskScheduleKind>().notNull(),
   scheduleValue: text("schedule_value").notNull(),
   timezone: text("timezone"),
+  notifyPlatform: text("notify_platform").$type<import("@carmel-agent/shared").ImPlatform>(),
   status: text("status").$type<AgentTaskStatus>().notNull().default("active"),
   nextRunAt: integer("next_run_at"),
   lastRunAt: integer("last_run_at"),

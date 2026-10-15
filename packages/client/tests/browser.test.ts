@@ -250,6 +250,44 @@ test("mobile settings keep the selected section visible and permission labels to
   );
 });
 
+test("private integrations show QR setup, cancel it, and persist proactive messaging controls on mobile", (t) => {
+  t.after(() => browser("set", "viewport", "1280", "900"));
+  browser("set", "viewport", "320", "740");
+  browser("open", `${fixture.url}${agentPath("settings/integrations")}`);
+  browser("wait", "#telegram-proactive");
+  assert.equal(
+    evaluate(
+      'document.querySelector(\'[aria-label="Telegram integration"]\').textContent.includes("Carmel test bot")',
+    ),
+    true,
+  );
+  browser("wait", 'img[alt="Scan to create your Feishu or Lark bot"]');
+  assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+  clickSelector("#telegram-proactive");
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#telegram-proactive").getAttribute("aria-checked") === "false"',
+  );
+  browser("open", `${fixture.url}${agentPath("settings/integrations")}`);
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#telegram-proactive")?.getAttribute("aria-checked") === "false"',
+  );
+  click("button", "Cancel setup");
+  browser(
+    "wait",
+    "--fn",
+    "!document.querySelector('img[alt=\"Scan to create your Feishu or Lark bot\"]')",
+  );
+  clickSelector('[aria-label="Feishu integration"] button:last-child');
+  browser("wait", "#feishu-app-secret");
+  assert.equal(evaluate('document.querySelector("#feishu-app-secret").type'), "password");
+  assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+  clickSelector("#telegram-proactive");
+});
+
 test("earlier issue conversations open the correct persisted session", () => {
   open(agentPath(`issues/${fixture.reviewIssueId}`));
   browser("wait", "--text", "Run history & issue events");

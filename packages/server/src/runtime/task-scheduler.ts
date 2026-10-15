@@ -227,7 +227,13 @@ async function prepareTaskRun(
   });
   if (!prepared.ok)
     return { error: "The model this task uses is no longer available to its owner." };
-  return { input: { ...prepared.value, promptInput: { text: task.prompt } } };
+  return {
+    input: {
+      ...prepared.value,
+      notifyPlatform: task.notifyPlatform ?? undefined,
+      promptInput: { text: task.prompt },
+    },
+  };
 }
 
 function maxConcurrent() {

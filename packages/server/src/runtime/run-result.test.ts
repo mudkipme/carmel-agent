@@ -17,6 +17,11 @@ import {
   sessions,
 } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
+import { imBindings, imCredentials, imIntegrations, imOutbox } from "../db/im-schema.ts";
+import { encryptIm } from "../services/im-integrations.ts";
+import { createAgentTask, readAgentTask, readTaskRuns } from "../services/agent-tasks.ts";
+import { runTaskNow } from "./task-scheduler.ts";
+import { ImManager, receiveImMessage } from "./im-manager.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { loadSession } from "../services/session-store.ts";
 import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
@@ -34,13 +39,169 @@ import { shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
 
 initialize();
 
-type ProviderMode = "reply" | "reject" | "tool-loop" | "hang" | "schedule" | "schedule-codemode";
+type ProviderMode =
+  | "reply"
+  | "reject"
+  | "tool-loop"
+  | "hang"
+  | "schedule"
+  | "schedule-codemode"
+  | "notify"
+  | "notify-codemode";
 const provider = await startFakeProvider();
 after(() => provider.close());
 
 test("a run that gets its reply succeeds", async () => {
   const run = await startRun("reply");
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
+});
+
+test("IM messages create a private web session, continue its history, and start fresh without deleting earlier conversations", async () => {
+  const previousKey = process.env.CARMEL_SECRET_KEY;
+  process.env.CARMEL_SECRET_KEY = "im-conversation-fixture-key";
+  const sent: string[] = [];
+  const manager = new ImManager(() => ({
+    async start() {},
+    stop() {},
+    async image() {
+      throw new Error("No images in this scenario.");
+    },
+    async send(_chat, text) {
+      sent.push(text);
+      return `reply-${sent.length}`;
+    },
+  }));
+  try {
+    const initial = await startRun("reply");
+    await finished(initial);
+    const source = db.select().from(sessions).where(eq(sessions.id, initial.sessionId)).get()!;
+    const integrationId = id("im_conversation");
+    db.insert(imIntegrations)
+      .values({
+        id: integrationId,
+        userId: source.userId,
+        agentId: source.agentId,
+        platform: "telegram",
+        botId: integrationId,
+        botName: "Conversation fixture",
+        status: "connected",
+        updatedAt: now(),
+      })
+      .run();
+    db.insert(imCredentials)
+      .values({ integrationId, value: encryptIm({ token: "unused" }) })
+      .run();
+    db.insert(imBindings).values({ integrationId, senderId: "person", chatId: "chat" }).run();
+    let event = 0;
+    const send = async (text: string) => {
+      await receiveImMessage(integrationId, {
+        eventId: String(event++),
+        senderId: "person",
+        chatId: "chat",
+        text,
+        imageKeys: [],
+      });
+      await manager.tick();
+      await manager.drain();
+      await manager.tick();
+      await manager.drain();
+    };
+    const binding = () =>
+      db.select().from(imBindings).where(eq(imBindings.integrationId, integrationId)).get()!;
+    await send("First private IM prompt");
+    const firstSessionId = binding().sessionId!;
+    assert.notEqual(firstSessionId, source.id);
+    assert.equal((await loadSession(firstSessionId))!.userId, source.userId);
+    assert.ok(sent.includes("Hi there."));
+    await send("Continue this conversation");
+    assert.equal(binding().sessionId, firstSessionId);
+    const first = await loadSession(firstSessionId);
+    assert.match(JSON.stringify(first!.messages), /First private IM prompt/);
+    assert.match(JSON.stringify(first!.messages), /Continue this conversation/);
+    await send("/new");
+    await send("A fresh conversation");
+    assert.notEqual(binding().sessionId, firstSessionId);
+    assert.ok(await loadSession(firstSessionId));
+  } finally {
+    manager.stop();
+    if (previousKey === undefined) delete process.env.CARMEL_SECRET_KEY;
+    else process.env.CARMEL_SECRET_KEY = previousKey;
+  }
+});
+
+test("ordinary, Codemode and fresh scheduled runs can enqueue a private notification without an IM conversation", async () => {
+  const previousKey = process.env.CARMEL_SECRET_KEY;
+  process.env.CARMEL_SECRET_KEY = "runtime-im-fixture-key";
+  try {
+    for (const codemodeEnabled of [false, true]) {
+      const run = await startRun(codemodeEnabled ? "notify-codemode" : "notify", (sessionId) => {
+        const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
+        db.update(agents).set({ codemodeEnabled }).where(eq(agents.id, session.agentId)).run();
+        const integrationId = id("im_fixture");
+        db.insert(imIntegrations)
+          .values({
+            id: integrationId,
+            userId: session.userId,
+            agentId: session.agentId,
+            platform: "telegram",
+            botId: integrationId,
+            botName: "Runtime fixture",
+            status: "connected",
+            updatedAt: now(),
+          })
+          .run();
+        db.insert(imCredentials)
+          .values({ integrationId, value: encryptIm({ token: "fixture_not_used" }) })
+          .run();
+        db.insert(imBindings).values({ integrationId, senderId: "person", chatId: "chat" }).run();
+      });
+      assert.deepEqual(await finished(run), { outcome: "succeeded" });
+      const session = db.select().from(sessions).where(eq(sessions.id, run.sessionId)).get()!;
+      const [firstDelivery] = db
+        .select()
+        .from(imOutbox)
+        .where(eq(imOutbox.sessionId, session.id))
+        .all();
+      assert.equal(firstDelivery?.text, "Your build failed.");
+      assert.equal(firstDelivery?.status, "pending");
+      const user = { id: session.userId, role: "user" as const };
+      const task = createAgentTask(user, session.agentId, {
+        name: "Build alert",
+        prompt: "Send the build alert when run.",
+        scheduleKind: "interval",
+        scheduleValue: "60000",
+        notifyPlatform: "telegram",
+      });
+      const requestIndex = provider.systemPrompts.length;
+      const started = await runTaskNow(readAgentTask(user, session.agentId, task.id));
+      assert.equal(started.outcome, "running");
+      const deadline = Date.now() + 15_000;
+      while (
+        readTaskRuns(user, session.agentId, task.id)[0]?.outcome === "running" &&
+        Date.now() < deadline
+      )
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      const [taskRun] = readTaskRuns(user, session.agentId, task.id);
+      assert.equal(taskRun?.outcome, "succeeded");
+      assert.notEqual(taskRun.sessionId, session.id);
+      assert.equal(taskRun.deliveries?.[0]?.status, "pending");
+      assert.match(
+        provider.systemPrompts.slice(requestIndex).join("\n"),
+        /saved notification destination is telegram/,
+      );
+      assert.equal(
+        db
+          .select()
+          .from(imBindings)
+          .where(eq(imBindings.integrationId, firstDelivery.integrationId))
+          .get()!.sessionId,
+        null,
+      );
+    }
+  } finally {
+    if (previousKey === undefined) delete process.env.CARMEL_SECRET_KEY;
+    else process.env.CARMEL_SECRET_KEY = previousKey;
+  }
 });
 
 test("successive named-session runs preserve the provider request prefix without injecting a clock", async (t) => {
@@ -407,7 +568,25 @@ function respond(
   const base = { id: "chatcmpl-test", object: "chat.completion.chunk", created: 0, model: "fake" };
   const chunk = (delta: object, finishReason: string | null = null) =>
     `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`;
-  if ((mode === "schedule" || mode === "schedule-codemode") && !hasToolResult) {
+  if ((mode === "notify" || mode === "notify-codemode") && !hasToolResult) {
+    const args = { text: "Your build failed.", platform: "telegram" };
+    const call =
+      mode === "notify"
+        ? { name: "send_user_message", arguments: JSON.stringify(args) }
+        : {
+            name: "codemode",
+            arguments: JSON.stringify({
+              code: `text(await tools.send_user_message(${JSON.stringify(args)}));`,
+            }),
+          };
+    response.write(
+      chunk({
+        role: "assistant",
+        tool_calls: [{ index: 0, id: "call_notify", type: "function", function: call }],
+      }),
+    );
+    response.write(chunk({}, "tool_calls"));
+  } else if ((mode === "schedule" || mode === "schedule-codemode") && !hasToolResult) {
     const args = {
       name: "Report reminder",
       prompt: "Remind the user to submit the report.",

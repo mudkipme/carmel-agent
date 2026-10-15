@@ -54,6 +54,7 @@ export {
 export type { UserMessageEditOptions } from "./messages.ts";
 export * from "./commands.ts";
 export * from "./knowledge.ts";
+export * from "./im.ts";
 export * from "./run-events.ts";
 export * from "./models.ts";
 export * from "./records.ts";
@@ -290,6 +291,7 @@ export type AgentTask = {
   scheduleKind: TaskScheduleKind;
   scheduleValue: string;
   timezone?: string;
+  notifyPlatform?: import("./im.ts").ImPlatform;
   status: AgentTaskStatus;
   nextRunAt?: number;
   lastRunAt?: number;
@@ -309,6 +311,7 @@ export type AgentTaskRun = {
   detail?: string;
   /** The run's own session. Absent for firings that never ran. */
   sessionId?: string;
+  deliveries?: import("./im.ts").ImDelivery[];
 };
 
 /** Durable work owned by one agent; runs share a conversation unless explicitly started fresh. */

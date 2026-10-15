@@ -23,6 +23,7 @@ export function taskDraft(task: AgentTask): AgentTaskCreateCommand {
     timezone: task.timezone,
     modelRefId: task.modelRefId,
     thinkingLevel: task.thinkingLevel,
+    notifyPlatform: task.notifyPlatform,
   };
 }
 

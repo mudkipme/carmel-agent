@@ -8,6 +8,7 @@ process.env.DATABASE_URL = ":memory:";
 process.env.CARMEL_AGENT_DATA_DIR = stateDir;
 process.env.CARMEL_PODMAN_SOCKET = join(stateDir, "no-container-socket");
 process.env.CLIENT_DIST_DIR = new URL("../../client/dist/", import.meta.url).pathname;
+process.env.CARMEL_SECRET_KEY = "isolated-browser-fixture-key";
 
 const { serve } = await import("@hono/node-server");
 const { eq } = await import("drizzle-orm");
@@ -58,6 +59,53 @@ db.update(agents)
   .where(eq(agents.id, secondAgentId))
   .run();
 const timestamp = Date.now();
+const { imBindings, imCredentials, imIntegrations, imSetups } =
+  await import("../src/db/im-schema.ts");
+const { encryptIm } = await import("../src/services/im-integrations.ts");
+const QRCode = (await import("qrcode")).default;
+const fixtureIntegrationId = "browser-telegram-integration";
+db.insert(imIntegrations)
+  .values({
+    id: fixtureIntegrationId,
+    agentId: fixture.agentId,
+    userId: fixture.userId,
+    platform: "telegram",
+    botId: "browser-fixture-bot",
+    botName: "Carmel test bot",
+    status: "connected",
+    updatedAt: timestamp,
+  })
+  .run();
+db.insert(imCredentials)
+  .values({
+    integrationId: fixtureIntegrationId,
+    value: encryptIm({ token: "fixture_never_used" }),
+  })
+  .run();
+db.insert(imBindings)
+  .values({
+    integrationId: fixtureIntegrationId,
+    senderId: "paired-browser-user",
+    chatId: "private-browser-chat",
+  })
+  .run();
+db.insert(imSetups)
+  .values({
+    id: "browser-feishu-setup",
+    agentId: fixture.agentId,
+    userId: fixture.userId,
+    platform: "feishu",
+    status: "authorizing",
+    expiresAt: timestamp + 600_000,
+    createdAt: timestamp,
+    nextPollAt: timestamp + 5000,
+    state: encryptIm({
+      deviceCode: "fixture_device_code",
+      verificationUrl: "https://accounts.feishu.cn/fixture",
+      qrDataUrl: await QRCode.toDataURL("https://accounts.feishu.cn/fixture"),
+    }),
+  })
+  .run();
 // A real persisted checkpoint, closed as it would be on a server restart.
 const pendingSessionId = "browser-pending-session";
 db.insert(sessions)

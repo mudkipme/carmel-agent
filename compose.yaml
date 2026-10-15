@@ -23,6 +23,7 @@ services:
       CARMEL_PODMAN_SOCKET: /run/podman/podman.sock
       CARMEL_BASH_IMAGE: "${CARMEL_BASH_IMAGE:-ghcr.io/mudkipme/carmel-agent-runner:latest}"
       CARMEL_SECRET_KEY: "${CARMEL_SECRET_KEY:?Generate a stable secret key in .env; see README.md}"
+      CARMEL_PUBLIC_URL: "${CARMEL_PUBLIC_URL:-}"
       CARMEL_HOST_UID: ${CARMEL_HOST_UID}
       CARMEL_HOST_GID: ${CARMEL_HOST_GID}
       # The server runs in a container, so runner workspace bind mounts are

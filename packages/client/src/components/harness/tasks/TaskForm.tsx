@@ -170,6 +170,36 @@ export function TaskForm({
             />
           </Field>
         ) : null}
+        <Field>
+          <FieldLabel htmlFor="task-notifications">Notification destination</FieldLabel>
+          <Select
+            value={draft.notifyPlatform ?? "none"}
+            onValueChange={(value) =>
+              update({
+                notifyPlatform:
+                  value === "none"
+                    ? undefined
+                    : (value as AgentTaskCreateCommand["notifyPlatform"]),
+              })
+            }
+          >
+            <SelectTrigger id="task-notifications">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="none">Task history only</SelectItem>
+                <SelectItem value="telegram">Telegram</SelectItem>
+                <SelectItem value="feishu">Feishu</SelectItem>
+                <SelectItem value="lark">Lark</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <FieldDescription>
+            Connect your bot in this agent's Integrations settings first. Describe when to notify
+            you in the prompt, including any conditions.
+          </FieldDescription>
+        </Field>
       </FieldGroup>
       <p className="text-sm text-muted-foreground">{describeTaskSchedule(draft)}</p>
       <div className="flex flex-wrap justify-end gap-2">
