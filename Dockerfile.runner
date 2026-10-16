@@ -5,7 +5,7 @@
 #
 # Build: podman build -f Dockerfile.runner -t carmel-agent-runner:latest .
 # Use:   CARMEL_BASH_IMAGE=localhost/carmel-agent-runner:latest
-FROM node:24-trixie-slim
+FROM node:25-trixie-slim
 
 COPY --chmod=644 LICENSE /usr/share/licenses/carmel-agent/LICENSE
 LABEL org.opencontainers.image.source="https://github.com/mudkipme/carmel-agent" \
