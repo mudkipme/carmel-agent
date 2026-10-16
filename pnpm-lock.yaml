@@ -228,6 +228,9 @@ importers:
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
       ws:
         specifier: ^8.22.0
         version: 8.22.0
@@ -253,9 +256,6 @@ importers:
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
