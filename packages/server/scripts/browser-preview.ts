@@ -1,9 +1,48 @@
 /** Isolated browser-test fixture. Never starts the production bootstrap or schedulers. */
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const stateDir = await mkdtemp(join(tmpdir(), "carmel-browser-tests-"));
+const workspaceDir = join(stateDir, "workspace");
+await mkdir(workspaceDir);
+await writeFile(
+  join(workspaceDir, "workspace-review.md"),
+  "# Workspace review\n\nUpdated draft.\n",
+);
+await mkdir(join(workspaceDir, "docs"));
+await writeFile(
+  join(workspaceDir, "docs", "guide.md"),
+  [
+    "# Preview guide",
+    "",
+    "A **formatted** document.",
+    "",
+    "| Feature | Status |",
+    "| --- | --- |",
+    "| Preview | Ready |",
+    "",
+    "```ts",
+    "const ready = true;",
+    "```",
+    "",
+    "[Related notes](notes.markdown)",
+    "",
+    "![A local diagram](diagram.svg)",
+    "",
+    "<script>window.markdownPreviewExecuted = true</script>",
+    "",
+  ].join("\n"),
+);
+await writeFile(
+  join(workspaceDir, "docs", "notes.markdown"),
+  "# Related notes\n\nThis is a second Markdown file.\n",
+);
+await writeFile(join(workspaceDir, "docs", "plain.txt"), "Plain text stays editable.\n");
+await writeFile(
+  join(workspaceDir, "docs", "diagram.svg"),
+  '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="48"><rect width="120" height="48" fill="#557755"/></svg>',
+);
 process.env.DATABASE_URL = ":memory:";
 process.env.CARMEL_AGENT_DATA_DIR = stateDir;
 process.env.CARMEL_PODMAN_SOCKET = join(stateDir, "no-container-socket");
@@ -49,7 +88,7 @@ db.update(users)
 db.update(agents)
   .set({
     name: "Browser test agent",
-    workingDir: stateDir,
+    workingDir: workspaceDir,
     permissions: { read: true, write: true, edit: true, bash: true, network: false },
   })
   .where(eq(agents.id, fixture.agentId))

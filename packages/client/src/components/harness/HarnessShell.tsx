@@ -48,6 +48,7 @@ import { HarnessSidebar } from "@/components/harness/shell/HarnessSidebar";
 import { HarnessHeader } from "@/components/harness/shell/HarnessHeader";
 import { ImportSessionsDialog } from "@/components/harness/shell/ImportSessionsDialog";
 import { TaskRunBanner } from "@/components/harness/shell/TaskRunBanner";
+import { WorkspaceLayout } from "@/components/harness/shell/WorkspaceLayout";
 import {
   clampSidebarWidth,
   DESKTOP_SIDEBAR_QUERY,
@@ -56,7 +57,8 @@ import {
   resetSidebarWidth,
   SIDEBAR_WIDTH_STORAGE_KEY,
 } from "@/components/harness/shell/sidebar-utils";
-import { agentFilesPath } from "@/lib/file-links";
+import { agentChangesPath, agentFilesPath } from "@/lib/file-links";
+import { isWorkspaceView, workspaceChatPath, type WorkspaceView } from "@/lib/workspace-layout";
 import { api } from "@/lib/api";
 import { sortSessions } from "@/lib/session-groups";
 import {
@@ -75,6 +77,7 @@ import type { GitChangeArea } from "@carmel-agent/shared";
  * session is always whatever the URL names.
  */
 const lastChatPathByAgent = new Map<string, string>();
+const lastWorkspacePaths = new Map<string, Partial<Record<WorkspaceView, string>>>();
 
 export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const navigate = useNavigate();
@@ -82,13 +85,23 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     agentId: routeAgentId,
-    sessionId: routeSessionId,
+    sessionId: pathSessionId,
     issueId: routeIssueId,
     "*": routeFilePath,
   } = useParams();
   // One selector per field: the shell re-renders when what it shows changes,
   // not on every store write.
   const userId = useHarnessStore((state) => state.activeUserId);
+  const workspaceKey = `${userId}:${routeAgentId}`;
+  const rememberedChatPath = lastChatPathByAgent.get(workspaceKey);
+  const backgroundSessionId =
+    searchParams.get("chat") ?? rememberedChatPath?.split("/sessions/")[1];
+  const routeSessionId =
+    view === "chat"
+      ? pathSessionId
+      : isWorkspaceView(view) && backgroundSessionId !== "new"
+        ? backgroundSessionId
+        : undefined;
   const activeUser = useHarnessStore((state) =>
     state.users.find((user) => user.id === state.activeUserId),
   );
@@ -107,6 +120,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarResizing, setSidebarResizing] = useState(false);
+  const [workspaceSplit, setWorkspaceSplit] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [lookedUpSessionId, setLookedUpSessionId] = useState<string>();
   const [serverRunningSessionIds, setServerRunningSessionIds] = useState<Set<string>>(
@@ -142,7 +156,12 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     [activeSessionMetadata, sessionDetail],
   );
   const activeModel = modelRefs.find((model) => model.id === activeSessionMetadata?.modelRefId);
-  const onNewSessionPage = view === "chat" && !routeSessionId;
+  const onNewSessionPage =
+    (view === "chat" || isWorkspaceView(view)) &&
+    (!routeSessionId ||
+      (isWorkspaceView(view) &&
+        !activeSession &&
+        (Boolean(routeSession) || lookedUpSessionId === routeSessionId)));
   /* The open file rides in the route, so a reload — or a shared link — comes
      back to the same file rather than to the top of the workspace. */
   const selectedFilePath = routeFilePath ?? "";
@@ -167,7 +186,11 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const activeIssueId = view === "issues" ? routeIssueId : undefined;
   const activeIssue = visibleIssues.find((issue) => issue.id === activeIssueId);
   const chatPath = activeAgent
-    ? (lastChatPathByAgent.get(activeAgent.id) ?? `/agents/${activeAgent.id}`)
+    ? activeSession
+      ? `/agents/${activeAgent.id}/sessions/${activeSession.id}`
+      : isWorkspaceView(view)
+        ? `/agents/${activeAgent.id}`
+        : (lastChatPathByAgent.get(workspaceKey) ?? `/agents/${activeAgent.id}`)
     : "/";
 
   const redirectTo = route.kind === "redirect" ? route.to : undefined;
@@ -176,19 +199,8 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   }, [location.pathname, navigate, redirectTo]);
 
   const activeAgentId = activeAgent?.id;
-  const browserOpen = Boolean(activeAgent?.permissions.bash && searchParams.has("browser"));
-  const browserExpanded = searchParams.get("browser") === "full";
-  const setBrowserMode = (mode: "split" | "full" | undefined) => {
-    setSearchParams(
-      (previous) => {
-        const next = new URLSearchParams(previous);
-        if (mode) next.set("browser", mode);
-        else next.delete("browser");
-        return next;
-      },
-      { replace: true },
-    );
-  };
+  const browserOpen = view === "browser" && Boolean(activeAgent?.permissions.bash);
+  const legacyBrowser = searchParams.get("browser");
   const browserStatus = useRemoteResource({
     key: `browser:${activeAgentId}`,
     enabled: Boolean(activeAgentId && activeAgent?.permissions.bash),
@@ -198,7 +210,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const browserNeedsHelp = Boolean(
     browserStatus.data && browserStatus.data.control.phase !== "agent",
   );
-  const openChatSessionId = view === "chat" ? activeSession?.id : undefined;
+  const openChatSessionId = activeSession?.id;
 
   const activity = useRemoteResource({
     key: `activity:${activeAgentId}`,
@@ -238,8 +250,63 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   }, [activeAgentId, rememberAgent]);
 
   useEffect(() => {
-    if (activeAgentId && view === "chat") lastChatPathByAgent.set(activeAgentId, location.pathname);
-  }, [activeAgentId, location.pathname, view]);
+    if (activeAgentId && view === "chat") lastChatPathByAgent.set(workspaceKey, location.pathname);
+    else if (activeAgentId && isWorkspaceView(view)) {
+      if (activeSessionMetadata)
+        lastChatPathByAgent.set(
+          workspaceKey,
+          `/agents/${activeAgentId}/sessions/${activeSessionMetadata.id}`,
+        );
+      else if (!routeSessionId) lastChatPathByAgent.set(workspaceKey, `/agents/${activeAgentId}`);
+    }
+  }, [activeAgentId, activeSessionMetadata, location.pathname, routeSessionId, view, workspaceKey]);
+
+  useEffect(() => {
+    if (!activeAgentId || !isWorkspaceView(view)) return;
+    const paths = lastWorkspacePaths.get(workspaceKey) ?? {};
+    const params = new URLSearchParams();
+    if (view === "changes" && searchParams.has("area"))
+      params.set("area", searchParams.get("area")!);
+    paths[view] = `${location.pathname}${params.size ? `?${params}` : ""}`;
+    lastWorkspacePaths.set(workspaceKey, paths);
+
+    // Explicitly name the companion conversation so a copied link or reload
+    // restores the same workspace, including the new-session composer.
+    const invalidChat =
+      routeSessionId &&
+      !activeSession &&
+      (Boolean(routeSession) || lookedUpSessionId === routeSessionId);
+    if (!searchParams.has("chat") || invalidChat) {
+      setSearchParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          next.set("chat", invalidChat ? "new" : (routeSessionId ?? "new"));
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [
+    activeAgentId,
+    activeSession,
+    location.pathname,
+    lookedUpSessionId,
+    routeSession,
+    routeSessionId,
+    searchParams,
+    setSearchParams,
+    view,
+    workspaceKey,
+  ]);
+
+  // Older browser links used a query on the current page. Keep those links
+  // working while all four tools now share the same workspace destinations.
+  useEffect(() => {
+    if (!activeAgentId || !legacyBrowser || !activeAgent?.permissions.bash) return;
+    navigate(workspaceChatPath(`/agents/${activeAgentId}/browser`, routeSessionId), {
+      replace: true,
+    });
+  }, [activeAgentId, activeAgent?.permissions.bash, legacyBrowser, navigate, routeSessionId]);
 
   /* A task run's or an archived session is not in bootstrap, so a link to one
      -- or a reload while it is open -- has to fetch it before the route can be
@@ -282,16 +349,26 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     if (!window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches) setSidebarOpen(false);
   };
 
-  /* Each pane is a destination of its own, so switching is navigation: the
-     file manager and the terminal take the selected session's place instead of
-     covering it up. */
+  /* Tool routes remain addressable; chat names the companion conversation. */
   const showContentView = (next: ContentView) => {
-    navigate(next !== "chat" && activeAgent ? `/agents/${activeAgent.id}/${next}` : chatPath);
+    if (!activeAgent || next === "chat") {
+      navigate(chatPath);
+      return;
+    }
+    const path = isWorkspaceView(next)
+      ? (lastWorkspacePaths.get(workspaceKey)?.[next] ?? `/agents/${activeAgent.id}/${next}`)
+      : `/agents/${activeAgent.id}/${next}`;
+    navigate(isWorkspaceView(next) ? workspaceChatPath(path, activeSession?.id) : path);
   };
 
   const openFile = (path: string) => {
     if (!activeAgent) return;
-    navigate(agentFilesPath(activeAgent.id, path));
+    navigate(workspaceChatPath(agentFilesPath(activeAgent.id, path), activeSession?.id));
+  };
+
+  const openChange = (change?: { path: string; area: string }) => {
+    if (!activeAgent) return;
+    navigate(workspaceChatPath(agentChangesPath(activeAgent.id, change), activeSession?.id));
   };
 
   const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -343,7 +420,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
       <HarnessSidebar
         activeUser={activeUser}
         activeAgent={activeAgent}
-        activeSession={view === "chat" ? activeSessionMetadata : undefined}
+        activeSession={activeSessionMetadata}
         contentView={view}
         visibleAgents={visibleAgents}
         visibleSessions={visibleSessions}
@@ -354,6 +431,17 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
         sidebarResizing={sidebarResizing}
         onClose={() => setSidebarOpen(false)}
         onOpenSession={closeSidebarOnMobile}
+        onSelectChat={(session) => {
+          if (isWorkspaceView(view) && workspaceSplit) {
+            navigate(workspaceChatPath(`${location.pathname}${location.search}`, session?.id));
+          } else {
+            navigate(
+              session
+                ? `/agents/${session.agentId}/sessions/${session.id}`
+                : `/agents/${activeAgentId}`,
+            );
+          }
+        }}
         onStartResize={startSidebarResize}
         onResetWidth={() => resetSidebarWidth(setSidebarWidth)}
         onResizeWidth={(width) => {
@@ -371,10 +459,11 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
           activeSession={activeSessionMetadata}
           issueTitle={activeIssueId === "new" ? "New issue" : activeIssue?.title}
           contentView={view}
+          companionVisible={isWorkspaceView(view) && workspaceSplit}
           canOpenTerminal={canOpenTerminal}
           browserOpen={browserOpen}
           browserNeedsHelp={browserNeedsHelp}
-          onToggleBrowser={() => setBrowserMode(browserOpen ? undefined : "split")}
+          onToggleBrowser={() => showContentView(browserOpen ? "chat" : "browser")}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
           onContentViewChange={showContentView}
           onOpenAgentSettings={() => {
@@ -383,7 +472,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
             navigate(`/agents/${activeAgent.id}/settings/${section}`);
           }}
         />
-        {view === "chat" && activity.error ? (
+        {(view === "chat" || isWorkspaceView(view)) && activity.error ? (
           <div className="p-3">
             <ResourceError
               error={activity.error}
@@ -392,80 +481,27 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
             />
           </div>
         ) : null}
-        {view === "chat" && activeSessionMetadata?.taskId ? (
-          <TaskRunBanner session={activeSessionMetadata} />
-        ) : null}
+        {activeSessionMetadata?.taskId ? <TaskRunBanner session={activeSessionMetadata} /> : null}
         {browserNeedsHelp && !browserOpen ? (
           <div className="p-3">
             <Alert role="status">
               <AlertTitle>Browser assistance</AlertTitle>
               <AlertDescription>
                 {browserStatus.data?.control.reason ?? "Someone is helping in the browser."}
-                <Button size="sm" variant="outline" onClick={() => setBrowserMode("split")}>
+                <Button size="sm" variant="outline" onClick={() => showContentView("browser")}>
                   Open browser
                 </Button>
               </AlertDescription>
             </Alert>
           </div>
         ) : null}
-        <div className="flex min-h-0 flex-1">
-          <div
-            className={cn(
-              "min-h-0 min-w-0 flex-1",
-              browserOpen && (browserExpanded ? "hidden" : "hidden lg:block"),
-            )}
-          >
-            {view === "terminal" && canOpenTerminal && activeAgent ? (
-              <Suspense
-                fallback={
-                  <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-                    Loading terminal...
-                  </div>
-                }
-              >
-                {/* Keyed by agent so switching agents attaches to that agent's
-                  own shell rather than reusing the mounted one. */}
-                <TerminalPanel key={activeAgent.id} agent={activeAgent} />
-              </Suspense>
-            ) : view === "changes" && activeAgent ? (
-              <Suspense
-                fallback={
-                  <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-                    Loading changes...
-                  </div>
-                }
-              >
-                <ChangesView
-                  key={activeAgent.id}
-                  agent={activeAgent}
-                  changePath={routeFilePath || undefined}
-                  area={changeArea(searchParams.get("area"))}
-                />
-              </Suspense>
-            ) : view === "files" && activeAgent ? (
-              <Suspense
-                fallback={
-                  <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-                    Loading files...
-                  </div>
-                }
-              >
-                {/* The manager stays mounted behind the editor, so closing a file
-                  lands back in the folder it came from with the selection and
-                  the clipboard still there. */}
-                <div className={cn("h-full", selectedFilePath && "hidden")}>
-                  <FileManagerView key={activeAgent.id} agent={activeAgent} onOpenFile={openFile} />
-                </div>
-                {selectedFilePath ? (
-                  <FileEditorView
-                    key={`${activeAgent.id}:${selectedFilePath}`}
-                    agent={activeAgent}
-                    filePath={selectedFilePath}
-                    onClose={() => openFile("")}
-                  />
-                ) : null}
-              </Suspense>
-            ) : view === "knowledge" && activeAgent ? (
+        <WorkspaceLayout
+          onSplitChange={setWorkspaceSplit}
+          view={isWorkspaceView(view) && activeAgent ? view : undefined}
+          legacyMode={legacyBrowser === "full" ? "full" : legacyBrowser ? "split" : undefined}
+          onClose={() => showContentView("chat")}
+          primary={
+            view === "knowledge" && activeAgent ? (
               <AgentKnowledgePage key={activeAgent.id} agent={activeAgent} />
             ) : view === "tasks" && activeAgent ? (
               <AgentTasksPage key={activeAgent.id} agent={activeAgent} />
@@ -495,6 +531,13 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
                 agent={activeAgent}
                 modelRefs={modelRefs}
                 providerConfigs={providerConfigs}
+                onOpenSession={(sessionId) => {
+                  navigate(
+                    isWorkspaceView(view)
+                      ? workspaceChatPath(`${location.pathname}${location.search}`, sessionId)
+                      : `/agents/${activeAgent.id}/sessions/${sessionId}`,
+                  );
+                }}
               />
             ) : activeSession && activeAgent && activeModel ? (
               <PiChat
@@ -512,29 +555,42 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
                   ? "Create an agent to start chatting."
                   : "Loading session..."}
               </div>
-            )}
-          </div>
-          {browserOpen && activeAgent ? (
-            <aside
-              className={cn(
-                "min-h-0 min-w-0 border-l",
-                browserExpanded ? "flex-1" : "w-full lg:w-[55%]",
-              )}
-            >
-              <Suspense
-                fallback={<div className="p-6 text-sm text-muted-foreground">Loading browser…</div>}
-              >
-                <BrowserPanel
-                  key={activeAgent.id}
-                  agent={activeAgent}
-                  expanded={browserExpanded}
-                  onExpand={() => setBrowserMode(browserExpanded ? "split" : "full")}
-                  onClose={() => setBrowserMode(undefined)}
-                />
-              </Suspense>
-            </aside>
-          ) : null}
-        </div>
+            )
+          }
+        >
+          <Suspense
+            fallback={<div className="p-6 text-sm text-muted-foreground">Loading {view}…</div>}
+          >
+            {view === "terminal" && canOpenTerminal && activeAgent ? (
+              <TerminalPanel key={activeAgent.id} agent={activeAgent} />
+            ) : view === "changes" && activeAgent ? (
+              <ChangesView
+                key={activeAgent.id}
+                agent={activeAgent}
+                changePath={routeFilePath || undefined}
+                area={changeArea(searchParams.get("area"))}
+                onOpenChange={openChange}
+                onOpenFile={openFile}
+              />
+            ) : view === "files" && activeAgent ? (
+              <>
+                <div className={cn("h-full", selectedFilePath && "hidden")}>
+                  <FileManagerView key={activeAgent.id} agent={activeAgent} onOpenFile={openFile} />
+                </div>
+                {selectedFilePath ? (
+                  <FileEditorView
+                    key={`${activeAgent.id}:${selectedFilePath}`}
+                    agent={activeAgent}
+                    filePath={selectedFilePath}
+                    onClose={() => openFile("")}
+                  />
+                ) : null}
+              </>
+            ) : browserOpen && activeAgent ? (
+              <BrowserPanel key={activeAgent.id} agent={activeAgent} />
+            ) : null}
+          </Suspense>
+        </WorkspaceLayout>
       </section>
       <ImportSessionsDialog
         open={importDialogOpen}

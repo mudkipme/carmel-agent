@@ -29,6 +29,17 @@ test("other hrefs stay ordinary links", () => {
   }
 });
 
+test("document links resolve from their folder and cannot traverse above the workspace", () => {
+  assert.equal(workspaceFileFromHref("next.md", "docs/guide.md"), "docs/next.md");
+  assert.equal(workspaceFileFromHref("../README.md", "docs/guide.md"), "README.md");
+  assert.equal(
+    workspaceFileFromHref("images/chart%20one.svg", "docs/guide.md"),
+    "docs/images/chart one.svg",
+  );
+  assert.equal(workspaceFileFromHref("../../outside.md", "docs/guide.md"), undefined);
+  assert.equal(workspaceFileFromHref("https://example.com/readme.md", "docs/guide.md"), undefined);
+});
+
 test("file page paths encode each segment", () => {
   assert.equal(agentFilesPath("agent_1"), "/agents/agent_1/files");
   assert.equal(

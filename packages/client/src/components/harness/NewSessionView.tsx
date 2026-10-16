@@ -21,12 +21,18 @@ type NewSessionViewProps = {
   agent: AgentConfig;
   modelRefs: ModelRef[];
   providerConfigs: ProviderConfig[];
+  onOpenSession?: (sessionId: string) => void;
 };
 
 /* An agent's landing page. Nothing exists on the server until the first message
    is sent: submitting creates the session, then the session's own chat sends the
    message, so an abandoned composer never leaves an empty session behind. */
-export function NewSessionView({ agent, modelRefs, providerConfigs }: NewSessionViewProps) {
+export function NewSessionView({
+  agent,
+  modelRefs,
+  providerConfigs,
+  onOpenSession,
+}: NewSessionViewProps) {
   const navigate = useNavigate();
   const createSession = useHarnessStore((state) => state.createSession);
   const chatInputRef = useRef<ChatInputHandle | null>(null);
@@ -61,7 +67,8 @@ export function NewSessionView({ agent, modelRefs, providerConfigs }: NewSession
         thinkingLevel: clampThinkingLevel(model, thinkingLevel),
       });
       setPendingPrompt(session.id, { text, images });
-      navigate(`/agents/${session.agentId}/sessions/${session.id}`);
+      if (onOpenSession) onOpenSession(session.id);
+      else navigate(`/agents/${session.agentId}/sessions/${session.id}`);
       return { status: "accepted" };
     } catch (error) {
       creatingRef.current = false;

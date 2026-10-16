@@ -1,14 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ExpandIcon,
-  GlobeIcon,
-  KeyboardIcon,
-  MinimizeIcon,
-  RotateCwIcon,
-  XIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, GlobeIcon, KeyboardIcon, RotateCwIcon } from "lucide-react";
 import type { AgentConfig } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,17 +24,7 @@ import {
 import { useAgentBrowser } from "@/hooks/use-agent-browser";
 import { browserAddress, browserModifiers, browserPoint } from "@/lib/browser-input";
 
-export function BrowserPanel({
-  agent,
-  expanded,
-  onExpand,
-  onClose,
-}: {
-  agent: AgentConfig;
-  expanded: boolean;
-  onExpand: () => void;
-  onClose: () => void;
-}) {
+export function BrowserPanel({ agent }: { agent: AgentConfig }) {
   const browser = useAgentBrowser(agent.id);
   const { send, frame, hasControl } = browser;
   const image = useRef<HTMLImageElement>(null);
@@ -226,17 +207,6 @@ export function BrowserPanel({
             }}
           >
             {hasControl ? "Resume agent" : "Take control"}
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label={expanded ? "Show conversation" : "Expand browser"}
-            onClick={onExpand}
-          >
-            {expanded ? <MinimizeIcon /> : <ExpandIcon />}
-          </Button>
-          <Button size="icon-sm" variant="ghost" aria-label="Close browser" onClick={onClose}>
-            <XIcon />
           </Button>
         </div>
       </div>

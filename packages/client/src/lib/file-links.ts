@@ -24,7 +24,7 @@ export function agentChangesPath(agentId: string, change?: { path: string; area:
  * with a scheme, protocol-relative and root-absolute hrefs, and in-page anchors
  * stay ordinary links, as does a path climbing out of the workspace.
  */
-export function workspaceFileFromHref(href: string | undefined) {
+export function workspaceFileFromHref(href: string | undefined, sourceFile?: string) {
   if (!href || /^[a-z][a-z\d+.-]*:/i.test(href) || /^[/\\#?]/.test(href)) return undefined;
 
   let path = href.replace(/[?#].*$/, "");
@@ -34,7 +34,7 @@ export function workspaceFileFromHref(href: string | undefined) {
     return undefined;
   }
 
-  const segments: string[] = [];
+  const segments: string[] = sourceFile ? sourceFile.split("/").slice(0, -1) : [];
   for (const segment of path.replaceAll("\\", "/").split("/")) {
     if (segment === "" || segment === ".") continue;
     if (segment === "..") {

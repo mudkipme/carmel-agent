@@ -3,6 +3,7 @@ import { after, before, test } from "node:test";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
+import type { GitStatus, GitFileDiff } from "@carmel-agent/shared";
 
 type Fixture = {
   url: string;
@@ -412,6 +413,376 @@ test("existing tasks can be edited without changing their paused state", () => {
   click("button", "Cancel");
 });
 
+test("workspace layout keeps chat and editor drafts mounted while resizing, expanding, and narrowing", (t) => {
+  t.after(() => {
+    browser("set", "viewport", "1440", "900");
+    evaluate('localStorage.setItem("carmel-workspace-mode", "split")');
+  });
+  browser("set", "viewport", "1440", "900");
+  open(agentPath(`sessions/${fixture.chatSessionId}`));
+  // The shell is ready before the asynchronous session connection mounts the composer.
+  browser("wait", ".agent-chat-host textarea");
+  browser("fill", ".agent-chat-host textarea", "Keep this conversation draft");
+  evaluate(
+    'void (window.workspaceChatInput = document.querySelector(".agent-chat-host textarea"))',
+  );
+  click("button", "Browse files");
+  browser("wait", '[data-workspace-layout="split"]');
+  assert.match(browser<{ url: string }>("get", "url").url, /chat=browser-chat-session/);
+  clickSelector(
+    '#workspace-pane [role="button"]:has(button[title="Actions for workspace-review.md"])',
+  );
+  click("tab", "Edit");
+  browser("wait", "#workspace-pane .cm-content");
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#workspace-pane .cm-content").textContent.includes("Updated draft.")',
+  );
+  browser("focus", "#workspace-pane .cm-content");
+  browser("press", "Control+a");
+  browser("keyboard", "type", "An unsaved workspace draft");
+  evaluate('void (window.workspaceEditor = document.querySelector("#workspace-pane .cm-content"))');
+  const width = () =>
+    evaluate<number>('document.querySelector("#workspace-pane").getBoundingClientRect().width');
+  const originalWidth = width();
+  browser("focus", 'button[aria-label="Resize workspace pane"]');
+  browser("press", "ArrowLeft");
+  assert.equal(width(), originalWidth + 20);
+  const divider = evaluate<{ x: number; y: number }>(`(() => {
+    const rect = document.querySelector('button[aria-label="Resize workspace pane"]').getBoundingClientRect();
+    return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
+  })()`);
+  browser("mouse", "move", String(divider.x), String(divider.y));
+  browser("mouse", "down");
+  browser("mouse", "move", String(divider.x - 30), String(divider.y));
+  browser("mouse", "up");
+  assert.equal(width(), originalWidth + 50);
+  const resizedWidth = width();
+  const checkDrafts = () => {
+    assert.equal(
+      evaluate<boolean>(
+        'window.workspaceChatInput === document.querySelector(".agent-chat-host textarea")',
+      ),
+      true,
+    );
+    assert.equal(
+      evaluate<boolean>(
+        'window.workspaceEditor === document.querySelector("#workspace-pane .cm-content")',
+      ),
+      true,
+    );
+    assert.equal(
+      evaluate<string>("window.workspaceChatInput.value"),
+      "Keep this conversation draft",
+    );
+    assert.equal(
+      evaluate<string>('document.querySelector("#workspace-pane .cm-content").textContent'),
+      "An unsaved workspace draft",
+    );
+  };
+  click("button", "Expand files");
+  browser("wait", '[data-workspace-layout="full"]');
+  checkDrafts();
+  assert.equal(
+    evaluate<number>('document.querySelector("#workspace-conversation").getClientRects().length'),
+    0,
+  );
+  click("button", "Show beside chat");
+  browser("wait", '[data-workspace-layout="split"]');
+  checkDrafts();
+  assert.equal(width(), resizedWidth);
+  browser("set", "viewport", "390", "844");
+  browser("wait", '[data-workspace-layout="full"]');
+  checkDrafts();
+  assert.equal(evaluate<boolean>("document.documentElement.scrollWidth <= innerWidth"), true);
+  browser("set", "viewport", "1440", "900");
+  browser("wait", '[data-workspace-layout="split"]');
+  checkDrafts();
+  assert.equal(width(), resizedWidth);
+  click("button", "Expand files");
+  browser("reload");
+  browser("wait", '[data-workspace-layout="full"]');
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#workspace-conversation .agent-chat-host textarea") !== null',
+  );
+  click("tab", "Edit");
+  browser("wait", "#workspace-pane .cm-content");
+  assert.match(
+    evaluate<string>('document.querySelector("#workspace-pane .cm-content").textContent'),
+    /Updated draft/,
+  );
+  assert.match(
+    evaluate<string>('document.querySelector("#workspace-conversation").textContent'),
+    /A clearer path to deployment/,
+  );
+  click("button", "Show beside chat");
+  assert.equal(width(), resizedWidth);
+  evaluate(
+    'void (window.restoredWorkspaceEditor = document.querySelector("#workspace-pane .cm-content"))',
+  );
+  click("button", "New session");
+  browser("wait", "--fn", 'new URL(location.href).searchParams.get("chat") === "new"');
+  browser("wait", "--text", "What can Browser test agent help with?");
+  assert.equal(
+    evaluate<boolean>(
+      'window.restoredWorkspaceEditor === document.querySelector("#workspace-pane .cm-content")',
+    ),
+    true,
+  );
+  browser(
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Open session Make the deployment guide easier to follow",
+    "--exact",
+  );
+  browser(
+    "wait",
+    "--fn",
+    'new URL(location.href).searchParams.get("chat") === "browser-chat-session"',
+  );
+  assert.equal(
+    evaluate<boolean>(
+      'window.restoredWorkspaceEditor === document.querySelector("#workspace-pane .cm-content")',
+    ),
+    true,
+  );
+  click("button", "Close workspace");
+  browser("wait", "--url", `**/sessions/${fixture.chatSessionId}`);
+});
+
+test("Markdown previews render workspace documents and preserve drafts, undo history, saving, and relative resources", (t) => {
+  t.after(() => browser("set", "viewport", "1440", "900"));
+  browser("set", "viewport", "1440", "900");
+  open(agentPath(`files/docs/guide.md?chat=${fixture.chatSessionId}`));
+  browser("wait", '#workspace-pane [role="tabpanel"][data-state="active"] h1');
+  const previewText = () =>
+    evaluate<string>(
+      'document.querySelector("#workspace-pane [role=tabpanel][data-state=active]").textContent',
+    );
+  assert.match(previewText(), /Preview guide/);
+  assert.equal(
+    evaluate<string>(
+      'document.querySelector("#workspace-pane [role=tab][aria-selected=true]").textContent',
+    ),
+    "Preview",
+  );
+  assert.equal(
+    evaluate<string>(
+      'document.querySelector("#workspace-pane .markdown-content strong").textContent',
+    ),
+    "formatted",
+  );
+  assert.equal(
+    evaluate<number>('document.querySelectorAll("#workspace-pane .markdown-content table").length'),
+    1,
+  );
+  assert.match(
+    evaluate<string>('document.querySelector("#workspace-pane .markdown-content pre").textContent'),
+    /const ready = true/,
+  );
+  assert.equal(evaluate<boolean>("window.markdownPreviewExecuted === true"), false);
+  browser(
+    "wait",
+    "--fn",
+    `document.querySelector('#workspace-pane img[alt="A local diagram"]')?.naturalWidth > 0`,
+  );
+  const resource = evaluate<string>(
+    'document.querySelector("#workspace-pane img").getAttribute("src")',
+  );
+  assert.equal(new URL(resource, fixture.url).searchParams.get("path"), "docs/diagram.svg");
+  assert.match(
+    evaluate<string>('document.querySelector("#workspace-pane a").getAttribute("href")'),
+    /files\/docs\/notes.markdown\?chat=browser-chat-session$/,
+  );
+
+  const readSavedFile = () =>
+    evaluate<string>(
+      `fetch(${JSON.stringify(`${fixture.url}/api/agents/${fixture.agentId}/files/content?path=docs%2Fguide.md`)}).then(response => response.json()).then(file => file.content)`,
+    );
+  const original = readSavedFile();
+  const draft =
+    "# Revised guide\n\nStill **unsaved**.\n\n[Related notes](notes.markdown)\n\n![A local diagram](diagram.svg)\n";
+  click("tab", "Edit");
+  browser("wait", "#workspace-pane .cm-content");
+  evaluate('void (window.markdownEditor = document.querySelector("#workspace-pane .cm-content"))');
+  browser("focus", "#workspace-pane .cm-content");
+  browser("press", "Control+a");
+  browser("keyboard", "inserttext", draft);
+  click("tab", "Preview");
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#workspace-pane .markdown-content h1")?.textContent === "Revised guide"',
+  );
+  assert.match(
+    evaluate<string>('document.querySelector("#workspace-pane").textContent'),
+    /Unsaved changes/,
+  );
+  assert.equal(readSavedFile(), original);
+  click("tab", "Edit");
+  assert.equal(
+    evaluate<boolean>(
+      'window.markdownEditor === document.querySelector("#workspace-pane .cm-content")',
+    ),
+    true,
+  );
+  browser("focus", "#workspace-pane .cm-content");
+  browser("press", "Control+z");
+  click("tab", "Preview");
+  assert.match(previewText(), /Preview guide/);
+  click("tab", "Edit");
+  browser("focus", "#workspace-pane .cm-content");
+  browser("press", "Control+y");
+  click("tab", "Preview");
+  assert.match(previewText(), /Revised guide/);
+  click("button", "Save");
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#workspace-pane button[aria-label=Save]")?.disabled',
+  );
+  assert.equal(readSavedFile(), draft);
+
+  browser("reload");
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#workspace-pane .markdown-content h1")?.textContent === "Revised guide"',
+  );
+  click("tab", "Edit");
+  browser("focus", "#workspace-pane .cm-content");
+  browser("press", "Control+a");
+  browser("keyboard", "inserttext", "# Throw away this draft");
+  click("tab", "Preview");
+  assert.match(previewText(), /Throw away/);
+  click("button", "Discard");
+  assert.match(previewText(), /Revised guide/);
+  assert.equal(readSavedFile(), draft);
+
+  for (const width of [320, 390, 1440]) {
+    browser("set", "viewport", String(width), "900");
+    assert.equal(
+      evaluate<boolean>("document.documentElement.scrollWidth <= innerWidth"),
+      true,
+      `Markdown preview at ${width}px`,
+    );
+    const overflow = evaluate<boolean>(`(() => {
+      const pane = document.querySelector('#workspace-pane').getBoundingClientRect();
+      return [...document.querySelectorAll('#workspace-pane [data-slot=tabs] > div:first-child button')].some(button => {
+        const rect = button.getBoundingClientRect();
+        return rect.left < pane.left || rect.right > pane.right;
+      });
+    })()`);
+    assert.equal(overflow, false, `Markdown toolbar at ${width}px`);
+  }
+  click("link", "Related notes");
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#workspace-pane .markdown-content h1")?.textContent === "Related notes"',
+  );
+  assert.match(
+    browser<{ url: string }>("get", "url").url,
+    /notes.markdown\?chat=browser-chat-session$/,
+  );
+  open(agentPath("files/docs/plain.txt"));
+  browser("wait", "#workspace-pane .cm-content");
+  assert.equal(
+    evaluate<number>('document.querySelectorAll("#workspace-pane [role=tablist]").length'),
+    0,
+  );
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#workspace-pane .cm-content").textContent.includes("Plain text stays editable.")',
+  );
+});
+
+test("Changes uses its pane width and keeps the selected diff and conversation in navigation", (t) => {
+  // Exercise the client at its Git API boundary; the fixture deliberately has
+  // no container runtime. Git execution/security has separate server coverage.
+  const statusUrl = `${fixture.url}/api/agents/${fixture.agentId}/git/status`;
+  const diffUrl = `${fixture.url}/api/agents/${fixture.agentId}/git/diff*`;
+  const status: GitStatus = {
+    repository: true,
+    branch: "workspace-review",
+    changes: [
+      {
+        path: "workspace-review.md",
+        workspacePath: "workspace-review.md",
+        area: "unstaged",
+        kind: "modified",
+      },
+    ],
+    truncated: false,
+  };
+  const diff: GitFileDiff = {
+    path: "workspace-review.md",
+    area: "unstaged",
+    original: { kind: "text", text: "# Workspace review\n\nOriginal draft.\n" },
+    modified: { kind: "text", text: "# Workspace review\n\nUpdated draft.\n" },
+  };
+  browser("network", "route", statusUrl, "--body", JSON.stringify(status));
+  browser("network", "route", diffUrl, "--body", JSON.stringify(diff));
+  t.after(() => {
+    browser("network", "unroute", statusUrl);
+    browser("network", "unroute", diffUrl);
+  });
+  browser("set", "viewport", "1440", "900");
+  open(agentPath(`sessions/${fixture.chatSessionId}`));
+  click("button", "Uncommitted changes");
+  browser("wait", '[data-workspace-layout="split"]');
+  clickSelector('#workspace-pane button[title="workspace-review.md"]');
+  browser("wait", "#workspace-pane .diff-viewer .cm-editor");
+  assert.equal(
+    evaluate<number>('document.querySelectorAll("#workspace-pane .cm-mergeView").length'),
+    0,
+  );
+  assert.match(
+    browser<{ url: string }>("get", "url").url,
+    /area=unstaged&chat=browser-chat-session/,
+  );
+  click("button", "Expand changes");
+  browser("wait", "#workspace-pane .cm-mergeView");
+  click("button", "Show beside chat");
+  browser("wait", "--fn", '!document.querySelector("#workspace-pane .cm-mergeView")');
+  click("button", "All changes");
+  browser("wait", '#workspace-pane button[title="workspace-review.md"]');
+  clickSelector('#workspace-pane button[title="workspace-review.md"]');
+  browser("wait", "#workspace-pane .diff-viewer .cm-editor");
+  click("button", "Open file");
+  click("tab", "Edit");
+  browser("wait", "#workspace-pane .cm-content");
+  assert.match(
+    browser<{ url: string }>("get", "url").url,
+    /files\/workspace-review.md\?chat=browser-chat-session/,
+  );
+  click("button", "Open terminal");
+  browser("wait", "#workspace-pane .xterm");
+  evaluate('void (window.workspaceTerminal = document.querySelector("#workspace-pane .xterm"))');
+  click("button", "Expand terminal");
+  assert.equal(
+    evaluate<boolean>(
+      'window.workspaceTerminal === document.querySelector("#workspace-pane .xterm")',
+    ),
+    true,
+  );
+  click("button", "Show beside chat");
+  assert.equal(
+    evaluate<boolean>(
+      'window.workspaceTerminal === document.querySelector("#workspace-pane .xterm")',
+    ),
+    true,
+  );
+  click("button", "Close workspace");
+});
+
 test("browser handoff survives reload, supports navigation, and resumes explicitly", () => {
   open(agentPath(""));
   browser("wait", "--text", "Please sign in to the billing portal.");
@@ -429,6 +800,10 @@ test("browser handoff survives reload, supports navigation, and resumes explicit
   );
   click("button", "Take control");
   browser("wait", "--text", "You have control");
+  click("button", "Expand browser");
+  browser("wait", "--text", "You have control");
+  click("button", "Show beside chat");
+  browser("wait", "--text", "You have control");
   browser("find", "label", "Browser address", "fill", "example.test/account");
   click("button", "Go");
   browser(
@@ -443,8 +818,11 @@ test("browser handoff survives reload, supports navigation, and resumes explicit
   click("button", "Resume agent");
   browser("wait", "--text", "Agent has control");
   click("button", "Expand browser");
-  assert.match(browser<{ url: string }>("get", "url").url, /browser=full/);
-  click("button", "Show conversation");
+  assert.equal(
+    evaluate<string>('document.querySelector("[data-workspace-layout]").dataset.workspaceLayout'),
+    "full",
+  );
+  click("button", "Show beside chat");
   browser("set", "viewport", "390", "844");
   assert.equal(evaluate<boolean>("document.documentElement.scrollWidth <= innerWidth"), true);
   const audit = browser<{ violations: { id: string }[] }>("a11y", "--tags", "wcag2a,wcag2aa");

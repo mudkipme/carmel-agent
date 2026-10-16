@@ -91,6 +91,58 @@ test("files and issues belong to the agent, whatever session the URL does not na
   });
 });
 
+test("workspace companions stay within the selected agent and signed-in user's sessions", () => {
+  const mine = { ...session("s1", "agent_a"), userId: me };
+  assert.deepEqual(
+    resolveShellRoute(
+      input({
+        view: "files",
+        routeAgentId: "agent_a",
+        routeSessionId: mine.id,
+        routeSession: mine,
+      }),
+    ),
+    {
+      kind: "ready",
+      agent: agentA,
+      session: mine,
+    },
+  );
+  for (const candidate of [
+    { ...mine, agentId: "agent_b" },
+    { ...mine, userId: "someone_else" },
+  ]) {
+    assert.deepEqual(
+      resolveShellRoute(
+        input({
+          view: "files",
+          routeAgentId: "agent_a",
+          routeSessionId: candidate.id,
+          routeSession: candidate,
+        }),
+      ),
+      {
+        kind: "ready",
+        agent: agentA,
+      },
+    );
+  }
+  assert.deepEqual(
+    resolveShellRoute(
+      input({
+        view: "files",
+        routeAgentId: "agent_a",
+        routeSessionId: "gone",
+        routeSessionLookupDone: true,
+      }),
+    ),
+    {
+      kind: "ready",
+      agent: agentA,
+    },
+  );
+});
+
 function agent(id: string, options: { ownerUserId: string; bash: boolean }) {
   return {
     id,

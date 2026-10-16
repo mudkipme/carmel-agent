@@ -40,14 +40,15 @@ export function SessionList({
   runOverrides,
   activeSessionId,
   onOpenSession,
+  onSelectSession,
 }: {
   sessions: SessionMetadata[];
   runningSessionIds: Set<string>;
   runOverrides: Record<string, boolean>;
   activeSessionId?: string;
   onOpenSession: () => void;
+  onSelectSession: (session: SessionMetadata) => void;
 }) {
-  const navigate = useNavigate();
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -91,7 +92,7 @@ export function SessionList({
                   aria-current={session.id === activeSessionId ? "page" : undefined}
                   className="flex h-full min-w-0 flex-1 items-center rounded-md text-left focus-visible:outline-2 focus-visible:outline-ring"
                   onClick={() => {
-                    navigate(sessionPath(session));
+                    onSelectSession(session);
                     onOpenSession();
                   }}
                 >

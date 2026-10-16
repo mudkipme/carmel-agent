@@ -4,6 +4,12 @@ import type { AgentConfig } from "@carmel-agent/shared";
 import { CodeEditor } from "@/components/harness/files/CodeEditor";
 import { inferLanguage, isDarkTheme } from "@/components/harness/files/editor-extensions";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MarkdownContent } from "@/components/chat/MarkdownContent";
+import {
+  WorkspaceFileLinkAgentContext,
+  WorkspaceFilePathContext,
+} from "@/components/chat/workspace-file-links";
 import { api } from "@/lib/api";
 import { useThemePreference } from "@/lib/theme";
 import { errorMessage } from "@/lib/errors";
@@ -21,6 +27,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
   const [loading, setLoading] = useState(Boolean(agent && filePath));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [markdownMode, setMarkdownMode] = useState("preview");
   const isImage = isImageFile(filePath ?? "");
   const isDirty = content !== savedContent;
   const darkEditor = isDarkTheme(themePreference);
@@ -72,6 +79,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
   };
 
   const language = useMemo(() => inferLanguage(filePath ?? ""), [filePath]);
+  const isMarkdown = language === "markdown";
 
   if (!agent) {
     return (
@@ -89,63 +97,117 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
     );
   }
 
-  return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b px-4">
-        <div className="flex min-w-0 items-center gap-2">
-          {onClose ? (
-            <Button size="icon-sm" variant="ghost" title="Back to files" onClick={onClose}>
-              <ArrowLeftIcon />
-            </Button>
-          ) : null}
-          <div className="min-w-0">
-            <h2 className="truncate text-[13px] font-medium">{filePath}</h2>
-            <p className="truncate text-xs text-muted-foreground">
-              {isImage ? "Image preview" : isDirty ? "Unsaved changes" : "Saved"}
-              {loading ? " · Loading..." : ""}
-            </p>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            title="Download this file"
-            onClick={() => downloadFile(agent.id, filePath)}
-          >
-            <DownloadIcon />
-            Download
+  const header = (
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+      <div className="flex min-w-0 flex-1 basis-full items-center gap-2 @[48rem]/file-editor:basis-0">
+        {onClose ? (
+          <Button size="icon-sm" variant="ghost" title="Back to files" onClick={onClose}>
+            <ArrowLeftIcon />
           </Button>
-          {!isImage ? (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!isDirty || saving || loading}
-                onClick={() => setContent(savedContent)}
-              >
-                <RotateCcwIcon />
-                Discard
-              </Button>
-              <Button
-                size="sm"
-                disabled={!isDirty || saving || loading}
-                onClick={() => void saveFile()}
-              >
-                <SaveIcon />
-                {saving ? "Saving..." : "Save"}
-              </Button>
-            </>
-          ) : null}
+        ) : null}
+        <div className="min-w-0">
+          <h2 className="truncate text-[13px] font-medium" title={filePath}>
+            {filePath}
+          </h2>
+          <p className="truncate text-xs text-muted-foreground">
+            {isImage ? "Image preview" : isDirty ? "Unsaved changes" : "Saved"}
+            {loading ? " · Loading..." : ""}
+          </p>
         </div>
       </div>
-      {error ? <div className="border-b px-4 py-2 text-xs text-destructive">{error}</div> : null}
+      <div className="flex max-w-full flex-wrap items-center gap-2">
+        {isMarkdown ? (
+          <TabsList aria-label="Markdown view">
+            <TabsTrigger value="preview">Preview</TabsTrigger>
+            <TabsTrigger value="edit" disabled={loading}>
+              Edit
+            </TabsTrigger>
+          </TabsList>
+        ) : null}
+        <Button
+          size="sm"
+          variant="outline"
+          title="Download this file"
+          aria-label="Download this file"
+          onClick={() => downloadFile(agent.id, filePath)}
+        >
+          <DownloadIcon />
+          <span className="hidden @[32rem]/file-editor:inline">Download</span>
+        </Button>
+        {!isImage ? (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!isDirty || saving || loading}
+              aria-label="Discard"
+              title="Discard unsaved changes"
+              onClick={() => setContent(savedContent)}
+            >
+              <RotateCcwIcon />
+              <span className="hidden @[32rem]/file-editor:inline">Discard</span>
+            </Button>
+            <Button
+              size="sm"
+              disabled={!isDirty || saving || loading}
+              aria-label={saving ? "Saving..." : "Save"}
+              title="Save file"
+              onClick={() => void saveFile()}
+            >
+              <SaveIcon />
+              <span className="hidden @[32rem]/file-editor:inline">
+                {saving ? "Saving..." : "Save"}
+              </span>
+            </Button>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+  const feedback = error ? (
+    <div role="alert" className="border-b px-4 py-2 text-xs text-destructive">
+      {error}
+    </div>
+  ) : null;
+  const editor = (
+    <CodeEditor language={language} dark={darkEditor} value={content} onChange={setContent} />
+  );
+  const rootClassName = "@container/file-editor flex h-full min-h-0 flex-col gap-0 bg-background";
+
+  if (isMarkdown) {
+    return (
+      <Tabs value={markdownMode} onValueChange={setMarkdownMode} className={rootClassName}>
+        {header}
+        {feedback}
+        <TabsContent
+          value="preview"
+          className="min-h-0 overflow-auto p-4 data-[state=inactive]:hidden sm:p-6"
+        >
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading Markdown…</p>
+          ) : (
+            <div className="mx-auto max-w-[var(--line-width)]">
+              <WorkspaceFileLinkAgentContext value={agent.id}>
+                <WorkspaceFilePathContext value={filePath}>
+                  <MarkdownContent content={content} preserveLineBreaks={false} />
+                </WorkspaceFilePathContext>
+              </WorkspaceFileLinkAgentContext>
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="edit" forceMount className="min-h-0 data-[state=inactive]:hidden">
+          {loading ? null : editor}
+        </TabsContent>
+      </Tabs>
+    );
+  }
+
+  return (
+    <div className={rootClassName}>
+      {header}
+      {feedback}
       <div className="min-h-0 flex-1">
-        {isImage ? (
-          <ImagePreview agentId={agent.id} filePath={filePath} />
-        ) : (
-          <CodeEditor language={language} dark={darkEditor} value={content} onChange={setContent} />
-        )}
+        {isImage ? <ImagePreview agentId={agent.id} filePath={filePath} /> : editor}
       </div>
     </div>
   );

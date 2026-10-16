@@ -1,4 +1,5 @@
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
+import { isWorkspaceView } from "./workspace-layout";
 
 /** Which pane fills the main column, and which route is showing it. */
 export type ContentView =
@@ -6,6 +7,7 @@ export type ContentView =
   | "files"
   | "changes"
   | "terminal"
+  | "browser"
   | "issues"
   | "tasks"
   | "knowledge";
@@ -56,7 +58,21 @@ export function resolveShellRoute(input: ShellRouteInput): ShellRoute {
     return { kind: "redirect", to: `/agents/${agent.id}` };
   }
 
-  if (input.view !== "chat" || !routeSessionId) return { kind: "ready", agent };
+  if (input.view === "browser" && !agent.permissions.bash) {
+    return { kind: "redirect", to: `/agents/${agent.id}` };
+  }
+
+  if (input.view !== "chat") {
+    // A workspace can retain a conversation beside it, but a stale or foreign
+    // background conversation must never change which agent the URL opens.
+    const session = input.routeSession;
+    return isWorkspaceView(input.view) &&
+      session?.agentId === agent.id &&
+      session.userId === input.userId
+      ? { kind: "ready", agent, session }
+      : { kind: "ready", agent };
+  }
+  if (!routeSessionId) return { kind: "ready", agent };
 
   const session = input.routeSession;
   if (!session) {

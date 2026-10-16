@@ -95,6 +95,7 @@ export default function App() {
         {/* Like files, the splat is the open file: here, the one whose diff shows. */}
         <Route path="/agents/:agentId/changes/*" element={<HarnessShell view="changes" />} />
         <Route path="/agents/:agentId/terminal" element={<HarnessShell view="terminal" />} />
+        <Route path="/agents/:agentId/browser" element={<HarnessShell view="browser" />} />
         <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
         <Route path="/agents/:agentId/tasks" element={<HarnessShell view="tasks" />} />
         <Route path="/agents/:agentId/knowledge" element={<HarnessShell view="knowledge" />} />

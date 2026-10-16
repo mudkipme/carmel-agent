@@ -7,21 +7,25 @@ import {
   type ReactNode,
 } from "react";
 import Markdown, { type Components } from "react-markdown";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import { agentFilesPath, workspaceFileFromHref } from "@/lib/file-links";
 import { cn } from "@/lib/utils";
 import { preserveSoftLineBreaks } from "@/lib/markdown";
+import { api } from "@/lib/api";
+import { workspaceChatPath } from "@/lib/workspace-layout";
 import { CodeBlock } from "./CodeBlock";
-import { WorkspaceFileLinkAgentContext } from "./workspace-file-links";
+import { WorkspaceFileLinkAgentContext, WorkspaceFilePathContext } from "./workspace-file-links";
 
 type MarkdownContentProps = {
   content: string;
   thinking?: boolean;
+  preserveLineBreaks?: boolean;
 };
 
 const components: Components = {
   a: MarkdownLink,
+  img: MarkdownImage,
   table: ({ children, ...props }) => (
     <div className="my-4 overflow-x-auto">
       <table {...props}>{children}</table>
@@ -43,8 +47,12 @@ const components: Components = {
 export const MarkdownContent = memo(function MarkdownContent({
   content,
   thinking = false,
+  preserveLineBreaks = true,
 }: MarkdownContentProps) {
-  const source = useMemo(() => preserveSoftLineBreaks(content), [content]);
+  const source = useMemo(
+    () => (preserveLineBreaks ? preserveSoftLineBreaks(content) : content),
+    [content, preserveLineBreaks],
+  );
 
   return (
     <div
@@ -67,10 +75,16 @@ function MarkdownLink({
   ...props
 }: ComponentPropsWithoutRef<"a"> & { node?: unknown }) {
   const agentId = useContext(WorkspaceFileLinkAgentContext);
-  const filePath = agentId ? workspaceFileFromHref(href) : undefined;
+  const sourceFile = useContext(WorkspaceFilePathContext);
+  const [params] = useSearchParams();
+  const filePath = agentId ? workspaceFileFromHref(href, sourceFile) : undefined;
   if (agentId && filePath) {
+    const path = agentFilesPath(agentId, filePath);
     return (
-      <Link {...props} to={agentFilesPath(agentId, filePath)}>
+      <Link
+        {...props}
+        to={params.has("chat") ? workspaceChatPath(path, params.get("chat")!) : path}
+      >
         {children}
       </Link>
     );
@@ -79,6 +93,28 @@ function MarkdownLink({
     <a {...props} href={href} target="_blank" rel="noopener noreferrer">
       {children}
     </a>
+  );
+}
+
+function MarkdownImage({
+  src,
+  alt,
+  node: _node,
+  ...props
+}: ComponentPropsWithoutRef<"img"> & { node?: unknown }) {
+  const agentId = useContext(WorkspaceFileLinkAgentContext);
+  const sourceFile = useContext(WorkspaceFilePathContext);
+  const path =
+    agentId && sourceFile
+      ? workspaceFileFromHref(typeof src === "string" ? src : undefined, sourceFile)
+      : undefined;
+  return (
+    <img
+      {...props}
+      src={agentId && path ? api.getAgentFileRawUrl(agentId, path) : src}
+      alt={alt ?? ""}
+      className="max-w-full"
+    />
   );
 }
 

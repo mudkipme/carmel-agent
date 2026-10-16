@@ -35,6 +35,7 @@ export function HarnessSidebar({
   sidebarResizing,
   onClose,
   onOpenSession,
+  onSelectChat,
   onStartResize,
   onResetWidth,
   onResizeWidth,
@@ -54,6 +55,7 @@ export function HarnessSidebar({
   sidebarResizing: boolean;
   onClose: () => void;
   onOpenSession: () => void;
+  onSelectChat: (session?: SessionMetadata) => void;
   onStartResize: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onResetWidth: () => void;
   onResizeWidth: (width: number) => void;
@@ -168,6 +170,7 @@ export function HarnessSidebar({
             <SidebarSessionsToolbar
               activeAgent={activeAgent}
               onOpenSession={onOpenSession}
+              onNewSession={() => onSelectChat()}
               onOpenImport={onOpenImport}
             />
             <div className="min-h-0 flex-1 overflow-hidden">
@@ -178,6 +181,7 @@ export function HarnessSidebar({
                 runOverrides={runOverrides}
                 activeSessionId={activeSession?.id}
                 onOpenSession={onOpenSession}
+                onSelectSession={onSelectChat}
               />
             </div>
           </div>

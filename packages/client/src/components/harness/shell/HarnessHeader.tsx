@@ -17,6 +17,7 @@ export function HarnessHeader({
   activeSession,
   issueTitle,
   contentView,
+  companionVisible,
   canOpenTerminal,
   browserOpen,
   browserNeedsHelp,
@@ -31,6 +32,7 @@ export function HarnessHeader({
   /** The open issue's title, when the issues pane is showing one. */
   issueTitle?: string;
   contentView: ContentView;
+  companionVisible: boolean;
   canOpenTerminal: boolean;
   browserOpen: boolean;
   browserNeedsHelp: boolean;
@@ -39,20 +41,22 @@ export function HarnessHeader({
   onContentViewChange: (view: ContentView) => void;
   onOpenAgentSettings: () => void;
 }) {
-  /* Files and the terminal replace the session in the main column, so the
-     title names the pane you are actually looking at. */
-  const title =
-    contentView === "tasks"
+  /* In split view the workspace names itself, leaving the main header for chat. */
+  const title = companionVisible
+    ? (activeSession?.title ?? "New session")
+    : contentView === "tasks"
       ? "Tasks"
       : contentView === "files"
         ? "Files"
         : contentView === "changes"
           ? "Changes"
-          : contentView === "terminal"
-            ? "Terminal"
-            : contentView === "issues"
-              ? (issueTitle ?? "Issues")
-              : (activeSession?.title ?? "New session");
+          : contentView === "browser"
+            ? "Browser"
+            : contentView === "terminal"
+              ? "Terminal"
+              : contentView === "issues"
+                ? (issueTitle ?? "Issues")
+                : (activeSession?.title ?? "New session");
   /* The subtitle carries only what nothing else on screen says: the model is
      already named in the composer, and the working directory is worth the room
      just when the agent runs somewhere other than its own default. */
@@ -85,8 +89,7 @@ export function HarnessHeader({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-0 sm:gap-2">
-        {/* Each pane has its own route and the main column shows one at a
-            time, so pressing the active one navigates back to the chat. */}
+        {/* Pressing the active tool returns to the companion conversation. */}
         {activeAgent ? (
           <Button
             variant={contentView === "files" ? "secondary" : "ghost"}

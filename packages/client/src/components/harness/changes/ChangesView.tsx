@@ -1,6 +1,6 @@
 import { ArrowLeftIcon, ExternalLinkIcon, GitBranchIcon, RefreshCwIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useElementWidth } from "@/hooks/use-element-width";
 import type {
   AgentConfig,
   GitChange,
@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/empty";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
-import { agentChangesPath, agentFilesPath } from "@/lib/file-links";
 import { useThemePreference } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +29,8 @@ type ChangesViewProps = {
   /** The file whose diff is open, from the route; repository-relative. */
   changePath?: string;
   area?: GitChangeArea;
+  onOpenChange: (change?: { path: string; area: string }) => void;
+  onOpenFile: (path: string) => void;
 };
 
 const GROUPS: ReadonlyArray<{ area: GitChangeArea; label: string }> = [
@@ -40,15 +41,20 @@ const GROUPS: ReadonlyArray<{ area: GitChangeArea; label: string }> = [
 ];
 
 const LAYOUT_STORAGE_KEY = "carmel-diff-layout";
-const DESKTOP_QUERY = "(min-width: 1024px)";
 
 /**
  * The agent's uncommitted work, read-only: what git status says changed, and
  * the diff of whichever file is picked. Both halves ride in the URL, so a
  * reload -- or a link -- comes back to the same diff.
  */
-export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
-  const navigate = useNavigate();
+export function ChangesView({
+  agent,
+  changePath,
+  area,
+  onOpenChange,
+  onOpenFile,
+}: ChangesViewProps) {
+  const [host, width] = useElementWidth<HTMLDivElement>();
   const [status, setStatus] = useState<GitStatus>();
   const [statusError, setStatusError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -82,14 +88,14 @@ export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
     changePath && area
       ? changes.find((change) => change.path === changePath && change.area === area)
       : undefined;
-  const open = (change: GitChange) => navigate(agentChangesPath(agent.id, change));
+  const open = (change: GitChange) => onOpenChange(change);
 
   return (
-    <div className="flex h-full min-h-0 bg-background">
+    <div ref={host} className="@container/changes flex h-full min-h-0 bg-background">
       <div
         className={cn(
-          "flex min-h-0 w-full flex-col border-r lg:w-80 lg:shrink-0",
-          changePath && "hidden lg:flex",
+          "flex min-h-0 w-full flex-col border-r @[48rem]/changes:w-80 @[48rem]/changes:shrink-0",
+          changePath && "hidden @[48rem]/changes:flex",
         )}
       >
         <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
@@ -149,14 +155,19 @@ export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
         </div>
       </div>
       <div
-        className={cn("min-h-0 min-w-0 flex-1 flex-col", changePath ? "flex" : "hidden lg:flex")}
+        className={cn(
+          "min-h-0 min-w-0 flex-1 flex-col",
+          changePath ? "flex" : "hidden @[48rem]/changes:flex",
+        )}
       >
         {selected ? (
           <DiffPanel
             key={`${selected.area}:${selected.path}:${revision}`}
             agent={agent}
             change={selected}
-            onBack={() => navigate(agentChangesPath(agent.id))}
+            onBack={() => onOpenChange()}
+            onOpenFile={onOpenFile}
+            wide={width >= 768}
           />
         ) : (
           <Empty className="h-full">
@@ -195,8 +206,8 @@ export function ChangesView({ agent, changePath, area }: ChangesViewProps) {
               <Button
                 size="sm"
                 variant="outline"
-                className="lg:hidden"
-                onClick={() => navigate(agentChangesPath(agent.id))}
+                className="@[48rem]/changes:hidden"
+                onClick={() => onOpenChange()}
               >
                 <ArrowLeftIcon />
                 All changes
@@ -270,16 +281,19 @@ function DiffPanel({
   agent,
   change,
   onBack,
+  onOpenFile,
+  wide,
 }: {
   agent: AgentConfig;
   change: GitChange;
   onBack: () => void;
+  onOpenFile: (path: string) => void;
+  wide: boolean;
 }) {
-  const navigate = useNavigate();
   const dark = isDarkTheme(useThemePreference());
   const [diff, setDiff] = useState<GitFileDiff>();
   const [error, setError] = useState("");
-  const [layout, setLayout] = useDiffLayout();
+  const [layout, setLayout] = useDiffLayout(wide);
   const language = useMemo(() => inferLanguage(change.path), [change.path]);
 
   useEffect(() => {
@@ -310,7 +324,7 @@ function DiffPanel({
         <Button
           size="icon-sm"
           variant="ghost"
-          className="lg:hidden"
+          className="@[48rem]/changes:hidden"
           title="All changes"
           onClick={onBack}
         >
@@ -325,7 +339,7 @@ function DiffPanel({
         <div
           role="group"
           aria-label="Diff layout"
-          className="hidden shrink-0 rounded-md border p-0.5 lg:flex"
+          className="hidden shrink-0 rounded-md border p-0.5 @[48rem]/changes:flex"
         >
           {(["split", "unified"] as const).map((option) => (
             <button
@@ -343,11 +357,7 @@ function DiffPanel({
           ))}
         </div>
         {openablePath ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => navigate(agentFilesPath(agent.id, openablePath))}
-          >
+          <Button size="sm" variant="outline" onClick={() => onOpenFile(openablePath)}>
             <ExternalLinkIcon />
             Open file
           </Button>
@@ -380,22 +390,15 @@ function DiffPanel({
  * Split needs width; on a narrow screen it is always unified. On desktop the
  * choice is remembered.
  */
-function useDiffLayout(): [DiffLayout, (layout: DiffLayout) => void] {
-  const [desktop, setDesktop] = useState(() => window.matchMedia(DESKTOP_QUERY).matches);
+function useDiffLayout(wide: boolean): [DiffLayout, (layout: DiffLayout) => void] {
   const [preferred, setPreferred] = useState<DiffLayout>(() =>
     window.localStorage.getItem(LAYOUT_STORAGE_KEY) === "unified" ? "unified" : "split",
   );
-  useEffect(() => {
-    const query = window.matchMedia(DESKTOP_QUERY);
-    const sync = () => setDesktop(query.matches);
-    query.addEventListener("change", sync);
-    return () => query.removeEventListener("change", sync);
-  }, []);
   const choose = (layout: DiffLayout) => {
     setPreferred(layout);
     window.localStorage.setItem(LAYOUT_STORAGE_KEY, layout);
   };
-  return [desktop ? preferred : "unified", choose];
+  return [wide ? preferred : "unified", choose];
 }
 
 function unavailableReason(original: GitDiffSide, modified: GitDiffSide) {
