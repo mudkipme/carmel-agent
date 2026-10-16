@@ -62,23 +62,33 @@ function browser<T = Record<string, unknown>>(...args: string[]): T {
   return response.data;
 }
 function waitForClickTarget(selector: string, name?: string, exact = true) {
+  const waitId = randomUUID();
   browser(
     "wait",
     "--fn",
-    `Array.from(document.querySelectorAll(${JSON.stringify(selector)})).some(element => {
-    const label = element.getAttribute("aria-label") || element.getAttribute("title") || element.textContent.trim();
-    if (!element.getClientRects().length || element.closest("[inert]") || element.matches(":disabled")) return false;
-    if (!(${name === undefined ? "true" : exact ? `label === ${JSON.stringify(name)}` : `label.includes(${JSON.stringify(name)})`})) return false;
-    // Mobile reflow can put a rendered control below the scroll viewport or
-    // behind a transitioning panel. Wait for a real pointer hit, not just a box.
-    element.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
-    for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
-      if (ancestor.getAnimations().some(animation => animation.pending || animation.playState === "running")) return false;
-    }
-    const rect = element.getBoundingClientRect();
-    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-    return hit !== null && element.contains(hit);
-  })`,
+    `(() => {
+      // agent-browser requires a boolean predicate; async predicates do not poll.
+      if (window.carmelClickWait?.id !== ${JSON.stringify(waitId)}) {
+        window.carmelClickWait = { id: ${JSON.stringify(waitId)}, bounds: new WeakMap() };
+      }
+      return Array.from(document.querySelectorAll(${JSON.stringify(selector)})).some(element => {
+        const label = element.getAttribute("aria-label") || element.getAttribute("title") || element.textContent.trim();
+        if (!element.getClientRects().length || element.closest("[inert]") || element.matches(":disabled")) return false;
+        if (!(${name === undefined ? "true" : exact ? `label === ${JSON.stringify(name)}` : `label.includes(${JSON.stringify(name)})`})) return false;
+        // Avoid moving a visible option. Scrolling a Radix Select can reposition
+        // its popup, so require the same bounds on consecutive polling checks.
+        element.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+        const rect = element.getBoundingClientRect();
+        const previous = window.carmelClickWait.bounds.get(element);
+        window.carmelClickWait.bounds.set(element, rect);
+        if (!previous || ["x", "y", "width", "height"].some(key => rect[key] !== previous[key])) return false;
+        for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+          if (ancestor.getAnimations().some(animation => animation.pending || animation.playState === "running")) return false;
+        }
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return hit !== null && element.contains(hit);
+      });
+    })()`,
   );
 }
 function clickSelector(selector: string) {
@@ -965,6 +975,11 @@ test("chat controls fit narrow touch screens with reasoning and long model names
     browser("set", "viewport", "320", "740");
     click("combobox", "Thinking level");
     click("option", "high");
+    browser(
+      "wait",
+      "--fn",
+      'document.querySelector(\'[role="combobox"][aria-label="Thinking level"]\')?.textContent.trim() === "high"',
+    );
     assert.match(snapshot(), /combobox "Thinking level".*high/);
     clickSelector('.agent-chat-host button[aria-label^="Choose model"]');
     browser("wait", '[role="dialog"]');
