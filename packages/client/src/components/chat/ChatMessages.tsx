@@ -477,22 +477,7 @@ function AssistantMessage({
           );
         }
         if (part.type === "thinking" && part.thinking.trim()) {
-          return (
-            <details
-              key={index}
-              className="thinking-details min-w-0 rounded-lg bg-muted/50 px-3 py-2 text-muted-foreground"
-              open={streaming}
-            >
-              <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium">
-                <BrainIcon className="size-3.5" />
-                Thinking
-                <ChevronRightIcon className="thinking-chevron ml-auto size-3.5" />
-              </summary>
-              <div className="mt-2">
-                <MarkdownContent content={part.thinking} thinking />
-              </div>
-            </details>
-          );
+          return <ThinkingDetails key={index} thinking={part.thinking} streaming={streaming} />;
         }
         if (part.type === "image") {
           const image = part as typeof part & { data?: string; url?: string };
@@ -539,6 +524,34 @@ function AssistantMessage({
         <div className="text-sm italic text-destructive">Request aborted</div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Open while a reply is streaming, and stay closed once the reader collapses it.
+ * `open={streaming}` on every delta snaps it back open, so stop never sticks.
+ */
+function ThinkingDetails({ thinking, streaming }: { thinking: string; streaming: boolean }) {
+  const [dismissed, setDismissed] = useState(false);
+  return (
+    <details
+      className="thinking-details min-w-0 rounded-lg bg-muted/50 px-3 py-2 text-muted-foreground"
+      open={streaming && !dismissed}
+      onToggle={(event) => {
+        if (!streaming) return;
+        const nextDismissed = !event.currentTarget.open;
+        setDismissed((current) => (current === nextDismissed ? current : nextDismissed));
+      }}
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium">
+        <BrainIcon className="size-3.5" />
+        Thinking
+        <ChevronRightIcon className="thinking-chevron ml-auto size-3.5" />
+      </summary>
+      <div className="mt-2">
+        <MarkdownContent content={thinking} thinking />
+      </div>
+    </details>
   );
 }
 

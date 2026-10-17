@@ -165,14 +165,32 @@ type AgentRun = AgentRunInput & {
 /**
  * Start a run with no observer attached.
  *
- * The HTTP path wraps this in an SSE stream; the scheduler does not, because
- * nobody is watching a task fire. The run does not care either way -- it was
- * always detached from the response, and `run.events` accumulates whether or
- * not anything is subscribed.
+ * Background callers (the scheduler, issues, IM) use this. Chat does not: it
+ * admits the run and returns the id before this work starts, so a stop has a
+ * server run to cancel before the model is called. `run.events` accumulates
+ * whether or not anything is subscribed.
  *
- * The returned run is the handle: await `whenFinished(run)` to know it is over.
+ * The returned run is the handle: await `whenRunFinished(run)` to know it is over.
  */
 export function startDetachedAgentRun(input: AgentRunInput): ActiveAgentRun {
+  const context = createAgentRun(input);
+  queueMicrotask(() => void startAgentRun(context));
+  return context.run;
+}
+
+/**
+ * Register a chat run and start it on the next turn.
+ *
+ * The HTTP handler returns this id before the timer fires. A stop in between
+ * cancels the run inside `startAgentRun`, before the provider is called.
+ */
+export function admitAgentRun(input: AgentRunInput): ActiveAgentRun {
+  const context = createAgentRun(input);
+  setImmediate(() => void startAgentRun(context));
+  return context.run;
+}
+
+function createAgentRun(input: AgentRunInput): AgentRun {
   const abort = new HarnessAbortGate();
   const run = createActiveAgentRun({
     runId: randomId(),
@@ -185,11 +203,7 @@ export function startDetachedAgentRun(input: AgentRunInput): ActiveAgentRun {
     input.providerConfig,
     input.modelRuntime,
   );
-
-  queueMicrotask(
-    () => void startAgentRun({ ...input, run, abort, outcome: new RunOutcome(), model }),
-  );
-  return run;
+  return { ...input, run, abort, outcome: new RunOutcome(), model };
 }
 
 /**
@@ -201,6 +215,14 @@ async function startAgentRun(context: AgentRun) {
   const { run, abort, outcome, agent, session, model, thinkingLevel, promptInput } = context;
   if (run.started) return;
   run.started = true;
+  // Chat returns the run id, then starts on a later turn. A stop that arrived
+  // in between has to end here, before the session is opened or the model called.
+  if (abort.requested) {
+    const result = outcome.result(abort.reason);
+    emitRunEvent(run, { type: "run_finished", result });
+    finishAgentRun(run, result);
+    return;
+  }
 
   const retry = new RetryBranch();
   const contextReporter = new ContextReporter(model.contextWindow, (event) =>

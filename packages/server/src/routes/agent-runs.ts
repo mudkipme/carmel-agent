@@ -10,14 +10,13 @@ import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import {
   abortAgentRun,
+  admitAgentRun,
   createAgentRunEventStream,
   getActiveAgentRunForSession,
   normalizePromptInput,
-  startDetachedAgentRun,
 } from "../runtime/agent-runtime.ts";
 import {
   createActiveAgentRun,
-  createRunStream,
   finishAgentRun,
   getActiveSessionIdsForUser,
 } from "../runtime/run-stream.ts";
@@ -166,7 +165,10 @@ export function createAgentRunRoutes() {
       );
     }
 
-    const run = startDetachedAgentRun({
+    // The id is the whole response. Putting it on the event stream instead lets
+    // the server hold the headers until thinking tokens exist, so stop has
+    // nothing to cancel until the model is already going.
+    const run = admitAgentRun({
       agent,
       session: currentSession,
       modelRef,
@@ -176,7 +178,8 @@ export function createAgentRunRoutes() {
       promptInput,
       timezone: body.timezone,
     });
-    return createRunStream(run);
+    c.header("x-agent-run-id", run.runId);
+    return c.json({ runId: run.runId });
   });
 
   return route;

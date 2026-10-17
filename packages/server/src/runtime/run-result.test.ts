@@ -27,7 +27,12 @@ import { loadSession } from "../services/session-store.ts";
 import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createAgent, createUser } from "../test-support.ts";
-import { abortAgentRun, startDetachedAgentRun, whenRunFinished } from "./agent-runtime.ts";
+import {
+  abortAgentRun,
+  admitAgentRun,
+  startDetachedAgentRun,
+  whenRunFinished,
+} from "./agent-runtime.ts";
 import { shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
 
 /**
@@ -44,6 +49,7 @@ type ProviderMode =
   | "reject"
   | "tool-loop"
   | "hang"
+  | "think"
   | "schedule"
   | "schedule-codemode"
   | "notify"
@@ -406,6 +412,34 @@ test("a run a person stops is cancelled", async () => {
   assert.deepEqual(await finished(run), { outcome: "cancelled" });
 });
 
+test("a stop before an admitted run starts never reaches the provider", async () => {
+  const requestsBefore = provider.requests.length;
+  const run = await startRun("think", undefined, { admit: true });
+  try {
+    assert.equal(provider.requests.length, requestsBefore);
+    assert.ok(abortAgentRun(run.userId, run.runId));
+    assert.deepEqual(await finished(run), { outcome: "cancelled" });
+    assert.equal(provider.requests.length, requestsBefore);
+  } finally {
+    abortAgentRun(run.userId, run.runId);
+  }
+});
+
+test("stopping during thinking cancels the run", async () => {
+  const run = await startRun("think");
+  try {
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline && !hasThinking(run)) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.ok(hasThinking(run), "thinking never started");
+    assert.ok(abortAgentRun(run.userId, run.runId));
+    assert.deepEqual(await finished(run), { outcome: "cancelled" });
+  } finally {
+    abortAgentRun(run.userId, run.runId);
+  }
+});
+
 test("a run cut off by shutdown is interrupted", async () => {
   const run = await startRun("hang");
   await provider.waitForRequest();
@@ -431,6 +465,10 @@ test("a run whose result cannot be saved fails", async () => {
   }
 });
 
+function hasThinking(run: ActiveAgentRun) {
+  return run.events.some((envelope) => JSON.stringify(envelope.event).includes("thinking"));
+}
+
 /** Waits for the run, and checks the stream's terminal event says the same thing. */
 async function finished(run: ActiveAgentRun): Promise<AgentRunResult> {
   const result = await whenRunFinished(run, 20);
@@ -439,7 +477,11 @@ async function finished(run: ActiveAgentRun): Promise<AgentRunResult> {
   return result;
 }
 
-async function startRun(mode: ProviderMode, beforeStart?: (sessionId: string) => void) {
+async function startRun(
+  mode: ProviderMode,
+  beforeStart?: (sessionId: string) => void,
+  options?: { admit?: boolean },
+) {
   provider.mode = mode;
   const userId = createUser();
   const modelRefId = id("model_ref");
@@ -479,7 +521,8 @@ async function startRun(mode: ProviderMode, beforeStart?: (sessionId: string) =>
   const session = await loadSession(sessionId);
   assert.ok(session);
   beforeStart?.(sessionId);
-  return startDetachedAgentRun({
+  const start = options?.admit ? admitAgentRun : startDetachedAgentRun;
+  return start({
     agent: db.select().from(agents).where(eq(agents.id, agentId)).get()!,
     session,
     modelRef: context.value.modelRef,
@@ -568,6 +611,21 @@ function respond(
   const base = { id: "chatcmpl-test", object: "chat.completion.chunk", created: 0, model: "fake" };
   const chunk = (delta: object, finishReason: string | null = null) =>
     `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`;
+  if (mode === "think") {
+    // Reasoning tokens until the client aborts. Stop has to cut this short.
+    const timer = setInterval(() => {
+      if (response.destroyed || response.writableEnded) {
+        clearInterval(timer);
+        return;
+      }
+      response.write(chunk({ reasoning_content: "still thinking " }));
+    }, 20);
+    request.on("close", () => {
+      clearInterval(timer);
+      if (!response.writableEnded) response.end();
+    });
+    return;
+  }
   if ((mode === "notify" || mode === "notify-codemode") && !hasToolResult) {
     const args = { text: "Your build failed.", platform: "telegram" };
     const call =

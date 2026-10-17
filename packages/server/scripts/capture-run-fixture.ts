@@ -14,13 +14,20 @@ if (!cookie || !agentId || !sessionId || !prompt || !output) {
 
 const response = await fetch(`${baseURL}/api/agents/${encodeURIComponent(agentId)}/run`, {
   method: "POST",
-  headers: { cookie, "content-type": "application/json", accept: "application/x-ndjson" },
+  headers: { cookie, "content-type": "application/json" },
   body: JSON.stringify({ sessionId, promptInput: { text: prompt } }),
 });
-if (!response.ok || !response.body)
-  throw new Error(`Run failed with HTTP ${response.status}: ${await response.text()}`);
+if (!response.ok) throw new Error(`Run failed with HTTP ${response.status}: ${await response.text()}`);
+const admitted = (await response.json()) as { runId?: string };
+if (!admitted.runId) throw new Error("Run response did not identify its server run.");
+const events = await fetch(
+  `${baseURL}/api/agent-runs/${encodeURIComponent(admitted.runId)}/events`,
+  { headers: { cookie } },
+);
+if (!events.ok || !events.body)
+  throw new Error(`Event stream failed with HTTP ${events.status}: ${await events.text()}`);
 
-const bytes = new Uint8Array(await new Response(response.body).arrayBuffer());
+const bytes = new Uint8Array(await new Response(events.body).arrayBuffer());
 const destination = resolve(output);
 await mkdir(dirname(destination), { recursive: true });
 await writeFile(destination, bytes);

@@ -206,6 +206,143 @@ test("detaching cancels only the observer request and never calls the stop API",
   }
 });
 
+test("a stop before the run id is known still aborts that run", async () => {
+  const originalFetch = globalThis.fetch;
+  const aborted = assistantMessage("partial", "aborted");
+  let releaseRun: (response: Response) => void = () => {};
+  const runResponse = new Promise<Response>((resolve) => {
+    releaseRun = resolve;
+  });
+  const requests: Array<{ url: string; method: string }> = [];
+  let agent: RemoteAgent;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    requests.push({ url, method });
+    if (method === "POST" && url.endsWith("/run")) return runResponse;
+    if (method === "POST" && url.endsWith("/abort")) return Response.json({ ok: true });
+    if (url.includes("/events?")) {
+      return eventResponse([
+        envelope(1, { type: "message_start", message: assistantMessage("") }),
+        envelope(2, {
+          type: "message_update",
+          usage: emptyUsage(),
+          changes: [{ type: "thinking_delta", contentIndex: 0, delta: "kept going" }],
+        }),
+        envelope(3, { type: "message_end", message: aborted }),
+        envelope(4, runFinished({ outcome: "cancelled" })),
+      ]);
+    }
+    return new Response(null, { status: 404 });
+  };
+  try {
+    agent = createAgent([]);
+    const prompting = agent.prompt("question");
+    await Promise.resolve();
+    await agent.abort();
+    assert.equal(
+      requests.some((request) => request.method === "POST" && request.url.endsWith("/abort")),
+      false,
+    );
+
+    releaseRun(
+      Response.json({ runId: "run_early_stop" }, { headers: { "x-agent-run-id": "run_early_stop" } }),
+    );
+    await prompting;
+
+    assert.deepEqual(
+      requests.filter((request) => request.method === "POST" && request.url.endsWith("/abort")),
+      [{ url: "/api/agent-runs/run_early_stop/abort", method: "POST" }],
+    );
+    assert.equal(agent.getSnapshot().isStreaming, false);
+    // The event stream is JSON, so an omitted errorMessage does not come back.
+    assert.deepEqual(agent.getSnapshot().messages, [JSON.parse(JSON.stringify(aborted))]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("stopping while thinking is on screen aborts the run and still applies server events", async () => {
+  const originalFetch = globalThis.fetch;
+  const question = userMessage("question");
+  const aborted = assistantMessage("partial", "aborted");
+  const requests: Array<{ url: string; method: string }> = [];
+  let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+  let agent: RemoteAgent;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    requests.push({ url, method });
+    if (method === "POST" && url.endsWith("/abort")) return Response.json({ ok: true });
+    if (url.includes("/events?")) {
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start: (controller) => {
+            streamController = controller;
+          },
+        }),
+        { status: 200 },
+      );
+    }
+    throw new Error(`Unexpected request: ${method} ${url}`);
+  };
+  try {
+    agent = createAgent([question]);
+    const observing = agent.attachToRun("run_thinking", [question], 0);
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.ok(streamController);
+    streamController.enqueue(
+      encodeEvents([
+        envelope(1, { type: "message_start", message: assistantMessage("") }),
+        envelope(2, {
+          type: "message_update",
+          usage: emptyUsage(),
+          changes: [{ type: "thinking_delta", contentIndex: 0, delta: "first" }],
+        }),
+      ]),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.equal(thinkingText(agent.getSnapshot().streamingMessage), "first");
+
+    await agent.abort();
+    streamController.enqueue(
+      encodeEvents([
+        envelope(3, {
+          type: "message_update",
+          usage: emptyUsage(),
+          changes: [{ type: "thinking_delta", contentIndex: 0, delta: " and more" }],
+        }),
+      ]),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.equal(thinkingText(agent.getSnapshot().streamingMessage), "first and more");
+
+    streamController.enqueue(
+      encodeEvents([
+        envelope(4, { type: "message_end", message: aborted }),
+        envelope(5, runFinished({ outcome: "cancelled" })),
+      ]),
+    );
+    streamController.close();
+    await observing;
+
+    assert.deepEqual(
+      requests.filter((request) => request.method === "POST" && request.url.endsWith("/abort")),
+      [{ url: "/api/agent-runs/run_thinking/abort", method: "POST" }],
+    );
+    assert.deepEqual(agent.getSnapshot().messages, [
+      question,
+      JSON.parse(JSON.stringify(aborted)),
+    ]);
+    assert.equal(agent.getSnapshot().isStreaming, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("manual stop uses the abort API but keeps watching the server-persisted aborted result", async () => {
   const originalFetch = globalThis.fetch;
   const question = userMessage("question");
@@ -466,12 +603,18 @@ test("a run that fails after admission is still an accepted submission", async (
         JSON.parse(String(init?.body)).timezone,
         Intl.DateTimeFormat().resolvedOptions().timeZone,
       );
-      return eventResponse(
-        [envelope(1, { type: "message_end", message: question }), envelope(2, agentEnd())],
-        { "x-agent-run-id": "run_failing" },
+      return Response.json(
+        { runId: "run_failing" },
+        { headers: { "x-agent-run-id": "run_failing" } },
       );
     }
-    if (url.endsWith("/events?after=2")) return eventResponse([envelope(3, runFinished())]);
+    if (url.includes("/events?")) {
+      return eventResponse([
+        envelope(1, { type: "message_end", message: question }),
+        envelope(2, agentEnd()),
+        envelope(3, runFinished()),
+      ]);
+    }
     return new Response(null, { status: 404 });
   };
   try {
@@ -675,12 +818,19 @@ test("Resume admits saved work after a tool call without resending or rewinding 
   const originalFetch = globalThis.fetch;
   const messages = [userMessage("original"), assistantMessage("pending tool")];
   globalThis.fetch = async (input, init) => {
-    assert.equal(String(input), "/api/agents/agent_1/run");
-    assert.equal(init?.method, "POST");
-    const body = JSON.parse(String(init?.body));
-    assert.equal(body.sessionId, "session_1");
-    assert.equal(body.promptInput, undefined);
-    return eventResponse([envelope(1, runFinished())], { "x-agent-run-id": "run_resumed" });
+    const url = String(input);
+    if (url.endsWith("/run")) {
+      assert.equal(init?.method, "POST");
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.sessionId, "session_1");
+      assert.equal(body.promptInput, undefined);
+      return Response.json(
+        { runId: "run_resumed" },
+        { headers: { "x-agent-run-id": "run_resumed" } },
+      );
+    }
+    if (url.includes("/events?")) return eventResponse([envelope(1, runFinished())]);
+    throw new Error(`Unexpected request: ${init?.method ?? "GET"} ${url}`);
   };
   try {
     const agent = createAgent(messages);
@@ -755,6 +905,23 @@ function connection(
     },
     activeRun,
   };
+}
+
+function emptyUsage() {
+  return {
+    input: 0,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    totalTokens: 0,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+  };
+}
+
+function thinkingText(message: AgentMessage | undefined) {
+  if (!message || message.role !== "assistant" || !Array.isArray(message.content)) return "";
+  const part = message.content.find((item) => item.type === "thinking");
+  return part?.type === "thinking" ? part.thinking : "";
 }
 
 function envelope(sequence: number, event: AgentRunEvent): AgentRunEventEnvelope {

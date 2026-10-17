@@ -68,6 +68,11 @@ export class RemoteAgent {
   private runFinished = false;
   private detachRequested = false;
   private replaceNextUserMessage = false;
+  /**
+   * A stop can arrive while admission is still in flight. The id comes back
+   * before the model is called, and this is sent as soon as that id exists.
+   */
+  private stopRequested = false;
 
   constructor(
     private readonly config: {
@@ -142,7 +147,14 @@ export class RemoteAgent {
   async abort() {
     const runId = this.runId;
     if (!runId) {
-      if (!this.hasPendingWork || this.abortController) return;
+      // The admission response is the run id, and it comes back before the
+      // model is called. Remember the stop so it is sent the moment that id
+      // exists; the server then cancels the run before thinking starts.
+      if (this.abortController) {
+        this.stopRequested = true;
+        return;
+      }
+      if (!this.hasPendingWork) return;
       const controller = this.beginRun();
       try {
         await api.abortSession(this.config.sessionId);
@@ -161,13 +173,7 @@ export class RemoteAgent {
       }
       return;
     }
-    try {
-      await api.abortAgentRun(runId);
-    } catch (error) {
-      // The run finishing on its own before the abort lands is not an error.
-      if (error instanceof ApiError && error.status === 404) return;
-      this.fail(error);
-    }
+    await this.requestAbort(runId);
   }
 
   detach() {
@@ -236,7 +242,7 @@ export class RemoteAgent {
         const connection = await this.readConnection(controller.signal);
         this.applyConnectionSnapshot(connection);
         if (connection.activeRun && connection.activeRun.runId === activeRunId) {
-          this.runId = activeRunId;
+          this.rememberRun(activeRunId);
           this.lastSequence = connection.activeRun.eventCursor;
           await this.watchRun(activeRunId, controller.signal);
         }
@@ -252,12 +258,14 @@ export class RemoteAgent {
         throw error;
       }
 
-      const runId = response.headers.get("x-agent-run-id");
+      const admittedRun = (await response.json().catch(() => undefined)) as
+        | { runId?: string }
+        | undefined;
+      const runId = response.headers.get("x-agent-run-id") ?? admittedRun?.runId;
       if (!runId) throw new Error("Agent response did not identify its server run.");
-      this.runId = runId;
+      this.rememberRun(runId);
       admitted = true;
       this.hasPendingWork = false;
-      await this.consumeAcceptedResponse(response.body, controller.signal);
       await this.watchRun(runId, controller.signal);
       await this.notifyRunComplete();
       return { status: "accepted" };
@@ -336,6 +344,7 @@ export class RemoteAgent {
     this.lastSequence = afterSequence;
     this.runFinished = false;
     this.detachRequested = false;
+    this.stopRequested = false;
     this.notify();
     return controller;
   }
@@ -349,15 +358,23 @@ export class RemoteAgent {
     this.runId = undefined;
     this.detachRequested = false;
     this.replaceNextUserMessage = false;
+    this.stopRequested = false;
     this.notify();
   }
 
-  private async consumeAcceptedResponse(body: ReadableStream<Uint8Array>, signal: AbortSignal) {
+  /** Record the server run and send a stop that arrived before its id did. */
+  private rememberRun(runId: string) {
+    this.runId = runId;
+    if (this.stopRequested) void this.requestAbort(runId);
+  }
+
+  private async requestAbort(runId: string) {
     try {
-      await this.consumeEvents(body);
+      await api.abortAgentRun(runId);
     } catch (error) {
-      if (signal.aborted) throw error;
-      this.markReconnecting(error);
+      // The run finishing on its own before the abort lands is not an error.
+      if (error instanceof ApiError && error.status === 404) return;
+      this.fail(error);
     }
   }
 
@@ -429,7 +446,7 @@ export class RemoteAgent {
         const connection = await this.readConnection(signal);
         this.applyConnectionSnapshot(connection);
         if (!connection.activeRun) return false;
-        this.runId = connection.activeRun.runId;
+        this.rememberRun(connection.activeRun.runId);
         this.lastSequence = connection.activeRun.eventCursor;
         await this.watchRun(connection.activeRun.runId, signal);
         return true;
