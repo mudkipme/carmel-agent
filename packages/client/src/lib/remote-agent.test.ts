@@ -246,7 +246,10 @@ test("a stop before the run id is known still aborts that run", async () => {
     );
 
     releaseRun(
-      Response.json({ runId: "run_early_stop" }, { headers: { "x-agent-run-id": "run_early_stop" } }),
+      Response.json(
+        { runId: "run_early_stop" },
+        { headers: { "x-agent-run-id": "run_early_stop" } },
+      ),
     );
     await prompting;
 
@@ -333,10 +336,7 @@ test("stopping while thinking is on screen aborts the run and still applies serv
       requests.filter((request) => request.method === "POST" && request.url.endsWith("/abort")),
       [{ url: "/api/agent-runs/run_thinking/abort", method: "POST" }],
     );
-    assert.deepEqual(agent.getSnapshot().messages, [
-      question,
-      JSON.parse(JSON.stringify(aborted)),
-    ]);
+    assert.deepEqual(agent.getSnapshot().messages, [question, JSON.parse(JSON.stringify(aborted))]);
     assert.equal(agent.getSnapshot().isStreaming, false);
   } finally {
     globalThis.fetch = originalFetch;

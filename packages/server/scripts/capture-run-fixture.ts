@@ -17,7 +17,8 @@ const response = await fetch(`${baseURL}/api/agents/${encodeURIComponent(agentId
   headers: { cookie, "content-type": "application/json" },
   body: JSON.stringify({ sessionId, promptInput: { text: prompt } }),
 });
-if (!response.ok) throw new Error(`Run failed with HTTP ${response.status}: ${await response.text()}`);
+if (!response.ok)
+  throw new Error(`Run failed with HTTP ${response.status}: ${await response.text()}`);
 const admitted = (await response.json()) as { runId?: string };
 if (!admitted.runId) throw new Error("Run response did not identify its server run.");
 const events = await fetch(
