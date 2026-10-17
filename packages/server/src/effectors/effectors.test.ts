@@ -115,9 +115,11 @@ test("templates retain quoted argument, fallback, and skill-name precedence", as
   });
   await dispatchPrompt(driver, '/review "some file"');
   await dispatchPrompt(driver, "/skill:pdf go");
+  await dispatchPrompt(driver, '/review "" next');
   assert.deepEqual(calls, [
     ["prompt", "some file | default | some file", undefined],
     ["prompt", "go", undefined],
+    ["prompt", " | next |  next", undefined],
   ]);
 });
 

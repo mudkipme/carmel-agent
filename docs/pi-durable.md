@@ -1,6 +1,6 @@
 # Pi Durable storage
 
-Carmel uses Pi 1.2.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
+Carmel uses Pi 1.3.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
 
 ## Storage and backups
 
@@ -34,9 +34,9 @@ Tools default to `replay: "unsafe"`. Pi records intent before executing them; af
 - Native threshold, background, and overflow compaction. Small model windows get scaled reserve/tail settings: Durable's `enabled` flag controls overflow recovery too, so the old threshold-only disable workaround is removed.
 - Pi's `azure` provider identifier.
 
-Pi 1.2.0 has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel's generic tool/result compatibility layers are gone.
+Pi 1.3.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel's generic tool/result compatibility layers are gone.
 
-Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are not public Pi 1.2.0 exports, so their positional/default/slice semantics remain in the adapter. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
+Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are still not public exports (`parseCommandArgs` and `substituteArgs` live only in the package's internal `dist/core/prompt-templates` module), so their positional/default/slice semantics remain in the adapter, including the 1.3.0 rule that `""` and `''` are real arguments. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
 
 ## Durable Codemode
 
@@ -62,7 +62,7 @@ Native batched `message_update.changes` now cross the shared protocol into the c
 
 Compaction errors come directly from native end events and retained snapshot failures, with one warning per failed task. Recovery is announced when a native compaction summary entry is placed, so a declined compaction cannot claim success. The settings forwarding proxy and unused session-wide entry-search facade are gone. Native settings select only the current run's extensions, preventing a previously enabled extension from leaking into a later run.
 
-The remaining bridges protect application behavior: guarded workspace/resource reads, container execution, per-user credentials and personalized catalog caches, resolved model overrides, stable saved entry/image links, and issue/cron policy. Pi captures its `Models` object when opening storage, so the session's small model forwarding proxy is still needed to install fresh per-run credentials while HTTP readers share the same lease. Pi's prompt argument helpers are not public 1.2.0 exports, and grep/find/ls have no Durable equivalents.
+The remaining bridges protect application behavior: guarded workspace/resource reads, container execution, per-user credentials and personalized catalog caches, resolved model overrides, stable saved entry/image links, and issue/cron policy. Pi captures its `Models` object when opening storage, so the session's small model forwarding proxy is still needed to install fresh per-run credentials while HTTP readers share the same lease. Prompt argument helpers are still not public exports, and grep/find/ls have no Durable equivalents.
 
 ## Further 1.2.0 adoption
 
@@ -82,4 +82,28 @@ Carmel does not inject a clock into system instructions or user messages, matchi
 
 Named sections reduce redundant storage writes. They preserve the request prefix when the selected model supports mid-conversation system changes; otherwise Pi collapses section updates into the leading system prompt. Keeping a changing clock out of the prompt protects conversation-history caching in both cases. MCP tools are sorted by name within each configured server, keeping native declarations and Codemode's embedded catalog stable when a reconnect returns the same tools in another order.
 
-Pi Durable is experimental. Versions are pinned to 1.2.0, and the storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. Storage errors now fail and close the native session; pending waits reject instead of retrying operations on it. Existing live version-1 tool tasks migrate to Pi's version-2 tagged model/nested-call format. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/v1.2.0/packages/durable).
+Pi Durable is experimental. Versions are pinned to 1.3.0, including `@earendil-works/chord`, which Pi Durable depends on at that exact version. The storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. Storage errors now fail and close the native session; pending waits reject instead of retrying operations on it. Existing live version-1 tool tasks migrate to Pi's version-2 tagged model/nested-call format. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/v1.3.0/packages/durable).
+
+## Pi 1.3.0
+
+The 1.3.0 bump is small on top of the 1.2.0 adoption above. These behaviors arrive through the packages Carmel already calls, with no extra adapter:
+
+- Model switching drops thinking blocks from earlier assistant messages produced by a different model, instead of sending them as text.
+- OpenAI GPT-6 thinking-level changes with an API key keep the prompt cache (`compat.supportsMidConvoEffort`).
+- Malformed final tool-call arguments fail validation with `argumentsError` and `arguments: {}`, instead of running on the JSON parsed before the error. The chat shows that error, including the raw text, in the tool input.
+- Provider retries cover `Unable to forward upstream stream` and `The service is temporarily unavailable`. Gemini 4 sends `thinkingLevel`. Xiaomi MiMo exposes only `off` and `high`. Claude Haiku 5.5 and Opus 5 send `thinking: {type: "disabled"}` for `off`. Kimi Code uses Chat Completions at `https://api.kimi.com/coding/v1`; a `models.json` base URL for `kimi-coding` must include `/v1`. Carmel has no built-in Kimi override.
+- After compaction, the system baseline leads the model context when the kept history includes an assistant message.
+- `toBase64` encodes images in 8 KiB chunks. Carmel does not share a SQLite file with host tables, so the new storage `prefix` option is unused. Chord's host-runtime rewrite is also unused: Carmel only uses `Context`, `JsonValue`, `BACKGROUND_CONTEXT`, and `withAbortSignal`.
+
+`CodemodeSandbox.close()` now returns after requesting worker shutdown, not after the worker exits. Each Carmel script waits on `onWorkerStarted` until that worker exits, so an aborted script cannot leave a thread behind. Pi's CLI also caps live workers at two across its sessions. That cap is not copied: concurrent Carmel sessions each run their own script, and waiting for the worker this call started already bounds leaks to in-flight scripts. Node 24 is the runtime; the Bun hang this change avoids does not apply.
+
+Not adopted, because 1.3.0 does not replace the custom code:
+
+- Durable grep, find, and ls still do not exist. The guarded Agent-loop bridge stays. `ExecutionEnv.listFiles` is an optional tree listing, not those tools, and Pi's host resource loaders still bypass the guarded environment.
+- Prompt helpers remain internal. The adapter keeps their semantics, including empty quoted arguments.
+- Deferred tools and `@earendil-works/pi-durable/tool-search` still need Carmel's permission and allowlist filtering reconciled with Durable's separate model-visible and program-callable tools.
+- `models.classify()` and `models.generateImages()` stay off. Scripts may call the agent's configured tools; exposing paid classifier and image calls needs a separate policy.
+- OpenRouter regional catalog filtering still needs the configured endpoint passed into Pi's provider configuration before refresh. The cache scope alone does not set that request.
+- `/share`, `sessionShareDestination`, resumed-session `--tools`, themes, and terminal clipboard are CLI features. Carmel's web client and Durable run path do not use them.
+
+See the [1.3.0 release](https://github.com/earendil-works/pi/releases/tag/v1.3.0).

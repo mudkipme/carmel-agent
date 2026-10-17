@@ -130,7 +130,11 @@ export function ToolCallView({
           className="flex flex-col gap-3 border-t border-border/70 bg-muted/30 p-3"
         >
           <div className="break-all font-mono text-xs text-muted-foreground">{toolCall.name}</div>
-          <CodePanel label="Input" value={formatJson(toolCall.arguments)} />
+          <CodePanel
+            label="Input"
+            value={toolCall.argumentsError ?? formatJson(toolCall.arguments)}
+            language={toolCall.argumentsError ? "text" : "json"}
+          />
           <NestedCalls
             calls={calls}
             slots={nestedTools ?? []}
@@ -156,8 +160,16 @@ export function ToolCallView({
   );
 }
 
-function CodePanel({ label, value }: { label: string; value: string }) {
-  return <CodeBlock label={label} code={value} language={label === "Input" ? "json" : "text"} />;
+function CodePanel({
+  label,
+  value,
+  language = label === "Input" ? "json" : "text",
+}: {
+  label: string;
+  value: string;
+  language?: string;
+}) {
+  return <CodeBlock label={label} code={value} language={language} />;
 }
 
 function getToolResultImages(result?: ToolResultMessage) {

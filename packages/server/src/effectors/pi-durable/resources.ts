@@ -119,26 +119,35 @@ export function formatSkillInvocation(skill: Skill, instructions = "") {
   return `<skill name="${escape(skill.name)}"${location}>\n${base}${skill.content}\n</skill>${instructions ? `\n\n${instructions}` : ""}`;
 }
 export function parseCommandArgs(text: string): string[] {
+  // Pi's prompt helpers are still not package exports. This matches parseCommandArgs in
+  // pi-coding-agent 1.3.0, including quoted empty strings ("" or ''), which earlier copies dropped.
   const args: string[] = [];
-  let current = "",
-    quote: string | undefined;
+  let current = "";
+  let hasToken = false;
+  let quote: string | undefined;
   for (const char of text) {
     if (quote) {
       if (char === quote) quote = undefined;
       else current += char;
-    } else if (char === '"' || char === "'") quote = char;
-    else if (/\s/.test(char)) {
-      if (current) {
+    } else if (char === '"' || char === "'") {
+      quote = char;
+      hasToken = true;
+    } else if (/\s/.test(char)) {
+      if (hasToken) {
         args.push(current);
         current = "";
+        hasToken = false;
       }
-    } else current += char;
+    } else {
+      current += char;
+      hasToken = true;
+    }
   }
-  if (current) args.push(current);
+  if (hasToken) args.push(current);
   return args;
 }
 export function formatPromptTemplateInvocation(template: PromptTemplate, args: string[]) {
-  // Pi's prompt-template helpers are not public exports in 1.1.0. Keep their substitution semantics here.
+  // Same substitution as pi-coding-agent's unexported substituteArgs.
   return template.content.replace(
     /\$\{(\d+|ARGUMENTS|@):-([^}]*)\}|\$\{@:(\d+)(?::(\d+))?\}|\$(ARGUMENTS|@|\d+)/g,
     (

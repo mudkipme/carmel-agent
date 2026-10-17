@@ -88,7 +88,15 @@ export function createCarmelCodemode(hooks: CodemodeHooks = {}): Extension {
             );
             return call;
           };
-          const sandbox = new CodemodeSandbox({ memoryLimitBytes: 64 * 1024 * 1024 });
+          // close() settles after requesting worker shutdown. Wait for the actual exit so an
+          // aborted script cannot leave a worker running into the next call.
+          let workerExited = Promise.resolve();
+          const sandbox = new CodemodeSandbox({
+            memoryLimitBytes: 64 * 1024 * 1024,
+            onWorkerStarted(exited) {
+              workerExited = exited;
+            },
+          });
           try {
             return await nativeCodemode({ sandbox, models: false }).tools![0]!.execute(
               {
@@ -100,6 +108,7 @@ export function createCarmelCodemode(hooks: CodemodeHooks = {}): Extension {
           } finally {
             ended = true;
             await sandbox.close();
+            await workerExited;
           }
         },
       },
