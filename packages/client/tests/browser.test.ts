@@ -187,12 +187,19 @@ test(
     browser("fill", "[cmdk-input]", "docs/guide");
     browser("wait", '[cmdk-item][data-value="file:docs/guide.md"]');
     browser("press", "Enter");
-    browser("wait", 'button[aria-label="Remove reference docs/guide.md"]');
-    assert.equal(value('textarea[aria-label="Message"]'), "Review ");
+    browser(
+      "wait",
+      "--fn",
+      'document.querySelector("textarea[aria-label=Message]").value === "Review @docs/guide.md "',
+    );
     click("button", "Mention a reference");
     browser("fill", "[cmdk-input]", "docs/");
     click("option", "Mention docs/");
-    browser("wait", 'button[aria-label="Remove reference docs"]');
+    browser(
+      "wait",
+      "--fn",
+      'document.querySelector("textarea[aria-label=Message]").value === "Review @docs/guide.md @docs/ "',
+    );
     click("button", "Mention a reference");
     browser("fill", "[cmdk-input]", "Interrupted lookup");
     browser("press", "Enter");
@@ -201,7 +208,7 @@ test(
       evaluate<number>(
         `document.querySelectorAll('[aria-label="Selected references"] [data-slot="badge"]').length`,
       ),
-      3,
+      1,
     );
     evaluate(`void (window.referenceOriginalFetch = window.fetch); window.fetch = (input, init) => {
     if (String(input).endsWith('/run')) {
@@ -213,10 +220,29 @@ test(
     try {
       click("button", "Send");
       browser("wait", "--text", "Reference test rejection");
-      browser("wait", 'button[aria-label="Remove reference docs/guide.md"]');
-      assert.equal(value('textarea[aria-label="Message"]'), "Review ");
+      browser(
+        "wait",
+        "--fn",
+        'document.querySelector("textarea[aria-label=Message]").value === "Review @docs/guide.md @docs/ "',
+      );
       assert.deepEqual(evaluate("window.referenceSubmission.promptInput.references"), [
         { kind: "file", path: "docs/guide.md" },
+        { kind: "folder", path: "docs" },
+        {
+          kind: "session",
+          sessionId: fixture.pendingSessionId,
+          agentId: fixture.agentId,
+          label: "Interrupted lookup",
+        },
+      ]);
+      browser("fill", 'textarea[aria-label="Message"]', "Review @docs/ ");
+      click("button", "Send");
+      browser(
+        "wait",
+        "--fn",
+        'window.referenceSubmission.promptInput.references.length === 2 && document.querySelector("textarea[aria-label=Message]").value === "Review @docs/ "',
+      );
+      assert.deepEqual(evaluate("window.referenceSubmission.promptInput.references"), [
         { kind: "folder", path: "docs" },
         {
           kind: "session",
@@ -228,13 +254,6 @@ test(
     } finally {
       evaluate("window.fetch = window.referenceOriginalFetch");
     }
-    click("button", "Remove reference docs/guide.md");
-    assert.equal(
-      evaluate<number>(
-        `document.querySelectorAll('[aria-label="Selected references"] [data-slot="badge"]').length`,
-      ),
-      2,
-    );
     browser("set", "viewport", "390", "844");
     click("button", "Mention a reference");
     browser("wait", "[cmdk-input]");
@@ -246,6 +265,62 @@ test(
     browser("fill", 'textarea[aria-label="Message"]', "me@example.com");
     assert.equal(evaluate<number>('document.querySelectorAll("[role=dialog]").length'), 0);
     browser("set", "viewport", "1280", "900");
+  },
+);
+
+test(
+  "file and folder mentions stay at the cursor and restore focus without moving the draft suffix",
+  { timeout: 90_000 },
+  () => {
+    browser("set", "viewport", "1280", "900");
+    open(agentPath(`sessions/${fixture.chatSessionId}`));
+    browser("wait", 'textarea[aria-label="Message"]');
+    const expectCaret = (text: string, cursor: number) =>
+      browser(
+        "wait",
+        "--fn",
+        `(() => {
+    const input = document.querySelector('textarea[aria-label="Message"]');
+    return document.activeElement === input && input.value === ${JSON.stringify(text)} && input.selectionStart === ${cursor} && input.selectionEnd === ${cursor};
+  })()`,
+      );
+    browser("fill", 'textarea[aria-label="Message"]', "Compare  with the current version.");
+    evaluate('document.querySelector("textarea[aria-label=Message]").setSelectionRange(8, 8)');
+    browser("keyboard", "type", "@");
+    browser("wait", "[cmdk-input]");
+    browser("fill", "[cmdk-input]", "docs/guide");
+    browser("wait", '[cmdk-item][data-value="file:docs/guide.md"]');
+    browser("press", "Enter");
+    expectCaret(
+      "Compare @docs/guide.md with the current version.",
+      "Compare @docs/guide.md ".length,
+    );
+    browser("keyboard", "type", "alongside notes ");
+    assert.equal(
+      value('textarea[aria-label="Message"]'),
+      "Compare @docs/guide.md alongside notes with the current version.",
+    );
+
+    browser("fill", 'textarea[aria-label="Message"]', "Inspect placeholder before making changes.");
+    evaluate('document.querySelector("textarea[aria-label=Message]").setSelectionRange(8, 19)');
+    click("button", "Mention a reference");
+    browser("fill", "[cmdk-input]", "docs/");
+    click("option", "Mention docs/");
+    expectCaret("Inspect @docs/ before making changes.", "Inspect @docs/ ".length);
+    browser("keyboard", "type", "carefully ");
+    assert.equal(
+      value('textarea[aria-label="Message"]'),
+      "Inspect @docs/ carefully before making changes.",
+    );
+
+    browser("fill", 'textarea[aria-label="Message"]', "Compare  tomorrow.");
+    evaluate('document.querySelector("textarea[aria-label=Message]").setSelectionRange(8, 8)');
+    browser("keyboard", "type", "@");
+    browser("wait", "[cmdk-input]");
+    browser("press", "Escape");
+    expectCaret("Compare @ tomorrow.", 9);
+    browser("keyboard", "type", "person");
+    assert.equal(value('textarea[aria-label="Message"]'), "Compare @person tomorrow.");
   },
 );
 

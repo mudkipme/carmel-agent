@@ -41,6 +41,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { showError } from "@/lib/errors";
 import type { PromptOutcome } from "@/lib/remote-agent";
+import {
+  hasInlineReference,
+  insertInlineReference,
+  type ComposerSelection,
+} from "@/lib/composer-references";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { attachmentToImageContent, fileToImageAttachment, imageSrc } from "./chat-utils";
@@ -116,6 +121,7 @@ export function ChatInput({
   const referencesRef = useRef(references);
   const [pickerOpen, setPickerOpen] = useState(false);
   const mentionRange = useRef({ start: 0, end: 0 });
+  const pickerSelection = useRef<ComposerSelection>({ start: 0, end: 0 });
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [processingFiles, setProcessingFiles] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -141,6 +147,11 @@ export function ChatInput({
   }, [value]);
 
   const updateValue = (next: string) => {
+    const retained = referencesRef.current.filter(
+      (reference) =>
+        !hasInlineReference(valueRef.current, reference) || hasInlineReference(next, reference),
+    );
+    if (retained.length !== referencesRef.current.length) updateReferences(retained);
     valueRef.current = next;
     setValue(next);
     onDraftChange?.(next);
@@ -152,15 +163,12 @@ export function ChatInput({
     onReferencesChange?.(next);
   };
 
-  const setReferencePickerOpen = (open: boolean) => {
+  const setReferencePickerOpen = (open: boolean, selection = pickerSelection.current) => {
     setPickerOpen(open);
     if (!open)
       window.requestAnimationFrame(() => {
-        textareaRef.current?.focus();
-        textareaRef.current?.setSelectionRange(
-          mentionRange.current.start,
-          mentionRange.current.start,
-        );
+        textareaRef.current?.focus({ preventScroll: true });
+        textareaRef.current?.setSelectionRange(selection.start, selection.end);
       });
   };
 
@@ -299,29 +307,31 @@ export function ChatInput({
           ))}
         </div>
       ) : null}
-      {references.length ? (
+      {references.some((reference) => !hasInlineReference(value, reference)) ? (
         <div className="flex flex-wrap gap-2 px-3 pt-3" aria-label="Selected references">
-          {references.map((reference) => (
-            <Badge key={referenceKey(reference)} variant="secondary" className="max-w-full gap-1">
-              <AtSignIcon />
-              <span className="truncate" title={referenceLabel(reference)}>
-                {referenceLabel(reference)}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                aria-label={`Remove reference ${referenceLabel(reference)}`}
-                onClick={() =>
-                  updateReferences(
-                    references.filter((item) => referenceKey(item) !== referenceKey(reference)),
-                  )
-                }
-              >
-                <XIcon />
-              </Button>
-            </Badge>
-          ))}
+          {references
+            .filter((reference) => !hasInlineReference(value, reference))
+            .map((reference) => (
+              <Badge key={referenceKey(reference)} variant="secondary" className="max-w-full gap-1">
+                <AtSignIcon />
+                <span className="truncate" title={referenceLabel(reference)}>
+                  {referenceLabel(reference)}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={`Remove reference ${referenceLabel(reference)}`}
+                  onClick={() =>
+                    updateReferences(
+                      references.filter((item) => referenceKey(item) !== referenceKey(reference)),
+                    )
+                  }
+                >
+                  <XIcon />
+                </Button>
+              </Badge>
+            ))}
         </div>
       ) : null}
       <Textarea
@@ -347,6 +357,7 @@ export function ChatInput({
             !(event.nativeEvent as InputEvent).isComposing
           ) {
             mentionRange.current = { start: cursor - 1, end: cursor };
+            pickerSelection.current = { start: cursor, end: cursor };
             setPickerOpen(true);
           }
         }}
@@ -396,7 +407,9 @@ export function ChatInput({
               disabled={isStreaming || references.length >= 10}
               onClick={() => {
                 const cursor = textareaRef.current?.selectionStart ?? value.length;
-                mentionRange.current = { start: cursor, end: cursor };
+                const end = textareaRef.current?.selectionEnd ?? cursor;
+                mentionRange.current = { start: cursor, end };
+                pickerSelection.current = { start: cursor, end };
                 setPickerOpen(true);
               }}
             >
@@ -501,8 +514,16 @@ export function ChatInput({
               updateReferences([...references, reference]);
             }
             const { start, end } = mentionRange.current;
-            updateValue(value.slice(0, start) + value.slice(end));
-            setReferencePickerOpen(false);
+            if (reference.kind !== "session") {
+              const inserted = insertInlineReference(value, { start, end }, reference);
+              updateValue(inserted.text);
+              setReferencePickerOpen(false, { start: inserted.cursor, end: inserted.cursor });
+            } else {
+              const trigger = value.slice(start, end) === "@";
+              if (trigger) updateValue(value.slice(0, start) + value.slice(end));
+              const cursor = trigger ? start : pickerSelection.current.end;
+              setReferencePickerOpen(false, { start: cursor, end: cursor });
+            }
           }}
         />
       ) : null}
