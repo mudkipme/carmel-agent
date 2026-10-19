@@ -26,13 +26,13 @@ For LifeOS, register its existing wiki and vault directories without importing o
 
 ## Retrieval and memory tools
 
-| Tool               | Behavior                                                                                                                                                                                                     |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `knowledge_search` | Fast keyword search, semantic vector search, or deep hybrid retrieval. Returns bounded excerpts and links to current source documents. Semantic failures fall back to keyword search with a visible warning. |
-| `knowledge_read`   | Reads a bounded line range of a current source document, with a revision hash and citation.                                                                                                                  |
-| `memory_save`      | Creates a managed note when the user asks to remember something, or replaces a whole note. Updates require its ID and expected revision.                                                                    |
+| Tool               | Behavior                                                                                                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `knowledge_search` | Fast keyword search, semantic vector search, or deep hybrid retrieval. Returns bounded excerpts and links to current source documents. Semantic failures fall back to keyword search with a visible warning.  |
+| `knowledge_read`   | Reads a bounded line range of a current source document, with a revision hash and citation.                                                                                                                   |
+| `memory_save`      | Creates a managed note when the user asks to remember something, or replaces a whole note. Updates require its ID and expected revision.                                                                      |
 | `memory_edit`      | Changes part of an existing memory with one or more exact replacements, like the file `edit` tool. Each old text must be unique and the edits must not overlap. Requires the memory ID and expected revision. |
-| `memory_forget`    | Removes a saved memory for all users of the agent, using an expected revision.                                                                                                                               |
+| `memory_forget`    | Removes a saved memory for all users of the agent, using an expected revision.                                                                                                                                |
 
 Read tools require agent visibility and read permission. Creating memories requires write permission; editing or forgetting requires edit permission. Settings, source registration, and manual maintenance are owner-only. Permissions are rechecked on every call. The explicit retention rule is part of the agent tool instruction, not a classifier that verifies intent on the server.
 
