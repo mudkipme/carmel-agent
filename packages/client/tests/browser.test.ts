@@ -174,6 +174,79 @@ after(async () => {
   }
 });
 
+test(
+  "reference picker selects files, folders, and conversations and restores rejected submissions",
+  { timeout: 90_000 },
+  () => {
+    browser("set", "viewport", "1280", "900");
+    open(agentPath(`sessions/${fixture.chatSessionId}`));
+    browser("fill", 'textarea[aria-label="Message"]', "Review @");
+    browser("wait", '[role="dialog"][aria-labelledby] [cmdk-input]');
+    browser("fill", "[cmdk-input]", "docs/guide");
+    browser("wait", '[cmdk-item][data-value="file:docs/guide.md"]');
+    browser("press", "Enter");
+    browser("wait", 'button[aria-label="Remove reference docs/guide.md"]');
+    assert.equal(value('textarea[aria-label="Message"]'), "Review ");
+    click("button", "Mention a reference");
+    browser("fill", "[cmdk-input]", "docs/");
+    click("option", "Mention docs/");
+    browser("wait", 'button[aria-label="Remove reference docs"]');
+    click("button", "Mention a reference");
+    browser("fill", "[cmdk-input]", "Interrupted lookup");
+    browser("press", "Enter");
+    browser("wait", 'button[aria-label="Remove reference Interrupted lookup"]');
+    assert.equal(
+      evaluate<number>(
+        `document.querySelectorAll('[aria-label="Selected references"] [data-slot="badge"]').length`,
+      ),
+      3,
+    );
+    evaluate(`void (window.referenceOriginalFetch = window.fetch); window.fetch = (input, init) => {
+    if (String(input).endsWith('/run')) {
+      window.referenceSubmission = JSON.parse(init.body);
+      return Promise.resolve(Response.json({ error: 'Reference test rejection' }, { status: 400 }));
+    }
+    return window.referenceOriginalFetch(input, init);
+  }`);
+    try {
+      click("button", "Send");
+      browser("wait", "--text", "Reference test rejection");
+      browser("wait", 'button[aria-label="Remove reference docs/guide.md"]');
+      assert.equal(value('textarea[aria-label="Message"]'), "Review ");
+      assert.deepEqual(evaluate("window.referenceSubmission.promptInput.references"), [
+        { kind: "file", path: "docs/guide.md" },
+        { kind: "folder", path: "docs" },
+        {
+          kind: "session",
+          sessionId: fixture.pendingSessionId,
+          agentId: fixture.agentId,
+          label: "Interrupted lookup",
+        },
+      ]);
+    } finally {
+      evaluate("window.fetch = window.referenceOriginalFetch");
+    }
+    click("button", "Remove reference docs/guide.md");
+    assert.equal(
+      evaluate<number>(
+        `document.querySelectorAll('[aria-label="Selected references"] [data-slot="badge"]').length`,
+      ),
+      2,
+    );
+    browser("set", "viewport", "390", "844");
+    click("button", "Mention a reference");
+    browser("wait", "[cmdk-input]");
+    assert.equal(
+      evaluate<boolean>("document.documentElement.scrollWidth <= window.innerWidth"),
+      true,
+    );
+    browser("press", "Escape");
+    browser("fill", 'textarea[aria-label="Message"]', "me@example.com");
+    assert.equal(evaluate<number>('document.querySelectorAll("[role=dialog]").length'), 0);
+    browser("set", "viewport", "1280", "900");
+  },
+);
+
 test("tool disclosures preserve their output and fit desktop and mobile conversations", () => {
   for (const width of [1280, 390]) {
     browser("set", "viewport", String(width), "900");

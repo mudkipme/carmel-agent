@@ -9,6 +9,7 @@ import {
   type AgentConfig,
   type ModelRef,
   type Session,
+  type MessageReference,
 } from "@carmel-agent/shared";
 
 const EMPTY_SNAPSHOT: AgentSnapshot = {
@@ -110,7 +111,11 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
   // the server never took. Everything that can stop a send before the prompt
   // reaches the agent has to answer with a rejection rather than nothing.
   const sendMessage = useCallback(
-    async (text: string, images?: ImageContent[]): Promise<PromptOutcome> => {
+    async (
+      text: string,
+      images?: ImageContent[],
+      references?: MessageReference[],
+    ): Promise<PromptOutcome> => {
       const activeAgent = agentRef.current;
       const { isStreaming, thinkingLevel } = activeAgent?.getSnapshot() ?? EMPTY_SNAPSHOT;
       if (!activeAgent)
@@ -125,7 +130,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
           return { status: "rejected", error: errorMessage(error) };
         }
       }
-      return activeAgent.prompt(text, images);
+      return activeAgent.prompt(text, images, references);
     },
     [updateSession],
   );

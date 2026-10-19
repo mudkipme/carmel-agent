@@ -1,6 +1,6 @@
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import type { NestedToolSlot } from "@carmel-agent/shared";
+import type { NestedToolSlot, MessageReference } from "@carmel-agent/shared";
 import {
   useCallback,
   useEffect,
@@ -15,6 +15,11 @@ import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMessages } from "./ChatMessages";
 
 type ChatPanelProps = {
+  agentId: string;
+  sessionId: string;
+  canReadFiles: boolean;
+  initialReferences?: MessageReference[];
+  onReferencesChange?: (references: MessageReference[]) => void;
   readOnly?: boolean;
   scrollResetKey: string;
   messages: AgentMessage[];
@@ -30,7 +35,11 @@ type ChatPanelProps = {
   initialInput?: string;
   onInputDraftChange?: (value: string) => void;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
-  onSend: (text: string, images?: ImageContent[]) => Promise<PromptOutcome>;
+  onSend: (
+    text: string,
+    images?: ImageContent[],
+    references?: MessageReference[],
+  ) => Promise<PromptOutcome>;
   onAbort: () => void;
   onModelSelect: () => void;
   onEditMessage: (message: AgentMessage) => void;
@@ -39,6 +48,11 @@ type ChatPanelProps = {
 };
 
 export function ChatPanel({
+  agentId,
+  sessionId,
+  canReadFiles,
+  initialReferences,
+  onReferencesChange,
   readOnly,
   scrollResetKey,
   messages,
@@ -131,6 +145,11 @@ export function ChatPanel({
         <div className="shrink-0 px-3 pt-2 pb-[calc(0.75rem+var(--safe-bottom))] sm:px-4">
           <div className="mx-auto w-full max-w-[var(--line-width)] min-w-0">
             <ChatInput
+              agentId={agentId}
+              sessionId={sessionId}
+              canReadFiles={canReadFiles}
+              initialReferences={initialReferences}
+              onReferencesChange={onReferencesChange}
               ref={inputRef}
               leadingActions={inputLeadingActions}
               currentModel={currentModel}

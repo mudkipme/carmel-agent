@@ -526,6 +526,23 @@ test("a rejected send reports the rejection and the error it failed with", async
   }
 });
 
+test("reference-only messages send structured selections without inventing context on the client", async () => {
+  const originalFetch = globalThis.fetch;
+  const references = [{ kind: "folder" as const, path: "docs" }];
+  let submitted: unknown;
+  globalThis.fetch = async (_input, init) => {
+    submitted = JSON.parse(String(init?.body));
+    return Response.json({ error: "Reference unavailable" }, { status: 400 });
+  };
+  try {
+    const outcome = await createAgent([]).prompt("", undefined, references);
+    assert.equal(outcome.status, "rejected");
+    assert.deepEqual((submitted as { promptInput: unknown }).promptInput, { text: "", references });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("a send refused because the session is busy is rejected, not silently swallowed", async () => {
   const originalFetch = globalThis.fetch;
   const question = userMessage("earlier question");

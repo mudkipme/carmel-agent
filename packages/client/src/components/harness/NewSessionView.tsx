@@ -15,6 +15,7 @@ import {
   type AgentConfig,
   type ModelRef,
   type ProviderConfig,
+  type MessageReference,
 } from "@carmel-agent/shared";
 
 type NewSessionViewProps = {
@@ -56,7 +57,11 @@ export function NewSessionView({
     );
   }
 
-  const send = async (text: string, images?: ImageContent[]): Promise<PromptOutcome> => {
+  const send = async (
+    text: string,
+    images?: ImageContent[],
+    references?: MessageReference[],
+  ): Promise<PromptOutcome> => {
     if (creatingRef.current)
       return { status: "rejected", error: "A session is already being created." };
     creatingRef.current = true;
@@ -66,7 +71,7 @@ export function NewSessionView({
         modelRefId: modelRef.id,
         thinkingLevel: clampThinkingLevel(model, thinkingLevel),
       });
-      setPendingPrompt(session.id, { text, images });
+      setPendingPrompt(session.id, { text, images, references });
       if (onOpenSession) onOpenSession(session.id);
       else navigate(`/agents/${session.agentId}/sessions/${session.id}`);
       return { status: "accepted" };
@@ -90,6 +95,8 @@ export function NewSessionView({
             </h1>
           </div>
           <ChatInput
+            agentId={agent.id}
+            canReadFiles={agent.permissions.read}
             ref={chatInputRef}
             autoFocus
             textareaClassName="min-h-20"

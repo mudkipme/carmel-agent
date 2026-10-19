@@ -1,4 +1,6 @@
 import type { Context } from "@earendil-works/chord";
+import type { JsonValue } from "@earendil-works/chord";
+import type { ResolvedReferences } from "../../services/prompt-references.ts";
 import type { ImageContent, Models } from "@earendil-works/pi-ai";
 import {
   AgentDoc,
@@ -185,13 +187,36 @@ export class PiRun {
     await delivered;
   }
 
-  async prompt(text: string, images: ImageContent[] | undefined, context: Context) {
+  async prompt(
+    text: string,
+    images: ImageContent[] | undefined,
+    context: Context,
+    resolved?: ResolvedReferences,
+  ) {
     await this.resume(context);
     const delivered = this.nextRunEnd();
     const submission = await this.session.conversation.submit(
       {
         type: "input",
-        content: images?.length ? [{ type: "text", text }, ...images] : text,
+        content:
+          resolved?.context || images?.length
+            ? [
+                { type: "text", text },
+                ...(resolved?.context ? [{ type: "text" as const, text: resolved.context }] : []),
+                ...(images ?? []),
+              ]
+            : text,
+        ...(resolved?.references.length
+          ? {
+              entry: {
+                kind: "carmel.referenced-input",
+                data: {
+                  carmelDisplayText: text,
+                  carmelReferences: resolved.references,
+                } as unknown as JsonValue,
+              },
+            }
+          : {}),
         whenBusy: "reject",
       },
       context,

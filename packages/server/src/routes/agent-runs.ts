@@ -27,6 +27,7 @@ import { jsonValidator } from "../validation.ts";
 import { errorMessage } from "../errors.ts";
 import { withPiSession } from "../services/pi-session-storage.ts";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { resolvePromptReferences, type ResolvedReferences } from "../services/prompt-references.ts";
 
 export function createAgentRunRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -140,8 +141,16 @@ export function createAgentRunRoutes() {
     const { modelRef, providerConfig, modelRuntime, thinkingLevel } = model.value;
 
     let promptInput: PromptInput | undefined;
+    let resolvedReferences: ResolvedReferences | undefined;
     try {
       promptInput = normalizePromptInput(body.promptInput);
+      if (promptInput?.references?.length)
+        resolvedReferences = await resolvePromptReferences(
+          currentUserId,
+          agent,
+          session.id,
+          promptInput.references,
+        );
     } catch (error) {
       return c.json({ error: errorMessage(error) }, 400);
     }
@@ -176,6 +185,7 @@ export function createAgentRunRoutes() {
       modelRuntime,
       thinkingLevel,
       promptInput,
+      resolvedReferences,
       timezone: body.timezone,
     });
     c.header("x-agent-run-id", run.runId);

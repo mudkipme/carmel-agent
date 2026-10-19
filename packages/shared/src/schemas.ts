@@ -301,10 +301,25 @@ export type IssueCreateCommand = z.infer<typeof issueCreateSchema>;
 export type IssuePatchCommand = z.infer<typeof issuePatchSchema>;
 export type IssueRunCommand = z.infer<typeof issueRunSchema>;
 
+export const messageReferenceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("file"), path: z.string().min(1).max(4096) }).strict(),
+  z.object({ kind: z.literal("folder"), path: z.string().min(1).max(4096) }).strict(),
+  z
+    .object({
+      kind: z.literal("session"),
+      sessionId: z.string().min(1).max(256),
+      agentId: z.string().min(1).max(256),
+      label: z.string().min(1).max(500),
+    })
+    .strict(),
+]);
+export type MessageReference = z.infer<typeof messageReferenceSchema>;
+
 export const promptInputSchema = z
   .object({
     text: z.string(),
     images: z.array(imageContentSchema).optional(),
+    references: z.array(messageReferenceSchema).max(10).optional(),
   })
   .strict();
 export const timezoneSchema = z

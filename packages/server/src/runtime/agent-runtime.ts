@@ -56,6 +56,8 @@ import { formatTurnFailure } from "../effectors/failure-classifier.ts";
 import { runGuardLimits, providerRequestTimeoutMs, RUN_GUARD_POLL_MS } from "./run-limits.ts";
 import { errorMessage } from "../errors.ts";
 import { browserControl } from "./browser-control.ts";
+import { resolvePromptReferences, type ResolvedReferences } from "../services/prompt-references.ts";
+import { getMessageReferences } from "@carmel-agent/shared";
 import { browserInstructions } from "./browser-tools.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 import { buildKnowledgeInstructions } from "./knowledge/prompt.ts";
@@ -88,12 +90,13 @@ export function normalizePromptInput(input?: PromptInput) {
           typeof image.mimeType === "string",
       )
     : undefined;
-  if (!text.trim() && (!images || images.length === 0)) {
+  if (!text.trim() && (!images || images.length === 0) && !input.references?.length) {
     throw new Error("Prompt input text or image content is required.");
   }
   return {
     text,
     images: images && images.length > 0 ? images : undefined,
+    ...(input.references?.length ? { references: input.references } : {}),
   } satisfies PromptInput;
 }
 
@@ -119,6 +122,7 @@ export type AgentRunInput = {
   modelRuntime: ModelRuntime;
   thinkingLevel: Session["thinkingLevel"];
   promptInput?: PromptInput;
+  resolvedReferences?: ResolvedReferences;
   /** Browser time zone for interpreting local reminder times. */
   timezone?: string;
   /**
@@ -330,8 +334,19 @@ async function startAgentRun(context: AgentRun) {
     } else {
       const prepared = await prepareAgentRunPrompt(log, promptInput);
       retry.arm(prepared.retryOriginalLeafId);
+      const resolved =
+        context.resolvedReferences ??
+        (await resolvePromptReferences(
+          session.userId,
+          agent,
+          session.id,
+          prepared.promptInput.references,
+        ));
       await runHarnessPrompt(
-        { resources, prompt: (text, images) => harness!.prompt(text, images, runContext) },
+        {
+          resources,
+          prompt: (text, images) => harness!.prompt(text, images, runContext, resolved),
+        },
         prepared.promptInput.text,
         prepared.promptInput.images,
       );
@@ -692,9 +707,11 @@ export async function runHarnessPrompt(
 }
 
 function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user" }>): PromptInput {
+  const references = getMessageReferences(message);
   if (typeof message.content === "string") {
-    if (!message.content.trim()) throw new Error("Cannot retry an empty user message.");
-    return { text: message.content };
+    if (!message.content.trim() && !references.length)
+      throw new Error("Cannot retry an empty user message.");
+    return { text: message.content, ...(references.length ? { references } : {}) };
   }
 
   const text = message.content
@@ -702,10 +719,12 @@ function promptInputFromUserMessage(message: Extract<AgentMessage, { role: "user
     .map((part) => part.text)
     .join("\n\n");
   const images = message.content.filter((part) => part.type === "image");
-  if (!text.trim() && images.length === 0) throw new Error("Cannot retry an empty user message.");
+  if (!text.trim() && images.length === 0 && !references.length)
+    throw new Error("Cannot retry an empty user message.");
   return {
     text,
     images: images.length > 0 ? images : undefined,
+    ...(references.length ? { references } : {}),
   };
 }
 

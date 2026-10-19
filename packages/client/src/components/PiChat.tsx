@@ -13,7 +13,13 @@ import { useMessageMutations } from "@/hooks/use-message-mutations";
 import { useModelSelection } from "@/hooks/use-model-selection";
 import { useSessionAgent } from "@/hooks/use-session-agent";
 import { takePendingPrompt } from "@/lib/pending-prompts";
-import type { AgentConfig, ModelRef, ProviderConfig, Session } from "@carmel-agent/shared";
+import type {
+  AgentConfig,
+  ModelRef,
+  ProviderConfig,
+  Session,
+  MessageReference,
+} from "@carmel-agent/shared";
 
 type PiChatProps = {
   agentConfig: AgentConfig;
@@ -39,6 +45,7 @@ export function PiChat({
   const chatInputRef = useRef<ChatInputHandle | null>(null);
   const hasStreamedRef = useRef(false);
   const inputDraftRef = useRef("");
+  const referencesDraftRef = useRef<MessageReference[]>([]);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot } = useSessionAgent(
     agentConfig,
@@ -62,10 +69,16 @@ export function PiChat({
     if (!agent || session.issueId) return;
     const pending = takePendingPrompt(session.id);
     if (!pending) return;
-    void sendMessage(pending.text, pending.images).then((outcome) => {
-      if (outcome.status !== "rejected" || inputDraftRef.current.length > 0) return;
+    void sendMessage(pending.text, pending.images, pending.references).then((outcome) => {
+      if (
+        outcome.status !== "rejected" ||
+        inputDraftRef.current.length > 0 ||
+        referencesDraftRef.current.length > 0
+      )
+        return;
       inputDraftRef.current = pending.text;
-      chatInputRef.current?.insertText(pending.text);
+      referencesDraftRef.current = pending.references ?? [];
+      chatInputRef.current?.insertText(pending.text, pending.references);
     });
   }, [agent, sendMessage, session.id, session.issueId]);
 
@@ -121,6 +134,13 @@ export function PiChat({
         <div className="min-h-0 flex-1">
           {agent ? (
             <ChatPanel
+              agentId={agentConfig.id}
+              sessionId={session.id}
+              canReadFiles={agentConfig.permissions.read}
+              initialReferences={referencesDraftRef.current}
+              onReferencesChange={(references) => {
+                referencesDraftRef.current = references;
+              }}
               readOnly={Boolean(session.issueId)}
               scrollResetKey={session.id}
               messages={snapshot.messages}

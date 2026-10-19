@@ -1,7 +1,12 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
-import type { ChatAttachment } from "@carmel-agent/shared";
+import {
+  referenceKey,
+  referenceLabel,
+  type ChatAttachment,
+  type MessageReference,
+} from "@carmel-agent/shared";
 import {
   BrainIcon,
   Loader2Icon,
@@ -10,6 +15,7 @@ import {
   SparklesIcon,
   SquareIcon,
   XIcon,
+  AtSignIcon,
 } from "lucide-react";
 import {
   useEffect,
@@ -22,6 +28,8 @@ import {
   type Ref,
 } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ReferencePicker } from "./ReferencePicker";
 import {
   Select,
   SelectContent,
@@ -41,10 +49,15 @@ const MAX_FILES = 10;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 export type ChatInputHandle = {
-  insertText: (text: string) => void;
+  insertText: (text: string, references?: MessageReference[]) => void;
 };
 
 type ChatInputProps = {
+  agentId?: string;
+  sessionId?: string;
+  canReadFiles?: boolean;
+  initialReferences?: MessageReference[];
+  onReferencesChange?: (references: MessageReference[]) => void;
   ref?: Ref<ChatInputHandle>;
   leadingActions?: ReactNode;
   /** Focuses the composer on mount, except where that would pop a touch keyboard. */
@@ -60,7 +73,11 @@ type ChatInputProps = {
    * Resolves with what happened to the submission. A rejected message was never
    * taken by the server, so the composer takes it back.
    */
-  onSend: (text: string, images?: ImageContent[]) => Promise<PromptOutcome>;
+  onSend: (
+    text: string,
+    images?: ImageContent[],
+    references?: MessageReference[],
+  ) => Promise<PromptOutcome>;
   onAbort: () => void;
   onModelSelect: () => void;
 };
@@ -70,6 +87,11 @@ type ChatInputProps = {
 // let the parent keep the draft in a ref (no re-renders) so it survives remounts,
 // e.g. the agent teardown on model switch.
 export function ChatInput({
+  agentId,
+  sessionId,
+  canReadFiles = false,
+  initialReferences,
+  onReferencesChange,
   ref,
   leadingActions,
   autoFocus,
@@ -90,6 +112,10 @@ export function ChatInput({
   // Read by the send path after an await, where `value` would be the state it
   // closed over rather than whatever the user has typed since.
   const valueRef = useRef(value);
+  const [references, setReferences] = useState<MessageReference[]>(initialReferences ?? []);
+  const referencesRef = useRef(references);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const mentionRange = useRef({ start: 0, end: 0 });
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [processingFiles, setProcessingFiles] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -103,7 +129,9 @@ export function ChatInput({
   const supportsThinking = supportedThinkingLevels.some((level) => level !== "off");
   const supportsImages = currentModel.input?.includes("image") !== false;
   const canSend =
-    !isStreaming && !processingFiles && (value.trim().length > 0 || attachments.length > 0);
+    !isStreaming &&
+    !processingFiles &&
+    (value.trim().length > 0 || attachments.length > 0 || references.length > 0);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -118,9 +146,28 @@ export function ChatInput({
     onDraftChange?.(next);
   };
 
+  const updateReferences = (next: MessageReference[]) => {
+    referencesRef.current = next;
+    setReferences(next);
+    onReferencesChange?.(next);
+  };
+
+  const setReferencePickerOpen = (open: boolean) => {
+    setPickerOpen(open);
+    if (!open)
+      window.requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.setSelectionRange(
+          mentionRange.current.start,
+          mentionRange.current.start,
+        );
+      });
+  };
+
   useImperativeHandle(ref, () => ({
-    insertText: (text: string) => {
+    insertText: (text: string, references?: MessageReference[]) => {
       updateValue(text);
+      if (references) updateReferences(references);
       textareaRef.current?.focus();
     },
   }));
@@ -129,19 +176,29 @@ export function ChatInput({
     if (!canSend) return;
     const submittedText = value;
     const submittedAttachments = attachments;
+    const submittedReferences = references;
     const images = submittedAttachments.map(attachmentToImageContent);
     // Cleared optimistically, because the send usually succeeds and a composer
     // that empties only after the round trip feels stuck.
     updateValue("");
     setAttachments([]);
-    void onSend(submittedText, images.length > 0 ? images : undefined).then((outcome) => {
+    updateReferences([]);
+    void onSend(
+      submittedText,
+      images.length > 0 ? images : undefined,
+      submittedReferences.length ? submittedReferences : undefined,
+    ).then((outcome) => {
       // Only an outright rejection proves the message was never taken; an
       // `unknown` outcome may have reached the server, and restoring it would
       // invite the user to send it twice. The error notice reports both.
       if (outcome.status !== "rejected") return;
       // Never restore over something typed in the meantime: the composer
       // belongs to the user, and the error notice still carries the reason.
-      if (valueRef.current.length === 0) updateValue(submittedText);
+      const restoreDraft = valueRef.current.length === 0 && referencesRef.current.length === 0;
+      if (restoreDraft) {
+        updateValue(submittedText);
+        updateReferences(submittedReferences);
+      }
       setAttachments((current) => (current.length === 0 ? submittedAttachments : current));
     });
   };
@@ -242,6 +299,31 @@ export function ChatInput({
           ))}
         </div>
       ) : null}
+      {references.length ? (
+        <div className="flex flex-wrap gap-2 px-3 pt-3" aria-label="Selected references">
+          {references.map((reference) => (
+            <Badge key={referenceKey(reference)} variant="secondary" className="max-w-full gap-1">
+              <AtSignIcon />
+              <span className="truncate" title={referenceLabel(reference)}>
+                {referenceLabel(reference)}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label={`Remove reference ${referenceLabel(reference)}`}
+                onClick={() =>
+                  updateReferences(
+                    references.filter((item) => referenceKey(item) !== referenceKey(reference)),
+                  )
+                }
+              >
+                <XIcon />
+              </Button>
+            </Badge>
+          ))}
+        </div>
+      ) : null}
       <Textarea
         ref={textareaRef}
         value={value}
@@ -254,7 +336,20 @@ export function ChatInput({
           "max-h-60 min-h-16 px-3 pt-3 pb-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0",
           textareaClassName,
         )}
-        onChange={(event) => updateValue(event.target.value)}
+        onChange={(event) => {
+          const next = event.target.value;
+          const cursor = event.target.selectionStart;
+          updateValue(next);
+          if (
+            agentId &&
+            next[cursor - 1] === "@" &&
+            (cursor === 1 || /\s/.test(next[cursor - 2]!)) &&
+            !(event.nativeEvent as InputEvent).isComposing
+          ) {
+            mentionRange.current = { start: cursor - 1, end: cursor };
+            setPickerOpen(true);
+          }
+        }}
         onPaste={(event) => {
           if (!supportsImages) return;
           const files = Array.from(event.clipboardData.files).filter((file) =>
@@ -291,6 +386,23 @@ export function ChatInput({
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 px-2 pt-1 pb-2">
         <div className="col-start-1 row-start-2 flex items-center gap-2 @[28rem]:row-start-1">
           {leadingActions}
+          {agentId ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Mention a reference"
+              title="Mention a file, folder, or conversation"
+              disabled={isStreaming || references.length >= 10}
+              onClick={() => {
+                const cursor = textareaRef.current?.selectionStart ?? value.length;
+                mentionRange.current = { start: cursor, end: cursor };
+                setPickerOpen(true);
+              }}
+            >
+              <AtSignIcon />
+            </Button>
+          ) : null}
           {supportsImages ? (
             <Button
               type="button"
@@ -373,6 +485,27 @@ export function ChatInput({
           )}
         </div>
       </div>
+      {agentId ? (
+        <ReferencePicker
+          agentId={agentId}
+          sessionId={sessionId}
+          canReadFiles={canReadFiles}
+          open={pickerOpen}
+          onOpenChange={setReferencePickerOpen}
+          onSelect={(reference) => {
+            if (!references.some((item) => referenceKey(item) === referenceKey(reference))) {
+              if (references.length >= 10) {
+                toast.error("Maximum 10 references allowed.");
+                return;
+              }
+              updateReferences([...references, reference]);
+            }
+            const { start, end } = mentionRange.current;
+            updateValue(value.slice(0, start) + value.slice(end));
+            setReferencePickerOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import type {
   PromptTemplate,
 } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
+export * from "./references.ts";
 export type {
   BrowserControlState,
   BrowserTab,

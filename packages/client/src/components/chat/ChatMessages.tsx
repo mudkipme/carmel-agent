@@ -12,6 +12,7 @@ import { MessageActions } from "./MessageActions";
 import { MarkdownContent } from "./MarkdownContent";
 import { ToolCallView } from "./ToolCallView";
 import { ZoomableImage } from "./ZoomableImage";
+import { MessageReferences } from "./MessageReferences";
 import {
   buildToolResultsById,
   formatUsage,
@@ -403,6 +404,7 @@ function UserMessage({ message }: { message: AgentMessage }) {
         ) : text ? (
           <MarkdownContent content={text} />
         ) : null}
+        <MessageReferences message={message} />
         {images.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {images.map((image, index) => (

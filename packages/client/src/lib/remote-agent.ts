@@ -193,9 +193,11 @@ export class RemoteAgent {
   async prompt(
     input: string | AgentMessage | AgentMessage[],
     images?: ImageContent[],
+    references?: PromptInput["references"],
   ): Promise<PromptOutcome> {
     if (this.abortController) throw new Error("Agent is already processing.");
     const promptInput = normalizePromptInput(input, images);
+    if (promptInput && references?.length) promptInput.references = references;
     const controller = this.beginRun();
     // Set as soon as a server run exists for this submission, and read by the
     // failure path: after admission the prompt is the server's, whatever the run

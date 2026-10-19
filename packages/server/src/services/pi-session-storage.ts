@@ -1,6 +1,11 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { JsonValue } from "@earendil-works/chord";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import {
+  getMessageReferences,
+  type MessageReference,
+  type ReferenceMessage,
+} from "@carmel-agent/shared";
 import { createModels, type Models, type Message } from "@earendil-works/pi-ai";
 import {
   AgentDoc,
@@ -236,9 +241,42 @@ export function displayId(entry: EntryRecord): string {
 }
 export function displayEntries(entries: readonly EntryRecord[]): DisplayEntry[] {
   return entries.map((entry, index) => {
-    const data = entry.data as { carmelMessage?: AgentMessage; timestamp?: number } | undefined;
+    const data = entry.data as
+      | {
+          carmelMessage?: AgentMessage;
+          timestamp?: number;
+          carmelDisplayText?: string;
+          carmelReferences?: MessageReference[];
+        }
+      | undefined;
+    const native = entry.model?.[0];
+    const referencedMessage =
+      entry.kind === "carmel.referenced-input" &&
+      native?.role === "user" &&
+      data?.carmelReferences &&
+      typeof data.carmelDisplayText === "string"
+        ? ({
+            ...native,
+            content: [
+              { type: "text" as const, text: data.carmelDisplayText },
+              ...(typeof native.content === "string"
+                ? []
+                : native.content.filter((part) => part.type === "image")),
+            ],
+            references: data.carmelReferences,
+            referenceContext:
+              typeof native.content === "string"
+                ? ""
+                : native.content
+                    .filter((part) => part.type === "text")
+                    .slice(1)
+                    .map((part) => part.text)
+                    .join("\n\n"),
+          } as ReferenceMessage)
+        : undefined;
     const message =
       data?.carmelMessage ??
+      referencedMessage ??
       (["pi.user", "pi.assistant", "pi.tool-result", "carmel.system-message"].includes(entry.kind)
         ? entry.model?.[0]
         : undefined);
@@ -257,6 +295,35 @@ export function displayEntries(entries: readonly EntryRecord[]): DisplayEntry[] 
 }
 export function messageDraft(message: AgentMessage): EntryDraft {
   const safe = JSON.parse(JSON.stringify(message)) as AgentMessage;
+  if (safe.role === "user" && getMessageReferences(safe).length) {
+    const { references: _references, referenceContext, ...model } = safe as ReferenceMessage;
+    const content =
+      typeof safe.content === "string"
+        ? [{ type: "text" as const, text: safe.content }]
+        : safe.content;
+    return {
+      kind: "carmel.referenced-input",
+      data: {
+        carmelDisplayText:
+          typeof safe.content === "string"
+            ? safe.content
+            : safe.content
+                .filter((part) => part.type === "text")
+                .map((part) => part.text)
+                .join("\n\n"),
+        carmelReferences: getMessageReferences(safe),
+      } as unknown as JsonValue,
+      model: [
+        {
+          ...model,
+          content: [
+            ...content,
+            ...(referenceContext ? [{ type: "text" as const, text: referenceContext }] : []),
+          ],
+        } as Message,
+      ],
+    };
+  }
   return ["user", "assistant", "toolResult", "system"].includes(safe.role)
     ? {
         kind:

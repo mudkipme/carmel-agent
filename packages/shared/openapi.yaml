@@ -2984,6 +2984,39 @@ components:
                 properties:
                   {
                     text: { type: string },
+                    references:
+                      {
+                        type: array,
+                        maxItems: 10,
+                        items:
+                          {
+                            oneOf:
+                              [
+                                {
+                                  type: object,
+                                  additionalProperties: false,
+                                  required: [kind, path],
+                                  properties:
+                                    {
+                                      kind: { type: string, enum: [file, folder] },
+                                      path: { type: string, minLength: 1, maxLength: 4096 },
+                                    },
+                                },
+                                {
+                                  type: object,
+                                  additionalProperties: false,
+                                  required: [kind, sessionId, agentId, label],
+                                  properties:
+                                    {
+                                      kind: { type: string, enum: [session] },
+                                      sessionId: { type: string, minLength: 1, maxLength: 256 },
+                                      agentId: { type: string, minLength: 1, maxLength: 256 },
+                                      label: { type: string, minLength: 1, maxLength: 500 },
+                                    },
+                                },
+                              ],
+                          },
+                      },
                     images:
                       {
                         type: array,

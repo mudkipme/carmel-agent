@@ -12,6 +12,14 @@ Saved message and image-link IDs remain addressable through a session-scoped Dur
 
 Forks and edits use append-only conversation branches. A non-truncating edit creates fresh IDs for the rewritten suffix and retains the original branch. Cross-session forks use a consistent SQLite snapshot, including WAL contents, and require all Durable work to be idle so executable checkpoints cannot be copied into another session.
 
+## Message references
+
+Type `@` in the composer or use its mention button to choose workspace files, folders, or another conversation. Folder entries open for browsing; “Mention folder” selects the current folder. References appear as removable chips before sending and clickable links on saved messages. Up to ten references can accompany a message, including one with no text.
+
+The server validates file paths against the agent's readable workspace and conversation references against the sender's ownership. Files and folders pass their paths to the agent's filesystem tools. Conversation references read a recent page from the selected native Durable branch, excluding thinking, tools, and nested reference context. Excerpts have a 6,000-character limit per conversation and a 24,000-character combined limit; they do not copy a complete session or subscribe to future changes.
+
+Durable's input `entry` stores a `carmel.referenced-input` with display text and structured reference metadata separately from model-facing source context. Reloads, edits, and forks preserve that snapshot. Retrying a referenced message resolves its selected sources again, checking current access and reading current history. No new metadata database or cross-session execution is involved.
+
 ## Recovery and observation
 
 Pi owns generation checkpoints, tool intent, results, retry policy, compaction, steering submissions, and live progress. Reconnect reads capture history and committed progress on the same native transaction line. The wire adapter handles batched deltas, final unflushed content, and snapshot replacement when a slow observer exhausts the native event backlog. Snapshot recovery scans only missing entry IDs and restores live tool starts and native nested-tool slots without duplicating starts across successive snapshots.

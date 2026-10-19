@@ -1,6 +1,11 @@
 import type { ImageContent } from "@earendil-works/pi-ai";
+import type { MessageReference } from "@carmel-agent/shared";
 
-export type PendingPrompt = { text: string; images?: ImageContent[] };
+export type PendingPrompt = {
+  text: string;
+  images?: ImageContent[];
+  references?: MessageReference[];
+};
 
 /* The new-session composer creates the session on submit, then hands the first
    message to the session's chat, which sends it once it is connected. Held in
