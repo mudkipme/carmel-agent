@@ -53,7 +53,9 @@ type ProviderMode =
   | "schedule"
   | "schedule-codemode"
   | "notify"
-  | "notify-codemode";
+  | "notify-codemode"
+  | "knowledge"
+  | "knowledge-codemode";
 const provider = await startFakeProvider();
 after(() => provider.close());
 
@@ -330,49 +332,86 @@ test("the model sees runner paths for its cwd, project instructions, and workspa
   }
 });
 
-test("ordinary and Codemode runs send memory guidance and the source catalog to the model", async () => {
-  for (const codemodeEnabled of [false, true]) {
+test("ordinary and Codemode runs send current knowledge context and load the guide on demand", async () => {
+  for (const [codemodeEnabled, shared] of [
+    [false, false],
+    [false, true],
+    [true, false],
+    [true, true],
+  ]) {
     const firstRequest = provider.systemPrompts.length;
-    const run = await startRun("reply", (sessionId) => {
-      const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
-      db.update(agents).set({ codemodeEnabled }).where(eq(agents.id, session.agentId)).run();
-      db.insert(knowledgeConfigs)
-        .values({
-          agentId: session.agentId,
-          settings: { enabled: true, acceleration: "cpu" },
-          status: {
-            state: "idle",
-            lastUpdatedAt: null,
-            documents: 0,
-            needsEmbedding: 0,
-            error: null,
-            backend: null,
-            devices: [],
-          },
-        })
-        .run();
-      db.insert(knowledgeSources)
-        .values({
-          id: id("source"),
-          agentId: session.agentId,
-          name: "Family vault",
-          path: "/unavailable-vault",
-          description: "Household budgets",
-          createdAt: now(),
-        })
-        .run();
-    });
+    const firstPayload = provider.requests.length;
+    const run = await startRun(
+      codemodeEnabled ? "knowledge-codemode" : "knowledge",
+      (sessionId) => {
+        const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
+        db.update(agents)
+          .set({ codemodeEnabled, shared })
+          .where(eq(agents.id, session.agentId))
+          .run();
+        db.insert(knowledgeConfigs)
+          .values({
+            agentId: session.agentId,
+            settings: { enabled: true, acceleration: "cpu" },
+            status: {
+              state: "idle",
+              lastUpdatedAt: null,
+              documents: 0,
+              needsEmbedding: 0,
+              error: null,
+              backend: null,
+              devices: [],
+            },
+          })
+          .run();
+        db.insert(knowledgeSources)
+          .values({
+            id: id("source"),
+            agentId: session.agentId,
+            name: "Family vault",
+            path: "/unavailable-vault",
+            description: "Household budgets",
+            createdAt: now(),
+          })
+          .run();
+      },
+    );
     assert.equal((await finished(run)).outcome, "succeeded");
     const prompt = provider.systemPrompts
       .slice(firstRequest)
       .find((text) => text.includes("Current working directory:"))!;
     assert.ok(prompt);
-    assert.match(prompt, /## Knowledge and shared memory/);
+    assert.match(prompt, /## Knowledge and memory/);
     assert.match(prompt, /Family vault/);
     assert.match(prompt, /Household budgets/);
     assert.match(prompt, /use knowledge_search/);
-    assert.match(prompt, /Use knowledge_read/);
-    assert.match(prompt, /shared across all of its users/);
+    assert.match(prompt, /load_builtin_skill with name="knowledge-search"/);
+    assert.match(prompt, /Memory is read-only/);
+    const { loadBuiltinSkills } = await import("./builtin-skills.ts");
+    const session = db.select().from(sessions).where(eq(sessions.id, run.sessionId)).get()!;
+    const skill = (
+      await loadBuiltinSkills(db.select().from(agents).where(eq(agents.id, session.agentId)).get()!)
+    ).find((skill) => skill.name === "knowledge-search")!;
+    assert.ok(skill);
+    assert.ok(!prompt.includes(skill.content), "the workflow must not be injected at startup");
+    assert.ok(
+      provider.requests
+        .slice(firstPayload)
+        .some((payload) =>
+          payload.messages.some(
+            (message) =>
+              message.role === "tool" && message.content.includes("Find and verify evidence"),
+          ),
+        ),
+      "the guide must reach the model through a tool result, including nested Codemode calls",
+    );
+    if (shared) {
+      assert.match(prompt, /shared across all of its users/);
+      assert.doesNotMatch(prompt, /private agent and are available only to its owner/);
+    } else {
+      assert.match(prompt, /private agent and are available only to its owner/);
+      assert.doesNotMatch(prompt, /shared across all of its users/);
+    }
     assert.ok(!prompt.includes("/unavailable-vault"));
     assert.ok(
       !prompt.includes("Use memory_save"),
@@ -626,7 +665,25 @@ function respond(
     });
     return;
   }
-  if ((mode === "notify" || mode === "notify-codemode") && !hasToolResult) {
+  if ((mode === "knowledge" || mode === "knowledge-codemode") && !hasToolResult) {
+    const args = { name: "knowledge-search" };
+    const call =
+      mode === "knowledge"
+        ? { name: "load_builtin_skill", arguments: JSON.stringify(args) }
+        : {
+            name: "codemode",
+            arguments: JSON.stringify({
+              code: `text(await tools.load_builtin_skill(${JSON.stringify(args)}));`,
+            }),
+          };
+    response.write(
+      chunk({
+        role: "assistant",
+        tool_calls: [{ index: 0, id: "call_knowledge", type: "function", function: call }],
+      }),
+    );
+    response.write(chunk({}, "tool_calls"));
+  } else if ((mode === "notify" || mode === "notify-codemode") && !hasToolResult) {
     const args = { text: "Your build failed.", platform: "telegram" };
     const call =
       mode === "notify"

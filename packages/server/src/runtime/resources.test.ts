@@ -9,8 +9,12 @@ import type { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { loadAgentResources } from "./resources.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
+import { initialize } from "../db/index.ts";
+import { createSession } from "../test-support.ts";
+import { saveKnowledgeSettings } from "../services/knowledge.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
+initialize();
 
 test("filesystem resources load through AgentExecutionEnv with Pi-native parsing", async () => {
   const workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-resources-"));
@@ -191,9 +195,9 @@ test("the browser skill is discoverable with both bash and network, even without
   }
 });
 
-test("the built-in browser workflow wins a workspace name collision without hiding other skills", async () => {
+test("built-in workflows win workspace name collisions without hiding other skills", async () => {
   const workingDir = mkdtempSync(join(tmpdir(), "carmel-browser-skill-"));
-  for (const name of ["agent-browser", "review"]) {
+  for (const name of ["agent-browser", "knowledge-search", "review"]) {
     const directory = join(workingDir, ".agents", "skills", name);
     mkdirSync(directory, { recursive: true });
     writeFileSync(
@@ -202,6 +206,9 @@ test("the built-in browser workflow wins a workspace name collision without hidi
     );
   }
   const agent = makeAgent(workingDir);
+  const session = createSession();
+  agent.id = session.agentId;
+  await saveKnowledgeSettings(session.userId, agent.id, { enabled: true, acceleration: "cpu" });
   agent.permissions.bash = true;
   agent.permissions.network = true;
   const env = new AgentExecutionEnv(agent);
@@ -209,10 +216,14 @@ test("the built-in browser workflow wins a workspace name collision without hidi
     const { skills } = await loadAgentResources(agent, env);
     assert.deepEqual(
       skills.map((skill) => skill.name),
-      ["agent-browser", "review"],
+      ["agent-browser", "knowledge-search", "review"],
     );
     assert.ok(isBuiltinSkill(skills[0]!));
-    assert.equal(skills[1]!.content, "Workspace instructions.");
+    assert.ok(isBuiltinSkill(skills[1]!));
+    assert.equal(skills[2]!.content, "Workspace instructions.");
+    const catalog = formatBuiltinSkillsForSystemPrompt(skills);
+    assert.ok(catalog.includes(skills[1]!.description));
+    assert.ok(!catalog.includes(skills[1]!.content), "the knowledge guide loads on demand");
   } finally {
     await env.cleanup(TEST_CONTEXT);
     rmSync(workingDir, { recursive: true, force: true });

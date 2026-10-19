@@ -88,6 +88,7 @@ export function knowledgePromptContext(userId: string, agentId: string) {
   const agent = readVisibleAgent(userId, agentId);
   if (!agent?.permissions.read || !knowledgeEnabled(agentId)) return undefined;
   return {
+    shared: agent.shared,
     permissions: agent.permissions,
     sources: db
       .select({

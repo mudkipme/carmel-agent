@@ -8,11 +8,13 @@ import { getOrThrow, withAbortSignal } from "../effectors/pi-durable/index.ts";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import { createGrepOperations } from "./search-operations.ts";
 import { createServerExecution, createServerToolDefinitions, remapContainerPath } from "./tools.ts";
-import { builtinSkillTool, loadBuiltinSkills } from "./builtin-skills.ts";
+import { loadBuiltinSkills } from "./builtin-skills.ts";
 import { formatSkillInvocation } from "../effectors/pi-durable/index.ts";
 import type { agents } from "../db/schema.ts";
+import { initialize } from "../db/index.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
+initialize();
 
 test("Durable reads images through the guarded environment", async () => {
   const workingDir = mkdtempSync(join(tmpdir(), "carmel-image-read-"));
@@ -347,7 +349,8 @@ test("the built-in skill loader is permission gated and returns the registered s
           codemodeEnabled,
           permissions: { ...allPermissions(false), bash, network },
         });
-        const execution = createServerExecution(agent);
+        // Browser guides also serve authorized admin tasks on another user's private agent.
+        const execution = createServerExecution(agent, undefined, "task_user");
         try {
           const tools = execution.resolveTools();
           const loader = tools.find((tool) => tool.name === "load_builtin_skill");
@@ -384,7 +387,7 @@ test("the built-in skill loader is permission gated and returns the registered s
           await assert.rejects(
             () =>
               executeTool(
-                builtinSkillTool(agent),
+                loader,
                 "load_revoked",
                 { name: "agent-browser" },
                 new AbortController().signal,

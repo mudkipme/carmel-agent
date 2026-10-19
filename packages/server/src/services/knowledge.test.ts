@@ -135,6 +135,11 @@ test("knowledge prompts refresh shared metadata and honor visibility, tools, and
   const names = ["knowledge_search", "knowledge_read", "memory_save", "memory_forget"];
   const prompt = () => buildKnowledgeInstructions(bob, a.agentId, names);
   assert.match(prompt(), /No document directories are registered/);
+  assert.match(prompt(), /shared across all of its users/);
+  assert.match(prompt(), /load_builtin_skill with name="knowledge-search"/);
+  for (const tool of createKnowledgeTools(bob, a.agentId)) {
+    assert.match(tool.description!, /shared with all of its users/);
+  }
   const source = await knowledge.addKnowledgeSource(a.userId, a.agentId, {
     name: "Obsidian vault",
     path: a.workspace,
@@ -150,9 +155,9 @@ test("knowledge prompts refresh shared metadata and honor visibility, tools, and
   assert.match(prompt(), /Family budgets and plans/);
   assert.ok(!prompt().includes(a.workspace));
   assert.ok(!prompt().includes(memory.content));
-  assert.match(prompt(), /You may create new saved memories/);
-  assert.match(prompt(), /Before updating/);
-  assert.match(prompt(), /Use memory_forget/);
+  assert.match(prompt(), /create with memory_save/);
+  assert.match(prompt(), /update with memory_save/);
+  assert.match(prompt(), /forget with memory_forget/);
   assert.equal(buildKnowledgeInstructions(bob, a.agentId, ["codemode"]), "");
 
   for (const [write, edit] of [
@@ -165,15 +170,22 @@ test("knowledge prompts refresh shared metadata and honor visibility, tools, and
       .where(eq(agents.id, a.agentId))
       .run();
     const text = prompt();
-    assert.equal(text.includes("Use memory_save"), write || edit);
-    assert.equal(text.includes("You may create new saved memories"), write);
-    assert.equal(text.includes("Before updating"), edit);
-    assert.equal(text.includes("Use memory_forget"), edit);
+    assert.equal(text.includes("create with memory_save"), write);
+    assert.equal(text.includes("update with memory_save"), edit);
+    assert.equal(text.includes("forget with memory_forget"), edit);
+    assert.equal(text.includes("Memory is read-only"), !write && !edit);
   }
   await knowledge.deleteKnowledgeSource(a.userId, a.agentId, source.id);
   assert.ok(!prompt().includes("Obsidian vault"));
   db.update(agents).set({ shared: false }).where(eq(agents.id, a.agentId)).run();
   assert.equal(prompt(), "");
+  const privatePrompt = buildKnowledgeInstructions(a.userId, a.agentId, names);
+  assert.match(privatePrompt, /private agent and are available only to its owner/);
+  assert.doesNotMatch(privatePrompt, /shared|every user|all of its users/);
+  for (const tool of createKnowledgeTools(a.userId, a.agentId)) {
+    assert.match(tool.description!, /private agent and are available only to its owner/);
+    assert.doesNotMatch(tool.description!, /shared|every user|all of its users/);
+  }
   db.update(agents)
     .set({ permissions: { read: false, write: true, edit: true, bash: false, network: false } })
     .where(eq(agents.id, a.agentId))
@@ -188,6 +200,80 @@ test("knowledge prompts refresh shared metadata and honor visibility, tools, and
     acceleration: "cpu",
   });
   assert.equal(buildKnowledgeInstructions(a.userId, a.agentId, names), "");
+});
+
+test("the knowledge skill loads without bash or network and rechecks settings, read permission, and visibility", async () => {
+  const { createServerExecution } = await import("../runtime/tools.ts");
+  const { loadAgentResources } = await import("../runtime/resources.ts");
+  const { executeNativeTool } = await import("../effectors/testing/tools.ts");
+  const { BACKGROUND_CONTEXT, formatSkillInvocation } =
+    await import("../effectors/pi-durable/index.ts");
+  const a = await fixture(),
+    bob = createUser();
+  const currentAgent = () => db.select().from(agents).where(eq(agents.id, a.agentId)).get()!;
+  const original = createServerExecution(currentAgent(), undefined, bob);
+  const loader = original.resolveTools().find((tool) => tool.name === "load_builtin_skill")!;
+  assert.ok(loader);
+  try {
+    for (const [enabled, read] of [
+      [true, true],
+      [false, true],
+      [true, false],
+      [true, true],
+    ]) {
+      db.update(knowledgeConfigs)
+        .set({ settings: { enabled, acceleration: "cpu" } })
+        .where(eq(knowledgeConfigs.agentId, a.agentId))
+        .run();
+      db.update(agents)
+        .set({ permissions: { read, write: false, edit: false, bash: false, network: false } })
+        .where(eq(agents.id, a.agentId))
+        .run();
+      const execution = createServerExecution(currentAgent(), undefined, bob);
+      try {
+        const { skills } = await loadAgentResources(currentAgent(), execution.env);
+        const active = execution.resolveTools().find((tool) => tool.name === "load_builtin_skill");
+        assert.equal(Boolean(active), enabled && read);
+        assert.deepEqual(
+          skills.map((skill) => skill.name),
+          enabled && read ? ["knowledge-search"] : [],
+        );
+        if (active) {
+          assert.deepEqual(active.parameters, {
+            type: "object",
+            properties: { name: { type: "string", enum: ["knowledge-search"] } },
+            required: ["name"],
+            additionalProperties: false,
+          });
+          const result = await executeNativeTool(
+            active,
+            { name: "knowledge-search" },
+            execution.env,
+          );
+          assert.deepEqual(result.output, [
+            { type: "text", text: formatSkillInvocation(skills[0]!) },
+          ]);
+          for (const name of ["agent-browser", "../../etc/passwd"]) {
+            assert.equal((await executeNativeTool(active, { name }, execution.env)).isError, true);
+          }
+        } else {
+          await assert.rejects(
+            executeNativeTool(loader, { name: "knowledge-search" }, execution.env),
+            /unavailable/,
+          );
+        }
+      } finally {
+        await execution.cleanup(BACKGROUND_CONTEXT);
+      }
+    }
+    db.update(agents).set({ shared: false }).where(eq(agents.id, a.agentId)).run();
+    await assert.rejects(
+      executeNativeTool(loader, { name: "knowledge-search" }, original.env),
+      /unavailable/,
+    );
+  } finally {
+    await original.cleanup(BACKGROUND_CONTEXT);
+  }
 });
 
 test("source catalogs are bounded and keep source-controlled text inside JSON records", async () => {

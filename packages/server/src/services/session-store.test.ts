@@ -149,7 +149,7 @@ test("retrying a stored user entry does not persist an empty message", async () 
 });
 
 test("native harness commands expand file prompts and skills", async () => {
-  const { sessionId } = createSession();
+  const { sessionId, agentId } = createSession();
   const faux = fauxProvider({ provider: `faux-commands-${crypto.randomUUID()}` });
   const models = createModels();
   models.setProvider(faux.provider);
@@ -159,6 +159,7 @@ test("native harness commands expand file prompts and skills", async () => {
     fauxAssistantMessage("third"),
   ]);
   const builtins = await loadBuiltinSkills({
+    id: agentId,
     permissions: { read: false, write: false, edit: false, bash: true, network: true },
   });
   const pi = await attachTestHarness(await openPiSession(sessionId), {

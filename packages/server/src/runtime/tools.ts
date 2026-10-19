@@ -6,7 +6,7 @@ import { AgentMcpTools } from "./mcp-tools.ts";
 import { createCarmelCodemode, type CodemodeHooks } from "./codemode-tool.ts";
 import { browserHelpTool, guardBrowserHandoff } from "./browser-tools.ts";
 import { browserControl } from "./browser-control.ts";
-import { builtinSkillTool, hasBrowserSkill } from "./builtin-skills.ts";
+import { availableBuiltinSkillNames, builtinSkillTool } from "./builtin-skills.ts";
 import { createKnowledgeTools } from "./knowledge/tools.ts";
 import {
   collectAgentTools,
@@ -45,7 +45,7 @@ export function createServerExecution(
         ...tools.filter((tool) => !overrides.has(tool.name)),
         ...sessionTools,
       ].filter((tool) => tool.name !== "codemode" && tool.name !== "load_builtin_skill");
-      if (hasBrowserSkill(agent)) available.push(builtinSkillTool(agent));
+      if (availableBuiltinSkillNames(agent).length) available.push(builtinSkillTool(agent, userId));
       const composed = codemode ? [...available, ...codemode.tools!] : available;
       // Gate the entire codemode batch so its deadline starts after human control ends.
       return agent.permissions.bash
