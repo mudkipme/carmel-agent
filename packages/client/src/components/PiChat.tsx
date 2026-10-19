@@ -5,6 +5,8 @@ import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import type { ChatInputHandle } from "@/components/chat/ChatInput";
 import { ChatErrorNotice } from "@/components/chat/ChatErrorNotice";
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { UserRequestCards } from "@/components/chat/UserRequestCards";
+import { useHarnessStore } from "@/store/harness-store";
 import { ContextPressureNotice } from "@/components/chat/ContextPressureNotice";
 import { WorkspaceFileLinkAgentContext } from "@/components/chat/workspace-file-links";
 import { MessageEditDialog } from "@/components/chat/MessageEditDialog";
@@ -43,6 +45,7 @@ export function PiChat({
   onStreamingChange,
 }: PiChatProps) {
   const chatInputRef = useRef<ChatInputHandle | null>(null);
+  const activeUserId = useHarnessStore((state) => state.activeUserId);
   const hasStreamedRef = useRef(false);
   const inputDraftRef = useRef("");
   const referencesDraftRef = useRef<MessageReference[]>([]);
@@ -142,6 +145,21 @@ export function PiChat({
                 referencesDraftRef.current = references;
               }}
               readOnly={Boolean(session.issueId)}
+              waitingForAnswer={snapshot.userRequests.some(
+                (request) => request.status === "pending" || request.delivery === "pending",
+              )}
+              requestCards={
+                !session.issueId ? (
+                  <UserRequestCards
+                    requests={snapshot.userRequests}
+                    disabled={snapshot.isStreaming}
+                    canManageAgentSecrets={activeUserId === agentConfig.ownerUserId}
+                    sharedAgent={Boolean(agentConfig.shared)}
+                    onChanged={() => agent.refreshConnection()}
+                    onContinue={() => agent.resume()}
+                  />
+                ) : undefined
+              }
               scrollResetKey={session.id}
               messages={snapshot.messages}
               streamingMessage={snapshot.streamingMessage}

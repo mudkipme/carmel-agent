@@ -48,7 +48,10 @@ export class AgentExecutionEnv implements ExecutionEnv {
   private readonly reverseMappings: PathMapping[];
   private readonly hostPathPattern: RegExp;
 
-  constructor(readonly agent: AgentRecord) {
+  constructor(
+    readonly agent: AgentRecord,
+    readonly sessionId?: string,
+  ) {
     this.id = `carmel:${agent.id}`;
     this.hostCwd = resolve(resolveAgentWorkingDirPath(agent));
     this.cwd = resolveContainerWorkspace(agent);
@@ -506,6 +509,7 @@ export class AgentExecutionEnv implements ExecutionEnv {
         signal: context.abortSignal,
         timeout: options?.timeout,
         env: options?.env,
+        sessionId: this.sessionId,
       });
       return ok({
         exitCode: result.exitCode ?? 1,

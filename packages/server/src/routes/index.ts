@@ -14,6 +14,7 @@ import { createSessionRoutes } from "./sessions.ts";
 import { createSystemRoutes } from "./system.ts";
 import { createUserRoutes } from "./users.ts";
 import { createImIntegrationRoutes } from "./im-integrations.ts";
+import { createUserRequestRoutes } from "./user-requests.ts";
 
 export function createApiRoutes() {
   const api = new Hono<{ Variables: AuthVariables }>();
@@ -26,6 +27,7 @@ export function createApiRoutes() {
   api.route("/", createProviderConfigRoutes());
   api.route("/", createAgentRoutes());
   api.route("/", createAgentSecretRoutes());
+  api.route("/", createUserRequestRoutes());
   api.route("/", createImIntegrationRoutes());
   api.route("/", createKnowledgeRoutes());
   api.route("/", createAgentTaskRoutes());

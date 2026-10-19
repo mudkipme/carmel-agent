@@ -263,6 +263,8 @@ Read-only mounts are available to read/search/list tools and to sandbox bash as 
 
 ## Agent Secrets
 
+Agents can also request session-scoped credentials through a private chat form and promote them for future sessions. See [Questions and session credentials](user-requests.md) for the request lifecycle, encryption requirements, scope controls, and shell trust boundary.
+
 An agent can carry named secrets, which are exported as environment variables
 into its sandbox container — a `GITHUB_TOKEN` for `gh`, a registry password for
 `npm`, a database URL for `psql`.
@@ -310,9 +312,9 @@ echoes its own headers from writing a live credential into a transcript that is
 stored on disk and replayed into model context on every later turn.
 
 It is a guard against accidents, not a containment boundary. An agent that has a
-secret can always encode it, and redaction only covers the sandbox streams —
-output the agent writes to a file and a _host-side_ file tool then reads back is
-not scanned. Values shorter than four characters are left alone, since matching
+secret can always encode it. Session execution also redacts known values from
+tool results, details, diagnostics and errors, including text read back from
+files. Values shorter than four characters are left alone, since matching
 them would shred unrelated output.
 
 ## GPU Passthrough

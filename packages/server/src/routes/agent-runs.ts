@@ -28,6 +28,7 @@ import { errorMessage } from "../errors.ts";
 import { withPiSession } from "../services/pi-session-storage.ts";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { resolvePromptReferences, type ResolvedReferences } from "../services/prompt-references.ts";
+import { blockingUserRequest } from "../services/user-requests.ts";
 
 export function createAgentRunRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -125,6 +126,12 @@ export function createAgentRunRoutes() {
     if (session.issueId) return c.json({ error: "Start a new attempt from the issue." }, 409);
     const activeRun = getActiveAgentRunForSession(currentUserId, session.id);
     if (activeRun) return alreadyRunning(c, activeRun);
+    const waiting = blockingUserRequest(session.id);
+    if (waiting && (waiting.status === "pending" || body.promptInput))
+      return c.json(
+        { error: "Respond to the pending request before sending another message." },
+        409,
+      );
 
     // The thinking level is clamped to the model: the run commits it back onto
     // the session, so an unsupported one would otherwise stick.
@@ -167,6 +174,12 @@ export function createAgentRunRoutes() {
     }
     const currentActiveRun = getActiveAgentRunForSession(currentUserId, currentSession.id);
     if (currentActiveRun) return alreadyRunning(c, currentActiveRun);
+    const currentWaiting = blockingUserRequest(currentSession.id);
+    if (currentWaiting && (currentWaiting.status === "pending" || body.promptInput))
+      return c.json(
+        { error: "Respond to the pending request before sending another message." },
+        409,
+      );
     if (currentSession.revision !== session.revision) {
       return c.json(
         { error: "Session changed while preparing the agent run. Retry the request." },

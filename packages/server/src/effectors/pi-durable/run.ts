@@ -192,12 +192,14 @@ export class PiRun {
     images: ImageContent[] | undefined,
     context: Context,
     resolved?: ResolvedReferences,
+    delivery?: { requestId: string; onSubmitted: () => void },
   ) {
     await this.resume(context);
     const delivered = this.nextRunEnd();
     const submission = await this.session.conversation.submit(
       {
         type: "input",
+        ...(delivery ? { requestId: delivery.requestId } : {}),
         content:
           resolved?.context || images?.length
             ? [
@@ -221,8 +223,11 @@ export class PiRun {
       },
       context,
     );
+    // Same requestId repairs a crash between native admission and the host receipt.
+    const admitted = delivery ? await submission.status(context) : undefined;
+    delivery?.onSubmitted();
     const settled = await submission.wait(context);
-    await delivered;
+    if (!admitted || admitted.status === "queued" || admitted.status === "placed") await delivered;
     if (settled.status === "unanswered" && !["aborted", "model_error"].includes(settled.reason))
       throw new Error(
         `Pi Durable could not answer the input: ${settled.reason}${settled.detail ? ` (${JSON.stringify(settled.detail)})` : ""}`,

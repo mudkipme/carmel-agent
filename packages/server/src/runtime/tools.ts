@@ -8,6 +8,7 @@ import { browserHelpTool, guardBrowserHandoff } from "./browser-tools.ts";
 import { browserControl } from "./browser-control.ts";
 import { availableBuiltinSkillNames, builtinSkillTool } from "./builtin-skills.ts";
 import { createKnowledgeTools } from "./knowledge/tools.ts";
+import { guardUserRequests } from "./user-request-tools.ts";
 import {
   collectAgentTools,
   type ToolProvider,
@@ -21,12 +22,13 @@ export function createServerExecution(
   agent: AgentRecord,
   codemodeHooks?: CodemodeHooks,
   userId?: string,
+  sessionId?: string,
 ) {
   const browserRevision = {
     revision: agent.permissions.bash ? browserControl(agent.id).state.revision : 0,
   };
-  const env = new AgentExecutionEnv(agent);
-  const mcp = new AgentMcpTools(agent, env.hostCwd);
+  const env = new AgentExecutionEnv(agent, sessionId);
+  const mcp = new AgentMcpTools(agent, env.hostCwd, sessionId);
   const tools = createServerToolDefinitions(agent, env);
   const codemode = agent.codemodeEnabled ? createCarmelCodemode(codemodeHooks) : undefined;
   if (userId) tools.push(...createKnowledgeTools(userId, agent.id));
@@ -48,12 +50,15 @@ export function createServerExecution(
       if (availableBuiltinSkillNames(agent).length) available.push(builtinSkillTool(agent, userId));
       const composed = codemode ? [...available, ...codemode.tools!] : available;
       // Gate the entire codemode batch so its deadline starts after human control ends.
-      return agent.permissions.bash
+      const resolved = agent.permissions.bash
         ? [
             ...composed.map((tool) => guardBrowserHandoff(agent.id, tool, browserRevision)),
-            browserHelpTool(agent),
+            browserHelpTool(agent, sessionId),
           ]
         : composed;
+      return sessionId
+        ? resolved.map((tool) => guardUserRequests(tool, sessionId, agent.id))
+        : resolved;
     },
     async cleanup(context: Context) {
       try {

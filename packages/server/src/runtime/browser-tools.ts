@@ -38,7 +38,7 @@ export function guardBrowserHandoff(
 }
 
 /** Deliberately outside codemode: a human wait must not inherit its 60-second VM deadline. */
-export function browserHelpTool(agent: typeof agents.$inferSelect): Tool {
+export function browserHelpTool(agent: typeof agents.$inferSelect, sessionId?: string): Tool {
   return {
     name: "request_browser_help",
     callers: ["model"],
@@ -77,6 +77,7 @@ export function browserHelpTool(agent: typeof agents.$inferSelect): Tool {
           {
             signal: context.abortSignal,
             timeout: 25,
+            sessionId,
             onStdout: (chunk) => {
               snapshot = (snapshot + chunk).slice(0, 40000);
             },

@@ -4,12 +4,34 @@ import type BetterSqlite3 from "better-sqlite3";
 export function initializeSchema(sqlite: BetterSqlite3.Database) {
   sqlite.transaction(() => {
     sqlite.exec(CURRENT_SCHEMA);
+    const secretColumns = sqlite.pragma("table_info(agent_secrets)") as Array<{ name: string }>;
+    if (!secretColumns.some((column) => column.name === "id")) {
+      sqlite.exec(`
+        ALTER TABLE agent_secrets RENAME TO legacy_agent_secrets;
+        ${SECRET_SCHEMA}
+        INSERT INTO agent_secrets (id, agent_id, name, value, created_at, updated_at)
+          SELECT lower(hex(randomblob(16))), agent_id, name, value, created_at, updated_at FROM legacy_agent_secrets;
+        DROP TABLE legacy_agent_secrets;
+      `);
+    }
+    sqlite.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS agent_secrets_agent_name ON agent_secrets(agent_id, name) WHERE session_id IS NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS agent_secrets_session_name ON agent_secrets(session_id, name) WHERE session_id IS NOT NULL;
+    `);
     const columns = sqlite.pragma("table_info(agent_tasks)") as Array<{ name: string }>;
     if (!columns.some((column) => column.name === "notify_platform"))
       sqlite.exec("ALTER TABLE agent_tasks ADD COLUMN notify_platform TEXT");
     sqlite.exec(IM_SCHEMA);
   })();
 }
+
+const SECRET_SCHEMA = `CREATE TABLE IF NOT EXISTS agent_secrets (
+  id TEXT PRIMARY KEY NOT NULL,
+  agent_id TEXT NOT NULL REFERENCES agents(id),
+  session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, value TEXT NOT NULL,
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);`;
 
 const IM_SCHEMA = `
  CREATE TABLE IF NOT EXISTS im_integrations (
@@ -181,14 +203,7 @@ const CURRENT_SCHEMA = `
     codemode_enabled INTEGER NOT NULL DEFAULT 0
   );
 
-  CREATE TABLE IF NOT EXISTS agent_secrets (
-    agent_id TEXT NOT NULL REFERENCES agents(id),
-    name TEXT NOT NULL,
-    value TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    PRIMARY KEY (agent_id, name)
-  );
+  ${SECRET_SCHEMA}
 
   CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY NOT NULL,
@@ -226,6 +241,16 @@ const CURRENT_SCHEMA = `
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS user_requests (
+    id TEXT PRIMARY KEY NOT NULL,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    conversation_id TEXT NOT NULL, call_id TEXT NOT NULL, kind TEXT NOT NULL,
+    input TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', answer TEXT,
+    secret_id TEXT, delivery TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS user_requests_call ON user_requests(session_id, conversation_id, call_id);
+  CREATE INDEX IF NOT EXISTS user_requests_session ON user_requests(session_id, created_at);
 
   CREATE TABLE IF NOT EXISTS agent_task_runs (
     id TEXT PRIMARY KEY NOT NULL,

@@ -148,6 +148,17 @@ test("representative response fixtures satisfy every response component", async 
   };
   const note = { id: "n1", issueId: "i1", kind: "note", body: "Context", createdAt: 1 };
   const fixtures: Record<string, unknown> = {
+    SessionSecret: { id: "secret1", name: "GITHUB_TOKEN", scope: "session", updatedAt: 1 },
+    UserRequest: {
+      id: "request1",
+      sessionId: session.id,
+      kind: "question",
+      status: "pending",
+      delivery: null,
+      createdAt: 1,
+      expiresAt: 2,
+      question: { question: "Which branch?", options: [], multiple: false, allowFreeText: true },
+    },
     IssueDetail: { ...issue, attempts: [attempt], notes: [note] },
     IssueAttempt: attempt,
     IssueNote: note,

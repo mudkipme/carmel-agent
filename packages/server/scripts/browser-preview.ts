@@ -348,6 +348,72 @@ await replacePiSessionMessages(chatSessionId, [
   ),
 ]);
 const app = createApp();
+const { withPiSession } = await import("../src/services/pi-session-storage.ts");
+const { createUserRequest } = await import("../src/services/user-requests.ts");
+const { questionInputSchema, secretRequestInputSchema } = await import("@carmel-agent/shared");
+const questionSessionId = "browser-question-session";
+const multipleQuestionSessionId = "browser-multiple-question-session";
+const secretSessionId = "browser-secret-session";
+const declineSessionId = "browser-decline-session";
+for (const [sessionId, title] of [
+  [questionSessionId, "Choose a branch"],
+  [multipleQuestionSessionId, "Choose environments"],
+  [secretSessionId, "Connect GitHub"],
+  [declineSessionId, "Optional question"],
+]) {
+  db.insert(sessions)
+    .values({
+      id: sessionId!,
+      title: title!,
+      userId: fixture.userId,
+      agentId: fixture.agentId,
+      modelRefId: fixture.modelRefId,
+      thinkingLevel: "off",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .run();
+  await withPiSession(sessionId!, async (pi) => {
+    const context = {
+      sessionId: sessionId!,
+      conversationId: String(pi.conversation.id),
+      callId: "fixture-request",
+    };
+    if (sessionId === secretSessionId)
+      createUserRequest(
+        context,
+        "secret",
+        secretRequestInputSchema.parse({
+          name: "GITHUB_TOKEN",
+          reason: "Authenticate GitHub to create a pull request.",
+        }),
+      );
+    else
+      createUserRequest(
+        context,
+        "question",
+        questionInputSchema.parse(
+          sessionId === multipleQuestionSessionId
+            ? {
+                question: "Which environments should be deployed?",
+                options: [
+                  { id: "dev", label: "Development" },
+                  { id: "staging", label: "Staging" },
+                ],
+                multiple: true,
+                allowFreeText: false,
+              }
+            : {
+                question: "Which branch should I use?",
+                options: [
+                  { id: "main", label: "Main" },
+                  { id: "develop", label: "Develop" },
+                ],
+              },
+        ),
+      );
+  });
+}
 let delayFirstChatConnection = true;
 const server = serve(
   {
@@ -379,6 +445,10 @@ const server = serve(
         taskSessionId,
         taskName,
         chatSessionId,
+        questionSessionId,
+        multipleQuestionSessionId,
+        secretSessionId,
+        declineSessionId,
       }),
     );
   },

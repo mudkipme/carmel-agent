@@ -43,7 +43,7 @@ export function createAgentSecretRoutes() {
 }
 
 function respond<T>(
-  c: { json: (body: unknown, status?: 200 | 400 | 403 | 404) => Response },
+  c: { json: (body: unknown, status?: 200 | 400 | 403 | 404 | 409 | 503) => Response },
   read: () => T,
 ) {
   try {

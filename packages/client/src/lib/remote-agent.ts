@@ -7,6 +7,7 @@ import type {
   PromptInput,
   SessionConnection,
   NestedToolSlot,
+  UserRequest,
 } from "@carmel-agent/shared";
 import { applyStreamingEvent } from "@carmel-agent/shared";
 
@@ -26,6 +27,7 @@ export type AgentSnapshot = {
   nestedTools?: readonly NestedToolSlot[];
   isStreaming: boolean;
   hasPendingWork: boolean;
+  userRequests: UserRequest[];
   model: Model<Api>;
   thinkingLevel: ThinkingLevel;
   errorMessage?: string;
@@ -59,6 +61,7 @@ export class RemoteAgent {
   private nestedTools = [] as readonly NestedToolSlot[];
   private isStreaming = false;
   private hasPendingWork = false;
+  private userRequests: UserRequest[] = [];
   private model: Model<Api>;
   private thinkingLevel: ThinkingLevel;
   private errorMessage?: string;
@@ -83,11 +86,13 @@ export class RemoteAgent {
       thinkingLevel: ThinkingLevel;
       messages: AgentMessage[];
       pendingWork?: boolean;
+      userRequests?: UserRequest[];
       onRunComplete?: () => Promise<void> | void;
     },
   ) {
     this.messages = [...config.messages];
     this.hasPendingWork = config.pendingWork ?? false;
+    this.userRequests = config.userRequests ?? [];
     this.model = config.model;
     this.thinkingLevel = config.thinkingLevel;
     this.snapshotValue = this.buildSnapshot();
@@ -123,6 +128,7 @@ export class RemoteAgent {
       nestedTools: this.nestedTools,
       isStreaming: this.isStreaming,
       hasPendingWork: this.hasPendingWork,
+      userRequests: this.userRequests,
       model: this.model,
       thinkingLevel: this.thinkingLevel,
       errorMessage: this.errorMessage,
@@ -467,11 +473,16 @@ export class RemoteAgent {
   applyConnectionSnapshot(connection: SessionConnection) {
     this.messages = [...connection.session.messages];
     this.hasPendingWork = connection.pendingWork ?? false;
+    this.userRequests = connection.userRequests ?? [];
     this.thinkingLevel = connection.session.thinkingLevel;
     this.streamingMessage = undefined;
     this.pendingToolCalls = new Set();
     this.nestedTools = [];
     this.notify();
+  }
+
+  async refreshConnection() {
+    this.applyConnectionSnapshot(await api.getSessionConnection(this.config.sessionId));
   }
 
   private async consumeEvents(body: ReadableStream<Uint8Array>) {

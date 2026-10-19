@@ -16,6 +16,10 @@ type Fixture = {
   taskSessionId: string;
   taskName: string;
   chatSessionId: string;
+  questionSessionId: string;
+  multipleQuestionSessionId: string;
+  secretSessionId: string;
+  declineSessionId: string;
 };
 const binary = process.env.AGENT_BROWSER_BIN ?? "agent-browser";
 const session = `carmel-regression-${randomUUID()}`;
@@ -173,6 +177,91 @@ after(async () => {
     }
   }
 });
+
+test(
+  "question cards preserve requests across reloads and accept choices with text",
+  { timeout: 60_000 },
+  () => {
+    browser("set", "viewport", "1280", "900");
+    open(agentPath(`sessions/${fixture.questionSessionId}`));
+    browser("wait", '[aria-label="Question from agent"]');
+    assert.equal(
+      evaluate(`document.querySelector('textarea[aria-label="Message"]').getClientRects().length`),
+      0,
+    );
+    open(agentPath(`sessions/${fixture.questionSessionId}`));
+    browser("wait", '[aria-label="Question from agent"]');
+    clickSelector('button[aria-label="Main"]');
+    browser("find", "label", "Your answer", "fill", "Use the stable branch.");
+    click("button", "Submit answer");
+    browser("wait", "--text", "Continue agent");
+    open(agentPath(`sessions/${fixture.questionSessionId}`));
+    browser("wait", "--text", "Use the stable branch.");
+    assert.match(
+      evaluate<string>(`document.querySelector('[aria-label="Question from agent"]').textContent`),
+      /Main/,
+    );
+    assert.match(snapshot(), /Continue agent/);
+  },
+);
+
+test(
+  "multiple-choice and declined requests produce persisted continuation receipts",
+  { timeout: 60_000 },
+  () => {
+    open(agentPath(`sessions/${fixture.multipleQuestionSessionId}`));
+    browser("wait", '[aria-label="Question from agent"]');
+    clickSelector('button[aria-label="Development"]');
+    clickSelector('button[aria-label="Staging"]');
+    click("button", "Submit answer");
+    browser("wait", "--text", "Continue agent");
+    const card = evaluate<string>(
+      `document.querySelector('[aria-label="Question from agent"]').textContent`,
+    );
+    assert.match(card, /Development/);
+    assert.match(card, /Staging/);
+    open(agentPath(`sessions/${fixture.declineSessionId}`));
+    browser("wait", '[aria-label="Question from agent"]');
+    click("button", "Decline");
+    browser("wait", "--text", "Continue agent");
+    assert.match(
+      evaluate<string>(`document.querySelector('[aria-label="Question from agent"]').textContent`),
+      /cancelled/,
+    );
+  },
+);
+
+test(
+  "credential cards save privately, promote and demote, and revoke without displaying values",
+  { timeout: 90_000 },
+  () => {
+    open(agentPath(`sessions/${fixture.secretSessionId}`));
+    browser("wait", 'input[type="password"]');
+    const dummyToken = "ghp_browser_fixture_private_value";
+    browser("fill", 'input[type="password"]', dummyToken);
+    assert.equal(evaluate(`document.querySelector('input[type="password"]').autocomplete`), "off");
+    click("button", "Provide credential");
+    browser("wait", "--text", "This session only");
+    browser("wait", "--text", "Continue agent");
+    assert.ok(
+      !evaluate<string>(`document.querySelector('.agent-chat-host').innerHTML`).includes(
+        dummyToken,
+      ),
+    );
+    open(agentPath(`sessions/${fixture.secretSessionId}`));
+    browser("wait", "--text", "This session only");
+    assert.equal(evaluate(`document.querySelectorAll('input[type="password"]').length`), 0);
+    click("button", "Save for this agent");
+    browser("wait", "--text", "Saved for this agent");
+    open(agentPath(`sessions/${fixture.secretSessionId}`));
+    browser("wait", "--text", "Saved for this agent");
+    click("button", "Use in this session only");
+    browser("wait", "--text", "This session only");
+    click("button", "Revoke credential");
+    browser("wait", "--text", "Credential revoked.");
+    assert.ok(!evaluate<string>(`document.body.innerHTML`).includes(dummyToken));
+  },
+);
 
 test(
   "reference picker selects files, folders, and conversations and restores rejected submissions",

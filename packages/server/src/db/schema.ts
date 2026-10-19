@@ -1,4 +1,5 @@
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import type { KnowledgeSettings, KnowledgeStatus } from "@carmel-agent/shared";
 import type { Credential, ThinkingLevelMap } from "@earendil-works/pi-ai";
 import type {
@@ -203,22 +204,65 @@ export const knowledgeMemories = sqliteTable("knowledge_memories", {
  * from the browser. Keeping values in their own table means the agent endpoints
  * cannot leak them even by accident.
  *
- * Keyed by agent, not by (agent, user): a shared agent carries its owner's
- * secrets to whoever runs it, exactly as its mounts already do.
+ * A null sessionId means an agent default, usable by its runners. A sessionId
+ * restricts injection to that session and cascades deletion with it.
  */
 export const agentSecrets = sqliteTable(
   "agent_secrets",
   {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     agentId: text("agent_id")
       .notNull()
       .references(() => agents.id),
+    sessionId: text("session_id").references(() => sessions.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    /** Encrypted with `protectSecret` when CARMEL_SECRET_KEY is set. */
+    /** Session submissions always require encryption; legacy agent settings retain their storage policy. */
     value: text("value").notNull(),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
-  (table) => [primaryKey({ columns: [table.agentId, table.name] })],
+  (table) => [
+    uniqueIndex("agent_secrets_agent_name")
+      .on(table.agentId, table.name)
+      .where(sql`${table.sessionId} IS NULL`),
+    uniqueIndex("agent_secrets_session_name")
+      .on(table.sessionId, table.name)
+      .where(sql`${table.sessionId} IS NOT NULL`),
+  ],
+);
+
+/** Requests and safe answer receipts only. Secret values live exclusively in agent_secrets. */
+export const userRequests = sqliteTable(
+  "user_requests",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").notNull(),
+    callId: text("call_id").notNull(),
+    kind: text("kind").$type<"question" | "secret">().notNull(),
+    input: text("input", { mode: "json" })
+      .$type<
+        | import("@carmel-agent/shared").QuestionInput
+        | import("@carmel-agent/shared").SecretRequestInput
+      >()
+      .notNull(),
+    status: text("status")
+      .$type<import("@carmel-agent/shared").UserRequest["status"]>()
+      .notNull()
+      .default("pending"),
+    answer: text("answer", { mode: "json" }).$type<import("@carmel-agent/shared").QuestionAnswer>(),
+    secretId: text("secret_id"),
+    delivery: text("delivery").$type<"pending" | "submitted">(),
+    createdAt: integer("created_at").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("user_requests_call").on(table.sessionId, table.conversationId, table.callId),
+  ],
 );
 
 /**

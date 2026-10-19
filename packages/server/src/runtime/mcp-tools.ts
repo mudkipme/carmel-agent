@@ -62,11 +62,12 @@ export class AgentMcpTools {
   constructor(
     private readonly agent: AgentRecord,
     private readonly cwd: string,
+    private readonly sessionId?: string,
   ) {}
 
   async connect(options: McpToolConnectionOptions = {}) {
     if (this.closed) throw new Error("MCP connections are closed.");
-    const secrets = options.secrets ?? readAgentSecretEnv(this.agent.id);
+    const secrets = options.secrets ?? readAgentSecretEnv(this.agent.id, this.sessionId);
     for (const server of this.agent.mcpServers ?? []) {
       if (!server.enabled || server.tools?.length === 0) continue;
       if (server.transport === "http" && !this.agent.permissions.network) continue;

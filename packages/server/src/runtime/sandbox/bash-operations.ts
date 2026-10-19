@@ -20,6 +20,7 @@ import { createSecretRedactor } from "./redaction.ts";
 type AgentRecord = typeof agents.$inferSelect;
 
 export type SandboxExecOptions = {
+  sessionId?: string;
   onStdout?: (chunk: string) => void;
   onStderr?: (chunk: string) => void;
   signal?: AbortSignal;
@@ -38,7 +39,7 @@ export async function execSandboxCommand(
   // reused, so baking secrets into the container's Env at creation would both
   // pin a stale value until the reaper came round and put it in `inspect`
   // output. This way a rotated secret takes effect on the next command.
-  const secrets = readAgentSecretEnv(agent.id);
+  const secrets = readAgentSecretEnv(agent.id, options.sessionId);
   // Same reasoning for the workspace `.env`: editing it takes effect on the
   // next command, with no container restart.
   const dotEnv = readWorkspaceDotEnv(resolveAgentWorkingDirPath(agent));

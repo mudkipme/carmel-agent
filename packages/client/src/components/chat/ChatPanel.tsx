@@ -32,6 +32,8 @@ type ChatPanelProps = {
   thinkingLevel: ThinkingLevel;
   inputRef?: Ref<ChatInputHandle>;
   inputLeadingActions?: ReactNode;
+  requestCards?: ReactNode;
+  waitingForAnswer?: boolean;
   initialInput?: string;
   onInputDraftChange?: (value: string) => void;
   onThinkingLevelChange: (level: ThinkingLevel) => void;
@@ -65,6 +67,8 @@ export function ChatPanel({
   thinkingLevel,
   inputRef,
   inputLeadingActions,
+  requestCards,
+  waitingForAnswer,
   initialInput,
   onInputDraftChange,
   onThinkingLevelChange,
@@ -139,10 +143,14 @@ export function ChatPanel({
             onRetryMessage={readOnly ? undefined : onRetryMessage}
             onForkMessage={readOnly ? undefined : onForkMessage}
           />
+          {requestCards}
         </div>
       </div>
       {!readOnly ? (
-        <div className="shrink-0 px-3 pt-2 pb-[calc(0.75rem+var(--safe-bottom))] sm:px-4">
+        <div
+          hidden={waitingForAnswer}
+          className="shrink-0 px-3 pt-2 pb-[calc(0.75rem+var(--safe-bottom))] sm:px-4"
+        >
           <div className="mx-auto w-full max-w-[var(--line-width)] min-w-0">
             <ChatInput
               agentId={agentId}

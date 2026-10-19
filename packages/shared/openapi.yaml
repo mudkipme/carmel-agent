@@ -21,6 +21,144 @@ tags:
   - { name: Issues }
   - { name: Knowledge }
 paths:
+  /api/sessions/{id}/requests/{requestId}/answer:
+    parameters:
+      - { $ref: "#/components/parameters/ID" }
+      - { name: requestId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: answerUserQuestion
+      tags: [Sessions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuestionAnswerRequest" }
+      responses:
+        "200":
+          description: Safe request receipt. Credential values are never returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserRequest" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/sessions/{id}/requests/{requestId}/secret:
+    parameters:
+      - { $ref: "#/components/parameters/ID" }
+      - { name: requestId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: provideRequestedSecret
+      tags: [Sessions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SecretAnswerRequest" }
+      responses:
+        "200":
+          description: Safe request receipt. Credential values are never returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserRequest" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/sessions/{id}/requests/{requestId}/cancel:
+    parameters:
+      - { $ref: "#/components/parameters/ID" }
+      - { name: requestId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: cancelUserRequest
+      tags: [Sessions]
+      responses:
+        "200":
+          description: Safe request receipt. Credential values are never returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserRequest" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/sessions/{id}/requests/{requestId}/use-existing:
+    parameters:
+      - { $ref: "#/components/parameters/ID" }
+      - { name: requestId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: useRequestedSecret
+      tags: [Sessions]
+      responses:
+        "200":
+          description: Safe request receipt. Credential values are never returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserRequest" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/sessions/{id}/secrets:
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    get:
+      operationId: listSessionSecrets
+      tags: [Sessions]
+      responses:
+        "200":
+          description: Effective credential metadata, without values.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SessionSecret" } }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/sessions/{id}/secrets/{secretId}/promote:
+    parameters:
+      - { $ref: "#/components/parameters/ID" }
+      - { name: secretId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: promoteSessionSecret
+      tags: [Sessions]
+      responses:
+        "200":
+          description: Credential scope updated or credential revoked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionSecret" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /api/sessions/{id}/secrets/{secretId}/demote:
+    parameters:
+      - { $ref: "#/components/parameters/ID" }
+      - { name: secretId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: demoteAgentSecret
+      tags: [Sessions]
+      responses:
+        "200":
+          description: Credential scope updated or credential revoked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionSecret" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /api/sessions/{id}/secrets/{secretId}:
+    parameters:
+      - { $ref: "#/components/parameters/ID" }
+      - { name: secretId, in: path, required: true, schema: { type: string } }
+    delete:
+      operationId: revokeSessionSecret
+      tags: [Sessions]
+      responses:
+        "200":
+          description: Credential scope updated or credential revoked.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OK" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
   /api/agents/{agentId}/knowledge:
     parameters:
       - $ref: "#/components/parameters/AgentID"
@@ -3116,6 +3254,70 @@ components:
             },
           ],
       }
+    QuestionAnswerRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        selected:
+          {
+            type: array,
+            maxItems: 7,
+            items: { type: string, minLength: 1, maxLength: 100 },
+            default: [],
+          }
+        text: { type: string, maxLength: 12000, default: "" }
+    SecretAnswerRequest:
+      type: object
+      additionalProperties: false
+      required: [value]
+      properties:
+        value: { type: string, minLength: 1, maxLength: 65536, writeOnly: true }
+    SessionSecret:
+      type: object
+      additionalProperties: false
+      required: [id, name, scope, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        scope: { type: string, enum: [session, agent] }
+        updatedAt: { type: integer }
+    UserRequest:
+      type: object
+      additionalProperties: false
+      required: [id, sessionId, kind, status, delivery, createdAt, expiresAt]
+      properties:
+        id: { type: string }
+        sessionId: { type: string }
+        kind: { type: string, enum: [question, secret] }
+        status: { type: string, enum: [pending, answered, cancelled, expired] }
+        delivery: { type: string, nullable: true, enum: [pending, submitted, null] }
+        createdAt: { type: integer }
+        expiresAt: { type: integer }
+        question:
+          type: object
+          required: [question, options, multiple, allowFreeText]
+          properties:
+            question: { type: string }
+            options:
+              type: array
+              items:
+                type: object
+                required: [id, label]
+                properties:
+                  id: { type: string }
+                  label: { type: string }
+                  description: { type: string }
+            multiple: { type: boolean }
+            allowFreeText: { type: boolean }
+        secret:
+          type: object
+          required: [name, reason, replaceExisting]
+          properties:
+            name: { type: string }
+            reason: { type: string }
+            replaceExisting: { type: boolean }
+        answer: { $ref: "#/components/schemas/QuestionAnswerRequest" }
+        credential: { $ref: "#/components/schemas/SessionSecret" }
     SessionConnection:
       {
         type: object,
@@ -3123,6 +3325,7 @@ components:
         properties:
           {
             session: { $ref: "#/components/schemas/Session" },
+            userRequests: { type: array, items: { $ref: "#/components/schemas/UserRequest" } },
             pendingWork:
               { type: boolean, description: Saved Durable work awaiting resume or stop. },
             activeRun:

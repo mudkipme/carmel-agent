@@ -3,6 +3,8 @@ import { getActiveAgentRunForSession } from "../runtime/run-stream.ts";
 import { serializeSession } from "../serializers.ts";
 import { loadOwnedSession } from "./session-store.ts";
 import { hasPendingPiSessionWork } from "./pi-session-storage.ts";
+import { withPiSession } from "./pi-session-storage.ts";
+import { readUserRequests } from "./user-requests.ts";
 
 /** Build the single display-safe projection used by every full-session GET. */
 export async function readSessionSnapshot(
@@ -25,5 +27,8 @@ export async function readSessionConnection(
     session,
     activeRun: getActiveAgentRunForSession(userId, sessionId) ?? null,
     pendingWork,
+    userRequests: await withPiSession(sessionId, async (pi) =>
+      readUserRequests(sessionId, String(pi.conversation.id)),
+    ),
   };
 }

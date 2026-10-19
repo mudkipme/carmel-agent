@@ -20,6 +20,16 @@ export function protectSecret(value: string | null | undefined) {
   return `${encryptedPrefix}${Buffer.concat([iv, tag, ciphertext]).toString("base64url")}`;
 }
 
+/** Untrusted submitted credentials are always encrypted, including values starting with enc:v1:. */
+export function encryptSubmittedSecret(value: string): string {
+  const key = secretKey();
+  if (!key) throw new Error("Configure CARMEL_SECRET_KEY before storing session credentials.");
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+  return `${encryptedPrefix}${Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString("base64url")}`;
+}
+
 export function revealSecret(value: string | null | undefined) {
   if (!value?.startsWith(encryptedPrefix)) return value ?? undefined;
 

@@ -22,6 +22,9 @@ import type {
   AgentFileEntry,
   AgentFileList,
   AgentSecret,
+  UserRequest,
+  QuestionAnswer,
+  SessionSecret,
   ImIntegration,
   ImSetup,
   ImPlatform,
@@ -167,6 +170,37 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
 }
 
 export const api = {
+  answerQuestion: (sessionId: string, requestId: string, answer: QuestionAnswer) =>
+    request<UserRequest>(`/api/sessions/${sessionId}/requests/${requestId}/answer`, {
+      method: "POST",
+      body: JSON.stringify(answer),
+    }),
+  provideRequestedSecret: (sessionId: string, requestId: string, value: string) =>
+    request<UserRequest>(`/api/sessions/${sessionId}/requests/${requestId}/secret`, {
+      method: "POST",
+      body: JSON.stringify({ value }),
+      cache: "no-store",
+    }),
+  useRequestedSecret: (sessionId: string, requestId: string) =>
+    request<UserRequest>(`/api/sessions/${sessionId}/requests/${requestId}/use-existing`, {
+      method: "POST",
+    }),
+  cancelUserRequest: (sessionId: string, requestId: string) =>
+    request<UserRequest>(`/api/sessions/${sessionId}/requests/${requestId}/cancel`, {
+      method: "POST",
+    }),
+  listSessionSecrets: (sessionId: string) =>
+    request<SessionSecret[]>(`/api/sessions/${sessionId}/secrets`, { cache: "no-store" }),
+  promoteSessionSecret: (sessionId: string, secretId: string) =>
+    request<SessionSecret>(`/api/sessions/${sessionId}/secrets/${secretId}/promote`, {
+      method: "POST",
+    }),
+  demoteAgentSecret: (sessionId: string, secretId: string) =>
+    request<SessionSecret>(`/api/sessions/${sessionId}/secrets/${secretId}/demote`, {
+      method: "POST",
+    }),
+  revokeSessionSecret: (sessionId: string, secretId: string) =>
+    request<{ ok: true }>(`/api/sessions/${sessionId}/secrets/${secretId}`, { method: "DELETE" }),
   listImIntegrations: (agentId: string, signal?: AbortSignal) =>
     request<ImIntegration[]>(`/api/agents/${agentId}/integrations`, { signal }),
   listImSetups: (agentId: string, signal?: AbortSignal) =>

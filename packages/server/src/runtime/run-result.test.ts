@@ -27,6 +27,8 @@ import { loadSession } from "../services/session-store.ts";
 import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createAgent, createUser } from "../test-support.ts";
+import { answerQuestion, readUserRequests } from "../services/user-requests.ts";
+import { readSessionConnection } from "../services/session-snapshot.ts";
 import {
   abortAgentRun,
   admitAgentRun,
@@ -45,6 +47,7 @@ import { shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
 initialize();
 
 type ProviderMode =
+  | "question"
   | "reply"
   | "reject"
   | "tool-loop"
@@ -62,6 +65,35 @@ after(() => provider.close());
 test("a run that gets its reply succeeds", async () => {
   const run = await startRun("reply");
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
+});
+
+test("the server runtime ends for a question and delivers its saved answer on the next run", async () => {
+  const run = await startRun("question");
+  assert.deepEqual(await finished(run), { outcome: "succeeded" });
+  const snapshot = await readSessionConnection(run.userId, run.sessionId);
+  assert.equal(snapshot?.pendingWork, false);
+  const request = snapshot?.userRequests?.[0];
+  assert.equal(request?.status, "pending");
+  assert.equal(request?.kind, "question");
+  answerQuestion(run.userId, run.sessionId, request!.id, { selected: ["main"] });
+  provider.mode = "reply";
+  const session = (await loadSession(run.sessionId))!;
+  const model = await resolveModelContext(run.userId, session.modelRefId);
+  assert.ok(model.ok);
+  const resumed = startDetachedAgentRun({
+    agent: db.select().from(agents).where(eq(agents.id, session.agentId)).get()!,
+    session,
+    modelRef: model.value.modelRef,
+    providerConfig: model.value.providerConfig,
+    modelRuntime: model.value.modelRuntime,
+    thinkingLevel: "off",
+  });
+  assert.deepEqual(await finished(resumed), { outcome: "succeeded" });
+  assert.equal(readUserRequests(session.id)[0]?.delivery, "submitted");
+  const messages = (await loadSession(session.id))!.messages;
+  assert.equal(messages.filter((message) => message.role === "user").length, 2);
+  assert.match(JSON.stringify(messages), /Main/);
+  assert.match(JSON.stringify(provider.requests.at(-1)), /Main/);
 });
 
 test("IM messages create a private web session, continue its history, and start fresh without deleting earlier conversations", async () => {
@@ -650,6 +682,31 @@ function respond(
   const base = { id: "chatcmpl-test", object: "chat.completion.chunk", created: 0, model: "fake" };
   const chunk = (delta: object, finishReason: string | null = null) =>
     `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`;
+  if (mode === "question") {
+    response.write(
+      chunk({
+        role: "assistant",
+        tool_calls: [
+          {
+            index: 0,
+            id: "call_question",
+            type: "function",
+            function: {
+              name: "ask_user_question",
+              arguments: JSON.stringify({
+                question: "Which branch?",
+                options: [{ id: "main", label: "Main" }],
+                allowFreeText: false,
+              }),
+            },
+          },
+        ],
+      }),
+    );
+    response.write(chunk({}, "tool_calls"));
+    response.end("data: [DONE]\n\n");
+    return;
+  }
   if (mode === "think") {
     // Reasoning tokens until the client aborts. Stop has to cut this short.
     const timer = setInterval(() => {

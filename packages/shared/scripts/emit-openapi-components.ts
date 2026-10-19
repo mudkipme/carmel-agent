@@ -2,8 +2,11 @@ import { z } from "zod";
 import * as S from "../src/schemas.ts";
 import * as K from "../src/knowledge.ts";
 import * as IM from "../src/im.ts";
+import * as U from "../src/user-requests.ts";
 
 const requestSchemas = {
+  QuestionAnswerRequest: U.questionAnswerSchema,
+  SecretAnswerRequest: U.secretAnswerSchema,
   KnowledgeSettings: K.knowledgeSettingsSchema,
   KnowledgeSourceRequest: K.knowledgeSourceInputSchema,
   KnowledgeSearchRequest: K.knowledgeSearchSchema,

@@ -2,6 +2,8 @@
 
 Carmel uses Pi 1.3.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
 
+[Questions and session credentials](user-requests.md) use native run termination and idempotent submissions, with request lifecycle and encrypted credential storage owned by Carmel.
+
 ## Storage and backups
 
 `CARMEL_PI_SESSION_DIR` selects the native storage directory, defaulting to `data/pi-sessions.sqlite.durable/`. It contains one SQLite file per Carmel session, named with a hash of the session ID. Separate native sessions keep tool registries, credentials, checkpoints, and entry lookups scoped to a single Carmel conversation.

@@ -53,6 +53,7 @@ import {
   type BranchMessage,
 } from "../effectors/branch-integrity.ts";
 import { jsonValidator } from "../validation.ts";
+import { blockingUserRequest } from "../services/user-requests.ts";
 
 export function createSessionRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -390,6 +391,13 @@ async function guardSessionMutation(
     return { conflict: c.json({ error: "Issue attempt history is read-only." }, 409) };
   const leaseConflict = rejectActiveRunMutation(c, session.id);
   if (leaseConflict) return { conflict: leaseConflict };
+  if (blockingUserRequest(session.id))
+    return {
+      conflict: c.json(
+        { error: "Respond to the pending request before changing this conversation." },
+        409,
+      ),
+    };
   if (await hasPendingPiSessionWork(session.id))
     return {
       conflict: c.json(

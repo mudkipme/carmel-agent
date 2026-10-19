@@ -62,6 +62,12 @@ import { browserInstructions } from "./browser-tools.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 import { buildKnowledgeInstructions } from "./knowledge/prompt.ts";
 import { createScheduleTaskTool, buildSchedulingInstructions } from "./task-tools.ts";
+import { createUserRequestTools, userRequestInstructions } from "./user-request-tools.ts";
+import {
+  blockingUserRequest,
+  markUserReplySubmitted,
+  pendingUserReply,
+} from "../services/user-requests.ts";
 import {
   createSendUserMessageTool,
   messagingInstructions,
@@ -195,6 +201,8 @@ export function admitAgentRun(input: AgentRunInput): ActiveAgentRun {
 }
 
 function createAgentRun(input: AgentRunInput): AgentRun {
+  if (input.promptInput && blockingUserRequest(input.session.id))
+    throw new Error("Respond to the pending request before sending another message.");
   const abort = new HarnessAbortGate();
   const run = createActiveAgentRun({
     runId: randomId(),
@@ -260,6 +268,7 @@ async function startAgentRun(context: AgentRun) {
         },
       },
       session.userId,
+      session.id,
     );
     await execution.prepare(abort.signal);
     const opened = await openRunHarness({ ...context, piSession, execution });
@@ -328,7 +337,15 @@ async function startAgentRun(context: AgentRun) {
       return;
     }
 
-    if (!promptInput && (await harness.hasPending(runContext))) {
+    const userReply = !promptInput ? pendingUserReply(session.id) : undefined;
+    if (userReply) {
+      if (userReply.conversationId !== String(conversation.id))
+        throw new Error("The request belongs to an earlier conversation branch.");
+      await harness.prompt(userReply.text, undefined, runContext, undefined, {
+        requestId: userReply.requestId,
+        onSubmitted: () => markUserReplySubmitted(userReply.id),
+      });
+    } else if (!promptInput && (await harness.hasPending(runContext))) {
       // A restart continues Durable's checkpoint instead of rewinding and resubmitting the user input.
       await harness.resume(runContext);
     } else {
@@ -480,6 +497,13 @@ async function openRunHarness(
       ]
     : [];
   const tools = execution.resolveTools([
+    ...(!context.session.issueId
+      ? createUserRequestTools({
+          sessionId: context.session.id,
+          userId: context.session.userId,
+          bash: agent.permissions.bash,
+        })
+      : []),
     ...schedulingTools,
     ...messagingTools,
     ...(sessionAddons?.tools ?? []),
@@ -492,6 +516,13 @@ async function openRunHarness(
       models: modelRuntime,
       agent: { model: { provider: model.provider, modelId: model.id }, thinkingLevel, tools },
       sections: {
+        user_requests: !context.session.issueId
+          ? userRequestInstructions(
+              context.session.userId,
+              context.session.id,
+              agent.permissions.bash,
+            )
+          : undefined,
         messaging:
           messagingPlatforms.length || context.notifyPlatform
             ? messagingInstructions(messagingPlatforms, context.notifyPlatform)

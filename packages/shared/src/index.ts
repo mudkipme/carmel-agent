@@ -11,6 +11,7 @@ import type {
 } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
 export * from "./references.ts";
+export * from "./user-requests.ts";
 export type {
   BrowserControlState,
   BrowserTab,
@@ -181,6 +182,7 @@ export type SessionConnection = {
   activeRun: ActiveAgentRunSummary | null;
   /** Saved Durable work that can be resumed or stopped after a server restart. */
   pendingWork?: boolean;
+  userRequests?: import("./user-requests.ts").UserRequest[];
 };
 
 export type ProviderConfig = {

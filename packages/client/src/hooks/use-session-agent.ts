@@ -18,6 +18,7 @@ const EMPTY_SNAPSHOT: AgentSnapshot = {
   pendingToolCalls: new Set(),
   isStreaming: false,
   hasPendingWork: false,
+  userRequests: [],
   model: undefined as unknown as Model<Api>,
   thinkingLevel: "off",
   errorMessage: undefined,
@@ -53,7 +54,11 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
   useEffect(() => {
     let cancelled = false;
     let activeAgent: RemoteAgent | undefined;
-    const createAgent = (authoritativeSession: Session, pendingWork?: boolean) => {
+    const createAgent = (
+      authoritativeSession: Session,
+      pendingWork?: boolean,
+      userRequests?: import("@carmel-agent/shared").UserRequest[],
+    ) => {
       const seed = modelSeedRef.current;
       const nextAgent = new RemoteAgent({
         agentId: agentConfig.id,
@@ -63,6 +68,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
         thinkingLevel: clampThinkingLevel(seed.model, authoritativeSession.thinkingLevel),
         messages: authoritativeSession.messages,
         pendingWork,
+        userRequests,
         onRunComplete: async () => {
           const connection = await connectSession(authoritativeSession.id);
           if (cancelled || activeAgent !== nextAgent) return;
@@ -79,7 +85,11 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
         if (cancelled) return;
         sessionRef.current = connection.session;
         seedMessagesRef.current = connection.session.messages;
-        activeAgent = createAgent(connection.session, connection.pendingWork);
+        activeAgent = createAgent(
+          connection.session,
+          connection.pendingWork,
+          connection.userRequests,
+        );
         agentRef.current = activeAgent;
         setAgent(activeAgent);
         if (connection.activeRun) {

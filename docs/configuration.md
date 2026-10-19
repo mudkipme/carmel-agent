@@ -16,7 +16,7 @@ Carmel Agent reads `.env`, `.env.local`, `packages/server/.env`, and `packages/s
 
 ## Secrets
 
-- `CARMEL_SECRET_KEY` — encrypts stored provider API keys, OAuth credentials, custom headers, per-agent secrets, and IM setup/credentials at rest. IM connections always require this key, including in development.
+- `CARMEL_SECRET_KEY` — encrypts stored provider API keys, OAuth credentials, custom headers, agent/session secrets, and IM setup/credentials at rest. IM connections and credentials submitted through session request forms always require this key, including in development.
 
 Set it before adding any provider credentials and keep it stable. If it changes, previously encrypted values can no longer be decrypted.
 
