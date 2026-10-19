@@ -126,16 +126,16 @@ export function HarnessHeader({
         {activeAgent?.permissions.bash ? (
           <Button
             variant={browserOpen ? "secondary" : "ghost"}
-            size="sm"
-            className="relative w-10 sm:w-auto"
+            size="icon-sm"
+            className="relative"
+            title={browserOpen ? "Close browser" : "Open browser"}
             aria-label={browserOpen ? "Close browser" : "Open browser"}
             aria-pressed={browserOpen}
             onClick={onToggleBrowser}
           >
-            <GlobeIcon data-icon="inline-start" />
-            <span className="hidden sm:inline">Browser</span>
+            <GlobeIcon />
             {browserNeedsHelp ? (
-              <Badge variant="secondary" className="absolute top-0 right-0 sm:static">
+              <Badge variant="secondary" className="absolute top-0 right-0">
                 !
               </Badge>
             ) : null}
