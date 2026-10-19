@@ -347,22 +347,42 @@ await replacePiSessionMessages(chatSessionId, [
     "## A clearer path to deployment\n\nThe guide now separates **initial setup** from **everyday updates**, with a short checklist for each.\n\n- Start with the required environment variables.\n- Install dependencies and run the checks.\n- Build the app, then start the server.\n\n```bash\npnpm install --frozen-lockfile\npnpm check\npnpm build\n```\n\nThe local checks passed. The documentation search was unavailable, so I used the repository’s guide.",
   ),
 ]);
-const server = serve({ fetch: createApp().fetch, port: 0, hostname: "127.0.0.1" }, (address) => {
-  console.log(
-    JSON.stringify({
-      url: `http://127.0.0.1:${address.port}`,
-      agentId: fixture.agentId,
-      secondAgentId,
-      reviewIssueId: reviewIssue.id,
-      backlogIssueId: backlogIssue.id,
-      previousSessionId,
-      pendingSessionId,
-      taskSessionId,
-      taskName,
-      chatSessionId,
-    }),
-  );
-});
+const app = createApp();
+let delayFirstChatConnection = true;
+const server = serve(
+  {
+    fetch: async (request, env) => {
+      if (
+        delayFirstChatConnection &&
+        new URL(request.url).pathname === `/api/sessions/${chatSessionId}/connection`
+      ) {
+        delayFirstChatConnection = false;
+        // The shell is ready before the composer mounts. Keep that gap observable
+        // on fast machines too, so tests must wait for the control they interact with.
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+      return app.fetch(request, env);
+    },
+    port: 0,
+    hostname: "127.0.0.1",
+  },
+  (address) => {
+    console.log(
+      JSON.stringify({
+        url: `http://127.0.0.1:${address.port}`,
+        agentId: fixture.agentId,
+        secondAgentId,
+        reviewIssueId: reviewIssue.id,
+        backlogIssueId: backlogIssue.id,
+        previousSessionId,
+        pendingSessionId,
+        taskSessionId,
+        taskName,
+        chatSessionId,
+      }),
+    );
+  },
+);
 // A deterministic stream fixture exercises the real gateway and handoff state without a container.
 const browserSockets = attachBrowserSocket(
   server as unknown as import("node:http").Server,

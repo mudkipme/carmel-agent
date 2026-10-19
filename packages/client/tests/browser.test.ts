@@ -180,6 +180,8 @@ test(
   () => {
     browser("set", "viewport", "1280", "900");
     open(agentPath(`sessions/${fixture.chatSessionId}`));
+    // The sidebar loads before the session connection mounts the composer.
+    browser("wait", 'textarea[aria-label="Message"]');
     browser("fill", 'textarea[aria-label="Message"]', "Review @");
     browser("wait", '[role="dialog"][aria-labelledby] [cmdk-input]');
     browser("fill", "[cmdk-input]", "docs/guide");
