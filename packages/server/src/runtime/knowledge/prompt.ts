@@ -30,7 +30,10 @@ export function buildKnowledgeInstructions(
   const operations: string[] = [];
   if (tools.has("memory_save") && (context.permissions.write || context.permissions.edit)) {
     if (context.permissions.write) operations.push("create with memory_save");
-    if (context.permissions.edit) operations.push("update with memory_save");
+    if (context.permissions.edit) operations.push("replace a whole memory with memory_save");
+  }
+  if (tools.has("memory_edit") && context.permissions.edit) {
+    operations.push("patch lines with memory_edit");
   }
   if (tools.has("memory_forget") && context.permissions.edit) {
     operations.push("forget with memory_forget");

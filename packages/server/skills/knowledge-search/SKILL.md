@@ -42,10 +42,21 @@ not belong to the current speaker. Confirm the scope from the current system
 instructions: private-agent memory belongs to its owner across that agent's
 conversations, while shared-agent memory is available to all its users.
 
-Creating requires write permission. Updating requires edit permission: read the
-current memory, then supply its `memoryId` (the filename without `.md`) and
-`expectedRevision` from `knowledge_read`. On a revision conflict, reread and
-reconcile before retrying. Do not create duplicates to bypass an edit restriction.
+Creating requires write permission and `memory_save`. Replacing a whole note
+also uses `memory_save`: read the current memory, then supply its `memoryId`
+(the filename without `.md`), `expectedRevision` from `knowledge_read`, and the
+full title and content.
+
+Changing part of a note uses `memory_edit`, which requires edit permission. It
+works like the file `edit` tool. Read the memory first, then send `memoryId`,
+`expectedRevision`, and one or more `edits`. Each `oldText` is exact text from
+that current note, including line breaks, and `newText` replaces it. Every
+`oldText` must be unique, and the edits must not overlap. To change several
+nearby lines, send one edit that covers that block. Include the leading
+`# title` line only when renaming the memory.
+
+On a revision conflict, reread and reconcile before retrying. Do not create
+duplicates to bypass an edit restriction.
 
 ## Forget a memory
 

@@ -65,6 +65,35 @@ export const memoryInputSchema = z.object({
   expectedRevision: z.string().max(100).optional(),
 });
 export type MemoryInput = z.infer<typeof memoryInputSchema>;
+export const memoryEditSchema = z.object({
+  expectedRevision: z
+    .string()
+    .min(1)
+    .max(100)
+    .describe("The revision from knowledge_read for this memory."),
+  edits: z
+    .array(
+      z.object({
+        oldText: z
+          .string()
+          .min(1)
+          .max(20_000)
+          .describe(
+            "Exact text for one targeted replacement. It must be unique in the current memory and must not overlap with any other edits[].oldText in the same call.",
+          ),
+        newText: z
+          .string()
+          .max(20_000)
+          .describe("Replacement text for this targeted edit. It may contain several lines."),
+      }),
+    )
+    .min(1)
+    .max(20)
+    .describe(
+      "One or more targeted replacements. Each edit is matched against the original memory, not incrementally. Do not include overlapping or nested edits. If two changes touch the same block or nearby lines, merge them into one edit instead.",
+    ),
+});
+export type MemoryEditInput = z.infer<typeof memoryEditSchema>;
 export type SavedMemory = {
   id: string;
   agentId: string;

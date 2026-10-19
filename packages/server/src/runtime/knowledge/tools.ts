@@ -3,6 +3,7 @@ import {
   knowledgeSearchSchema,
   knowledgeReadSchema,
   memoryInputSchema,
+  memoryEditSchema,
 } from "@carmel-agent/shared";
 import type { ToolRegistration } from "../../effectors/pi-durable/index.ts";
 import { readVisibleAgent } from "../../services/agent-access.ts";
@@ -11,6 +12,7 @@ import {
   readKnowledge,
   searchKnowledge,
   saveMemory,
+  editMemory,
   forgetMemory,
 } from "../../services/knowledge.ts";
 
@@ -55,14 +57,36 @@ export function createKnowledgeTools(userId: string, agentId: string): ToolRegis
     const schema = memoryInputSchema.extend({
       memoryId: z.string().optional(),
     });
+    const partial = agent.permissions.edit
+      ? " To change part of an existing memory, use memory_edit instead of resending the whole note."
+      : "";
     tools.push({
       name: "memory_save",
-      description: `Save a fact, preference, or decision only when the user asks to remember it. ${memoryScope} Attribute person-specific statements in the content. To edit an existing memory, supply memoryId and expectedRevision from knowledge_read. Do not automatically save transient actions or model guesses.`,
+      description: `Save a fact, preference, or decision only when the user asks to remember it. ${memoryScope} Attribute person-specific statements in the content. To replace an existing memory, supply memoryId and expectedRevision from knowledge_read.${partial} Do not automatically save transient actions or model guesses.`,
       parameters: z.toJSONSchema(schema) as never,
       executionMode: "sequential",
       execute: async (args) => {
         const input = schema.parse(args);
         return result(await saveMemory(userId, agentId, input, input.memoryId));
+      },
+    });
+  }
+  if (agent.permissions.edit) {
+    const schema = memoryEditSchema.extend({
+      memoryId: z
+        .string()
+        .min(1)
+        .max(100)
+        .describe("Saved memory ID, the filename from knowledge_read without .md."),
+    });
+    tools.push({
+      name: "memory_edit",
+      description: `Change part of one saved memory using exact text replacement, the same way the edit tool changes a file. ${memoryScope} Read it with knowledge_read first. Supply memoryId and expectedRevision. Each edits[].oldText must match a unique, non-overlapping region of that current note, including the leading # title line when renaming it. Match several nearby lines with one edit. Use memory_save to replace the whole note. Only when the user asks to update a memory.`,
+      parameters: z.toJSONSchema(schema) as never,
+      executionMode: "sequential",
+      execute: async (args) => {
+        const input = schema.parse(prepareMemoryEditArguments(args));
+        return result(await editMemory(userId, agentId, input.memoryId, input));
       },
     });
   }
@@ -84,4 +108,31 @@ export function createKnowledgeTools(userId: string, agentId: string): ToolRegis
     });
   }
   return tools;
+}
+
+/** Repair shapes models send to the file edit tool: a JSON string, one edit object, or a top-level oldText/newText pair. */
+function prepareMemoryEditArguments(input: unknown) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+  const args = { ...(input as Record<string, unknown>) };
+  if (typeof args.edits === "string") {
+    try {
+      const parsed = JSON.parse(args.edits) as unknown;
+      if (Array.isArray(parsed) || isSingleEdit(parsed)) args.edits = parsed;
+    } catch {
+      // Leave the original string for schema validation.
+    }
+  }
+  if (isSingleEdit(args.edits)) args.edits = [args.edits];
+  if (typeof args.oldText !== "string" || typeof args.newText !== "string") return args;
+  const edits = Array.isArray(args.edits) ? [...args.edits] : [];
+  edits.push({ oldText: args.oldText, newText: args.newText });
+  delete args.oldText;
+  delete args.newText;
+  return { ...args, edits };
+}
+
+function isSingleEdit(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const edit = value as Record<string, unknown>;
+  return typeof edit.oldText === "string" && typeof edit.newText === "string";
 }

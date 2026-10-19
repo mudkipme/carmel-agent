@@ -9,6 +9,7 @@ import {
   knowledgeSearchSchema,
   knowledgeReadSchema,
   memoryInputSchema,
+  memoryEditSchema,
   knowledgeSourceInputSchema,
   type KnowledgeStatus,
   type KnowledgeSettings,
@@ -20,6 +21,7 @@ import {
   type KnowledgeSearchResult,
   type SavedMemory,
   type MemoryInput,
+  type MemoryEditInput,
 } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { agents, knowledgeConfigs, knowledgeMemories, knowledgeSources } from "../db/schema.ts";
@@ -32,6 +34,7 @@ import {
   type KnowledgeWorkerPlan,
 } from "../runtime/knowledge/worker-client.ts";
 import { knowledgeLock } from "../runtime/knowledge/queue.ts";
+import { applyTextEdits } from "./text-edits.ts";
 
 import { knowledgeEmbeddingModel, knowledgeModelPlan } from "../runtime/knowledge/models.ts";
 
@@ -648,25 +651,112 @@ export async function saveMemory(
     const content = `# ${data.title.replaceAll("\n", " ")}\n\n${data.content}\n`;
     const at = Date.now();
     const id = previous?.id ?? `m${randomUUID().replaceAll("-", "")}`;
-    const row = {
+    return storeMemory(agentId, {
       id,
-      agentId,
       title: data.title,
-      revision: hash(content),
+      content,
       contributorId: userId,
-      pendingContent: content,
       createdAt: previous?.createdAt ?? at,
-      updatedAt: at,
-    };
-    // Persist intent first. A crash during the filesystem write is replayed before indexing.
-    db.insert(knowledgeMemories)
-      .values(row)
-      .onConflictDoUpdate({ target: knowledgeMemories.id, set: row })
-      .run();
-    dirty(agentId);
-    await recoverMemories(agentId);
-    return (await listMemories(agentId)).find((m) => m.id === id)!;
+    });
   });
+}
+export async function editMemory(
+  userId: string,
+  agentId: string,
+  memoryId: string,
+  input: MemoryEditInput,
+): Promise<SavedMemory> {
+  return knowledgeLock(agentId, async () => {
+    const agent = requireAgent(userId, agentId);
+    requireWrite(agent, true);
+    if (!knowledgeEnabled(agentId))
+      throw new KnowledgeError("Enable knowledge before saving memories.", 409);
+    const data = memoryEditSchema.parse(input);
+    await recoverMemories(agentId);
+    const previous = db
+      .select()
+      .from(knowledgeMemories)
+      .where(
+        and(
+          eq(knowledgeMemories.id, memoryId),
+          eq(knowledgeMemories.agentId, agentId),
+          isNull(knowledgeMemories.deletedAt),
+        ),
+      )
+      .get();
+    if (!previous) throw new KnowledgeError("Memory not found.", 404);
+    if (previous.revision !== data.expectedRevision)
+      throw new KnowledgeError("Memory changed. Reload before editing.", 409);
+    const path = resolve(knowledgeDir(agentId), "notes", `${previous.id}.md`);
+    const current = await readFile(path, "utf8").catch(() => {
+      throw new KnowledgeError("Memory not found.", 404);
+    });
+    if (hash(current) !== previous.revision)
+      throw new KnowledgeError("Memory changed. Reload before editing.", 409);
+    const label = `${previous.id}.md`;
+    let next: string;
+    try {
+      next = applyTextEdits(current, data.edits, label);
+    } catch (error) {
+      throw new KnowledgeError(
+        error instanceof Error ? error.message : "Could not edit that memory.",
+        400,
+      );
+    }
+    const title = memoryTitle(next);
+    return storeMemory(agentId, {
+      id: previous.id,
+      title,
+      content: next,
+      contributorId: userId,
+      createdAt: previous.createdAt,
+    });
+  });
+}
+function memoryTitle(text: string) {
+  const match = /^# ([^\n]*)\n\n([\s\S]*)$/.exec(text);
+  if (!match)
+    throw new KnowledgeError(
+      "Memory edits must keep the leading # title, a blank line, and the note body. Use memory_save to replace the whole note.",
+      400,
+    );
+  const title = match[1].trim();
+  const body = match[2].trim();
+  if (!title || title.length > 200)
+    throw new KnowledgeError("Memory title must be 1 to 200 characters.", 400);
+  if (!body) throw new KnowledgeError("Edited memory has no content.", 400);
+  if (body.length > 20_000)
+    throw new KnowledgeError("Edited memory is longer than 20,000 characters.", 400);
+  return title;
+}
+async function storeMemory(
+  agentId: string,
+  row: {
+    id: string;
+    title: string;
+    content: string;
+    contributorId: string;
+    createdAt: number;
+  },
+) {
+  const stored = {
+    id: row.id,
+    agentId,
+    title: row.title,
+    revision: hash(row.content),
+    contributorId: row.contributorId,
+    pendingContent: row.content,
+    createdAt: row.createdAt,
+    updatedAt: Date.now(),
+  };
+  // Persist intent first. A crash during the filesystem write is replayed before indexing.
+  db.insert(knowledgeMemories)
+    .values(stored)
+    .onConflictDoUpdate({ target: knowledgeMemories.id, set: stored })
+    .run();
+  dirty(agentId);
+  await recoverMemories(agentId);
+  return (await listMemories(agentId)).find((memory) => memory.id === row.id)!;
 }
 export async function forgetMemory(
   userId: string,

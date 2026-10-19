@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { eq } from "drizzle-orm";
+import type { ToolExecutionApi } from "@earendil-works/pi-durable";
 
 const root = await mkdtemp(join(tmpdir(), "carmel-knowledge-unit-"));
 process.env.CARMEL_AGENT_DATA_DIR = root;
@@ -132,7 +133,13 @@ async function fixture() {
 test("knowledge prompts refresh shared metadata and honor visibility, tools, and permissions", async () => {
   const a = await fixture(),
     bob = createUser();
-  const names = ["knowledge_search", "knowledge_read", "memory_save", "memory_forget"];
+  const names = [
+    "knowledge_search",
+    "knowledge_read",
+    "memory_save",
+    "memory_edit",
+    "memory_forget",
+  ];
   const prompt = () => buildKnowledgeInstructions(bob, a.agentId, names);
   assert.match(prompt(), /No document directories are registered/);
   assert.match(prompt(), /shared across all of its users/);
@@ -156,7 +163,8 @@ test("knowledge prompts refresh shared metadata and honor visibility, tools, and
   assert.ok(!prompt().includes(a.workspace));
   assert.ok(!prompt().includes(memory.content));
   assert.match(prompt(), /create with memory_save/);
-  assert.match(prompt(), /update with memory_save/);
+  assert.match(prompt(), /replace a whole memory with memory_save/);
+  assert.match(prompt(), /patch lines with memory_edit/);
   assert.match(prompt(), /forget with memory_forget/);
   assert.equal(buildKnowledgeInstructions(bob, a.agentId, ["codemode"]), "");
 
@@ -171,7 +179,8 @@ test("knowledge prompts refresh shared metadata and honor visibility, tools, and
       .run();
     const text = prompt();
     assert.equal(text.includes("create with memory_save"), write);
-    assert.equal(text.includes("update with memory_save"), edit);
+    assert.equal(text.includes("replace a whole memory with memory_save"), edit);
+    assert.equal(text.includes("patch lines with memory_edit"), edit);
     assert.equal(text.includes("forget with memory_forget"), edit);
     assert.equal(text.includes("Memory is read-only"), !write && !edit);
   }
@@ -357,6 +366,131 @@ test("agent memory is shared across users, with conflict checks and immediate fo
   assert.equal((await knowledge.knowledgeOverview(bob, a.agentId)).memories.length, 0);
 });
 
+test("memory edits replace unique lines and leave the rest of the note unchanged", async () => {
+  const a = await fixture(),
+    bob = createUser();
+  const saved = await knowledge.saveMemory(a.userId, a.agentId, {
+    title: "Budget meeting",
+    content: "Alice and Bob meet on Sunday.\nThey review the household budget.\nCarol is away.",
+  });
+  const path = join(knowledge.knowledgeDir(a.agentId), "notes", `${saved.id}.md`);
+  const original = await readFile(path, "utf8");
+  const updated = await knowledge.editMemory(bob, a.agentId, saved.id, {
+    expectedRevision: saved.revision,
+    edits: [
+      { oldText: "Sunday", newText: "Monday" },
+      { oldText: "Carol is away.", newText: "Carol joins by phone." },
+    ],
+  });
+  assert.equal(updated.contributorId, bob);
+  assert.equal(updated.title, saved.title);
+  assert.notEqual(updated.revision, saved.revision);
+  assert.match(updated.content, /meet on Monday/);
+  assert.match(updated.content, /They review the household budget/);
+  assert.match(updated.content, /Carol joins by phone/);
+  assert.doesNotMatch(updated.content, /Sunday|Carol is away/);
+  const stored = await readFile(path, "utf8");
+  assert.match(stored, /^# Budget meeting\n\n/);
+  assert.equal(
+    (
+      await knowledge.readKnowledge(a.userId, a.agentId, {
+        sourceId: "memories",
+        path: `${saved.id}.md`,
+      })
+    ).revision,
+    updated.revision,
+  );
+
+  const renamed = await knowledge.editMemory(a.userId, a.agentId, saved.id, {
+    expectedRevision: updated.revision,
+    edits: [{ oldText: "# Budget meeting", newText: "# Monday meeting" }],
+  });
+  assert.equal(renamed.title, "Monday meeting");
+  assert.match(renamed.content, /They review the household budget/);
+
+  const unchanged = await readFile(path, "utf8");
+  for (const edits of [
+    [{ oldText: "Saturday", newText: "Monday" }],
+    [{ oldText: "Monday", newText: "Monday" }],
+    [{ oldText: "e", newText: "our" }],
+    [
+      { oldText: "Alice and Bob", newText: "The family" },
+      { oldText: "Bob meet", newText: "family meets" },
+    ],
+    [{ oldText: "Carol joins by phone.", newText: "x".repeat(20_000) }],
+    [{ oldText: "# Monday meeting\n\n", newText: "No heading\n" }],
+  ]) {
+    await assert.rejects(
+      knowledge.editMemory(a.userId, a.agentId, saved.id, {
+        expectedRevision: renamed.revision,
+        edits,
+      }),
+      { status: 400 },
+    );
+    assert.equal(await readFile(path, "utf8"), unchanged);
+  }
+  await assert.rejects(
+    knowledge.editMemory(a.userId, a.agentId, saved.id, {
+      expectedRevision: saved.revision,
+      edits: [{ oldText: "Monday", newText: "Tuesday" }],
+    }),
+    { status: 409 },
+  );
+  await writeFile(path, original);
+  await assert.rejects(
+    knowledge.editMemory(a.userId, a.agentId, saved.id, {
+      expectedRevision: renamed.revision,
+      edits: [{ oldText: "Monday", newText: "Tuesday" }],
+    }),
+    { status: 409 },
+  );
+  await writeFile(path, unchanged);
+
+  db.update(agents)
+    .set({
+      permissions: { read: true, write: true, edit: false, bash: false, network: false },
+    })
+    .where(eq(agents.id, a.agentId))
+    .run();
+  await assert.rejects(
+    knowledge.editMemory(a.userId, a.agentId, saved.id, {
+      expectedRevision: renamed.revision,
+      edits: [{ oldText: "Monday", newText: "Tuesday" }],
+    }),
+    { status: 403 },
+  );
+  assert.equal(
+    createKnowledgeTools(a.userId, a.agentId).some((tool) => tool.name === "memory_edit"),
+    false,
+  );
+
+  db.update(agents)
+    .set({
+      permissions: { read: true, write: true, edit: true, bash: false, network: false },
+    })
+    .where(eq(agents.id, a.agentId))
+    .run();
+  const tool = createKnowledgeTools(a.userId, a.agentId).find(
+    (item) => item.name === "memory_edit",
+  );
+  assert.ok(tool);
+  const { TEST_CONTEXT } = await import("../effectors/testing/pi-harness.ts");
+  const repaired = await tool.execute(
+    {
+      memoryId: saved.id,
+      expectedRevision: renamed.revision,
+      edits: JSON.stringify([{ oldText: "joins by phone", newText: "calls in" }]),
+      oldText: "household",
+      newText: "family",
+    },
+    {} as ToolExecutionApi,
+    TEST_CONTEXT,
+  );
+  assert.match(JSON.stringify(repaired.details), /calls in/);
+  assert.match(JSON.stringify(repaired.details), /family budget/);
+  assert.doesNotMatch(JSON.stringify(repaired.details), /household|joins by phone/);
+});
+
 test("knowledge rechecks agent sharing and permissions; configuration remains owner-only", async () => {
   const a = await fixture(),
     bob = createUser();
@@ -370,7 +504,7 @@ test("knowledge rechecks agent sharing and permissions; configuration remains ow
   );
   assert.deepEqual(
     createKnowledgeTools(bob, a.agentId).map((t) => t.name),
-    ["knowledge_search", "knowledge_read", "memory_save", "memory_forget"],
+    ["knowledge_search", "knowledge_read", "memory_save", "memory_edit", "memory_forget"],
   );
   db.update(agents).set({ shared: false }).where(eq(agents.id, a.agentId)).run();
   assert.throws(() => knowledge.readKnowledgeSettings(bob, a.agentId), { status: 404 });
