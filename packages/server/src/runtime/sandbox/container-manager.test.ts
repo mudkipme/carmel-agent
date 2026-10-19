@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type ServerResponse } from "node:http";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { agents } from "../../db/schema.ts";
@@ -27,6 +28,10 @@ test(
     process.env.CARMEL_PODMAN_SOCKET = join(directory, "podman.sock");
     process.env.CARMEL_AGENT_DATA_DIR = directory;
     let creates = 0;
+    let managed:
+      | Array<{ Id: string; Created: number; Labels?: Record<string, string> }>
+      | undefined;
+    const failedDeletes = new Set<string>();
     let delayedDelete: ServerResponse | undefined;
     let sawDelete!: () => void;
     const deleting = new Promise<void>((resolve) => {
@@ -82,8 +87,10 @@ test(
         return json({ Id: `container-${++creates}` }, 201);
       }
       if (path.endsWith("/containers/json"))
-        return json({ error: "Cannot establish old owners" }, 500);
+        return managed ? json(managed) : json({ error: "Cannot establish old owners" }, 500);
       if (req.method === "DELETE") {
+        if (failedDeletes.has(path.split("/").at(-1)!))
+          return json({ error: "Removal failed" }, 500);
         if (holdDelete) {
           delayedDelete = res;
           sawDelete();
@@ -140,6 +147,8 @@ test(
       killAgentContainer,
       reapManagedContainers,
       shutdownContainerManager,
+      resolveAgentTmpDirPath,
+      resolveAgentHomeDirPath,
     } = await import("./container-manager.ts");
     const agent = {
       id: "test-profile-owner",
@@ -149,6 +158,14 @@ test(
     } as unknown as typeof agents.$inferSelect;
     try {
       assert.equal(await ensureAgentContainer(agent, { network: false }), "container-1");
+      const tmpPath = resolveAgentTmpDirPath(agent);
+      const homePath = resolveAgentHomeDirPath(agent);
+      const scratch = join(tmpPath, "scratch");
+      const savedHome = join(homePath, "saved-profile");
+      const savedWork = join(agent.workingDir, "saved-work");
+      await writeFile(scratch, "temporary");
+      await writeFile(savedHome, "persistent home");
+      await writeFile(savedWork, "persistent workspace");
       const stopped = assert.rejects(killAgentContainer(agent.id), /refusing to reuse/);
       await deleting;
       const replacement = assert.rejects(
@@ -161,13 +178,26 @@ test(
       delayedDelete!.end();
       await Promise.all([stopped, replacement]);
       assert.equal(
+        await readFile(scratch, "utf8"),
+        "temporary",
+        "failed removal must retain the live runner's scratch",
+      );
+      assert.equal(
         await ensureAgentContainer(agent, { network: false }),
         "container-1",
         "failed removal must keep the original owner tracked",
       );
       holdDelete = false;
       await killAgentContainer(agent.id);
+      assert.equal(existsSync(tmpPath), false, "confirmed teardown clears scratch immediately");
+      assert.equal(await readFile(savedHome, "utf8"), "persistent home");
+      assert.equal(await readFile(savedWork, "utf8"), "persistent workspace");
       assert.equal(await ensureAgentContainer(agent, { network: false }), "container-2");
+      assert.equal(
+        existsSync(scratch),
+        false,
+        "replacement starts without the previous runner's files",
+      );
       assert.ok(specs.every((spec) => spec.HostConfig.Init === true));
       for (const spec of specs) {
         assert.equal(spec.User, `${uid}:${gid}`);
@@ -198,10 +228,17 @@ test(
       }
       securityOptions = [];
       initializeExitCode = 1;
+      await mkdir(tmpPath, { recursive: true });
+      await writeFile(scratch, "failed setup");
       const previousPreparations = browserPreparations;
       await assert.rejects(
         ensureAgentContainer(agent, { network: false }),
         /initialize the non-root sandbox/,
+      );
+      assert.equal(
+        existsSync(tmpPath),
+        false,
+        "failed initialization clears scratch after removing its runner",
       );
       assert.equal(
         browserPreparations,
@@ -250,6 +287,50 @@ test(
       } finally {
         await env.cleanup(BACKGROUND_CONTEXT);
       }
+      await writeFile(scratch, "old network configuration");
+      await ensureAgentContainer(agent, { network: true });
+      assert.equal(
+        existsSync(scratch),
+        false,
+        "configuration changes clear the replaced runner's scratch",
+      );
+      await writeFile(scratch, "shutdown scratch");
+      await shutdownContainerManager();
+      assert.equal(existsSync(tmpPath), false, "shutdown removes scratch with the runner");
+      assert.equal(await readFile(savedHome, "utf8"), "persistent home");
+      assert.equal(await readFile(savedWork, "utf8"), "persistent workspace");
+
+      const orphan = { ...agent, id: "orphan-agent" };
+      const orphanTmp = resolveAgentTmpDirPath(orphan);
+      await mkdir(orphanTmp, { recursive: true });
+      await writeFile(join(orphanTmp, "leftover"), "orphan scratch");
+      managed = [
+        { Id: "orphan-removed", Created: 0, Labels: { "carmel.agent": orphan.id } },
+        { Id: "orphan-running", Created: 0, Labels: { "carmel.agent": orphan.id } },
+      ];
+      failedDeletes.add("orphan-running");
+      await assert.rejects(reapManagedContainers(), /refusing to reuse/);
+      assert.equal(
+        existsSync(orphanTmp),
+        true,
+        "one surviving runner must prevent shared scratch deletion",
+      );
+      failedDeletes.clear();
+      await reapManagedContainers();
+      assert.equal(
+        existsSync(orphanTmp),
+        false,
+        "startup removes orphan scratch after confirming all runners are gone",
+      );
+      await mkdir(orphanTmp, { recursive: true });
+      await writeFile(join(orphanTmp, "leftover"), "crash with no container");
+      managed = [];
+      await reapManagedContainers();
+      assert.equal(
+        existsSync(orphanTmp),
+        false,
+        "startup clears legacy scratch even without a surviving container",
+      );
     } finally {
       holdDelete = false;
       delayedDelete?.end();

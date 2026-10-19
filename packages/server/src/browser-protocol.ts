@@ -1,7 +1,18 @@
 import { z } from "zod";
+import { browserClipboardLimit } from "@carmel-agent/shared";
 
 const point = z.number().finite().min(0).max(16384);
 const input = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("clipboard"),
+      requestId: z.string().uuid(),
+      operation: z.enum(["copy", "paste"]),
+      text: z.string().max(browserClipboardLimit).optional(),
+    })
+    .refine((value) =>
+      value.operation === "paste" ? typeof value.text === "string" : value.text === undefined,
+    ),
   z.object({ type: z.literal("take_control") }),
   z.object({ type: z.literal("resume") }),
   z.object({ type: z.literal("release_input") }),
@@ -51,7 +62,7 @@ const input = z.discriminatedUnion("type", [
 ]);
 
 export function parseBrowserInput(raw: string) {
-  if (Buffer.byteLength(raw) > 32 * 1024) return undefined;
+  if (Buffer.byteLength(raw) > 128 * 1024) return undefined;
   try {
     const result = input.safeParse(JSON.parse(raw));
     return result.success ? result.data : undefined;
@@ -61,6 +72,12 @@ export function parseBrowserInput(raw: string) {
 }
 
 const output = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("clipboard_result"),
+    requestId: z.string().uuid(),
+    text: z.string().max(browserClipboardLimit).optional(),
+    error: z.string().max(2000).optional(),
+  }),
   z.object({ type: z.literal("ready") }),
   z.object({ type: z.literal("command_done"), id: z.number().int().nonnegative() }),
   z.object({ type: z.literal("error"), message: z.string().max(2000) }),

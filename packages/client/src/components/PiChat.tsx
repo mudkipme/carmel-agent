@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import type { ChatInputHandle } from "@/components/chat/ChatInput";
 import { ChatErrorNotice } from "@/components/chat/ChatErrorNotice";
@@ -33,6 +33,7 @@ type PiChatProps = {
   collapseRunDetails?: boolean;
   /** Told when a run starts or ends, for views that show run state outside the chat. */
   onStreamingChange?: (streaming: boolean, hasStreamed: boolean) => void;
+  browserRequest?: ReactNode;
 };
 
 export function PiChat({
@@ -43,6 +44,7 @@ export function PiChat({
   providerConfigs,
   collapseRunDetails,
   onStreamingChange,
+  browserRequest,
 }: PiChatProps) {
   const chatInputRef = useRef<ChatInputHandle | null>(null);
   const activeUserId = useHarnessStore((state) => state.activeUserId);
@@ -94,6 +96,23 @@ export function PiChat({
     inputDraftRef.current = text;
     chatInputRef.current?.insertText(text);
   };
+  const waiting = snapshot.userRequests.filter(
+    (request) => request.status === "pending" || request.delivery === "pending",
+  );
+  const completed = snapshot.userRequests.filter(
+    (request) => request.status !== "pending" && request.delivery !== "pending",
+  );
+  const requestCards = (requests: typeof snapshot.userRequests) =>
+    requests.length && !session.issueId ? (
+      <UserRequestCards
+        requests={requests}
+        disabled={snapshot.isStreaming}
+        canManageAgentSecrets={activeUserId === agentConfig.ownerUserId}
+        sharedAgent={Boolean(agentConfig.shared)}
+        onChanged={() => agent!.refreshConnection()}
+        onContinue={() => agent!.resume()}
+      />
+    ) : null;
 
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
@@ -145,21 +164,16 @@ export function PiChat({
                 referencesDraftRef.current = references;
               }}
               readOnly={Boolean(session.issueId)}
-              waitingForAnswer={snapshot.userRequests.some(
-                (request) => request.status === "pending" || request.delivery === "pending",
-              )}
+              waitingForAnswer={waiting.length > 0}
               requestCards={
-                !session.issueId ? (
-                  <UserRequestCards
-                    requests={snapshot.userRequests}
-                    disabled={snapshot.isStreaming}
-                    canManageAgentSecrets={activeUserId === agentConfig.ownerUserId}
-                    sharedAgent={Boolean(agentConfig.shared)}
-                    onChanged={() => agent.refreshConnection()}
-                    onContinue={() => agent.resume()}
-                  />
+                waiting.length || browserRequest ? (
+                  <>
+                    {requestCards(waiting)}
+                    {browserRequest}
+                  </>
                 ) : undefined
               }
+              requestHistory={requestCards(completed)}
               scrollResetKey={session.id}
               messages={snapshot.messages}
               streamingMessage={snapshot.streamingMessage}

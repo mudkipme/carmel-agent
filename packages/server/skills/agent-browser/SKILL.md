@@ -64,6 +64,12 @@ auth-vault credential collection, and `close` examples are not needed here.
 
 ## When to ask a person to take over
 
+While the person has control, the Browser pane supports **Copy selection**, **Paste**,
+and the usual copy/paste keyboard shortcuts. They can also use **Keyboard** to send
+multiline text when their device blocks clipboard access. These transfers go directly
+to the browser and are not submitted as chat messages. Carmel clears transferred text
+from the remote clipboard afterward; do not poll the clipboard for user credentials.
+
 Continue ordinary navigation and authorized form work yourself. Hand off when
 progress needs something only the person can provide: sign-in credentials,
 MFA/one-time codes, a CAPTCHA or verification challenge, account selection that

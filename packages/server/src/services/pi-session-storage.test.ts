@@ -8,6 +8,7 @@ import {
   EntryIndex,
   closePiSession,
   displayId,
+  displayEntries,
   messageDraft,
   openPiSession,
   readPiSessionBranch,
@@ -15,9 +16,59 @@ import {
   readPiSessionTitleMessages,
   rewritePiSessionMessage,
 } from "./pi-session-storage.ts";
+import { getUserRequestReceipt, type UserRequestReceiptMessage } from "@carmel-agent/shared";
 
 initialize();
 const ctx = BACKGROUND_CONTEXT;
+
+test("receipt display survives storage round trips while native model input retains its instructions", async () => {
+  const { sessionId } = createSession();
+  const session = await openPiSession(sessionId);
+  const receipt = {
+    requestId: "test-request",
+    kind: "secret" as const,
+    status: "answered" as const,
+    name: "GH_TOKEN",
+    scope: "session" as const,
+  };
+  const context =
+    "Response to request test-request:\nCredential GH_TOKEN is available. Use $GH_TOKEN in bash; never print its value.";
+  try {
+    const native = await session.conversation.commit(
+      (tx) =>
+        tx.appendEntry(session.conversation.id, {
+          kind: "carmel.user-request-response",
+          data: { carmelUserRequestReceipt: receipt },
+          model: [{ role: "user", content: context, timestamp: Date.now() }],
+        }),
+      ctx,
+    );
+    const entry = displayEntries([native])[0]!;
+    assert.equal(entry.type, "message");
+    if (entry.type !== "message") return;
+    assert.deepEqual(getUserRequestReceipt(entry.message), receipt);
+    assert.match(
+      String((entry.message as UserRequestReceiptMessage).content),
+      /Credential provided/,
+    );
+    assert.doesNotMatch(
+      String((entry.message as UserRequestReceiptMessage).content),
+      /Response to request|never print/,
+    );
+    const draft = messageDraft(entry.message);
+    assert.equal(draft.model?.[0]?.content, context);
+    const rewritten = await session.conversation.commit(
+      (tx) => tx.appendEntry(session.conversation.id, draft),
+      ctx,
+    );
+    const projected = displayEntries([rewritten])[0]!;
+    assert.equal(projected.type, "message");
+    if (projected.type !== "message") return;
+    assert.deepEqual(getUserRequestReceipt(projected.message), receipt);
+  } finally {
+    await closePiSession(session);
+  }
+});
 
 test("stable public message IDs remain readable after reopen and edits give copied entries fresh IDs", async () => {
   const { sessionId } = createSession();

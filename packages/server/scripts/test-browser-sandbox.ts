@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 
 const image = process.env.CARMEL_BROWSER_TEST_IMAGE;
 if (!image) throw new Error("Set CARMEL_BROWSER_TEST_IMAGE to a locally built runner image.");
@@ -41,7 +42,7 @@ db.update(agents)
 const agent = db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!;
 let bridge: Awaited<ReturnType<typeof connectBrowser>> | undefined;
 let webServer: Awaited<ReturnType<typeof attachExecStdio>> | undefined;
-const page = `<!doctype html><title>Browser sign-in fixture</title><style>body{font:20px sans-serif}input,button{position:absolute;left:32px;width:300px;height:44px}input{top:80px}button{top:160px}</style><h1>Sign in</h1><input aria-label="Account"><button onclick="document.cookie='signed_in=yes;path=/;max-age=3600';document.body.innerHTML='<h1>Signed in as '+document.querySelector('input').value+'</h1>'">Sign in</button>`;
+const page = `<!doctype html><title>Browser sign-in fixture</title><style>body{font:20px sans-serif}input,button{position:absolute;left:32px;width:300px;height:44px}input{top:80px}button{top:160px}textarea{position:absolute;left:400px;top:80px}</style><h1>Sign in</h1><textarea aria-label="Clipboard fixture" onpaste="window.receivedPaste=true"></textarea><input aria-label="Account"><button onclick="document.cookie='signed_in=yes;path=/;max-age=3600';document.body.innerHTML='<h1>Signed in as '+document.querySelector('input').value+'</h1>'">Sign in</button>`;
 try {
   let container = await ensureAgentContainer(agent, { network: false });
   const cli = async (...args: string[]) => {
@@ -112,6 +113,54 @@ try {
     }
   };
   await open();
+  const clipboard = async (operation: "copy" | "paste", text?: string) => {
+    const requestId = randomUUID();
+    bridge!.send({
+      type: "clipboard",
+      requestId,
+      operation,
+      ...(text !== undefined ? { text } : {}),
+    });
+    const deadline = Date.now() + 40000;
+    while (
+      !messages.some(
+        (message) => message.type === "clipboard_result" && message.requestId === requestId,
+      )
+    ) {
+      if (Date.now() > deadline) throw new Error("Clipboard response did not arrive.");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    const result = messages.find(
+      (message) => message.type === "clipboard_result" && message.requestId === requestId,
+    )!;
+    assert.equal(result.error, undefined, String(result.error));
+    return result.text;
+  };
+  const clipboardText = "First line 🌍\n第二行\n'quoted' \\ text";
+  const permissionQuery =
+    'Promise.all(["clipboard-read","clipboard-write"].map(async name => (await navigator.permissions.query({name})).state))';
+  const originalPermissions = (await cli("eval", permissionQuery)).result;
+  await cli("focus", "textarea");
+  await clipboard("paste", clipboardText);
+  assert.equal((await cli("get", "value", "textarea")).value, clipboardText);
+  assert.equal((await cli("eval", "window.receivedPaste")).result, true, "uses a real paste event");
+  await cli("eval", "document.querySelector('textarea').select()");
+  assert.equal(await clipboard("copy"), clipboardText);
+  assert.equal(
+    await clipboard("copy"),
+    clipboardText,
+    "permissions are restored after every transfer",
+  );
+  await cli("eval", "document.querySelector('textarea').setSelectionRange(0,0)");
+  assert.equal(await clipboard("copy"), "", "no previous clipboard contents without a selection");
+  assert.deepEqual(
+    (await cli("eval", permissionQuery)).result,
+    originalPermissions,
+    "clipboard transfers restore the site's prior permissions",
+  );
+  console.log(
+    "PASS: clipboard paste fires page handlers; copying preserves multiline Unicode text and clears stale clipboard contents.",
+  );
   bridge!.send({
     type: "input_mouse",
     eventType: "mousePressed",

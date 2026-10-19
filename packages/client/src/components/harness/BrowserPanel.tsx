@@ -1,11 +1,23 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { ArrowLeftIcon, ArrowRightIcon, GlobeIcon, KeyboardIcon, RotateCwIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  GlobeIcon,
+  KeyboardIcon,
+  RotateCwIcon,
+  CopyIcon,
+  ClipboardPasteIcon,
+} from "lucide-react";
 import type { AgentConfig } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { AgentRequestArea } from "@/components/chat/AgentRequestCard";
+import { BrowserRequestCard } from "@/components/chat/BrowserRequestCard";
 import {
   Empty,
   EmptyDescription,
@@ -29,6 +41,10 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
   const { send, frame, hasControl } = browser;
   const image = useRef<HTMLImageElement>(null);
   const surface = useRef<HTMLDivElement>(null);
+  const keyboard = useRef<HTMLTextAreaElement>(null);
+  const clipboardBusy = useRef(false);
+  const [transferring, setTransferring] = useState(false);
+  const [copiedText, setCopiedText] = useState<string>();
   const [address, setAddress] = useState("");
   const [addressError, setAddressError] = useState<string>();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -36,6 +52,14 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
   const touch = useRef<{ x: number; y: number; moved: boolean } | undefined>(undefined);
   const control = browser.control;
   const canInput = hasControl && Boolean(frame);
+  const clipboardLease = useRef({ active: canInput, revision: browser.control.revision });
+  clipboardLease.current = { active: canInput, revision: browser.control.revision };
+  useEffect(
+    () => () => {
+      clipboardLease.current.active = false;
+    },
+    [],
+  );
   useEffect(() => {
     setAddress(browser.url);
   }, [browser.url]);
@@ -43,6 +67,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
     if (!hasControl) {
       setTyped("");
       setKeyboardOpen(false);
+      setCopiedText(undefined);
     }
   }, [hasControl]);
   useEffect(() => {
@@ -94,7 +119,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
       frame.metadata,
     );
     if (kind === "mousePressed") {
-      surface.current?.focus();
+      keyboard.current?.focus({ preventScroll: true });
       event.currentTarget.setPointerCapture(event.pointerId);
     }
     if (event.pointerType === "touch") {
@@ -147,10 +172,16 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
     if (event.key === "Escape" && event.shiftKey) {
       event.preventDefault();
       surface.current?.blur();
+      keyboard.current?.blur();
       return;
     }
-    // Let the browser deliver paste through the clipboard event, without reading it programmatically.
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") return;
+    if ((event.ctrlKey || event.metaKey) && ["c", "v"].includes(event.key.toLowerCase())) {
+      // The hidden text input receives a trusted paste event, including on HTTP hosts.
+      if (event.key.toLowerCase() === "v") return;
+      event.preventDefault();
+      if (eventType === "keyDown" && !event.repeat) void transfer("copy");
+      return;
+    }
     event.preventDefault();
     send({
       type: "input_keyboard",
@@ -169,9 +200,55 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           : undefined,
     });
   };
-  const paste = (text: string) => {
-    for (let offset = 0; offset < text.length; offset += 4096)
-      send({ type: "input_keyboard", eventType: "char", text: text.slice(offset, offset + 4096) });
+  const transfer = async (operation: "copy" | "paste", text?: string) => {
+    if (!canInput || clipboardBusy.current) return;
+    const revision = clipboardLease.current.revision;
+    const active = () =>
+      clipboardLease.current.active && clipboardLease.current.revision === revision;
+    clipboardBusy.current = true;
+    setTransferring(true);
+    setCopiedText(undefined);
+    try {
+      if (operation === "paste" && text === undefined) {
+        try {
+          text = await navigator.clipboard.readText();
+        } catch {
+          if (active()) {
+            setKeyboardOpen(true);
+            toast.info("Paste text into the text entry field, then select Send text.", {
+              position: "top-center",
+            });
+          }
+          return;
+        }
+      }
+      if (!active()) return;
+      const result = await browser.clipboard(operation, text);
+      if (!active()) return;
+      if (operation === "copy") {
+        if (!result) {
+          toast.info("Select text in the remote page before copying.", { position: "top-center" });
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(result);
+          toast.success("Copied from browser", { position: "top-center" });
+        } catch {
+          if (active()) setCopiedText(result);
+        }
+      } else {
+        setTyped("");
+        toast.success("Pasted into browser", { position: "top-center" });
+      }
+    } catch (error) {
+      if (active())
+        toast.error(error instanceof Error ? error.message : "Clipboard transfer failed.", {
+          position: "top-center",
+        });
+    } finally {
+      clipboardBusy.current = false;
+      setTransferring(false);
+    }
   };
   const status = !browser.connected
     ? "Connecting"
@@ -184,6 +261,14 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           : control.phase === "waiting"
             ? "Waiting for help"
             : "Agent has control";
+  const controlDisabled =
+    !browser.connected ||
+    control.phase === "pausing" ||
+    Boolean(control.controllerName && !hasControl);
+  const changeControl = () => {
+    browser.clearError();
+    send({ type: hasControl ? "resume" : "take_control" });
+  };
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-background" aria-label="Agent browser">
@@ -193,22 +278,13 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           <span className="text-sm font-medium">Browser</span>
           <Badge variant="secondary">{status}</Badge>
         </div>
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            disabled={
-              !browser.connected ||
-              control.phase === "pausing" ||
-              Boolean(control.controllerName && !hasControl)
-            }
-            onClick={() => {
-              browser.clearError();
-              send({ type: hasControl ? "resume" : "take_control" });
-            }}
-          >
-            {hasControl ? "Resume agent" : "Take control"}
-          </Button>
-        </div>
+        {control.phase === "agent" ? (
+          <div className="flex items-center gap-1">
+            <Button size="sm" disabled={controlDisabled} onClick={changeControl}>
+              {hasControl ? "Resume agent" : "Take control"}
+            </Button>
+          </div>
+        ) : null}
       </div>
       <form
         className="flex items-center gap-1 border-b p-2"
@@ -293,24 +369,6 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           </Select>
         </div>
       ) : null}
-      {control.phase !== "agent" ? (
-        <div className="p-3">
-          <Alert role="status">
-            <AlertTitle>
-              {hasControl
-                ? "The agent is paused"
-                : control.phase === "pausing"
-                  ? "Waiting for the current tool call to finish"
-                  : "Browser assistance"}
-            </AlertTitle>
-            <AlertDescription>
-              {hasControl
-                ? "Complete the action in the browser, then select Resume agent. Your input is not added to chat."
-                : (control.reason ?? "Take control to help the agent.")}
-            </AlertDescription>
-          </Alert>
-        </div>
-      ) : null}
       {browser.error || addressError ? (
         <div className="px-3 py-2">
           <Alert variant="destructive">
@@ -332,7 +390,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             role="application"
             aria-label={
               canInput
-                ? "Remote browser. Click to focus, then type. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile."
+                ? "Remote browser. Click to focus, then type or use copy and paste shortcuts. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile."
                 : "Live browser preview. Take control to interact."
             }
             onKeyDown={(event) => key(event, "keyDown")}
@@ -343,13 +401,23 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             onPaste={(event) => {
               if (canInput) {
                 event.preventDefault();
-                paste(event.clipboardData.getData("text/plain"));
+                void transfer("paste", event.clipboardData.getData("text/plain"));
               }
             }}
             onContextMenu={(event) => {
               if (canInput) event.preventDefault();
             }}
           >
+            <textarea
+              ref={keyboard}
+              className="sr-only"
+              aria-label="Remote browser keyboard input"
+              tabIndex={-1}
+              autoComplete="off"
+              value=""
+              onChange={() => {}}
+              onBeforeInput={(event) => event.preventDefault()}
+            />
             <img
               ref={image}
               src={`data:image/${frame.data.startsWith("iVBOR") ? "png" : "jpeg"};base64,${frame.data}`}
@@ -391,39 +459,87 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           className="flex items-end gap-2 border-t p-3"
           onSubmit={(event) => {
             event.preventDefault();
-            paste(typed);
-            setTyped("");
+            void transfer("paste", typed);
           }}
         >
           <Field className="min-w-0 flex-1">
             <FieldLabel htmlFor="browser-text">Type into the focused browser field</FieldLabel>
-            <Input
+            <Textarea
               id="browser-text"
-              type="password"
               value={typed}
               onChange={(event) => setTyped(event.target.value)}
               autoComplete="off"
             />
           </Field>
-          <Button type="submit" size="sm" disabled={!typed}>
+          <Button type="submit" size="sm" disabled={!typed || transferring}>
             Send text
           </Button>
         </form>
+      ) : null}
+      {copiedText !== undefined && hasControl ? (
+        <Field className="p-3">
+          <FieldLabel htmlFor="browser-copied-text">Copy from browser</FieldLabel>
+          <p className="text-xs text-muted-foreground">
+            Clipboard access is blocked. Select this text and copy it using your device’s copy
+            command.
+          </p>
+          <Textarea
+            id="browser-copied-text"
+            value={copiedText}
+            readOnly
+            autoFocus
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          <Button variant="outline" size="sm" onClick={() => setCopiedText(undefined)}>
+            Dismiss
+          </Button>
+        </Field>
+      ) : null}
+      {control.phase !== "agent" ? (
+        <AgentRequestArea>
+          <BrowserRequestCard
+            control={control}
+            hasControl={hasControl}
+            actionLabel={hasControl ? "Resume agent" : "Take control"}
+            disabled={controlDisabled}
+            onAction={changeControl}
+          />
+        </AgentRequestArea>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2">
         <span className="text-xs text-muted-foreground">
           {agent.shared ? "Shared agent · Shared sign-ins" : "Agent profile · Sign-ins retained"}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={!canInput}
-          onClick={() => setKeyboardOpen((open) => !open)}
-          aria-pressed={keyboardOpen}
-        >
-          <KeyboardIcon data-icon="inline-start" />
-          Keyboard
-        </Button>
+        <div className="flex flex-wrap items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!canInput || transferring}
+            onClick={() => void transfer("copy")}
+          >
+            <CopyIcon data-icon="inline-start" />
+            Copy selection
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!canInput || transferring}
+            onClick={() => void transfer("paste")}
+          >
+            <ClipboardPasteIcon data-icon="inline-start" />
+            Paste
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!canInput}
+            onClick={() => setKeyboardOpen((open) => !open)}
+            aria-pressed={keyboardOpen}
+          >
+            <KeyboardIcon data-icon="inline-start" />
+            Keyboard
+          </Button>
+        </div>
       </div>
     </section>
   );

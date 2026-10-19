@@ -1,4 +1,4 @@
-import { rmSync } from "node:fs";
+import { readdirSync, rmSync } from "node:fs";
 import { isAbsolute, posix, relative, resolve, sep } from "node:path";
 import type { AgentMount } from "@carmel-agent/shared";
 import { agents } from "../../db/schema.ts";
@@ -15,6 +15,7 @@ import {
   removeContainer,
   sandboxUnavailableMessage,
   startContainer,
+  type ManagedContainer,
 } from "./runtime-client.ts";
 import { errorMessage } from "../../errors.ts";
 import { prepareBrowserProfileScript } from "./browser-profile.ts";
@@ -144,45 +145,40 @@ export function isAgentContainerHeld(agentId: string) {
   return (containerHolds.get(agentId) ?? 0) > 0;
 }
 
-// Transient teardown (abort, command timeout, config-change recreate). The
-// scratch /tmp is kept so a recreated container re-mounts the same files.
+// Scratch storage has the same lifetime as the runner, including aborts and
+// config changes. Only workspace and home data survive recreation.
 export async function killAgentContainer(agentId: string) {
+  const starting = pendingStarts.get(agentId);
+  if (starting) await starting;
   const entry = containers.get(agentId);
   if (!entry) return;
   await stopTrackedContainer(agentId, entry);
 }
 
 /** Keep the owner tracked and block replacement until removal is confirmed. */
-function stopTrackedContainer(
-  agentId: string,
-  entry: ContainerEntry,
-  clearTmp = false,
-): Promise<void> {
+function stopTrackedContainer(agentId: string, entry: ContainerEntry): Promise<void> {
   const pending = pendingStops.get(agentId);
   if (pending) return pending;
   const stopping = (async () => {
     await removeContainerConfirmed(entry.containerId);
     if (containers.get(agentId) === entry) {
+      clearAgentTmp(agentId);
       containers.delete(agentId);
-      if (clearTmp) clearAgentTmp(agentId);
     }
   })().finally(() => pendingStops.delete(agentId));
   pendingStops.set(agentId, stopping);
   return stopping;
 }
 
-// Permanent teardown (agent deletion): also wipe the scratch /tmp directory.
+// Agent deletion also removes scratch written by file tools without a runner.
 export async function discardAgentContainer(agentId: string) {
   await killAgentContainer(agentId);
-  clearAgentTmp(agentId);
+  if (!containers.has(agentId) && !pendingStarts.has(agentId) && !pendingStops.has(agentId))
+    clearAgentTmp(agentId);
 }
 
 function clearAgentTmp(agentId: string) {
-  try {
-    rmSync(agentTmpDirPath(agentId), { recursive: true, force: true });
-  } catch (error) {
-    console.warn("Failed to clear agent tmp dir:", errorMessage(error));
-  }
+  rmSync(agentTmpDirPath(agentId), { recursive: true, force: true });
 }
 
 // Where the workspace is mounted inside the runner. Manual workspaces keep their
@@ -196,7 +192,7 @@ export function resolveContainerWorkspace(agent: AgentRecord) {
 // Per-agent host directory bind-mounted at /tmp in the runner. Backing it on the
 // host (rather than the container's ephemeral layer) lets the host-side file
 // tools see the same /tmp the sandboxed shell writes to, while keeping it
-// isolated from the host's real /tmp.
+// isolated from the host's real /tmp. Removed after the runner is confirmed gone.
 export function resolveAgentTmpDirPath(agent: AgentRecord) {
   return agentTmpDirPath(agent.id);
 }
@@ -273,7 +269,50 @@ export function buildBinds(
 export async function reapManagedContainers() {
   if (!isSandboxConfigured()) return;
   const stale = await listManagedContainers(`${managedLabel}=${managedLabelValue}`);
-  await Promise.all(stale.map((container) => removeContainerConfirmed(container.Id)));
+  await removeUntrackedRunners(stale, stale);
+  // Startup also clears scratch left by a crash after the runtime removed its
+  // container, or by older versions which kept /tmp across server restarts.
+  let directories;
+  try {
+    directories = readdirSync(resolve(dataDir, "agents"), { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  for (const directory of directories) {
+    if (directory.isDirectory() && !hasRunner(directory.name)) clearAgentTmp(directory.name);
+  }
+}
+
+function hasRunner(agentId: string) {
+  return containers.has(agentId) || pendingStarts.has(agentId) || pendingStops.has(agentId);
+}
+
+/** Clear scratch only when every known runner for that agent was removed. */
+async function removeUntrackedRunners(managed: ManagedContainer[], stale: ManagedContainer[]) {
+  const removed = new Set<string>();
+  const results = await Promise.allSettled(
+    stale.map(async (container) => {
+      await removeContainerConfirmed(container.Id);
+      removed.add(container.Id);
+    }),
+  );
+  const agentIds = new Set(
+    stale
+      .map((container) => container.Labels?.[agentLabel])
+      .filter((id): id is string => Boolean(id)),
+  );
+  for (const agentId of agentIds) {
+    if (
+      !hasRunner(agentId) &&
+      managed.every(
+        (container) => container.Labels?.[agentLabel] !== agentId || removed.has(container.Id),
+      )
+    )
+      clearAgentTmp(agentId);
+  }
+  const failure = results.find((result) => result.status === "rejected");
+  if (failure?.status === "rejected") throw failure.reason;
 }
 
 async function removeContainerConfirmed(containerId: string) {
@@ -288,9 +327,9 @@ export async function shutdownContainerManager() {
     clearInterval(reaper);
     reaper = undefined;
   }
-  const entries = [...containers.values()];
-  containers.clear();
-  await Promise.all(entries.map((entry) => removeContainer(entry.containerId)));
+  await Promise.all(
+    [...containers].map(([agentId, entry]) => stopTrackedContainer(agentId, entry)),
+  );
 }
 
 async function createAgentContainer(
@@ -423,7 +462,7 @@ async function createAgentContainer(
       );
     return containerId;
   } catch (error) {
-    await removeContainer(containerId);
+    if (await removeContainer(containerId)) clearAgentTmp(agent.id);
     throw error;
   }
 }
@@ -467,7 +506,7 @@ async function reapIdleContainers() {
   await Promise.all(
     stale.map(async ([agentId, entry]) => {
       try {
-        await stopTrackedContainer(agentId, entry, true);
+        await stopTrackedContainer(agentId, entry);
       } catch (error) {
         console.warn("Failed to reap sandbox container:", errorMessage(error));
       }
@@ -494,11 +533,14 @@ async function reapUntrackedContainers() {
   const tracked = new Set<string>();
   for (const entry of containers.values()) tracked.add(entry.containerId);
   const minAgeSeconds = (Date.now() - config.idleTtlMs) / 1000;
-  await Promise.all(
-    managed
-      .filter((container) => !tracked.has(container.Id) && container.Created < minAgeSeconds)
-      .map((container) => removeContainer(container.Id)),
+  const stale = managed.filter(
+    (container) => !tracked.has(container.Id) && container.Created < minAgeSeconds,
   );
+  try {
+    await removeUntrackedRunners(managed, stale);
+  } catch (error) {
+    console.warn("Failed to reap untracked sandbox containers:", errorMessage(error));
+  }
 }
 
 // When carmel-agent itself runs inside a container, a bind mount source is

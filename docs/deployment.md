@@ -89,11 +89,13 @@ For deployments previously using the private registry, replace the server and ru
 
 The runner keeps npm global installs in `/home/agent/.npm-global` and initializes a persistent Python virtual environment at `/home/agent/.venvs/default`. Both plain `pip install` and `npm install -g` work without root when network access is enabled. C/C++ compilers, make, pkg-config, and Python headers are included for native package builds; packages requiring additional system libraries may still need a custom runner image. `apt install` is not available to agent commands. If an image upgrade changes Python's major/minor version, move aside the old virtual environment and reinstall its packages; startup reports this instead of silently deleting it.
 
+Runner `/tmp` is private scratch storage shared with the agent's file tools. It is cleared when the runner is removed, including idle cleanup, aborts, configuration changes, and server shutdown or restart. Save anything needed later in the workspace or `/home/agent`; installed tools and browser sign-ins in the agent's home survive runner recreation. Startup also removes scratch left by older versions or crashed runners, after confirming those runners are gone.
+
 ## Production Checklist
 
 - Set a stable `CARMEL_SECRET_KEY` before adding any provider credentials. It encrypts stored API keys, OAuth credentials, and custom headers; changing it later makes existing secrets unreadable.
 - Put Carmel behind HTTPS. Session cookies are marked secure when `NODE_ENV=production`.
-- Back up `data/`. It holds the databases, sessions, provider metadata, agent workspaces, and per-agent scratch directories.
+- Back up `data/`. It holds the databases, sessions, provider metadata, agent workspaces, and persistent agent homes. Per-agent scratch directories are temporary and can be excluded from backups.
 - Keep the container socket available to the service user (for rootless Podman, `loginctl enable-linger <user>` keeps the user socket alive without an active login session).
 - Prefer rootless Podman over a rootful Docker socket.
 - Set `CARMEL_ALLOWED_ORIGINS` if the browser UI is served from a different origin than the API.

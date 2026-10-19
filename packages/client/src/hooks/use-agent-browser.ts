@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { browserClipboardLimit } from "@carmel-agent/shared";
 import type {
   BrowserClientMessage,
   BrowserControlState,
@@ -10,6 +11,23 @@ import type {
 export function useAgentBrowser(agentId: string) {
   const socket = useRef<WebSocket | undefined>(undefined);
   const pendingAck = useRef<number | undefined>(undefined);
+  const clipboardRequests = useRef(
+    new Map<
+      string,
+      {
+        resolve: (text: string) => void;
+        reject: (error: Error) => void;
+        timer: ReturnType<typeof setTimeout>;
+      }
+    >(),
+  );
+  const cancelClipboard = useCallback(() => {
+    for (const request of clipboardRequests.current.values()) {
+      clearTimeout(request.timer);
+      request.reject(new Error("Browser clipboard transfer was interrupted."));
+    }
+    clipboardRequests.current.clear();
+  }, []);
   const [attempt, setAttempt] = useState(0);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string>();
@@ -25,6 +43,31 @@ export function useAgentBrowser(agentId: string) {
     }
     if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify(message));
   }, []);
+
+  const clipboard = useCallback(
+    (operation: "copy" | "paste", text = "") => {
+      if (socket.current?.readyState !== WebSocket.OPEN)
+        return Promise.reject(new Error("Browser disconnected."));
+      if (text.length > browserClipboardLimit)
+        return Promise.reject(new Error("Paste at most 16,384 characters at a time."));
+      const requestId = crypto.randomUUID();
+      return new Promise<string>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          clipboardRequests.current.delete(requestId);
+          reject(
+            new Error("Clipboard transfer timed out. Reconnect the browser before trying again."),
+          );
+        }, 120000);
+        clipboardRequests.current.set(requestId, { resolve, reject, timer });
+        send(
+          operation === "copy"
+            ? { type: "clipboard", requestId, operation }
+            : { type: "clipboard", requestId, operation, text },
+        );
+      });
+    },
+    [send],
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -63,9 +106,19 @@ export function useAgentBrowser(agentId: string) {
             failures = 0;
             break;
           case "control":
+            if (!message.hasControl) cancelClipboard();
             setControl(message.state);
             setHasControl(message.hasControl);
             break;
+          case "clipboard_result": {
+            const request = clipboardRequests.current.get(message.requestId);
+            if (!request) break;
+            clearTimeout(request.timer);
+            clipboardRequests.current.delete(message.requestId);
+            if (message.error) request.reject(new Error(message.error));
+            else request.resolve(message.text ?? "");
+            break;
+          }
           case "frame":
             setFrame(message);
             break;
@@ -78,6 +131,7 @@ export function useAgentBrowser(agentId: string) {
           case "status":
             setConnected(message.connected);
             if (!message.connected) setFrame(undefined);
+            if (!message.connected) cancelClipboard();
             break;
           case "error":
             setError(message.message);
@@ -86,6 +140,7 @@ export function useAgentBrowser(agentId: string) {
       };
       ws.onclose = () => {
         if (disposed || socket.current !== ws) return;
+        cancelClipboard();
         setConnected(false);
         setHasControl(false);
         setFrame(undefined);
@@ -99,12 +154,13 @@ export function useAgentBrowser(agentId: string) {
     connect();
     return () => {
       disposed = true;
+      cancelClipboard();
       clearTimeout(retry);
       document.removeEventListener("visibilitychange", visible);
       socket.current?.close();
       socket.current = undefined;
     };
-  }, [agentId, attempt, send]);
+  }, [agentId, attempt, send, cancelClipboard]);
 
   return {
     connected,
@@ -115,6 +171,7 @@ export function useAgentBrowser(agentId: string) {
     url,
     tabs,
     send,
+    clipboard,
     reconnect: () => {
       setError(undefined);
       setAttempt((value) => value + 1);

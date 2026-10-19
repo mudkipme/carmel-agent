@@ -13,7 +13,7 @@ import type { BrowserServerMessage } from "@carmel-agent/shared";
 export function attachBrowserSocket(server: Server, connect = connectBrowser) {
   const wss = new WebSocketServer({
     noServer: true,
-    maxPayload: 32 * 1024,
+    maxPayload: 128 * 1024,
     perMessageDeflate: false,
   });
   server.on("upgrade", (request, socket, head) => {
@@ -66,6 +66,7 @@ async function openBrowser(
   let connected = false;
   let commandId = 0;
   const pendingCommands = new Set<number>();
+  const pendingClipboard = new Set<string>();
   const command = (args: string[]) => {
     const id = ++commandId;
     pendingCommands.add(id);
@@ -148,10 +149,17 @@ async function openBrowser(
         return;
       }
       if (message.type === "resume") {
-        if (pendingCommands.size)
+        if (pendingCommands.size || pendingClipboard.size)
           throw new Error("Wait for the browser action to finish before resuming.");
         resetInput();
         control.resume(id);
+        return;
+      }
+      if (message.type === "clipboard") {
+        if (pendingClipboard.size) throw new Error("Wait for the clipboard action to finish.");
+        resetInput();
+        pendingClipboard.add(message.requestId);
+        bridge?.send(message);
         return;
       }
       if (message.type === "navigate") command(["open", message.url]);
@@ -176,7 +184,11 @@ async function openBrowser(
         bridge?.send(message);
       }
     } catch (error) {
-      send({ type: "error", message: errorMessage(error) });
+      send(
+        message.type === "clipboard"
+          ? { type: "clipboard_result", requestId: message.requestId, error: errorMessage(error) }
+          : { type: "error", message: errorMessage(error) },
+      );
     }
   });
   sendControl();
@@ -184,6 +196,16 @@ async function openBrowser(
     bridge = await connect(
       agent,
       (message) => {
+        if (message.type === "clipboard_result") {
+          if (!pendingClipboard.delete(message.requestId) || closed || !control.canInput(id))
+            return;
+          if (!authenticated() || !readVisibleAgent(userId, agent.id)?.permissions.bash) {
+            close();
+            return;
+          }
+          send(message);
+          return;
+        }
         if (message.type === "command_done") {
           pendingCommands.delete(message.id);
           return;

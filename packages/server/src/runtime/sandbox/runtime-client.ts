@@ -225,7 +225,7 @@ export async function removeContainer(containerId: string): Promise<boolean> {
 }
 
 // `Created` is a unix timestamp in seconds (Docker/Podman compatible).
-export type ManagedContainer = { Id: string; Created: number };
+export type ManagedContainer = { Id: string; Created: number; Labels?: Record<string, string> };
 
 export async function listManagedContainers(label: string): Promise<ManagedContainer[]> {
   const res = await runtimeRequest({

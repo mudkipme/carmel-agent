@@ -1,6 +1,7 @@
 import type { Context } from "@earendil-works/chord";
 import type { JsonValue } from "@earendil-works/chord";
 import type { ResolvedReferences } from "../../services/prompt-references.ts";
+import type { UserRequestReceipt } from "@carmel-agent/shared";
 import type { ImageContent, Models } from "@earendil-works/pi-ai";
 import {
   AgentDoc,
@@ -192,7 +193,7 @@ export class PiRun {
     images: ImageContent[] | undefined,
     context: Context,
     resolved?: ResolvedReferences,
-    delivery?: { requestId: string; onSubmitted: () => void },
+    delivery?: { requestId: string; receipt: UserRequestReceipt; onSubmitted: () => void },
   ) {
     await this.resume(context);
     const delivered = this.nextRunEnd();
@@ -208,17 +209,24 @@ export class PiRun {
                 ...(images ?? []),
               ]
             : text,
-        ...(resolved?.references.length
+        ...(delivery
           ? {
               entry: {
-                kind: "carmel.referenced-input",
-                data: {
-                  carmelDisplayText: text,
-                  carmelReferences: resolved.references,
-                } as unknown as JsonValue,
+                kind: "carmel.user-request-response",
+                data: { carmelUserRequestReceipt: delivery.receipt } as unknown as JsonValue,
               },
             }
-          : {}),
+          : resolved?.references.length
+            ? {
+                entry: {
+                  kind: "carmel.referenced-input",
+                  data: {
+                    carmelDisplayText: text,
+                    carmelReferences: resolved.references,
+                  } as unknown as JsonValue,
+                },
+              }
+            : {}),
         whenBusy: "reject",
       },
       context,

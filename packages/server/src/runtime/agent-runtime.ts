@@ -343,6 +343,7 @@ async function startAgentRun(context: AgentRun) {
         throw new Error("The request belongs to an earlier conversation branch.");
       await harness.prompt(userReply.text, undefined, runContext, undefined, {
         requestId: userReply.requestId,
+        receipt: userReply.receipt,
         onSubmitted: () => markUserReplySubmitted(userReply.id),
       });
     } else if (!promptInput && (await harness.hasPending(runContext))) {

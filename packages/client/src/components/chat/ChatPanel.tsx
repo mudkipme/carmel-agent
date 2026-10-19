@@ -13,6 +13,7 @@ import {
 import type { PromptOutcome } from "@/lib/remote-agent";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMessages } from "./ChatMessages";
+import { AgentRequestArea } from "./AgentRequestCard";
 
 type ChatPanelProps = {
   agentId: string;
@@ -33,6 +34,7 @@ type ChatPanelProps = {
   inputRef?: Ref<ChatInputHandle>;
   inputLeadingActions?: ReactNode;
   requestCards?: ReactNode;
+  requestHistory?: ReactNode;
   waitingForAnswer?: boolean;
   initialInput?: string;
   onInputDraftChange?: (value: string) => void;
@@ -68,6 +70,7 @@ export function ChatPanel({
   inputRef,
   inputLeadingActions,
   requestCards,
+  requestHistory,
   waitingForAnswer,
   initialInput,
   onInputDraftChange,
@@ -109,6 +112,7 @@ export function ChatPanel({
       if (autoScrollRef.current) scrollElement.scrollTop = scrollElement.scrollHeight;
     });
     observer.observe(contentElement);
+    observer.observe(scrollElement);
     return () => observer.disconnect();
   }, []);
 
@@ -120,6 +124,7 @@ export function ChatPanel({
     <div className="agent-chat-host flex h-full min-h-0 flex-col bg-background text-foreground">
       <div
         ref={scrollRef}
+        data-chat-history
         className="min-h-0 flex-1 overflow-y-auto"
         onScroll={(event) => {
           const element = event.currentTarget;
@@ -143,9 +148,10 @@ export function ChatPanel({
             onRetryMessage={readOnly ? undefined : onRetryMessage}
             onForkMessage={readOnly ? undefined : onForkMessage}
           />
-          {requestCards}
+          {requestHistory ? <div className="py-3">{requestHistory}</div> : null}
         </div>
       </div>
+      <AgentRequestArea>{requestCards}</AgentRequestArea>
       {!readOnly ? (
         <div
           hidden={waitingForAnswer}

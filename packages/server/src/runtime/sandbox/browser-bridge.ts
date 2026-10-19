@@ -18,7 +18,7 @@ function commandError(args, error, stdout, stderr) {
   if (error?.killed) return new Error('The browser command timed out (' + args.slice(0, 2).join(' ') + '). Reconnect to try again.');
   return new Error('The browser command failed (' + args.slice(0, 2).join(' ') + '). Check this agent\'s sandbox browser process and profile.');
 }
-function cli(args) {
+function cli(args, input) {
   return new Promise((resolve, reject) => {
     const child = execFile('/usr/local/bin/agent-browser', ['--session', 'carmel', '--json', ...args],
       { timeout: 30000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
@@ -31,7 +31,76 @@ function cli(args) {
         } catch { reject(commandError(args, error, stdout, stderr)); }
       });
     children.add(child);
+    if (input !== undefined) {
+      child.stdin.on('error', () => reject(new Error('Browser input disconnected.')));
+      child.stdin.end(input);
+    }
   });
+}
+// A separate local CDP connection grants clipboard access only for this operation.
+// Restore the site's previous permission states; never grant access to every origin.
+async function clipboard(message) {
+  let cdp, previous, origin, granted = false;
+  let rpcId = 0;
+  const pending = new Map();
+  const rpc = (method, params) => new Promise((resolve, reject) => {
+    const id = ++rpcId;
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error('CDP timeout')); }, 5000);
+    pending.set(id, {resolve, reject, timer});
+    cdp.send(JSON.stringify({id, method, params}));
+  });
+  const permission = (name, setting) => rpc('Browser.setPermission', {origin, permission:{name}, setting});
+  let result;
+  try {
+    origin = new URL((await cli(['get', 'url'])).url).origin;
+    previous = (await cli(['eval', 'Promise.all(["clipboard-read","clipboard-write"].map(async name => (await navigator.permissions.query({name})).state))'])).result;
+    if (!Array.isArray(previous) || previous.length !== 2) throw new Error('Clipboard unavailable');
+    const endpoint = new URL((await cli(['get', 'cdp-url'])).cdpUrl);
+    if (endpoint.protocol !== 'ws:' || !['127.0.0.1','localhost','[::1]'].includes(endpoint.hostname)) throw new Error('Local browser required');
+    cdp = new WebSocket(endpoint);
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { cdp.close(); reject(new Error('CDP timeout')); }, 5000);
+      cdp.addEventListener('open', () => { clearTimeout(timer); resolve(); }, {once:true});
+      cdp.addEventListener('error', () => { clearTimeout(timer); reject(new Error('CDP unavailable')); }, {once:true});
+    });
+    cdp.addEventListener('message', event => {
+      try {
+        const response = JSON.parse(String(event.data)), request = pending.get(response.id);
+        if (!request) return;
+        clearTimeout(request.timer); pending.delete(response.id);
+        if (response.error) request.reject(new Error('Clipboard permission failed')); else request.resolve(response.result);
+      } catch {}
+    });
+    granted = true;
+    await permission('clipboard-read', 'granted');
+    await permission('clipboard-write', 'granted');
+    // Empty first so copying without a selection cannot return a previous user's clipboard.
+    await cli(['clipboard', 'write', '']);
+    if (message.operation === 'paste') {
+      // Pass user text over stdin, never in process arguments or error messages.
+      await cli(['eval', '--stdin'], 'navigator.clipboard.writeText(' + JSON.stringify(message.text) + ')');
+      await cli(['clipboard', 'paste']);
+      result = {type:'clipboard_result', requestId:message.requestId};
+    } else {
+      await cli(['clipboard', 'copy']);
+      const {text} = await cli(['clipboard', 'read']);
+      if (typeof text !== 'string' || text.length > 16384) throw new Error('Clipboard text exceeds limit');
+      result = {type:'clipboard_result', requestId:message.requestId, text};
+    }
+  } catch {
+    result = {type:'clipboard_result', requestId:message.requestId, error:'Clipboard transfer failed. Use a secure page and copy or paste at most 16,384 characters.'};
+  } finally {
+    if (granted) {
+      // Do not leave the user's transferred text in the agent browser's clipboard.
+      try { await cli(['clipboard', 'write', '']); } catch {}
+      for (const [index, name] of ['clipboard-read','clipboard-write'].entries()) {
+        try { await permission(name, previous[index]); } catch {}
+      }
+    }
+    for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new Error('Clipboard disconnected')); }
+    cdp?.close();
+  }
+  send(result);
 }
 let refreshing = false;
 async function refresh() {
@@ -65,7 +134,9 @@ let commands = Promise.resolve();
 lines.on('line', line => {
   try {
     const message = JSON.parse(line);
-    if (message.type === 'command') {
+    if (message.type === 'clipboard') {
+      commands = commands.then(() => clipboard(message));
+    } else if (message.type === 'command') {
       commands = commands.then(async () => {
         try { await cli(message.args); await refresh(); }
         catch { send({type:'error',message:'The browser action failed. Try again.'}); }

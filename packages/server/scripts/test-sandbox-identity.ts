@@ -146,8 +146,24 @@ with zipfile.ZipFile('carmel_identity_fixture-1.0-py3-none-any.whl', 'w') as z:
   ]);
   await checkAttach(false);
   await checkAttach(true);
+  await run([
+    "node",
+    "-e",
+    "const fs=require('node:fs');for(const dir of [process.cwd(),process.env.HOME,'/tmp'])fs.writeFileSync(dir+'/container-lifetime','fixture')",
+  ]);
   await killAgentContainer(agent.id);
+  await assert.rejects(stat(resolveAgentTmpDirPath(agent)), { code: "ENOENT" });
+  await stat(join(agent.workingDir, "container-lifetime"));
+  await stat(join(resolveAgentHomeDirPath(agent), "container-lifetime"));
   container = await ensureAgentContainer(agent, { network: false });
+  assert.equal(
+    await run([
+      "node",
+      "-e",
+      "console.log(require('node:fs').existsSync('/tmp/container-lifetime'))",
+    ]),
+    "false",
+  );
   assert.equal(
     await run([
       "python",
@@ -162,7 +178,7 @@ with zipfile.ZipFile('carmel_identity_fixture-1.0-py3-none-any.whl', 'w') as z:
     /from \/home\/agent\/\.venvs\/default\/lib\/python[\d.]+\/site-packages\/pip/,
   );
   console.log(
-    "PASS: non-root identity, host ownership, server edits, offline pip/npm installs, direct/TTY exec, and persistence after recreation.",
+    "PASS: non-root identity, host ownership, server edits, offline pip/npm installs, direct/TTY exec, and persistent workspace/home with fresh tmp after recreation.",
   );
 } finally {
   await discardAgentContainer(agent.id);

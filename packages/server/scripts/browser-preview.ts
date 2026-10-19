@@ -349,17 +349,20 @@ await replacePiSessionMessages(chatSessionId, [
 ]);
 const app = createApp();
 const { withPiSession } = await import("../src/services/pi-session-storage.ts");
-const { createUserRequest } = await import("../src/services/user-requests.ts");
+const { createUserRequest, answerSecretRequest, pendingUserReply, markUserReplySubmitted } =
+  await import("../src/services/user-requests.ts");
 const { questionInputSchema, secretRequestInputSchema } = await import("@carmel-agent/shared");
 const questionSessionId = "browser-question-session";
 const multipleQuestionSessionId = "browser-multiple-question-session";
 const secretSessionId = "browser-secret-session";
 const declineSessionId = "browser-decline-session";
+const receiptSessionId = "browser-receipt-session";
 for (const [sessionId, title] of [
   [questionSessionId, "Choose a branch"],
   [multipleQuestionSessionId, "Choose environments"],
   [secretSessionId, "Connect GitHub"],
   [declineSessionId, "Optional question"],
+  [receiptSessionId, "Credential receipts"],
 ]) {
   db.insert(sessions)
     .values({
@@ -379,7 +382,38 @@ for (const [sessionId, title] of [
       conversationId: String(pi.conversation.id),
       callId: "fixture-request",
     };
-    if (sessionId === secretSessionId)
+    if (sessionId === receiptSessionId) {
+      const request = createUserRequest(
+        context,
+        "secret",
+        secretRequestInputSchema.parse({ name: "GH_TOKEN", reason: "Connect GitHub" }),
+      );
+      answerSecretRequest(fixture.userId, sessionId, request.id, "fixture-only-credential");
+      const reply = pendingUserReply(sessionId)!;
+      // An already-saved raw host response upgrades when read back from native history.
+      const { appendPiMessage } = await import("../src/services/pi-session-storage.ts");
+      await appendPiMessage(pi, { role: "user", content: reply.text, timestamp });
+      markUserReplySubmitted(request.id);
+      await pi.conversation.commit(
+        (tx) =>
+          tx.appendEntry(pi.conversation.id, {
+            kind: "carmel.user-request-response",
+            data: {
+              carmelUserRequestReceipt: {
+                requestId: "fixture-question",
+                kind: "question",
+                status: "answered",
+                question: "Which branch?",
+                answer: "Main",
+              },
+            },
+            model: [
+              { role: "user", content: "Internal question response", timestamp: timestamp + 1 },
+            ],
+          }),
+        (await import("@earendil-works/chord/context")).BACKGROUND_CONTEXT,
+      );
+    } else if (sessionId === secretSessionId)
       createUserRequest(
         context,
         "secret",
@@ -412,6 +446,33 @@ for (const [sessionId, title] of [
               },
         ),
       );
+    if (sessionId === questionSessionId) {
+      await pi.conversation.commit(
+        async (tx) => {
+          for (let index = 0; index < 30; index++) {
+            await tx.appendEntry(pi.conversation.id, {
+              kind: "pi.user",
+              model: [
+                {
+                  role: "user",
+                  content: `Earlier question ${index + 1}`,
+                  timestamp: timestamp + index,
+                },
+              ],
+            });
+            await tx.appendEntry(pi.conversation.id, {
+              kind: "pi.assistant",
+              model: [
+                fauxAssistantMessage(
+                  `Earlier progress ${index + 1}.\n\nThe agent reviewed the project and is waiting for your answer before continuing.`,
+                ),
+              ],
+            });
+          }
+        },
+        (await import("@earendil-works/chord/context")).BACKGROUND_CONTEXT,
+      );
+    }
   });
 }
 let delayFirstChatConnection = true;
@@ -449,6 +510,7 @@ const server = serve(
         multipleQuestionSessionId,
         secretSessionId,
         declineSessionId,
+        receiptSessionId,
       }),
     );
   },
@@ -457,6 +519,7 @@ const server = serve(
 const browserSockets = attachBrowserSocket(
   server as unknown as import("node:http").Server,
   async (_agent, onMessage) => {
+    let clipboardText = "Copied from the remote page";
     const frame = (seq: number) =>
       onMessage({
         type: "frame",
@@ -472,7 +535,23 @@ const browserSockets = attachBrowserSocket(
     });
     return {
       send: (message) => {
-        const command = message as { type: string; id: number; args: string[]; seq: number };
+        const command = message as {
+          type: string;
+          id: number;
+          args: string[];
+          seq: number;
+          requestId: string;
+          operation: string;
+          text?: string;
+        };
+        if (command.type === "clipboard") {
+          if (command.operation === "paste") clipboardText = command.text ?? "";
+          onMessage({
+            type: "clipboard_result",
+            requestId: command.requestId,
+            ...(command.operation === "copy" ? { text: clipboardText } : {}),
+          });
+        }
         if (command.type === "ack" && command.seq > acknowledged) {
           acknowledged = command.seq;
           if (acknowledged === 1) frame(2); // Identical pixels still require a new acknowledgement.

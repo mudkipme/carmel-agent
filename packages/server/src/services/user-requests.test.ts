@@ -13,6 +13,7 @@ import {
   createUserRequest,
   markUserReplySubmitted,
   pendingUserReply,
+  legacyUserRequestReceipt,
   readUserRequests,
 } from "./user-requests.ts";
 import {
@@ -127,6 +128,17 @@ test("credentials are encrypted, write-only, session scoped, and idempotent", ()
     assert.equal(revealSecret(encrypted), value);
     assert.ok(!pendingUserReply(sessionId)!.text.includes(value));
     assert.match(pendingUserReply(sessionId)!.text, /GITHUB_TOKEN.*available/);
+    const reply = pendingUserReply(sessionId)!;
+    assert.deepEqual(reply.receipt, {
+      requestId: request.id,
+      kind: "secret",
+      status: "answered",
+      name: "GITHUB_TOKEN",
+      scope: "session",
+    });
+    assert.ok(!JSON.stringify(reply.receipt).includes(value));
+    assert.deepEqual(legacyUserRequestReceipt(sessionId, reply.text), reply.receipt);
+    assert.equal(legacyUserRequestReceipt(nextSession, reply.text), undefined);
     assert.deepEqual(readAgentSecretEnv(agentId), []);
     assert.deepEqual(readAgentSecretEnv(agentId, nextSession), []);
     assert.deepEqual(readAgentSecretEnv(agentId, sessionId), [{ name: "GITHUB_TOKEN", value }]);
@@ -145,8 +157,23 @@ test("credentials are encrypted, write-only, session scoped, and idempotent", ()
     );
   }));
 
-test("promotion preserves its reference, reaches future sessions and survives source deletion", () =>
+test("legacy credential receipts preserve their original scope after promotion or revocation", () =>
   withKey(() => {
+    const { sessionId, userId } = createSession();
+    const request = secretRequest(sessionId);
+    const answer = answerSecretRequest(userId, sessionId, request.id, "temporary-test-token");
+    const reply = pendingUserReply(sessionId)!;
+    promoteSessionSecret(userId, sessionId, answer.credential!.id);
+    assert.deepEqual(legacyUserRequestReceipt(sessionId, reply.text), reply.receipt);
+    demoteAgentSecret(userId, sessionId, answer.credential!.id);
+    revokeSessionSecret(userId, sessionId, answer.credential!.id);
+    assert.deepEqual(legacyUserRequestReceipt(sessionId, reply.text), reply.receipt);
+  }));
+
+test("promotion preserves its reference, reaches future sessions and survives source deletion", (t) =>
+  withKey(() => {
+    let timestamp = Date.now();
+    t.mock.method(Date, "now", () => timestamp++);
     const { sessionId, userId, agentId } = createSession();
     const nextSession = sibling(sessionId);
     const request = secretRequest(sessionId);
@@ -162,9 +189,10 @@ test("promotion preserves its reference, reaches future sessions and survives so
     db.delete(sessions).where(eq(sessions.id, sessionId)).run();
     assert.equal(readAgentSecrets(userId, agentId).length, 1);
     assert.equal(readUserRequests(sessionId).length, 0);
-    demoteAgentSecret(userId, nextSession, promoted.id);
+    const demoted = demoteAgentSecret(userId, nextSession, promoted.id);
     assert.deepEqual(readAgentSecretEnv(agentId), []);
     assert.equal(readSessionSecrets(userId, nextSession)[0]?.scope, "session");
+    assert.deepEqual(readSessionSecrets(userId, nextSession)[0], demoted);
     db.delete(sessions).where(eq(sessions.id, nextSession)).run();
     assert.deepEqual(readAgentSecretEnv(agentId), []);
   }));

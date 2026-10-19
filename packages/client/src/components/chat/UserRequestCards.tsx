@@ -4,16 +4,8 @@ import { KeyRoundIcon, MessageCircleQuestionIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { AgentRequestCard } from "./AgentRequestCard";
 import { FieldGroup, Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +28,7 @@ export function UserRequestCards({
 }) {
   if (!requests.length) return null;
   return (
-    <div className="flex flex-col gap-3 py-3" aria-label="Agent requests">
+    <div className="flex flex-col gap-3">
       {requests.map((request) => (
         <UserRequestCard
           key={request.id}
@@ -108,175 +100,33 @@ function UserRequestCard({
   }
 
   return (
-    <Card
-      aria-label={
+    <AgentRequestCard
+      label={
         request.kind === "secret"
           ? `Credential request: ${request.secret?.name}`
           : "Question from agent"
       }
-    >
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {request.kind === "secret" ? (
-            <KeyRoundIcon aria-hidden="true" />
-          ) : (
-            <MessageCircleQuestionIcon aria-hidden="true" />
-          )}
-          {request.kind === "secret" ? request.secret?.name : request.question?.question}
-          <Badge variant="secondary">
-            {pending
-              ? "Waiting for you"
-              : request.status === "answered"
-                ? "Answered"
-                : request.status}
-          </Badge>
-        </CardTitle>
-        <CardDescription>
-          {request.kind === "secret"
-            ? request.secret?.reason
-            : pending
-              ? "Choose an option or enter your answer."
-              : "Your response is saved with this conversation."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {pending ? (
-          <form
-            id={inputId}
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (locked) return;
-              void act(
-                () =>
-                  request.kind === "secret"
-                    ? api.provideRequestedSecret(request.sessionId, request.id, secretValue)
-                    : api.answerQuestion(request.sessionId, request.id, { selected, text }),
-                true,
-              );
-            }}
-          >
-            <FieldGroup>
-              {request.kind === "secret" ? (
-                <Field data-invalid={Boolean(error)}>
-                  <FieldLabel htmlFor={`${inputId}-secret`}>Secret value</FieldLabel>
-                  <Input
-                    id={`${inputId}-secret`}
-                    type="password"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={secretValue}
-                    disabled={locked}
-                    aria-invalid={Boolean(error)}
-                    maxLength={65536}
-                    onChange={(event) => setSecretValue(event.target.value)}
-                  />
-                  <FieldDescription>
-                    Available to this session’s shell. The submitted value is stored separately and
-                    is not sent as a chat message.
-                  </FieldDescription>
-                </Field>
-              ) : (
-                <>
-                  {request.question!.options.length ? (
-                    <Field>
-                      <FieldLabel>Options</FieldLabel>
-                      {request.question!.multiple ? (
-                        <ToggleGroup
-                          type="multiple"
-                          variant="outline"
-                          spacing={2}
-                          value={selected}
-                          onValueChange={setSelected}
-                          disabled={locked}
-                          className="flex-wrap"
-                          aria-label="Answer options"
-                        >
-                          {request.question!.options.map((option) => (
-                            <ToggleGroupItem
-                              key={option.id}
-                              value={option.id}
-                              aria-label={option.label}
-                              title={option.description}
-                            >
-                              {option.label}
-                            </ToggleGroupItem>
-                          ))}
-                        </ToggleGroup>
-                      ) : (
-                        <ToggleGroup
-                          type="single"
-                          variant="outline"
-                          spacing={2}
-                          value={selected[0] ?? ""}
-                          onValueChange={(value) => setSelected(value ? [value] : [])}
-                          disabled={locked}
-                          className="flex-wrap"
-                          aria-label="Answer options"
-                        >
-                          {request.question!.options.map((option) => (
-                            <ToggleGroupItem
-                              key={option.id}
-                              value={option.id}
-                              aria-label={option.label}
-                              title={option.description}
-                            >
-                              {option.label}
-                            </ToggleGroupItem>
-                          ))}
-                        </ToggleGroup>
-                      )}
-                    </Field>
-                  ) : null}
-                  {request.question!.allowFreeText ? (
-                    <Field data-invalid={Boolean(error)}>
-                      <FieldLabel htmlFor={`${inputId}-text`}>Your answer</FieldLabel>
-                      <Textarea
-                        id={`${inputId}-text`}
-                        value={text}
-                        onChange={(event) => setText(event.target.value)}
-                        disabled={locked}
-                        maxLength={12000}
-                        aria-invalid={Boolean(error)}
-                      />
-                    </Field>
-                  ) : null}
-                </>
-              )}
-            </FieldGroup>
-          </form>
-        ) : request.kind === "secret" ? (
-          <p className="text-sm text-muted-foreground">
-            {request.credential
-              ? `Credential provided · ${request.credential.scope === "agent" ? "Saved for this agent" : "This session only"}`
-              : request.status === "answered"
-                ? "Credential revoked."
-                : "No credential was provided."}
-          </p>
-        ) : request.answer ? (
-          <p className="text-sm whitespace-pre-wrap">
-            {[
-              ...request.answer.selected.map(
-                (id) => request.question!.options.find((option) => option.id === id)?.label,
-              ),
-              request.answer.text,
-            ]
-              .filter(Boolean)
-              .join("\n")}
-          </p>
-        ) : null}
-        {sharedAgent && request.kind === "secret" && request.credential?.scope === "agent" ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            People who can run this shared agent can use this credential.
-          </p>
-        ) : null}
-        {error ? (
-          <Alert variant="destructive" className="mt-3">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-      </CardContent>
-      <CardFooter className="flex-wrap gap-2">
-        {pending ? (
+      kind={request.kind}
+      icon={
+        request.kind === "secret" ? (
+          <KeyRoundIcon aria-hidden="true" />
+        ) : (
+          <MessageCircleQuestionIcon aria-hidden="true" />
+        )
+      }
+      title={request.kind === "secret" ? request.secret?.name : request.question?.question}
+      status={
+        pending ? "Waiting for you" : request.status === "answered" ? "Answered" : request.status
+      }
+      description={
+        request.kind === "secret"
+          ? request.secret?.reason
+          : pending
+            ? "Choose an option or enter your answer."
+            : "Your response is saved with this conversation."
+      }
+      actions={
+        pending ? (
           <>
             <Button
               type="submit"
@@ -316,7 +166,7 @@ function UserRequestCard({
           <>
             {request.delivery === "pending" ? (
               <Button size="sm" disabled={locked} onClick={() => void act(onContinue)}>
-                Continue agent
+                Resume agent
               </Button>
             ) : null}
             {request.credential ? (
@@ -356,8 +206,143 @@ function UserRequestCard({
               </>
             ) : null}
           </>
-        )}
-      </CardFooter>
-    </Card>
+        )
+      }
+    >
+      {pending ? (
+        <form
+          id={inputId}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (locked) return;
+            void act(
+              () =>
+                request.kind === "secret"
+                  ? api.provideRequestedSecret(request.sessionId, request.id, secretValue)
+                  : api.answerQuestion(request.sessionId, request.id, { selected, text }),
+              true,
+            );
+          }}
+        >
+          <FieldGroup>
+            {request.kind === "secret" ? (
+              <Field data-invalid={Boolean(error)}>
+                <FieldLabel htmlFor={`${inputId}-secret`}>Secret value</FieldLabel>
+                <Input
+                  id={`${inputId}-secret`}
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={secretValue}
+                  disabled={locked}
+                  aria-invalid={Boolean(error)}
+                  maxLength={65536}
+                  onChange={(event) => setSecretValue(event.target.value)}
+                />
+                <FieldDescription>
+                  Available to this session’s shell. The submitted value is stored separately and is
+                  not sent as a chat message.
+                </FieldDescription>
+              </Field>
+            ) : (
+              <>
+                {request.question!.options.length ? (
+                  <Field>
+                    <FieldLabel>Options</FieldLabel>
+                    {request.question!.multiple ? (
+                      <ToggleGroup
+                        type="multiple"
+                        variant="outline"
+                        spacing={2}
+                        value={selected}
+                        onValueChange={setSelected}
+                        disabled={locked}
+                        className="flex-wrap"
+                        aria-label="Answer options"
+                      >
+                        {request.question!.options.map((option) => (
+                          <ToggleGroupItem
+                            key={option.id}
+                            value={option.id}
+                            aria-label={option.label}
+                            title={option.description}
+                          >
+                            {option.label}
+                          </ToggleGroupItem>
+                        ))}
+                      </ToggleGroup>
+                    ) : (
+                      <ToggleGroup
+                        type="single"
+                        variant="outline"
+                        spacing={2}
+                        value={selected[0] ?? ""}
+                        onValueChange={(value) => setSelected(value ? [value] : [])}
+                        disabled={locked}
+                        className="flex-wrap"
+                        aria-label="Answer options"
+                      >
+                        {request.question!.options.map((option) => (
+                          <ToggleGroupItem
+                            key={option.id}
+                            value={option.id}
+                            aria-label={option.label}
+                            title={option.description}
+                          >
+                            {option.label}
+                          </ToggleGroupItem>
+                        ))}
+                      </ToggleGroup>
+                    )}
+                  </Field>
+                ) : null}
+                {request.question!.allowFreeText ? (
+                  <Field data-invalid={Boolean(error)}>
+                    <FieldLabel htmlFor={`${inputId}-text`}>Your answer</FieldLabel>
+                    <Textarea
+                      id={`${inputId}-text`}
+                      value={text}
+                      onChange={(event) => setText(event.target.value)}
+                      disabled={locked}
+                      maxLength={12000}
+                      aria-invalid={Boolean(error)}
+                    />
+                  </Field>
+                ) : null}
+              </>
+            )}
+          </FieldGroup>
+        </form>
+      ) : request.kind === "secret" ? (
+        <p className="text-sm text-muted-foreground">
+          {request.credential
+            ? `Credential provided · ${request.credential.scope === "agent" ? "Saved for this agent" : "This session only"}`
+            : request.status === "answered"
+              ? "Credential revoked."
+              : "No credential was provided."}
+        </p>
+      ) : request.answer ? (
+        <p className="text-sm whitespace-pre-wrap">
+          {[
+            ...request.answer.selected.map(
+              (id) => request.question!.options.find((option) => option.id === id)?.label,
+            ),
+            request.answer.text,
+          ]
+            .filter(Boolean)
+            .join("\n")}
+        </p>
+      ) : null}
+      {sharedAgent && request.kind === "secret" && request.credential?.scope === "agent" ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          People who can run this shared agent can use this credential.
+        </p>
+      ) : null}
+      {error ? (
+        <Alert variant="destructive" className="mt-3">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+    </AgentRequestCard>
   );
 }

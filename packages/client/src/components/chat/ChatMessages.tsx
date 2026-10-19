@@ -1,5 +1,9 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { NestedToolSlot } from "@carmel-agent/shared";
+import { getUserRequestReceipt } from "@carmel-agent/shared";
+import { KeyRoundIcon, MessageSquareTextIcon } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import type {
   AssistantMessage as AssistantMessageType,
   ToolCall,
@@ -360,6 +364,55 @@ const MessageItem = memo(function MessageItem({
   }
 
   if (message.role === "user") {
+    const receipt = getUserRequestReceipt(message);
+    if (receipt) {
+      const answered = receipt.status === "answered";
+      return (
+        <div className="px-3" data-testid="user-request-receipt">
+          <Alert>
+            {receipt.kind === "secret" ? <KeyRoundIcon /> : <MessageSquareTextIcon />}
+            <AlertTitle className="flex flex-wrap items-center gap-2">
+              {receipt.kind === "secret" ? (
+                <code>{receipt.name}</code>
+              ) : answered ? (
+                "Answer sent"
+              ) : (
+                "Question response"
+              )}
+              <Badge variant="secondary">
+                {answered
+                  ? receipt.kind === "secret"
+                    ? "Credential provided"
+                    : "Answered"
+                  : receipt.status === "cancelled"
+                    ? "Declined"
+                    : receipt.status === "expired"
+                      ? "Expired"
+                      : "Unavailable"}
+              </Badge>
+            </AlertTitle>
+            <AlertDescription>
+              {receipt.kind === "secret" ? (
+                answered ? (
+                  receipt.scope === "agent" ? (
+                    "Saved for reuse across this agent’s sessions."
+                  ) : (
+                    "Provided for this session only."
+                  )
+                ) : (
+                  "This request did not make a credential available to the agent."
+                )
+              ) : (
+                <>
+                  <span>{receipt.question}</span>
+                  {answered ? <span className="whitespace-pre-wrap">{receipt.answer}</span> : null}
+                </>
+              )}
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
     return (
       <div className="group flex min-w-0 flex-col gap-1">
         <UserMessage message={message} />

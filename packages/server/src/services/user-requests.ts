@@ -7,6 +7,7 @@ import {
   type QuestionInput,
   type SecretRequestInput,
   type UserRequest,
+  type UserRequestReceipt,
 } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { agentSecrets, userRequests } from "../db/schema.ts";
@@ -247,8 +248,67 @@ export function pendingUserReply(sessionId: string) {
     id: row.id,
     conversationId: row.conversationId,
     requestId: `user-request:${row.id}`,
+    receipt: requestReceipt(row),
     text: `Response to request ${row.id}:\n${text}`,
   };
+}
+
+function requestReceipt(row: RequestRecord): UserRequestReceipt {
+  const credential =
+    row.kind === "secret"
+      ? findAvailableSecret(row.sessionId, (row.input as SecretRequestInput).name)
+      : undefined;
+  return {
+    requestId: row.id,
+    kind: row.kind,
+    status:
+      row.status === "pending"
+        ? "unavailable"
+        : row.status === "answered" && row.kind === "secret" && !credential
+          ? "unavailable"
+          : row.status,
+    ...(row.kind === "secret"
+      ? {
+          name: (row.input as SecretRequestInput).name,
+          scope: credential?.scope,
+        }
+      : {
+          question: (row.input as QuestionInput).question,
+          answer: [
+            ...(row.answer?.selected ?? []).map(
+              (id) =>
+                (row.input as QuestionInput).options.find((option) => option.id === id)?.label ??
+                id,
+            ),
+            row.answer?.text ?? "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        }),
+  };
+}
+
+/** Upgrade existing host replies when reading history, scoped to their owning session. */
+export function legacyUserRequestReceipt(sessionId: string, text: string) {
+  const requestId = /^Response to request ([a-f0-9]{64}):\n/.exec(text)?.[1];
+  if (!requestId) return undefined;
+  const row = db
+    .select()
+    .from(userRequests)
+    .where(and(eq(userRequests.id, requestId), eq(userRequests.sessionId, sessionId)))
+    .get();
+  if (!row || row.status === "pending") return undefined;
+  const receipt = requestReceipt(row);
+  // A receipt describes what happened then, even if its credential was later revoked/promoted.
+  if (row.kind === "secret" && row.status === "answered") {
+    const available =
+      /\nCredential ([A-Z_][A-Z0-9_]*) is available as an environment variable for this (session|agent)\./.exec(
+        text,
+      );
+    receipt.status = available?.[1] === receipt.name ? "answered" : "unavailable";
+    receipt.scope = available?.[2] as "session" | "agent" | undefined;
+  }
+  return receipt;
 }
 
 export function markUserReplySubmitted(requestId: string) {

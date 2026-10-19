@@ -108,6 +108,7 @@ test("a question ends the run; a persisted answer resumes once across reopen and
   // Simulate a crash window: native submission completes but host receipt is not acknowledged.
   await second.harness.prompt(receipt.text, undefined, second.context, undefined, {
     requestId: receipt.requestId,
+    receipt: receipt.receipt,
     onSubmitted() {},
   });
   assert.equal(provider.faux.state.callCount, 2);
@@ -116,6 +117,7 @@ test("a question ends the run; a persisted answer resumes once across reopen and
   try {
     await third.harness.prompt(receipt.text, undefined, third.context, undefined, {
       requestId: receipt.requestId,
+      receipt: receipt.receipt,
       onSubmitted: () => markUserReplySubmitted(receipt.id),
     });
     assert.equal(provider.faux.state.callCount, 2, "duplicate delivery must not call the model");
@@ -193,6 +195,7 @@ test("provider call IDs reused in later rounds create separate requests", async 
     const receipt = pendingUserReply(fixture.sessionId)!;
     await run.harness.prompt(receipt.text, undefined, run.context, undefined, {
       requestId: receipt.requestId,
+      receipt: receipt.receipt,
       onSubmitted: () => markUserReplySubmitted(receipt.id),
     });
     const requests = readUserRequests(fixture.sessionId);
@@ -254,6 +257,7 @@ test("a credential answered after a crash still settles its original tool before
     run = await openTestHarness(fixture.sessionId, { ...provider, tools: tools(fixture) });
     await run.harness.prompt(receipt.text, undefined, run.context, undefined, {
       requestId: receipt.requestId,
+      receipt: receipt.receipt,
       onSubmitted: () => markUserReplySubmitted(receipt.id),
     });
     assert.equal(
@@ -332,6 +336,7 @@ test("secret values never enter provider requests, native entries, streamed deta
     });
     await run.harness.prompt(receipt.text, undefined, run.context, undefined, {
       requestId: receipt.requestId,
+      receipt: receipt.receipt,
       onSubmitted: () => markUserReplySubmitted(receipt.id),
     });
     assert.equal(provider.faux.state.callCount, 4);

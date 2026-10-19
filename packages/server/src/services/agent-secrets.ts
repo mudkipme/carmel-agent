@@ -241,11 +241,12 @@ export function promoteSessionSecret(
         "An agent credential with this name already exists. It was not overwritten.",
         409,
       );
+    const updatedAt = now();
     db.update(agentSecrets)
-      .set({ sessionId: null, updatedAt: now() })
+      .set({ sessionId: null, updatedAt })
       .where(eq(agentSecrets.id, row.id))
       .run();
-    return serializeCredential({ ...row, sessionId: null, updatedAt: now() });
+    return serializeCredential({ ...row, sessionId: null, updatedAt });
   });
 }
 
@@ -271,11 +272,9 @@ export function demoteAgentSecret(userId: string, sessionId: string, secretId: s
     .get();
   if (collision)
     throw new AgentSecretError("This session already has a credential with this name.", 409);
-  db.update(agentSecrets)
-    .set({ sessionId, updatedAt: now() })
-    .where(eq(agentSecrets.id, row.id))
-    .run();
-  return serializeCredential({ ...row, sessionId, updatedAt: now() });
+  const updatedAt = now();
+  db.update(agentSecrets).set({ sessionId, updatedAt }).where(eq(agentSecrets.id, row.id)).run();
+  return serializeCredential({ ...row, sessionId, updatedAt });
 }
 
 export function revokeSessionSecret(userId: string, sessionId: string, secretId: string) {

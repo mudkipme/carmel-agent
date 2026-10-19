@@ -12,6 +12,7 @@ import type {
 import type { Session } from "./sessions.ts";
 export * from "./references.ts";
 export * from "./user-requests.ts";
+export { browserClipboardLimit } from "./browser.ts";
 export type {
   BrowserControlState,
   BrowserTab,

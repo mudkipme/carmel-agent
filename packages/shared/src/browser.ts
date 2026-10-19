@@ -7,6 +7,7 @@ export type BrowserControlState = {
 };
 
 export type BrowserTab = { id: string; title: string; url: string; active: boolean };
+export const browserClipboardLimit = 16384;
 export type BrowserFrame = {
   type: "frame";
   seq: number;
@@ -25,9 +26,12 @@ export type BrowserServerMessage =
   | { type: "status"; connected: boolean }
   | { type: "tabs"; tabs: BrowserTab[] }
   | { type: "url"; url: string }
+  | { type: "clipboard_result"; requestId: string; text?: string; error?: string }
   | { type: "error"; message: string };
 
 export type BrowserClientMessage =
+  | { type: "clipboard"; requestId: string; operation: "copy"; text?: never }
+  | { type: "clipboard"; requestId: string; operation: "paste"; text: string }
   | { type: "take_control" | "resume" | "release_input" }
   | { type: "ack"; seq: number }
   | { type: "navigate"; url: string }

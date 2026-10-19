@@ -1,6 +1,7 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { clampThinkingLevel, type ImageContent } from "@earendil-works/pi-ai";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { AgentRequestArea } from "@/components/chat/AgentRequestCard";
 import { useNavigate } from "react-router-dom";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import { AgentAvatar } from "@/components/harness/shell/AgentAvatar";
@@ -23,6 +24,7 @@ type NewSessionViewProps = {
   modelRefs: ModelRef[];
   providerConfigs: ProviderConfig[];
   onOpenSession?: (sessionId: string) => void;
+  browserRequest?: ReactNode;
 };
 
 /* An agent's landing page. Nothing exists on the server until the first message
@@ -33,6 +35,7 @@ export function NewSessionView({
   modelRefs,
   providerConfigs,
   onOpenSession,
+  browserRequest,
 }: NewSessionViewProps) {
   const navigate = useNavigate();
   const createSession = useHarnessStore((state) => state.createSession);
@@ -94,6 +97,7 @@ export function NewSessionView({
               What can {agent.name} help with?
             </h1>
           </div>
+          {browserRequest ? <AgentRequestArea>{browserRequest}</AgentRequestArea> : null}
           <ChatInput
             agentId={agent.id}
             canReadFiles={agent.permissions.read}

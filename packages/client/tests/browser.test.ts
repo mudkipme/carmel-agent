@@ -20,6 +20,7 @@ type Fixture = {
   multipleQuestionSessionId: string;
   secretSessionId: string;
   declineSessionId: string;
+  receiptSessionId: string;
 };
 const binary = process.env.AGENT_BROWSER_BIN ?? "agent-browser";
 const session = `carmel-regression-${randomUUID()}`;
@@ -178,6 +179,56 @@ after(async () => {
   }
 });
 
+test("questions, credentials, and browser help share a request area beside the composer", () => {
+  browser("set", "viewport", "1280", "900");
+  open(agentPath(`sessions/${fixture.questionSessionId}`));
+  browser("wait", '[data-agent-request-area] [data-agent-request-kind="question"]');
+  browser("wait", '[data-agent-request-area] [data-agent-request-kind="browser"]');
+  browser("wait", "--fn", 'document.querySelector("[data-chat-history]").scrollTop > 0');
+  assert.equal(
+    evaluate(`(() => {
+    const host = document.querySelector('.agent-chat-host');
+    const area = host.querySelector('[data-agent-request-area]');
+    return area.contains(host.querySelector('[data-agent-request-kind="question"]')) && area.contains(host.querySelector('[data-agent-request-kind="browser"]')) && !host.querySelector('[data-chat-history]').contains(area);
+  })()`),
+    true,
+  );
+  const position = () =>
+    evaluate<{ top: number; bottom: number }>(`(() => {
+    const rect = document.querySelector('.agent-chat-host [data-agent-request-area]').getBoundingClientRect();
+    return {top:rect.top,bottom:rect.bottom};
+  })()`);
+  const before = position();
+  evaluate(`document.querySelector('[data-chat-history]').scrollTop = 0`);
+  assert.deepEqual(position(), before, "requests stay visible while earlier messages are read");
+  for (const width of [390, 1280]) {
+    browser("set", "viewport", String(width), "900");
+    open(agentPath(`sessions/${fixture.secretSessionId}`));
+    browser("wait", '[data-agent-request-area] input[type="password"]');
+    assert.equal(
+      evaluate(`(() => {
+      const host = document.querySelector('.agent-chat-host').getBoundingClientRect();
+      const area = document.querySelector('.agent-chat-host [data-agent-request-area]').getBoundingClientRect();
+      return area.top >= host.top + host.height * 0.4 && area.bottom <= host.bottom + 1 && area.height <= host.height * 0.56;
+    })()`),
+      true,
+      `request area stays near the composer at ${width}px`,
+    );
+    assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+  }
+  browser("fill", 'input[type="password"]', "unsent-private-request-draft");
+  clickSelector('[data-agent-request-kind="browser"] button');
+  browser("wait", '[aria-label="Agent browser"] [data-agent-request-area]');
+  clickSelector('header button[aria-label="Close browser"]');
+  browser("wait", '[data-agent-request-area] input[type="password"]');
+  assert.equal(
+    evaluate("document.querySelector('input[type=\"password\"]').value"),
+    "unsent-private-request-draft",
+    "opening browser assistance preserves an unsent credential in component memory",
+  );
+  browser("fill", 'input[type="password"]', "");
+});
+
 test(
   "question cards preserve requests across reloads and accept choices with text",
   { timeout: 60_000 },
@@ -194,14 +245,14 @@ test(
     clickSelector('button[aria-label="Main"]');
     browser("find", "label", "Your answer", "fill", "Use the stable branch.");
     click("button", "Submit answer");
-    browser("wait", "--text", "Continue agent");
+    browser("wait", "--text", "Resume agent");
     open(agentPath(`sessions/${fixture.questionSessionId}`));
     browser("wait", "--text", "Use the stable branch.");
     assert.match(
       evaluate<string>(`document.querySelector('[aria-label="Question from agent"]').textContent`),
       /Main/,
     );
-    assert.match(snapshot(), /Continue agent/);
+    assert.match(snapshot(), /Resume agent/);
   },
 );
 
@@ -214,7 +265,7 @@ test(
     clickSelector('button[aria-label="Development"]');
     clickSelector('button[aria-label="Staging"]');
     click("button", "Submit answer");
-    browser("wait", "--text", "Continue agent");
+    browser("wait", "--text", "Resume agent");
     const card = evaluate<string>(
       `document.querySelector('[aria-label="Question from agent"]').textContent`,
     );
@@ -223,7 +274,7 @@ test(
     open(agentPath(`sessions/${fixture.declineSessionId}`));
     browser("wait", '[aria-label="Question from agent"]');
     click("button", "Decline");
-    browser("wait", "--text", "Continue agent");
+    browser("wait", "--text", "Resume agent");
     assert.match(
       evaluate<string>(`document.querySelector('[aria-label="Question from agent"]').textContent`),
       /cancelled/,
@@ -242,7 +293,7 @@ test(
     assert.equal(evaluate(`document.querySelector('input[type="password"]').autocomplete`), "off");
     click("button", "Provide credential");
     browser("wait", "--text", "This session only");
-    browser("wait", "--text", "Continue agent");
+    browser("wait", "--text", "Resume agent");
     assert.ok(
       !evaluate<string>(`document.querySelector('.agent-chat-host').innerHTML`).includes(
         dummyToken,
@@ -262,6 +313,33 @@ test(
     assert.ok(!evaluate<string>(`document.body.innerHTML`).includes(dummyToken));
   },
 );
+
+test("credential and question receipts render readable statuses after reload", () => {
+  open(agentPath(`sessions/${fixture.receiptSessionId}`));
+  browser("wait", '[data-testid="user-request-receipt"]');
+  const receipts = () =>
+    evaluate<string>(
+      `Array.from(document.querySelectorAll('[data-testid="user-request-receipt"]')).map(element => element.innerText).join('\\n')`,
+    );
+  assert.match(receipts(), /GH_TOKEN/);
+  assert.match(receipts(), /Credential provided/);
+  assert.match(receipts(), /this session/);
+  assert.match(receipts(), /Which branch\?/);
+  assert.match(receipts(), /Main/);
+  assert.doesNotMatch(
+    receipts(),
+    /Response to request|Secret reference|Internal question response/,
+  );
+  assert.equal(
+    evaluate<number>(
+      `document.querySelectorAll('[data-testid="user-request-receipt"] button').length`,
+    ),
+    0,
+  );
+  browser("reload");
+  browser("wait", '[data-testid="user-request-receipt"]');
+  assert.match(receipts(), /Credential provided/);
+});
 
 test(
   "reference picker selects files, folders, and conversations and restores rejected submissions",
@@ -541,8 +619,8 @@ test("private integrations show QR setup, cancel it, and persist proactive messa
 test("earlier issue conversations open the correct persisted session", () => {
   open(agentPath(`issues/${fixture.reviewIssueId}`));
   browser("wait", "--text", "Run history & issue events");
-  browser("find", "text", "Run history & issue events", "click");
-  // A text locator can match the enclosing details and click another summary.
+  // Target the summary: a text locator can match the enclosing details and click its content.
+  clickSelector("summary.text-muted-foreground");
   evaluate(`Array.from(document.querySelectorAll('summary'))
     .find(element => element.textContent.startsWith('Run 1 · succeeded')).click()`);
   click("link", "Earlier conversation");
@@ -1049,6 +1127,18 @@ test("browser handoff survives reload, supports navigation, and resumes explicit
   );
   click("button", "Take control");
   browser("wait", "--text", "You have control");
+  assert.equal(
+    evaluate(
+      `Boolean(document.querySelector('[aria-label="Agent browser"] [data-agent-request-area] [data-agent-request-kind="browser"]'))`,
+    ),
+    true,
+  );
+  assert.equal(
+    evaluate(
+      `document.querySelector('[aria-label="Agent browser"] [data-agent-request-area] button').textContent`,
+    ),
+    "Resume agent",
+  );
   click("button", "Expand browser");
   browser("wait", "--text", "You have control");
   click("button", "Show beside chat");
@@ -1078,6 +1168,65 @@ test("browser handoff survives reload, supports navigation, and resumes explicit
   assert.deepEqual(audit.violations, []);
   clickSelector('header button[aria-label="Close browser"]');
   browser("set", "viewport", "1440", "900");
+});
+
+test("browser clipboard controls and shortcuts transfer text without adding chat messages", () => {
+  open(agentPath(""));
+  clickSelector('header button[aria-label="Open browser"]');
+  browser(
+    "wait",
+    "--fn",
+    'Array.from(document.querySelectorAll("button")).some(button => button.textContent === "Take control" && !button.disabled)',
+  );
+  click("button", "Take control");
+  browser("wait", "--text", "You have control");
+  // Device clipboard permissions vary; exercise both successful access and its manual fallback.
+  evaluate(`Object.defineProperty(navigator, 'clipboard', {configurable:true, value:{
+    readText:async () => 'First line 🌍\\n第二行',
+    writeText:async text => {window.carmelCopied = text;}
+  }});`);
+  click("button", "Paste");
+  browser("wait", "--text", "Pasted into browser");
+  click("button", "Copy selection");
+  browser("wait", "--fn", `window.carmelCopied === 'First line 🌍\\n第二行'`);
+  evaluate(
+    `window.carmelCopied = ''; document.querySelector('textarea[aria-label="Remote browser keyboard input"]').focus();`,
+  );
+  browser("press", "Control+c");
+  browser("wait", "--fn", `window.carmelCopied === 'First line 🌍\\n第二行'`);
+  evaluate(
+    `const data = new DataTransfer(); data.setData('text/plain','Pasted with keyboard 🌍'); document.querySelector('textarea[aria-label="Remote browser keyboard input"]').dispatchEvent(new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:data}));`,
+  );
+  browser(
+    "wait",
+    "--fn",
+    'Array.from(document.querySelectorAll("button")).some(button => button.textContent.includes("Copy selection") && !button.disabled)',
+  );
+  click("button", "Copy selection");
+  browser("wait", "--fn", `window.carmelCopied === 'Pasted with keyboard 🌍'`);
+  evaluate(
+    `navigator.clipboard.readText = async () => {throw new Error('Permission denied')}; navigator.clipboard.writeText = async () => {throw new Error('Permission denied')};`,
+  );
+  click("button", "Paste");
+  browser("wait", "#browser-text");
+  browser("fill", "#browser-text", "Manual fallback\nmultiline");
+  click("button", "Send text");
+  browser("wait", "--fn", 'document.querySelector("#browser-text").value === ""');
+  click("button", "Copy selection");
+  browser("wait", "#browser-copied-text");
+  assert.equal(
+    evaluate('document.querySelector("#browser-copied-text").value'),
+    "Manual fallback\nmultiline",
+  );
+  assert.ok(
+    !evaluate<string>('document.querySelector(".agent-chat-host").innerText').includes(
+      "Manual fallback",
+    ),
+  );
+  click("button", "Resume agent");
+  browser("wait", "--text", "Agent has control");
+  assert.equal(evaluate('document.querySelector("#browser-copied-text")'), null);
+  clickSelector('header button[aria-label="Close browser"]');
 });
 
 test("a task conversation returns to its run history and keeps it open after reload", () => {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { agentSecretNameError } from "./schemas.ts";
 
 export const questionInputSchema = z
@@ -83,3 +84,28 @@ export type UserRequest = {
   createdAt: number;
   expiresAt: number;
 };
+
+/** Display-only receipt. Credential values are never part of this metadata. */
+export type UserRequestReceipt = {
+  requestId: string;
+  kind: "question" | "secret";
+  status: "answered" | "cancelled" | "expired" | "unavailable";
+  name?: string;
+  scope?: "session" | "agent";
+  question?: string;
+  answer?: string;
+};
+export type UserRequestReceiptMessage = Extract<AgentMessage, { role: "user" }> & {
+  userRequestReceipt: UserRequestReceipt;
+  userRequestContext: string;
+};
+export function getUserRequestReceipt(message: AgentMessage) {
+  return (message as Partial<UserRequestReceiptMessage>).userRequestReceipt;
+}
+export function userRequestReceiptText(receipt: UserRequestReceipt) {
+  if (receipt.status !== "answered")
+    return `${receipt.name ?? receipt.question ?? "Request"} · ${receipt.status === "cancelled" ? "Declined" : receipt.status === "expired" ? "Expired" : "Credential unavailable"}`;
+  return receipt.kind === "secret"
+    ? `${receipt.name} · Credential provided · ${receipt.scope === "agent" ? "Saved for this agent" : "This session"}`
+    : `${receipt.question}\n${receipt.answer}`;
+}

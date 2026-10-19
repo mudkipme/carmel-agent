@@ -3,6 +3,10 @@ import type { JsonValue } from "@earendil-works/chord";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import {
   getMessageReferences,
+  getUserRequestReceipt,
+  userRequestReceiptText,
+  type UserRequestReceipt,
+  type UserRequestReceiptMessage,
   type MessageReference,
   type ReferenceMessage,
 } from "@carmel-agent/shared";
@@ -33,6 +37,7 @@ import Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
+import { legacyUserRequestReceipt } from "./user-requests.ts";
 import { dataDir } from "../paths.ts";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
 
@@ -212,7 +217,7 @@ export async function readPiSessionTitleMessages(session: PiSession): Promise<Ag
   let cursor: Cursor | undefined;
   do {
     const page = await session.conversation.entries({ order: "ascending" }, 100, cursor, ctx);
-    for (const entry of displayEntries(page.items)) {
+    for (const entry of displayEntries(page.items, session.id)) {
       if (entry.type !== "message") continue;
       const message = entry.message;
       if (message.role !== "user" && message.role !== "assistant") continue;
@@ -239,7 +244,10 @@ export function displayId(entry: EntryRecord): string {
   const data = entry.data as { carmelEntryId?: string } | undefined;
   return data?.carmelEntryId ?? `durable:${entry.id}`;
 }
-export function displayEntries(entries: readonly EntryRecord[]): DisplayEntry[] {
+export function displayEntries(
+  entries: readonly EntryRecord[],
+  sessionId?: string,
+): DisplayEntry[] {
   return entries.map((entry, index) => {
     const data = entry.data as
       | {
@@ -247,9 +255,34 @@ export function displayEntries(entries: readonly EntryRecord[]): DisplayEntry[] 
           timestamp?: number;
           carmelDisplayText?: string;
           carmelReferences?: MessageReference[];
+          carmelUserRequestReceipt?: UserRequestReceipt;
         }
       | undefined;
     const native = entry.model?.[0];
+    const nativeText =
+      native?.role === "user"
+        ? typeof native.content === "string"
+          ? native.content
+          : native.content
+              .filter((part) => part.type === "text")
+              .map((part) => part.text)
+              .join("\n\n")
+        : "";
+    const receipt =
+      entry.kind === "carmel.user-request-response"
+        ? data?.carmelUserRequestReceipt
+        : entry.kind === "pi.user" && sessionId
+          ? legacyUserRequestReceipt(sessionId, nativeText)
+          : undefined;
+    const receiptMessage =
+      native?.role === "user" && receipt
+        ? ({
+            ...native,
+            content: userRequestReceiptText(receipt),
+            userRequestReceipt: receipt,
+            userRequestContext: nativeText,
+          } as UserRequestReceiptMessage)
+        : undefined;
     const referencedMessage =
       entry.kind === "carmel.referenced-input" &&
       native?.role === "user" &&
@@ -276,6 +309,7 @@ export function displayEntries(entries: readonly EntryRecord[]): DisplayEntry[] 
         : undefined;
     const message =
       data?.carmelMessage ??
+      receiptMessage ??
       referencedMessage ??
       (["pi.user", "pi.assistant", "pi.tool-result", "carmel.system-message"].includes(entry.kind)
         ? entry.model?.[0]
@@ -295,6 +329,14 @@ export function displayEntries(entries: readonly EntryRecord[]): DisplayEntry[] 
 }
 export function messageDraft(message: AgentMessage): EntryDraft {
   const safe = JSON.parse(JSON.stringify(message)) as AgentMessage;
+  if (safe.role === "user" && getUserRequestReceipt(safe)) {
+    const { userRequestReceipt, userRequestContext, ...model } = safe as UserRequestReceiptMessage;
+    return {
+      kind: "carmel.user-request-response",
+      data: { carmelUserRequestReceipt: userRequestReceipt } as unknown as JsonValue,
+      model: [{ ...model, content: userRequestContext } as Message],
+    };
+  }
   if (safe.role === "user" && getMessageReferences(safe).length) {
     const { references: _references, referenceContext, ...model } = safe as ReferenceMessage;
     const content =
@@ -350,7 +392,7 @@ export async function readPiSessionBranch(session: PiSession): Promise<DisplayEn
     ) as import("@earendil-works/pi-durable").LiveState;
     return { entries, live };
   }, ctx);
-  const displayed = displayEntries(entries);
+  const displayed = displayEntries(entries, session.id);
   const partial = live?.generation?.message;
   if (partial)
     displayed.push({
@@ -407,7 +449,7 @@ export async function readPiSessionMessageEntry(sessionId: string, id: string) {
       throw error;
     }
     const entry = await session.native.commit((tx) => tx.entry(nativeId), ctx);
-    const display = entry && displayEntries([entry])[0];
+    const display = entry && displayEntries([entry], session.id)[0];
     return display?.type === "message" ? display.message : undefined;
   });
 }

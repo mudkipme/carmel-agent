@@ -16,7 +16,9 @@ import type { BrowserServerMessage } from "@carmel-agent/shared";
 initialize();
 const server = createServer((_request, response) => response.writeHead(404).end());
 const forwarded: unknown[] = [];
+const bridgeOutputs: Array<Parameters<typeof connectBrowser>[1]> = [];
 const bridge: typeof connectBrowser = async (_agent, onMessage) => {
+  bridgeOutputs.push(onMessage);
   queueMicrotask(() => onMessage({ type: "ready" }));
   return { send: (message) => forwarded.push(message), close: () => {} };
 };
@@ -29,6 +31,65 @@ after(() => {
   for (const client of wss.clients) client.terminate();
   wss.close();
   server.close();
+});
+
+test("clipboard transfers require control, return only to their requester, and finish before resume", async () => {
+  const f = fixture();
+  const owner = await connect(f.agentId, cookie(f.userId));
+  const output = bridgeOutputs.at(-1)!;
+  const guest = await connect(f.agentId, cookie(createUser()));
+  const requestId = randomUUID();
+  try {
+    forwarded.length = 0;
+    guest.send({ type: "clipboard", requestId, operation: "copy" });
+    await guest.wait((message) => message.type === "clipboard_result" && Boolean(message.error));
+    assert.equal(forwarded.length, 0);
+    owner.send({ type: "take_control" });
+    await owner.wait((message) => message.type === "control" && message.hasControl);
+    owner.send({ type: "clipboard", requestId, operation: "copy" });
+    owner.send({ type: "resume" });
+    await owner.wait((message) => message.type === "error");
+    assert.equal(browserControl(f.agentId).state.phase, "human");
+    assert.ok(
+      forwarded.some((message) => (message as { requestId?: string }).requestId === requestId),
+    );
+    output({ type: "clipboard_result", requestId, text: "private selected text" });
+    await owner.wait(
+      (message) => message.type === "clipboard_result" && message.text === "private selected text",
+    );
+    assert.ok(!JSON.stringify(guest.messages).includes("private selected text"));
+    owner.send({ type: "resume" });
+    await owner.wait((message) => message.type === "control" && message.state.phase === "agent");
+    output({ type: "clipboard_result", requestId, text: "unsolicited private text" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.ok(!JSON.stringify(owner.messages).includes("unsolicited private text"));
+  } finally {
+    owner.ws.close();
+    guest.ws.close();
+    deleteBrowserControl(f.agentId);
+  }
+});
+
+test("clipboard replies are withheld if the controller's authorization is revoked during a transfer", async () => {
+  const f = fixture();
+  const guest = await connect(f.agentId, cookie(createUser()));
+  const output = bridgeOutputs.at(-1)!;
+  const requestId = randomUUID();
+  try {
+    guest.send({ type: "take_control" });
+    await guest.wait((message) => message.type === "control" && message.hasControl);
+    guest.send({ type: "clipboard", requestId, operation: "copy" });
+    guest.send({ type: "resume" });
+    await guest.wait((message) => message.type === "error");
+    db.update(agents).set({ shared: false }).where(eq(agents.id, f.agentId)).run();
+    const closed = once(guest.ws, "close");
+    output({ type: "clipboard_result", requestId, text: "revoked private text" });
+    await closed;
+    assert.ok(!JSON.stringify(guest.messages).includes("revoked private text"));
+  } finally {
+    guest.ws.close();
+    deleteBrowserControl(f.agentId);
+  }
 });
 
 function cookie(userId: string) {

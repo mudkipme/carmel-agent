@@ -3,8 +3,8 @@ import { AgentTasksPage } from "./AgentTasksPage";
 import { AgentKnowledgePage } from "./AgentKnowledgePage";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { ResourceError } from "./ResourceFeedback";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { AgentRequestArea } from "@/components/chat/AgentRequestCard";
+import { BrowserRequestCard } from "@/components/chat/BrowserRequestCard";
 import {
   lazy,
   Suspense,
@@ -361,6 +361,17 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     navigate(isWorkspaceView(next) ? workspaceChatPath(path, activeSession?.id) : path);
   };
 
+  const browserRequest =
+    browserNeedsHelp && !browserOpen && browserStatus.data ? (
+      <BrowserRequestCard
+        control={browserStatus.data.control}
+        onAction={() => showContentView("browser")}
+      />
+    ) : undefined;
+  const hasChatRequests =
+    (view === "chat" || isWorkspaceView(view)) &&
+    (onNewSessionPage || Boolean(activeSession && activeAgent && activeModel));
+
   const openFile = (path: string) => {
     if (!activeAgent) return;
     navigate(workspaceChatPath(agentFilesPath(activeAgent.id, path), activeSession?.id));
@@ -482,19 +493,6 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
           </div>
         ) : null}
         {activeSessionMetadata?.taskId ? <TaskRunBanner session={activeSessionMetadata} /> : null}
-        {browserNeedsHelp && !browserOpen ? (
-          <div className="p-3">
-            <Alert role="status">
-              <AlertTitle>Browser assistance</AlertTitle>
-              <AlertDescription>
-                {browserStatus.data?.control.reason ?? "Someone is helping in the browser."}
-                <Button size="sm" variant="outline" onClick={() => showContentView("browser")}>
-                  Open browser
-                </Button>
-              </AlertDescription>
-            </Alert>
-          </div>
-        ) : null}
         <WorkspaceLayout
           onSplitChange={setWorkspaceSplit}
           view={isWorkspaceView(view) && activeAgent ? view : undefined}
@@ -529,6 +527,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
               <NewSessionView
                 key={activeAgent.id}
                 agent={activeAgent}
+                browserRequest={browserRequest}
                 modelRefs={modelRefs}
                 providerConfigs={providerConfigs}
                 onOpenSession={(sessionId) => {
@@ -543,6 +542,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
               <PiChat
                 key={activeSession.id}
                 agentConfig={activeAgent}
+                browserRequest={browserRequest}
                 session={activeSession}
                 modelRef={activeModel}
                 modelRefs={modelRefs}
@@ -591,6 +591,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
             ) : null}
           </Suspense>
         </WorkspaceLayout>
+        {!hasChatRequests ? <AgentRequestArea>{browserRequest}</AgentRequestArea> : null}
       </section>
       <ImportSessionsDialog
         open={importDialogOpen}
