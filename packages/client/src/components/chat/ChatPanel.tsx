@@ -19,6 +19,7 @@ type ChatPanelProps = {
   agentId: string;
   sessionId: string;
   canReadFiles: boolean;
+  canWriteFiles: boolean;
   initialReferences?: MessageReference[];
   onReferencesChange?: (references: MessageReference[]) => void;
   readOnly?: boolean;
@@ -55,6 +56,7 @@ export function ChatPanel({
   agentId,
   sessionId,
   canReadFiles,
+  canWriteFiles,
   initialReferences,
   onReferencesChange,
   readOnly,
@@ -162,6 +164,7 @@ export function ChatPanel({
               agentId={agentId}
               sessionId={sessionId}
               canReadFiles={canReadFiles}
+              canWriteFiles={canWriteFiles}
               initialReferences={initialReferences}
               onReferencesChange={onReferencesChange}
               ref={inputRef}

@@ -101,6 +101,7 @@ export function NewSessionView({
           <ChatInput
             agentId={agent.id}
             canReadFiles={agent.permissions.read}
+            canWriteFiles={agent.permissions.write}
             ref={chatInputRef}
             autoFocus
             textareaClassName="min-h-20"

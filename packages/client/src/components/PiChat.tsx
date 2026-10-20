@@ -159,6 +159,7 @@ export function PiChat({
               agentId={agentConfig.id}
               sessionId={session.id}
               canReadFiles={agentConfig.permissions.read}
+              canWriteFiles={agentConfig.permissions.write}
               initialReferences={referencesDraftRef.current}
               onReferencesChange={(references) => {
                 referencesDraftRef.current = references;

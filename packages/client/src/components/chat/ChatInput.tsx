@@ -48,10 +48,11 @@ import {
 } from "@/lib/composer-references";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { MAX_CHAT_FILE_SIZE, uploadChatFile } from "@/lib/chat-attachments";
+import { api } from "@/lib/api";
 import { attachmentToImageContent, fileToImageAttachment, imageSrc } from "./chat-utils";
 
 const MAX_FILES = 10;
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 export type ChatInputHandle = {
   insertText: (text: string, references?: MessageReference[]) => void;
@@ -61,6 +62,7 @@ type ChatInputProps = {
   agentId?: string;
   sessionId?: string;
   canReadFiles?: boolean;
+  canWriteFiles?: boolean;
   initialReferences?: MessageReference[];
   onReferencesChange?: (references: MessageReference[]) => void;
   ref?: Ref<ChatInputHandle>;
@@ -95,6 +97,7 @@ export function ChatInput({
   agentId,
   sessionId,
   canReadFiles = false,
+  canWriteFiles = false,
   initialReferences,
   onReferencesChange,
   ref,
@@ -124,6 +127,7 @@ export function ChatInput({
   const pickerSelection = useRef<ComposerSelection>({ start: 0, end: 0 });
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [processingFiles, setProcessingFiles] = useState(false);
+  const processingFilesRef = useRef(false);
   const [dragging, setDragging] = useState(false);
   const supportedThinkingLevels = useMemo(
     () => getSupportedThinkingLevels(currentModel) as ThinkingLevel[],
@@ -134,6 +138,7 @@ export function ChatInput({
     : (supportedThinkingLevels[0] ?? "off");
   const supportsThinking = supportedThinkingLevels.some((level) => level !== "off");
   const supportsImages = currentModel.input?.includes("image") !== false;
+  const canUploadFiles = Boolean(agentId && canReadFiles && canWriteFiles);
   const canSend =
     !isStreaming &&
     !processingFiles &&
@@ -181,11 +186,17 @@ export function ChatInput({
   }));
 
   const send = () => {
-    if (!canSend) return;
+    if (!canSend || processingFilesRef.current) return;
+    if (!supportsImages && attachments.some((attachment) => attachment.type === "image")) {
+      toast.error("This model does not support images. Remove them or choose another model.");
+      return;
+    }
     const submittedText = value;
     const submittedAttachments = attachments;
     const submittedReferences = references;
-    const images = submittedAttachments.map(attachmentToImageContent);
+    const images = submittedAttachments
+      .filter((attachment) => attachment.type === "image")
+      .map(attachmentToImageContent);
     // Cleared optimistically, because the send usually succeeds and a composer
     // that empties only after the round trip feels stuck.
     updateValue("");
@@ -212,29 +223,61 @@ export function ChatInput({
   };
 
   const addFiles = async (files: File[]) => {
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-    if (imageFiles.length === 0) return;
-    if (attachments.length + imageFiles.length > MAX_FILES) {
-      toast.error(`Maximum ${MAX_FILES} images allowed.`);
+    if (processingFilesRef.current || files.length === 0) return;
+    if (attachments.length + referencesRef.current.length + files.length > MAX_FILES) {
+      toast.error(`Maximum ${MAX_FILES} attachments and references allowed.`);
       return;
     }
 
+    processingFilesRef.current = true;
     setProcessingFiles(true);
     try {
       const nextAttachments: ChatAttachment[] = [];
-      for (const file of imageFiles) {
-        if (file.size > MAX_FILE_SIZE) {
+      for (const file of files) {
+        const isImage = file.type.startsWith("image/");
+        if (!isImage && !canUploadFiles) {
           toast.error(
-            `${file.name} exceeds the ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB limit.`,
+            "Enable read and write permissions for this agent to upload workspace files.",
           );
           continue;
         }
-        nextAttachments.push(await fileToImageAttachment(file));
+        if (isImage && !supportsImages) {
+          toast.error("This model does not support images.");
+          continue;
+        }
+        if (file.size > MAX_CHAT_FILE_SIZE) {
+          toast.error(`${file.name} exceeds the 20MB file limit.`);
+          continue;
+        }
+        try {
+          if (isImage) {
+            nextAttachments.push(await fileToImageAttachment(file));
+          } else {
+            const reference = await uploadChatFile(file, (path, content) =>
+              api.uploadAgentFile(agentId!, path, content),
+            );
+            if (referencesRef.current.length >= MAX_FILES) {
+              toast.error(
+                `${file.name} was uploaded, but the message already has ${MAX_FILES} references.`,
+              );
+              continue;
+            }
+            const text = valueRef.current;
+            const inserted = insertInlineReference(
+              text,
+              { start: text.length, end: text.length },
+              reference,
+            );
+            updateReferences([...referencesRef.current, reference]);
+            updateValue(inserted.text);
+          }
+        } catch (error) {
+          showError("Unable to attach file", error);
+        }
       }
       setAttachments((current) => [...current, ...nextAttachments]);
-    } catch (error) {
-      showError("Unable to attach image", error);
     } finally {
+      processingFilesRef.current = false;
       setProcessingFiles(false);
     }
   };
@@ -246,7 +289,7 @@ export function ChatInput({
         dragging && "border-primary bg-primary/5",
       )}
       onDragOver={(event) => {
-        if (!supportsImages) return;
+        if (!event.dataTransfer.types.includes("Files")) return;
         event.preventDefault();
         setDragging(true);
       }}
@@ -262,7 +305,6 @@ export function ChatInput({
         }
       }}
       onDrop={(event) => {
-        if (!supportsImages) return;
         event.preventDefault();
         setDragging(false);
         void addFiles(Array.from(event.dataTransfer.files));
@@ -270,7 +312,7 @@ export function ChatInput({
     >
       {dragging ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-primary/10 text-sm font-medium text-primary">
-          Drop images here
+          {canUploadFiles ? "Drop files here" : "Drop images here"}
         </div>
       ) : null}
       {attachments.length > 0 ? (
@@ -362,10 +404,7 @@ export function ChatInput({
           }
         }}
         onPaste={(event) => {
-          if (!supportsImages) return;
-          const files = Array.from(event.clipboardData.files).filter((file) =>
-            file.type.startsWith("image/"),
-          );
+          const files = Array.from(event.clipboardData.files);
           if (files.length === 0) return;
           event.preventDefault();
           void addFiles(files);
@@ -385,7 +424,7 @@ export function ChatInput({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={canUploadFiles ? undefined : "image/*"}
         multiple
         className="hidden"
         onChange={(event) => {
@@ -404,7 +443,11 @@ export function ChatInput({
               size="icon-sm"
               aria-label="Mention a reference"
               title="Mention a file, folder, or conversation"
-              disabled={isStreaming || references.length >= 10}
+              disabled={
+                isStreaming ||
+                processingFiles ||
+                references.length + attachments.length >= MAX_FILES
+              }
               onClick={() => {
                 const cursor = textareaRef.current?.selectionStart ?? value.length;
                 const end = textareaRef.current?.selectionEnd ?? cursor;
@@ -416,19 +459,23 @@ export function ChatInput({
               <AtSignIcon />
             </Button>
           ) : null}
-          {supportsImages ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              disabled={processingFiles}
-              aria-label="Attach images"
-              title="Attach images"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {processingFiles ? <Loader2Icon className="animate-spin" /> : <PaperclipIcon />}
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={processingFiles || (!supportsImages && !canUploadFiles)}
+            aria-label="Attach files"
+            title={
+              canUploadFiles
+                ? "Attach files"
+                : supportsImages
+                  ? "Attach images"
+                  : "Enable read and write permissions to upload files"
+            }
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {processingFiles ? <Loader2Icon className="animate-spin" /> : <PaperclipIcon />}
+          </Button>
         </div>
         <div className="col-span-3 col-start-1 row-start-1 flex min-w-0 items-center gap-2 @[28rem]:col-span-1 @[28rem]:col-start-2 @[28rem]:justify-end">
           {supportsThinking ? (
@@ -507,8 +554,8 @@ export function ChatInput({
           onOpenChange={setReferencePickerOpen}
           onSelect={(reference) => {
             if (!references.some((item) => referenceKey(item) === referenceKey(reference))) {
-              if (references.length >= 10) {
-                toast.error("Maximum 10 references allowed.");
+              if (references.length + attachments.length >= MAX_FILES) {
+                toast.error(`Maximum ${MAX_FILES} attachments and references allowed.`);
                 return;
               }
               updateReferences([...references, reference]);
