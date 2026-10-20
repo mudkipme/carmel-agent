@@ -13,6 +13,7 @@ import {
 import { api } from "@/lib/api";
 import { useThemePreference } from "@/lib/theme";
 import { errorMessage } from "@/lib/errors";
+import { UnsavedChangesDialog } from "@/components/harness/UnsavedChangesDialog";
 
 type FileEditorViewProps = {
   agent?: AgentConfig;
@@ -64,15 +65,17 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
   }, [loadFile]);
 
   const saveFile = async () => {
-    if (!agent || !filePath) return;
+    if (!agent || !filePath || saving) return false;
     setSaving(true);
     setError("");
     try {
       const result = await api.saveAgentFile(agent.id, filePath, content);
-      setContent(result.content);
+      setContent((current) => (current === content ? result.content : current));
       setSavedContent(result.content);
+      return true;
     } catch (saveError) {
       setError(errorMessage(saveError, "Unable to save file"));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -173,10 +176,21 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
     <CodeEditor language={language} dark={darkEditor} value={content} onChange={setContent} />
   );
   const rootClassName = "@container/file-editor flex h-full min-h-0 flex-col gap-0 bg-background";
+  const navigationGuard = (
+    <UnsavedChangesDialog
+      dirty={isDirty}
+      saving={saving}
+      shouldBlock={({ currentLocation, nextLocation }) =>
+        currentLocation.pathname !== nextLocation.pathname
+      }
+      onSave={saveFile}
+    />
+  );
 
   if (isMarkdown) {
     return (
       <Tabs value={markdownMode} onValueChange={setMarkdownMode} className={rootClassName}>
+        {navigationGuard}
         {header}
         {feedback}
         <TabsContent
@@ -204,6 +218,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
 
   return (
     <div className={rootClassName}>
+      {navigationGuard}
       {header}
       {feedback}
       <div className="min-h-0 flex-1">

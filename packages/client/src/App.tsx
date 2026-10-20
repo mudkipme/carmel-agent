@@ -1,5 +1,12 @@
 import { useEffect } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import {
+  createBrowserRouter,
+  createRoutesFromElements,
+  Navigate,
+  Route,
+  RouterProvider,
+  useParams,
+} from "react-router-dom";
 import { AgentSettingsPage } from "@/components/harness/AgentSettingsPage";
 import { HarnessShell } from "@/components/harness/HarnessShell";
 import { HarnessSkeleton } from "@/components/harness/shell/HarnessSkeleton";
@@ -81,30 +88,32 @@ export default function App() {
     return <LoginScreen />;
   }
 
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HarnessShell />} />
-        <Route path="/agents/:agentId" element={<HarnessShell />} />
-        <Route path="/agents/:agentId/settings" element={<AgentSettingsRedirect />} />
-        <Route path="/agents/:agentId/settings/tasks" element={<AgentTasksRedirect />} />
-        <Route path="/agents/:agentId/settings/:section" element={<AgentSettingsPage />} />
-        {/* The splat carries the file being edited, and matches the bare
-            /files path too, so the manager and the editor share one route. */}
-        <Route path="/agents/:agentId/files/*" element={<HarnessShell view="files" />} />
-        {/* Like files, the splat is the open file: here, the one whose diff shows. */}
-        <Route path="/agents/:agentId/changes/*" element={<HarnessShell view="changes" />} />
-        <Route path="/agents/:agentId/terminal" element={<HarnessShell view="terminal" />} />
-        <Route path="/agents/:agentId/browser" element={<HarnessShell view="browser" />} />
-        <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
-        <Route path="/agents/:agentId/tasks" element={<HarnessShell view="tasks" />} />
-        <Route path="/agents/:agentId/knowledge" element={<HarnessShell view="knowledge" />} />
-        <Route path="/agents/:agentId/issues" element={<HarnessShell view="issues" />} />
-        <Route path="/agents/:agentId/issues/:issueId" element={<HarnessShell view="issues" />} />
-        <Route path="/settings" element={<Navigate to="/settings/models" replace />} />
-        <Route path="/settings/:section" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
-  );
+  return <RouterProvider router={router} />;
 }
+
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <>
+      <Route path="/" element={<HarnessShell />} />
+      <Route path="/agents/:agentId" element={<HarnessShell />} />
+      <Route path="/agents/:agentId/settings" element={<AgentSettingsRedirect />} />
+      <Route path="/agents/:agentId/settings/tasks" element={<AgentTasksRedirect />} />
+      <Route path="/agents/:agentId/settings/:section" element={<AgentSettingsPage />} />
+      {/* The splat carries the file being edited, and matches the bare
+            /files path too, so the manager and the editor share one route. */}
+      <Route path="/agents/:agentId/files/*" element={<HarnessShell view="files" />} />
+      {/* Like files, the splat is the open file: here, the one whose diff shows. */}
+      <Route path="/agents/:agentId/changes/*" element={<HarnessShell view="changes" />} />
+      <Route path="/agents/:agentId/terminal" element={<HarnessShell view="terminal" />} />
+      <Route path="/agents/:agentId/browser" element={<HarnessShell view="browser" />} />
+      <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
+      <Route path="/agents/:agentId/tasks" element={<HarnessShell view="tasks" />} />
+      <Route path="/agents/:agentId/knowledge" element={<HarnessShell view="knowledge" />} />
+      <Route path="/agents/:agentId/issues" element={<HarnessShell view="issues" />} />
+      <Route path="/agents/:agentId/issues/:issueId" element={<HarnessShell view="issues" />} />
+      <Route path="/settings" element={<Navigate to="/settings/models" replace />} />
+      <Route path="/settings/:section" element={<SettingsPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </>,
+  ),
+);

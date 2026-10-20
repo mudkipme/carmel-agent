@@ -11,6 +11,7 @@ import { errorMessage, showError } from "@/lib/errors";
 import { setPendingPrompt } from "@/lib/pending-prompts";
 import type { PromptOutcome } from "@/lib/remote-agent";
 import { useHarnessStore } from "@/store/harness-store";
+import { draftStorageKey } from "@/lib/session-draft";
 import {
   resolveModelRef,
   type AgentConfig,
@@ -39,6 +40,10 @@ export function NewSessionView({
 }: NewSessionViewProps) {
   const navigate = useNavigate();
   const createSession = useHarnessStore((state) => state.createSession);
+  const activeUserId = useHarnessStore((state) => state.activeUserId);
+  const draftKey = activeUserId
+    ? draftStorageKey(activeUserId, "new-session", agent.id)
+    : undefined;
   const chatInputRef = useRef<ChatInputHandle | null>(null);
   const creatingRef = useRef(false);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
@@ -99,6 +104,7 @@ export function NewSessionView({
           </div>
           {browserRequest ? <AgentRequestArea>{browserRequest}</AgentRequestArea> : null}
           <ChatInput
+            draftKey={draftKey}
             agentId={agent.id}
             canReadFiles={agent.permissions.read}
             canWriteFiles={agent.permissions.write}

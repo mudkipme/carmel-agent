@@ -25,6 +25,7 @@ import { confirmAction } from "@/lib/action-dialogs";
 import { api } from "@/lib/api";
 import { errorMessage, showError } from "@/lib/errors";
 import { SettingsLayout } from "./SettingsLayout";
+import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import { useHarnessStore } from "@/store/harness-store";
 import { resolveModelRef, type AgentConfig, type AgentThinkingLevel } from "@carmel-agent/shared";
 
@@ -67,6 +68,7 @@ export function AgentSettingsPage() {
     : defaultSection;
   const callerSection = activeSection === "archived" || activeSection === "integrations";
   const [draft, setDraft] = useState<AgentConfig | null>(null);
+  const [savedDraft, setSavedDraft] = useState<AgentConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -100,11 +102,15 @@ export function AgentSettingsPage() {
     if (!agentId || !owned) return;
     let cancelled = false;
     setDraft(null);
+    setSavedDraft(null);
     setLoadError(null);
     void api
       .getAgentSettings(agentId)
       .then((payload) => {
-        if (!cancelled) setDraft(payload);
+        if (!cancelled) {
+          setDraft(payload);
+          setSavedDraft(payload);
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) setLoadError(errorMessage(error, "Unable to load agent settings"));
@@ -134,7 +140,7 @@ export function AgentSettingsPage() {
   };
 
   const saveAgent = async () => {
-    if (!draft) return;
+    if (!draft || saving) return false;
     setSaving(true);
     setSaveError(null);
     setSaveMessage(null);
@@ -144,9 +150,12 @@ export function AgentSettingsPage() {
         defaultThinkingLevel: selectedThinkingLevel,
         updatedAt: Date.now(),
       });
+      setSavedDraft(draft);
       setSaveMessage("Agent saved.");
+      return true;
     } catch (error) {
       setSaveError(errorMessage(error, "Unable to save agent"));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -193,6 +202,14 @@ export function AgentSettingsPage() {
         ) : null
       }
     >
+      <UnsavedChangesDialog
+        dirty={Boolean(draft && savedDraft && JSON.stringify(draft) !== JSON.stringify(savedDraft))}
+        saving={saving}
+        shouldBlock={({ nextLocation }) =>
+          !nextLocation.pathname.startsWith(`/agents/${agentId}/settings/`)
+        }
+        onSave={saveAgent}
+      />
       {/* Archived sessions are the caller's own, not part of the owner-only draft. */}
       {activeSection === "archived" ? <AgentArchivedSessionsSettings agentId={agent.id} /> : null}
       {activeSection === "integrations" ? (

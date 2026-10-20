@@ -1,5 +1,5 @@
 import { PlusIcon, Trash2Icon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { SectionHeader } from "@/components/harness/form-primitives";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -15,6 +15,7 @@ export function AgentTemplatesSettings({
   templates: PromptTemplate[];
   onChange: (templates: PromptTemplate[]) => void;
 }) {
+  const fieldId = useId();
   const [templateName, setTemplateName] = useState("");
   const [templateBody, setTemplateBody] = useState("");
 
@@ -59,12 +60,17 @@ export function AgentTemplatesSettings({
         ) : null}
         <div className="grid gap-3 rounded-md border p-3">
           <Field>
-            <FieldLabel>Template name</FieldLabel>
-            <Input value={templateName} onChange={(event) => setTemplateName(event.target.value)} />
+            <FieldLabel htmlFor={`${fieldId}-template-name`}>Template name</FieldLabel>
+            <Input
+              id={`${fieldId}-template-name`}
+              value={templateName}
+              onChange={(event) => setTemplateName(event.target.value)}
+            />
           </Field>
           <Field>
-            <FieldLabel>Template text</FieldLabel>
+            <FieldLabel htmlFor={`${fieldId}-template-body`}>Template text</FieldLabel>
             <Textarea
+              id={`${fieldId}-template-body`}
               value={templateBody}
               onChange={(event) => setTemplateBody(event.target.value)}
             />

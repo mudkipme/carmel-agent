@@ -26,7 +26,10 @@ import {
   type KeyboardEvent,
   type ReactNode,
   type Ref,
+  type SetStateAction,
 } from "react";
+import { useSessionDraft } from "@/hooks/use-session-draft";
+import { isComposerDraft, type ComposerDraft } from "@/lib/composer-draft";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ReferencePicker } from "./ReferencePicker";
@@ -59,6 +62,7 @@ export type ChatInputHandle = {
 };
 
 type ChatInputProps = {
+  draftKey?: string;
   agentId?: string;
   sessionId?: string;
   canReadFiles?: boolean;
@@ -94,6 +98,7 @@ type ChatInputProps = {
 // let the parent keep the draft in a ref (no re-renders) so it survives remounts,
 // e.g. the agent teardown on model switch.
 export function ChatInput({
+  draftKey,
   agentId,
   sessionId,
   canReadFiles = false,
@@ -116,16 +121,27 @@ export function ChatInput({
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [value, setValue] = useState(initialValue ?? "");
+  const [draft, setDraft] = useSessionDraft<ComposerDraft>(
+    draftKey,
+    { value: initialValue ?? "", references: initialReferences ?? [], attachments: [] },
+    isComposerDraft,
+  );
+  const { value, references, attachments } = draft;
+  const setValue = (value: string) => setDraft((current) => ({ ...current, value }));
+  const setReferences = (references: MessageReference[]) =>
+    setDraft((current) => ({ ...current, references }));
+  const setAttachments = (next: SetStateAction<ChatAttachment[]>) =>
+    setDraft((current) => ({
+      ...current,
+      attachments: typeof next === "function" ? next(current.attachments) : next,
+    }));
   // Read by the send path after an await, where `value` would be the state it
   // closed over rather than whatever the user has typed since.
   const valueRef = useRef(value);
-  const [references, setReferences] = useState<MessageReference[]>(initialReferences ?? []);
   const referencesRef = useRef(references);
   const [pickerOpen, setPickerOpen] = useState(false);
   const mentionRange = useRef({ start: 0, end: 0 });
   const pickerSelection = useRef<ComposerSelection>({ start: 0, end: 0 });
-  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [processingFiles, setProcessingFiles] = useState(false);
   const processingFilesRef = useRef(false);
   const [dragging, setDragging] = useState(false);

@@ -1,7 +1,8 @@
+import { useId } from "react";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { SectionHeader, ToggleRow } from "@/components/harness/form-primitives";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -51,6 +52,7 @@ export function AgentGeneralSettings({
   onSelectModel: (modelRefId: string) => void;
   onDelete: () => void;
 }) {
+  const fieldId = useId();
   const updateMount = (index: number, patch: Partial<AgentMount>) => {
     onChange({
       mounts: draft.mounts.map((mount, mountIndex) =>
@@ -65,21 +67,23 @@ export function AgentGeneralSettings({
         <SectionHeader title="Agent" />
         <div className="grid gap-3">
           <Field>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel htmlFor={`${fieldId}-name`}>Name</FieldLabel>
             <Input
+              id={`${fieldId}-name`}
               value={draft.name}
               onChange={(event) => onChange({ name: event.target.value })}
             />
           </Field>
           <Field>
-            <FieldLabel>Description</FieldLabel>
+            <FieldLabel htmlFor={`${fieldId}-description`}>Description</FieldLabel>
             <Input
+              id={`${fieldId}-description`}
               value={draft.description}
               onChange={(event) => onChange({ description: event.target.value })}
             />
           </Field>
           <Field>
-            <FieldLabel>Working dir</FieldLabel>
+            <FieldLabel htmlFor={`${fieldId}-working-dir-mode`}>Working dir</FieldLabel>
             <div className="grid gap-2">
               <Select
                 value={draft.workingDirMode}
@@ -95,7 +99,7 @@ export function AgentGeneralSettings({
                   onChange(patch);
                 }}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger id={`${fieldId}-working-dir-mode`} className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -109,6 +113,7 @@ export function AgentGeneralSettings({
               </Select>
               {canConfigureHostPaths && draft.workingDirMode === "manual" ? (
                 <Input
+                  aria-label="Manual server folder"
                   value={draft.workingDir}
                   onChange={(event) => onChange({ workingDir: event.target.value })}
                   placeholder="/path/on/server"
@@ -117,44 +122,59 @@ export function AgentGeneralSettings({
             </div>
           </Field>
           {canConfigureHostPaths ? (
-            <Field>
-              <FieldLabel>Extra runner mounts</FieldLabel>
+            <FieldSet>
+              <FieldLegend variant="label">Extra runner mounts</FieldLegend>
               <div className="grid gap-2">
                 <p className="text-xs text-muted-foreground">
                   Host directories mounted into the bash sandbox in addition to the workspace.
                   Source is a path on the host.
                 </p>
                 {draft.mounts.map((mount, index) => (
-                  <div key={index} className="grid gap-2 rounded-md border p-2">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={mount.source}
-                        onChange={(event) => updateMount(index, { source: event.target.value })}
-                        placeholder="/host/path"
+                  <FieldSet key={index} className="rounded-md border p-2">
+                    <FieldLegend variant="label">Mount {index + 1}</FieldLegend>
+                    <FieldGroup>
+                      <Field>
+                        <FieldLabel htmlFor={`${fieldId}-mount-${index}-source`}>
+                          Host path
+                        </FieldLabel>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            id={`${fieldId}-mount-${index}-source`}
+                            value={mount.source}
+                            onChange={(event) => updateMount(index, { source: event.target.value })}
+                            placeholder="/host/path"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              onChange({ mounts: draft.mounts.filter((_, at) => at !== index) })
+                            }
+                            title="Remove mount"
+                          >
+                            <Trash2Icon className="size-4" />
+                          </Button>
+                        </div>
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`${fieldId}-mount-${index}-target`}>
+                          Container path
+                        </FieldLabel>
+                        <Input
+                          id={`${fieldId}-mount-${index}-target`}
+                          value={mount.target ?? ""}
+                          onChange={(event) => updateMount(index, { target: event.target.value })}
+                          placeholder="Container path (defaults to source)"
+                        />
+                      </Field>
+                      <ToggleRow
+                        label="Read only"
+                        checked={mount.readOnly ?? false}
+                        onCheckedChange={(readOnly) => updateMount(index, { readOnly })}
                       />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          onChange({ mounts: draft.mounts.filter((_, at) => at !== index) })
-                        }
-                        title="Remove mount"
-                      >
-                        <Trash2Icon className="size-4" />
-                      </Button>
-                    </div>
-                    <Input
-                      value={mount.target ?? ""}
-                      onChange={(event) => updateMount(index, { target: event.target.value })}
-                      placeholder="Container path (defaults to source)"
-                    />
-                    <ToggleRow
-                      label="Read only"
-                      checked={mount.readOnly ?? false}
-                      onCheckedChange={(readOnly) => updateMount(index, { readOnly })}
-                    />
-                  </div>
+                    </FieldGroup>
+                  </FieldSet>
                 ))}
                 <Button
                   type="button"
@@ -170,12 +190,12 @@ export function AgentGeneralSettings({
                   <PlusIcon className="size-4" /> Add mount
                 </Button>
               </div>
-            </Field>
+            </FieldSet>
           ) : null}
           <Field>
-            <FieldLabel>Default model</FieldLabel>
+            <FieldLabel htmlFor={`${fieldId}-default-model`}>Default model</FieldLabel>
             <Select value={draft.defaultModelRefId} onValueChange={onSelectModel}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id={`${fieldId}-default-model`} className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -192,14 +212,14 @@ export function AgentGeneralSettings({
             </Select>
           </Field>
           <Field>
-            <FieldLabel>Default thinking</FieldLabel>
+            <FieldLabel htmlFor={`${fieldId}-default-thinking`}>Default thinking</FieldLabel>
             <Select
               value={selectedThinkingLevel}
               onValueChange={(defaultThinkingLevel) =>
                 onChange({ defaultThinkingLevel: defaultThinkingLevel as AgentThinkingLevel })
               }
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger id={`${fieldId}-default-thinking`} className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -214,8 +234,9 @@ export function AgentGeneralSettings({
             </Select>
           </Field>
           <Field>
-            <FieldLabel>System prompt</FieldLabel>
+            <FieldLabel htmlFor={`${fieldId}-system-prompt`}>System prompt</FieldLabel>
             <Textarea
+              id={`${fieldId}-system-prompt`}
               value={draft.systemPrompt}
               onChange={(event) => onChange({ systemPrompt: event.target.value })}
             />

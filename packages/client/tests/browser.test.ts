@@ -524,6 +524,170 @@ test("tool disclosures preserve their output and fit desktop and mobile conversa
   browser("set", "viewport", "1280", "900");
 });
 
+test("new chat drafts retain text, references, and images across navigation and reload", () => {
+  browser("set", "viewport", "1280", "900");
+  open(agentPath(""));
+  browser("wait", 'textarea[aria-label="Message"]');
+  browser("fill", 'textarea[aria-label="Message"]', "Keep my unfinished prompt");
+  click("button", "Mention a reference");
+  click("option", "workspace-review.md");
+  evaluate(`(() => {
+    const bytes = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII='), c => c.charCodeAt(0));
+    const data = new DataTransfer();
+    data.items.add(new File([bytes], 'draft.png', {type:'image/png'}));
+    document.querySelector('.chat-composer').dispatchEvent(new DragEvent('drop', {bubbles:true, cancelable:true, dataTransfer:data}));
+  })()`);
+  browser("wait", 'button[aria-label="Remove draft.png"]');
+  const text = value('textarea[aria-label="Message"]');
+  click("link", "Tasks");
+  click("button", "New session");
+  assert.equal(value('textarea[aria-label="Message"]'), text);
+  assert.match(snapshot(), /Remove draft.png/);
+  browser("reload");
+  browser("wait", 'textarea[aria-label="Message"]');
+  assert.equal(value('textarea[aria-label="Message"]'), text);
+  assert.match(snapshot(), /Remove draft.png/);
+  open(`/agents/${fixture.secondAgentId}`);
+  browser("wait", 'textarea[aria-label="Message"]');
+  assert.equal(value('textarea[aria-label="Message"]'), "");
+  open(agentPath(""));
+  assert.equal(value('textarea[aria-label="Message"]'), text);
+  browser("fill", 'textarea[aria-label="Message"]', "");
+  click("button", "Remove draft.png");
+});
+
+test("agent settings fields have accessible names and navigation protects unsaved edits", () => {
+  const openSettings = () => {
+    click("button", "Agent settings");
+    // The header mounts before the settings request finishes. Wait for the form itself.
+    browser("wait", '[data-settings-content] input[id$="-description"]');
+  };
+  open(agentPath(""));
+  // Hold the first real response so this also exercises a slow settings load on fast machines.
+  evaluate(`(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (input, init) => {
+      const response = await originalFetch(input, init);
+      if (String(input).endsWith('/api/agents/${fixture.agentId}/settings')) {
+        window.fetch = originalFetch;
+        await new Promise(resolve => { window.releaseSettingsResponse = resolve; });
+      }
+      return response;
+    };
+  })()`);
+  click("button", "Agent settings");
+  browser("wait", "--fn", 'typeof window.releaseSettingsResponse === "function"');
+  assert.match(evaluate<string>("document.body.innerText"), /Loading agent settings/);
+  evaluate("window.releaseSettingsResponse()");
+  browser("wait", '[data-settings-content] input[id$="-description"]');
+  browser("find", "label", "Description", "fill", "Keep this settings draft");
+  // A browser history exit is protected just like the app's Back button.
+  browser("back");
+  browser("wait", '[role="alertdialog"]');
+  click("button", "Cancel");
+  assert.match(browser<{ url: string }>("get", "url").url, /settings\/general$/);
+  const fields = snapshot();
+  for (const name of ["Name", "Description", "System prompt"]) {
+    assert.match(fields, new RegExp(`textbox "${name}"`));
+  }
+  for (const name of ["Working dir", "Default model", "Default thinking"]) {
+    assert.match(fields, new RegExp(`combobox "${name}"`));
+  }
+  click("button", "Add mount");
+  browser("find", "label", "Host path", "fill", "/tmp/unsaved-mount");
+  browser("find", "label", "Container path", "fill", "/mount");
+  click("button", "Remove mount");
+  click("link", "Templates");
+  assert.match(snapshot(), /textbox "Template name"/);
+  assert.match(snapshot(), /textbox "Template text"/);
+  click("link", "General");
+  click("button", "Back to agent");
+  browser("wait", '[role="alertdialog"]');
+  click("button", "Cancel");
+  assert.equal(evaluate('document.querySelectorAll("[role=alertdialog]").length'), 0);
+  assert.match(snapshot(), /Keep this settings draft/);
+  assert.equal(
+    evaluate(
+      `(() => { const e = new Event('beforeunload', {cancelable:true}); window.dispatchEvent(e); return e.defaultPrevented; })()`,
+    ),
+    true,
+  );
+  const settingsUrl = `${fixture.url}/api/agents/${fixture.agentId}`;
+  browser("network", "route", settingsUrl, "--abort");
+  try {
+    click("button", "Back to agent");
+    click("button", "Save and leave");
+    browser("wait", "--text", "Unable to save. Your changes are still here.");
+    assert.match(browser<{ url: string }>("get", "url").url, /settings\/general$/);
+  } finally {
+    browser("network", "unroute", settingsUrl);
+  }
+  click("button", "Cancel");
+  click("button", "Back to agent");
+  click("button", "Discard changes");
+  openSettings();
+  assert.doesNotMatch(snapshot(), /Keep this settings draft/);
+  browser("find", "label", "Description", "fill", "A saved settings description");
+  click("button", "Back to agent");
+  click("button", "Save and leave");
+  browser("wait", "--url", `**/agents/${fixture.agentId}`);
+  openSettings();
+  assert.match(snapshot(), /A saved settings description/);
+  browser("find", "label", "Description", "fill", "");
+  click("button", "Save");
+  browser("wait", "--text", "Agent saved.");
+});
+
+test("file navigation offers cancel, discard, and save; failed saves keep the draft", () => {
+  open(agentPath(`files/workspace-review.md?chat=${fixture.chatSessionId}`));
+  const edit = (text: string) => {
+    click("tab", "Edit");
+    browser("focus", "#workspace-pane .cm-content");
+    browser("press", "Control+a");
+    browser("keyboard", "inserttext", text);
+  };
+  edit("# A protected file draft");
+  click("button", "Back to files");
+  browser("wait", '[role="alertdialog"]');
+  click("button", "Cancel");
+  assert.match(
+    evaluate<string>('document.querySelector(".cm-content").textContent'),
+    /A protected file draft/,
+  );
+  const fileUrl = `${fixture.url}/api/agents/${fixture.agentId}/files/content`;
+  browser("network", "route", `${fileUrl}*`, "--abort");
+  try {
+    click("button", "Back to files");
+    click("button", "Save and leave");
+    browser("wait", "--text", "Unable to save. Your changes are still here.");
+    assert.match(browser<{ url: string }>("get", "url").url, /files\/workspace-review.md/);
+  } finally {
+    browser("network", "unroute", `${fileUrl}*`);
+  }
+  click("button", "Cancel");
+  click("button", "Back to files");
+  click("button", "Discard changes");
+  clickSelector(
+    '#workspace-pane [role="button"]:has(button[title="Actions for workspace-review.md"])',
+  );
+  browser("wait", "--text", "Updated draft.");
+  edit("# A saved file draft");
+  click("button", "Back to files");
+  click("button", "Save and leave");
+  browser("wait", 'button[title="Actions for workspace-review.md"]');
+  clickSelector(
+    '#workspace-pane [role="button"]:has(button[title="Actions for workspace-review.md"])',
+  );
+  browser("wait", "--text", "A saved file draft");
+  edit("# Workspace review\n\nUpdated draft.\n");
+  click("button", "Save");
+  browser(
+    "wait",
+    "--fn",
+    'document.querySelector("#workspace-pane button[aria-label=Save]").disabled',
+  );
+});
+
 test("mobile settings keep the selected section visible and permission labels toggle their switches", (t) => {
   t.after(() => browser("set", "viewport", "1280", "900"));
   const waitForSelectedSection = (section: string) => {
@@ -828,6 +992,8 @@ test("workspace layout keeps chat and editor drafts mounted while resizing, expa
   checkDrafts();
   assert.equal(width(), resizedWidth);
   click("button", "Expand files");
+  // The reload is intentional; first explicitly discard the editor draft.
+  click("button", "Discard");
   browser("reload");
   browser("wait", '[data-workspace-layout="full"]');
   browser(
