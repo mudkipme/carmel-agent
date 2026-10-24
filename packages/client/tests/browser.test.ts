@@ -294,6 +294,17 @@ test(
     click("button", "Provide credential");
     browser("wait", "--text", "This session only");
     browser("wait", "--text", "Resume agent");
+    browser("wait", '[data-chat-history] [data-agent-request-kind="secret"]');
+    assert.equal(
+      evaluate<number>(`document.querySelectorAll('[data-agent-request-kind="secret"]').length`),
+      1,
+    );
+    assert.equal(
+      evaluate<number>(
+        `document.querySelectorAll('[data-agent-request-area] [data-agent-request-kind="secret"]').length`,
+      ),
+      0,
+    );
     assert.ok(
       !evaluate<string>(`document.querySelector('.agent-chat-host').innerHTML`).includes(
         dummyToken,
@@ -314,18 +325,35 @@ test(
   },
 );
 
-test("credential and question receipts render readable statuses after reload", () => {
+test("completed credentials stay in chat with their controls after reload", () => {
   open(agentPath(`sessions/${fixture.receiptSessionId}`));
+  browser("wait", '[data-chat-history] [data-agent-request-kind="secret"]');
   browser("wait", '[data-testid="user-request-receipt"]');
+  const secretCard = () =>
+    evaluate<string>(
+      `document.querySelector('[data-chat-history] [data-agent-request-kind="secret"]').innerText`,
+    );
   const receipts = () =>
     evaluate<string>(
       `Array.from(document.querySelectorAll('[data-testid="user-request-receipt"]')).map(element => element.innerText).join('\\n')`,
     );
-  assert.match(receipts(), /GH_TOKEN/);
-  assert.match(receipts(), /Credential provided/);
-  assert.match(receipts(), /this session/);
+  assert.match(secretCard(), /GH_TOKEN/);
+  assert.match(secretCard(), /Credential provided/);
+  assert.match(secretCard(), /This session only/);
+  assert.match(secretCard(), /Save for this agent/);
+  assert.equal(
+    evaluate<number>(`document.querySelectorAll('[data-agent-request-kind="secret"]').length`),
+    1,
+  );
+  assert.equal(
+    evaluate<number>(
+      `document.querySelectorAll('[data-agent-request-area] [data-agent-request-kind="secret"]').length`,
+    ),
+    0,
+  );
   assert.match(receipts(), /Which branch\?/);
   assert.match(receipts(), /Main/);
+  assert.doesNotMatch(receipts(), /GH_TOKEN/);
   assert.doesNotMatch(
     receipts(),
     /Response to request|Secret reference|Internal question response/,
@@ -337,8 +365,8 @@ test("credential and question receipts render readable statuses after reload", (
     0,
   );
   browser("reload");
-  browser("wait", '[data-testid="user-request-receipt"]');
-  assert.match(receipts(), /Credential provided/);
+  browser("wait", '[data-chat-history] [data-agent-request-kind="secret"]');
+  assert.match(secretCard(), /Credential provided/);
 });
 
 test(

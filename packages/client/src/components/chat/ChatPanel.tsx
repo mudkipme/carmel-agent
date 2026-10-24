@@ -35,7 +35,8 @@ type ChatPanelProps = {
   inputRef?: Ref<ChatInputHandle>;
   inputLeadingActions?: ReactNode;
   requestCards?: ReactNode;
-  requestHistory?: ReactNode;
+  pendingSecretCards?: ReactNode;
+  renderCompletedSecret?: (requestId: string) => ReactNode;
   waitingForAnswer?: boolean;
   initialInput?: string;
   onInputDraftChange?: (value: string) => void;
@@ -72,7 +73,8 @@ export function ChatPanel({
   inputRef,
   inputLeadingActions,
   requestCards,
-  requestHistory,
+  pendingSecretCards,
+  renderCompletedSecret,
   waitingForAnswer,
   initialInput,
   onInputDraftChange,
@@ -146,11 +148,12 @@ export function ChatPanel({
             nestedTools={nestedTools}
             isStreaming={isStreaming}
             collapseRunDetails={collapseRunDetails}
+            renderCompletedSecret={renderCompletedSecret}
             onEditMessage={readOnly ? undefined : onEditMessage}
             onRetryMessage={readOnly ? undefined : onRetryMessage}
             onForkMessage={readOnly ? undefined : onForkMessage}
           />
-          {requestHistory ? <div className="py-3">{requestHistory}</div> : null}
+          {pendingSecretCards ? <div className="py-3">{pendingSecretCards}</div> : null}
         </div>
       </div>
       <AgentRequestArea>{requestCards}</AgentRequestArea>

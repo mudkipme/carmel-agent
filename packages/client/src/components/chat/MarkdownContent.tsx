@@ -15,6 +15,7 @@ import { preserveSoftLineBreaks } from "@/lib/markdown";
 import { api } from "@/lib/api";
 import { workspaceChatPath } from "@/lib/workspace-layout";
 import { CodeBlock } from "./CodeBlock";
+import { MermaidBlock } from "./MermaidBlock";
 import { WorkspaceFileLinkAgentContext, WorkspaceFilePathContext } from "./workspace-file-links";
 
 type MarkdownContentProps = {
@@ -34,9 +35,14 @@ const components: Components = {
   pre: ({ children }) => {
     const code = isValidElement<ComponentPropsWithoutRef<"code">>(children) ? children : null;
     const language = languageFromClassName(code?.props.className);
+    const source = childrenToText(code?.props.children);
     return (
       <div className="mt-2">
-        <CodeBlock code={childrenToText(code?.props.children)} language={language} />
+        {language?.toLowerCase() === "mermaid" ? (
+          <MermaidBlock code={source} />
+        ) : (
+          <CodeBlock code={source} language={language} />
+        )}
       </div>
     );
   },

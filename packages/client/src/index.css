@@ -531,6 +531,29 @@
   line-height: var(--line-height);
 }
 
+.mermaid-diagram {
+  --pele-bg: var(--background);
+  --pele-fg: var(--foreground);
+  --pele-muted: var(--muted-foreground);
+  --pele-line: var(--foreground);
+  --pele-surface: var(--muted);
+  --pele-surface-alt: var(--accent);
+  --pele-border: var(--border);
+  --pele-accent: var(--link);
+  --pele-critical: var(--destructive);
+  --pele-error: var(--destructive);
+  --pele-font: var(--font-interface);
+  --pele-font-mono: var(--font-monospace);
+  --pele-series-1: var(--color-blue);
+  --pele-series-2: var(--color-orange);
+  --pele-series-3: var(--color-green);
+  --pele-series-4: var(--color-red);
+  --pele-series-5: var(--color-cyan);
+  --pele-series-6: var(--color-yellow);
+  --pele-series-7: var(--color-purple);
+  --pele-series-8: var(--color-pink);
+}
+
 .markdown-content h1,
 .markdown-content h2,
 .markdown-content h3,

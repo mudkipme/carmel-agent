@@ -37,6 +37,7 @@ type ChatMessagesProps = {
    * made along the way -- behind one row, leaving the answer it ended on.
    */
   collapseRunDetails?: boolean;
+  renderCompletedSecret?: (requestId: string) => ReactNode;
   onEditMessage?: (message: AgentMessage) => void;
   onRetryMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
@@ -68,6 +69,7 @@ export const ChatMessages = memo(function ChatMessages({
   nestedTools,
   isStreaming,
   collapseRunDetails = true,
+  renderCompletedSecret,
   onEditMessage,
   onRetryMessage,
   onForkMessage,
@@ -96,6 +98,7 @@ export const ChatMessages = memo(function ChatMessages({
         hidePendingToolCalls={!streaming && isStreaming}
         hideAnswer={presentation.hideAnswer}
         hideRunEnding={presentation.hideRunEnding}
+        renderCompletedSecret={renderCompletedSecret}
         onEditMessage={onEditMessage}
         onRetryMessage={onRetryMessage}
         onForkMessage={onForkMessage}
@@ -327,6 +330,7 @@ const MessageItem = memo(function MessageItem({
   hidePendingToolCalls,
   hideAnswer,
   hideRunEnding,
+  renderCompletedSecret,
   onEditMessage,
   onRetryMessage,
   onForkMessage,
@@ -339,6 +343,7 @@ const MessageItem = memo(function MessageItem({
   hidePendingToolCalls: boolean;
   hideAnswer?: boolean;
   hideRunEnding?: boolean;
+  renderCompletedSecret?: (requestId: string) => ReactNode;
   onEditMessage?: (message: AgentMessage) => void;
   onRetryMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
@@ -366,6 +371,9 @@ const MessageItem = memo(function MessageItem({
   if (message.role === "user") {
     const receipt = getUserRequestReceipt(message);
     if (receipt) {
+      const completedSecret =
+        receipt.kind === "secret" ? renderCompletedSecret?.(receipt.requestId) : null;
+      if (completedSecret) return <div className="px-3">{completedSecret}</div>;
       const answered = receipt.status === "answered";
       return (
         <div className="px-3" data-testid="user-request-receipt">

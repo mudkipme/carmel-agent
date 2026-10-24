@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import type { ChatInputHandle } from "@/components/chat/ChatInput";
 import { ChatErrorNotice } from "@/components/chat/ChatErrorNotice";
@@ -15,6 +15,7 @@ import { useMessageMutations } from "@/hooks/use-message-mutations";
 import { useModelSelection } from "@/hooks/use-model-selection";
 import { useSessionAgent } from "@/hooks/use-session-agent";
 import { takePendingPrompt } from "@/lib/pending-prompts";
+import { getUserRequestReceipt } from "@carmel-agent/shared";
 import type {
   AgentConfig,
   ModelRef,
@@ -99,21 +100,53 @@ export function PiChat({
   const waiting = snapshot.userRequests.filter(
     (request) => request.status === "pending" || request.delivery === "pending",
   );
-  const completedSecrets = snapshot.userRequests.filter(
-    (request) =>
-      request.kind === "secret" && request.status !== "pending" && request.delivery !== "pending",
+  const receiptIds = new Set(
+    snapshot.messages.map((message) => getUserRequestReceipt(message)?.requestId),
   );
-  const requestCards = (requests: typeof snapshot.userRequests) =>
-    requests.length && !session.issueId ? (
-      <UserRequestCards
-        requests={requests}
-        disabled={snapshot.isStreaming}
-        canManageAgentSecrets={activeUserId === agentConfig.ownerUserId}
-        sharedAgent={Boolean(agentConfig.shared)}
-        onChanged={() => agent!.refreshConnection()}
-        onContinue={() => agent!.resume()}
-      />
-    ) : null;
+  const pendingSecretDelivery = waiting.filter(
+    (request) =>
+      request.kind === "secret" && request.status !== "pending" && !receiptIds.has(request.id),
+  );
+  const requestsAtComposer = waiting.filter(
+    (request) => request.kind !== "secret" || request.status === "pending",
+  );
+  const respondedSecrets = useMemo(
+    () =>
+      new Map(
+        snapshot.userRequests
+          .filter((request) => request.kind === "secret" && request.status !== "pending")
+          .map((request) => [request.id, request] as const),
+      ),
+    [snapshot.userRequests],
+  );
+  const requestCards = useCallback(
+    (requests: typeof snapshot.userRequests) =>
+      requests.length && !session.issueId ? (
+        <UserRequestCards
+          requests={requests}
+          disabled={snapshot.isStreaming}
+          canManageAgentSecrets={activeUserId === agentConfig.ownerUserId}
+          sharedAgent={Boolean(agentConfig.shared)}
+          onChanged={() => agent!.refreshConnection()}
+          onContinue={() => agent!.resume()}
+        />
+      ) : null,
+    [
+      activeUserId,
+      agent,
+      agentConfig.ownerUserId,
+      agentConfig.shared,
+      session.issueId,
+      snapshot.isStreaming,
+    ],
+  );
+  const renderCompletedSecret = useCallback(
+    (requestId: string) => {
+      const request = respondedSecrets.get(requestId);
+      return request ? requestCards([request]) : null;
+    },
+    [respondedSecrets, requestCards],
+  );
 
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
@@ -168,14 +201,15 @@ export function PiChat({
               readOnly={Boolean(session.issueId)}
               waitingForAnswer={waiting.length > 0}
               requestCards={
-                waiting.length || browserRequest ? (
+                requestsAtComposer.length || browserRequest ? (
                   <>
-                    {requestCards(waiting)}
+                    {requestCards(requestsAtComposer)}
                     {browserRequest}
                   </>
                 ) : undefined
               }
-              requestHistory={requestCards(completedSecrets)}
+              pendingSecretCards={requestCards(pendingSecretDelivery)}
+              renderCompletedSecret={renderCompletedSecret}
               scrollResetKey={session.id}
               messages={snapshot.messages}
               streamingMessage={snapshot.streamingMessage}

@@ -38,13 +38,11 @@ export default defineConfig({
               name: "lit-vendor",
               test: /node_modules[\\/](lit|@lit|@lit-labs|@mariozechner)[\\/]/,
             },
-            // Catch-all for the rest of node_modules, but leave CodeMirror out: it is
-            // only reached through the lazily-loaded file editor, so excluding it here
-            // keeps it in its own async chunk (off the initial load) instead of an eager one.
+            // Keep CodeMirror and Pele in async chunks for editors and diagrams.
             {
               name: "vendor",
               test: (id) =>
-                id.includes("node_modules") && !/[\\/](@codemirror|@lezer)[\\/]/.test(id),
+                id.includes("node_modules") && !/[\\/](@codemirror|@lezer|pele)[\\/]/.test(id),
             },
           ],
         },
