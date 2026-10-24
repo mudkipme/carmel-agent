@@ -99,8 +99,9 @@ export function PiChat({
   const waiting = snapshot.userRequests.filter(
     (request) => request.status === "pending" || request.delivery === "pending",
   );
-  const completed = snapshot.userRequests.filter(
-    (request) => request.status !== "pending" && request.delivery !== "pending",
+  const completedSecrets = snapshot.userRequests.filter(
+    (request) =>
+      request.kind === "secret" && request.status !== "pending" && request.delivery !== "pending",
   );
   const requestCards = (requests: typeof snapshot.userRequests) =>
     requests.length && !session.issueId ? (
@@ -174,7 +175,7 @@ export function PiChat({
                   </>
                 ) : undefined
               }
-              requestHistory={requestCards(completed)}
+              requestHistory={requestCards(completedSecrets)}
               scrollResetKey={session.id}
               messages={snapshot.messages}
               streamingMessage={snapshot.streamingMessage}
