@@ -4,6 +4,8 @@ import { and, asc, eq, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agents, agentSecrets, sessions } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
+import { resolveAgentWorkingDirPath } from "../runtime/resources.ts";
+import { readWorkspaceDotEnvFile, workspaceDotEnvAvailable } from "../runtime/workspace-dotenv.ts";
 import { encryptSubmittedSecret, protectSecret, revealSecret } from "../security.ts";
 
 type SecretRecord = typeof agentSecrets.$inferSelect;
@@ -42,6 +44,58 @@ export function readAgentSecrets(userId: string, agentId: string): AgentSecret[]
     .orderBy(asc(agentSecrets.name))
     .all()
     .map(serializeAgentSecret);
+}
+
+export function agentWorkspaceDotEnvStatus(userId: string, agentId: string) {
+  const agent = assertAgentOwner(userId, agentId);
+  return { available: workspaceDotEnvAvailable(resolveAgentWorkingDirPath(agent)) };
+}
+
+export function importAgentWorkspaceDotEnv(userId: string, agentId: string) {
+  const agent = assertAgentOwner(userId, agentId);
+  const entries = readWorkspaceDotEnvFile(resolveAgentWorkingDirPath(agent));
+  if (!entries) throw new AgentSecretError("No readable .env file in the workspace root.", 404);
+
+  return db.transaction(() => {
+    let imported = 0;
+    let skippedExisting = 0;
+    let skippedInvalid = 0;
+    const existingNames = new Set(
+      db
+        .select({ name: agentSecrets.name })
+        .from(agentSecrets)
+        .where(and(eq(agentSecrets.agentId, agentId), isNull(agentSecrets.sessionId)))
+        .all()
+        .map((secret) => secret.name),
+    );
+    for (const [name, value] of Object.entries(entries)) {
+      if (agentSecretNameError(name) || !value || value.length > 8192 || value.includes("\0")) {
+        skippedInvalid++;
+        continue;
+      }
+      if (existingNames.has(name)) {
+        skippedExisting++;
+        continue;
+      }
+      const timestamp = now();
+      const result = db
+        .insert(agentSecrets)
+        .values({
+          agentId,
+          name,
+          value: value.startsWith("enc:v1:")
+            ? encryptSubmittedSecret(value)
+            : protectSecret(value)!,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        })
+        .onConflictDoNothing()
+        .run();
+      if (result.changes) imported++;
+      else skippedExisting++;
+    }
+    return { imported, skippedExisting, skippedInvalid };
+  });
 }
 
 export function writeAgentSecret(

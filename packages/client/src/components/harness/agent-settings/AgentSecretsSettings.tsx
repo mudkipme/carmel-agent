@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { KeyRoundIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { FileInputIcon, KeyRoundIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { toast } from "sonner";
 import { agentSecretNameError, type AgentSecret } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -20,13 +21,19 @@ import { errorMessage } from "@/lib/errors";
  */
 export function AgentSecretsSettings({ agentId, shared }: { agentId: string; shared: boolean }) {
   const [secrets, setSecrets] = useState<AgentSecret[] | undefined>();
+  const [canImportEnv, setCanImportEnv] = useState(false);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<{ name: string; value: string }>();
 
   const reload = useCallback(async () => {
     try {
-      setSecrets(await api.listAgentSecrets(agentId));
+      const [secrets, dotEnv] = await Promise.all([
+        api.listAgentSecrets(agentId),
+        api.agentWorkspaceDotEnvStatus(agentId),
+      ]);
+      setSecrets(secrets);
+      setCanImportEnv(dotEnv.available);
       setError(undefined);
     } catch (loadError) {
       setError(errorMessage(loadError, "Unable to load secrets"));
@@ -88,6 +95,28 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
     });
     if (!confirmed) return;
     await act(() => api.deleteAgentSecret(agentId, name), "Unable to delete secret");
+  };
+
+  const importEnv = async () => {
+    let result: Awaited<ReturnType<typeof api.importAgentWorkspaceDotEnv>> | undefined;
+    if (
+      await act(async () => {
+        result = await api.importAgentWorkspaceDotEnv(agentId);
+      }, "Unable to import .env")
+    ) {
+      toast.success(
+        `Imported ${result!.imported} ${result!.imported === 1 ? "secret" : "secrets"} from .env`,
+        {
+          description:
+            [
+              result!.skippedExisting && `${result!.skippedExisting} already stored`,
+              result!.skippedInvalid && `${result!.skippedInvalid} invalid or empty`,
+            ]
+              .filter(Boolean)
+              .join(" · ") || undefined,
+        },
+      );
+    }
   };
 
   return (
@@ -171,7 +200,7 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
           </div>
         </div>
       ) : (
-        <div>
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -181,6 +210,12 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
             <PlusIcon data-icon="inline-start" />
             Add secret
           </Button>
+          {canImportEnv ? (
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => void importEnv()}>
+              <FileInputIcon data-icon="inline-start" />
+              Import .env
+            </Button>
+          ) : null}
         </div>
       )}
 

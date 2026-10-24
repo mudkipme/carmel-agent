@@ -360,6 +360,13 @@ export const api = {
       body: JSON.stringify({ path, newPath }),
     }),
   listAgentSecrets: (agentId: string) => request<AgentSecret[]>(`/api/agents/${agentId}/secrets`),
+  agentWorkspaceDotEnvStatus: (agentId: string) =>
+    request<{ available: boolean }>(`/api/agents/${agentId}/secrets/import-env`),
+  importAgentWorkspaceDotEnv: (agentId: string) =>
+    request<{ imported: number; skippedExisting: number; skippedInvalid: number }>(
+      `/api/agents/${agentId}/secrets/import-env`,
+      { method: "POST" },
+    ),
   writeAgentSecret: (agentId: string, name: string, value: string) =>
     request<AgentSecret>(`/api/agents/${agentId}/secrets/${encodeURIComponent(name)}`, {
       method: "PUT",

@@ -4,7 +4,8 @@ import type { agents } from "../../db/schema.ts";
 import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readWorkspaceDotEnv, sandboxEnv } from "./bash-operations.ts";
+import { sandboxEnv } from "./bash-operations.ts";
+import { readWorkspaceDotEnv } from "../workspace-dotenv.ts";
 import { createStreamDemuxer, parseImageRef } from "./runtime-client.ts";
 import {
   buildBinds,

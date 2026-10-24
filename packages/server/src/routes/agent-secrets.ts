@@ -4,7 +4,9 @@ import type { AuthVariables } from "../auth.ts";
 import { jsonValidator } from "../validation.ts";
 import {
   AgentSecretError,
+  agentWorkspaceDotEnvStatus,
   deleteAgentSecret,
+  importAgentWorkspaceDotEnv,
   readAgentSecrets,
   writeAgentSecret,
 } from "../services/agent-secrets.ts";
@@ -19,6 +21,14 @@ export function createAgentSecretRoutes() {
 
   route.get("/agents/:agentId/secrets", (c) =>
     respond(c, () => readAgentSecrets(c.get("user").id, c.req.param("agentId"))),
+  );
+
+  route.get("/agents/:agentId/secrets/import-env", (c) =>
+    respond(c, () => agentWorkspaceDotEnvStatus(c.get("user").id, c.req.param("agentId"))),
+  );
+
+  route.post("/agents/:agentId/secrets/import-env", (c) =>
+    respond(c, () => importAgentWorkspaceDotEnv(c.get("user").id, c.req.param("agentId"))),
   );
 
   route.put("/agents/:agentId/secrets/:name", jsonValidator(agentSecretWriteSchema), (c) =>

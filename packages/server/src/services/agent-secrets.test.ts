@@ -1,12 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { eq } from "drizzle-orm";
 import { db, initialize } from "../db/index.ts";
-import { agentSecrets } from "../db/schema.ts";
+import { agentSecrets, agents } from "../db/schema.ts";
 import { createAgent, createModelRef, createUser } from "../test-support.ts";
 import {
   AgentSecretError,
+  agentWorkspaceDotEnvStatus,
   deleteAgentSecret,
   deleteAgentSecretsForAgent,
+  importAgentWorkspaceDotEnv,
   readAgentSecretEnv,
   readAgentSecrets,
   writeAgentSecret,
@@ -36,6 +42,50 @@ test("writing the same name twice rotates the value instead of duplicating it", 
   writeAgentSecret(ownerUserId, agentId, "TOKEN", "second");
   assert.equal(readAgentSecrets(ownerUserId, agentId).length, 1);
   assert.deepEqual(readAgentSecretEnv(agentId), [{ name: "TOKEN", value: "second" }]);
+});
+
+test("workspace .env import adds valid secrets without replacing stored values", () => {
+  const { ownerUserId, agentId } = fixture();
+  const directory = mkdtempSync(join(tmpdir(), "carmel-secret-import-"));
+  try {
+    db.update(agents).set({ workingDir: directory }).where(eq(agents.id, agentId)).run();
+    writeFileSync(
+      join(directory, ".env"),
+      "EXISTING=from-file\nNEW_TOKEN=from-file\nEMPTY=\nPATH=/invalid\n",
+    );
+    writeAgentSecret(ownerUserId, agentId, "EXISTING", "stored-value");
+
+    assert.deepEqual(agentWorkspaceDotEnvStatus(ownerUserId, agentId), { available: true });
+    assert.deepEqual(importAgentWorkspaceDotEnv(ownerUserId, agentId), {
+      imported: 1,
+      skippedExisting: 1,
+      skippedInvalid: 2,
+    });
+    assert.deepEqual(readAgentSecretEnv(agentId), [
+      { name: "EXISTING", value: "stored-value" },
+      { name: "NEW_TOKEN", value: "from-file" },
+    ]);
+    assert.deepEqual(importAgentWorkspaceDotEnv(ownerUserId, agentId), {
+      imported: 0,
+      skippedExisting: 2,
+      skippedInvalid: 2,
+    });
+    assert.throws(
+      () => importAgentWorkspaceDotEnv(createUser(), agentId),
+      (error: unknown) => error instanceof AgentSecretError && error.status === 403,
+    );
+
+    rmSync(join(directory, ".env"));
+    writeFileSync(join(directory, "outside.env"), "HOST_SECRET=leaked\n");
+    symlinkSync(join(directory, "outside.env"), join(directory, ".env"));
+    assert.deepEqual(agentWorkspaceDotEnvStatus(ownerUserId, agentId), { available: false });
+    assert.throws(
+      () => importAgentWorkspaceDotEnv(ownerUserId, agentId),
+      (error: unknown) => error instanceof AgentSecretError && error.status === 404,
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("secrets are owner-only, not visible to other users of a shared agent", () => {

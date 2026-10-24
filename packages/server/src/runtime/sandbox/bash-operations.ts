@@ -1,9 +1,7 @@
-import { closeSync, constants, fstatSync, openSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { parseEnv } from "node:util";
 import type { agents } from "../../db/schema.ts";
 import { readAgentSecretEnv } from "../../services/agent-secrets.ts";
 import { resolveAgentWorkingDirPath } from "../resources.ts";
+import { readWorkspaceDotEnv } from "../workspace-dotenv.ts";
 import {
   ensureAgentContainer,
   killAgentContainer,
@@ -117,37 +115,4 @@ export function sandboxEnv(
   for (const [name, value] of Object.entries(overrides ?? {})) assign(name, value);
   for (const secret of secrets) assign(secret.name, secret.value);
   return [...values].map(([name, value]) => `${name}=${value}`);
-}
-
-const maxDotEnvBytes = 1024 * 1024;
-
-/**
- * Variables from `.env` at the root of the agent's working directory, or none.
- *
- * The file is read on the host, from a directory the agent itself can write, so
- * it is untrusted: a `.env` symlinked at the server's own `.env` would otherwise
- * copy host credentials into the container. `O_NOFOLLOW` refuses the link, the
- * regular-file check refuses a FIFO that would block the read, and both hold on
- * the opened descriptor rather than a path that could be swapped in between.
- * An unreadable file is skipped: a broken `.env` must not take bash down with it.
- */
-export function readWorkspaceDotEnv(workingDir: string): Record<string, string> {
-  let fd: number;
-  try {
-    fd = openSync(
-      join(workingDir, ".env"),
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-    );
-  } catch {
-    return {};
-  }
-  try {
-    const stats = fstatSync(fd);
-    if (!stats.isFile() || stats.size > maxDotEnvBytes) return {};
-    return parseEnv(readFileSync(fd, "utf8")) as Record<string, string>;
-  } catch {
-    return {};
-  } finally {
-    closeSync(fd);
-  }
 }

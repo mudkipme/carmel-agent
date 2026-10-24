@@ -1550,6 +1550,65 @@ paths:
             "403": { $ref: "#/components/responses/Error" },
           },
       }
+  /api/agents/{agentId}/secrets/import-env:
+    parameters: [{ $ref: "#/components/parameters/AgentID" }]
+    get:
+      {
+        operationId: getAgentWorkspaceDotEnvStatus,
+        tags: [Secrets],
+        responses:
+          {
+            "200":
+              {
+                description: Workspace .env availability,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          {
+                            type: object,
+                            required: [available],
+                            properties: { available: { type: boolean } },
+                          },
+                      },
+                  },
+              },
+            "403": { $ref: "#/components/responses/Error" },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
+    post:
+      {
+        operationId: importAgentWorkspaceDotEnv,
+        tags: [Secrets],
+        responses:
+          {
+            "200":
+              {
+                description: Import counts without secret values,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          {
+                            type: object,
+                            required: [imported, skippedExisting, skippedInvalid],
+                            properties:
+                              {
+                                imported: { type: integer },
+                                skippedExisting: { type: integer },
+                                skippedInvalid: { type: integer },
+                              },
+                          },
+                      },
+                  },
+              },
+            "403": { $ref: "#/components/responses/Error" },
+            "404": { $ref: "#/components/responses/Error" },
+          },
+      }
   /api/agents/{agentId}/secrets/{name}:
     parameters:
       [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/SecretName" }]
