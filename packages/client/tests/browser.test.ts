@@ -585,6 +585,7 @@ test("agent settings fields have accessible names and navigation protects unsave
   browser("back");
   browser("wait", '[role="alertdialog"]');
   click("button", "Cancel");
+  browser("wait", "--fn", 'document.querySelector("[role=alertdialog]") === null');
   assert.match(browser<{ url: string }>("get", "url").url, /settings\/general$/);
   const fields = snapshot();
   for (const name of ["Name", "Description", "System prompt"]) {
@@ -604,6 +605,7 @@ test("agent settings fields have accessible names and navigation protects unsave
   click("button", "Back to agent");
   browser("wait", '[role="alertdialog"]');
   click("button", "Cancel");
+  browser("wait", "--fn", 'document.querySelector("[role=alertdialog]") === null');
   assert.equal(evaluate('document.querySelectorAll("[role=alertdialog]").length'), 0);
   assert.match(snapshot(), /Keep this settings draft/);
   assert.equal(

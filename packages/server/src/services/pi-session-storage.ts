@@ -11,6 +11,7 @@ import {
   type ReferenceMessage,
 } from "@carmel-agent/shared";
 import { createModels, type Models, type Message } from "@earendil-works/pi-ai";
+import { piClientIdentity } from "../runtime/client-identity.ts";
 import {
   AgentDoc,
   defineDoc,
@@ -48,6 +49,7 @@ export const ActiveConversation = defineDoc({
   version: 1,
   scope: "session",
   initial: () => ({ id: 0 }),
+  checkpointWhen: () => false,
 });
 /** Stable public message IDs, scoped to this native session, for saved links. */
 export const EntryIndex = defineDoc({
@@ -55,6 +57,7 @@ export const EntryIndex = defineDoc({
   version: 1,
   scope: "session",
   initial: () => ({}) as Record<string, number>,
+  checkpointWhen: () => false,
 });
 export type DisplayEntry = {
   id: string;
@@ -113,20 +116,13 @@ async function openNative(id: string): Promise<PiSession> {
     env: undefined as ExecutionEnv | undefined,
   };
   // A run installs its credentials and registry before starting native scheduling.
-  const models = new Proxy(state.models, {
-    get(_target, key) {
-      const value = Reflect.get(state.models, key, state.models);
-      return typeof value === "function" ? value.bind(state.models) : value;
-    },
-  });
   const native = await Harness.open(
     await openNodeSqliteStorage(path),
     {
-      models,
+      models: () => state.models,
+      identity: piClientIdentity(),
       registry,
-      get settings() {
-        return state.settings;
-      },
+      settings: () => state.settings,
       env: () => state.env,
     },
     ctx,

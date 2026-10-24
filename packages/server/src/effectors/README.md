@@ -171,4 +171,4 @@ summaries matters beyond saving a model call.
 - `runtime/agent-runtime.ts` installs native tools, sections, and hooks before scheduling, then observes native events through `PiRun`.
 - `services/pi-session-storage.ts` owns shared session leases, stable public IDs, fork, transcript replacement, and entry rewrites against native storage APIs.
 - `runtime/run-events.ts` forwards native batches and omits unused bulk fields from the HTTP protocol.
-- Guarded paths, credentials, personalized catalogs, provider attribution, retries, issue review, and cron scheduling remain application responsibilities.
+- Guarded paths, credentials, personalized catalogs, retry policy, issue review, and cron scheduling remain application responsibilities. Pi's client identity supplies provider attribution.

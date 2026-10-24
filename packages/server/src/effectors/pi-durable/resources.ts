@@ -120,7 +120,7 @@ export function formatSkillInvocation(skill: Skill, instructions = "") {
 }
 export function parseCommandArgs(text: string): string[] {
   // Pi's prompt helpers are still not package exports. This matches parseCommandArgs in
-  // pi-coding-agent 1.3.0, including quoted empty strings ("" or ''), which earlier copies dropped.
+  // pi-coding-agent 1.4.0, including quoted empty strings ("" or ''), which earlier copies dropped.
   const args: string[] = [];
   let current = "";
   let hasToken = false;

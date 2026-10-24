@@ -164,7 +164,7 @@ test("a completion goes out as pi, not as the caller", async () => {
   assert.equal(body.usage.prompt_tokens, 12);
 
   const upstream = provider.last!;
-  assert.match(upstream.headers["user-agent"] ?? "", /^pi \(/);
+  assert.match(upstream.headers["user-agent"] ?? "", /^pi\/\d+\.\d+\.\d+ \(/);
   assert.equal(upstream.headers["x-stainless-lang"] === "python", false);
   assert.equal(upstream.headers["x-custom-client"], undefined);
   assert.notEqual(

@@ -3,21 +3,12 @@ import { createServer, type IncomingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 import type { Api, Model } from "@earendil-works/pi-ai";
+import { getAttributionHeaders, withClientIdentity } from "@earendil-works/pi-ai/utils/identity";
 import { initialize } from "../db/index.ts";
 import { bindResolvedModel, createCarmelModelRuntime } from "./model-runtime.ts";
-import {
-  mergeProviderAttributionHeaders,
-  withProviderAttribution,
-} from "./provider-attribution.ts";
+import { piClientIdentity } from "./client-identity.ts";
 
 initialize();
-
-/**
- * These headers are how OpenRouter decides which app a request belongs to.
- * Carmel drives `pi-agent-core` directly, so it never passes through the CLI
- * code that adds them, and every run showed up in the dashboard as "unknown".
- * The values are the CLI's own -- they must not drift from it.
- */
 
 function openRouterModel(baseUrl: string): Model<Api> {
   return {
@@ -34,9 +25,9 @@ function openRouterModel(baseUrl: string): Model<Api> {
   } as Model<Api>;
 }
 
-test("an OpenRouter model carries Pi's attribution headers", () => {
+test("the app selects Pi's native provider attribution", () => {
   assert.deepEqual(
-    mergeProviderAttributionHeaders(openRouterModel("https://openrouter.ai/api/v1"), undefined),
+    getAttributionHeaders(openRouterModel("https://openrouter.ai/api/v1"), piClientIdentity()),
     {
       "HTTP-Referer": "https://pi.dev",
       "X-OpenRouter-Title": "pi",
@@ -45,22 +36,11 @@ test("an OpenRouter model carries Pi's attribution headers", () => {
   );
 });
 
-test("a provider Pi does not attribute is left alone", () => {
-  const model = {
-    ...openRouterModel("https://api.openai.com/v1"),
-    provider: "openai",
-  } as Model<Api>;
-  assert.equal(mergeProviderAttributionHeaders(model, undefined), undefined);
-});
-
 test("PI_TELEMETRY=0 opts out the way it does in the CLI", () => {
   const previous = process.env.PI_TELEMETRY;
   process.env.PI_TELEMETRY = "0";
   try {
-    assert.equal(
-      mergeProviderAttributionHeaders(openRouterModel("https://openrouter.ai/api/v1"), undefined),
-      undefined,
-    );
+    assert.equal(piClientIdentity().attribution, null);
   } finally {
     if (previous === undefined) delete process.env.PI_TELEMETRY;
     else process.env.PI_TELEMETRY = previous;
@@ -93,7 +73,7 @@ test("attribution, runtime auth, and caller headers reach the wire through every
   const model = openRouterModel(`http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`);
   const runtime = await createCarmelModelRuntime();
   await runtime.setRuntimeApiKey("openrouter", "test-key");
-  const attributed = withProviderAttribution(bindResolvedModel(runtime, model));
+  const attributed = withClientIdentity(bindResolvedModel(runtime, model), piClientIdentity());
 
   for (const method of ["stream", "streamSimple", "complete", "completeSimple"] as const) {
     const response = attributed[method](
@@ -114,6 +94,6 @@ test("attribution, runtime auth, and caller headers reach the wire through every
     assert.equal(received?.authorization, "Bearer test-key", method);
     assert.equal(received?.["x-caller"], "caller", method);
     // Pi stamps its own User-Agent; the merge must preserve it.
-    assert.match(received?.["user-agent"] ?? "", /^pi \(/);
+    assert.match(received?.["user-agent"] ?? "", /^pi\//);
   }
 });

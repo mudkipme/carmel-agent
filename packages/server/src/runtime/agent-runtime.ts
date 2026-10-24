@@ -8,7 +8,6 @@ import {
   type AgentEvent,
   type AgentMessage,
 } from "../effectors/pi-durable/index.ts";
-import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { now } from "../db/seed.ts";
@@ -23,7 +22,7 @@ import type { ToolRegistration } from "@earendil-works/pi-durable";
 import { resolveModelContext } from "../services/model-context.ts";
 
 import { type AgentRunEvent, type PromptInput, type Session } from "@carmel-agent/shared";
-import type { Api, Model } from "@earendil-works/pi-ai";
+import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { loadAgentResources } from "./resources.ts";
 import { classifyAssistantFailure, projectRunEvent } from "./run-events.ts";
@@ -125,7 +124,7 @@ export type AgentRunInput = {
   session: SessionRecord;
   modelRef: ModelRefRecord;
   providerConfig?: ProviderConfigRecord;
-  modelRuntime: ModelRuntime;
+  modelRuntime: Models;
   thinkingLevel: Session["thinkingLevel"];
   promptInput?: PromptInput;
   resolvedReferences?: ResolvedReferences;
@@ -862,7 +861,7 @@ async function persistSessionRun(
     modelRefId: string;
     thinkingLevel: Session["thinkingLevel"];
     model: ReturnType<typeof resolveServerModelRef>;
-    modelRuntime: ModelRuntime;
+    modelRuntime: Models;
   },
 ) {
   // Messages are persisted incrementally during the run. Commit the session
@@ -923,7 +922,7 @@ export function commitSessionAtRevision(
 
 async function resolveTitleModelContext(
   userId: string,
-  fallback: { model: Model<Api>; modelRuntime: ModelRuntime },
+  fallback: { model: Model<Api>; modelRuntime: Models },
 ) {
   const user = db.select().from(users).where(eq(users.id, userId)).get();
   const fastTaskModelRefId = user?.fastTaskModelRefId;

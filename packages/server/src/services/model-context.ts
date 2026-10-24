@@ -2,9 +2,11 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { modelRefs, providerConfigs, providerKeys } from "../db/schema.ts";
 import type { AgentThinkingLevel } from "@carmel-agent/shared";
+import type { Models } from "@earendil-works/pi-ai";
 import { createProviderConfigCredentialStore } from "../runtime/auth-storage.ts";
 import { bindResolvedModel, createCarmelModelRuntime } from "../runtime/model-runtime.ts";
-import { withProviderAttribution } from "../runtime/provider-attribution.ts";
+import { piClientIdentity } from "../runtime/client-identity.ts";
+import { withClientIdentity } from "@earendil-works/pi-ai/utils/identity";
 import { resolveServerModelRef } from "../runtime/model.ts";
 import { revealSecret } from "../security.ts";
 import { serializeModelRef } from "../serializers.ts";
@@ -16,7 +18,7 @@ type ModelRefRecord = typeof modelRefs.$inferSelect;
 export type ResolvedModelContext = {
   modelRef: ModelRefRecord;
   providerConfig?: typeof providerConfigs.$inferSelect;
-  modelRuntime: Awaited<ReturnType<typeof createCarmelModelRuntime>>;
+  modelRuntime: Models;
   model: ReturnType<typeof resolveServerModelRef>;
 };
 
@@ -80,10 +82,7 @@ export async function resolveModelContext(
       // the runtime -- not the `model` beside it -- is what decides where the
       // request goes. They are returned together so they cannot disagree.
       //
-      // Attribution wraps the bound runtime because it reads the model Pi
-      // actually resolved, base URL included, which is what decides whether a
-      // request is going to OpenRouter at all.
-      modelRuntime: withProviderAttribution(bindResolvedModel(modelRuntime, model)),
+      modelRuntime: withClientIdentity(bindResolvedModel(modelRuntime, model), piClientIdentity()),
       model,
     },
   };

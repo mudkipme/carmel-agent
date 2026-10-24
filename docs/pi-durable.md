@@ -1,6 +1,6 @@
 # Pi Durable storage
 
-Carmel uses Pi 1.3.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
+Carmel uses Pi 1.4.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
 
 [Questions and session credentials](user-requests.md) use native run termination and idempotent submissions, with request lifecycle and encrypted credential storage owned by Carmel.
 
@@ -48,7 +48,7 @@ Tools default to `replay: "unsafe"`. Pi records intent before executing them; af
 - Native threshold, background, and overflow compaction. Small model windows get scaled reserve/tail settings: Durable's `enabled` flag controls overflow recovery too, so the old threshold-only disable workaround is removed.
 - Pi's `azure` provider identifier.
 
-Pi 1.3.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel's generic tool/result compatibility layers are gone.
+Pi 1.4.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel's generic tool/result compatibility layers are gone.
 
 Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are still not public exports (`parseCommandArgs` and `substituteArgs` live only in the package's internal `dist/core/prompt-templates` module), so their positional/default/slice semantics remain in the adapter, including the 1.3.0 rule that `""` and `''` are real arguments. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
 
@@ -76,7 +76,7 @@ Native batched `message_update.changes` now cross the shared protocol into the c
 
 Compaction errors come directly from native end events and retained snapshot failures, with one warning per failed task. Recovery is announced when a native compaction summary entry is placed, so a declined compaction cannot claim success. The settings forwarding proxy and unused session-wide entry-search facade are gone. Native settings select only the current run's extensions, preventing a previously enabled extension from leaking into a later run.
 
-The remaining bridges protect application behavior: guarded workspace/resource reads, container execution, per-user credentials and personalized catalog caches, resolved model overrides, stable saved entry/image links, and issue/cron policy. Pi captures its `Models` object when opening storage, so the session's small model forwarding proxy is still needed to install fresh per-run credentials while HTTP readers share the same lease. Prompt argument helpers are still not public exports, and grep/find/ls have no Durable equivalents.
+The remaining bridges protect application behavior: guarded workspace/resource reads, container execution, per-user credentials and personalized catalog caches, resolved model overrides, stable saved entry/image links, and issue/cron policy. Pi 1.4.0 accepts a `Models` getter, so the session installs fresh per-run credentials on a shared lease without a forwarding proxy. Prompt argument helpers are still not public exports, and grep/find/ls have no Durable equivalents.
 
 ## Further 1.2.0 adoption
 
@@ -96,7 +96,15 @@ Carmel does not inject a clock into system instructions or user messages, matchi
 
 Named sections reduce redundant storage writes. They preserve the request prefix when the selected model supports mid-conversation system changes; otherwise Pi collapses section updates into the leading system prompt. Keeping a changing clock out of the prompt protects conversation-history caching in both cases. MCP tools are sorted by name within each configured server, keeping native declarations and Codemode's embedded catalog stable when a reconnect returns the same tools in another order.
 
-Pi Durable is experimental. Versions are pinned to 1.3.0, including `@earendil-works/chord`, which Pi Durable depends on at that exact version. The storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. Storage errors now fail and close the native session; pending waits reject instead of retrying operations on it. Existing live version-1 tool tasks migrate to Pi's version-2 tagged model/nested-call format. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/v1.3.0/packages/durable).
+Pi Durable is experimental. Versions are pinned to 1.4.0, including `@earendil-works/chord`, which Pi Durable depends on at that exact version. The storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. Storage errors now fail and close the native session; pending waits reject instead of retrying operations on it. Existing live version-1 tool tasks migrate to Pi's version-2 tagged model/nested-call format. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/v1.4.0/packages/durable).
+
+## Pi 1.4.0
+
+Opening a session SQLite file migrates Pi's task table to schema version 2. Back up the session directory before deployment: a migrated file cannot be reopened by Pi 1.3.0. Carmel's two session documents declare `checkpointWhen: () => false`, preserving their delta storage behavior under the new required API.
+
+Native `HarnessOptions.models` and `settings` getters replace Carmel's model forwarding proxy. Pi's `ClientIdentity` now supplies provider attribution and User-Agent headers to both Durable turns and direct model calls, replacing Carmel's local header map and stream wrapper. `PI_TELEMETRY=0` still disables attribution. Pi's `compaction.modelOverrides` can set thresholds per model, but Carmel already supplies scaled thresholds for the selected model at each run. Guarded resource loading, prompt argument parsing, and cron policy still need their application adapters.
+
+The new Durable sleeping-task status and five-restart crash-loop limit apply to Pi's internal tasks. Carmel does not call the removed `TaskRuntime.sleep()` API. See the [Durable 1.4.0 changelog](https://github.com/earendil-works/pi/blob/v1.4.0/packages/durable/CHANGELOG.md).
 
 ## Pi 1.3.0
 
