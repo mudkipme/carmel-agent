@@ -16,7 +16,7 @@
     "lint": "oxlint .",
     "test": "pnpm --filter @carmel-agent/server test && pnpm --filter @carmel-agent/client test",
     "test:browser": "pnpm --filter @carmel-agent/client test:browser",
-    "check": "pnpm format:check && pnpm lint && pnpm test && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm --filter @carmel-agent/server db:check && pnpm test && pnpm build",
     "preview": "pnpm --filter @carmel-agent/client preview"
   },
   "devDependencies": {

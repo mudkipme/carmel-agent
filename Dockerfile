@@ -58,6 +58,7 @@ COPY --from=runtime-deps /app/node_modules /app/node_modules
 COPY --from=runtime-deps /app/packages/server /app/packages/server
 COPY --from=runtime-deps /app/packages/shared /app/packages/shared
 COPY --from=build /app/packages/server/src /app/packages/server/src
+COPY --from=build /app/packages/server/drizzle /app/packages/server/drizzle
 COPY --from=build /app/packages/server/skills /app/packages/server/skills
 COPY --from=build /app/packages/server/tsconfig.json /app/packages/server/tsconfig.json
 COPY --from=build /app/packages/shared/src /app/packages/shared/src
