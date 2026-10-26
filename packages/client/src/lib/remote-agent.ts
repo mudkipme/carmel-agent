@@ -22,6 +22,8 @@ import { errorMessage } from "@/lib/errors";
  */
 export type AgentSnapshot = {
   messages: AgentMessage[];
+  olderCursor?: string;
+  historyOnly?: boolean;
   streamingMessage?: AgentMessage;
   pendingToolCalls: Set<string>;
   nestedTools?: readonly NestedToolSlot[];
@@ -56,6 +58,8 @@ export class RemoteAgent {
   private snapshotValue: AgentSnapshot;
   private abortController?: AbortController;
   private messages: AgentMessage[];
+  private olderCursor?: string;
+  private historyOnly = false;
   private streamingMessage?: AgentMessage;
   private pendingToolCalls = new Set<string>();
   private nestedTools = [] as readonly NestedToolSlot[];
@@ -85,12 +89,15 @@ export class RemoteAgent {
       model: Model<Api>;
       thinkingLevel: ThinkingLevel;
       messages: AgentMessage[];
+      olderCursor?: string;
+      onHistoryPage?: (page: import("@carmel-agent/shared").Session) => void;
       pendingWork?: boolean;
       userRequests?: UserRequest[];
       onRunComplete?: () => Promise<void> | void;
     },
   ) {
     this.messages = [...config.messages];
+    this.olderCursor = config.olderCursor;
     this.hasPendingWork = config.pendingWork ?? false;
     this.userRequests = config.userRequests ?? [];
     this.model = config.model;
@@ -123,6 +130,8 @@ export class RemoteAgent {
   private buildSnapshot(): AgentSnapshot {
     return {
       messages: this.messages,
+      olderCursor: this.olderCursor,
+      historyOnly: this.historyOnly,
       streamingMessage: this.streamingMessage,
       pendingToolCalls: this.pendingToolCalls,
       nestedTools: this.nestedTools,
@@ -472,12 +481,25 @@ export class RemoteAgent {
 
   applyConnectionSnapshot(connection: SessionConnection) {
     this.messages = [...connection.session.messages];
+    this.olderCursor = connection.session.olderCursor;
+    this.historyOnly = false;
     this.hasPendingWork = connection.pendingWork ?? false;
     this.userRequests = connection.userRequests ?? [];
     this.thinkingLevel = connection.session.thinkingLevel;
     this.streamingMessage = undefined;
     this.pendingToolCalls = new Set();
     this.nestedTools = [];
+    this.notify();
+  }
+
+  async loadOlder() {
+    if (!this.olderCursor || this.isStreaming) return;
+    const page = await api.getSessionHistory(this.config.sessionId, this.olderCursor);
+    const combined = [...page.messages, ...this.messages];
+    this.historyOnly = this.historyOnly || combined.length > 500;
+    this.messages = combined.slice(0, 500);
+    this.olderCursor = page.olderCursor;
+    this.config.onHistoryPage?.(page);
     this.notify();
   }
 

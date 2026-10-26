@@ -22,6 +22,7 @@ export function initializeSchema(sqlite: BetterSqlite3.Database) {
     if (!columns.some((column) => column.name === "notify_platform"))
       sqlite.exec("ALTER TABLE agent_tasks ADD COLUMN notify_platform TEXT");
     sqlite.exec(IM_SCHEMA);
+    sqlite.exec(HOME_SCHEMA);
   })();
 }
 
@@ -363,4 +364,16 @@ const CURRENT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS users_fast_task_model_ref_id ON users(fast_task_model_ref_id);
 
   CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users(username) WHERE username IS NOT NULL;
+`;
+
+const HOME_SCHEMA = `
+ CREATE TABLE IF NOT EXISTS agent_homes (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  session_id TEXT NOT NULL UNIQUE REFERENCES sessions(id),
+  last_read_at INTEGER NOT NULL DEFAULT 0,
+  paused INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, agent_id)
+ );
 `;

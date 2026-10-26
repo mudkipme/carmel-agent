@@ -1,3 +1,5 @@
+import { api } from "@/lib/api";
+import { showError } from "@/lib/errors";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -151,6 +153,23 @@ export function PiChat({
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
+        {session.home ? (
+          <div className="flex justify-end border-b px-4 py-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={snapshot.isStreaming || snapshot.hasPendingWork}
+              onClick={() =>
+                void api
+                  .resetHome(agentConfig.id)
+                  .then(() => agent?.refreshConnection())
+                  .catch((error) => showError("Unable to start a new context", error))
+              }
+            >
+              New context
+            </Button>
+          </div>
+        ) : null}
         {session.issueId ? (
           <div className="flex items-center justify-between gap-3 border-b px-4 py-2 text-sm text-muted-foreground">
             <span>Issue conversation · Read-only history</span>
@@ -198,7 +217,23 @@ export function PiChat({
               onReferencesChange={(references) => {
                 referencesDraftRef.current = references;
               }}
-              readOnly={Boolean(session.issueId)}
+              onLoadEarlier={
+                snapshot.olderCursor
+                  ? async () => {
+                      try {
+                        await agent.loadOlder();
+                      } catch (error) {
+                        showError("Unable to load history", error);
+                      }
+                    }
+                  : undefined
+              }
+              onLoadLatest={
+                snapshot.olderCursor || snapshot.historyOnly
+                  ? () => agent.refreshConnection()
+                  : undefined
+              }
+              readOnly={Boolean(session.issueId || snapshot.historyOnly)}
               waitingForAnswer={waiting.length > 0}
               requestCards={
                 requestsAtComposer.length || browserRequest ? (

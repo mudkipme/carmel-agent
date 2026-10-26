@@ -304,6 +304,13 @@ export function displayEntries(
           } as ReferenceMessage)
         : undefined;
     const message =
+      (entry.kind === "carmel.notice"
+        ? {
+            role: "homeNotice" as const,
+            text: (entry.data as { text: string }).text,
+            timestamp: (entry.data as { timestamp?: number }).timestamp ?? 0,
+          }
+        : undefined) ??
       data?.carmelMessage ??
       receiptMessage ??
       referencedMessage ??
@@ -400,6 +407,47 @@ export async function readPiSessionBranch(session: PiSession): Promise<DisplayEn
       message: partial as unknown as AgentMessage,
     });
   return displayed;
+}
+
+export async function readPiSessionPage(session: PiSession, token?: string, limit = 100) {
+  let cursor: Cursor | undefined;
+  if (token) {
+    const saved = JSON.parse(Buffer.from(token, "base64url").toString()) as {
+      conversation: number;
+      cursor: Cursor;
+    };
+    if (saved.conversation !== session.conversation.id)
+      throw new Error("Conversation changed. Reload its history.");
+    cursor = saved.cursor;
+  }
+  return session.conversation.commit(async (tx) => {
+    const page = await tx.scanEntries(
+      { conversationId: session.conversation.id, order: "descending" },
+      limit,
+      cursor,
+    );
+    const entries = displayEntries([...page.items].reverse(), session.id);
+    if (!token) {
+      const live = await tx.doc(LiveDoc, session.conversation.id);
+      if (live.generation?.message)
+        entries.push({
+          id: `${PENDING_ENTRY_ID_PREFIX}${live.run?.taskId ?? session.conversation.id}`,
+          parentId: entries.at(-1)?.id ?? null,
+          seq: 0,
+          timestamp: live.generation.message.timestamp,
+          type: "message",
+          message: JSON.parse(JSON.stringify(live.generation.message)),
+        });
+    }
+    return {
+      entries,
+      olderCursor: page.next
+        ? Buffer.from(
+            JSON.stringify({ conversation: session.conversation.id, cursor: page.next }),
+          ).toString("base64url")
+        : undefined,
+    };
+  }, ctx);
 }
 export async function appendPiMessage(session: PiSession, message: AgentMessage) {
   return displayId(

@@ -67,6 +67,16 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
         model: seed.model,
         thinkingLevel: clampThinkingLevel(seed.model, authoritativeSession.thinkingLevel),
         messages: authoritativeSession.messages,
+        olderCursor: authoritativeSession.olderCursor,
+        onHistoryPage: (page) => {
+          const current = sessionRef.current;
+          sessionRef.current = {
+            ...current,
+            messages: [...page.messages, ...current.messages].slice(0, 500),
+            messageEntryIds: [...page.messageEntryIds, ...current.messageEntryIds].slice(0, 500),
+            olderCursor: page.olderCursor,
+          };
+        },
         pendingWork,
         userRequests,
         onRunComplete: async () => {

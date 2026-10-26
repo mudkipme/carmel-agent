@@ -1,3 +1,5 @@
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { AgentAvatar } from "./AgentAvatar";
 import {
   PanelLeftCloseIcon,
   CalendarClockIcon,
@@ -5,7 +7,7 @@ import {
   SettingsIcon,
   BookOpenIcon,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -22,6 +24,8 @@ import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "./sidebar-utils";
 import type { ContentView } from "@/lib/shell-route";
 
 export function HarnessSidebar({
+  navigationView,
+  onNavigationViewChange,
   activeUser,
   activeAgent,
   activeSession,
@@ -42,6 +46,8 @@ export function HarnessSidebar({
   onOpenImport,
   onOpenSettings,
 }: {
+  navigationView: "agents" | "sessions";
+  onNavigationViewChange: (view: "agents" | "sessions") => void;
   activeUser?: User;
   activeAgent?: AgentConfig;
   activeSession?: SessionMetadata;
@@ -62,6 +68,7 @@ export function HarnessSidebar({
   onOpenImport: () => void;
   onOpenSettings: () => void;
 }) {
+  const navigate = useNavigate();
   const createAgent = useHarnessStore((state) => state.createAgent);
   const modelRefs = useHarnessStore((state) => state.modelRefs);
   const activeUserId = useHarnessStore((state) => state.activeUserId);
@@ -111,13 +118,57 @@ export function HarnessSidebar({
           </Button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
-          <AgentSelector
-            activeAgent={activeAgent}
-            visibleAgents={visibleAgents}
-            activeUserId={activeUserId}
-            modelRefs={modelRefs}
-            onCreateAgent={createSidebarAgent}
-          />
+          <ToggleGroup
+            type="single"
+            value={navigationView}
+            onValueChange={(value) => {
+              if (value === "agents" || value === "sessions") onNavigationViewChange(value);
+            }}
+            aria-label="Navigation view"
+            className="w-full"
+          >
+            <ToggleGroupItem value="agents" className="flex-1">
+              Agents
+            </ToggleGroupItem>
+            <ToggleGroupItem value="sessions" className="flex-1">
+              Sessions
+            </ToggleGroupItem>
+          </ToggleGroup>
+          {navigationView === "agents" ? (
+            <nav aria-label="Agents" className="flex min-h-0 flex-col gap-1 overflow-auto">
+              {visibleAgents.map((agent) => (
+                <Button
+                  key={agent.id}
+                  asChild
+                  variant={agent.id === activeAgent?.id ? "secondary" : "ghost"}
+                  className="justify-start"
+                >
+                  <Link to={`/agents/${agent.id}/home`} onClick={onOpenSession}>
+                    <AgentAvatar agent={agent} />
+                    <span className="truncate">{agent.name}</span>
+                  </Link>
+                </Button>
+              ))}
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  void createSidebarAgent().then((agent) => {
+                    if (agent) navigate(`/agents/${agent.id}/home`);
+                  })
+                }
+              >
+                New agent
+              </Button>
+            </nav>
+          ) : (
+            <AgentSelector
+              activeAgent={activeAgent}
+              visibleAgents={visibleAgents}
+              activeUserId={activeUserId}
+              modelRefs={modelRefs}
+              onCreateAgent={createSidebarAgent}
+            />
+          )}
           {activeAgent ? (
             <nav aria-label="Agent work" className="flex flex-col gap-1">
               {activeAgent.permissions.read && knowledge.data?.enabled ? (
@@ -166,25 +217,27 @@ export function HarnessSidebar({
               </Button>
             </nav>
           ) : null}
-          <div className="flex min-h-0 flex-1 flex-col gap-2">
-            <SidebarSessionsToolbar
-              activeAgent={activeAgent}
-              onOpenSession={onOpenSession}
-              onNewSession={() => onSelectChat()}
-              onOpenImport={onOpenImport}
-            />
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <SessionList
-                key={activeAgent?.id}
-                sessions={visibleSessions}
-                runningSessionIds={runningSessionIds}
-                runOverrides={runOverrides}
-                activeSessionId={activeSession?.id}
+          {navigationView === "sessions" ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
+              <SidebarSessionsToolbar
+                activeAgent={activeAgent}
                 onOpenSession={onOpenSession}
-                onSelectSession={onSelectChat}
+                onNewSession={() => onSelectChat()}
+                onOpenImport={onOpenImport}
               />
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <SessionList
+                  key={activeAgent?.id}
+                  sessions={visibleSessions}
+                  runningSessionIds={runningSessionIds}
+                  runOverrides={runOverrides}
+                  activeSessionId={activeSession?.id}
+                  onOpenSession={onOpenSession}
+                  onSelectSession={onSelectChat}
+                />
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
         <Separator />
         <footer className="flex shrink-0 items-center gap-2 px-3 py-2">

@@ -55,7 +55,7 @@ export function toProviderConfigCommand(providerConfig: ProviderConfig): Provide
  * sessions.
  */
 export function isListedSession(session: SessionMetadata) {
-  return !session.taskId && !session.issueId && !session.archivedAt;
+  return !session.home && !session.taskId && !session.issueId && !session.archivedAt;
 }
 
 export function cacheSession(state: HarnessState, session: Session) {

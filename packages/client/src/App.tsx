@@ -96,6 +96,7 @@ const router = createBrowserRouter(
     <>
       <Route path="/" element={<HarnessShell />} />
       <Route path="/agents/:agentId" element={<HarnessShell />} />
+      <Route path="/agents/:agentId/home" element={<HarnessShell homeView />} />
       <Route path="/agents/:agentId/settings" element={<AgentSettingsRedirect />} />
       <Route path="/agents/:agentId/settings/tasks" element={<AgentTasksRedirect />} />
       <Route path="/agents/:agentId/settings/:section" element={<AgentSettingsPage />} />

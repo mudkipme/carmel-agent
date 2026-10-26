@@ -1,3 +1,4 @@
+import { useAgentNavigation } from "@/hooks/use-agent-navigation";
 import { IssuesOverview } from "./issues/IssuesOverview";
 import { AgentTasksPage } from "./AgentTasksPage";
 import { AgentKnowledgePage } from "./AgentKnowledgePage";
@@ -79,7 +80,13 @@ import type { GitChangeArea } from "@carmel-agent/shared";
 const lastChatPathByAgent = new Map<string, string>();
 const lastWorkspacePaths = new Map<string, Partial<Record<WorkspaceView, string>>>();
 
-export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
+export function HarnessShell({
+  view = "chat",
+  homeView = false,
+}: {
+  view?: ContentView;
+  homeView?: boolean;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -92,13 +99,30 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   // One selector per field: the shell re-renders when what it shows changes,
   // not on every store write.
   const userId = useHarnessStore((state) => state.activeUserId);
+  const navigation = useAgentNavigation(userId);
+  const rememberSession = navigation.rememberSession;
+  const homeResource = useRemoteResource({
+    key: `home:${userId}:${routeAgentId}`,
+    enabled: Boolean(homeView && routeAgentId),
+    load: () => api.ensureHome(routeAgentId!),
+  });
+  useEffect(() => {
+    const session = homeResource.data?.session;
+    if (!session) return;
+    useHarnessStore.setState((state) => ({
+      sessions: [...state.sessions.filter((item) => item.id !== session.id), session],
+      sessionDetails: { ...state.sessionDetails, [session.id]: session },
+    }));
+  }, [homeResource.data]);
   const workspaceKey = `${userId}:${routeAgentId}`;
   const rememberedChatPath = lastChatPathByAgent.get(workspaceKey);
   const backgroundSessionId =
     searchParams.get("chat") ?? rememberedChatPath?.split("/sessions/")[1];
   const routeSessionId =
     view === "chat"
-      ? pathSessionId
+      ? homeView
+        ? homeResource.data?.home.sessionId
+        : pathSessionId
       : isWorkspaceView(view) && backgroundSessionId !== "new"
         ? backgroundSessionId
         : undefined;
@@ -158,6 +182,7 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   const activeModel = modelRefs.find((model) => model.id === activeSessionMetadata?.modelRefId);
   const onNewSessionPage =
     (view === "chat" || isWorkspaceView(view)) &&
+    !homeView &&
     (!routeSessionId ||
       (isWorkspaceView(view) &&
         !activeSession &&
@@ -185,13 +210,15 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
   );
   const activeIssueId = view === "issues" ? routeIssueId : undefined;
   const activeIssue = visibleIssues.find((issue) => issue.id === activeIssueId);
-  const chatPath = activeAgent
-    ? activeSession
-      ? `/agents/${activeAgent.id}/sessions/${activeSession.id}`
-      : isWorkspaceView(view)
-        ? `/agents/${activeAgent.id}`
-        : (lastChatPathByAgent.get(workspaceKey) ?? `/agents/${activeAgent.id}`)
-    : "/";
+  const chatPath = activeSession?.home
+    ? `/agents/${activeSession.agentId}/home`
+    : activeAgent
+      ? activeSession
+        ? `/agents/${activeAgent.id}/sessions/${activeSession.id}`
+        : isWorkspaceView(view)
+          ? `/agents/${activeAgent.id}`
+          : (lastChatPathByAgent.get(workspaceKey) ?? `/agents/${activeAgent.id}`)
+      : "/";
 
   const redirectTo = route.kind === "redirect" ? route.to : undefined;
   useEffect(() => {
@@ -244,6 +271,21 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
     },
     [activeSession?.id],
   );
+
+  useEffect(() => {
+    if (
+      activeSessionMetadata &&
+      !activeSessionMetadata.home &&
+      !activeSessionMetadata.issueId &&
+      !activeSessionMetadata.taskId
+    )
+      rememberSession(activeSessionMetadata.agentId, activeSessionMetadata.id);
+  }, [activeSessionMetadata, rememberSession]);
+
+  useEffect(() => {
+    if (!routeAgentId && navigation.view === "agents" && visibleAgents.length)
+      navigate(`/agents/${lastAgentId || visibleAgents[0]!.id}/home`, { replace: true });
+  }, [lastAgentId, navigate, navigation.view, routeAgentId, visibleAgents]);
 
   useEffect(() => {
     if (activeAgentId) rememberAgent(activeAgentId);
@@ -429,6 +471,16 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
         onClick={() => setSidebarOpen(false)}
       />
       <HarnessSidebar
+        navigationView={homeView ? "agents" : navigation.view}
+        onNavigationViewChange={(next) => {
+          navigation.setView(next);
+          if (activeAgentId)
+            navigate(
+              next === "agents"
+                ? `/agents/${activeAgentId}/home`
+                : navigation.sessionPath(activeAgentId),
+            );
+        }}
         activeUser={activeUser}
         activeAgent={activeAgent}
         activeSession={activeSessionMetadata}
@@ -483,6 +535,13 @@ export function HarnessShell({ view = "chat" }: { view?: ContentView }) {
             navigate(`/agents/${activeAgent.id}/settings/${section}`);
           }}
         />
+        {homeView && homeResource.error ? (
+          <ResourceError
+            error={homeResource.error}
+            title="Unable to open Home"
+            onRetry={homeResource.refresh}
+          />
+        ) : null}
         {(view === "chat" || isWorkspaceView(view)) && activity.error ? (
           <div className="p-3">
             <ResourceError

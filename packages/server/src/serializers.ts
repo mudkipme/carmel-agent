@@ -1,3 +1,5 @@
+import { eq } from "drizzle-orm";
+import { db } from "./db/index.ts";
 import { isRecord, toSessionMetadata } from "@carmel-agent/shared";
 import type {
   AgentConfig,
@@ -8,7 +10,7 @@ import type {
   User,
 } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { agents, modelRefs, providerConfigs, sessions, users } from "./db/schema.ts";
+import { agentHomes, agents, modelRefs, providerConfigs, users } from "./db/schema.ts";
 import { defaultAgentWorkingDir } from "./paths.ts";
 import type { SessionWithMessages } from "./services/session-store.ts";
 import { PENDING_ENTRY_ID_PREFIX } from "./services/pi-session-storage.ts";
@@ -104,7 +106,7 @@ export function serializeProviderConfig(
 
 export function serializeSession(session: Session | SessionWithMessages): Session {
   return {
-    ...toSessionMetadata(session),
+    ...serializeSessionMetadata(session),
     messages: session.messages.map((message, messageIndex) =>
       serializeMessageForDisplay(message, {
         sessionId: session.id,
@@ -112,11 +114,23 @@ export function serializeSession(session: Session | SessionWithMessages): Sessio
       }),
     ),
     messageEntryIds: session.messageEntryIds,
+    ...("olderCursor" in session ? { olderCursor: session.olderCursor } : {}),
   };
 }
 
-export function serializeSessionMetadata(session: typeof sessions.$inferSelect): SessionMetadata {
-  return toSessionMetadata(session);
+export function serializeSessionMetadata(
+  session: import("@carmel-agent/shared").SessionMetadataSource,
+): SessionMetadata {
+  return {
+    ...toSessionMetadata(session),
+    ...(db
+      .select({ id: agentHomes.sessionId })
+      .from(agentHomes)
+      .where(eq(agentHomes.sessionId, session.id))
+      .get()
+      ? { home: true }
+      : {}),
+  };
 }
 
 const MAX_TOOL_RESULT_TEXT_LENGTH = 8_000;
@@ -156,7 +170,7 @@ function serializeMessageForDisplay(
       diagnostics: undefined,
       content: Array.isArray(record.content)
         ? serializeAssistantContent(record.content, context)
-        : message.content,
+        : record.content,
     } as unknown as AgentMessage;
   }
 

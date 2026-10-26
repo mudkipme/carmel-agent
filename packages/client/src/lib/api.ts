@@ -492,6 +492,19 @@ export const api = {
     request<{ ok: true }>(`/api/agents/${agentId}/issues/${issueId}`, { method: "DELETE" }),
   deleteAgent: (agentId: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}`, { method: "DELETE" }),
+  ensureHome: (agentId: string) =>
+    request<{ home: { sessionId: string }; session: Session }>(
+      `/api/agents/${encodeURIComponent(agentId)}/home`,
+      { method: "POST" },
+    ),
+  resetHome: (agentId: string) =>
+    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/reset`, {
+      method: "POST",
+    }),
+  getSessionHistory: (sessionId: string, before: string) =>
+    request<Session>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/history?before=${encodeURIComponent(before)}`,
+    ),
   createSession: (draft: SessionDraft & { title?: string }) =>
     request<Session>("/api/sessions", { method: "POST", body: JSON.stringify(draft) }),
   importOpenWebuiSessions: (draft: SessionDraft & { source: unknown }) =>

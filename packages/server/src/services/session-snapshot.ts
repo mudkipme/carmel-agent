@@ -1,7 +1,7 @@
 import type { Session, SessionConnection } from "@carmel-agent/shared";
 import { getActiveAgentRunForSession } from "../runtime/run-stream.ts";
 import { serializeSession } from "../serializers.ts";
-import { loadOwnedSession } from "./session-store.ts";
+import { loadOwnedSessionPage } from "./session-store.ts";
 import { hasPendingPiSessionWork } from "./pi-session-storage.ts";
 import { withPiSession } from "./pi-session-storage.ts";
 import { readUserRequests } from "./user-requests.ts";
@@ -10,8 +10,9 @@ import { readUserRequests } from "./user-requests.ts";
 export async function readSessionSnapshot(
   userId: string,
   sessionId: string,
+  cursor?: string,
 ): Promise<Session | undefined> {
-  const session = await loadOwnedSession(userId, sessionId);
+  const session = await loadOwnedSessionPage(userId, sessionId, cursor);
   return session ? serializeSession(session) : undefined;
 }
 

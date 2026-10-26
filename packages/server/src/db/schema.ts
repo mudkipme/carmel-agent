@@ -402,3 +402,24 @@ export const issueNotes = sqliteTable("issue_notes", {
   entryId: text("entry_id"),
   createdAt: integer("created_at").notNull(),
 });
+
+export const agentHomes = sqliteTable(
+  "agent_homes",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    sessionId: text("session_id")
+      .notNull()
+      .unique()
+      .references(() => sessions.id),
+    lastReadAt: integer("last_read_at").notNull().default(0),
+    paused: integer("paused", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.agentId] })],
+);

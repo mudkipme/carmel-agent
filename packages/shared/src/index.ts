@@ -45,6 +45,7 @@ export type ArtifactMessage = {
 declare module "@earendil-works/pi-agent-core" {
   interface CustomAgentMessages {
     artifact: ArtifactMessage;
+    homeNotice: { role: "homeNotice"; text: string; timestamp: number };
   }
 }
 
