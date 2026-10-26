@@ -1,4 +1,3 @@
-import { SectionHeader } from "@/components/harness/form-primitives";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +23,6 @@ export function AppearanceSettings({
 }) {
   return (
     <div className="grid gap-4">
-      <SectionHeader title="Appearance" />
       <Field>
         <FieldLabel htmlFor="appearance-theme">Theme</FieldLabel>
         <Select value={value} onValueChange={(nextValue) => onChange(nextValue as ThemePreference)}>

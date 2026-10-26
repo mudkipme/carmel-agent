@@ -7,13 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Empty,
-  EmptyMedia,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-} from "@/components/ui/empty";
+import { Empty, EmptyMedia, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
@@ -138,11 +132,6 @@ export function IssuesOverview({
                   ? "Backlog is empty"
                   : "No completed issues"}
         </EmptyTitle>
-        <EmptyDescription>
-          {query
-            ? "Try another search."
-            : "Create an issue and queue it when you are ready. This agent runs one issue at a time."}
-        </EmptyDescription>
       </EmptyHeader>
     </Empty>
   );

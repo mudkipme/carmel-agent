@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { ArchiveRestoreIcon, Trash2Icon } from "lucide-react";
 import type { SessionMetadata } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
-import { SectionHeader } from "@/components/harness/form-primitives";
 import { confirmAction } from "@/lib/action-dialogs";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
@@ -60,8 +59,6 @@ export function AgentArchivedSessionsSettings({ agentId }: { agentId: string }) 
 
   return (
     <section className="grid gap-4">
-      <SectionHeader title="Archived sessions" />
-
       {sessions === undefined ? (
         error ? null : (
           <p className="text-sm text-muted-foreground">Loading…</p>

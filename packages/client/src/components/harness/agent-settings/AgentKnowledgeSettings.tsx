@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import type { KnowledgeSettings } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
-import { SectionHeader } from "@/components/harness/form-primitives";
 import { Field, FieldLabel, FieldDescription, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -79,7 +78,6 @@ function KnowledgeSettingsForm({
         onSave({ enabled, acceleration });
       }}
     >
-      <SectionHeader title="Knowledge" />
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="knowledge-enabled">Knowledge and memory</FieldLabel>

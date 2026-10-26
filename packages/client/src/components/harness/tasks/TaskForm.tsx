@@ -150,13 +150,13 @@ export function TaskForm({
                 })
               }
             />
-            <FieldDescription>
-              {draft.scheduleKind === "cron"
-                ? "Minute, hour, day of month, month, weekday."
-                : draft.scheduleKind === "once"
-                  ? "Include a time zone, for example 2026-10-01T09:00:00+08:00."
-                  : "Time between scheduled runs."}
-            </FieldDescription>
+            {draft.scheduleKind !== "interval" ? (
+              <FieldDescription>
+                {draft.scheduleKind === "cron"
+                  ? "Minute, hour, day of month, month, weekday."
+                  : "Include a time zone, for example 2026-10-01T09:00:00+08:00."}
+              </FieldDescription>
+            ) : null}
           </Field>
         </FieldGroup>
         {draft.scheduleKind === "cron" ? (

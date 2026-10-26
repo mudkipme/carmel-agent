@@ -1,5 +1,4 @@
 import { ExternalLinkIcon, Trash2Icon } from "lucide-react";
-import { SectionHeader } from "@/components/harness/form-primitives";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,7 +45,6 @@ export function ProviderSettings({
   return (
     <div className="grid gap-6">
       <section className="grid gap-4">
-        <SectionHeader title="Provider Configs" />
         <div className="grid gap-2">
           {providerConfigs.map((item) => {
             const relatedModels = modelRefs.filter((model) => model.providerConfigId === item.id);

@@ -36,10 +36,9 @@ export function AgentIntegrationsSettings({ agentId }: { agentId: string }) {
   const data = resource.data;
   return (
     <section className="flex flex-col gap-6">
-      <SectionHeader
-        title="Integrations"
-        description="Connect your private messaging accounts to this agent. Each connection belongs to you, including on a shared agent. Use a dedicated bot for each connection."
-      />
+      <p className="text-sm text-muted-foreground">
+        Connections belong to you, including on shared agents. Use a dedicated bot for each.
+      </p>
       {resource.error ? (
         <ResourceError
           error={resource.error}

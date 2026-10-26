@@ -1,4 +1,4 @@
-import { SectionHeader, ToggleRow } from "@/components/harness/form-primitives";
+import { ToggleRow } from "@/components/harness/form-primitives";
 import type { AgentPermissions } from "@carmel-agent/shared";
 
 const configurablePermissions: Array<keyof AgentPermissions> = [
@@ -26,7 +26,6 @@ export function AgentPermissionsSettings({
 }) {
   return (
     <section className="grid gap-4">
-      <SectionHeader title="Permissions" />
       <div className="grid gap-2">
         {configurablePermissions.map((permission) => (
           <ToggleRow

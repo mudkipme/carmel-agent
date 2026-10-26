@@ -40,7 +40,6 @@ export function UserSettings() {
   return (
     <div className="grid gap-6">
       <section className="grid gap-3">
-        <SectionHeader title="Users" />
         {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
         <div className="grid gap-2 rounded-md border p-2">
           {users.map((user) => {

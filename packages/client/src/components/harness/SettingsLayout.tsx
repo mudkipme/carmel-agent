@@ -52,9 +52,6 @@ export function SettingsLayout({
       </header>
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside className="shrink-0 border-b bg-sidebar p-2 md:w-52 md:border-r md:border-b-0 md:p-3">
-          <p className="nav-label hidden px-2 pt-1 pb-2 md:block">
-            {subtitle ? "Agent preferences" : "Workspace preferences"}
-          </p>
           <nav
             ref={navRef}
             aria-label={title}

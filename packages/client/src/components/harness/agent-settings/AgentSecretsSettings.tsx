@@ -5,7 +5,6 @@ import { agentSecretNameError, type AgentSecret } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { SectionHeader } from "@/components/harness/form-primitives";
 import { confirmAction } from "@/lib/action-dialogs";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
@@ -121,10 +120,10 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
 
   return (
     <section className="grid gap-4">
-      <SectionHeader
-        title="Secrets"
-        description="Exported as environment variables into this agent's sandboxed shell, and nowhere else. Values are write-only — once saved, they can be replaced but not read back."
-      />
+      <p className="text-sm text-muted-foreground">
+        Secrets become environment variables in this agent's shell. Saved values can be replaced but
+        cannot be viewed.
+      </p>
 
       {shared ? (
         <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">

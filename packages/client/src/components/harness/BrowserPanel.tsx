@@ -445,11 +445,11 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
               <EmptyTitle>
                 {browser.connected ? "Waiting for the page" : "Connecting to the browser"}
               </EmptyTitle>
-              <EmptyDescription>
-                {browser.connected
-                  ? "The live page will appear here."
-                  : "Reconnecting preserves the agent’s browser and saved sign-ins."}
-              </EmptyDescription>
+              {!browser.connected ? (
+                <EmptyDescription>
+                  Reconnecting preserves the agent’s browser and saved sign-ins.
+                </EmptyDescription>
+              ) : null}
             </EmptyHeader>
           </Empty>
         )}

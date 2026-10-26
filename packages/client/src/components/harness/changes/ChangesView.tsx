@@ -12,13 +12,7 @@ import type {
 import { DiffViewer, type DiffLayout } from "@/components/harness/changes/DiffViewer";
 import { inferLanguage, isDarkTheme } from "@/components/harness/files/editor-extensions";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyMedia,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-} from "@/components/ui/empty";
+import { Empty, EmptyMedia, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
 import { useThemePreference } from "@/lib/theme";
@@ -188,19 +182,6 @@ export function ChangesView({
                           ? "Working tree is clean"
                           : "No Git repository"}
               </EmptyTitle>
-              <EmptyDescription>
-                {loading
-                  ? "Reading the working directory."
-                  : statusError
-                    ? "Refresh to try reading the repository again."
-                    : changePath
-                      ? "This file no longer has changes here."
-                      : changes.length > 0
-                        ? "Choose a changed file to review its diff."
-                        : status?.repository
-                          ? "Uncommitted changes will appear here as you work."
-                          : "Changes appear when this agent works in a Git repository."}
-              </EmptyDescription>
             </EmptyHeader>
             {changePath ? (
               <Button

@@ -5,7 +5,6 @@ import {
   type AgentMcpServer,
   type AgentPermissions,
 } from "@carmel-agent/shared";
-import { SectionHeader } from "@/components/harness/form-primitives";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -136,7 +135,6 @@ export function AgentMcpSettings({
 
   return (
     <section className="flex min-w-0 flex-col gap-4">
-      <SectionHeader title="MCP servers" />
       {servers.map((server) => (
         <FieldSet key={server.id} className="min-w-0 rounded-md border p-3">
           <FieldLegend>{server.id}</FieldLegend>

@@ -64,7 +64,6 @@ export function AgentGeneralSettings({
   return (
     <div className="grid gap-6">
       <section className="grid gap-4">
-        <SectionHeader title="Agent" />
         <div className="grid gap-3">
           <Field>
             <FieldLabel htmlFor={`${fieldId}-name`}>Name</FieldLabel>

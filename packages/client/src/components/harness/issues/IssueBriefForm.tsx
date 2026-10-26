@@ -2,7 +2,7 @@ import { type FormEvent } from "react";
 import type { IssueCreateCommand, IssuePriority } from "@carmel-agent/shared";
 import { useSessionDraft } from "@/hooks/use-session-draft";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -99,7 +99,6 @@ export function IssueBriefForm({
                 onChange={(e) => setDraft({ ...draft, criteria: e.target.value })}
                 placeholder="One criterion per line"
               />
-              <FieldDescription>What will you check before accepting the result?</FieldDescription>
             </Field>
             <div className="flex flex-wrap gap-4">
               <Field className="w-40">

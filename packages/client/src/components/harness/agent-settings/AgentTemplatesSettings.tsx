@@ -1,6 +1,5 @@
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { useId, useState } from "react";
-import { SectionHeader } from "@/components/harness/form-primitives";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -30,10 +29,9 @@ export function AgentTemplatesSettings({
 
   return (
     <section className="grid gap-4">
-      <SectionHeader
-        title="Prompt Templates"
-        description="Templates appear in the chat command palette for this agent."
-      />
+      <p className="text-sm text-muted-foreground">
+        Templates appear in this agent's chat command palette.
+      </p>
       <div className="grid gap-3">
         {templates.length > 0 ? (
           <div className="grid gap-2">

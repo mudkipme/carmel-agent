@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { CheckIcon, CopyIcon, KeySquareIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import type { ApiKey, ApiKeyCreated } from "@carmel-agent/shared";
-import { SectionHeader } from "@/components/harness/form-primitives";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -74,10 +73,9 @@ export function ApiKeySettings() {
 
   return (
     <section className="grid gap-4">
-      <SectionHeader
-        title="API Keys"
-        description="Use your models from any OpenAI-compatible client. Requests reach the models you can use here, with their provider credentials; tool calls are returned to your client to run."
-      />
+      <p className="text-sm text-muted-foreground">
+        Use your models from an OpenAI-compatible client. Tool calls return to that client to run.
+      </p>
 
       <div className="grid gap-1 rounded-md border px-3 py-2 text-sm">
         <span className="text-muted-foreground">Base URL</span>

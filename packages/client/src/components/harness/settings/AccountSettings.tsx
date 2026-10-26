@@ -39,10 +39,9 @@ export function AccountSettings() {
   return (
     <div className="grid gap-6">
       <section className="grid gap-4">
-        <SectionHeader
-          title="Account"
-          description={user ? `Signed in as ${user.username ?? user.name}.` : "Signed in."}
-        />
+        {user ? (
+          <p className="text-sm text-muted-foreground">Signed in as {user.username ?? user.name}</p>
+        ) : null}
         <Button variant="outline" className="justify-self-start" onClick={() => void logout()}>
           <LogOutIcon data-icon="inline-start" />
           Sign out
@@ -89,7 +88,6 @@ export function AccountSettings() {
                 value={newPassword}
                 type="password"
                 autoComplete="new-password"
-                placeholder="Leave blank to keep current password"
                 onChange={(event) => setNewPassword(event.target.value)}
               />
             </Field>

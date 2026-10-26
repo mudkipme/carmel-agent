@@ -30,13 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Empty,
-  EmptyMedia,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-} from "@/components/ui/empty";
+import { Empty, EmptyMedia, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
   formatFileSize,
@@ -312,13 +306,6 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
               <EmptyTitle>
                 {browser.filter ? "No matching files" : "This folder is empty"}
               </EmptyTitle>
-              <EmptyDescription>
-                {browser.filter
-                  ? "Try a different name or clear the filter to see all files."
-                  : canWrite
-                    ? "Drop files here, upload them, or create a new file to get started."
-                    : "Files in this folder will appear here."}
-              </EmptyDescription>
             </EmptyHeader>
             {browser.filter ? (
               <Button variant="outline" size="sm" onClick={() => browser.setFilter("")}>

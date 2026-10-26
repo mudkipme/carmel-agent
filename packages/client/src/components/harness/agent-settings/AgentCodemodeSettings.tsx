@@ -1,4 +1,3 @@
-import { SectionHeader } from "@/components/harness/form-primitives";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 
@@ -11,7 +10,6 @@ export function AgentCodemodeSettings({
 }) {
   return (
     <section className="flex min-w-0 flex-col gap-4">
-      <SectionHeader title="Codemode" description="Combine tool calls in JavaScript." />
       <FieldGroup>
         <Field>
           <Field orientation="horizontal">

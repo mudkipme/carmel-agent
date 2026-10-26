@@ -32,12 +32,7 @@ export function NewIssueView({ agent }: { agent: AgentConfig }) {
         <Link className="text-sm text-muted-foreground hover:underline" to={listPath}>
           {agent.name} / Issues
         </Link>
-        <div>
-          <h1 className="text-base font-semibold">New issue</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Define the outcome for {agent.name}. Save it for later or add it to the queue.
-          </p>
-        </div>
+        <h1 className="text-base font-semibold">New issue</h1>
         <IssueBriefForm
           busy={busy}
           draftKey={draftKey}
