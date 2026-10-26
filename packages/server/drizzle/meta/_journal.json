@@ -15,6 +15,13 @@
       "when": 1793027632614,
       "tag": "0001_session_search",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793028355192,
+      "tag": "0002_agent_appearance",
+      "breakpoints": true
     }
   ]
 }

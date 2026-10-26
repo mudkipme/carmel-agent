@@ -41,6 +41,7 @@ export function serializePublicAgent(agent: typeof agents.$inferSelect): AgentCo
 export function serializeAgentSettings(agent: typeof agents.$inferSelect): AgentConfig {
   return {
     ...agent,
+    color: agent.color ?? undefined,
     workingDirMode: agent.workingDirMode ?? "manual",
     defaultWorkingDir: agent.defaultWorkingDir ?? defaultAgentWorkingDir(agent.id),
     defaultThinkingLevel: agent.defaultThinkingLevel ?? "off",

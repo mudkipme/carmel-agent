@@ -8,7 +8,7 @@ It runs on your machine or your server. Agents contact the model providers, webs
 
 - **Chat with agents that keep working.** Sessions persist, runs continue on the server if you close the tab, and reopening a session reconnects to a run in progress.
 - **Answers with the work tucked away.** Sessions fold thinking, tool calls and intermediate commentary under a “Show work” row, keeping the final answer and errors visible.
-- **Agents you shape.** Each agent has its own workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
+- **Agents you shape.** Each agent has its own icon, color, workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
 - **Sandboxed shell.** When an agent is allowed to run commands, they execute in a per-agent container with CPU, memory, PID, mount, and network limits — not on your host shell.
 - **A terminal in the browser.** Open an interactive shell straight into an agent's container, with the same environment its own commands get. The shell lives on the server, so a reload reattaches instead of starting over.
 - **A workspace beside the conversation.** Files, Changes, Terminal, and Browser share a resizable right pane. Expand a tool to use the full main area, or select “Show beside chat” to return to the split view. Your layout and pane width are remembered; narrow windows show one main pane automatically. Drag the divider to resize, use its arrow keys for precise adjustment, or double-click it to reset the width. File and diff links retain the companion conversation across reloads.

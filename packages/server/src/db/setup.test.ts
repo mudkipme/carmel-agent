@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import Database from "better-sqlite3";
 import { initializeSchema } from "./setup.ts";
 import { seedDatabase } from "./seed.ts";
 
-function database() {
+function database(legacy = false) {
   const sqlite = new Database(":memory:");
   sqlite.pragma("foreign_keys = ON");
-  initializeSchema(sqlite);
+  if (legacy) {
+    for (const migration of ["0000_metadata_baseline.sql", "0001_session_search.sql"])
+      sqlite.exec(readFileSync(new URL(`../../drizzle/${migration}`, import.meta.url), "utf8"));
+  } else initializeSchema(sqlite);
   seedDatabase(sqlite);
   return sqlite;
 }
@@ -37,10 +41,9 @@ test("initialization and seeding preserve existing data on repeated startup", ()
 });
 
 test("legacy agent secrets migrate without changing their encrypted payload or scope", () => {
-  const sqlite = database();
+  const sqlite = database(true);
   try {
-    sqlite.exec(`DROP TABLE __drizzle_migrations;
-      DROP TABLE agent_secrets;
+    sqlite.exec(`DROP TABLE agent_secrets;
       CREATE TABLE agent_secrets (agent_id TEXT NOT NULL REFERENCES agents(id), name TEXT NOT NULL,
         value TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(agent_id,name));
       INSERT INTO agent_secrets VALUES ('agent_self','GITHUB_TOKEN','enc:v1:preserve-exactly',1,2);`);
@@ -119,10 +122,9 @@ test("current issue schema defaults to todo and enforces one running attempt wit
 });
 
 test("pre-Home metadata adopts Drizzle migrations while retaining pending IM inputs and saved data", () => {
-  const sqlite = database();
+  const sqlite = database(true);
   try {
     sqlite.exec(`
-      DROP TABLE __drizzle_migrations;
       DROP TABLE helper_hosts;
       DROP TABLE agent_homes;
       DROP TABLE home_events;
@@ -167,14 +169,12 @@ test("pre-Home metadata adopts Drizzle migrations while retaining pending IM inp
       (sqlite.prepare("SELECT value FROM im_credentials").get() as { value: string }).value,
       "enc:v1:unchanged",
     );
-    assert.equal(
-      (
-        sqlite.prepare("SELECT count(*) AS count FROM __drizzle_migrations").get() as {
-          count: number;
-        }
-      ).count,
-      2,
-    );
+    const migrations = sqlite.prepare("SELECT * FROM __drizzle_migrations").all();
+    assert.ok(migrations.length);
+    assert.deepEqual(sqlite.prepare("SELECT icon,color FROM agents WHERE id='agent_self'").get(), {
+      icon: "bot",
+      color: null,
+    });
     assert.deepEqual(sqlite.prepare("SELECT * FROM agent_homes").all(), []);
     assert.deepEqual(sqlite.prepare("SELECT * FROM helper_hosts").all(), []);
     sqlite.exec(
@@ -191,14 +191,7 @@ test("pre-Home metadata adopts Drizzle migrations while retaining pending IM inp
       1,
     );
     initializeSchema(sqlite);
-    assert.equal(
-      (
-        sqlite.prepare("SELECT count(*) AS count FROM __drizzle_migrations").get() as {
-          count: number;
-        }
-      ).count,
-      2,
-    );
+    assert.deepEqual(sqlite.prepare("SELECT * FROM __drizzle_migrations").all(), migrations);
     sqlite.exec(
       "UPDATE im_bindings SET session_id=NULL; DELETE FROM sessions WHERE id='session_initial'",
     );

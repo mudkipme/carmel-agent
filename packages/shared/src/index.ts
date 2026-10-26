@@ -10,6 +10,8 @@ import type {
   PromptTemplate,
 } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
+import type { AgentIcon, AgentColor } from "./agent-appearance.ts";
+export * from "./agent-appearance.ts";
 export * from "./references.ts";
 export * from "./user-requests.ts";
 export { browserClipboardLimit } from "./browser.ts";
@@ -233,6 +235,8 @@ export type AgentConfig = {
   ownerUserId: string;
   shared: boolean;
   name: string;
+  icon?: AgentIcon;
+  color?: AgentColor;
   description: string;
   workingDirMode: AgentWorkingDirMode;
   workingDir: string;

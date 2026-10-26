@@ -12,6 +12,8 @@ import type { KnowledgeSettings, KnowledgeStatus } from "@carmel-agent/shared";
 import type { Credential, ThinkingLevelMap } from "@earendil-works/pi-ai";
 import type {
   AgentMount,
+  AgentIcon,
+  AgentColor,
   AgentMcpServer,
   AgentPermissions,
   AgentTaskOutcome,
@@ -186,6 +188,8 @@ export const agents = sqliteTable(
       .references(() => users.id),
     shared: integer("shared", { mode: "boolean" }).notNull().default(false),
     name: text("name").notNull(),
+    icon: text("icon").$type<AgentIcon>().notNull().default("bot"),
+    color: text("color").$type<AgentColor>(),
     description: text("description").notNull(),
     workingDirMode: text("working_dir_mode")
       .$type<AgentWorkingDirMode>()

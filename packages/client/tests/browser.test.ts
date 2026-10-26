@@ -617,6 +617,56 @@ test("new chat drafts retain text, references, and images across navigation and 
   click("button", "Remove draft.png");
 });
 
+test("agent icons and colors preview, save, and survive reload on desktop and mobile", () => {
+  open(`/agents/${fixture.secondAgentId}`);
+  click("button", "Agent settings");
+  browser("wait", '[data-settings-content] input[id$="-name"]');
+  const preview = "[data-settings-content] [data-agent-icon]";
+  assert.equal(
+    evaluate(`document.querySelector(${JSON.stringify(preview)}).dataset.agentIcon`),
+    "bot",
+  );
+  for (const [width, icon, color, iconValue, colorValue] of [
+    [1280, "Orbit", "Violet", "orbit", "purple"],
+    [390, "Rocket", "Rose", "rocket", "pink"],
+  ] as const) {
+    browser("set", "viewport", String(width), "900");
+    click("radio", icon);
+    click("radio", color);
+    assert.deepEqual(
+      evaluate(`(() => {
+      const preview = document.querySelector(${JSON.stringify(preview)});
+      return [preview.dataset.agentIcon, preview.dataset.agentColor];
+    })()`),
+      [iconValue, colorValue],
+    );
+    assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+    click("button", "Save");
+    browser("wait", "--text", "Agent saved.");
+    browser("reload");
+    browser("wait", '[data-settings-content] input[id$="-name"]');
+    assert.deepEqual(
+      evaluate(`(() => {
+      const preview = document.querySelector(${JSON.stringify(preview)});
+      return [preview.dataset.agentIcon, preview.dataset.agentColor];
+    })()`),
+      [iconValue, colorValue],
+    );
+  }
+  browser("set", "viewport", "1280", "900");
+  click("button", "Back to agent");
+  browser("wait", '.agent-chat-host [data-agent-icon="rocket"][data-agent-color="pink"]');
+  click("radio", "Agents");
+  browser("wait", 'nav[aria-label="Agents"]');
+  assert.equal(
+    evaluate(
+      `document.querySelector('nav[aria-label="Agents"] a[href="/agents/${fixture.secondAgentId}/home"] [data-agent-icon="rocket"][data-agent-color="pink"]') !== null`,
+    ),
+    true,
+  );
+  click("radio", "Sessions");
+});
+
 test("agent settings fields have accessible names and navigation protects unsaved edits", () => {
   const openSettings = () => {
     click("button", "Agent settings");

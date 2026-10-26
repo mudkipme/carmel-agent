@@ -3572,6 +3572,26 @@ components:
           {
             shared: { type: boolean },
             name: { type: string },
+            icon:
+              {
+                type: string,
+                enum:
+                  [
+                    bot,
+                    sparkles,
+                    orbit,
+                    compass,
+                    sprout,
+                    sun,
+                    moon,
+                    rocket,
+                    book,
+                    code,
+                    palette,
+                    heart,
+                  ],
+              },
+            color: { type: string, enum: [blue, green, orange, purple, cyan, pink] },
             description: { type: string },
             workingDirMode: { type: string, enum: [default, manual] },
             workingDir: { type: string },
@@ -3615,6 +3635,26 @@ components:
             ownerUserId: { type: string },
             shared: { type: boolean },
             name: { type: string },
+            icon:
+              {
+                type: string,
+                enum:
+                  [
+                    bot,
+                    sparkles,
+                    orbit,
+                    compass,
+                    sprout,
+                    sun,
+                    moon,
+                    rocket,
+                    book,
+                    code,
+                    palette,
+                    heart,
+                  ],
+              },
+            color: { type: string, enum: [blue, green, orange, purple, cyan, pink] },
             description: { type: string },
             workingDirMode: { type: string, enum: [default, manual] },
             workingDir: { type: string },

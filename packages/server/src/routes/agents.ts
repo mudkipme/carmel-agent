@@ -89,6 +89,8 @@ export function createAgentRoutes() {
           ownerUserId: currentUserId,
           shared: agent.shared,
           name: agent.name,
+          icon: agent.icon ?? current?.icon ?? "bot",
+          color: agent.color ?? current?.color ?? null,
           description: agent.description,
           workingDirMode: agent.workingDirMode ?? "default",
           workingDir: workingDir.workingDir,
