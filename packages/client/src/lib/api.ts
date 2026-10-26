@@ -492,6 +492,77 @@ export const api = {
     request<{ ok: true }>(`/api/agents/${agentId}/issues/${issueId}`, { method: "DELETE" }),
   deleteAgent: (agentId: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}`, { method: "DELETE" }),
+  sessionHelpers: (sessionId: string, signal?: AbortSignal) =>
+    request<import("@carmel-agent/shared").HelpersState>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/helpers`,
+      { signal },
+    ),
+  getHelper: (sessionId: string, helperId: number, before?: string, signal?: AbortSignal) =>
+    request<{ helper: import("@carmel-agent/shared").HelperSummary; session: Session }>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/helpers/${helperId}${before ? `?before=${encodeURIComponent(before)}` : ""}`,
+      { signal },
+    ),
+  stopHelper: (sessionId: string, helperId: number) =>
+    request<{ ok: true }>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/helpers/${helperId}/stop`,
+      { method: "POST" },
+    ),
+  stopHelpers: (sessionId: string) =>
+    request<{ ok: true }>(`/api/sessions/${encodeURIComponent(sessionId)}/helpers/stop`, {
+      method: "POST",
+    }),
+  resumeHelpers: (sessionId: string) =>
+    request<{ ok: true }>(`/api/sessions/${encodeURIComponent(sessionId)}/helpers/resume`, {
+      method: "POST",
+    }),
+  homeSummaries: (signal?: AbortSignal) =>
+    request<
+      Array<{
+        agentId: string;
+        sessionId: string;
+        unread: boolean;
+        working: boolean;
+        needsAttention: boolean;
+      }>
+    >("/api/homes", { signal }),
+  readHome: (agentId: string, readAt: number) =>
+    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/read`, {
+      method: "PATCH",
+      body: JSON.stringify({ readAt }),
+    }),
+  resumeHome: (agentId: string) =>
+    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/resume`, {
+      method: "POST",
+    }),
+  homeStatus: (agentId: string, signal?: AbortSignal) =>
+    request<{
+      home: { sessionId: string; paused: boolean; activityAt: number; lastReadAt: number } | null;
+      deliveries: Array<{ id: string; status: string; error?: string; eventId?: string }>;
+      events: Array<{
+        id: string;
+        status: string;
+        kind: string;
+        error?: string;
+        createdAt: number;
+      }>;
+    }>(`/api/agents/${encodeURIComponent(agentId)}/home`, { signal }),
+  stopHome: (agentId: string) =>
+    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/stop`, {
+      method: "POST",
+    }),
+  ensureHome: (agentId: string) =>
+    request<{ home: { sessionId: string }; session: Session }>(
+      `/api/agents/${encodeURIComponent(agentId)}/home`,
+      { method: "POST" },
+    ),
+  resetHome: (agentId: string) =>
+    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/reset`, {
+      method: "POST",
+    }),
+  getSessionHistory: (sessionId: string, before: string, around?: string) =>
+    request<Session>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/history?before=${encodeURIComponent(before)}${around ? `&around=${encodeURIComponent(around)}` : ""}`,
+    ),
   createSession: (draft: SessionDraft & { title?: string }) =>
     request<Session>("/api/sessions", { method: "POST", body: JSON.stringify(draft) }),
   importOpenWebuiSessions: (draft: SessionDraft & { source: unknown }) =>

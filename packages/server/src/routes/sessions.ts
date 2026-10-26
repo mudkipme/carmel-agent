@@ -1,3 +1,5 @@
+import { sessionHome } from "../services/agent-homes.ts";
+import { readSessionSnapshot } from "../services/session-snapshot.ts";
 import {
   forkSessionRequestSchema,
   isEditableAssistantMessage,
@@ -180,6 +182,8 @@ export function createSessionRoutes() {
     const current = ownedSessionRecord(c);
     if (!current) return c.json({ error: "Session not found" }, 404);
     if (current.issueId) return c.json({ error: "Issue attempt history is read-only." }, 409);
+    if (patch.archivedAt && sessionHome(current.id))
+      return c.json({ error: "Home cannot be archived." }, 409);
 
     // Pin, archive, and leaving the task list only move the session around the
     // sidebar. A run never writes them, so they go through while one is active,
@@ -338,6 +342,8 @@ export function createSessionRoutes() {
   route.delete("/sessions/:id", async (c) => {
     const session = ownedSessionRecord(c);
     if (!session) return c.json({ error: "Session not found" }, 404);
+    if (sessionHome(session.id))
+      return c.json({ error: "Home cannot be deleted from Sessions." }, 409);
     if (session.issueId)
       return c.json({ error: "Delete the issue to remove its attempt history." }, 409);
     const leaseConflict = rejectActiveRunMutation(c, session.id);
@@ -347,6 +353,19 @@ export function createSessionRoutes() {
     return c.json({ ok: true });
   });
 
+  route.get("/sessions/:id/history", async (c) => {
+    try {
+      const page = await readSessionSnapshot(
+        c.get("user").id,
+        c.req.param("id"),
+        c.req.query("before"),
+        c.req.query("around"),
+      );
+      return page ? c.json(page) : c.json({ error: "Session not found." }, 404);
+    } catch {
+      return c.json({ error: "Conversation changed. Reload its history." }, 409);
+    }
+  });
   return route;
 }
 
@@ -398,7 +417,7 @@ async function guardSessionMutation(
         409,
       ),
     };
-  if (await hasPendingPiSessionWork(session.id))
+  if (await hasPendingPiSessionWork(session.id, true))
     return {
       conflict: c.json(
         { error: "Resume or stop pending Durable work before changing this conversation." },

@@ -1,7 +1,7 @@
 import type { Session, SessionConnection } from "@carmel-agent/shared";
 import { getActiveAgentRunForSession } from "../runtime/run-stream.ts";
 import { serializeSession } from "../serializers.ts";
-import { loadOwnedSession } from "./session-store.ts";
+import { loadOwnedSessionPage } from "./session-store.ts";
 import { hasPendingPiSessionWork } from "./pi-session-storage.ts";
 import { withPiSession } from "./pi-session-storage.ts";
 import { readUserRequests } from "./user-requests.ts";
@@ -10,9 +10,11 @@ import { readUserRequests } from "./user-requests.ts";
 export async function readSessionSnapshot(
   userId: string,
   sessionId: string,
+  cursor?: string,
+  around?: string,
 ): Promise<Session | undefined> {
-  const session = await loadOwnedSession(userId, sessionId);
-  return session ? serializeSession(session) : undefined;
+  const session = await loadOwnedSessionPage(userId, sessionId, cursor, around);
+  return session ? { ...serializeSession(session), observedAt: Date.now() } : undefined;
 }
 
 /** Add volatile run authority to the same session projection for reconnects. */

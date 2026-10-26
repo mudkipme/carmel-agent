@@ -43,7 +43,9 @@ export function HarnessHeader({
 }) {
   /* In split view the workspace names itself, leaving the main header for chat. */
   const title = companionVisible
-    ? (activeSession?.title ?? "New session")
+    ? activeSession?.home
+      ? "Home"
+      : (activeSession?.title ?? "New session")
     : contentView === "tasks"
       ? "Tasks"
       : contentView === "files"
@@ -56,7 +58,9 @@ export function HarnessHeader({
               ? "Terminal"
               : contentView === "issues"
                 ? (issueTitle ?? "Issues")
-                : (activeSession?.title ?? "New session");
+                : activeSession?.home
+                  ? "Home"
+                  : (activeSession?.title ?? "New session");
   /* The subtitle carries only what nothing else on screen says: the model is
      already named in the composer, and the working directory is worth the room
      just when the agent runs somewhere other than its own default. */

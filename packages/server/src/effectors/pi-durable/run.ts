@@ -193,7 +193,12 @@ export class PiRun {
     images: ImageContent[] | undefined,
     context: Context,
     resolved?: ResolvedReferences,
-    delivery?: { requestId: string; receipt: UserRequestReceipt; onSubmitted: () => void },
+    delivery?: {
+      requestId: string;
+      receipt?: UserRequestReceipt;
+      onSubmitted?: () => void;
+      source?: Record<string, JsonValue>;
+    },
   ) {
     await this.resume(context);
     const delivered = this.nextRunEnd();
@@ -209,7 +214,7 @@ export class PiRun {
                 ...(images ?? []),
               ]
             : text,
-        ...(delivery
+        ...(delivery?.receipt
           ? {
               entry: {
                 kind: "carmel.user-request-response",
@@ -223,17 +228,28 @@ export class PiRun {
                   data: {
                     carmelDisplayText: text,
                     carmelReferences: resolved.references,
+                    ...delivery?.source,
                   } as unknown as JsonValue,
                 },
               }
-            : {}),
+            : delivery?.source
+              ? {
+                  entry: {
+                    kind:
+                      delivery.source.origin === "background"
+                        ? "carmel.background-input"
+                        : "carmel.home-input",
+                    data: delivery.source,
+                  },
+                }
+              : {}),
         whenBusy: "reject",
       },
       context,
     );
     // Same requestId repairs a crash between native admission and the host receipt.
     const admitted = delivery ? await submission.status(context) : undefined;
-    delivery?.onSubmitted();
+    delivery?.onSubmitted?.();
     const settled = await submission.wait(context);
     if (!admitted || admitted.status === "queued" || admitted.status === "placed") await delivered;
     if (settled.status === "unanswered" && !["aborted", "model_error"].includes(settled.reason))

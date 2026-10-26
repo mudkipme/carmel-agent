@@ -30,19 +30,21 @@ QR provisioning may preconfigure these capabilities, but tenant approval, app pu
 
 ## Conversations
 
-Send text or an image in the paired private chat. The first message creates a private Carmel session using the agent's defaults. Later messages continue that session and use its current model settings. The session is also available in Carmel's session list. Text replies stream where possible; the saved final reply is delivered through the durable output queue. Only assistant text is sent, never thinking or raw tool results.
+Send text or an image in the paired private chat. Telegram, Feishu/Lark, and the web share your private **Home** conversation with this agent. Messages contribute to the same context and appear in Home on the web. Each IM reply returns to its originating integration; ordinary web replies are not broadcast to IM. Replies use the durable output queue; thinking and raw tool output are never sent.
+
+Existing integrations adopt one of their current conversations as Home. Carmel prefers the default notification integration's valid conversation, then the most recently updated valid conversation. Other conversations remain in Sessions. Accepted older inputs retain their original destination; migration does not merge transcripts or resend queued deliveries.
 
 Images are limited to 10 MB each and five per message. Files, voice, video, group conversations, and shared bots are outside this version's scope.
 
 Commands:
 
-- `/new`: start a new conversation with the next message; previous history is preserved. Finish or stop the active turn first.
-- `/stop`: stop the active run and clear pending IM prompts.
-- `/status`: show the connection and queue state.
-- `/web`: open the current session. Configure `CARMEL_PUBLIC_URL` with Carmel's absolute browser URL for clickable external links; otherwise the bot returns the session's relative path.
+- `/new`: begin a fresh Home model context while retaining history, saved memory, and background jobs. Finish or stop the current reply and pending inputs first.
+- `/stop`: stop the Home reply and clear pending Home user messages across web and IM. Issue jobs and schedules continue. Automated Home replies stay paused until you send another message or resume.
+- `/status`: show the connection, Home reply state, and shared input queue.
+- `/web`: open Home. Configure `CARMEL_PUBLIC_URL` for an absolute link; otherwise the bot returns its relative path.
 - `/help`: list commands.
 
-Up to twenty messages can wait behind an active turn. Web and IM requests respect the same active-session lease. Continuing the conversation on the web contributes to its context but does not broadcast every web turn back to IM.
+Up to twenty user messages can wait across Home channels. Inputs run in admission order. Disabling or removing a connection cancels its pending inputs and deliveries while preserving Home. Reconnecting a bot and switching between Agents and Sessions views do not reset Home.
 
 ## Proactive messages and scheduled tasks
 

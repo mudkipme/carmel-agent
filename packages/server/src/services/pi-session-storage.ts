@@ -17,6 +17,7 @@ import {
   defineDoc,
   Harness,
   LiveDoc,
+  InboxDoc,
   createRegistry,
   type Conversation,
   type ConversationId,
@@ -304,10 +305,23 @@ export function displayEntries(
           } as ReferenceMessage)
         : undefined;
     const message =
+      (["carmel.notice", "carmel.helper-result"].includes(entry.kind)
+        ? {
+            role: "homeNotice" as const,
+            text: (entry.data as { text: string }).text,
+            timestamp: (entry.data as { timestamp?: number }).timestamp ?? 0,
+          }
+        : undefined) ??
       data?.carmelMessage ??
       receiptMessage ??
       referencedMessage ??
-      (["pi.user", "pi.assistant", "pi.tool-result", "carmel.system-message"].includes(entry.kind)
+      ([
+        "pi.user",
+        "pi.assistant",
+        "pi.tool-result",
+        "carmel.system-message",
+        "carmel.home-input",
+      ].includes(entry.kind)
         ? entry.model?.[0]
         : undefined);
     const base = {
@@ -400,6 +414,59 @@ export async function readPiSessionBranch(session: PiSession): Promise<DisplayEn
       message: partial as unknown as AgentMessage,
     });
   return displayed;
+}
+
+export async function readPiSessionPage(
+  session: PiSession,
+  token?: string,
+  limit = 100,
+  around?: string,
+) {
+  let cursor: Cursor | undefined;
+  if (token) {
+    const saved = JSON.parse(Buffer.from(token, "base64url").toString()) as {
+      conversation: number;
+      cursor: Cursor;
+    };
+    if (saved.conversation !== session.conversation.id)
+      throw new Error("Conversation changed. Reload its history.");
+    cursor = saved.cursor;
+  }
+  const maxEntryId = around ? await resolveEntryId(session, around) : undefined;
+  return session.conversation.commit(async (tx) => {
+    const page = await tx.scanEntries(
+      {
+        conversationId: session.conversation.id,
+        order: "descending",
+        ...(maxEntryId ? { maxEntryId } : {}),
+      },
+      limit,
+      cursor,
+    );
+    if (maxEntryId && page.items[0]?.id !== maxEntryId)
+      throw new Error("Message is no longer on this conversation branch.");
+    const entries = displayEntries([...page.items].reverse(), session.id);
+    if (!token && !around) {
+      const live = await tx.doc(LiveDoc, session.conversation.id);
+      if (live.generation?.message)
+        entries.push({
+          id: `${PENDING_ENTRY_ID_PREFIX}${live.run?.taskId ?? session.conversation.id}`,
+          parentId: entries.at(-1)?.id ?? null,
+          seq: 0,
+          timestamp: live.generation.message.timestamp,
+          type: "message",
+          message: JSON.parse(JSON.stringify(live.generation.message)),
+        });
+    }
+    return {
+      entries,
+      olderCursor: page.next
+        ? Buffer.from(
+            JSON.stringify({ conversation: session.conversation.id, cursor: page.next }),
+          ).toString("base64url")
+        : undefined,
+    };
+  }, ctx);
 }
 export async function appendPiMessage(session: PiSession, message: AgentMessage) {
   return displayId(
@@ -526,10 +593,20 @@ export async function forkPiSession(sourceId: string, targetId: string, id: stri
     }
   });
 }
-export async function hasPendingPiSessionWork(sessionId: string) {
+export async function hasPendingPiSessionWork(sessionId: string, includeBackground = false) {
   return withPiSession(sessionId, async (session) => {
-    const work = await session.native.inspect(ctx);
-    return Boolean(work.tasks.length || work.submissions.length);
+    if (includeBackground) {
+      const work = await session.native.inspect(ctx);
+      return Boolean(work.tasks.length || work.submissions.length);
+    }
+    return session.conversation.commit(
+      async (tx) =>
+        Boolean(
+          (await tx.doc(LiveDoc, session.conversation.id)).run ||
+          (await tx.doc(InboxDoc, session.conversation.id)).items.length,
+        ),
+      ctx,
+    );
   });
 }
 export async function deletePiSession(session: typeof sessions.$inferSelect) {

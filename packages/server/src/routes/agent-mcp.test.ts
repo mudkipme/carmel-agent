@@ -141,3 +141,42 @@ test("connection tests discover real HTTP tools and close the temporary MCP sess
     await server.close();
   }
 });
+
+test("agent appearance is saved publicly and survives updates from clients that omit it", async () => {
+  const fixture = createSession();
+  const app = appFor(fixture.userId);
+  const row = db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!;
+  assert.equal(serializePublicAgent(row).icon, "bot");
+  const {
+    id: _id,
+    ownerUserId: _owner,
+    createdAt: _created,
+    updatedAt: _updated,
+    ...settings
+  } = serializeAgentSettings(row);
+  const command = agentConfigRequestSchema.parse({
+    ...settings,
+    workingDirMode: "default",
+    icon: "orbit",
+    color: "purple",
+  });
+  const save = (input: unknown) =>
+    app.request(`/agents/${fixture.agentId}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  const response = await save(command);
+  assert.equal(response.status, 200);
+  const saved = await response.json();
+  assert.equal(saved.icon, "orbit");
+  assert.equal(saved.color, "purple");
+  const { icon: _icon, color: _color, ...olderCommand } = command;
+  assert.equal((await save({ ...olderCommand, description: "Updated separately" })).status, 200);
+  const publicAgent = serializePublicAgent(
+    db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!,
+  );
+  assert.equal(publicAgent.icon, "orbit");
+  assert.equal(publicAgent.color, "purple");
+  assert.equal((await save({ ...command, icon: "unknown" })).status, 400);
+});

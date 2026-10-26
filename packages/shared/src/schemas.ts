@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { agentIconSchema, agentColorSchema } from "./agent-appearance.ts";
 
 export const emptyStringToUndefined = (value: unknown) => (value === "" ? undefined : value);
 export const optionalStringSchema = z.preprocess(emptyStringToUndefined, z.string().optional());
@@ -220,6 +221,8 @@ export const agentConfigRequestSchema = z
   .object({
     shared: z.boolean().default(false),
     name: z.string(),
+    icon: agentIconSchema.optional(),
+    color: agentColorSchema.optional(),
     description: z.string(),
     workingDirMode: z.enum(["default", "manual"]).default("default"),
     workingDir: z.string(),
@@ -266,6 +269,7 @@ export type AgentTaskCreateCommand = z.infer<typeof agentTaskCreateSchema>;
 export type AgentTaskPatchCommand = z.infer<typeof agentTaskPatchSchema>;
 
 const issueBriefFields = {
+  notifyPlatform: z.enum(["telegram", "feishu", "lark"]).optional(),
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(40_000),
   criteria: z.array(z.string().trim().min(1).max(2_000)).max(50),

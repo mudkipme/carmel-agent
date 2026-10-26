@@ -16,6 +16,14 @@ Tests use Node's test runner. Prefer the smallest focused command while iteratin
 
 The client uses ordinary React hooks without React Compiler. Lint keeps the compiler diagnostics for refs, manual memoization, and synchronous state synchronization off; hook ordering and effect dependencies remain checked.
 
+## Database Migrations
+
+Metadata tables, foreign keys, and indexes are declared in `packages/server/src/db/schema.ts` and `im-schema.ts`. After changing them, run `pnpm --filter @carmel-agent/server db:generate --name=describe_change`, review the generated SQL, and commit it with its snapshot and journal under `packages/server/drizzle`. Run `pnpm --filter @carmel-agent/server db:check` to validate migration history. Keep already shipped migrations unchanged.
+
+The server applies pending migrations through Drizzle's SQLite migrator before seeding or serving requests. `pnpm --filter @carmel-agent/server db:migrate` applies the same startup migrations without starting the server, using `DATABASE_URL` or the configured data directory. Back up deployed data before upgrading.
+
+The initial baseline uses `IF NOT EXISTS` to adopt databases created before migration tracking. `legacy-upgrade.ts` runs once for those databases to preserve older secret scopes and pin pending IM inputs to their original sessions. Future schema changes belong in new generated migrations. Use `db:generate --custom --name=describe_change` for data backfills and SQLite features outside Drizzle's schema model, such as FTS5 and triggers. Pi's per-session databases remain managed by Pi Durable.
+
 ## Test Quality
 
 Test observable behavior at the boundary that owns it. Each new test should name a credible regression and explain why existing coverage would not catch it. Keep independent security, protocol, persistence, lifecycle, and platform contracts. Prefer extending a meaningful case over duplicating the same guarantee at another layer.

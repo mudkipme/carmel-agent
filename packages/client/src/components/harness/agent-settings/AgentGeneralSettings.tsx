@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { AgentAvatar } from "../shell/AgentAvatar";
+import { AgentAppearancePicker } from "./AgentAppearancePicker";
 import type {
   AgentConfig,
   AgentMount,
@@ -64,15 +66,19 @@ export function AgentGeneralSettings({
   return (
     <div className="grid gap-6">
       <section className="grid gap-4">
-        <div className="grid gap-3">
-          <Field>
-            <FieldLabel htmlFor={`${fieldId}-name`}>Name</FieldLabel>
-            <Input
-              id={`${fieldId}-name`}
-              value={draft.name}
-              onChange={(event) => onChange({ name: event.target.value })}
-            />
-          </Field>
+        <FieldGroup className="gap-4">
+          <div className="flex items-end gap-3">
+            <AgentAvatar agent={draft} className="size-12 rounded-xl" />
+            <Field>
+              <FieldLabel htmlFor={`${fieldId}-name`}>Name</FieldLabel>
+              <Input
+                id={`${fieldId}-name`}
+                value={draft.name}
+                onChange={(event) => onChange({ name: event.target.value })}
+              />
+            </Field>
+          </div>
+          <AgentAppearancePicker agent={draft} onChange={onChange} />
           <Field>
             <FieldLabel htmlFor={`${fieldId}-description`}>Description</FieldLabel>
             <Input
@@ -245,7 +251,7 @@ export function AgentGeneralSettings({
             checked={draft.shared}
             onCheckedChange={(shared) => onChange({ shared })}
           />
-        </div>
+        </FieldGroup>
       </section>
 
       <section className="grid gap-4 border-t pt-6">

@@ -37,7 +37,10 @@ export function IssueView({
 }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const listPath = `/agents/${agent.id}/issues${issueListSearch(params)}`;
+  const fromHome = params.get("from") === "home";
+  const listPath = fromHome
+    ? `/agents/${agent.id}/home`
+    : `/agents/${agent.id}/issues${issueListSearch(params)}`;
   const userId = useHarnessStore((s) => s.activeUserId);
   const briefDraftKey = draftStorageKey(userId, agent.id, issueId, "brief");
   const replyDraftKey = draftStorageKey(userId, agent.id, issueId, "reply");
@@ -123,7 +126,7 @@ export function IssueView({
             to={listPath}
           >
             <ArrowLeftIcon className="size-4" />
-            {agent.name} / Issues
+            {agent.name} / {fromHome ? "Home" : "Issues"}
           </Link>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">

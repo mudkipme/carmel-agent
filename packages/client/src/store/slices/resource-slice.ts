@@ -49,6 +49,8 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
         ownerUserId: draft?.ownerUserId ?? get().activeUserId,
         shared: draft?.shared ?? false,
         name: draft?.name ?? "New agent",
+        icon: draft?.icon ?? "bot",
+        color: draft?.color,
         description: draft?.description ?? "Personal agent",
         workingDirMode: draft?.workingDirMode ?? "default",
         workingDir: draft?.workingDir ?? "",

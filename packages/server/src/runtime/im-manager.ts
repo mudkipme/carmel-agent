@@ -1,4 +1,12 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { ensureHome, readHome, resetHome } from "../services/agent-homes.ts";
+import {
+  admitHomeInput,
+  dispatchHome,
+  queuedHomeInputs,
+  stopHome,
+} from "../services/home-events.ts";
+import { homeEvents, issues } from "../db/schema.ts";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { applyStreamingEvent, type AgentRunEventEnvelope } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { db } from "../db/index.ts";
@@ -24,7 +32,6 @@ import {
   type IntegrationRecord,
 } from "../services/im-integrations.ts";
 import { readVisibleAgent } from "../services/agent-access.ts";
-import { insertSession } from "../services/session-launch.ts";
 import { resolveRunModel } from "../services/model-context.ts";
 import { hasPendingPiSessionWork } from "../services/pi-session-storage.ts";
 import { startDetachedAgentRun } from "./agent-runtime.ts";
@@ -37,9 +44,10 @@ import {
 } from "./run-stream.ts";
 
 type Connection = { version: string; transport: ImTransport };
-const MAX_QUEUED = 20;
-export function imSessionLink(agentId: string, sessionId: string) {
-  const path = `/agents/${encodeURIComponent(agentId)}/sessions/${encodeURIComponent(sessionId)}`;
+export function imSessionLink(agentId: string, sessionId?: string) {
+  const path = sessionId
+    ? `/agents/${encodeURIComponent(agentId)}/sessions/${encodeURIComponent(sessionId)}`
+    : `/agents/${encodeURIComponent(agentId)}/home`;
   try {
     const base = new URL(process.env.CARMEL_PUBLIC_URL ?? "");
     if (["http:", "https:"].includes(base.protocol)) return new URL(path, base).href;
@@ -76,27 +84,45 @@ export async function receiveImMessage(integrationId: string, event: ImIncoming)
     return;
   const command = /^\/(\w+)(?:@\w+)?(?:\s|$)/.exec(event.text.trim())?.[1]?.toLowerCase();
   const inboxId = id("im_input");
-  const queued = db
-    .select({ id: imInbox.id })
-    .from(imInbox)
-    .where(and(eq(imInbox.integrationId, integrationId), eq(imInbox.status, "queued")))
-    .all().length;
+  const home = readHome(integration.userId, integration.agentId);
+  const queued = home ? queuedHomeInputs(home.sessionId) : 0;
   const control = ["help", "status", "web", "new", "stop", "start", "pair"].includes(command ?? "");
   const tooLarge = event.text.length > 100_000 || event.imageKeys.length > 5;
-  const inserted = db
-    .insert(imInbox)
-    .values({
-      id: inboxId,
-      integrationId,
-      eventId: event.eventId,
-      prompt: { text: tooLarge ? "" : event.text },
-      imageKeys: tooLarge ? [] : event.imageKeys,
-      messageId: event.messageId,
-      status: control || queued >= MAX_QUEUED || tooLarge ? "done" : "queued",
-      createdAt: now(),
-    })
-    .onConflictDoNothing()
-    .run();
+  let admissionError: string | undefined;
+  const inserted = db.transaction(() => {
+    const inserted = db
+      .insert(imInbox)
+      .values({
+        id: inboxId,
+        integrationId,
+        eventId: event.eventId,
+        prompt: { text: tooLarge ? "" : event.text },
+        imageKeys: tooLarge ? [] : event.imageKeys,
+        messageId: event.messageId,
+        status: control || tooLarge ? "done" : "queued",
+        createdAt: now(),
+      })
+      .onConflictDoNothing()
+      .run();
+    if (!inserted.changes || control || tooLarge) return inserted;
+    try {
+      const admitted = admitHomeInput(integration.userId, integration.agentId, {
+        sourceKey: `im:${integrationId}:${event.eventId}`,
+        prompt: { text: event.text },
+        origin: "im",
+        integrationId,
+        preparing: event.imageKeys.length > 0,
+      });
+      db.update(imInbox)
+        .set({ homeEventId: admitted.id, sessionId: admitted.sessionId })
+        .where(eq(imInbox.id, inboxId))
+        .run();
+    } catch (error) {
+      admissionError = error instanceof Error ? error.message : "Cannot queue this message.";
+      db.update(imInbox).set({ status: "done" }).where(eq(imInbox.id, inboxId)).run();
+    }
+    return inserted;
+  });
   if (!inserted.changes) return;
   const reply = (text: string) =>
     enqueueImMessage(integrationId, text, `input:${event.eventId}:ack`, false);
@@ -104,58 +130,66 @@ export async function receiveImMessage(integrationId: string, event: ImIncoming)
     reply("Please send at most 100,000 characters and five images per message.");
     return;
   }
-  const active = binding.sessionId
-    ? getActiveAgentRunForSession(integration.userId, binding.sessionId)
-    : undefined;
+  if (admissionError) {
+    reply(admissionError);
+    return;
+  }
+  const sessionId = home?.sessionId ?? binding.sessionId;
+  const active = sessionId ? getActiveAgentRunForSession(integration.userId, sessionId) : undefined;
   switch (command) {
     case "help":
     case "start":
     case "pair":
       reply(
-        "Send text or an image to chat with your agent.\n/new — fresh conversation\n/stop — stop the run and clear queued messages\n/status — connection and queue\n/web — open this conversation\n/help — commands",
+        "Talk here or in Carmel: both use Home.\n/new — new context, retain history and jobs\n/stop — stop Home and clear pending messages across channels\n/status — connection and Home queue\n/web — open Home\n/help — commands",
       );
       return;
     case "stop":
-      if (active) abortAgentRun(integration.userId, active.runId);
-      db.update(imInbox)
-        .set({ status: "interrupted" })
-        .where(and(eq(imInbox.integrationId, integrationId), eq(imInbox.status, "queued")))
-        .run();
+      if (home) await stopHome(integration.userId, integration.agentId);
+      else {
+        if (active) abortAgentRun(integration.userId, active.runId);
+        db.update(imInbox)
+          .set({ status: "interrupted" })
+          .where(and(eq(imInbox.integrationId, integrationId), eq(imInbox.status, "queued")))
+          .run();
+      }
       reply(
-        active
-          ? "Stopping the current run. Queued messages cleared."
-          : "No active run. Queued messages cleared.",
+        "Home stopped. Pending Home messages across channels cleared; background jobs continue.",
       );
       return;
     case "new":
       if (active || queued)
-        reply("Finish the current conversation turn or use /stop before starting a new one.");
-      else {
-        db.update(imBindings)
-          .set({ sessionId: null })
-          .where(eq(imBindings.integrationId, integrationId))
-          .run();
         reply(
-          "Your next message will start a fresh conversation. Previous conversations remain in Carmel.",
+          "Finish or stop the current Home reply and pending messages before starting a new context.",
         );
+      else {
+        try {
+          if (home) await resetHome(integration.userId, integration.agentId);
+          reply(
+            "Fresh Home context. Earlier history, saved memory, and background jobs are retained.",
+          );
+        } catch (error) {
+          reply(error instanceof Error ? error.message : "Cannot reset Home.");
+        }
       }
       return;
-    case "status":
+    case "status": {
+      const work = db
+        .select({ status: issues.status })
+        .from(issues)
+        .where(and(eq(issues.userId, integration.userId), eq(issues.agentId, integration.agentId)))
+        .all();
       reply(
-        `${integration.botName}: ${integration.status}. ${active ? "Agent running." : "Agent idle."} ${queued} queued message(s).`,
+        `${integration.botName}: ${integration.status}. Home ${active ? "replying" : "idle"}. ${queued} pending message(s). ${work.filter((issue) => issue.status === "in_progress").length} issue(s) running, ${work.filter((issue) => ["in_review", "needs_input", "blocked"].includes(issue.status)).length} need attention.`,
       );
       return;
+    }
     case "web":
-      reply(
-        binding.sessionId
-          ? imSessionLink(integration.agentId, binding.sessionId)
-          : "Send a message first to create a conversation.",
-      );
+      reply(imSessionLink(integration.agentId));
       return;
   }
-  if (queued >= MAX_QUEUED)
-    reply("The message queue is full. Please wait for the agent or use /stop.");
-  else if (queued || active) reply("Message queued. Use /stop to stop and clear the queue.");
+  if (queued || active)
+    reply("Message queued in Home. /stop clears pending Home messages across channels.");
 }
 export function recoverImWork() {
   db.transaction(() => {
@@ -167,7 +201,11 @@ export function recoverImWork() {
       })
       .where(eq(imOutbox.status, "sending"))
       .run();
-    for (const input of db.select().from(imInbox).where(eq(imInbox.status, "running")).all()) {
+    for (const input of db
+      .select()
+      .from(imInbox)
+      .where(and(eq(imInbox.status, "running"), isNull(imInbox.homeEventId)))
+      .all()) {
       db.update(imInbox).set({ status: "interrupted" }).where(eq(imInbox.id, input.id)).run();
       if (activeIntegration(input.integrationId))
         enqueueImMessage(
@@ -443,13 +481,53 @@ export class ImManager {
       .orderBy(asc(imInbox.createdAt), asc(sql`rowid`))
       .get();
     if (!input) return;
+    if (!input.legacy) {
+      const event = input.homeEventId
+        ? db.select().from(homeEvents).where(eq(homeEvents.id, input.homeEventId)).get()
+        : undefined;
+      if (!event) return;
+      if (event.status === "preparing") {
+        try {
+          const transport = this.connections.get(`integration:${snapshot.id}`)?.transport;
+          if (!transport) return;
+          const images = [];
+          for (const key of input.imageKeys)
+            images.push(await transport.image(key, input.messageId ?? undefined));
+          if (!activeIntegration(snapshot.id) || this.stopped) return;
+          db.update(homeEvents)
+            .set({ prompt: { ...input.prompt, images }, status: "queued" })
+            .where(and(eq(homeEvents.id, event.id), eq(homeEvents.status, "preparing")))
+            .run();
+        } catch {
+          db.update(homeEvents)
+            .set({
+              status: "failed",
+              error: "Cannot download this image. Send it again.",
+              finishedAt: now(),
+            })
+            .where(eq(homeEvents.id, event.id))
+            .run();
+          db.update(imInbox).set({ status: "done" }).where(eq(imInbox.id, input.id)).run();
+          enqueueImMessage(
+            snapshot.id,
+            "Cannot download this image. Send it again.",
+            `image-error:${input.id}`,
+            false,
+            event.sessionId,
+          );
+          return;
+        }
+      }
+      await dispatchHome(event.sessionId);
+      return;
+    }
     const binding = db
       .select()
       .from(imBindings)
       .where(eq(imBindings.integrationId, snapshot.id))
       .get();
-    let session = binding?.sessionId
-      ? db.select().from(sessions).where(eq(sessions.id, binding.sessionId)).get()
+    let session = input.sessionId
+      ? db.select().from(sessions).where(eq(sessions.id, input.sessionId)).get()
       : undefined;
     if (session && getActiveAgentRunForSession(snapshot.userId, session.id)) return;
     if (session && (await hasPendingPiSessionWork(session.id))) {
@@ -517,19 +595,12 @@ export class ImManager {
           return;
         session = latest;
       }
-      if (!session) {
-        session = insertSession({
-          userId: current.userId,
-          agentId: agent.id,
-          modelRefId: model.value.modelRef.id,
-          thinkingLevel: model.value.thinkingLevel,
-          title: `${current.platform}: ${input.prompt.text.slice(0, 60) || "Image conversation"}`,
-        });
-        db.update(imBindings)
-          .set({ sessionId: session.id })
-          .where(eq(imBindings.integrationId, current.id))
-          .run();
-      }
+      if (!session)
+        session = db
+          .select()
+          .from(sessions)
+          .where(eq(sessions.id, ensureHome(current.userId, agent.id).sessionId))
+          .get()!;
       db.update(imInbox)
         .set({ status: "running", sessionId: session.id })
         .where(eq(imInbox.id, input.id))

@@ -10,6 +10,8 @@ import type {
   PromptTemplate,
 } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
+import type { AgentIcon, AgentColor } from "./agent-appearance.ts";
+export * from "./agent-appearance.ts";
 export * from "./references.ts";
 export * from "./user-requests.ts";
 export { browserClipboardLimit } from "./browser.ts";
@@ -45,6 +47,7 @@ export type ArtifactMessage = {
 declare module "@earendil-works/pi-agent-core" {
   interface CustomAgentMessages {
     artifact: ArtifactMessage;
+    homeNotice: { role: "homeNotice"; text: string; timestamp: number };
   }
 }
 
@@ -232,6 +235,8 @@ export type AgentConfig = {
   ownerUserId: string;
   shared: boolean;
   name: string;
+  icon?: AgentIcon;
+  color?: AgentColor;
   description: string;
   workingDirMode: AgentWorkingDirMode;
   workingDir: string;
@@ -332,6 +337,7 @@ export type IssueStatus =
 export type IssueVerdict = "done" | "needs_input" | "blocked";
 export type IssuePriority = "low" | "normal" | "high" | "urgent";
 export type Issue = {
+  notifyPlatform?: import("./im.ts").ImPlatform;
   id: string;
   agentId: string;
   userId: string;
@@ -469,4 +475,21 @@ export type GitFileDiff = {
 export type AgentFileBatchResult = {
   completed: string[];
   failed: { path: string; error: string }[];
+};
+
+export type HelperSummary = {
+  id: number;
+  name: string;
+  task: string;
+  background: boolean;
+  createdAt: number;
+  wakeAt: number;
+  deadline: number;
+  status: "working" | "sleeping" | "reporting" | "done" | "failed" | "stopped";
+  answer?: string;
+};
+export type HelpersState = {
+  helpers: HelperSummary[];
+  error: string | null;
+  tasks: Array<{ id: number; kind: string; state: string; background: boolean }>;
 };

@@ -22,6 +22,8 @@ import { errorMessage } from "@/lib/errors";
  */
 export type AgentSnapshot = {
   messages: AgentMessage[];
+  olderCursor?: string;
+  historyOnly?: boolean;
   streamingMessage?: AgentMessage;
   pendingToolCalls: Set<string>;
   nestedTools?: readonly NestedToolSlot[];
@@ -56,6 +58,8 @@ export class RemoteAgent {
   private snapshotValue: AgentSnapshot;
   private abortController?: AbortController;
   private messages: AgentMessage[];
+  private olderCursor?: string;
+  private historyOnly = false;
   private streamingMessage?: AgentMessage;
   private pendingToolCalls = new Set<string>();
   private nestedTools = [] as readonly NestedToolSlot[];
@@ -85,12 +89,17 @@ export class RemoteAgent {
       model: Model<Api>;
       thinkingLevel: ThinkingLevel;
       messages: AgentMessage[];
+      home?: boolean;
+      olderCursor?: string;
+      onConnection?: (connection: SessionConnection) => void;
+      onHistoryPage?: (page: import("@carmel-agent/shared").Session) => void;
       pendingWork?: boolean;
       userRequests?: UserRequest[];
       onRunComplete?: () => Promise<void> | void;
     },
   ) {
     this.messages = [...config.messages];
+    this.olderCursor = config.olderCursor;
     this.hasPendingWork = config.pendingWork ?? false;
     this.userRequests = config.userRequests ?? [];
     this.model = config.model;
@@ -123,6 +132,8 @@ export class RemoteAgent {
   private buildSnapshot(): AgentSnapshot {
     return {
       messages: this.messages,
+      olderCursor: this.olderCursor,
+      historyOnly: this.historyOnly,
       streamingMessage: this.streamingMessage,
       pendingToolCalls: this.pendingToolCalls,
       nestedTools: this.nestedTools,
@@ -151,6 +162,11 @@ export class RemoteAgent {
   }
 
   async abort() {
+    if (this.config.home) {
+      await api.stopHome(this.config.agentId);
+      if (!this.isStreaming) await this.refreshConnection();
+      return;
+    }
     const runId = this.runId;
     if (!runId) {
       // The admission response is the run id, and it comes back before the
@@ -201,8 +217,36 @@ export class RemoteAgent {
     images?: ImageContent[],
     references?: PromptInput["references"],
   ): Promise<PromptOutcome> {
-    if (this.abortController) throw new Error("Agent is already processing.");
     const promptInput = normalizePromptInput(input, images);
+    if (this.config.home && promptInput) {
+      if (references?.length) promptInput.references = references;
+      try {
+        const response = await apiFetch(
+          `/api/agents/${encodeURIComponent(this.config.agentId)}/home/messages`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              requestId: crypto.randomUUID(),
+              promptInput,
+              modelRefId: this.config.modelRefId,
+              thinkingLevel: this.thinkingLevel,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            }),
+          },
+        );
+        if (!response.ok) {
+          const error = await apiError(response, "Unable to queue this message.");
+          this.fail(error);
+          return { status: "rejected", error: errorMessage(error) };
+        }
+        void this.refreshHome();
+        return { status: "accepted" };
+      } catch (error) {
+        this.fail(error);
+        return { status: "unknown", error: errorMessage(error) };
+      }
+    }
+    if (this.abortController) throw new Error("Agent is already processing.");
     if (promptInput && references?.length) promptInput.references = references;
     const controller = this.beginRun();
     // Set as soon as a server run exists for this submission, and read by the
@@ -471,7 +515,10 @@ export class RemoteAgent {
   }
 
   applyConnectionSnapshot(connection: SessionConnection) {
+    this.config.onConnection?.(connection);
     this.messages = [...connection.session.messages];
+    this.olderCursor = connection.session.olderCursor;
+    this.historyOnly = false;
     this.hasPendingWork = connection.pendingWork ?? false;
     this.userRequests = connection.userRequests ?? [];
     this.thinkingLevel = connection.session.thinkingLevel;
@@ -479,6 +526,40 @@ export class RemoteAgent {
     this.pendingToolCalls = new Set();
     this.nestedTools = [];
     this.notify();
+  }
+
+  async openEntry(entryId: string) {
+    if (this.isStreaming) return;
+    const page = await api.getSessionHistory(this.config.sessionId, "", entryId);
+    this.messages = page.messages;
+    this.olderCursor = page.olderCursor;
+    this.historyOnly = true;
+    this.config.onConnection?.({ session: page, activeRun: null });
+    this.notify();
+  }
+
+  async loadOlder() {
+    if (!this.olderCursor || this.isStreaming) return;
+    const page = await api.getSessionHistory(this.config.sessionId, this.olderCursor);
+    const combined = [...page.messages, ...this.messages];
+    this.historyOnly = this.historyOnly || combined.length > 500;
+    this.messages = combined.slice(0, 500);
+    this.olderCursor = page.olderCursor;
+    this.config.onHistoryPage?.(page);
+    this.notify();
+  }
+
+  async refreshHome() {
+    if (this.abortController || this.historyOnly) return;
+    const connection = await api.getSessionConnection(this.config.sessionId);
+    if (this.abortController || this.historyOnly || this.detachRequested) return;
+    this.applyConnectionSnapshot(connection);
+    if (connection.activeRun)
+      void this.attachToRun(
+        connection.activeRun.runId,
+        connection.session.messages,
+        connection.activeRun.eventCursor,
+      );
   }
 
   async refreshConnection() {

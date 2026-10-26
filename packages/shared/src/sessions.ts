@@ -10,6 +10,7 @@ export type SessionFork = {
 export type SessionMetadata = {
   id: string;
   title: string;
+  home?: boolean;
   userId: string;
   agentId: string;
   modelRefId: string;
@@ -29,6 +30,8 @@ export type SessionMetadata = {
 export type Session = SessionMetadata & {
   messages: AgentMessage[];
   messageEntryIds: string[];
+  olderCursor?: string;
+  observedAt?: number;
 };
 
 export type SessionImportResult = {
@@ -59,6 +62,7 @@ export function toSessionMetadata(session: SessionMetadataSource): SessionMetada
   return {
     id: session.id,
     title: session.title,
+    ...(session.home ? { home: true } : {}),
     userId: session.userId,
     agentId: session.agentId,
     modelRefId: session.modelRefId,
@@ -76,8 +80,9 @@ export function toSessionMetadata(session: SessionMetadataSource): SessionMetada
 
 /** The inverse projection: the nullable column shape the sessions table stores. */
 export function toSessionRow(session: SessionMetadataSource) {
+  const { home: _home, ...metadata } = toSessionMetadata(session);
   return {
-    ...toSessionMetadata(session),
+    ...metadata,
     forkedFrom: session.forkedFrom ?? null,
     pinnedAt: session.pinnedAt ?? null,
     archivedAt: session.archivedAt ?? null,

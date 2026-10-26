@@ -1,3 +1,5 @@
+import { useHarnessStore } from "@/store/harness-store";
+import { draftStorageKey } from "@/lib/session-draft";
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import type { NestedToolSlot, MessageReference } from "@carmel-agent/shared";
@@ -11,6 +13,7 @@ import {
   type Ref,
 } from "react";
 import type { PromptOutcome } from "@/lib/remote-agent";
+import { Button } from "@/components/ui/button";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMessages } from "./ChatMessages";
 import { AgentRequestArea } from "./AgentRequestCard";
@@ -23,6 +26,10 @@ type ChatPanelProps = {
   initialReferences?: MessageReference[];
   onReferencesChange?: (references: MessageReference[]) => void;
   readOnly?: boolean;
+  allowQueuedInput?: boolean;
+  onAtBottomChange?: (atBottom: boolean) => void;
+  onLoadEarlier?: () => Promise<void>;
+  onLoadLatest?: () => Promise<void>;
   scrollResetKey: string;
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
@@ -61,6 +68,10 @@ export function ChatPanel({
   initialReferences,
   onReferencesChange,
   readOnly,
+  allowQueuedInput,
+  onAtBottomChange,
+  onLoadEarlier,
+  onLoadLatest,
   scrollResetKey,
   messages,
   streamingMessage,
@@ -86,6 +97,7 @@ export function ChatPanel({
   onRetryMessage,
   onForkMessage,
 }: ChatPanelProps) {
+  const userId = useHarnessStore((state) => state.activeUserId);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef(true);
@@ -135,12 +147,49 @@ export function ChatPanel({
           const distanceFromBottom =
             element.scrollHeight - element.scrollTop - element.clientHeight;
           autoScrollRef.current = distanceFromBottom < 48;
+          onAtBottomChange?.(autoScrollRef.current);
         }}
       >
         <div
           ref={contentRef}
           className="mx-auto flex w-full max-w-[var(--line-width)] min-w-0 flex-col px-2 pt-5 pb-4 sm:px-4"
         >
+          {onLoadEarlier || onLoadLatest ? (
+            <div className="flex justify-center gap-2 pb-3">
+              {onLoadEarlier ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isStreaming}
+                  onClick={() => {
+                    const element = scrollRef.current;
+                    const height = element?.scrollHeight ?? 0;
+                    const top = element?.scrollTop ?? 0;
+                    autoScrollRef.current = false;
+                    void onLoadEarlier().then(() =>
+                      requestAnimationFrame(() => {
+                        if (element) element.scrollTop = top + element.scrollHeight - height;
+                      }),
+                    );
+                  }}
+                >
+                  Earlier messages
+                </Button>
+              ) : null}
+              {onLoadLatest ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    autoScrollRef.current = true;
+                    void onLoadLatest();
+                  }}
+                >
+                  Latest messages
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
           <ChatMessages
             messages={messages}
             streamingMessage={streamingMessage}
@@ -164,6 +213,7 @@ export function ChatPanel({
         >
           <div className="mx-auto w-full max-w-[var(--line-width)] min-w-0">
             <ChatInput
+              draftKey={draftStorageKey(userId, "session", sessionId)}
               agentId={agentId}
               sessionId={sessionId}
               canReadFiles={canReadFiles}
@@ -174,7 +224,7 @@ export function ChatPanel({
               leadingActions={inputLeadingActions}
               currentModel={currentModel}
               thinkingLevel={thinkingLevel}
-              isStreaming={isStreaming}
+              isStreaming={allowQueuedInput ? false : isStreaming}
               initialValue={initialInput}
               onDraftChange={onInputDraftChange}
               onThinkingLevelChange={onThinkingLevelChange}

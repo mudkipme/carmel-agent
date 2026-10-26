@@ -138,7 +138,7 @@ export const ChatMessages = memo(function ChatMessages({
 function segmentByRun(messages: AgentMessage[]): MessageSegment[] {
   const segments: MessageSegment[] = [];
   messages.forEach((message, index) => {
-    if (message.role === "user") {
+    if (message.role === "user" || message.role === "homeNotice") {
       segments.push({ kind: "message", message, index });
       return;
     }
@@ -348,6 +348,12 @@ const MessageItem = memo(function MessageItem({
   onRetryMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
 }) {
+  if (message.role === "homeNotice")
+    return (
+      <div role="status" className="py-3 text-sm text-muted-foreground">
+        <MarkdownContent content={message.text} />
+      </div>
+    );
   if (message.role === "assistant") {
     return (
       <div className="group flex min-w-0 flex-col gap-1">

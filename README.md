@@ -8,7 +8,7 @@ It runs on your machine or your server. Agents contact the model providers, webs
 
 - **Chat with agents that keep working.** Sessions persist, runs continue on the server if you close the tab, and reopening a session reconnects to a run in progress.
 - **Answers with the work tucked away.** Sessions fold thinking, tool calls and intermediate commentary under a “Show work” row, keeping the final answer and errors visible.
-- **Agents you shape.** Each agent has its own workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
+- **Agents you shape.** Each agent has its own icon, color, workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
 - **Sandboxed shell.** When an agent is allowed to run commands, they execute in a per-agent container with CPU, memory, PID, mount, and network limits — not on your host shell.
 - **A terminal in the browser.** Open an interactive shell straight into an agent's container, with the same environment its own commands get. The shell lives on the server, so a reload reattaches instead of starting over.
 - **A workspace beside the conversation.** Files, Changes, Terminal, and Browser share a resizable right pane. Expand a tool to use the full main area, or select “Show beside chat” to return to the split view. Your layout and pane width are remembered; narrow windows show one main pane automatically. Drag the divider to resize, use its arrow keys for precise adjustment, or double-click it to reset the width. File and diff links retain the companion conversation across reloads.
@@ -21,6 +21,8 @@ It runs on your machine or your server. Agents contact the model providers, webs
 - **Private IM integrations.** Connect your own Telegram bot or Feishu/Lark app to an agent, including QR setup for Feishu/Lark. Chat through IM and let scheduled tasks send you private alerts. See [IM integrations](docs/im-integrations.md).
 - **Your own skills.** Drop skills into `.agents/skills` in an agent's workspace and they show up as slash commands in the chat.
 - **Issues.** Queue work for an agent, continue the discussion, send live updates, and review saved results before accepting them. See [the Issues workflow](docs/issues.md).
+- **Agents and Home.** Switch the sidebar to Agents to return to one private Home conversation per agent. Sessions keeps independent conversations available. Home supports a fresh model context while retaining its readable history; older messages load in pages.
+- **Helpers.** Working sessions can delegate read-only research to up to four helpers. Background helpers can wake later, survive server restarts, and report to Home. Inspect their conversations and stop them separately from the parent reply.
 - **Conversation control.** Fork a session from any earlier message, edit your own messages, truncate a branch, pin the sessions you keep coming back to, attach images.
 - **Multiple people, one instance.** Admins manage provider credentials and accounts; everyone gets their own sessions and can share agents and model entries with the rest of the instance.
 - **Single sign-on.** Sign in with Pocket ID or any other OpenID Connect provider. You can link people to existing accounts by username or email, and use provider groups to decide who may sign in and who is an admin.

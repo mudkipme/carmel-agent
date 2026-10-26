@@ -1,3 +1,4 @@
+import { agentHomes } from "../db/schema.ts";
 import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
 import {
   agentConfigRequestSchema,
@@ -88,6 +89,8 @@ export function createAgentRoutes() {
           ownerUserId: currentUserId,
           shared: agent.shared,
           name: agent.name,
+          icon: agent.icon ?? current?.icon ?? "bot",
+          color: agent.color ?? current?.color ?? null,
           description: agent.description,
           workingDirMode: agent.workingDirMode ?? "default",
           workingDir: workingDir.workingDir,
@@ -134,6 +137,7 @@ export function createAgentRoutes() {
     await deleteAgentKnowledge(agentId);
     const deletedSessions = db.select().from(sessions).where(eq(sessions.agentId, agentId)).all();
     await deletePiSessions(deletedSessions);
+    db.delete(agentHomes).where(eq(agentHomes.agentId, agentId)).run();
     db.delete(sessions).where(eq(sessions.agentId, agentId)).run();
     db.delete(agents).where(eq(agents.id, agentId)).run();
     void discardAgentContainer(agentId);

@@ -407,6 +407,8 @@ function makeAgent(
     ownerUserId: "user_1",
     shared: false,
     name: "Agent",
+    icon: "bot",
+    color: null,
     description: "",
     mcpServers: [],
     codemodeEnabled: false,

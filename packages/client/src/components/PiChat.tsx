@@ -1,4 +1,8 @@
-import { Link } from "react-router-dom";
+import { SessionHelpers } from "@/components/chat/SessionHelpers";
+import { useRemoteResource } from "@/hooks/use-remote-resource";
+import { api } from "@/lib/api";
+import { showError } from "@/lib/errors";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
@@ -47,17 +51,65 @@ export function PiChat({
   onStreamingChange,
   browserRequest,
 }: PiChatProps) {
+  const [searchParams] = useSearchParams();
+  const entryAnchor = searchParams.get("entry");
   const chatInputRef = useRef<ChatInputHandle | null>(null);
   const activeUserId = useHarnessStore((state) => state.activeUserId);
   const hasStreamedRef = useRef(false);
   const inputDraftRef = useRef("");
   const referencesDraftRef = useRef<MessageReference[]>([]);
+  const [atBottom, setAtBottom] = useState(true);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot } = useSessionAgent(
     agentConfig,
     session,
     modelRef,
   );
+  const homeStatus = useRemoteResource({
+    key: `home-status:${session.id}`,
+    enabled: Boolean(session.home),
+    load: (signal) => api.homeStatus(agentConfig.id, signal),
+    pollInterval: 1500,
+  });
+  const [dismissedHomeErrors, setDismissedHomeErrors] = useState<string[]>([]);
+  const homeError = homeStatus.data?.events.find(
+    (event) => event.error && !dismissedHomeErrors.includes(event.id),
+  );
+  const queued =
+    homeStatus.data?.events.filter(
+      (event) =>
+        event.kind === "input" && (event.status === "queued" || event.status === "preparing"),
+    ).length ?? 0;
+  useEffect(() => {
+    const home = homeStatus.data?.home;
+    const observedAt = sessionRef.current.observedAt;
+    if (
+      session.home &&
+      home &&
+      observedAt &&
+      atBottom &&
+      !snapshot.historyOnly &&
+      !document.hidden &&
+      document.hasFocus() &&
+      home.lastReadAt < home.activityAt &&
+      observedAt >= home.activityAt
+    )
+      void api.readHome(agentConfig.id, observedAt);
+  }, [
+    agentConfig.id,
+    atBottom,
+    homeStatus.data,
+    session.home,
+    sessionRef,
+    snapshot.historyOnly,
+    snapshot.messages,
+  ]);
+  useEffect(() => {
+    if (agent && entryAnchor)
+      void agent
+        .openEntry(entryAnchor)
+        .catch((error) => showError("Unable to open the earlier message", error));
+  }, [agent, entryAnchor]);
   const mutations = useMessageMutations(agentRef, sessionRef);
   const modelSelection = useModelSelection({
     agent,
@@ -151,6 +203,57 @@ export function PiChat({
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
+        {!session.home ? <SessionHelpers sessionId={session.id} agentId={agentConfig.id} /> : null}
+        {session.home &&
+        homeStatus.data?.deliveries.some((delivery) =>
+          ["uncertain", "failed"].includes(delivery.status),
+        ) ? (
+          <p role="status" className="px-4 py-2 text-sm text-muted-foreground">
+            An IM delivery needs attention. Check Integrations for its status before resending.
+          </p>
+        ) : null}
+        {session.home && queued ? (
+          <p role="status" className="px-4 py-2 text-sm text-muted-foreground">
+            {queued} message{queued === 1 ? "" : "s"} queued
+          </p>
+        ) : null}
+        {session.home && homeError ? (
+          <ChatErrorNotice
+            message={homeError.error!}
+            onDismiss={() => setDismissedHomeErrors((current) => [...current, homeError.id])}
+          />
+        ) : null}
+        {session.home ? (
+          <div className="flex justify-end border-b px-4 py-1">
+            {homeStatus.data?.home?.paused ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => void api.resumeHome(agentConfig.id).then(homeStatus.refresh)}
+              >
+                Resume updates
+              </Button>
+            ) : null}
+            {snapshot.isStreaming || snapshot.hasPendingWork || queued ? (
+              <Button size="sm" variant="ghost" onClick={() => void agent?.abort()}>
+                Stop Home
+              </Button>
+            ) : null}
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={snapshot.isStreaming || snapshot.hasPendingWork || queued > 0}
+              onClick={() =>
+                void api
+                  .resetHome(agentConfig.id)
+                  .then(() => agent?.refreshConnection())
+                  .catch((error) => showError("Unable to start a new context", error))
+              }
+            >
+              New context
+            </Button>
+          </div>
+        ) : null}
         {session.issueId ? (
           <div className="flex items-center justify-between gap-3 border-b px-4 py-2 text-sm text-muted-foreground">
             <span>Issue conversation · Read-only history</span>
@@ -192,13 +295,31 @@ export function PiChat({
             <ChatPanel
               agentId={agentConfig.id}
               sessionId={session.id}
+              onAtBottomChange={setAtBottom}
+              allowQueuedInput={Boolean(session.home)}
               canReadFiles={agentConfig.permissions.read}
               canWriteFiles={agentConfig.permissions.write}
               initialReferences={referencesDraftRef.current}
               onReferencesChange={(references) => {
                 referencesDraftRef.current = references;
               }}
-              readOnly={Boolean(session.issueId)}
+              onLoadEarlier={
+                snapshot.olderCursor
+                  ? async () => {
+                      try {
+                        await agent.loadOlder();
+                      } catch (error) {
+                        showError("Unable to load history", error);
+                      }
+                    }
+                  : undefined
+              }
+              onLoadLatest={
+                snapshot.olderCursor || snapshot.historyOnly
+                  ? () => agent.refreshConnection()
+                  : undefined
+              }
+              readOnly={Boolean(session.issueId || snapshot.historyOnly)}
               waitingForAnswer={waiting.length > 0}
               requestCards={
                 requestsAtComposer.length || browserRequest ? (

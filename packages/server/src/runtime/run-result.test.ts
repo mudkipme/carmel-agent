@@ -1,3 +1,9 @@
+import { readHelpers } from "./helpers.ts";
+import { resumeHelperHost, shutdownHelperHosts, startHelperHosts } from "./helper-hosts.ts";
+import type { TaskId } from "@earendil-works/pi-durable";
+import { helperHosts, homeEvents } from "../db/schema.ts";
+import { readHome } from "../services/agent-homes.ts";
+import { drainHomeEvents } from "../services/home-events.ts";
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -47,6 +53,7 @@ import { shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
 initialize();
 
 type ProviderMode =
+  | "helper"
   | "question"
   | "reply"
   | "reject"
@@ -65,6 +72,41 @@ after(() => provider.close());
 test("a run that gets its reply succeeds", async () => {
   const run = await startRun("reply");
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
+});
+
+test("a background helper survives parent finalization and server host reopen with one Home report", async () => {
+  startHelperHosts();
+  const run = await startRun("helper");
+  try {
+    assert.deepEqual(await finished(run), { outcome: "succeeded" });
+    assert.ok(db.select().from(helperHosts).where(eq(helperHosts.sessionId, run.sessionId)).get());
+    await shutdownHelperHosts();
+    provider.mode = "reply";
+    startHelperHosts();
+    await resumeHelperHost(run.sessionId);
+    const pi = await openPiSession(run.sessionId);
+    try {
+      const [helper] = await readHelpers(pi);
+      assert.ok(helper?.reporterId);
+      await pi.native.waitForTask(helper.reporterId as TaskId, BACKGROUND_CONTEXT);
+      assert.equal((await readHelpers(pi))[0]?.status, "done");
+      assert.equal((await readHelpers(pi))[0]?.answer, "Hi there.");
+      const reports = () =>
+        db
+          .select()
+          .from(homeEvents)
+          .all()
+          .filter((event) => event.sourceKey.includes(`helper:${run.sessionId}:`));
+      assert.equal(reports().length, 1);
+      await resumeHelperHost(run.sessionId);
+      assert.equal(reports().length, 1);
+      assert.ok(readHome(run.userId, (await loadSession(run.sessionId))!.agentId));
+    } finally {
+      await closePiSession(pi);
+    }
+  } finally {
+    await shutdownHelperHosts();
+  }
 });
 
 test("the server runtime ends for a question and delivers its saved answer on the next run", async () => {
@@ -96,7 +138,7 @@ test("the server runtime ends for a question and delivers its saved answer on th
   assert.match(JSON.stringify(provider.requests.at(-1)), /Main/);
 });
 
-test("IM messages create a private web session, continue its history, and start fresh without deleting earlier conversations", async () => {
+test("IM messages share private Home context and reset context while preserving its history", async () => {
   const previousKey = process.env.CARMEL_SECRET_KEY;
   process.env.CARMEL_SECRET_KEY = "im-conversation-fixture-key";
   const sent: string[] = [];
@@ -143,11 +185,11 @@ test("IM messages create a private web session, continue its history, and start 
       });
       await manager.tick();
       await manager.drain();
+      await drainHomeEvents();
       await manager.tick();
       await manager.drain();
     };
-    const binding = () =>
-      db.select().from(imBindings).where(eq(imBindings.integrationId, integrationId)).get()!;
+    const binding = () => readHome(source.userId, source.agentId)!;
     await send("First private IM prompt");
     const firstSessionId = binding().sessionId!;
     assert.notEqual(firstSessionId, source.id);
@@ -160,8 +202,12 @@ test("IM messages create a private web session, continue its history, and start 
     assert.match(JSON.stringify(first!.messages), /Continue this conversation/);
     await send("/new");
     await send("A fresh conversation");
-    assert.notEqual(binding().sessionId, firstSessionId);
+    assert.equal(binding().sessionId, firstSessionId);
     assert.ok(await loadSession(firstSessionId));
+    assert.doesNotMatch(
+      JSON.stringify(provider.requests.at(-1)),
+      /First private IM prompt|Continue this conversation/,
+    );
   } finally {
     manager.stop();
     if (previousKey === undefined) delete process.env.CARMEL_SECRET_KEY;
@@ -722,7 +768,30 @@ function respond(
     });
     return;
   }
-  if ((mode === "knowledge" || mode === "knowledge-codemode") && !hasToolResult) {
+  if (mode === "helper" && !hasToolResult) {
+    response.write(
+      chunk({
+        role: "assistant",
+        tool_calls: [
+          {
+            index: 0,
+            id: "call_helper",
+            type: "function",
+            function: {
+              name: "start_helper",
+              arguments: JSON.stringify({
+                name: "Research",
+                task: "Summarize the evidence",
+                background: true,
+                wakeAt: Date.now() + 1000,
+              }),
+            },
+          },
+        ],
+      }),
+    );
+    response.write(chunk({}, "tool_calls"));
+  } else if ((mode === "knowledge" || mode === "knowledge-codemode") && !hasToolResult) {
     const args = { name: "knowledge-search" };
     const call =
       mode === "knowledge"

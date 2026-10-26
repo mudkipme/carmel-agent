@@ -1,3 +1,4 @@
+import { agentHomes } from "../db/schema.ts";
 import { asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { hashPassword, requireAdmin, type AuthVariables } from "../auth.ts";
@@ -124,6 +125,7 @@ export function createUserRoutes() {
         .set({ userId: adminId, updatedAt: timestamp })
         .where(eq(providerConfigs.userId, targetId))
         .run();
+      tx.delete(agentHomes).where(eq(agentHomes.userId, targetId)).run();
       tx.delete(sessions).where(eq(sessions.userId, targetId)).run();
       tx.delete(authSessions).where(eq(authSessions.userId, targetId)).run();
       tx.delete(apiKeys).where(eq(apiKeys.userId, targetId)).run();
