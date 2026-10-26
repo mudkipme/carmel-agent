@@ -116,6 +116,13 @@ function value(selector: string) {
   browser("wait", selector);
   return browser<{ value: string }>("get", "value", selector).value;
 }
+function waitForValue(selector: string, expected: string) {
+  browser(
+    "wait",
+    "--fn",
+    `document.querySelector(${JSON.stringify(selector)})?.value === ${JSON.stringify(expected)}`,
+  );
+}
 function evaluate<T>(script: string) {
   return browser<{ result: T }>("eval", script).result;
 }
@@ -187,18 +194,31 @@ test("Agents and Sessions preserve separate drafts and the last session without 
   click("radio", "Agents");
   browser("wait", "--url", `**/agents/${fixture.agentId}/home`);
   browser("wait", "--text", "New context");
-  browser("wait", 'textarea[aria-label="Message"]');
-  assert.equal(value('textarea[aria-label="Message"]'), "");
+  waitForValue('textarea[aria-label="Message"]', "");
   browser("fill", 'textarea[aria-label="Message"]', "Home draft");
+  evaluate(`(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (input, init) => {
+      const response = await originalFetch(input, init);
+      if (String(input).endsWith('/api/sessions/${fixture.chatSessionId}/connection')) {
+        window.fetch = originalFetch;
+        await new Promise(resolve => { window.releaseSessionResponse = resolve; });
+      }
+      return response;
+    };
+  })()`);
   click("radio", "Sessions");
   browser("wait", "--url", `**/sessions/${fixture.chatSessionId}`);
-  assert.equal(value('textarea[aria-label="Message"]'), "Independent session draft");
+  browser("wait", "--fn", 'typeof window.releaseSessionResponse === "function"');
+  assert.equal(evaluate("document.querySelector('textarea[aria-label=\"Message\"]')"), null);
+  evaluate("window.releaseSessionResponse()");
+  waitForValue('textarea[aria-label="Message"]', "Independent session draft");
   click("radio", "Agents");
   browser("wait", "--text", "New context");
-  assert.equal(value('textarea[aria-label="Message"]'), "Home draft");
+  waitForValue('textarea[aria-label="Message"]', "Home draft");
   browser("reload");
   browser("wait", "--text", "New context");
-  assert.equal(value('textarea[aria-label="Message"]'), "Home draft");
+  waitForValue('textarea[aria-label="Message"]', "Home draft");
   assert.equal(evaluate('document.querySelector("nav[aria-label=Agents]") !== null'), true);
   assert.equal(
     evaluate(
@@ -209,6 +229,7 @@ test("Agents and Sessions preserve separate drafts and the last session without 
   browser("fill", 'textarea[aria-label="Message"]', "");
   click("radio", "Sessions");
   browser("wait", "--url", `**/sessions/${fixture.chatSessionId}`);
+  waitForValue('textarea[aria-label="Message"]', "Independent session draft");
   browser("fill", 'textarea[aria-label="Message"]', "");
 });
 
