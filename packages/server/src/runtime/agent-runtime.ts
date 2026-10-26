@@ -1,3 +1,5 @@
+import { createHelperExtension, helperTasks } from "./helpers.ts";
+import { retainHelperHost } from "./helper-hosts.ts";
 import { createHomeTools, homeInstructions } from "./home-tools.ts";
 import { createSessionSearchTools } from "./session-search-tools.ts";
 import { sessionHome } from "../services/agent-homes.ts";
@@ -483,6 +485,13 @@ async function openRunHarness(
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } =
     context;
   const resources = await loadAgentResources(agent, execution.env);
+  const helperExtension = !sessionHome(context.session.id)
+    ? createHelperExtension({
+        sessionId: context.session.id,
+        userId: context.session.userId,
+        agentId: agent.id,
+      })
+    : undefined;
   const messagingPlatforms = notificationPlatforms(context.session.userId, agent.id);
   const schedulingTools = context.session.taskId
     ? []
@@ -512,6 +521,7 @@ async function openRunHarness(
           bash: agent.permissions.bash,
         })
       : []),
+    ...(helperExtension?.tools ?? []),
     ...createSessionSearchTools(context.session.userId, agent.id),
     ...(sessionHome(context.session.id) ? createHomeTools(context.session.userId, agent.id) : []),
     ...schedulingTools,
@@ -559,6 +569,8 @@ async function openRunHarness(
       tools,
       env: execution.env,
       extensions: [
+        helperTasks,
+        ...(helperExtension ? [helperExtension] : []),
         ...execution.extensions,
         ...(agent.permissions.bash
           ? [
@@ -657,6 +669,7 @@ async function finalizeRun(
   const { run, abort, outcome, session, modelRef, model, modelRuntime, thinkingLevel } = context;
   const { piSession, harness, log, execution, unsubscribe } = state;
 
+  let keepExecution = false;
   let finalMessages: AgentMessage[] = [];
   if (piSession) {
     try {
@@ -669,6 +682,7 @@ async function finalizeRun(
       // Detach event delivery before releasing native storage. HTTP readers
       // retain their own leases and continue reading committed progress.
       await harness?.close();
+      if (execution) keepExecution = await retainHelperHost(piSession, execution);
       await (log ? log.close() : closePiSession(piSession));
     } catch (error) {
       // Closing is what drains the session's pending writes, so a failure here
@@ -693,7 +707,7 @@ async function finalizeRun(
 
   unsubscribe?.();
   try {
-    await execution?.cleanup(runContext);
+    if (!keepExecution) await execution?.cleanup(runContext);
   } catch (error) {
     console.warn("Execution environment cleanup failed:", errorMessage(error));
   } finally {

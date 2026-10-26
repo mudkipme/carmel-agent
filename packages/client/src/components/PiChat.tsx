@@ -1,3 +1,4 @@
+import { SessionHelpers } from "@/components/chat/SessionHelpers";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
@@ -202,6 +203,7 @@ export function PiChat({
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
+        {!session.home ? <SessionHelpers sessionId={session.id} agentId={agentConfig.id} /> : null}
         {session.home &&
         homeStatus.data?.deliveries.some((delivery) =>
           ["uncertain", "failed"].includes(delivery.status),

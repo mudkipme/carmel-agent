@@ -472,3 +472,20 @@ export type AgentFileBatchResult = {
   completed: string[];
   failed: { path: string; error: string }[];
 };
+
+export type HelperSummary = {
+  id: number;
+  name: string;
+  task: string;
+  background: boolean;
+  createdAt: number;
+  wakeAt: number;
+  deadline: number;
+  status: "working" | "sleeping" | "reporting" | "done" | "failed" | "stopped";
+  answer?: string;
+};
+export type HelpersState = {
+  helpers: HelperSummary[];
+  error: string | null;
+  tasks: Array<{ id: number; kind: string; state: string; background: boolean }>;
+};

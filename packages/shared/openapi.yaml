@@ -2492,6 +2492,204 @@ paths:
           $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
+  /api/sessions/{id}/helpers:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      operationId: getSessionHelpers
+      tags:
+        - Sessions
+      responses:
+        "200":
+          description: Helper state
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - helpers
+                  - error
+                  - tasks
+                properties:
+                  helpers:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - name
+                        - status
+                        - background
+                        - createdAt
+                        - wakeAt
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        task:
+                          type: string
+                        background:
+                          type: boolean
+                        createdAt:
+                          type: number
+                        wakeAt:
+                          type: number
+                        status:
+                          type: string
+                          enum:
+                            - working
+                            - sleeping
+                            - reporting
+                            - done
+                            - failed
+                            - stopped
+                        answer:
+                          type: string
+                  error:
+                    type: string
+                    nullable: true
+                  tasks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        kind:
+                          type: string
+                        state:
+                          type: string
+                        background:
+                          type: boolean
+        "404":
+          $ref: "#/components/responses/Error"
+  /api/sessions/{id}/helpers/{helperId}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+      - name: helperId
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: before
+        in: query
+        schema:
+          type: string
+    get:
+      operationId: getSessionHelper
+      tags:
+        - Sessions
+      responses:
+        "200":
+          description: Helper state
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - helper
+                  - session
+                properties:
+                  helper:
+                    type: object
+                    required:
+                      - id
+                      - name
+                      - status
+                      - background
+                      - createdAt
+                      - wakeAt
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      task:
+                        type: string
+                      background:
+                        type: boolean
+                      createdAt:
+                        type: number
+                      wakeAt:
+                        type: number
+                      status:
+                        type: string
+                        enum:
+                          - working
+                          - sleeping
+                          - reporting
+                          - done
+                          - failed
+                          - stopped
+                      answer:
+                        type: string
+                  session:
+                    $ref: "#/components/schemas/Session"
+        "404":
+          $ref: "#/components/responses/Error"
+  /api/sessions/{id}/helpers/resume:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      operationId: resumeSessionHelpers
+      tags:
+        - Sessions
+      responses:
+        "200":
+          description: Helper state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        "404":
+          $ref: "#/components/responses/Error"
+  /api/sessions/{id}/helpers/stop:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      operationId: stopSessionHelpers
+      tags:
+        - Sessions
+      responses:
+        "200":
+          description: Helper state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        "404":
+          $ref: "#/components/responses/Error"
+  /api/sessions/{id}/helpers/{helperId}/stop:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+      - name: helperId
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      operationId: stopSessionHelper
+      tags:
+        - Sessions
+      responses:
+        "200":
+          description: Helper state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        "404":
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     carmelSession: { type: apiKey, in: cookie, name: carmel_session }

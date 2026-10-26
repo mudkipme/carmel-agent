@@ -492,6 +492,29 @@ export const api = {
     request<{ ok: true }>(`/api/agents/${agentId}/issues/${issueId}`, { method: "DELETE" }),
   deleteAgent: (agentId: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}`, { method: "DELETE" }),
+  sessionHelpers: (sessionId: string, signal?: AbortSignal) =>
+    request<import("@carmel-agent/shared").HelpersState>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/helpers`,
+      { signal },
+    ),
+  getHelper: (sessionId: string, helperId: number, before?: string, signal?: AbortSignal) =>
+    request<{ helper: import("@carmel-agent/shared").HelperSummary; session: Session }>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/helpers/${helperId}${before ? `?before=${encodeURIComponent(before)}` : ""}`,
+      { signal },
+    ),
+  stopHelper: (sessionId: string, helperId: number) =>
+    request<{ ok: true }>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/helpers/${helperId}/stop`,
+      { method: "POST" },
+    ),
+  stopHelpers: (sessionId: string) =>
+    request<{ ok: true }>(`/api/sessions/${encodeURIComponent(sessionId)}/helpers/stop`, {
+      method: "POST",
+    }),
+  resumeHelpers: (sessionId: string) =>
+    request<{ ok: true }>(`/api/sessions/${encodeURIComponent(sessionId)}/helpers/resume`, {
+      method: "POST",
+    }),
   homeSummaries: (signal?: AbortSignal) =>
     request<
       Array<{

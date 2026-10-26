@@ -1,3 +1,4 @@
+import { createHelperRoutes } from "./helpers.ts";
 import { createHomeRoutes } from "./agent-homes.ts";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -36,6 +37,7 @@ export function createApiRoutes() {
   api.route("/", createAgentRunRoutes());
   api.route("/", createSessionRoutes());
   api.route("/", createHomeRoutes());
+  api.route("/", createHelperRoutes());
 
   return api;
 }

@@ -17,6 +17,7 @@ import {
   defineDoc,
   Harness,
   LiveDoc,
+  InboxDoc,
   createRegistry,
   type Conversation,
   type ConversationId,
@@ -304,7 +305,7 @@ export function displayEntries(
           } as ReferenceMessage)
         : undefined;
     const message =
-      (entry.kind === "carmel.notice"
+      (["carmel.notice", "carmel.helper-result"].includes(entry.kind)
         ? {
             role: "homeNotice" as const,
             text: (entry.data as { text: string }).text,
@@ -592,10 +593,20 @@ export async function forkPiSession(sourceId: string, targetId: string, id: stri
     }
   });
 }
-export async function hasPendingPiSessionWork(sessionId: string) {
+export async function hasPendingPiSessionWork(sessionId: string, includeBackground = false) {
   return withPiSession(sessionId, async (session) => {
-    const work = await session.native.inspect(ctx);
-    return Boolean(work.tasks.length || work.submissions.length);
+    if (includeBackground) {
+      const work = await session.native.inspect(ctx);
+      return Boolean(work.tasks.length || work.submissions.length);
+    }
+    return session.conversation.commit(
+      async (tx) =>
+        Boolean(
+          (await tx.doc(LiveDoc, session.conversation.id)).run ||
+          (await tx.doc(InboxDoc, session.conversation.id)).items.length,
+        ),
+      ctx,
+    );
   });
 }
 export async function deletePiSession(session: typeof sessions.$inferSelect) {

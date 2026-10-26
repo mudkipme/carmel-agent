@@ -417,7 +417,7 @@ async function guardSessionMutation(
         409,
       ),
     };
-  if (await hasPendingPiSessionWork(session.id))
+  if (await hasPendingPiSessionWork(session.id, true))
     return {
       conflict: c.json(
         { error: "Resume or stop pending Durable work before changing this conversation." },

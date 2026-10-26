@@ -1,3 +1,7 @@
+import { readHelpers } from "./helpers.ts";
+import { resumeHelperHost, shutdownHelperHosts, startHelperHosts } from "./helper-hosts.ts";
+import type { TaskId } from "@earendil-works/pi-durable";
+import { helperHosts, homeEvents } from "../db/schema.ts";
 import { readHome } from "../services/agent-homes.ts";
 import { drainHomeEvents } from "../services/home-events.ts";
 import test, { after } from "node:test";
@@ -49,6 +53,7 @@ import { shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
 initialize();
 
 type ProviderMode =
+  | "helper"
   | "question"
   | "reply"
   | "reject"
@@ -67,6 +72,41 @@ after(() => provider.close());
 test("a run that gets its reply succeeds", async () => {
   const run = await startRun("reply");
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
+});
+
+test("a background helper survives parent finalization and server host reopen with one Home report", async () => {
+  startHelperHosts();
+  const run = await startRun("helper");
+  try {
+    assert.deepEqual(await finished(run), { outcome: "succeeded" });
+    assert.ok(db.select().from(helperHosts).where(eq(helperHosts.sessionId, run.sessionId)).get());
+    await shutdownHelperHosts();
+    provider.mode = "reply";
+    startHelperHosts();
+    await resumeHelperHost(run.sessionId);
+    const pi = await openPiSession(run.sessionId);
+    try {
+      const [helper] = await readHelpers(pi);
+      assert.ok(helper?.reporterId);
+      await pi.native.waitForTask(helper.reporterId as TaskId, BACKGROUND_CONTEXT);
+      assert.equal((await readHelpers(pi))[0]?.status, "done");
+      assert.equal((await readHelpers(pi))[0]?.answer, "Hi there.");
+      const reports = () =>
+        db
+          .select()
+          .from(homeEvents)
+          .all()
+          .filter((event) => event.sourceKey.includes(`helper:${run.sessionId}:`));
+      assert.equal(reports().length, 1);
+      await resumeHelperHost(run.sessionId);
+      assert.equal(reports().length, 1);
+      assert.ok(readHome(run.userId, (await loadSession(run.sessionId))!.agentId));
+    } finally {
+      await closePiSession(pi);
+    }
+  } finally {
+    await shutdownHelperHosts();
+  }
 });
 
 test("the server runtime ends for a question and delivers its saved answer on the next run", async () => {
@@ -728,7 +768,30 @@ function respond(
     });
     return;
   }
-  if ((mode === "knowledge" || mode === "knowledge-codemode") && !hasToolResult) {
+  if (mode === "helper" && !hasToolResult) {
+    response.write(
+      chunk({
+        role: "assistant",
+        tool_calls: [
+          {
+            index: 0,
+            id: "call_helper",
+            type: "function",
+            function: {
+              name: "start_helper",
+              arguments: JSON.stringify({
+                name: "Research",
+                task: "Summarize the evidence",
+                background: true,
+                wakeAt: Date.now() + 1000,
+              }),
+            },
+          },
+        ],
+      }),
+    );
+    response.write(chunk({}, "tool_calls"));
+  } else if ((mode === "knowledge" || mode === "knowledge-codemode") && !hasToolResult) {
     const args = { name: "knowledge-search" };
     const call =
       mode === "knowledge"

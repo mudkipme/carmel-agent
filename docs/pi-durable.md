@@ -52,6 +52,16 @@ Pi 1.4.0 still has no Durable grep/find/ls implementations. Those three guarded 
 
 Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are still not public exports (`parseCommandArgs` and `substituteArgs` live only in the package's internal `dist/core/prompt-templates` module), so their positional/default/slice semantics remain in the adapter, including the 1.3.0 rule that `""` and `''` are real arguments. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
 
+## Helpers and background hosts
+
+Working sessions expose `start_helper`, `helper_status`, `send_helper`, and `stop_helper`. Home coordinates issues instead. Helpers are native child conversations within the working session's Pi database, with persisted task records, isolated model context, and the same agent's readable workspace. They receive only file reads, knowledge retrieval, private session retrieval, and skill loading; they cannot edit, execute commands, browse, send notifications, or delegate again. Tasks must include their own relevant context.
+
+Each session permits four active helpers. A helper has five minutes from its scheduled start, including time interrupted by a restart; a background start may be delayed up to seven days. Foreground helpers belong to their calling tool and return an answer to it. Background helpers use native background ownership and persisted sleep/report tasks. Stopping the parent reply leaves background helpers running. Use the Helpers panel or a helper's own page to inspect or stop them; transcript mutations and agent/model deletion require stopping them first.
+
+The server retains the Pi lease and execution resources while background work remains. After a clean shutdown or crash, it reopens registered helper hosts with current model credentials, visible-agent access, permitted read tools, and execution environment before resuming native tasks. An unfinished parent turn keeps recovery paused until the user resumes or stops it. Missing configuration or blocked native tasks appear in the Helpers panel; Resume helpers also retries native tasks parked by the restart limit.
+
+Each completed background helper appends one passive report to its parent and publishes one deduplicated Home event. Home's existing queue decides when to follow up. This does not resume a completed issue attempt or change issue review and scheduled-task policy. The helper page is read-only and pages through the child's saved history. No agent-to-agent communication is introduced.
+
 ## Durable Codemode
 
 Carmel registers Pi's native Codemode implementation and prompt section. Carmel supplies its guarded execution environment, permitted native tool registry, sequential scheduling, admission limits, and browser handoff. Pi owns argument repair/validation, replay intent, nested results, output limits, script journals, cancellation of owned work, and script recovery. Nested results do not become transcript messages.

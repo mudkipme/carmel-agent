@@ -179,6 +179,39 @@ after(async () => {
   }
 });
 
+test("Agents and Sessions preserve separate drafts and the last session without starting a run", () => {
+  browser("set", "viewport", "1280", "900");
+  open(agentPath(`sessions/${fixture.chatSessionId}`));
+  browser("wait", 'textarea[aria-label="Message"]');
+  browser("fill", 'textarea[aria-label="Message"]', "Independent session draft");
+  click("radio", "Agents");
+  browser("wait", "--url", `**/agents/${fixture.agentId}/home`);
+  browser("wait", "--text", "New context");
+  browser("wait", 'textarea[aria-label="Message"]');
+  assert.equal(value('textarea[aria-label="Message"]'), "");
+  browser("fill", 'textarea[aria-label="Message"]', "Home draft");
+  click("radio", "Sessions");
+  browser("wait", "--url", `**/sessions/${fixture.chatSessionId}`);
+  assert.equal(value('textarea[aria-label="Message"]'), "Independent session draft");
+  click("radio", "Agents");
+  browser("wait", "--text", "New context");
+  assert.equal(value('textarea[aria-label="Message"]'), "Home draft");
+  browser("reload");
+  browser("wait", "--text", "New context");
+  assert.equal(value('textarea[aria-label="Message"]'), "Home draft");
+  assert.equal(evaluate('document.querySelector("nav[aria-label=Agents]") !== null'), true);
+  assert.equal(
+    evaluate(
+      'Array.from(document.querySelectorAll("button")).some(button => button.textContent.trim() === "Stop Home")',
+    ),
+    false,
+  );
+  browser("fill", 'textarea[aria-label="Message"]', "");
+  click("radio", "Sessions");
+  browser("wait", "--url", `**/sessions/${fixture.chatSessionId}`);
+  browser("fill", 'textarea[aria-label="Message"]', "");
+});
+
 test("questions, credentials, and browser help share a request area beside the composer", () => {
   browser("set", "viewport", "1280", "900");
   open(agentPath(`sessions/${fixture.questionSessionId}`));

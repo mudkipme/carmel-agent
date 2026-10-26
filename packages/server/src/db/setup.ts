@@ -387,6 +387,11 @@ const CURRENT_SCHEMA = `
 `;
 
 const HOME_SCHEMA = `
+ CREATE TABLE IF NOT EXISTS helper_hosts (
+   session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+   error TEXT, updated_at INTEGER NOT NULL
+ );
+
  CREATE TABLE IF NOT EXISTS home_events (
   id TEXT PRIMARY KEY NOT NULL,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,

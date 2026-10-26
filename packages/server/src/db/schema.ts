@@ -449,3 +449,11 @@ export const homeEvents = sqliteTable("home_events", {
   createdAt: integer("created_at").notNull(),
   finishedAt: integer("finished_at"),
 });
+
+export const helperHosts = sqliteTable("helper_hosts", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  error: text("error"),
+  updatedAt: integer("updated_at").notNull(),
+});

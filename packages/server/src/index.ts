@@ -1,3 +1,4 @@
+import { startHelperHosts, pauseHelperHosts, shutdownHelperHosts } from "./runtime/helper-hosts.ts";
 import {
   startHomeDispatcher,
   stopHomeDispatcher,
@@ -84,6 +85,7 @@ for (const { integration } of db
   }
 }
 await recoverHomeEvents();
+startHelperHosts();
 startHomeDispatcher();
 startTaskScheduler();
 startImManager();
@@ -106,12 +108,14 @@ let shuttingDown = false;
 async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
+  pauseHelperHosts();
   stopHomeDispatcher();
   stopIssueQueue();
   stopImManager();
   console.log(`Received ${signal}, draining active runs...`);
   try {
     await shutdownActiveRuns();
+    await shutdownHelperHosts();
     await drainHomeEvents();
     await drainImManager();
     await drainIssueResults();
