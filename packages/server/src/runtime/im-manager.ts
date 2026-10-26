@@ -5,7 +5,7 @@ import {
   queuedHomeInputs,
   stopHome,
 } from "../services/home-events.ts";
-import { homeEvents } from "../db/schema.ts";
+import { homeEvents, issues } from "../db/schema.ts";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { applyStreamingEvent, type AgentRunEventEnvelope } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
@@ -173,11 +173,17 @@ export async function receiveImMessage(integrationId: string, event: ImIncoming)
         }
       }
       return;
-    case "status":
+    case "status": {
+      const work = db
+        .select({ status: issues.status })
+        .from(issues)
+        .where(and(eq(issues.userId, integration.userId), eq(issues.agentId, integration.agentId)))
+        .all();
       reply(
-        `${integration.botName}: ${integration.status}. Home ${active ? "replying" : "idle"}. ${queued} pending message(s).`,
+        `${integration.botName}: ${integration.status}. Home ${active ? "replying" : "idle"}. ${queued} pending message(s). ${work.filter((issue) => issue.status === "in_progress").length} issue(s) running, ${work.filter((issue) => ["in_review", "needs_input", "blocked"].includes(issue.status)).length} need attention.`,
       );
       return;
+    }
     case "web":
       reply(imSessionLink(integration.agentId));
       return;

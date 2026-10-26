@@ -23,6 +23,18 @@ export function initializeSchema(sqlite: BetterSqlite3.Database) {
       sqlite.exec("ALTER TABLE agent_tasks ADD COLUMN notify_platform TEXT");
     sqlite.exec(IM_SCHEMA);
     sqlite.exec(HOME_SCHEMA);
+    const issueColumns = sqlite.pragma("table_info(issues)") as Array<{ name: string }>;
+    if (!issueColumns.some((column) => column.name === "notify_platform"))
+      sqlite.exec("ALTER TABLE issues ADD COLUMN notify_platform TEXT");
+    sqlite.exec(
+      `CREATE VIRTUAL TABLE IF NOT EXISTS session_search USING fts5(session_id UNINDEXED, entry_id UNINDEXED, text); CREATE TABLE IF NOT EXISTS session_search_state (session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE, revision INTEGER NOT NULL);`,
+    );
+    const outboxColumns = sqlite.pragma("table_info(im_outbox)") as Array<{ name: string }>;
+    if (!outboxColumns.some((column) => column.name === "home_event_id"))
+      sqlite.exec("ALTER TABLE im_outbox ADD COLUMN home_event_id TEXT");
+    sqlite.exec(
+      "CREATE TRIGGER IF NOT EXISTS session_search_delete AFTER DELETE ON sessions BEGIN DELETE FROM session_search WHERE session_id = OLD.id; END",
+    );
     const inboxColumns = sqlite.pragma("table_info(im_inbox)") as Array<{ name: string }>;
     if (!inboxColumns.some((column) => column.name === "home_event_id")) {
       sqlite.exec("ALTER TABLE im_inbox ADD COLUMN home_event_id TEXT");

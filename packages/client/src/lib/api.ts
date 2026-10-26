@@ -492,10 +492,36 @@ export const api = {
     request<{ ok: true }>(`/api/agents/${agentId}/issues/${issueId}`, { method: "DELETE" }),
   deleteAgent: (agentId: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}`, { method: "DELETE" }),
+  homeSummaries: (signal?: AbortSignal) =>
+    request<
+      Array<{
+        agentId: string;
+        sessionId: string;
+        unread: boolean;
+        working: boolean;
+        needsAttention: boolean;
+      }>
+    >("/api/homes", { signal }),
+  readHome: (agentId: string, readAt: number) =>
+    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/read`, {
+      method: "PATCH",
+      body: JSON.stringify({ readAt }),
+    }),
+  resumeHome: (agentId: string) =>
+    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/resume`, {
+      method: "POST",
+    }),
   homeStatus: (agentId: string, signal?: AbortSignal) =>
     request<{
-      home: { sessionId: string; paused: boolean } | null;
-      events: Array<{ id: string; status: string; error?: string; createdAt: number }>;
+      home: { sessionId: string; paused: boolean; activityAt: number; lastReadAt: number } | null;
+      deliveries: Array<{ id: string; status: string; error?: string; eventId?: string }>;
+      events: Array<{
+        id: string;
+        status: string;
+        kind: string;
+        error?: string;
+        createdAt: number;
+      }>;
     }>(`/api/agents/${encodeURIComponent(agentId)}/home`, { signal }),
   stopHome: (agentId: string) =>
     request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/stop`, {
@@ -510,9 +536,9 @@ export const api = {
     request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/reset`, {
       method: "POST",
     }),
-  getSessionHistory: (sessionId: string, before: string) =>
+  getSessionHistory: (sessionId: string, before: string, around?: string) =>
     request<Session>(
-      `/api/sessions/${encodeURIComponent(sessionId)}/history?before=${encodeURIComponent(before)}`,
+      `/api/sessions/${encodeURIComponent(sessionId)}/history?before=${encodeURIComponent(before)}${around ? `&around=${encodeURIComponent(around)}` : ""}`,
     ),
   createSession: (draft: SessionDraft & { title?: string }) =>
     request<Session>("/api/sessions", { method: "POST", body: JSON.stringify(draft) }),

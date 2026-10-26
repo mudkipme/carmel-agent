@@ -31,6 +31,7 @@ export type Session = SessionMetadata & {
   messages: AgentMessage[];
   messageEntryIds: string[];
   olderCursor?: string;
+  observedAt?: number;
 };
 
 export type SessionImportResult = {

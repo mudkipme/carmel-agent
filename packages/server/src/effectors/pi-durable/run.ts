@@ -233,7 +233,15 @@ export class PiRun {
                 },
               }
             : delivery?.source
-              ? { entry: { kind: "carmel.home-input", data: delivery.source } }
+              ? {
+                  entry: {
+                    kind:
+                      delivery.source.origin === "background"
+                        ? "carmel.background-input"
+                        : "carmel.home-input",
+                    data: delivery.source,
+                  },
+                }
               : {}),
         whenBusy: "reject",
       },

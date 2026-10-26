@@ -652,6 +652,7 @@ export function enqueueImMessage(
   dedupKey: string,
   proactive: boolean,
   sessionId?: string,
+  homeEventId?: string,
 ): ImDelivery {
   if (!text.trim() || text.length > 100_000)
     throw new ImError("A message must contain between 1 and 100,000 characters.");
@@ -667,6 +668,7 @@ export function enqueueImMessage(
       id: deliveryId,
       integrationId,
       dedupKey: storedKey,
+      homeEventId,
       text,
       proactive,
       sessionId,

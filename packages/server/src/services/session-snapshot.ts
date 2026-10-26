@@ -11,9 +11,10 @@ export async function readSessionSnapshot(
   userId: string,
   sessionId: string,
   cursor?: string,
+  around?: string,
 ): Promise<Session | undefined> {
-  const session = await loadOwnedSessionPage(userId, sessionId, cursor);
-  return session ? serializeSession(session) : undefined;
+  const session = await loadOwnedSessionPage(userId, sessionId, cursor, around);
+  return session ? { ...serializeSession(session), observedAt: Date.now() } : undefined;
 }
 
 /** Add volatile run authority to the same session projection for reconnects. */

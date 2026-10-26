@@ -1,7 +1,7 @@
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
@@ -50,11 +50,14 @@ export function PiChat({
   onStreamingChange,
   browserRequest,
 }: PiChatProps) {
+  const [searchParams] = useSearchParams();
+  const entryAnchor = searchParams.get("entry");
   const chatInputRef = useRef<ChatInputHandle | null>(null);
   const activeUserId = useHarnessStore((state) => state.activeUserId);
   const hasStreamedRef = useRef(false);
   const inputDraftRef = useRef("");
   const referencesDraftRef = useRef<MessageReference[]>([]);
+  const [atBottom, setAtBottom] = useState(true);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot } = useSessionAgent(
     agentConfig,
@@ -73,8 +76,39 @@ export function PiChat({
   );
   const queued =
     homeStatus.data?.events.filter(
-      (event) => event.status === "queued" || event.status === "preparing",
+      (event) =>
+        event.kind === "input" && (event.status === "queued" || event.status === "preparing"),
     ).length ?? 0;
+  useEffect(() => {
+    const home = homeStatus.data?.home;
+    const observedAt = sessionRef.current.observedAt;
+    if (
+      session.home &&
+      home &&
+      observedAt &&
+      atBottom &&
+      !snapshot.historyOnly &&
+      !document.hidden &&
+      document.hasFocus() &&
+      home.lastReadAt < home.activityAt &&
+      observedAt >= home.activityAt
+    )
+      void api.readHome(agentConfig.id, observedAt);
+  }, [
+    agentConfig.id,
+    atBottom,
+    homeStatus.data,
+    session.home,
+    sessionRef,
+    snapshot.historyOnly,
+    snapshot.messages,
+  ]);
+  useEffect(() => {
+    if (agent && entryAnchor)
+      void agent
+        .openEntry(entryAnchor)
+        .catch((error) => showError("Unable to open the earlier message", error));
+  }, [agent, entryAnchor]);
   const mutations = useMessageMutations(agentRef, sessionRef);
   const modelSelection = useModelSelection({
     agent,
@@ -168,6 +202,14 @@ export function PiChat({
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
+        {session.home &&
+        homeStatus.data?.deliveries.some((delivery) =>
+          ["uncertain", "failed"].includes(delivery.status),
+        ) ? (
+          <p role="status" className="px-4 py-2 text-sm text-muted-foreground">
+            An IM delivery needs attention. Check Integrations for its status before resending.
+          </p>
+        ) : null}
         {session.home && queued ? (
           <p role="status" className="px-4 py-2 text-sm text-muted-foreground">
             {queued} message{queued === 1 ? "" : "s"} queued
@@ -181,6 +223,15 @@ export function PiChat({
         ) : null}
         {session.home ? (
           <div className="flex justify-end border-b px-4 py-1">
+            {homeStatus.data?.home?.paused ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => void api.resumeHome(agentConfig.id).then(homeStatus.refresh)}
+              >
+                Resume updates
+              </Button>
+            ) : null}
             {snapshot.isStreaming || snapshot.hasPendingWork || queued ? (
               <Button size="sm" variant="ghost" onClick={() => void agent?.abort()}>
                 Stop Home
@@ -242,6 +293,7 @@ export function PiChat({
             <ChatPanel
               agentId={agentConfig.id}
               sessionId={session.id}
+              onAtBottomChange={setAtBottom}
               allowQueuedInput={Boolean(session.home)}
               canReadFiles={agentConfig.permissions.read}
               canWriteFiles={agentConfig.permissions.write}

@@ -353,6 +353,7 @@ export const issues = sqliteTable("issues", {
     .notNull()
     .references(() => users.id),
   sessionId: text("session_id").notNull(),
+  notifyPlatform: text("notify_platform").$type<import("@carmel-agent/shared").ImPlatform>(),
   title: text("title").notNull(),
   description: text("description").notNull(),
   status: text("status").$type<IssueStatus>().notNull().default("todo"),

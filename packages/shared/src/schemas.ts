@@ -266,6 +266,7 @@ export type AgentTaskCreateCommand = z.infer<typeof agentTaskCreateSchema>;
 export type AgentTaskPatchCommand = z.infer<typeof agentTaskPatchSchema>;
 
 const issueBriefFields = {
+  notifyPlatform: z.enum(["telegram", "feishu", "lark"]).optional(),
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(40_000),
   criteria: z.array(z.string().trim().min(1).max(2_000)).max(50),

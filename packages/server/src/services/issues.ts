@@ -1,3 +1,6 @@
+import { imOutbox, imIntegrations } from "../db/im-schema.ts";
+import { gte } from "drizzle-orm";
+import { publishHomeEvent } from "./home-events.ts";
 import { InboxDoc, type SubmissionId } from "@earendil-works/pi-durable";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
@@ -100,6 +103,7 @@ export function createIssue(
   db.insert(issues)
     .values({
       title: draft.title,
+      notifyPlatform: draft.notifyPlatform,
       description: draft.description,
       criteria: draft.criteria,
       priority: draft.priority,
@@ -596,6 +600,30 @@ export function finishIssueAttempt(attemptId: string, result: AgentRunResult) {
       .where(and(eq(issueNotes.issueId, issue.id), eq(issueNotes.delivery, "queued")))
       .run();
   });
+  if (!closed(issue)) {
+    const alreadyNotified =
+      issue.notifyPlatform && attempt.sessionId
+        ? db
+            .select({ id: imOutbox.id })
+            .from(imOutbox)
+            .innerJoin(imIntegrations, eq(imIntegrations.id, imOutbox.integrationId))
+            .where(
+              and(
+                eq(imOutbox.sessionId, attempt.sessionId),
+                eq(imOutbox.proactive, true),
+                gte(imOutbox.createdAt, attempt.createdAt),
+                eq(imIntegrations.platform, issue.notifyPlatform),
+              ),
+            )
+            .get()
+        : undefined;
+    publishHomeEvent(issue.userId, issue.agentId, {
+      sourceKey: `issue:${attempt.id}`,
+      kind: "issue",
+      notifyPlatform: alreadyNotified ? undefined : (issue.notifyPlatform ?? undefined),
+      text: `[${issue.title.replaceAll("[", "").replaceAll("]", "")}](/agents/${issue.agentId}/issues/${issue.id}?from=home) — ${result.outcome === "succeeded" ? (issue.verdict === "done" ? "Ready for review" : (issue.verdict ?? "Needs your input")) : result.outcome}\n\n${(result.detail ?? attempt.summary ?? "The attempt ended without a result report.").slice(0, 4000)}${attempt.evidence ? `\n\n${attempt.evidence.slice(0, 8000)}` : ""}`,
+    });
+  }
   wakeQueue(issue.agentId);
 }
 
@@ -759,5 +787,6 @@ function serializeIssue(row: IssueRecord): Issue {
     verdict: row.verdict ?? undefined,
     verdictSummary: row.verdictSummary ?? undefined,
     closedAt: row.closedAt ?? undefined,
+    notifyPlatform: row.notifyPlatform ?? undefined,
   };
 }

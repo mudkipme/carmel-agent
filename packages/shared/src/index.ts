@@ -333,6 +333,7 @@ export type IssueStatus =
 export type IssueVerdict = "done" | "needs_input" | "blocked";
 export type IssuePriority = "low" | "normal" | "high" | "urgent";
 export type Issue = {
+  notifyPlatform?: import("./im.ts").ImPlatform;
   id: string;
   agentId: string;
   userId: string;

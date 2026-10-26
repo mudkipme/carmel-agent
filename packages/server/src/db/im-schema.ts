@@ -89,6 +89,7 @@ export const imOutbox = sqliteTable("im_outbox", {
   integrationId: text("integration_id")
     .notNull()
     .references(() => imIntegrations.id, { onDelete: "cascade" }),
+  homeEventId: text("home_event_id"),
   dedupKey: text("dedup_key").notNull().unique(),
   text: text("text").notNull(),
   proactive: integer("proactive", { mode: "boolean" }).notNull(),

@@ -14,7 +14,7 @@ Open **Issues** beside **Tasks** in the agent navigation. The issue list provide
 
 An issue has one continuous Pi conversation by default. Replies, retries, and revision requests reuse it. **Start a fresh conversation for the next run** explicitly starts a new session; earlier conversations and results remain in Run history.
 
-**Save note** stores context without starting work. Notes are included when the issue next runs. During a run, **Send update** uses Pi's public `AgentLane.steer()` API. The conversation shows whether an update is queued, delivered, or saved without delivery. Updates that miss the end of a run are retained as notes and removed from Pi's pending queue; they are not silently applied later.
+**Save note** stores context without starting work. Notes are included when the issue next runs. During a run, **Send update** uses Pi Durable steering submissions. The conversation shows whether an update is queued, delivered, or saved without delivery. Updates that miss the end of a run are retained as notes and removed from Pi's pending queue; they are not silently applied later.
 
 **Stop run** ends execution. It does not suspend the process. Queue a retry to continue the conversation.
 
@@ -37,3 +37,9 @@ Queue entries survive restarts. A run interrupted by a restart is recorded as in
 - `POST /api/agents/:agentId/issues/:issueId/queue/move` accepts `direction: "up" | "down"`.
 
 The shared OpenAPI document specifies request validators and response fields.
+
+## Home
+
+Ask an agent in Home to create or queue an issue, revise an idle brief, add notes, send an update, change queue order, or stop a selected attempt. Home remains available while the issue runs. Results and requests for attention return to your private Home with a link to the issue and its evidence. Reported completion still requires **Accept result**.
+
+External result notifications require a requested `notifyPlatform` on the issue. Ordinary web discussion does not broadcast to messaging channels. Stopping Home pauses automated replies while preserving incoming result notices and continuing issue jobs.

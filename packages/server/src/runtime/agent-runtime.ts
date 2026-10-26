@@ -1,3 +1,6 @@
+import { createHomeTools, homeInstructions } from "./home-tools.ts";
+import { createSessionSearchTools } from "./session-search-tools.ts";
+import { sessionHome } from "../services/agent-homes.ts";
 import { CompactionEntry, GenerationTask, hook } from "@earendil-works/pi-durable";
 import {
   PiRun,
@@ -509,6 +512,8 @@ async function openRunHarness(
           bash: agent.permissions.bash,
         })
       : []),
+    ...createSessionSearchTools(context.session.userId, agent.id),
+    ...(sessionHome(context.session.id) ? createHomeTools(context.session.userId, agent.id) : []),
     ...schedulingTools,
     ...messagingTools,
     ...(sessionAddons?.tools ?? []),
@@ -539,6 +544,9 @@ async function openRunHarness(
           contextFiles: resources.contextFiles,
           includeSkills: activeToolNames.includes("read"),
         }),
+        home: sessionHome(context.session.id)
+          ? `${homeInstructions}${agent.id}/issues/:issueId. Ask which issue if the target is ambiguous. Use session_search to recover older decisions. Private chat facts must not be automatically saved into agent-shared memory.`
+          : undefined,
         issue: sessionAddons?.instructions,
         browser: agent.permissions.bash ? browserInstructions : undefined,
         knowledge:

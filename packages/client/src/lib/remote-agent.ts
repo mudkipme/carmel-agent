@@ -515,6 +515,7 @@ export class RemoteAgent {
   }
 
   applyConnectionSnapshot(connection: SessionConnection) {
+    this.config.onConnection?.(connection);
     this.messages = [...connection.session.messages];
     this.olderCursor = connection.session.olderCursor;
     this.historyOnly = false;
@@ -524,6 +525,16 @@ export class RemoteAgent {
     this.streamingMessage = undefined;
     this.pendingToolCalls = new Set();
     this.nestedTools = [];
+    this.notify();
+  }
+
+  async openEntry(entryId: string) {
+    if (this.isStreaming) return;
+    const page = await api.getSessionHistory(this.config.sessionId, "", entryId);
+    this.messages = page.messages;
+    this.olderCursor = page.olderCursor;
+    this.historyOnly = true;
+    this.config.onConnection?.({ session: page, activeRun: null });
     this.notify();
   }
 
@@ -543,7 +554,6 @@ export class RemoteAgent {
     const connection = await api.getSessionConnection(this.config.sessionId);
     if (this.abortController || this.historyOnly || this.detachRequested) return;
     this.applyConnectionSnapshot(connection);
-    this.config.onConnection?.(connection);
     if (connection.activeRun)
       void this.attachToRun(
         connection.activeRun.runId,

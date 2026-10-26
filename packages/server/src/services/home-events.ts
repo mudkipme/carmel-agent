@@ -12,6 +12,8 @@ import { hasPendingPiSessionWork, withPiSession } from "./pi-session-storage.ts"
 import { readSessionSnapshot } from "./session-snapshot.ts";
 import { blockingUserRequest } from "./user-requests.ts";
 import { enqueueImMessage } from "./im-integrations.ts";
+import { resolveNotificationIntegration } from "./im-integrations.ts";
+import { defineDoc } from "@earendil-works/pi-durable";
 import { startDetachedAgentRun } from "../runtime/agent-runtime.ts";
 import {
   abortAgentRun,
@@ -24,6 +26,83 @@ const admitting = new Set<string>();
 const jobs = new Set<Promise<unknown>>();
 let timer: ReturnType<typeof setInterval> | undefined;
 let stopped = false;
+
+const HomePublications = defineDoc({
+  kind: "carmel.home-publications",
+  version: 1,
+  scope: "conversation",
+  history: "latest",
+  fork: "initial",
+  initial: () => ({}) as Record<string, number>,
+  checkpointWhen: () => false,
+});
+
+export function publishHomeEvent(
+  userId: string,
+  agentId: string,
+  input: {
+    sourceKey: string;
+    kind: "issue" | "notification" | "notice";
+    text: string;
+    notifyPlatform?: import("@carmel-agent/shared").ImPlatform;
+  },
+) {
+  if (!readVisibleAgent(userId, agentId)) return;
+  let home;
+  try {
+    home = ensureHome(userId, agentId);
+  } catch (error) {
+    if (error instanceof HomeError) return;
+    throw error;
+  }
+  let integrationId: string | undefined;
+  if (input.notifyPlatform) {
+    try {
+      integrationId = resolveNotificationIntegration(userId, agentId, input.notifyPlatform).id;
+    } catch {
+      /* Home retains the outcome when IM is unavailable. */
+    }
+  }
+  db.insert(homeEvents)
+    .values({
+      id: id("home_event"),
+      sessionId: home.sessionId,
+      sourceKey: `${home.sessionId}:${input.sourceKey}`,
+      kind: input.kind,
+      origin: "background",
+      integrationId,
+      prompt: { text: input.text.slice(0, 16000) },
+      status: "queued",
+      createdAt: now(),
+    })
+    .onConflictDoNothing()
+    .run();
+  return db
+    .select()
+    .from(homeEvents)
+    .where(eq(homeEvents.sourceKey, `${home.sessionId}:${input.sourceKey}`))
+    .get();
+}
+
+async function publishNotice(event: HomeEvent) {
+  const added = await withPiSession(event.sessionId, async (pi) =>
+    pi.conversation.commit(async (tx) => {
+      const published = await tx.doc(HomePublications, pi.conversation.id);
+      if (published[event.id]) return false;
+      const entry = await tx.appendEntry(pi.conversation.id, {
+        kind: "carmel.notice",
+        data: { text: event.prompt.text, timestamp: event.createdAt, homeEventId: event.id },
+      });
+      published[event.id] = entry.id;
+      return true;
+    }, BACKGROUND_CONTEXT),
+  );
+  if (!added) return;
+  db.update(agentHomes)
+    .set({ updatedAt: Math.max(now(), event.createdAt) })
+    .where(eq(agentHomes.sessionId, event.sessionId))
+    .run();
+}
 
 export function queuedHomeInputs(sessionId: string) {
   return db
@@ -128,8 +207,10 @@ async function settleHomeEvent(event: HomeEvent, result: AgentRunResult) {
   if (!session) return;
   const snapshot = await readSessionSnapshot(session.userId, event.sessionId);
   const last = snapshot?.messages.findLast((message) => message.role === "assistant");
-  const reply =
-    result.outcome === "succeeded" && last?.role === "assistant"
+  const waiting = blockingUserRequest(session.id);
+  const reply = waiting
+    ? `The agent needs your input. [Open Home](/agents/${session.agentId}/home) to respond.`
+    : result.outcome === "succeeded" && last?.role === "assistant"
       ? last.content
           .filter((part) => part.type === "text")
           .map((part) => part.text)
@@ -162,6 +243,7 @@ async function settleHomeEvent(event: HomeEvent, result: AgentRunResult) {
         .get();
       if (
         integration?.enabled &&
+        (event.origin !== "background" || integration.proactive) &&
         integration.userId === session.userId &&
         integration.agentId === session.agentId
       )
@@ -169,8 +251,9 @@ async function settleHomeEvent(event: HomeEvent, result: AgentRunResult) {
           integration.id,
           reply.slice(0, 100_000) || "Open Home to see the result.",
           `home-result:${event.id}`,
-          false,
+          event.origin === "background",
           session.id,
+          event.id,
         );
     }
   });
@@ -182,7 +265,6 @@ export async function dispatchHome(sessionId: string) {
   if (
     !home ||
     getActiveAgentRunForSession(home.userId, sessionId) ||
-    blockingUserRequest(sessionId) ||
     db
       .select()
       .from(homeEvents)
@@ -198,10 +280,21 @@ export async function dispatchHome(sessionId: string) {
     )
     .orderBy(asc(homeEvents.createdAt), sql`rowid`)
     .get();
-  if (!event || event.status === "preparing" || (home.paused && event.origin === "background"))
-    return;
+  if (!event || event.status === "preparing") return;
   admitting.add(sessionId);
   try {
+    if (event.kind !== "input") {
+      await publishNotice(event);
+      if (event.kind !== "issue") {
+        db.update(homeEvents)
+          .set({ status: "done", reply: event.prompt.text, finishedAt: now() })
+          .where(eq(homeEvents.id, event.id))
+          .run();
+        return;
+      }
+      if (home.paused) return;
+    }
+    if (blockingUserRequest(sessionId)) return;
     if (await hasPendingPiSessionWork(sessionId)) return;
     const agent = readVisibleAgent(home.userId, home.agentId);
     if (!agent) throw new HomeError("This agent is no longer available.", 404);
@@ -240,7 +333,12 @@ export async function dispatchHome(sessionId: string) {
       agent,
       session,
       ...model.value,
-      promptInput: event.prompt,
+      promptInput:
+        event.kind === "input"
+          ? event.prompt
+          : {
+              text: `A background job reported the following source material. Briefly tell the user the result or decision needed, with its link. Do not accept the result, repeat completed work, or start another job unless the user asked.\n\n${event.prompt.text}`,
+            },
       timezone: event.timezone ?? undefined,
       promptDelivery: {
         requestId: `home:${event.id}`,

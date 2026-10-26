@@ -1,3 +1,5 @@
+import { publishHomeEvent } from "../services/home-events.ts";
+import { sessionHome } from "../services/agent-homes.ts";
 import { z } from "zod";
 import { imPlatformSchema, type ImPlatform } from "@carmel-agent/shared";
 import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
@@ -47,12 +49,20 @@ export function createSendUserMessageTool(context: {
         context.agentId,
         input.platform,
       );
+      const event = !sessionHome(context.sessionId)
+        ? publishHomeEvent(context.userId, context.agentId, {
+            sourceKey: `tool:${context.sessionId}:${api.taskId}`,
+            kind: "notification",
+            text: `${input.text}\n\n[View run](/agents/${context.agentId}/sessions/${context.sessionId})`,
+          })
+        : undefined;
       const delivery = enqueueImMessage(
         integration.id,
         input.text,
         `tool:${context.sessionId}:${api.taskId}`,
         true,
         context.sessionId,
+        event?.id,
       );
       return { output: [{ type: "text", text: JSON.stringify(delivery) }], details: delivery };
     },

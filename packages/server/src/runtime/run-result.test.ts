@@ -1,3 +1,5 @@
+import { readHome } from "../services/agent-homes.ts";
+import { drainHomeEvents } from "../services/home-events.ts";
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -96,7 +98,7 @@ test("the server runtime ends for a question and delivers its saved answer on th
   assert.match(JSON.stringify(provider.requests.at(-1)), /Main/);
 });
 
-test("IM messages create a private web session, continue its history, and start fresh without deleting earlier conversations", async () => {
+test("IM messages share private Home context and reset context while preserving its history", async () => {
   const previousKey = process.env.CARMEL_SECRET_KEY;
   process.env.CARMEL_SECRET_KEY = "im-conversation-fixture-key";
   const sent: string[] = [];
@@ -143,11 +145,11 @@ test("IM messages create a private web session, continue its history, and start 
       });
       await manager.tick();
       await manager.drain();
+      await drainHomeEvents();
       await manager.tick();
       await manager.drain();
     };
-    const binding = () =>
-      db.select().from(imBindings).where(eq(imBindings.integrationId, integrationId)).get()!;
+    const binding = () => readHome(source.userId, source.agentId)!;
     await send("First private IM prompt");
     const firstSessionId = binding().sessionId!;
     assert.notEqual(firstSessionId, source.id);
@@ -160,8 +162,12 @@ test("IM messages create a private web session, continue its history, and start 
     assert.match(JSON.stringify(first!.messages), /Continue this conversation/);
     await send("/new");
     await send("A fresh conversation");
-    assert.notEqual(binding().sessionId, firstSessionId);
+    assert.equal(binding().sessionId, firstSessionId);
     assert.ok(await loadSession(firstSessionId));
+    assert.doesNotMatch(
+      JSON.stringify(provider.requests.at(-1)),
+      /First private IM prompt|Continue this conversation/,
+    );
   } finally {
     manager.stop();
     if (previousKey === undefined) delete process.env.CARMEL_SECRET_KEY;

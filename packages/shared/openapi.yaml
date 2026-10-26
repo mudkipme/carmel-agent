@@ -192,8 +192,8 @@ paths:
         - Knowledge
       summary: Read the agent's knowledge settings
       description:
-        Available to users who can access the agent when its read permission is enabled. Returns settings without
-        loading memories or starting a knowledge worker.
+        Available to users who can access the agent when its read permission is enabled. Returns settings
+        without loading memories or starting a knowledge worker.
       responses:
         "200":
           description: Current knowledge settings, including defaults when not configured.
@@ -569,8 +569,8 @@ paths:
         tags: [Auth],
         security: [],
         description:
-          Browser navigation only. Redirects to the configured OpenID Connect provider and sets a short-lived flow
-          cookie.,
+          Browser navigation only. Redirects to the configured OpenID Connect provider and sets a
+          short-lived flow cookie.,
         responses:
           {
             "302":
@@ -1455,8 +1455,8 @@ paths:
         operationId: getAgentGitStatus,
         tags: [Files],
         description:
-          Read-only working-tree status of the repository containing the agent's working directory. Runs git in the
-          agent's sandbox.,
+          Read-only working-tree status of the repository containing the agent's working directory. Runs
+          git in the agent's sandbox.,
         responses:
           {
             "200":
@@ -1475,7 +1475,9 @@ paths:
     get:
       operationId: getAgentBrowserStatus
       tags: [Agents]
-      description: Shared browser control state. Requires visibility of the agent and bash permission. Does not launch a browser.
+      description:
+        Shared browser control state. Requires visibility of the agent and bash permission. Does not
+        launch a browser.
       responses:
         "200":
           description: Browser availability and handoff state
@@ -2217,6 +2219,273 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OK"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/homes:
+    get:
+      operationId: listHomeSummaries
+      tags:
+        - Agents
+      summary: List private Home unread and work state
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/home:
+    parameters:
+      - name: agentId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getAgentHome
+      tags:
+        - Agents
+      summary: Read Home and pending input/delivery state
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: ensureAgentHome
+      tags:
+        - Agents
+      summary: Create or adopt Home without running the model
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/home/read:
+    parameters:
+      - name: agentId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: readAgentHome
+      tags:
+        - Agents
+      summary: Mark observed Home history read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - readAt
+              properties:
+                readAt:
+                  type: integer
+                  minimum: 0
+              additionalProperties: false
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/home/resume:
+    parameters:
+      - name: agentId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: resumeAgentHome
+      tags:
+        - Agents
+      summary: Resume automated Home updates
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/home/reset:
+    parameters:
+      - name: agentId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: resetAgentHome
+      tags:
+        - Agents
+      summary: Begin fresh model context while retaining history
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/home/stop:
+    parameters:
+      - name: agentId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: stopAgentHome
+      tags:
+        - Agents
+      summary: Stop Home and clear pending user inputs across channels
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/home/messages:
+    parameters:
+      - name: agentId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: sendHomeMessage
+      tags:
+        - Agents
+      summary: Queue origin-aware Home input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requestId
+                - promptInput
+              properties:
+                requestId:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                promptInput:
+                  $ref: "#/components/schemas/PromptInput"
+                modelRefId:
+                  type: string
+                thinkingLevel:
+                  $ref: "#/components/schemas/ThinkingLevel"
+                timezone:
+                  type: string
+              additionalProperties: false
+      responses:
+        "202":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/sessions/{id}/history:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: readSessionHistory
+      tags:
+        - Agents
+      summary: Read a bounded history page or a page around an entry
+      parameters:
+        - name: before
+          in: query
+          schema:
+            type: string
+        - name: around
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
         "400":
           $ref: "#/components/responses/Error"
         "404":
@@ -3295,6 +3564,7 @@ components:
             issueId: { type: string },
             createdAt: { type: number },
             updatedAt: { type: number },
+            home: { type: boolean },
           },
       }
     Session:
@@ -3309,6 +3579,8 @@ components:
                 {
                   messages: { type: array, items: { type: object, additionalProperties: true } },
                   messageEntryIds: { type: array, items: { type: string } },
+                  olderCursor: { type: string },
+                  observedAt: { type: number },
                 },
             },
           ],
@@ -3635,6 +3907,7 @@ components:
             "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
             "status": { "type": "string", "enum": ["backlog", "todo"] },
             "queue": { "type": "boolean" },
+            notifyPlatform: { type: string, enum: [telegram, feishu, lark] },
           },
         "required": ["title", "description"],
         "additionalProperties": false,
@@ -3654,6 +3927,7 @@ components:
               },
             "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
             "status": { "type": "string", "enum": ["backlog", "todo"] },
+            notifyPlatform: { type: string, enum: [telegram, feishu, lark] },
           },
         "additionalProperties": false,
       }
@@ -3717,6 +3991,7 @@ components:
             "updatedAt": { "type": "number" },
             "queuePosition": { "type": "number" },
             "queuedInstructions": { "type": "string" },
+            notifyPlatform: { type: string, enum: [telegram, feishu, lark] },
           },
       }
     BootstrapPayload:

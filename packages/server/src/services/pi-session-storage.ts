@@ -415,7 +415,12 @@ export async function readPiSessionBranch(session: PiSession): Promise<DisplayEn
   return displayed;
 }
 
-export async function readPiSessionPage(session: PiSession, token?: string, limit = 100) {
+export async function readPiSessionPage(
+  session: PiSession,
+  token?: string,
+  limit = 100,
+  around?: string,
+) {
   let cursor: Cursor | undefined;
   if (token) {
     const saved = JSON.parse(Buffer.from(token, "base64url").toString()) as {
@@ -426,14 +431,21 @@ export async function readPiSessionPage(session: PiSession, token?: string, limi
       throw new Error("Conversation changed. Reload its history.");
     cursor = saved.cursor;
   }
+  const maxEntryId = around ? await resolveEntryId(session, around) : undefined;
   return session.conversation.commit(async (tx) => {
     const page = await tx.scanEntries(
-      { conversationId: session.conversation.id, order: "descending" },
+      {
+        conversationId: session.conversation.id,
+        order: "descending",
+        ...(maxEntryId ? { maxEntryId } : {}),
+      },
       limit,
       cursor,
     );
+    if (maxEntryId && page.items[0]?.id !== maxEntryId)
+      throw new Error("Message is no longer on this conversation branch.");
     const entries = displayEntries([...page.items].reverse(), session.id);
-    if (!token) {
+    if (!token && !around) {
       const live = await tx.doc(LiveDoc, session.conversation.id);
       if (live.generation?.message)
         entries.push({

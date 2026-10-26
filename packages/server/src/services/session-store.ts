@@ -46,11 +46,16 @@ export async function loadOwnedSession(
   return session?.userId === userId ? session : undefined;
 }
 
-export async function loadOwnedSessionPage(userId: string, sessionId: string, cursor?: string) {
+export async function loadOwnedSessionPage(
+  userId: string,
+  sessionId: string,
+  cursor?: string,
+  around?: string,
+) {
   const record = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
   if (!record || record.userId !== userId) return undefined;
   return withPiSession(sessionId, async (pi) => {
-    const page = await readPiSessionPage(pi, cursor);
+    const page = await readPiSessionPage(pi, cursor, 100, around);
     const entries = page.entries.flatMap((entry) =>
       entry.type === "message" ? [{ entryId: entry.id, message: entry.message }] : [],
     );

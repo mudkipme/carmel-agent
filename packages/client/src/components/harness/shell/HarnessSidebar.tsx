@@ -72,6 +72,12 @@ export function HarnessSidebar({
   const createAgent = useHarnessStore((state) => state.createAgent);
   const modelRefs = useHarnessStore((state) => state.modelRefs);
   const activeUserId = useHarnessStore((state) => state.activeUserId);
+  const homes = useRemoteResource({
+    key: `homes:${activeUserId}`,
+    enabled: navigationView === "agents",
+    load: (signal) => api.homeSummaries(signal),
+    pollInterval: 3000,
+  });
   const knowledge = useRemoteResource({
     key: `knowledge-settings:${activeUserId}:${activeAgent?.id}`,
     enabled: Boolean(activeAgent?.permissions.read),
@@ -145,7 +151,23 @@ export function HarnessSidebar({
                 >
                   <Link to={`/agents/${agent.id}/home`} onClick={onOpenSession}>
                     <AgentAvatar agent={agent} />
-                    <span className="truncate">{agent.name}</span>
+                    <span className="min-w-0 flex-1 truncate">{agent.name}</span>
+                    {homes.data?.find((home) => home.agentId === agent.id)?.needsAttention ? (
+                      <span title="Needs your attention" aria-label="Needs your attention">
+                        !
+                      </span>
+                    ) : null}
+                    {homes.data?.find((home) => home.agentId === agent.id)?.working ? (
+                      <span className="text-muted-foreground" role="status">
+                        Working
+                      </span>
+                    ) : null}
+                    {homes.data?.find((home) => home.agentId === agent.id)?.unread ? (
+                      <span
+                        className="size-2 shrink-0 rounded-full bg-primary"
+                        aria-label="Unread messages"
+                      />
+                    ) : null}
                   </Link>
                 </Button>
               ))}

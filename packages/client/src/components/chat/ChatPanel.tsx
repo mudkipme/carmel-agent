@@ -27,6 +27,7 @@ type ChatPanelProps = {
   onReferencesChange?: (references: MessageReference[]) => void;
   readOnly?: boolean;
   allowQueuedInput?: boolean;
+  onAtBottomChange?: (atBottom: boolean) => void;
   onLoadEarlier?: () => Promise<void>;
   onLoadLatest?: () => Promise<void>;
   scrollResetKey: string;
@@ -68,6 +69,7 @@ export function ChatPanel({
   onReferencesChange,
   readOnly,
   allowQueuedInput,
+  onAtBottomChange,
   onLoadEarlier,
   onLoadLatest,
   scrollResetKey,
@@ -145,6 +147,7 @@ export function ChatPanel({
           const distanceFromBottom =
             element.scrollHeight - element.scrollTop - element.clientHeight;
           autoScrollRef.current = distanceFromBottom < 48;
+          onAtBottomChange?.(autoScrollRef.current);
         }}
       >
         <div

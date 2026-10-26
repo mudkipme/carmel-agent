@@ -350,9 +350,9 @@ const MessageItem = memo(function MessageItem({
 }) {
   if (message.role === "homeNotice")
     return (
-      <p role="status" className="py-3 text-center text-sm text-muted-foreground">
-        {message.text}
-      </p>
+      <div role="status" className="py-3 text-sm text-muted-foreground">
+        <MarkdownContent content={message.text} />
+      </div>
     );
   if (message.role === "assistant") {
     return (

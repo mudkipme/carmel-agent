@@ -15,8 +15,57 @@ import { createSession } from "../test-support.ts";
 import { ensureHome, resetHome } from "./agent-homes.ts";
 import { admitHomeInput, queuedHomeInputs, stopHome } from "./home-events.ts";
 import { receiveImMessage } from "../runtime/im-manager.ts";
+import { publishHomeEvent, dispatchHome } from "./home-events.ts";
+import { readSessionSnapshot } from "./session-snapshot.ts";
 
 initialize();
+
+test("stopped Home retains one passive notice per report and notifications do not wake the model", async () => {
+  const fixture = createSession();
+  const home = ensureHome(fixture.userId, fixture.agentId);
+  await stopHome(fixture.userId, fixture.agentId);
+  const report = {
+    sourceKey: "issue:attempt-one",
+    kind: "issue" as const,
+    text: "[Review result](/result)",
+  };
+  publishHomeEvent(fixture.userId, fixture.agentId, report);
+  publishHomeEvent(fixture.userId, fixture.agentId, report);
+  await dispatchHome(home.sessionId);
+  const first = db
+    .select()
+    .from(agentHomes)
+    .where(eq(agentHomes.sessionId, home.sessionId))
+    .get()!.updatedAt;
+  await dispatchHome(home.sessionId);
+  assert.equal(
+    db.select().from(agentHomes).where(eq(agentHomes.sessionId, home.sessionId)).get()!.updatedAt,
+    first,
+  );
+  const snapshot = (await readSessionSnapshot(fixture.userId, home.sessionId))!;
+  assert.equal(snapshot.messages.filter((message) => message.role === "homeNotice").length, 1);
+  assert.equal(
+    db.select().from(homeEvents).where(eq(homeEvents.sessionId, home.sessionId)).get()!.status,
+    "queued",
+  );
+  const other = createSession();
+  const note = publishHomeEvent(other.userId, other.agentId, {
+    sourceKey: "alert",
+    kind: "notification",
+    text: "Your conditional alert",
+  })!;
+  await dispatchHome(note.sessionId);
+  assert.equal(
+    db.select().from(homeEvents).where(eq(homeEvents.id, note.id)).get()!.status,
+    "done",
+  );
+  assert.deepEqual(
+    (await readSessionSnapshot(other.userId, note.sessionId))!.messages.map(
+      (message) => message.role,
+    ),
+    ["homeNotice"],
+  );
+});
 
 test("web and paired channels admit into one ordered Home and deduplicate source events", async () => {
   const fixture = createSession();

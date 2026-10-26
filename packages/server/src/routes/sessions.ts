@@ -359,6 +359,7 @@ export function createSessionRoutes() {
         c.get("user").id,
         c.req.param("id"),
         c.req.query("before"),
+        c.req.query("around"),
       );
       return page ? c.json(page) : c.json({ error: "Session not found." }, 404);
     } catch {
