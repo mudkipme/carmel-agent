@@ -423,3 +423,28 @@ export const agentHomes = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.userId, table.agentId] })],
 );
+
+export const homeEvents = sqliteTable("home_events", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id")
+    .notNull()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  sourceKey: text("source_key").notNull().unique(),
+  kind: text("kind").notNull().default("input"),
+  origin: text("origin").$type<"web" | "im" | "background">().notNull(),
+  integrationId: text("integration_id"),
+  prompt: text("prompt", { mode: "json" })
+    .$type<import("@carmel-agent/shared").PromptInput>()
+    .notNull(),
+  status: text("status")
+    .$type<"preparing" | "queued" | "running" | "done" | "failed" | "cancelled" | "interrupted">()
+    .notNull(),
+  modelRefId: text("model_ref_id"),
+  thinkingLevel: text("thinking_level").$type<AgentThinkingLevel>(),
+  timezone: text("timezone"),
+  runId: text("run_id"),
+  reply: text("reply"),
+  error: text("error"),
+  createdAt: integer("created_at").notNull(),
+  finishedAt: integer("finished_at"),
+});

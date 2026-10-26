@@ -67,7 +67,11 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
         model: seed.model,
         thinkingLevel: clampThinkingLevel(seed.model, authoritativeSession.thinkingLevel),
         messages: authoritativeSession.messages,
+        home: authoritativeSession.home,
         olderCursor: authoritativeSession.olderCursor,
+        onConnection: (connection) => {
+          sessionRef.current = connection.session;
+        },
         onHistoryPage: (page) => {
           const current = sessionRef.current;
           sessionRef.current = {
@@ -118,14 +122,20 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
       },
     );
 
+    const poll = session.home
+      ? setInterval(() => {
+          if (!document.hidden) void activeAgent?.refreshHome().catch(() => {});
+        }, 1500)
+      : undefined;
     return () => {
+      if (poll) clearInterval(poll);
       cancelled = true;
       if (activeAgent) seedMessagesRef.current = activeAgent.getSnapshot().messages;
       activeAgent?.detach();
       agentRef.current = null;
       setAgent(null);
     };
-  }, [agentConfig.id, connectSession, session.id]);
+  }, [agentConfig.id, connectSession, session.id, session.home]);
 
   // Returns what happened to the submission so the composer can keep a message
   // the server never took. Everything that can stop a send before the prompt
@@ -140,7 +150,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
       const { isStreaming, thinkingLevel } = activeAgent?.getSnapshot() ?? EMPTY_SNAPSHOT;
       if (!activeAgent)
         return { status: "rejected", error: "Not connected to this conversation yet." };
-      if (isStreaming)
+      if (isStreaming && !sessionRef.current.home)
         return { status: "rejected", error: "This conversation already has a run in progress." };
       const currentSession = sessionRef.current;
       if (thinkingLevel !== currentSession.thinkingLevel) {

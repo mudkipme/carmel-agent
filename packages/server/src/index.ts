@@ -1,4 +1,14 @@
 import {
+  startHomeDispatcher,
+  stopHomeDispatcher,
+  drainHomeEvents,
+  recoverHomeEvents,
+} from "./services/home-events.ts";
+import { ensureHome } from "./services/agent-homes.ts";
+import { imBindings, imIntegrations } from "./db/im-schema.ts";
+import { db } from "./db/index.ts";
+import { eq } from "drizzle-orm";
+import {
   recoverIssueAttempts,
   startIssueQueue,
   stopIssueQueue,
@@ -62,6 +72,19 @@ void refreshConfiguredModelCatalogs()
     console.warn("Failed to refresh configured model catalogs:", errorMessage(error));
   });
 
+for (const { integration } of db
+  .select({ integration: imIntegrations })
+  .from(imIntegrations)
+  .innerJoin(imBindings, eq(imBindings.integrationId, imIntegrations.id))
+  .all()) {
+  try {
+    ensureHome(integration.userId, integration.agentId);
+  } catch {
+    /* Unconfigured or revoked agents remain unavailable. */
+  }
+}
+await recoverHomeEvents();
+startHomeDispatcher();
 startTaskScheduler();
 startImManager();
 startKnowledgeScheduler();
@@ -83,11 +106,13 @@ let shuttingDown = false;
 async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
+  stopHomeDispatcher();
   stopIssueQueue();
   stopImManager();
   console.log(`Received ${signal}, draining active runs...`);
   try {
     await shutdownActiveRuns();
+    await drainHomeEvents();
     await drainImManager();
     await drainIssueResults();
   } catch (error) {

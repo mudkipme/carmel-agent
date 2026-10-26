@@ -26,6 +26,7 @@ type ChatPanelProps = {
   initialReferences?: MessageReference[];
   onReferencesChange?: (references: MessageReference[]) => void;
   readOnly?: boolean;
+  allowQueuedInput?: boolean;
   onLoadEarlier?: () => Promise<void>;
   onLoadLatest?: () => Promise<void>;
   scrollResetKey: string;
@@ -66,6 +67,7 @@ export function ChatPanel({
   initialReferences,
   onReferencesChange,
   readOnly,
+  allowQueuedInput,
   onLoadEarlier,
   onLoadLatest,
   scrollResetKey,
@@ -219,7 +221,7 @@ export function ChatPanel({
               leadingActions={inputLeadingActions}
               currentModel={currentModel}
               thinkingLevel={thinkingLevel}
-              isStreaming={isStreaming}
+              isStreaming={allowQueuedInput ? false : isStreaming}
               initialValue={initialInput}
               onDraftChange={onInputDraftChange}
               onThinkingLevelChange={onThinkingLevelChange}

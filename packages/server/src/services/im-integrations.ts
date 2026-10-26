@@ -1,3 +1,5 @@
+import { homeEvents } from "../db/schema.ts";
+import { readHome } from "./agent-homes.ts";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import QRCode from "qrcode";
@@ -107,7 +109,7 @@ export function listImIntegrations(userId: string, agentId: string): ImIntegrati
         status: row.enabled ? row.status : "disabled",
         error: row.error ?? undefined,
         senderId: binding?.senderId ?? "",
-        sessionId: binding?.sessionId ?? undefined,
+        sessionId: readHome(userId, agentId)?.sessionId ?? binding?.sessionId ?? undefined,
         updatedAt: row.updatedAt,
       };
     });
@@ -190,6 +192,15 @@ export function updateImIntegration(
       .where(eq(imIntegrations.id, integrationId))
       .run();
     if (patch.enabled === false) {
+      tx.update(homeEvents)
+        .set({ status: "cancelled" })
+        .where(
+          and(
+            eq(homeEvents.integrationId, integrationId),
+            inArray(homeEvents.status, ["preparing", "queued"]),
+          ),
+        )
+        .run();
       tx.update(imOutbox)
         .set({ status: "cancelled", error: "Integration disabled." })
         .where(and(eq(imOutbox.integrationId, integrationId), eq(imOutbox.status, "pending")))
@@ -214,6 +225,15 @@ export function updateImIntegration(
 export function deleteImIntegration(userId: string, agentId: string, integrationId: string) {
   const current = ownedIntegration(userId, agentId, integrationId);
   cancelSetups(userId, agentId, current.platform);
+  db.update(homeEvents)
+    .set({ status: "cancelled" })
+    .where(
+      and(
+        eq(homeEvents.integrationId, integrationId),
+        inArray(homeEvents.status, ["preparing", "queued"]),
+      ),
+    )
+    .run();
   db.delete(imIntegrations).where(eq(imIntegrations.id, integrationId)).run();
 }
 function cancelSetups(userId: string, agentId: string, platform: ImPlatform) {

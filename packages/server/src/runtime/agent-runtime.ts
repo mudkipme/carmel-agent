@@ -127,6 +127,10 @@ export type AgentRunInput = {
   modelRuntime: Models;
   thinkingLevel: Session["thinkingLevel"];
   promptInput?: PromptInput;
+  promptDelivery?: {
+    requestId: string;
+    source: Record<string, import("@earendil-works/chord").JsonValue>;
+  };
   resolvedReferences?: ResolvedReferences;
   /** Browser time zone for interpreting local reminder times. */
   timezone?: string;
@@ -362,7 +366,8 @@ async function startAgentRun(context: AgentRun) {
       await runHarnessPrompt(
         {
           resources,
-          prompt: (text, images) => harness!.prompt(text, images, runContext, resolved),
+          prompt: (text, images) =>
+            harness!.prompt(text, images, runContext, resolved, context.promptDelivery),
         },
         prepared.promptInput.text,
         prepared.promptInput.images,

@@ -1,3 +1,4 @@
+import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
 import { Link } from "react-router-dom";
@@ -60,6 +61,20 @@ export function PiChat({
     session,
     modelRef,
   );
+  const homeStatus = useRemoteResource({
+    key: `home-status:${session.id}`,
+    enabled: Boolean(session.home),
+    load: (signal) => api.homeStatus(agentConfig.id, signal),
+    pollInterval: 1500,
+  });
+  const [dismissedHomeErrors, setDismissedHomeErrors] = useState<string[]>([]);
+  const homeError = homeStatus.data?.events.find(
+    (event) => event.error && !dismissedHomeErrors.includes(event.id),
+  );
+  const queued =
+    homeStatus.data?.events.filter(
+      (event) => event.status === "queued" || event.status === "preparing",
+    ).length ?? 0;
   const mutations = useMessageMutations(agentRef, sessionRef);
   const modelSelection = useModelSelection({
     agent,
@@ -153,12 +168,28 @@ export function PiChat({
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
+        {session.home && queued ? (
+          <p role="status" className="px-4 py-2 text-sm text-muted-foreground">
+            {queued} message{queued === 1 ? "" : "s"} queued
+          </p>
+        ) : null}
+        {session.home && homeError ? (
+          <ChatErrorNotice
+            message={homeError.error!}
+            onDismiss={() => setDismissedHomeErrors((current) => [...current, homeError.id])}
+          />
+        ) : null}
         {session.home ? (
           <div className="flex justify-end border-b px-4 py-1">
+            {snapshot.isStreaming || snapshot.hasPendingWork || queued ? (
+              <Button size="sm" variant="ghost" onClick={() => void agent?.abort()}>
+                Stop Home
+              </Button>
+            ) : null}
             <Button
               size="sm"
               variant="ghost"
-              disabled={snapshot.isStreaming || snapshot.hasPendingWork}
+              disabled={snapshot.isStreaming || snapshot.hasPendingWork || queued > 0}
               onClick={() =>
                 void api
                   .resetHome(agentConfig.id)
@@ -211,6 +242,7 @@ export function PiChat({
             <ChatPanel
               agentId={agentConfig.id}
               sessionId={session.id}
+              allowQueuedInput={Boolean(session.home)}
               canReadFiles={agentConfig.permissions.read}
               canWriteFiles={agentConfig.permissions.write}
               initialReferences={referencesDraftRef.current}

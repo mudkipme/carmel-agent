@@ -72,6 +72,8 @@ export const imInbox = sqliteTable(
       .notNull()
       .references(() => imIntegrations.id, { onDelete: "cascade" }),
     eventId: text("event_id").notNull(),
+    homeEventId: text("home_event_id"),
+    legacy: integer("legacy", { mode: "boolean" }).notNull().default(false),
     prompt: text("prompt", { mode: "json" }).$type<PromptInput>().notNull(),
     imageKeys: text("image_keys", { mode: "json" }).$type<string[]>().notNull().default([]),
     messageId: text("message_id"),

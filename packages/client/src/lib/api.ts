@@ -492,6 +492,15 @@ export const api = {
     request<{ ok: true }>(`/api/agents/${agentId}/issues/${issueId}`, { method: "DELETE" }),
   deleteAgent: (agentId: string) =>
     request<{ ok: true }>(`/api/agents/${agentId}`, { method: "DELETE" }),
+  homeStatus: (agentId: string, signal?: AbortSignal) =>
+    request<{
+      home: { sessionId: string; paused: boolean } | null;
+      events: Array<{ id: string; status: string; error?: string; createdAt: number }>;
+    }>(`/api/agents/${encodeURIComponent(agentId)}/home`, { signal }),
+  stopHome: (agentId: string) =>
+    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/stop`, {
+      method: "POST",
+    }),
   ensureHome: (agentId: string) =>
     request<{ home: { sessionId: string }; session: Session }>(
       `/api/agents/${encodeURIComponent(agentId)}/home`,

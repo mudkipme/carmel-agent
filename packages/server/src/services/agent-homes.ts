@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { imBindings, imIntegrations } from "../db/im-schema.ts";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.ts";
-import { agentHomes, sessions } from "../db/schema.ts";
+import { agentHomes, homeEvents, sessions } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import {
   readVisibleAgent,
@@ -44,13 +45,31 @@ export function ensureHome(userId: string, agentId: string) {
   return db.transaction(() => {
     const existing = readHome(userId, agentId);
     if (existing) return existing;
-    const session = insertSession({
-      userId,
-      agentId,
-      modelRefId: model.id,
-      thinkingLevel: resolveSupportedThinkingLevel(model, agent.defaultThinkingLevel),
-      title: "Home",
-    });
+    const candidates = db
+      .select({ session: sessions, preferred: imIntegrations.notificationDefault })
+      .from(imIntegrations)
+      .innerJoin(imBindings, eq(imBindings.integrationId, imIntegrations.id))
+      .innerJoin(sessions, eq(sessions.id, imBindings.sessionId))
+      .where(and(eq(imIntegrations.userId, userId), eq(imIntegrations.agentId, agentId)))
+      .orderBy(desc(imIntegrations.notificationDefault), desc(sessions.updatedAt), sessions.id)
+      .all();
+    const adopted = candidates.find(
+      ({ session }) =>
+        session.userId === userId &&
+        session.agentId === agentId &&
+        !session.archivedAt &&
+        !session.issueId &&
+        !session.taskId,
+    )?.session;
+    const session =
+      adopted ??
+      insertSession({
+        userId,
+        agentId,
+        modelRefId: model.id,
+        thinkingLevel: resolveSupportedThinkingLevel(model, agent.defaultThinkingLevel),
+        title: "Home",
+      });
     const timestamp = now();
     db.insert(agentHomes)
       .values({
@@ -69,6 +88,16 @@ export async function resetHome(userId: string, agentId: string) {
   const home = readHome(userId, agentId);
   if (!home) throw new HomeError("Home not found.", 404);
   if (
+    db
+      .select()
+      .from(homeEvents)
+      .where(
+        and(
+          eq(homeEvents.sessionId, home.sessionId),
+          inArray(homeEvents.status, ["preparing", "queued"]),
+        ),
+      )
+      .get() ||
     getActiveAgentRunForSession(userId, home.sessionId) ||
     blockingUserRequest(home.sessionId) ||
     (await hasPendingPiSessionWork(home.sessionId))

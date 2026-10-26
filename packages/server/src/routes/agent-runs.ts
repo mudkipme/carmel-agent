@@ -1,3 +1,5 @@
+import { HomeError, sessionHome } from "../services/agent-homes.ts";
+import { admitHomeInput, dispatchHome, stopHome } from "../services/home-events.ts";
 import {
   type ActiveAgentRunSummary,
   agentRunRequestSchema,
@@ -32,6 +34,10 @@ import { blockingUserRequest } from "../services/user-requests.ts";
 
 export function createAgentRunRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
+  route.onError((error, c) => {
+    if (error instanceof HomeError) return c.json({ error: error.message }, error.status);
+    throw error;
+  });
 
   route.get("/agents/:id/active-sessions", (c) => {
     const userId = c.get("user").id;
@@ -88,6 +94,11 @@ export function createAgentRunRoutes() {
     const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!session || session.userId !== userId) return c.json({ error: "Session not found" }, 404);
     if (session.issueId) return c.json({ error: "Stop the attempt from the issue." }, 409);
+    const home = sessionHome(sessionId);
+    if (home) {
+      await stopHome(userId, home.agentId);
+      return c.json({ ok: true });
+    }
     await withPiSession(sessionId, async (pi) => {
       // Opening storage can yield to a newly admitted run. Let its runtime own
       // cancellation and finalization if it acquired the session meanwhile.
@@ -124,6 +135,18 @@ export function createAgentRunRoutes() {
       return c.json({ error: "Session not found" }, 404);
     }
     if (session.issueId) return c.json({ error: "Start a new attempt from the issue." }, 409);
+    if (sessionHome(session.id) && body.promptInput) {
+      const event = admitHomeInput(currentUserId, agent.id, {
+        sourceKey: `web:${crypto.randomUUID()}`,
+        origin: "web",
+        prompt: body.promptInput,
+        modelRefId: body.modelRefId,
+        thinkingLevel: body.thinkingLevel,
+        timezone: body.timezone,
+      });
+      const run = await dispatchHome(event.sessionId);
+      return c.json({ eventId: event.id, runId: run?.runId }, 202);
+    }
     const activeRun = getActiveAgentRunForSession(currentUserId, session.id);
     if (activeRun) return alreadyRunning(c, activeRun);
     const waiting = blockingUserRequest(session.id);

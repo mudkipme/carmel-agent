@@ -314,7 +314,13 @@ export function displayEntries(
       data?.carmelMessage ??
       receiptMessage ??
       referencedMessage ??
-      (["pi.user", "pi.assistant", "pi.tool-result", "carmel.system-message"].includes(entry.kind)
+      ([
+        "pi.user",
+        "pi.assistant",
+        "pi.tool-result",
+        "carmel.system-message",
+        "carmel.home-input",
+      ].includes(entry.kind)
         ? entry.model?.[0]
         : undefined);
     const base = {

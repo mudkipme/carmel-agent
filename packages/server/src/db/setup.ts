@@ -23,6 +23,14 @@ export function initializeSchema(sqlite: BetterSqlite3.Database) {
       sqlite.exec("ALTER TABLE agent_tasks ADD COLUMN notify_platform TEXT");
     sqlite.exec(IM_SCHEMA);
     sqlite.exec(HOME_SCHEMA);
+    const inboxColumns = sqlite.pragma("table_info(im_inbox)") as Array<{ name: string }>;
+    if (!inboxColumns.some((column) => column.name === "home_event_id")) {
+      sqlite.exec("ALTER TABLE im_inbox ADD COLUMN home_event_id TEXT");
+      sqlite.exec("ALTER TABLE im_inbox ADD COLUMN legacy INTEGER NOT NULL DEFAULT 0");
+      sqlite.exec(
+        "UPDATE im_inbox SET legacy = 1, session_id = COALESCE(session_id, (SELECT session_id FROM im_bindings WHERE integration_id = im_inbox.integration_id)) WHERE status IN ('queued', 'running')",
+      );
+    }
   })();
 }
 
@@ -367,6 +375,19 @@ const CURRENT_SCHEMA = `
 `;
 
 const HOME_SCHEMA = `
+ CREATE TABLE IF NOT EXISTS home_events (
+  id TEXT PRIMARY KEY NOT NULL,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  source_key TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL DEFAULT 'input', origin TEXT NOT NULL,
+  integration_id TEXT REFERENCES im_integrations(id) ON DELETE SET NULL,
+  prompt TEXT NOT NULL, status TEXT NOT NULL,
+  model_ref_id TEXT, thinking_level TEXT, timezone TEXT,
+  run_id TEXT, reply TEXT, error TEXT,
+  created_at INTEGER NOT NULL, finished_at INTEGER
+ );
+ CREATE INDEX IF NOT EXISTS home_events_queue ON home_events(session_id, status, created_at);
+
  CREATE TABLE IF NOT EXISTS agent_homes (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,

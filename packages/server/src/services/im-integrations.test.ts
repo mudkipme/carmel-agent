@@ -1,3 +1,6 @@
+import { recoverHomeEvents } from "./home-events.ts";
+import { homeEvents } from "../db/schema.ts";
+import { ensureHome } from "./agent-homes.ts";
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 import { eq } from "drizzle-orm";
@@ -443,7 +446,7 @@ test("inbound dedup and sender binding reject strangers, while stop cancels the 
   await receiveImMessage(f.integrationId, incoming());
   await receiveImMessage(f.integrationId, incoming());
   assert.equal(db.select().from(imInbox).all().length, 1);
-  const sessionId = "im_stop_session";
+  const sessionId = ensureHome(f.userId, f.agentId).sessionId;
   db.update(imBindings)
     .set({ sessionId })
     .where(eq(imBindings.integrationId, f.integrationId))
@@ -600,9 +603,15 @@ test("startup never replays an admitted turn or blindly repeats a send whose res
   const f = await paired();
   await receiveImMessage(f.integrationId, incoming());
   db.update(imInbox).set({ status: "running" }).run();
+  db.update(homeEvents)
+    .set({ status: "running" })
+    .where(eq(homeEvents.id, db.select().from(imInbox).all()[0].homeEventId!))
+    .run();
   const delivery = enqueueImMessage(f.integrationId, "Possible duplicate", "restart", true);
   db.update(imOutbox).set({ status: "sending" }).where(eq(imOutbox.id, delivery.id)).run();
+  await recoverHomeEvents();
   recoverImWork();
+  await recoverHomeEvents();
   recoverImWork();
   assert.equal(db.select().from(imInbox).all()[0].status, "interrupted");
   assert.equal(
