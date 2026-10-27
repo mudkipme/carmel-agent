@@ -9,7 +9,7 @@ import {
   ClipboardCheckIcon,
   type LucideIcon,
 } from "lucide-react";
-import type { Issue, IssueStatus } from "@carmel-agent/shared";
+import type { Issue, IssueStatus, IssueAttempt } from "@carmel-agent/shared";
 type IssueState = {
   label: string;
   Icon: LucideIcon;
@@ -70,4 +70,13 @@ export function issueGroup(issue: Issue): "Working" | "Queued" | "Needs you" | "
   if (isClosedIssue(issue)) return "Done";
   if (issue.status === "queued") return "Queued";
   return describeIssue(issue).attention !== "none" ? "Needs you" : "Backlog";
+}
+
+export function hasTaskResult(attempt: IssueAttempt) {
+  return Boolean(
+    attempt.summary ||
+    attempt.evidence ||
+    attempt.snapshot?.files.length ||
+    attempt.snapshot?.warning,
+  );
 }

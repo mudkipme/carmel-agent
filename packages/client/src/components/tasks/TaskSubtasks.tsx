@@ -1,7 +1,9 @@
+import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChevronDownIcon, ChevronRightIcon, SquareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useSubtasks } from "@/hooks/use-subtasks";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
@@ -12,13 +14,21 @@ import { ResourceError, ResourceLoading } from "@/components/harness/ResourceFee
 const active = (status: string) => ["working", "sleeping", "reporting"].includes(status);
 
 export function TaskSubtasks({ sessionId }: { sessionId: string }) {
+  const resource = useSubtasks(sessionId);
+  return <SubtaskList sessionId={sessionId} resource={resource} />;
+}
+
+export function SubtaskList({
+  sessionId,
+  resource,
+  showHeading = true,
+}: {
+  sessionId: string;
+  resource: ReturnType<typeof useSubtasks>;
+  showHeading?: boolean;
+}) {
   const [params, setParams] = useSearchParams();
   const selected = Number(params.get("subtask")) || undefined;
-  const resource = useRemoteResource({
-    key: `subtasks:${sessionId}`,
-    load: (signal) => api.sessionSubtasks(sessionId, signal),
-    pollInterval: 3000,
-  });
   if (!resource.data?.helpers.length && !resource.data?.error && !resource.error) return null;
   const toggle = (id: number) => {
     const next = new URLSearchParams(params);
@@ -42,7 +52,7 @@ export function TaskSubtasks({ sessionId }: { sessionId: string }) {
   };
   return (
     <section className="flex min-w-0 flex-col gap-2" aria-label="Subtasks">
-      <h2 className="text-sm font-medium">Subtasks</h2>
+      {showHeading ? <h2 className="text-sm font-medium">Subtasks</h2> : null}
       {resource.error ? <ResourceError error={resource.error} onRetry={resource.refresh} /> : null}
       {resource.data?.error ? (
         <div role="status" className="flex items-center justify-between gap-3 text-sm">
@@ -56,7 +66,7 @@ export function TaskSubtasks({ sessionId }: { sessionId: string }) {
           </Button>
         </div>
       ) : null}
-      <div className="divide-y rounded-lg border">
+      <div className="divide-y">
         {resource.data?.helpers.map((subtask) => (
           <div key={subtask.id}>
             <div className="flex min-w-0 items-center gap-2 p-2">
@@ -99,16 +109,11 @@ export function TaskSubtasks({ sessionId }: { sessionId: string }) {
               ) : null}
             </div>
             {selected === subtask.id ? (
-              <div
-                id={`subtask-${subtask.id}`}
-                className="flex min-w-0 flex-col gap-4 border-t px-4 py-3"
-              >
-                <SubtaskDetail
-                  sessionId={sessionId}
-                  id={subtask.id}
-                  running={active(subtask.status)}
-                />
-              </div>
+              <SubtaskDetail
+                sessionId={sessionId}
+                id={subtask.id}
+                running={active(subtask.status)}
+              />
             ) : null}
           </div>
         ))}
@@ -127,6 +132,7 @@ function SubtaskDetail({
   running: boolean;
 }) {
   const [params, setParams] = useSearchParams();
+  const panel = useRef<HTMLDivElement>(null);
   const before = params.get("subtaskBefore") ?? undefined;
   const resource = useRemoteResource({
     key: `subtask:${sessionId}:${id}:${before}`,
@@ -134,19 +140,23 @@ function SubtaskDetail({
     pollInterval: running && !before ? 1500 : false,
     refreshKey: running,
   });
+  const ready = Boolean(resource.data || resource.error);
+  useEffect(() => {
+    if (!ready) return;
+    panel.current?.scrollIntoView({ block: "start", inline: "nearest" });
+    panel.current?.focus({ preventScroll: true });
+  }, [sessionId, id, before, ready]);
   const page = (cursor?: string) => {
     const next = new URLSearchParams(params);
     if (cursor) next.set("subtaskBefore", cursor);
     else next.delete("subtaskBefore");
     setParams(next, { replace: true });
   };
-  if (resource.error) return <ResourceError error={resource.error} onRetry={resource.refresh} />;
-  if (!resource.data) return <ResourceLoading label="Loading subtask" />;
-  return (
+  const detail = resource.data;
+  const transcript = detail ? (
     <>
-      <MarkdownContent content={resource.data.helper.task} />
-      {resource.data.session.olderCursor ? (
-        <Button variant="ghost" size="sm" onClick={() => page(resource.data!.session.olderCursor!)}>
+      {detail.session.olderCursor ? (
+        <Button variant="ghost" size="sm" onClick={() => page(detail.session.olderCursor!)}>
           Earlier messages
         </Button>
       ) : null}
@@ -156,10 +166,42 @@ function SubtaskDetail({
         </Button>
       ) : null}
       <ChatMessages
-        messages={resource.data.session.messages}
+        messages={detail.session.messages}
         pendingToolCalls={new Set()}
         isStreaming={running}
       />
     </>
+  ) : null;
+  return (
+    <div
+      ref={panel}
+      id={`subtask-${id}`}
+      tabIndex={-1}
+      className="flex min-w-0 flex-col gap-4 border-t px-4 py-3"
+    >
+      {resource.error ? (
+        <ResourceError error={resource.error} onRetry={resource.refresh} />
+      ) : !detail ? (
+        <ResourceLoading label="Loading subtask" />
+      ) : (
+        <>
+          {detail.helper.answer ? (
+            <MarkdownContent content={detail.helper.answer} />
+          ) : !detail.session.messages.length ? (
+            <MarkdownContent content={detail.helper.task} />
+          ) : null}
+          {detail.helper.answer ? (
+            <details open={Boolean(before) || undefined}>
+              <summary className="cursor-pointer text-xs text-muted-foreground">
+                Conversation
+              </summary>
+              <div className="flex min-w-0 flex-col gap-4 pt-4">{transcript}</div>
+            </details>
+          ) : (
+            transcript
+          )}
+        </>
+      )}
+    </div>
   );
 }

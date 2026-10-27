@@ -142,6 +142,7 @@ export function HarnessShell({
   const loadUnlistedSession = useHarnessStore((state) => state.loadUnlistedSession);
   const loadIssues = useHarnessStore((state) => state.loadIssues);
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
+  const [taskHeaderTarget, setTaskHeaderTarget] = useState<HTMLDivElement | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const [workspaceSplit, setWorkspaceSplit] = useState(false);
@@ -482,6 +483,7 @@ export function HarnessShell({
           activeAgent={activeAgent}
           activeSession={activeSessionMetadata}
           issueTitle={activeIssueId === "new" ? "New task" : activeIssue?.title}
+          taskHeaderRef={activeIssueId && activeIssueId !== "new" ? setTaskHeaderTarget : undefined}
           contentView={view}
           homeView={homeView}
           companionVisible={isWorkspaceView(view) && workspaceSplit}
@@ -576,6 +578,7 @@ export function HarnessShell({
                   key={activeIssueId}
                   agent={activeAgent}
                   issueId={activeIssueId}
+                  headerTarget={taskHeaderTarget}
                   onIssuesChanged={issueList.refresh}
                 />
               ) : (

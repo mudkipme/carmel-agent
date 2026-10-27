@@ -7,7 +7,7 @@ import {
   SquareTerminalIcon,
   ArrowLeftIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ export function HarnessHeader({
   activeAgent,
   activeSession,
   issueTitle,
+  taskHeaderRef,
   contentView,
   homeView,
   companionVisible,
@@ -36,6 +37,7 @@ export function HarnessHeader({
   activeSession?: SessionMetadata;
   /** The open issue's title, when the issues pane is showing one. */
   issueTitle?: string;
+  taskHeaderRef?: Ref<HTMLDivElement>;
   contentView: ContentView;
   homeView: boolean;
   companionVisible: boolean;
@@ -48,6 +50,21 @@ export function HarnessHeader({
   onContentViewChange: (view: ContentView) => void;
   onOpenAgentSettings: () => void;
 }) {
+  if (taskHeaderRef)
+    return (
+      <header className="flex shrink-0 items-start gap-2 border-b bg-background px-2 pt-[var(--safe-top)] sm:px-5">
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          title="Show sidebar"
+          className={sidebarOpen ? "mt-3 lg:hidden" : "mt-3"}
+          onClick={onToggleSidebar}
+        >
+          <PanelLeftIcon />
+        </Button>
+        <div ref={taskHeaderRef} className="min-w-0 flex-1" />
+      </header>
+    );
   /* In split view the workspace names itself, leaving the main header for chat. */
   const title = companionVisible
     ? activeSession?.home

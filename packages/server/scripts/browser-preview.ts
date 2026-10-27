@@ -241,7 +241,26 @@ for (const [id, sessionId, createdAt] of [
       instructions: "",
       brief: "Check the guide.",
       outcome: "succeeded",
-      summary: "Ready for review.",
+      summary:
+        id === "browser-current-attempt" ? "Ready for review." : "Earlier verification result.",
+      evidence:
+        id === "browser-current-attempt"
+          ? "The setup commands were checked against the project configuration. All local checks passed."
+          : "Initial review before the final verification.",
+      snapshot: {
+        files: [
+          {
+            path: "docs/deployment.md",
+            change: "modified",
+            before: "Original deployment guide",
+            after:
+              id === "browser-current-attempt"
+                ? "Final verified deployment guide"
+                : "First draft of the deployment guide",
+          },
+        ],
+        capturedAt: createdAt + 1_000,
+      },
       createdAt,
       finishedAt: createdAt + 1_000,
     })
@@ -407,38 +426,67 @@ const { openPiSession, closePiSession, messageDraft } =
   await import("../src/services/pi-session-storage.ts");
 const { Helpers } = await import("../src/runtime/helpers.ts");
 const { BACKGROUND_CONTEXT } = await import("@earendil-works/chord/context");
-const taskSession = await openPiSession(fixture.sessionId);
-const subtaskId = await taskSession.conversation.commit(async (tx) => {
-  const state = await tx.doc(Helpers);
-  const child = await tx.createConversation({ ownership: { kind: "ownerless" } });
-  await tx.appendEntry(
-    child.id,
-    messageDraft({ role: "user", content: "Verify the database connections.", timestamp }),
-  );
-  await tx.appendEntry(
-    child.id,
-    messageDraft(
-      fauxAssistantMessage("Verified database connections. All eleven applications were checked."),
-    ),
-  );
-  state.items[String(child.id)] = {
-    userId: fixture.userId,
-    agentId: fixture.agentId,
-    callId: 0,
-    id: child.id,
-    parentId: taskSession.conversation.id,
-    name: "Database verification",
-    task: "Verify the database connections.",
-    background: true,
-    createdAt: timestamp,
-    wakeAt: timestamp,
-    deadline: timestamp + 300_000,
-    status: "done",
-    answer: "Verified database connections. All eleven applications were checked.",
-  };
-  return child.id;
-}, BACKGROUND_CONTEXT);
-await closePiSession(taskSession);
+async function seedSubtask(sessionId: string, agentId: string, longConversation = false) {
+  const taskSession = await openPiSession(sessionId);
+  const subtaskId = await taskSession.conversation.commit(async (tx) => {
+    const state = await tx.doc(Helpers);
+    const child = await tx.createConversation({ ownership: { kind: "ownerless" } });
+    await tx.appendEntry(
+      child.id,
+      messageDraft({ role: "user", content: "Verify the database connections.", timestamp }),
+    );
+    await tx.appendEntry(
+      child.id,
+      messageDraft(
+        fauxAssistantMessage(
+          "Verified database connections. All eleven applications were checked.",
+        ),
+      ),
+    );
+    state.items[String(child.id)] = {
+      userId: fixture.userId,
+      agentId,
+      callId: 0,
+      id: child.id,
+      parentId: taskSession.conversation.id,
+      name: "Database verification",
+      task: "Verify the database connections.",
+      background: true,
+      createdAt: timestamp,
+      wakeAt: timestamp,
+      deadline: timestamp + 300_000,
+      status: "done",
+      answer: "Verified database connections. All eleven applications were checked.",
+    };
+    if (longConversation) {
+      await tx.appendEntry(
+        taskSession.conversation.id,
+        messageDraft(
+          fauxAssistantMessage(
+            Array.from(
+              { length: 40 },
+              (_, i) =>
+                `Verification step ${i + 1}: checked the application and its database connection.`,
+            ).join("\n\n"),
+          ),
+        ),
+      );
+    }
+    await tx.appendEntry(
+      taskSession.conversation.id,
+      messageDraft({
+        role: "homeNotice",
+        text: `[Open helper](/agents/${agentId}/sessions/${sessionId}/helpers/${child.id})`,
+        timestamp: timestamp + 3,
+      }),
+    );
+    return child.id;
+  }, BACKGROUND_CONTEXT);
+  await closePiSession(taskSession);
+  return subtaskId;
+}
+const subtaskId = await seedSubtask(fixture.sessionId, fixture.agentId, true);
+await seedSubtask(issueHome.sessionId, secondAgentId);
 const app = createApp();
 const { withPiSession } = await import("../src/services/pi-session-storage.ts");
 const { createUserRequest, answerSecretRequest, pendingUserReply, markUserReplySubmitted } =

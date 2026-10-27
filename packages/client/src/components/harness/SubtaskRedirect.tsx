@@ -14,6 +14,8 @@ export function SubtaskRedirect() {
   const parent = resource.data.session.issueId;
   const path = parent
     ? `/agents/${agentId}/tasks/${parent}`
-    : `/agents/${agentId}/sessions/${sessionId}`;
+    : resource.data.session.home
+      ? `/agents/${agentId}/home`
+      : `/agents/${agentId}/sessions/${sessionId}`;
   return <Navigate to={`${path}?subtask=${helperId}&subtaskSession=${sessionId}`} replace />;
 }

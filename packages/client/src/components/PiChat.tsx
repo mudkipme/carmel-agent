@@ -203,8 +203,8 @@ export function PiChat({
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
-        {!session.home ? (
-          <div className="px-4">
+        {!session.home || searchParams.has("subtask") ? (
+          <div className="max-h-1/2 shrink-0 overflow-y-auto px-4">
             <TaskSubtasks sessionId={session.id} />
           </div>
         ) : null}

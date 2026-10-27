@@ -79,17 +79,19 @@ export function TasksOverview({
               <state.Icon className={cn("mt-0.5 size-4 shrink-0", state.className)} />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="text-sm font-medium break-words">{issue.title}</span>
-                <span className="line-clamp-1 text-xs text-muted-foreground">
-                  {issue.lastRunDetail ?? issue.verdictSummary ?? issue.description}
-                </span>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{state.label}</Badge>
-                  <span className="text-xs text-muted-foreground">{issue.priority} priority</span>
+                <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                  <span className="shrink-0">{state.label}</span>
+                  {issue.lastRunDetail || issue.verdictSummary ? (
+                    <span className="truncate">{issue.lastRunDetail ?? issue.verdictSummary}</span>
+                  ) : null}
                 </div>
               </div>
               <span className="shrink-0 text-xs text-muted-foreground">
                 {formatRelativeTime(issue.updatedAt)}
               </span>
+              {issue.priority !== "normal" ? (
+                <Badge variant="outline">{issue.priority}</Badge>
+              ) : null}
             </Link>
             {issue.status === "queued" ? (
               <div className="flex shrink-0 flex-col gap-1 pr-3">

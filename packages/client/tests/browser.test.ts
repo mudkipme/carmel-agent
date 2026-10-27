@@ -967,12 +967,8 @@ test("private integrations show QR setup, cancel it, and persist proactive messa
 
 test("earlier issue conversations open the correct persisted session", () => {
   open(agentPath(`tasks/${fixture.reviewIssueId}`));
-  browser("wait", "--text", "Run history & task events");
-  // Target the summary: a text locator can match the enclosing details and click its content.
-  clickSelector("summary.text-muted-foreground");
-  evaluate(`Array.from(document.querySelectorAll('summary'))
-    .find(element => element.textContent.startsWith('Run 1 · succeeded')).click()`);
-  click("link", "Earlier conversation");
+  click("tab", "Activity");
+  clickSelector('a[href="' + agentPath(`sessions/${fixture.previousSessionId}`) + '"]');
   browser("wait", "--url", `**/sessions/${fixture.previousSessionId}`);
   assert.equal(
     browser<{ url: string }>("get", "url").url,
@@ -982,15 +978,44 @@ test("earlier issue conversations open the correct persisted session", () => {
 
 test("native subtasks open inside their parent task and legacy helper links redirect there", () => {
   open(agentPath(`tasks/${fixture.reviewIssueId}`));
-  browser("wait", "--text", "Subtasks");
+  click("button", "Subtasks");
   click("button", "Database verification");
   browser("wait", "--text", "Verified database connections.");
-  assert.match(browser<{ url: string }>("get", "url").url, /\/tasks\/[^?]+\?subtask=/);
+  assert.equal(
+    new URL(browser<{ url: string }>("get", "url").url).searchParams.get("subtask"),
+    String(fixture.subtaskId),
+  );
   assert.equal(evaluate<boolean>('document.body.innerText.includes("Open helper")'), false);
   open(agentPath(`sessions/${fixture.subtaskSessionId}/helpers/${fixture.subtaskId}`));
   browser("wait", "--url", `**/tasks/${fixture.reviewIssueId}?subtask=*`);
   browser("wait", "--text", "Verified database connections.");
   assert.match(snapshot(), /button "Database verification" \[expanded/);
+  assertSelectedSubtaskVisible();
+  click("button", "Close subtasks");
+  click("tab", "Conversation");
+  click("link", "View subtask result");
+  browser("wait", "--text", "Verified database connections.");
+  assertSelectedSubtaskVisible();
+});
+
+function assertSelectedSubtaskVisible() {
+  assert.equal(
+    evaluate<boolean>(`(() => {
+    const panel = document.querySelector('[id^="subtask-"]');
+    if (!panel || document.activeElement !== panel) return false;
+    const bounds = panel.getBoundingClientRect();
+    return bounds.top >= 0 && bounds.top < innerHeight && bounds.left >= 0;
+  })()`),
+    true,
+    "Selected subtask should receive focus and be scrolled into view",
+  );
+}
+
+test("Home subtask result links reveal the selected result", () => {
+  open(`/agents/${fixture.secondAgentId}/home`);
+  click("link", "View subtask result");
+  browser("wait", "--text", "Verified database connections.");
+  assertSelectedSubtaskVisible();
 });
 
 test("returning from an issue preserves the selected tab and search", () => {
@@ -1031,7 +1056,7 @@ test("saved issue drafts clear only after the server accepts them", () => {
   open(agentPath("tasks/new"));
   browser("find", "label", "Title", "fill", "A saved backlog brief");
   click("button", "Save to backlog");
-  browser("wait", "--text", "Edit brief");
+  browser("wait", "--text", "A saved backlog brief");
   click("link", "Browser test agent / Tasks");
   click("link", "New task");
   assert.equal(value("#issue-title"), "");
@@ -1039,15 +1064,124 @@ test("saved issue drafts clear only after the server accepts them", () => {
 
 test("issue replies survive leaving the conversation and clear after saving", () => {
   open(agentPath(`tasks/${fixture.reviewIssueId}`));
-  browser("wait", "#issue-reply");
-  browser("find", "label", "Instructions or feedback", "fill", "Please verify the setup commands");
+  click("tab", "Conversation");
+  browser("find", "label", "Message", "fill", "Please verify the setup commands");
+  click("tab", "Result");
+  click("tab", "Conversation");
+  assert.equal(value("#issue-reply"), "Please verify the setup commands");
   click("link", "Schedules");
   open(agentPath(`tasks/${fixture.reviewIssueId}`));
-  browser("wait", "#issue-reply");
+  click("tab", "Conversation");
   assert.equal(value("#issue-reply"), "Please verify the setup commands");
-  click("button", "Save note");
+  click("button", "Reply options");
+  click("menuitem", "Save as note");
   browser("wait", "--fn", 'document.querySelector("#issue-reply").value === ""');
-  assert.equal(value("#issue-reply"), "");
+});
+
+test("task results keep saved run versions and view selection across reloads", () => {
+  open(agentPath(`tasks/${fixture.reviewIssueId}`));
+  browser("wait", '[role="tab"][data-state="active"][id$="trigger-result"]');
+  assert.equal(evaluate('document.querySelectorAll("header h1").length'), 1);
+  clickSelector('summary[title="docs/deployment.md"], summary:has([title="docs/deployment.md"])');
+  browser("wait", "--text", "Final verified deployment guide");
+  click("tab", "Activity");
+  click("button", "View result for run 1");
+  browser("wait", "--text", "Earlier verification result.");
+  assert.equal(
+    evaluate('document.querySelector("button[disabled]")?.textContent.includes("Accept result")'),
+    true,
+  );
+  clickSelector('summary:has([title="docs/deployment.md"])');
+  browser("wait", "--text", "First draft of the deployment guide");
+  assert.equal(
+    evaluate(
+      `document.querySelector('[role="tabpanel"][data-state="active"]').innerText.includes("Final verified deployment guide")`,
+    ),
+    false,
+  );
+  browser("reload");
+  browser("wait", "--text", "Earlier verification result.");
+  click("button", "Latest result");
+  browser("wait", "--text", "Ready for review.");
+  click("button", "Request changes");
+  browser("wait", "--fn", 'document.activeElement?.id === "issue-reply"');
+  browser("find", "label", "Message", "fill", "A preserved task draft");
+  click("tab", "Activity");
+  browser("reload");
+  browser("wait", '[role="tab"][data-state="active"][id$="trigger-activity"]');
+  click("tab", "Conversation");
+  assert.equal(value("#issue-reply"), "A preserved task draft");
+  browser("fill", "#issue-reply", "");
+});
+
+test("task actions preserve the selected conversation when accepting and reopening", () => {
+  open(agentPath(`tasks/${fixture.reviewIssueId}`));
+  click("tab", "Conversation");
+  click("button", "Accept result");
+  browser("wait", "--text", "Reopen task");
+  assert.match(snapshot(), /tab "Conversation" \[selected/);
+  assert.match(snapshot(), /button "Save note"/);
+  click("button", "Reopen task");
+  browser("wait", "--text", "Queue task");
+  assert.match(snapshot(), /tab "Conversation" \[selected/);
+});
+
+test("task panels and the pinned composer fit desktop and mobile", (t) => {
+  t.after(() => browser("set", "viewport", "1440", "900"));
+  for (const width of [1440, 390]) {
+    browser("set", "viewport", String(width), "900");
+    open(agentPath(`tasks/${fixture.reviewIssueId}`));
+    click("tab", "Conversation");
+    browser("wait", "[data-task-conversation]");
+    assert.equal(
+      evaluate(`(() => {
+      const input = document.querySelector('[aria-label="Task reply"]');
+      const transcript = document.querySelector('[data-task-conversation]');
+      transcript.scrollTop = 0;
+      const bounds = input.getBoundingClientRect();
+      return bounds.top > 0 && bounds.bottom <= innerHeight && transcript.scrollHeight > transcript.clientHeight && document.documentElement.scrollWidth <= innerWidth;
+    })()`),
+      true,
+    );
+    click("button", "Details");
+    browser("wait", "--text", "Task details");
+    assert.equal(
+      evaluate(
+        width === 1440
+          ? `Boolean(document.querySelector('aside[aria-label="Task details"]'))`
+          : `Boolean(document.querySelector('[role="dialog"]'))`,
+      ),
+      true,
+    );
+    click("button", "Edit brief");
+    browser("find", "label", "Details", "fill", `Updated brief at width ${width}`);
+    browser(
+      "find",
+      "label",
+      "Title",
+      "fill",
+      "Review the deployment guide and verify that the documented setup, backup, migration, and recovery commands all work across development and production environments",
+    );
+    click("button", "Save brief");
+    browser("wait", "--text", `Updated brief at width ${width}`);
+    assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+    click("button", "Close task details");
+    assert.equal(
+      evaluate(`(() => {
+      const header = document.querySelector('header');
+      return header.getBoundingClientRect().bottom < innerHeight / 3 && Array.from(header.querySelectorAll('button, a')).filter(el => el.getClientRects().length).every(el => el.getBoundingClientRect().right <= innerWidth);
+    })()`),
+      true,
+    );
+    click("button", "Subtasks");
+    click("button", "Database verification");
+    browser("wait", "--text", "Verified database connections.");
+    assertSelectedSubtaskVisible();
+    assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+    click("button", "Close subtasks");
+    const audit = browser<{ violations: { id: string }[] }>("a11y", "--tags", "wcag2a,wcag2aa");
+    assert.deepEqual(audit.violations, []);
+  }
 });
 
 test("long task titles and controls fit mobile; creation controls have accessible labels", (t) => {
@@ -1876,7 +2010,10 @@ test("Home shows compact issue cards and opens evidence in the same app while pr
     browser("fill", 'textarea[aria-label="Message"]', "You can install the missing clients.");
     click("link", "Open task: Check k3s cluster health");
     browser("wait", "--url", `**/tasks/${fixture.homeIssueId}?from=home`);
-    browser("wait", "--text", "Checks, artifacts, and uncertainty");
+    browser("wait", "--text", "A read-only kubeconfig is needed.");
+    assert.match(snapshot(), /tab "Conversation" \[selected/);
+    click("tab", "Result");
+    browser("wait", "--text", "Verification & evidence");
     browser("wait", "--text", "Client scan: kubectl is missing.");
     click("link", "Second agent / Home");
     browser("wait", "--url", `**${homePath}`);

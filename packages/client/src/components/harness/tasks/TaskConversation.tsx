@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef, type ComponentProps } from "react";
 import type { AgentConfig, IssueNote, ModelRef, Session } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { api } from "@/lib/api";
@@ -39,7 +39,7 @@ export function TaskConversation({
     );
   if (!modelRef)
     return (
-      <ChatMessages
+      <TaskTranscript
         messages={withNotes(session.messages, notes)}
         pendingToolCalls={new Set()}
         isStreaming={false}
@@ -84,7 +84,7 @@ function ConnectedConversation({
     else agent.setMessages(saved.messages);
   }, [agent, connection.data]);
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       {connection.error && !snapshot.isStreaming ? (
         <ResourceError
           error={connection.error}
@@ -95,7 +95,7 @@ function ConnectedConversation({
       {snapshot.contextPressure ? (
         <ContextPressureNotice pressure={snapshot.contextPressure} />
       ) : null}
-      <ChatMessages
+      <TaskTranscript
         messages={withNotes(snapshot.messages, notes)}
         streamingMessage={snapshot.streamingMessage}
         pendingToolCalls={snapshot.pendingToolCalls}
@@ -151,4 +151,28 @@ function withNotes(messages: AgentMessage[], notes: IssueNote[]): AgentMessage[]
     merged.splice(index < 0 ? merged.length : index, 0, message);
   }
   return merged;
+}
+
+function TaskTranscript(props: ComponentProps<typeof ChatMessages>) {
+  const scroll = useRef<HTMLDivElement>(null);
+  const following = useRef(true);
+  useLayoutEffect(() => {
+    if (following.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
+  }, [props.messages, props.streamingMessage]);
+  return (
+    <div
+      ref={scroll}
+      data-task-conversation
+      className="min-h-0 flex-1 overflow-y-auto"
+      onScroll={() => {
+        const element = scroll.current;
+        if (element && element.clientHeight > 0)
+          following.current = element.scrollHeight - element.scrollTop - element.clientHeight < 100;
+      }}
+    >
+      <div className="mx-auto w-full max-w-[var(--line-width)] px-4 py-5">
+        <ChatMessages {...props} />
+      </div>
+    </div>
+  );
 }
