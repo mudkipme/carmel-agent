@@ -4,6 +4,7 @@ import { isWorkspaceView } from "./workspace-layout";
 /** Which pane fills the main column, and which route is showing it. */
 export type ContentView =
   | "chat"
+  | "sessions"
   | "files"
   | "changes"
   | "terminal"
@@ -48,18 +49,18 @@ export function resolveShellRoute(input: ShellRouteInput): ShellRoute {
 
   if (!routeAgentId) {
     const landing = agents.find((agent) => agent.id === input.lastAgentId) ?? agents[0];
-    return landing ? { kind: "redirect", to: `/agents/${landing.id}` } : { kind: "empty" };
+    return landing ? { kind: "redirect", to: `/agents/${landing.id}/home` } : { kind: "empty" };
   }
 
   const agent = agents.find((candidate) => candidate.id === routeAgentId);
   if (!agent) return { kind: "redirect", to: "/" };
 
   if (input.view === "terminal" && !canOpenTerminal(agent, input.userId)) {
-    return { kind: "redirect", to: `/agents/${agent.id}` };
+    return { kind: "redirect", to: `/agents/${agent.id}/home` };
   }
 
   if (input.view === "browser" && !agent.permissions.bash) {
-    return { kind: "redirect", to: `/agents/${agent.id}` };
+    return { kind: "redirect", to: `/agents/${agent.id}/home` };
   }
 
   if (input.view !== "chat") {
@@ -77,13 +78,13 @@ export function resolveShellRoute(input: ShellRouteInput): ShellRoute {
   const session = input.routeSession;
   if (!session) {
     return input.routeSessionLookupDone
-      ? { kind: "redirect", to: `/agents/${agent.id}` }
+      ? { kind: "redirect", to: `/agents/${agent.id}/sessions` }
       : { kind: "loading" };
   }
   // A link can name the right session under the wrong agent; the session wins.
   if (session.agentId !== agent.id) {
     const owner = agents.find((candidate) => candidate.id === session.agentId);
-    return { kind: "redirect", to: owner ? sessionPath(session) : `/agents/${agent.id}` };
+    return { kind: "redirect", to: owner ? sessionPath(session) : `/agents/${agent.id}/home` };
   }
   return { kind: "ready", agent, session };
 }

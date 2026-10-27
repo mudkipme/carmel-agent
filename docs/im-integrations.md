@@ -44,7 +44,7 @@ Commands:
 - `/web`: open Home. Configure `CARMEL_PUBLIC_URL` for an absolute link; otherwise the bot returns its relative path.
 - `/help`: list commands.
 
-Up to twenty user messages can wait across Home channels. Inputs run in admission order. Disabling or removing a connection cancels its pending inputs and deliveries while preserving Home. Reconnecting a bot and switching between Agents and Sessions views do not reset Home.
+Up to twenty user messages can wait across Home channels. Inputs run in admission order. Disabling or removing a connection cancels its pending inputs and deliveries while preserving Home. Reconnecting a bot and navigating between Home and Sessions do not reset Home.
 
 ## Proactive messages and scheduled tasks
 

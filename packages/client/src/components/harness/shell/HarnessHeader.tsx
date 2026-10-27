@@ -5,7 +5,10 @@ import {
   PanelLeftIcon,
   SettingsIcon,
   SquareTerminalIcon,
+  ArrowLeftIcon,
 } from "lucide-react";
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
@@ -17,7 +20,9 @@ export function HarnessHeader({
   activeSession,
   issueTitle,
   contentView,
+  homeView,
   companionVisible,
+  conversationSwitcher,
   canOpenTerminal,
   browserOpen,
   browserNeedsHelp,
@@ -32,7 +37,9 @@ export function HarnessHeader({
   /** The open issue's title, when the issues pane is showing one. */
   issueTitle?: string;
   contentView: ContentView;
+  homeView: boolean;
   companionVisible: boolean;
+  conversationSwitcher?: ReactNode;
   canOpenTerminal: boolean;
   browserOpen: boolean;
   browserNeedsHelp: boolean;
@@ -46,21 +53,25 @@ export function HarnessHeader({
     ? activeSession?.home
       ? "Home"
       : (activeSession?.title ?? "New session")
-    : contentView === "tasks"
-      ? "Tasks"
-      : contentView === "files"
-        ? "Files"
-        : contentView === "changes"
-          ? "Changes"
-          : contentView === "browser"
-            ? "Browser"
-            : contentView === "terminal"
-              ? "Terminal"
-              : contentView === "issues"
-                ? (issueTitle ?? "Issues")
-                : activeSession?.home
-                  ? "Home"
-                  : (activeSession?.title ?? "New session");
+    : contentView === "sessions"
+      ? "Sessions"
+      : contentView === "knowledge"
+        ? "Knowledge"
+        : contentView === "tasks"
+          ? "Tasks"
+          : contentView === "files"
+            ? "Files"
+            : contentView === "changes"
+              ? "Changes"
+              : contentView === "browser"
+                ? "Browser"
+                : contentView === "terminal"
+                  ? "Terminal"
+                  : contentView === "issues"
+                    ? (issueTitle ?? "Issues")
+                    : homeView || activeSession?.home
+                      ? "Home"
+                      : (activeSession?.title ?? "New session");
   /* The subtitle carries only what nothing else on screen says: the model is
      already named in the composer, and the working directory is worth the room
      just when the agent runs somewhere other than its own default. */
@@ -84,12 +95,27 @@ export function HarnessHeader({
         >
           <PanelLeftIcon />
         </Button>
+        {conversationSwitcher}
         <div className="min-w-0">
           <h2 className="truncate text-sm font-medium">{title}</h2>
-          <p className="text-ui-smaller truncate text-muted-foreground">
-            {activeAgent?.name ?? "No agent"}
-            {customWorkingDir ? ` · ${customWorkingDir}` : ""}
-          </p>
+          {activeAgent && contentView === "chat" && !homeView && !activeSession?.home ? (
+            <Link
+              to={`/agents/${activeAgent.id}/sessions`}
+              aria-label="Back to sessions"
+              className="text-ui-smaller flex min-w-0 items-center gap-1 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeftIcon className="size-3 shrink-0" />
+              <span className="truncate">
+                Sessions · {activeAgent.name}
+                {customWorkingDir ? ` · ${customWorkingDir}` : ""}
+              </span>
+            </Link>
+          ) : (
+            <p className="text-ui-smaller truncate text-muted-foreground">
+              {activeAgent?.name ?? "No agent"}
+              {customWorkingDir ? ` · ${customWorkingDir}` : ""}
+            </p>
+          )}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-0 sm:gap-2">

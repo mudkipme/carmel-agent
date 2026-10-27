@@ -1,4 +1,5 @@
-import { useAgentNavigation } from "@/hooks/use-agent-navigation";
+import { AgentSessionsPage } from "./AgentSessionsPage";
+import { ConversationSwitcher } from "./shell/ConversationSwitcher";
 import { IssuesOverview } from "./issues/IssuesOverview";
 import { AgentTasksPage } from "./AgentTasksPage";
 import { AgentKnowledgePage } from "./AgentKnowledgePage";
@@ -68,6 +69,7 @@ import {
   type ContentView,
 } from "@/lib/shell-route";
 import { cn } from "@/lib/utils";
+import { showError } from "@/lib/errors";
 import { canUserSeeAgent, isListedSession } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";
 import type { GitChangeArea } from "@carmel-agent/shared";
@@ -99,8 +101,6 @@ export function HarnessShell({
   // One selector per field: the shell re-renders when what it shows changes,
   // not on every store write.
   const userId = useHarnessStore((state) => state.activeUserId);
-  const navigation = useAgentNavigation(userId);
-  const rememberSession = navigation.rememberSession;
   const homeResource = useRemoteResource({
     key: `home:${userId}:${routeAgentId}`,
     enabled: Boolean(homeView && routeAgentId),
@@ -216,8 +216,8 @@ export function HarnessShell({
       ? activeSession
         ? `/agents/${activeAgent.id}/sessions/${activeSession.id}`
         : isWorkspaceView(view)
-          ? `/agents/${activeAgent.id}`
-          : (lastChatPathByAgent.get(workspaceKey) ?? `/agents/${activeAgent.id}`)
+          ? `/agents/${activeAgent.id}/sessions/new`
+          : (lastChatPathByAgent.get(workspaceKey) ?? `/agents/${activeAgent.id}/home`)
       : "/";
 
   const redirectTo = route.kind === "redirect" ? route.to : undefined;
@@ -273,21 +273,6 @@ export function HarnessShell({
   );
 
   useEffect(() => {
-    if (
-      activeSessionMetadata &&
-      !activeSessionMetadata.home &&
-      !activeSessionMetadata.issueId &&
-      !activeSessionMetadata.taskId
-    )
-      rememberSession(activeSessionMetadata.agentId, activeSessionMetadata.id);
-  }, [activeSessionMetadata, rememberSession]);
-
-  useEffect(() => {
-    if (!routeAgentId && navigation.view === "agents" && visibleAgents.length)
-      navigate(`/agents/${lastAgentId || visibleAgents[0]!.id}/home`, { replace: true });
-  }, [lastAgentId, navigate, navigation.view, routeAgentId, visibleAgents]);
-
-  useEffect(() => {
     if (activeAgentId) rememberAgent(activeAgentId);
   }, [activeAgentId, rememberAgent]);
 
@@ -299,7 +284,8 @@ export function HarnessShell({
           workspaceKey,
           `/agents/${activeAgentId}/sessions/${activeSessionMetadata.id}`,
         );
-      else if (!routeSessionId) lastChatPathByAgent.set(workspaceKey, `/agents/${activeAgentId}`);
+      else if (!routeSessionId)
+        lastChatPathByAgent.set(workspaceKey, `/agents/${activeAgentId}/sessions/new`);
     }
   }, [activeAgentId, activeSessionMetadata, location.pathname, routeSessionId, view, workspaceKey]);
 
@@ -471,47 +457,22 @@ export function HarnessShell({
         onClick={() => setSidebarOpen(false)}
       />
       <HarnessSidebar
-        navigationView={homeView ? "agents" : navigation.view}
-        onNavigationViewChange={(next) => {
-          navigation.setView(next);
-          if (activeAgentId)
-            navigate(
-              next === "agents"
-                ? `/agents/${activeAgentId}/home`
-                : navigation.sessionPath(activeAgentId),
-            );
-        }}
         activeUser={activeUser}
         activeAgent={activeAgent}
-        activeSession={activeSessionMetadata}
         contentView={view}
+        homeView={Boolean(homeView || activeSessionMetadata?.home)}
         visibleAgents={visibleAgents}
-        visibleSessions={visibleSessions}
-        runningSessionIds={serverRunningSessionIds}
-        runOverrides={runOverrides}
         sidebarOpen={sidebarOpen}
         sidebarWidth={sidebarWidth}
         sidebarResizing={sidebarResizing}
         onClose={() => setSidebarOpen(false)}
         onOpenSession={closeSidebarOnMobile}
-        onSelectChat={(session) => {
-          if (isWorkspaceView(view) && workspaceSplit) {
-            navigate(workspaceChatPath(`${location.pathname}${location.search}`, session?.id));
-          } else {
-            navigate(
-              session
-                ? `/agents/${session.agentId}/sessions/${session.id}`
-                : `/agents/${activeAgentId}`,
-            );
-          }
-        }}
         onStartResize={startSidebarResize}
         onResetWidth={() => resetSidebarWidth(setSidebarWidth)}
         onResizeWidth={(width) => {
           setSidebarWidth(width);
           window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
         }}
-        onOpenImport={() => setImportDialogOpen(true)}
         onOpenSettings={() => navigate("/settings/models")}
       />
 
@@ -522,7 +483,40 @@ export function HarnessShell({
           activeSession={activeSessionMetadata}
           issueTitle={activeIssueId === "new" ? "New issue" : activeIssue?.title}
           contentView={view}
+          homeView={homeView}
           companionVisible={isWorkspaceView(view) && workspaceSplit}
+          conversationSwitcher={
+            isWorkspaceView(view) && workspaceSplit ? (
+              <ConversationSwitcher
+                sessions={visibleSessions}
+                activeSessionId={activeSessionMetadata?.id}
+                runningSessionIds={serverRunningSessionIds}
+                runOverrides={runOverrides}
+                onSelect={(selection) => {
+                  if (selection === "home") {
+                    void api
+                      .ensureHome(activeAgent!.id)
+                      .then(({ home }) =>
+                        navigate(
+                          workspaceChatPath(
+                            `${location.pathname}${location.search}`,
+                            home.sessionId,
+                          ),
+                        ),
+                      )
+                      .catch((error) => showError("Unable to open Home", error));
+                  } else {
+                    navigate(
+                      workspaceChatPath(
+                        `${location.pathname}${location.search}`,
+                        selection === "new" ? undefined : selection.id,
+                      ),
+                    );
+                  }
+                }}
+              />
+            ) : undefined
+          }
           canOpenTerminal={canOpenTerminal}
           browserOpen={browserOpen}
           browserNeedsHelp={browserNeedsHelp}
@@ -558,7 +552,19 @@ export function HarnessShell({
           legacyMode={legacyBrowser === "full" ? "full" : legacyBrowser ? "split" : undefined}
           onClose={() => showContentView("chat")}
           primary={
-            view === "knowledge" && activeAgent ? (
+            view === "sessions" && activeAgent ? (
+              <AgentSessionsPage
+                key={activeAgent.id}
+                agent={activeAgent}
+                sessions={visibleSessions}
+                runningSessionIds={serverRunningSessionIds}
+                runOverrides={runOverrides}
+                onSelectSession={(session) =>
+                  navigate(`/agents/${session.agentId}/sessions/${session.id}`)
+                }
+                onOpenImport={() => setImportDialogOpen(true)}
+              />
+            ) : view === "knowledge" && activeAgent ? (
               <AgentKnowledgePage key={activeAgent.id} agent={activeAgent} />
             ) : view === "tasks" && activeAgent ? (
               <AgentTasksPage key={activeAgent.id} agent={activeAgent} />

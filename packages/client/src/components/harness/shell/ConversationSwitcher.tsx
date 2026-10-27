@@ -1,0 +1,63 @@
+import { useState } from "react";
+import { HomeIcon, MessageSquarePlusIcon, MessagesSquareIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { SessionList } from "./SessionList";
+import type { SessionMetadata } from "@carmel-agent/shared";
+
+export function ConversationSwitcher({
+  sessions,
+  activeSessionId,
+  runningSessionIds,
+  runOverrides,
+  onSelect,
+}: {
+  sessions: SessionMetadata[];
+  activeSessionId?: string;
+  runningSessionIds: Set<string>;
+  runOverrides: Record<string, boolean>;
+  onSelect: (session: SessionMetadata | "home" | "new") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const select = (session: SessionMetadata | "home" | "new") => {
+    onSelect(session);
+    setOpen(false);
+  };
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon-sm" title="Switch conversation">
+          <MessagesSquareIcon />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="flex max-h-[80dvh] flex-col" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>Switch conversation</DialogTitle>
+        </DialogHeader>
+        <div className="flex shrink-0 gap-2">
+          <Button variant="outline" onClick={() => select("home")}>
+            <HomeIcon data-icon="inline-start" />
+            Home
+          </Button>
+          <Button variant="outline" onClick={() => select("new")}>
+            <MessageSquarePlusIcon data-icon="inline-start" />
+            New session
+          </Button>
+        </div>
+        <SessionList
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          runningSessionIds={runningSessionIds}
+          runOverrides={runOverrides}
+          onSelectSession={select}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}

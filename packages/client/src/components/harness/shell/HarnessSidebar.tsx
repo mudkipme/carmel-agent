@@ -1,4 +1,3 @@
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { AgentAvatar } from "./AgentAvatar";
 import {
   PanelLeftCloseIcon,
@@ -6,6 +5,9 @@ import {
   ListTodoIcon,
   SettingsIcon,
   BookOpenIcon,
+  HomeIcon,
+  MessagesSquareIcon,
+  PlusIcon,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
@@ -16,56 +18,39 @@ import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
-import type { AgentConfig, SessionMetadata, User } from "@carmel-agent/shared";
-import { AgentSelector } from "./AgentSelector";
-import { SessionList } from "./SessionList";
-import { SidebarSessionsToolbar } from "./SidebarSessionsToolbar";
+import type { AgentConfig, User } from "@carmel-agent/shared";
 import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "./sidebar-utils";
 import type { ContentView } from "@/lib/shell-route";
 
 export function HarnessSidebar({
-  navigationView,
-  onNavigationViewChange,
   activeUser,
   activeAgent,
-  activeSession,
   contentView,
+  homeView,
   visibleAgents,
-  visibleSessions,
-  runningSessionIds,
-  runOverrides,
   sidebarOpen,
   sidebarWidth,
   sidebarResizing,
   onClose,
   onOpenSession,
-  onSelectChat,
   onStartResize,
   onResetWidth,
   onResizeWidth,
-  onOpenImport,
   onOpenSettings,
 }: {
-  navigationView: "agents" | "sessions";
-  onNavigationViewChange: (view: "agents" | "sessions") => void;
   activeUser?: User;
   activeAgent?: AgentConfig;
-  activeSession?: SessionMetadata;
   contentView: ContentView;
+  homeView: boolean;
   visibleAgents: AgentConfig[];
-  visibleSessions: SessionMetadata[];
-  runningSessionIds: Set<string>;
-  runOverrides: Record<string, boolean>;
   sidebarOpen: boolean;
   sidebarWidth: number;
   sidebarResizing: boolean;
   onClose: () => void;
   onOpenSession: () => void;
-  onSelectChat: (session?: SessionMetadata) => void;
   onStartResize: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onResetWidth: () => void;
   onResizeWidth: (width: number) => void;
-  onOpenImport: () => void;
   onOpenSettings: () => void;
 }) {
   const navigate = useNavigate();
@@ -74,7 +59,7 @@ export function HarnessSidebar({
   const activeUserId = useHarnessStore((state) => state.activeUserId);
   const homes = useRemoteResource({
     key: `homes:${activeUserId}`,
-    enabled: navigationView === "agents",
+    enabled: Boolean(activeUserId),
     load: (signal) => api.homeSummaries(signal),
     pollInterval: 3000,
   });
@@ -124,142 +109,117 @@ export function HarnessSidebar({
           </Button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
-          <ToggleGroup
-            type="single"
-            value={navigationView}
-            onValueChange={(value) => {
-              if (value === "agents" || value === "sessions") onNavigationViewChange(value);
-            }}
-            aria-label="Navigation view"
-            className="w-full"
-          >
-            <ToggleGroupItem value="agents" className="flex-1">
-              Agents
-            </ToggleGroupItem>
-            <ToggleGroupItem value="sessions" className="flex-1">
-              Sessions
-            </ToggleGroupItem>
-          </ToggleGroup>
-          {navigationView === "agents" ? (
-            <nav aria-label="Agents" className="flex min-h-0 flex-col gap-1 overflow-auto">
-              {visibleAgents.map((agent) => (
-                <Button
-                  key={agent.id}
-                  asChild
-                  variant={agent.id === activeAgent?.id ? "secondary" : "ghost"}
-                  className="justify-start"
-                >
-                  <Link to={`/agents/${agent.id}/home`} onClick={onOpenSession}>
-                    <AgentAvatar agent={agent} />
-                    <span className="min-w-0 flex-1 truncate">{agent.name}</span>
-                    {homes.data?.find((home) => home.agentId === agent.id)?.needsAttention ? (
-                      <span title="Needs your attention" aria-label="Needs your attention">
-                        !
-                      </span>
-                    ) : null}
-                    {homes.data?.find((home) => home.agentId === agent.id)?.working ? (
-                      <span className="text-muted-foreground" role="status">
-                        Working
-                      </span>
-                    ) : null}
-                    {homes.data?.find((home) => home.agentId === agent.id)?.unread ? (
-                      <span
-                        className="size-2 shrink-0 rounded-full bg-primary"
-                        aria-label="Unread messages"
-                      />
-                    ) : null}
-                  </Link>
-                </Button>
-              ))}
-              <Button
-                variant="ghost"
-                onClick={() =>
-                  void createSidebarAgent().then((agent) => {
-                    if (agent) navigate(`/agents/${agent.id}/home`);
-                  })
-                }
-              >
-                New agent
-              </Button>
-            </nav>
-          ) : (
-            <AgentSelector
-              activeAgent={activeAgent}
-              visibleAgents={visibleAgents}
-              activeUserId={activeUserId}
-              modelRefs={modelRefs}
-              onCreateAgent={createSidebarAgent}
-            />
-          )}
-          {activeAgent ? (
-            <nav aria-label="Agent work" className="flex flex-col gap-1">
-              {activeAgent.permissions.read && knowledge.data?.enabled ? (
-                <Button
-                  asChild
-                  variant={contentView === "knowledge" ? "secondary" : "ghost"}
-                  className="justify-start"
-                >
-                  <Link
-                    to={`/agents/${activeAgent.id}/knowledge`}
-                    aria-current={contentView === "knowledge" ? "page" : undefined}
-                    onClick={onOpenSession}
+          <nav aria-label="Agents" className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto">
+            {visibleAgents.map((agent) => {
+              const selected = agent.id === activeAgent?.id;
+              const home = homes.data?.find((item) => item.agentId === agent.id);
+              return (
+                <div key={agent.id} className="flex flex-col gap-1">
+                  <Button
+                    asChild
+                    variant={selected ? "secondary" : "ghost"}
+                    className="justify-start"
                   >
-                    <BookOpenIcon data-icon="inline-start" />
-                    Knowledge
-                  </Link>
-                </Button>
-              ) : null}
-              <Button
-                asChild
-                variant={contentView === "issues" ? "secondary" : "ghost"}
-                className="justify-start"
-              >
-                <Link
-                  to={`/agents/${activeAgent.id}/issues`}
-                  aria-current={contentView === "issues" ? "page" : undefined}
-                  onClick={onOpenSession}
-                >
-                  <ListTodoIcon data-icon="inline-start" />
-                  Issues
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant={contentView === "tasks" ? "secondary" : "ghost"}
-                className="justify-start"
-              >
-                <Link
-                  to={`/agents/${activeAgent.id}/tasks`}
-                  aria-current={contentView === "tasks" ? "page" : undefined}
-                  onClick={onOpenSession}
-                >
-                  <CalendarClockIcon data-icon="inline-start" />
-                  Tasks
-                </Link>
-              </Button>
-            </nav>
-          ) : null}
-          {navigationView === "sessions" ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-2">
-              <SidebarSessionsToolbar
-                activeAgent={activeAgent}
-                onOpenSession={onOpenSession}
-                onNewSession={() => onSelectChat()}
-                onOpenImport={onOpenImport}
-              />
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <SessionList
-                  key={activeAgent?.id}
-                  sessions={visibleSessions}
-                  runningSessionIds={runningSessionIds}
-                  runOverrides={runOverrides}
-                  activeSessionId={activeSession?.id}
-                  onOpenSession={onOpenSession}
-                  onSelectSession={onSelectChat}
-                />
-              </div>
-            </div>
-          ) : null}
+                    <Link to={`/agents/${agent.id}/home`} onClick={onOpenSession}>
+                      <AgentAvatar agent={agent} />
+                      <span className="min-w-0 flex-1 truncate">{agent.name}</span>
+                      {home?.needsAttention ? (
+                        <span title="Needs your attention" aria-label="Needs your attention">
+                          !
+                        </span>
+                      ) : null}
+                      {home?.working ? (
+                        <span className="text-muted-foreground" role="status">
+                          Working
+                        </span>
+                      ) : null}
+                      {home?.unread ? (
+                        <span
+                          className="size-2 shrink-0 rounded-full bg-primary"
+                          aria-label="Unread messages"
+                        />
+                      ) : null}
+                    </Link>
+                  </Button>
+                  {selected ? (
+                    <nav
+                      aria-label="Agent work"
+                      className="ml-4 flex flex-col gap-1 border-l pl-2 pb-2"
+                    >
+                      {[
+                        {
+                          label: "Home",
+                          path: "home",
+                          icon: HomeIcon,
+                          active: contentView === "chat" && Boolean(homeView),
+                        },
+                        {
+                          label: "Sessions",
+                          path: "sessions",
+                          icon: MessagesSquareIcon,
+                          active:
+                            contentView === "sessions" || (contentView === "chat" && !homeView),
+                        },
+                        {
+                          label: "Issues",
+                          path: "issues",
+                          icon: ListTodoIcon,
+                          active: contentView === "issues",
+                        },
+                        {
+                          label: "Tasks",
+                          path: "tasks",
+                          icon: CalendarClockIcon,
+                          active: contentView === "tasks",
+                        },
+                        ...(agent.permissions.read && knowledge.data?.enabled
+                          ? [
+                              {
+                                label: "Knowledge",
+                                path: "knowledge",
+                                icon: BookOpenIcon,
+                                active: contentView === "knowledge",
+                              },
+                            ]
+                          : []),
+                      ].map(({ label, path, icon: Icon, active }) => (
+                        <Button
+                          key={path}
+                          asChild
+                          variant={active ? "secondary" : "ghost"}
+                          className="justify-start"
+                        >
+                          <Link
+                            to={`/agents/${agent.id}/${path}`}
+                            aria-current={active ? "page" : undefined}
+                            onClick={onOpenSession}
+                          >
+                            <Icon data-icon="inline-start" />
+                            {label}
+                          </Link>
+                        </Button>
+                      ))}
+                    </nav>
+                  ) : null}
+                </div>
+              );
+            })}
+          </nav>
+          <Button
+            variant="ghost"
+            className="shrink-0 justify-start"
+            onClick={() =>
+              void createSidebarAgent().then((agent) => {
+                if (agent) {
+                  navigate(`/agents/${agent.id}/settings/general`);
+                  onOpenSession();
+                }
+              })
+            }
+          >
+            <PlusIcon data-icon="inline-start" />
+            New agent
+          </Button>
         </div>
         <Separator />
         <footer className="flex shrink-0 items-center gap-2 px-3 py-2">

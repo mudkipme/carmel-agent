@@ -188,12 +188,15 @@ after(async () => {
   }
 });
 
-test("Agents and Sessions preserve separate drafts and the last session without starting a run", () => {
+test("Home and the Sessions page preserve separate drafts without starting a run", () => {
   browser("set", "viewport", "1280", "900");
+  open("/");
+  browser("wait", "--url", `**/agents/${fixture.agentId}/home`);
+  assert.equal(evaluate(`document.querySelector('[aria-label="Navigation view"]')`), null);
   open(agentPath(`sessions/${fixture.chatSessionId}`));
   browser("wait", 'textarea[aria-label="Message"]');
   browser("fill", 'textarea[aria-label="Message"]', "Independent session draft");
-  click("radio", "Agents");
+  click("link", "Home");
   browser("wait", "--url", `**/agents/${fixture.agentId}/home`);
   browser("wait", "--text", "New context");
   waitForValue('textarea[aria-label="Message"]', "");
@@ -209,13 +212,15 @@ test("Agents and Sessions preserve separate drafts and the last session without 
       return response;
     };
   })()`);
-  click("radio", "Sessions");
+  click("link", "Sessions");
+  browser("wait", 'input[aria-label="Search sessions"]');
+  click("button", "Open session Make the deployment guide easier to follow");
   browser("wait", "--url", `**/sessions/${fixture.chatSessionId}`);
   browser("wait", "--fn", 'typeof window.releaseSessionResponse === "function"');
   assert.equal(evaluate("document.querySelector('textarea[aria-label=\"Message\"]')"), null);
   evaluate("window.releaseSessionResponse()");
   waitForValue('textarea[aria-label="Message"]', "Independent session draft");
-  click("radio", "Agents");
+  click("link", "Home");
   browser("wait", "--text", "New context");
   waitForValue('textarea[aria-label="Message"]', "Home draft");
   browser("reload");
@@ -229,10 +234,50 @@ test("Agents and Sessions preserve separate drafts and the last session without 
     false,
   );
   browser("fill", 'textarea[aria-label="Message"]', "");
-  click("radio", "Sessions");
+  click("link", "Sessions");
+  browser("wait", 'input[aria-label="Search sessions"]');
+  click("button", "Open session Make the deployment guide easier to follow");
   browser("wait", "--url", `**/sessions/${fixture.chatSessionId}`);
   waitForValue('textarea[aria-label="Message"]', "Independent session draft");
   browser("fill", 'textarea[aria-label="Message"]', "");
+});
+
+test("Sessions searches ordinary conversations and agent navigation works on desktop and mobile", () => {
+  for (const width of [1280, 390]) {
+    browser("set", "viewport", String(width), "900");
+    open(agentPath("sessions"));
+    browser("wait", 'input[aria-label="Search sessions"]');
+    const list = () =>
+      evaluate<string>('document.querySelector("#workspace-conversation").textContent');
+    assert.match(list(), /Make the deployment guide easier to follow/);
+    assert.doesNotMatch(
+      list(),
+      /Previous issue conversation|Review the deployment guide|Open session Home/,
+    );
+    browser("fill", 'input[aria-label="Search sessions"]', "deployment");
+    assert.doesNotMatch(list(), /Choose a branch/);
+    click("button", "Open session Make the deployment guide easier to follow");
+    browser("wait", 'textarea[aria-label="Message"]');
+    click("link", "Back to sessions");
+    browser("wait", 'input[aria-label="Search sessions"]');
+    browser("fill", 'input[aria-label="Search sessions"]', "no-such-conversation");
+    browser("wait", "--text", "No sessions match");
+    click("link", "New session");
+    browser("wait", "--url", `**/agents/${fixture.agentId}/sessions/new`);
+    browser("wait", 'textarea[aria-label="Message"]');
+    if (width < 1024) click("button", "Show sidebar");
+    clickSelector(`nav[aria-label="Agents"] a[href="/agents/${fixture.secondAgentId}/home"]`);
+    browser("wait", "--url", `**/agents/${fixture.secondAgentId}/home`);
+    if (width < 1024) click("button", "Show sidebar");
+    click("link", "Sessions");
+    browser("wait", "--text", "No sessions yet");
+    browser("reload");
+    browser("wait", "--text", "No sessions yet");
+    assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+    const audit = browser<{ violations: { id: string }[] }>("a11y", "--tags", "wcag2a,wcag2aa");
+    assert.deepEqual(audit.violations, []);
+  }
+  browser("set", "viewport", "1280", "900");
 });
 
 test("questions, credentials, and browser help share a request area beside the composer", () => {
@@ -612,7 +657,7 @@ test("tool disclosures preserve their output and fit desktop and mobile conversa
 
 test("new chat drafts retain text, references, and images across navigation and reload", () => {
   browser("set", "viewport", "1280", "900");
-  open(agentPath(""));
+  open(agentPath("sessions/new"));
   browser("wait", 'textarea[aria-label="Message"]');
   browser("fill", 'textarea[aria-label="Message"]', "Keep my unfinished prompt");
   click("button", "Mention a reference");
@@ -626,17 +671,18 @@ test("new chat drafts retain text, references, and images across navigation and 
   browser("wait", 'button[aria-label="Remove draft.png"]');
   const text = value('textarea[aria-label="Message"]');
   click("link", "Tasks");
-  click("button", "New session");
+  click("link", "Sessions");
+  click("link", "New session");
   assert.equal(value('textarea[aria-label="Message"]'), text);
   assert.match(snapshot(), /Remove draft.png/);
   browser("reload");
   browser("wait", 'textarea[aria-label="Message"]');
   assert.equal(value('textarea[aria-label="Message"]'), text);
   assert.match(snapshot(), /Remove draft.png/);
-  open(`/agents/${fixture.secondAgentId}`);
+  open(`/agents/${fixture.secondAgentId}/sessions/new`);
   browser("wait", 'textarea[aria-label="Message"]');
   assert.equal(value('textarea[aria-label="Message"]'), "");
-  open(agentPath(""));
+  open(agentPath("sessions/new"));
   assert.equal(value('textarea[aria-label="Message"]'), text);
   browser("fill", 'textarea[aria-label="Message"]', "");
   click("button", "Remove draft.png");
@@ -680,16 +726,14 @@ test("agent icons and colors preview, save, and survive reload on desktop and mo
   }
   browser("set", "viewport", "1280", "900");
   click("button", "Back to agent");
-  browser("wait", '.agent-chat-host [data-agent-icon="rocket"][data-agent-color="pink"]');
-  click("radio", "Agents");
-  browser("wait", 'nav[aria-label="Agents"]');
+  browser("wait", 'nav[aria-label="Agents"] [data-agent-icon="rocket"][data-agent-color="pink"]');
   assert.equal(
     evaluate(
       `document.querySelector('nav[aria-label="Agents"] a[href="/agents/${fixture.secondAgentId}/home"] [data-agent-icon="rocket"][data-agent-color="pink"]') !== null`,
     ),
     true,
   );
-  click("radio", "Sessions");
+  click("link", "Sessions");
 });
 
 test("agent settings fields have accessible names and navigation protects unsaved edits", () => {
@@ -698,7 +742,7 @@ test("agent settings fields have accessible names and navigation protects unsave
     // The header mounts before the settings request finishes. Wait for the form itself.
     browser("wait", '[data-settings-content] input[id$="-description"]');
   };
-  open(agentPath(""));
+  open(agentPath("sessions/new"));
   // Hold the first real response so this also exercises a slow settings load on fast machines.
   evaluate(`(() => {
     const originalFetch = window.fetch;
@@ -769,7 +813,7 @@ test("agent settings fields have accessible names and navigation protects unsave
   browser("find", "label", "Description", "fill", "A saved settings description");
   click("button", "Back to agent");
   click("button", "Save and leave");
-  browser("wait", "--url", `**/agents/${fixture.agentId}`);
+  browser("wait", "--url", `**/agents/${fixture.agentId}/home`);
   openSettings();
   assert.match(snapshot(), /A saved settings description/);
   browser("find", "label", "Description", "fill", "");
@@ -1155,6 +1199,7 @@ test("workspace layout keeps chat and editor drafts mounted while resizing, expa
   evaluate(
     'void (window.restoredWorkspaceEditor = document.querySelector("#workspace-pane .cm-content"))',
   );
+  click("button", "Switch conversation");
   click("button", "New session");
   browser("wait", "--fn", 'new URL(location.href).searchParams.get("chat") === "new"');
   browser("wait", "--text", "What can Browser test agent help with?");
@@ -1164,15 +1209,8 @@ test("workspace layout keeps chat and editor drafts mounted while resizing, expa
     ),
     true,
   );
-  browser(
-    "find",
-    "role",
-    "button",
-    "click",
-    "--name",
-    "Open session Make the deployment guide easier to follow",
-    "--exact",
-  );
+  click("button", "Switch conversation");
+  click("button", "Open session Make the deployment guide easier to follow");
   browser(
     "wait",
     "--fn",
@@ -1183,6 +1221,22 @@ test("workspace layout keeps chat and editor drafts mounted while resizing, expa
       'window.restoredWorkspaceEditor === document.querySelector("#workspace-pane .cm-content")',
     ),
     true,
+  );
+  click("button", "Switch conversation");
+  click("button", "Home");
+  browser("wait", "--fn", 'document.querySelector("header h2")?.textContent === "Home"');
+  assert.equal(
+    evaluate<boolean>(
+      'window.restoredWorkspaceEditor === document.querySelector("#workspace-pane .cm-content")',
+    ),
+    true,
+  );
+  click("button", "Switch conversation");
+  click("button", "Open session Make the deployment guide easier to follow");
+  browser(
+    "wait",
+    "--fn",
+    'new URL(location.href).searchParams.get("chat") === "browser-chat-session"',
   );
   click("button", "Close workspace");
   browser("wait", "--url", `**/sessions/${fixture.chatSessionId}`);
@@ -1416,7 +1470,7 @@ test("Changes uses its pane width and keeps the selected diff and conversation i
 });
 
 test("browser handoff survives reload, supports navigation, and resumes explicitly", () => {
-  open(agentPath(""));
+  open(agentPath("sessions/new"));
   browser("wait", "--text", "Please sign in to the billing portal.");
   // The assistance callout and header both open the same pane.
   clickSelector('header button[aria-label="Open browser"]');
@@ -1476,7 +1530,7 @@ test("browser handoff survives reload, supports navigation, and resumes explicit
 });
 
 test("browser clipboard controls and shortcuts transfer text without adding chat messages", () => {
-  open(agentPath(""));
+  open(agentPath("sessions/new"));
   clickSelector('header button[aria-label="Open browser"]');
   browser(
     "wait",
@@ -1608,7 +1662,7 @@ test("failed task loading can be retried and successful edits are not reported a
 
 test("chat controls fit narrow touch screens with reasoning and long model names", () => {
   assert.equal(evaluate<boolean>('matchMedia("(pointer: coarse)").matches'), true);
-  for (const path of [agentPath(""), agentPath(`sessions/${fixture.taskSessionId}`)]) {
+  for (const path of [agentPath("sessions/new"), agentPath(`sessions/${fixture.taskSessionId}`)]) {
     open(path);
     browser("wait", ".agent-chat-host textarea");
     for (const [width, height] of [

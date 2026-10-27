@@ -25,6 +25,11 @@ function AgentSettingsRedirect() {
   return <Navigate to={`/agents/${agentId}/settings/general`} replace />;
 }
 
+function AgentHomeRedirect() {
+  const { agentId } = useParams();
+  return <Navigate to={`/agents/${agentId}/home`} replace />;
+}
+
 function AgentTasksRedirect() {
   const { agentId } = useParams();
   return <Navigate to={`/agents/${agentId}/tasks`} replace />;
@@ -96,7 +101,7 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <>
       <Route path="/" element={<HarnessShell />} />
-      <Route path="/agents/:agentId" element={<HarnessShell />} />
+      <Route path="/agents/:agentId" element={<AgentHomeRedirect />} />
       <Route path="/agents/:agentId/home" element={<HarnessShell homeView />} />
       <Route path="/agents/:agentId/settings" element={<AgentSettingsRedirect />} />
       <Route path="/agents/:agentId/settings/tasks" element={<AgentTasksRedirect />} />
@@ -108,6 +113,8 @@ const router = createBrowserRouter(
       <Route path="/agents/:agentId/changes/*" element={<HarnessShell view="changes" />} />
       <Route path="/agents/:agentId/terminal" element={<HarnessShell view="terminal" />} />
       <Route path="/agents/:agentId/browser" element={<HarnessShell view="browser" />} />
+      <Route path="/agents/:agentId/sessions" element={<HarnessShell view="sessions" />} />
+      <Route path="/agents/:agentId/sessions/new" element={<HarnessShell />} />
       <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
       <Route
         path="/agents/:agentId/sessions/:sessionId/helpers/:helperId"

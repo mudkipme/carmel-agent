@@ -20,11 +20,11 @@ function input(overrides: Partial<ShellRouteInput>): ShellRouteInput {
 test("the bare root lands on the last agent opened, else the first", () => {
   assert.deepEqual(resolveShellRoute(input({ lastAgentId: "agent_b" })), {
     kind: "redirect",
-    to: "/agents/agent_b",
+    to: "/agents/agent_b/home",
   });
   assert.deepEqual(resolveShellRoute(input({ lastAgentId: "gone" })), {
     kind: "redirect",
-    to: "/agents/agent_a",
+    to: "/agents/agent_a/home",
   });
   assert.deepEqual(resolveShellRoute(input({ agents: [] })), { kind: "empty" });
 });
@@ -36,19 +36,19 @@ test("an agent the user cannot see goes back to the root", () => {
   });
 });
 
-test("an agent's own path is its new-session composer", () => {
+test("a new-session route opens a composer without an existing session", () => {
   assert.deepEqual(resolveShellRoute(input({ routeAgentId: "agent_a" })), {
     kind: "ready",
     agent: agentA,
   });
 });
 
-test("a session waits for its lookup, then opens or falls back to the composer", () => {
+test("a session waits for its lookup, then opens or falls back to history", () => {
   const base = { routeAgentId: "agent_a", routeSessionId: "s1" };
   assert.deepEqual(resolveShellRoute(input(base)), { kind: "loading" });
   assert.deepEqual(resolveShellRoute(input({ ...base, routeSessionLookupDone: true })), {
     kind: "redirect",
-    to: "/agents/agent_a",
+    to: "/agents/agent_a/sessions",
   });
   const s1 = session("s1", "agent_a");
   assert.deepEqual(resolveShellRoute(input({ ...base, routeSession: s1 })), {
@@ -76,14 +76,18 @@ test("the terminal is only offered to the owner of an agent that allows bash", (
   );
   assert.deepEqual(resolveShellRoute(input({ view: "terminal", routeAgentId: "agent_b" })), {
     kind: "redirect",
-    to: "/agents/agent_b",
+    to: "/agents/agent_b/home",
   });
 });
 
-test("files and issues belong to the agent, whatever session the URL does not name", () => {
+test("files, sessions, and issues belong to the agent, whatever session the URL does not name", () => {
   assert.deepEqual(resolveShellRoute(input({ view: "files", routeAgentId: "agent_b" })), {
     kind: "ready",
     agent: agentB,
+  });
+  assert.deepEqual(resolveShellRoute(input({ view: "sessions", routeAgentId: "agent_a" })), {
+    kind: "ready",
+    agent: agentA,
   });
   assert.deepEqual(resolveShellRoute(input({ view: "issues", routeAgentId: "agent_a" })), {
     kind: "ready",
