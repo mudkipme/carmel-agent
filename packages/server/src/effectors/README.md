@@ -39,12 +39,30 @@ Two configurations explain why small windows need scaled defaults:
   or below **36,384 tokens** is in this state -- most locally-served Ollama
   models given their real window.
 
-The reserve, retained tail, and background allowance are capped at a quarter,
+For ordinary sessions, the reserve, retained tail, and background allowance are capped at a quarter,
 a third, and a tenth of the model window respectively. Compaction stays enabled:
 Durable's `enabled` flag controls overflow recovery as well as threshold checks.
 Context warnings come from native compaction and overflow events. Startup does
 not estimate the raw transcript, which includes history already compacted out
 of the model's context.
+
+Home budgets conversation separately from fixed instructions and tool declarations.
+Before input admission, `configureHomeCompaction` renders the resolved native agent's
+sections and counts its offered tool schemas, including the skill map, MCP schemas,
+and Codemode catalog. The conversation allowance is the model window minus this
+estimated fixed overhead and the existing answer reserve. Background compaction
+starts at fixed overhead plus 48,000 conversation tokens or half that allowance,
+whichever is smaller, and keeps roughly 12,000 recent tokens or one fifth of the
+allowance. Its answer reserve and blocking threshold stay the same. Native usage
+accounting still includes the complete context, including tool calls and results.
+The native `beforeCompact` hook defers background summaries until the selected
+prefix contains at least 8,000 tokens of new conversation (one eighth of the
+conversation allowance for smaller budgets), excluding fixed instructions and previous summaries.
+This avoids repeated cache invalidation when the fixed prompt alone exceeds the
+Home target. Manual, blocking, and overflow compaction retain native behavior.
+Home retains a native session lease until an admitted background summary and its
+write settle, allowing a quick foreground reply to finish without cancelling the
+summary. Separate helper conversations continue to use the ordinary policy.
 
 `ContextReporter` (`runtime/agent-runtime.ts`) turns Pi's compaction events into
 what the user sees:

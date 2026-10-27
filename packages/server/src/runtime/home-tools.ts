@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { issueCreateSchema, issuePatchSchema, issueRunSchema } from "@carmel-agent/shared";
+import type { Context } from "@earendil-works/chord";
+import { estimateMessageTokens } from "@earendil-works/pi-ai/utils/estimate";
+import { getCurrentSystemMessage, toToolDeclaration } from "@earendil-works/pi-ai/utils/transcript";
 import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
+import type { PiSession } from "../services/pi-session-storage.ts";
+import {
+  compactionSettingsForWindow,
+  homeCompactionExtension,
+} from "../effectors/compaction-policy.ts";
 import {
   createIssue,
   readIssues,
@@ -117,11 +125,70 @@ export function createHomeTools(userId: string, agentId: string): ToolRegistrati
   ];
 }
 
-export function buildHomeInstructions(agentId: string) {
+export function buildHomeInstructions(agentId: string, availableToolNames: readonly string[] = []) {
+  const tools = new Set(availableToolNames);
   return [
     "This is Home, this user's persistent private conversation with this agent. The same Home can span many days and messages across the web and paired private messaging channels. Conversation history, saved memory, and background work can persist beyond the active model context, which may be compacted or explicitly reset.",
     "Stay available for discussion and coordinate substantial work through issues. New independent jobs get separate issue sessions; updates and revisions reuse the relevant issue. Pass a bounded brief and relevant constraints, not all Home history. Background results can arrive asynchronously while the conversation continues. Read authoritative issue state when asked about progress, and ask which issue if the target is ambiguous.",
     `Keep issue updates conversational and concise: state the outcome or question, with a link to /agents/${agentId}/issues/:issueId when useful. Leave checks, artifacts, logs, and uncertainty on the issue page. Completed work still requires the user's explicit acceptance.`,
-    "Use session_search and session_read to recover earlier discussion and decisions when needed. New context resets the active model context while retaining readable history, saved memory, and background jobs. Stopping Home stops its reply and pending user messages; background jobs continue. Private chat facts must not be automatically saved into agent-shared memory.",
-  ].join("\n\n");
+    "Actively recover relevant context in Home. Before answering references to earlier conversations, decisions, preferences, people, or ongoing work, use session_search and focused session_read excerpts unless the needed facts are already verified in the current exchange. After compaction, a context reset, or a return to an older topic, treat summaries as pointers and retrieve details before relying on them. Search before asking the user to repeat information they previously provided. Reuse evidence already retrieved for the current topic; do not search for unrelated requests or repeatedly load unchanged history. Keep reads focused rather than filling the context with entire conversations.",
+    tools.has("knowledge_search") && tools.has("knowledge_read")
+      ? 'When relevant facts are not already verified for the current topic, proactively recall saved facts, preferences, and decisions with knowledge_search using sourceId="memories", then knowledge_read to verify the needed note. Follow the knowledge-search built-in skill workflow before memory searches or changes. Search conversation history for personal context that is not in saved memory; use read_issue for current issue state. Save, update, or forget memories when the user asks, and keep notes concise and attributed. Private chat facts must not be automatically saved into agent-shared memory.'
+      : undefined,
+    "New context resets the active model context while retaining readable history, saved memory, and background jobs. Stopping Home stops its reply and pending user messages; background jobs continue.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export async function configureHomeCompaction(
+  session: PiSession,
+  contextWindow: number,
+  context: Context,
+) {
+  const agent = await session.conversation.agent(context);
+  const view = await session.conversation.context(context);
+  const current = getCurrentSystemMessage(view.messages);
+  const shown = Object.fromEntries(
+    Object.entries(current?.sections ?? {}).filter(
+      (entry): entry is [string, string] => entry[1] !== null,
+    ),
+  );
+  const input = {
+    conversationId: session.conversation.id,
+    agent,
+    env: session.env,
+    shown,
+    read: session.native,
+  };
+  const sections: Record<string, string> = {};
+  for (const section of agent.sections) {
+    let text;
+    try {
+      text = await section.render(input, context);
+      if (text !== undefined && section.tag !== false)
+        text = `<${section.key}>\n${text}\n</${section.key}>`;
+    } catch {
+      context.abortSignal?.throwIfAborted();
+      text = shown[section.key];
+    }
+    if (text !== undefined) sections[section.key] = text;
+  }
+  const fixedTokens = estimateMessageTokens({
+    role: "system",
+    content: current?.content ?? "",
+    sections,
+    toolsAdded: agent.tools.map(toToolDeclaration),
+    timestamp: 0,
+  });
+  const extension = homeCompactionExtension(contextWindow, fixedTokens);
+  session.registry.install(extension);
+  session.settings = {
+    ...session.settings,
+    compaction: compactionSettingsForWindow(contextWindow, "home", fixedTokens),
+    extensions: [
+      ...(session.settings.extensions ?? []).filter((item) => item.name !== extension.name),
+      extension,
+    ],
+  };
 }

@@ -1,6 +1,6 @@
 import { createHelperExtension, helperTasks } from "./helpers.ts";
 import { retainHelperHost } from "./helper-hosts.ts";
-import { createHomeTools, buildHomeInstructions } from "./home-tools.ts";
+import { createHomeTools, buildHomeInstructions, configureHomeCompaction } from "./home-tools.ts";
 import { createSessionSearchTools } from "./session-search-tools.ts";
 import { sessionHome } from "../services/agent-homes.ts";
 import { CompactionEntry, GenerationTask, hook } from "@earendil-works/pi-durable";
@@ -22,6 +22,7 @@ import {
   closePiSession,
   openPiSession,
   readPiSessionTitleMessages,
+  retainPiSessionCompactions,
 } from "../services/pi-session-storage.ts";
 import type { ToolRegistration } from "@earendil-works/pi-durable";
 import { resolveModelContext } from "../services/model-context.ts";
@@ -339,6 +340,8 @@ async function startAgentRun(context: AgentRun) {
       { model: { provider: model.provider, modelId: model.id }, thinkingLevel, tools },
       runContext,
     );
+    if (sessionHome(session.id))
+      await configureHomeCompaction(piSession, model.contextWindow, runContext);
     if (abort.requested) {
       await retry.restore(log);
       await conversation.abort(runContext);
@@ -485,7 +488,8 @@ async function openRunHarness(
   const { agent, piSession, execution, model, modelRuntime, thinkingLevel, sessionAddons } =
     context;
   const resources = await loadAgentResources(agent, execution.env);
-  const helperExtension = !sessionHome(context.session.id)
+  const home = sessionHome(context.session.id);
+  const helperExtension = !home
     ? createHelperExtension({
         sessionId: context.session.id,
         userId: context.session.userId,
@@ -523,7 +527,7 @@ async function openRunHarness(
       : []),
     ...(helperExtension?.tools ?? []),
     ...createSessionSearchTools(context.session.userId, agent.id),
-    ...(sessionHome(context.session.id) ? createHomeTools(context.session.userId, agent.id) : []),
+    ...(home ? createHomeTools(context.session.userId, agent.id) : []),
     ...schedulingTools,
     ...messagingTools,
     ...(sessionAddons?.tools ?? []),
@@ -554,7 +558,7 @@ async function openRunHarness(
           contextFiles: resources.contextFiles,
           includeSkills: activeToolNames.includes("read"),
         }),
-        home: sessionHome(context.session.id) ? buildHomeInstructions(agent.id) : undefined,
+        home: home ? buildHomeInstructions(agent.id, activeToolNames) : undefined,
         issue: sessionAddons?.instructions,
         browser: agent.permissions.bash ? browserInstructions : undefined,
         knowledge:
@@ -680,6 +684,7 @@ async function finalizeRun(
       // Detach event delivery before releasing native storage. HTTP readers
       // retain their own leases and continue reading committed progress.
       await harness?.close();
+      if (sessionHome(session.id)) await retainPiSessionCompactions(piSession);
       if (execution) keepExecution = await retainHelperHost(piSession, execution);
       await (log ? log.close() : closePiSession(piSession));
     } catch (error) {

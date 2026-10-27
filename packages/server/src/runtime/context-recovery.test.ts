@@ -127,6 +127,7 @@ test("native compaction failure snapshots warn once across repeated snapshots an
   reporter.observe({ type: "compaction_end", ...failure });
   assert.equal(emitted.length, 1);
   assert.ok(emitted[0]?.type === "context_pressure");
+  assert.doesNotMatch(emitted[0].message, /near its context limit/);
 });
 
 test("an overflow compaction with no summary entry does not claim recovery", () => {

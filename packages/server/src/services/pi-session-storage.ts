@@ -179,6 +179,27 @@ export async function closePiSession(session: PiSession) {
     closing.delete(session.id);
   }
 }
+
+export async function retainPiSessionCompactions(session: PiSession) {
+  const live = await session.native.snapshot(LiveDoc, session.conversation.id, ctx);
+  const pending = live?.compactions?.filter((compaction) => !compaction.blocking) ?? [];
+  if (!pending.length) return;
+  const held = await openPiSession(session.id);
+  // Closing the last lease cancels the summarizer even after its foreground reply has finished.
+  void Promise.all(
+    pending.map(async ({ taskId }) => {
+      const task = await held.native.waitForTask(taskId, ctx);
+      const outcome = task.state.outcome;
+      if (outcome.status === "completed" && outcome.result.submissionId) {
+        const submission = await held.native.submission(outcome.result.submissionId, ctx);
+        await submission?.wait(ctx);
+      }
+    }),
+  )
+    .finally(() => closePiSession(held))
+    .catch((error) => console.warn("Background compaction cleanup failed:", error));
+}
+
 export async function withPiSession<T>(
   sessionId: string,
   operation: (session: PiSession) => Promise<T>,
