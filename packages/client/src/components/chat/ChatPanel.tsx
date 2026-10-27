@@ -182,7 +182,11 @@ export function ChatPanel({
                   size="sm"
                   onClick={() => {
                     autoScrollRef.current = true;
-                    void onLoadLatest();
+                    void onLoadLatest().then(() => {
+                      autoScrollRef.current = true;
+                      scrollToBottom();
+                      requestAnimationFrame(scrollToBottom);
+                    });
                   }}
                 >
                   Latest messages

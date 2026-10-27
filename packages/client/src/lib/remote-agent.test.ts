@@ -23,6 +23,208 @@ const model = {
   maxTokens: 1_024,
 } as Model<Api>;
 
+test("Home refresh preserves loaded pages and entry IDs while recent messages update", async () => {
+  const originalFetch = globalThis.fetch;
+  const earlier = userMessage("earlier");
+  const recent = userMessage("recent");
+  const reply = assistantMessage("new reply");
+  if (reply.role === "assistant") delete reply.errorMessage;
+  let latest = connection([recent], null);
+  latest.session.messageEntryIds = ["recent"];
+  latest.session.olderCursor = "older";
+  let observed: SessionConnection | undefined;
+  globalThis.fetch = async (input) => {
+    if (String(input).includes("/history"))
+      return Response.json({
+        ...latest.session,
+        messages: [earlier],
+        messageEntryIds: ["earlier"],
+        olderCursor: "oldest",
+      });
+    return Response.json(latest);
+  };
+  try {
+    const agent = new RemoteAgent({
+      agentId: "agent_1",
+      sessionId: "session_1",
+      modelRefId: "model_1",
+      model,
+      thinkingLevel: "off",
+      home: true,
+      messages: [recent],
+      messageEntryIds: ["recent"],
+      olderCursor: "older",
+      onConnection: (value) => {
+        observed = value;
+      },
+    });
+    await agent.loadOlder();
+    assert.equal(agent.getSnapshot().loadedEarlier, true);
+    await agent.refreshHome();
+    assert.deepEqual(agent.getSnapshot().messages, [earlier, recent]);
+    assert.equal(agent.getSnapshot().olderCursor, "oldest");
+    assert.equal(agent.getSnapshot().historyOnly, false);
+    latest = connection([recent, reply], null);
+    latest.session.messageEntryIds = ["recent", "reply"];
+    latest.session.olderCursor = "older";
+    await agent.refreshHome();
+    assert.deepEqual(agent.getSnapshot().messages, [earlier, recent, reply]);
+    assert.deepEqual(observed?.session.messageEntryIds, ["earlier", "recent", "reply"]);
+    await agent.refreshConnection();
+    assert.deepEqual(agent.getSnapshot().messages, [recent, reply]);
+    assert.equal(agent.getSnapshot().loadedEarlier, false);
+    assert.equal(agent.getSnapshot().olderCursor, "older");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Home discards loaded pages when the current branch no longer overlaps them", async () => {
+  const originalFetch = globalThis.fetch;
+  const recent = userMessage("recent");
+  const replacement = userMessage("replacement branch");
+  globalThis.fetch = async () =>
+    Response.json({
+      ...connection([recent], null).session,
+      messages: [userMessage("earlier")],
+      messageEntryIds: ["earlier"],
+    });
+  try {
+    const agent = new RemoteAgent({
+      agentId: "agent_1",
+      sessionId: "session_1",
+      modelRefId: "model_1",
+      model,
+      thinkingLevel: "off",
+      home: true,
+      messages: [recent],
+      messageEntryIds: ["recent"],
+      olderCursor: "older",
+    });
+    await agent.loadOlder();
+    assert.equal(agent.getSnapshot().olderCursor, undefined);
+    assert.equal(agent.getSnapshot().loadedEarlier, true);
+    const latest = connection([replacement], null);
+    latest.session.messageEntryIds = ["replacement"];
+    globalThis.fetch = async () => Response.json(latest);
+    await agent.refreshHome();
+    assert.deepEqual(agent.getSnapshot().messages, [replacement]);
+    assert.equal(agent.getSnapshot().olderCursor, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Home keeps earlier pages while attaching to a live reply and applying its final snapshot", async () => {
+  const originalFetch = globalThis.fetch;
+  const earlier = userMessage("earlier");
+  const recent = userMessage("recent");
+  const reply = assistantMessage("live reply");
+  const latest = connection([recent, reply], null);
+  latest.session.messageEntryIds = ["recent", "reply"];
+  let finish!: () => void;
+  const finished = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.includes("/history"))
+      return Response.json({
+        ...latest.session,
+        messages: [earlier],
+        messageEntryIds: ["earlier"],
+      });
+    if (url.includes("/events"))
+      return eventResponse([
+        envelope(1, { type: "message_end", message: reply }),
+        envelope(2, runFinished()),
+      ]);
+    const current = connection([recent], {
+      runId: "home_live",
+      sessionId: "session_1",
+      eventCursor: 0,
+    });
+    current.session.messageEntryIds = ["recent"];
+    return Response.json(current);
+  };
+  try {
+    const agent = new RemoteAgent({
+      agentId: "agent_1",
+      sessionId: "session_1",
+      modelRefId: "model_1",
+      model,
+      thinkingLevel: "off",
+      home: true,
+      messages: [recent],
+      messageEntryIds: ["recent"],
+      olderCursor: "older",
+      onRunComplete: () => {
+        agent.applyConnectionSnapshot(latest);
+        finish();
+      },
+    });
+    await agent.loadOlder();
+    const snapshots: AgentMessage[][] = [];
+    agent.subscribeStore(() => snapshots.push(agent.getSnapshot().messages));
+    await agent.refreshHome();
+    await finished;
+    assert.ok(
+      snapshots.every(
+        (messages) => messages[0]?.role === "user" && messages[0].content === "earlier",
+      ),
+    );
+    assert.deepEqual(agent.getSnapshot().messages, [earlier, recent, reply]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Home preserves a bounded history window until Latest messages is requested", async () => {
+  const originalFetch = globalThis.fetch;
+  const recent = userMessage("recent");
+  const earlier = Array.from({ length: 499 }, (_, index) => userMessage(`earlier ${index}`));
+  const reply = assistantMessage("new reply");
+  if (reply.role === "assistant") delete reply.errorMessage;
+  const latest = connection([recent, reply], null);
+  latest.session.messageEntryIds = ["recent", "reply"];
+  globalThis.fetch = async (input) =>
+    Response.json(
+      String(input).includes("/history")
+        ? {
+            ...latest.session,
+            messages: earlier,
+            messageEntryIds: earlier.map((_, index) => `earlier_${index}`),
+            olderCursor: "oldest",
+          }
+        : latest,
+    );
+  try {
+    const agent = new RemoteAgent({
+      agentId: "agent_1",
+      sessionId: "session_1",
+      modelRefId: "model_1",
+      model,
+      thinkingLevel: "off",
+      home: true,
+      messages: [recent],
+      messageEntryIds: ["recent"],
+      olderCursor: "older",
+    });
+    await agent.loadOlder();
+    await agent.refreshHome();
+    assert.equal(agent.getSnapshot().messages.length, 500);
+    assert.equal(agent.getSnapshot().historyOnly, true);
+    assert.equal(agent.getSnapshot().olderCursor, "oldest");
+    await agent.refreshHome();
+    assert.deepEqual(agent.getSnapshot().messages, [...earlier, recent]);
+    await agent.refreshConnection();
+    assert.deepEqual(agent.getSnapshot().messages, latest.session.messages);
+    assert.equal(agent.getSnapshot().historyOnly, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("reconnect starts after the snapshot cursor and does not duplicate persisted messages", async () => {
   const originalFetch = globalThis.fetch;
   const question = userMessage("question");

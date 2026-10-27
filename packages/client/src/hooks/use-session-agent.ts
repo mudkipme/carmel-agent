@@ -67,6 +67,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
         model: seed.model,
         thinkingLevel: clampThinkingLevel(seed.model, authoritativeSession.thinkingLevel),
         messages: authoritativeSession.messages,
+        messageEntryIds: authoritativeSession.messageEntryIds,
         home: authoritativeSession.home,
         olderCursor: authoritativeSession.olderCursor,
         onConnection: (connection) => {

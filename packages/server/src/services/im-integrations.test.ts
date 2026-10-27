@@ -88,6 +88,94 @@ async function paired(f = fixture()) {
 function incoming(text = "Hello", eventId = "event-1") {
   return { eventId, senderId: "person-1", chatId: "chat-1", text, imageKeys: [] };
 }
+
+test("image-only IM input waits for preparation and retains its image without duplicate admission", async () => {
+  const f = await paired();
+  const input = { ...incoming(""), imageKeys: ["photo"], messageId: "photo-message" };
+  await receiveImMessage(f.integrationId, input);
+  await receiveImMessage(f.integrationId, input);
+  const inbox = db.select().from(imInbox).where(eq(imInbox.integrationId, f.integrationId)).all();
+  assert.equal(inbox.length, 1);
+  assert.ok(inbox[0]!.homeEventId);
+  const eventId = inbox[0]!.homeEventId!;
+  const event = db.select().from(homeEvents).where(eq(homeEvents.id, eventId)).get()!;
+  assert.equal(event.status, "preparing");
+  const run = createActiveAgentRun({
+    runId: "im_image_preparation",
+    userId: f.userId,
+    sessionId: event.sessionId,
+    abort() {},
+  });
+  const image = { type: "image" as const, mimeType: "image/png", data: "fixture-image" };
+  let downloads = 0;
+  const manager = new ImManager(() => ({
+    async start() {},
+    stop() {},
+    async send() {
+      return "sent";
+    },
+    async image(key, messageId) {
+      assert.equal(key, "photo");
+      assert.equal(messageId, "photo-message");
+      downloads++;
+      return image;
+    },
+  }));
+  try {
+    await manager.tick();
+    await manager.drain();
+    const prepared = db.select().from(homeEvents).where(eq(homeEvents.id, eventId)).get()!;
+    assert.equal(prepared.status, "queued");
+    assert.deepEqual(prepared.prompt, { text: "", images: [image] });
+    assert.equal(downloads, 1);
+    assert.equal(
+      db.select().from(imOutbox).where(eq(imOutbox.integrationId, f.integrationId)).all().length,
+      0,
+    );
+  } finally {
+    manager.stop();
+    finishAgentRun(run);
+  }
+});
+
+test("failed preparation of an image-only IM input reports the error without submitting a prompt", async () => {
+  const f = await paired();
+  await receiveImMessage(f.integrationId, { ...incoming(""), imageKeys: ["missing-photo"] });
+  const inbox = db.select().from(imInbox).where(eq(imInbox.integrationId, f.integrationId)).get()!;
+  assert.ok(inbox.homeEventId);
+  const manager = new ImManager(() => ({
+    async start() {},
+    stop() {},
+    async send() {
+      return "sent";
+    },
+    async image() {
+      throw new Error("Download failed");
+    },
+  }));
+  try {
+    await manager.tick();
+    await manager.drain();
+    const event = db.select().from(homeEvents).where(eq(homeEvents.id, inbox.homeEventId)).get()!;
+    assert.equal(event.status, "failed");
+    assert.equal(event.runId, null);
+    assert.match(event.error!, /Cannot download this image/);
+    assert.equal(db.select().from(imInbox).where(eq(imInbox.id, inbox.id)).get()!.status, "done");
+    const delivery = db
+      .select()
+      .from(imOutbox)
+      .where(eq(imOutbox.integrationId, f.integrationId))
+      .get()!;
+    assert.match(delivery.text, /Cannot download this image/);
+    await receiveImMessage(f.integrationId, incoming("", "empty-message"));
+    assert.equal(
+      db.select().from(imInbox).where(eq(imInbox.eventId, "empty-message")).get()!.homeEventId,
+      null,
+    );
+  } finally {
+    manager.stop();
+  }
+});
 function appFor(userId: string) {
   const app = new Hono<{ Variables: AuthVariables }>();
   const user = db.select().from(users).where(eq(users.id, userId)).get()!;

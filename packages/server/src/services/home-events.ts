@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type {
   AgentRunResult,
@@ -144,7 +144,12 @@ export function admitHomeInput(
     timezone?: string;
   },
 ) {
-  if (!input.prompt.text.trim() && !input.prompt.images?.length && !input.prompt.references?.length)
+  if (
+    !input.preparing &&
+    !input.prompt.text.trim() &&
+    !input.prompt.images?.length &&
+    !input.prompt.references?.length
+  )
     throw new HomeError("Enter a message or attach a reference.", 400);
   const home = ensureHome(userId, agentId);
   const key = `${home.sessionId}:${input.sourceKey}`;
@@ -304,7 +309,29 @@ export async function dispatchHome(sessionId: string) {
           .run();
         return;
       }
-      if (home.paused) return;
+      if (home.paused) {
+        const pending = db
+          .select()
+          .from(homeEvents)
+          .where(
+            and(
+              eq(homeEvents.sessionId, sessionId),
+              eq(homeEvents.status, "queued"),
+              ne(homeEvents.kind, "input"),
+            ),
+          )
+          .orderBy(asc(homeEvents.createdAt), sql`rowid`)
+          .all();
+        for (const notice of pending) {
+          await publishNotice(notice);
+          if (notice.kind !== "issue")
+            db.update(homeEvents)
+              .set({ status: "done", reply: notice.prompt.text, finishedAt: now() })
+              .where(eq(homeEvents.id, notice.id))
+              .run();
+        }
+        return;
+      }
     }
     if (blockingUserRequest(sessionId)) return;
     if (await hasPendingPiSessionWork(sessionId)) return;

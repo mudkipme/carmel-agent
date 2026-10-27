@@ -315,8 +315,14 @@ export function PiChat({
                   : undefined
               }
               onLoadLatest={
-                snapshot.olderCursor || snapshot.historyOnly
-                  ? () => agent.refreshConnection()
+                snapshot.olderCursor || snapshot.loadedEarlier || snapshot.historyOnly
+                  ? async () => {
+                      try {
+                        await agent.refreshConnection();
+                      } catch (error) {
+                        showError("Unable to load the latest messages", error);
+                      }
+                    }
                   : undefined
               }
               readOnly={Boolean(session.issueId || snapshot.historyOnly)}

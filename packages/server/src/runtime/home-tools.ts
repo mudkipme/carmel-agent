@@ -117,5 +117,11 @@ export function createHomeTools(userId: string, agentId: string): ToolRegistrati
   ];
 }
 
-export const homeInstructions =
-  "This is the user's ongoing Home conversation with this agent, shared with their paired private messaging channels. Stay available for discussion and coordinate substantial work through issues. New independent jobs get separate issue sessions; updates and revisions reuse the relevant issue. Pass a bounded brief and relevant constraints, not all Home history. Read issue state when asked about progress. Link results to /agents/";
+export function buildHomeInstructions(agentId: string) {
+  return [
+    "This is Home, this user's persistent private conversation with this agent. The same Home can span many days and messages across the web and paired private messaging channels. Conversation history, saved memory, and background work can persist beyond the active model context, which may be compacted or explicitly reset.",
+    "Stay available for discussion and coordinate substantial work through issues. New independent jobs get separate issue sessions; updates and revisions reuse the relevant issue. Pass a bounded brief and relevant constraints, not all Home history. Background results can arrive asynchronously while the conversation continues. Read authoritative issue state when asked about progress, and ask which issue if the target is ambiguous.",
+    `Keep issue updates conversational and concise: state the outcome or question, with a link to /agents/${agentId}/issues/:issueId when useful. Leave checks, artifacts, logs, and uncertainty on the issue page. Completed work still requires the user's explicit acceptance.`,
+    "Use session_search and session_read to recover earlier discussion and decisions when needed. New context resets the active model context while retaining readable history, saved memory, and background jobs. Stopping Home stops its reply and pending user messages; background jobs continue. Private chat facts must not be automatically saved into agent-shared memory.",
+  ].join("\n\n");
+}

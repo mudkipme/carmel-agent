@@ -37,6 +37,21 @@ test("stopped Home retains one passive notice per report and notifications do no
   };
   publishHomeEvent(fixture.userId, fixture.agentId, report);
   publishHomeEvent(fixture.userId, fixture.agentId, report);
+  publishHomeEvent(fixture.userId, fixture.agentId, {
+    ...report,
+    sourceKey: "issue:attempt-two",
+    text: "Second report",
+  });
+  const alert = publishHomeEvent(fixture.userId, fixture.agentId, {
+    sourceKey: "paused-alert",
+    kind: "notification",
+    text: "A scheduled alert",
+  })!;
+  publishHomeEvent(fixture.userId, fixture.agentId, {
+    ...report,
+    sourceKey: "issue:attempt-three",
+    text: "Third report",
+  });
   await dispatchHome(home.sessionId);
   const first = db
     .select()
@@ -50,12 +65,23 @@ test("stopped Home retains one passive notice per report and notifications do no
   );
   const snapshot = (await readSessionSnapshot(fixture.userId, home.sessionId))!;
   const notices = snapshot.messages.filter((message) => message.role === "homeNotice");
-  assert.equal(notices.length, 1);
-  assert.deepEqual(notices[0]?.issue, report.issue);
-  assert.equal(
-    db.select().from(homeEvents).where(eq(homeEvents.sessionId, home.sessionId)).get()!.status,
-    "queued",
+  assert.deepEqual(
+    notices.map((notice) => notice.text),
+    [report.text, "Second report", "A scheduled alert", "Third report"],
   );
+  assert.deepEqual(notices[0]?.issue, report.issue);
+  const pending = db
+    .select()
+    .from(homeEvents)
+    .where(eq(homeEvents.sessionId, home.sessionId))
+    .all();
+  assert.equal(pending.find((event) => event.id === alert.id)?.status, "done");
+  assert.ok(
+    pending
+      .filter((event) => event.kind === "issue")
+      .every((event) => event.status === "queued" && !event.runId),
+  );
+  assert.equal(pending.filter((event) => event.kind === "issue").length, 3);
   const other = createSession();
   const note = publishHomeEvent(other.userId, other.agentId, {
     sourceKey: "alert",

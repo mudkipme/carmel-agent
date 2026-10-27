@@ -23,6 +23,7 @@ import { errorMessage } from "@/lib/errors";
 export type AgentSnapshot = {
   messages: AgentMessage[];
   olderCursor?: string;
+  loadedEarlier?: boolean;
   historyOnly?: boolean;
   streamingMessage?: AgentMessage;
   pendingToolCalls: Set<string>;
@@ -58,6 +59,8 @@ export class RemoteAgent {
   private snapshotValue: AgentSnapshot;
   private abortController?: AbortController;
   private messages: AgentMessage[];
+  private messageEntryIds: string[];
+  private loadedEarlier = false;
   private olderCursor?: string;
   private historyOnly = false;
   private streamingMessage?: AgentMessage;
@@ -89,6 +92,7 @@ export class RemoteAgent {
       model: Model<Api>;
       thinkingLevel: ThinkingLevel;
       messages: AgentMessage[];
+      messageEntryIds?: string[];
       home?: boolean;
       olderCursor?: string;
       onConnection?: (connection: SessionConnection) => void;
@@ -99,6 +103,7 @@ export class RemoteAgent {
     },
   ) {
     this.messages = [...config.messages];
+    this.messageEntryIds = [...(config.messageEntryIds ?? [])];
     this.olderCursor = config.olderCursor;
     this.hasPendingWork = config.pendingWork ?? false;
     this.userRequests = config.userRequests ?? [];
@@ -121,6 +126,8 @@ export class RemoteAgent {
   /** Replace the message list (e.g. an optimistic edit/retry) and notify subscribers. */
   setMessages(messages: AgentMessage[]) {
     this.messages = [...messages];
+    this.messageEntryIds = [];
+    this.loadedEarlier = false;
     this.notify();
   }
 
@@ -133,6 +140,7 @@ export class RemoteAgent {
     return {
       messages: this.messages,
       olderCursor: this.olderCursor,
+      loadedEarlier: this.loadedEarlier,
       historyOnly: this.historyOnly,
       streamingMessage: this.streamingMessage,
       pendingToolCalls: this.pendingToolCalls,
@@ -514,11 +522,34 @@ export class RemoteAgent {
     return api.getSessionConnection(this.config.sessionId, signal);
   }
 
-  applyConnectionSnapshot(connection: SessionConnection) {
+  applyConnectionSnapshot(connection: SessionConnection, preserveHistory = true) {
+    const recent = connection.session;
+    const overlap =
+      preserveHistory && this.loadedEarlier && !this.historyOnly
+        ? this.messageEntryIds.indexOf(recent.messageEntryIds[0] ?? "")
+        : -1;
+    this.historyOnly = false;
+    if (overlap >= 0) {
+      const messages = [...this.messages.slice(0, overlap), ...recent.messages];
+      const messageEntryIds = [
+        ...this.messageEntryIds.slice(0, overlap),
+        ...recent.messageEntryIds,
+      ];
+      this.historyOnly = messages.length > 500;
+      connection = {
+        ...connection,
+        session: {
+          ...recent,
+          messages: messages.slice(0, 500),
+          messageEntryIds: messageEntryIds.slice(0, 500),
+          olderCursor: this.olderCursor,
+        },
+      };
+    } else this.loadedEarlier = false;
     this.config.onConnection?.(connection);
     this.messages = [...connection.session.messages];
+    this.messageEntryIds = [...connection.session.messageEntryIds];
     this.olderCursor = connection.session.olderCursor;
-    this.historyOnly = false;
     this.hasPendingWork = connection.pendingWork ?? false;
     this.userRequests = connection.userRequests ?? [];
     this.thinkingLevel = connection.session.thinkingLevel;
@@ -532,6 +563,8 @@ export class RemoteAgent {
     if (this.isStreaming) return;
     const page = await api.getSessionHistory(this.config.sessionId, "", entryId);
     this.messages = page.messages;
+    this.messageEntryIds = page.messageEntryIds;
+    this.loadedEarlier = false;
     this.olderCursor = page.olderCursor;
     this.historyOnly = true;
     this.config.onConnection?.({ session: page, activeRun: null });
@@ -544,6 +577,8 @@ export class RemoteAgent {
     const combined = [...page.messages, ...this.messages];
     this.historyOnly = this.historyOnly || combined.length > 500;
     this.messages = combined.slice(0, 500);
+    this.messageEntryIds = [...page.messageEntryIds, ...this.messageEntryIds].slice(0, 500);
+    this.loadedEarlier = true;
     this.olderCursor = page.olderCursor;
     this.config.onHistoryPage?.(page);
     this.notify();
@@ -554,16 +589,16 @@ export class RemoteAgent {
     const connection = await api.getSessionConnection(this.config.sessionId);
     if (this.abortController || this.historyOnly || this.detachRequested) return;
     this.applyConnectionSnapshot(connection);
-    if (connection.activeRun)
+    if (connection.activeRun && !this.historyOnly)
       void this.attachToRun(
         connection.activeRun.runId,
-        connection.session.messages,
+        this.messages,
         connection.activeRun.eventCursor,
       );
   }
 
   async refreshConnection() {
-    this.applyConnectionSnapshot(await api.getSessionConnection(this.config.sessionId));
+    this.applyConnectionSnapshot(await api.getSessionConnection(this.config.sessionId), false);
   }
 
   private async consumeEvents(body: ReadableStream<Uint8Array>) {

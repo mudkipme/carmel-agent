@@ -40,8 +40,6 @@ export function ensureHome(userId: string, agentId: string) {
   const current = readHome(userId, agentId);
   if (current) return current;
   const agent = readVisibleAgent(userId, agentId)!;
-  const model = readUsableModelRef(userId, agent.defaultModelRefId);
-  if (!model) throw new HomeError("Choose an available default model for this agent.", 400);
   return db.transaction(() => {
     const existing = readHome(userId, agentId);
     if (existing) return existing;
@@ -61,15 +59,18 @@ export function ensureHome(userId: string, agentId: string) {
         !session.issueId &&
         !session.taskId,
     )?.session;
-    const session =
-      adopted ??
-      insertSession({
+    let session = adopted;
+    if (!session) {
+      const model = readUsableModelRef(userId, agent.defaultModelRefId);
+      if (!model) throw new HomeError("Choose an available default model for this agent.", 400);
+      session = insertSession({
         userId,
         agentId,
         modelRefId: model.id,
         thinkingLevel: resolveSupportedThinkingLevel(model, agent.defaultThinkingLevel),
         title: "Home",
       });
+    }
     const timestamp = now();
     db.insert(agentHomes)
       .values({

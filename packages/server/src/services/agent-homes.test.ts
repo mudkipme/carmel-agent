@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db, initialize } from "../db/index.ts";
-import { agents, users } from "../db/schema.ts";
-import { createSession, createUser, userMessage } from "../test-support.ts";
+import { agents, modelRefs, sessions, users } from "../db/schema.ts";
+import { imBindings, imIntegrations } from "../db/im-schema.ts";
+import { createProviderConfig, createSession, createUser, userMessage } from "../test-support.ts";
 import { ensureHome, resetHome } from "./agent-homes.ts";
 import { replacePiSessionMessages } from "./pi-session-storage.ts";
 import { readSessionSnapshot } from "./session-snapshot.ts";
@@ -12,6 +13,50 @@ import { createSessionRoutes } from "../routes/sessions.ts";
 import type { AuthVariables } from "../auth.ts";
 
 initialize();
+
+test("Home adopts a shared agent's existing IM session without access to its default model", async () => {
+  const owner = createSession();
+  const recipient = createSession();
+  db.update(agents).set({ shared: true }).where(eq(agents.id, owner.agentId)).run();
+  db.update(modelRefs)
+    .set({ providerConfigId: createProviderConfig(owner.userId) })
+    .where(eq(modelRefs.id, owner.modelRefId))
+    .run();
+  db.update(sessions)
+    .set({ agentId: owner.agentId, thinkingLevel: "high" })
+    .where(eq(sessions.id, recipient.sessionId))
+    .run();
+  await replacePiSessionMessages(recipient.sessionId, [userMessage("Existing IM history")]);
+  assert.throws(() => ensureHome(recipient.userId, owner.agentId), /available default model/);
+  const integrationId = crypto.randomUUID();
+  db.insert(imIntegrations)
+    .values({
+      id: integrationId,
+      userId: recipient.userId,
+      agentId: owner.agentId,
+      platform: "telegram",
+      botId: integrationId,
+      botName: "Shared agent",
+      status: "connected",
+      updatedAt: Date.now(),
+    })
+    .run();
+  db.insert(imBindings)
+    .values({
+      integrationId,
+      senderId: "person",
+      chatId: "private",
+      sessionId: recipient.sessionId,
+    })
+    .run();
+  const home = ensureHome(recipient.userId, owner.agentId);
+  assert.equal(home.sessionId, recipient.sessionId);
+  const session = (await readSessionSnapshot(recipient.userId, home.sessionId))!;
+  assert.equal(session.modelRefId, recipient.modelRefId);
+  assert.equal(session.thinkingLevel, "high");
+  assert.equal(session.messages[0]?.role, "user");
+  assert.equal(ensureHome(recipient.userId, owner.agentId).sessionId, home.sessionId);
+});
 
 test("Home is stable, private per user, and protected from ordinary archive/delete", async () => {
   const fixture = createSession();

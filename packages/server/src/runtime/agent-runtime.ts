@@ -1,6 +1,6 @@
 import { createHelperExtension, helperTasks } from "./helpers.ts";
 import { retainHelperHost } from "./helper-hosts.ts";
-import { createHomeTools, homeInstructions } from "./home-tools.ts";
+import { createHomeTools, buildHomeInstructions } from "./home-tools.ts";
 import { createSessionSearchTools } from "./session-search-tools.ts";
 import { sessionHome } from "../services/agent-homes.ts";
 import { CompactionEntry, GenerationTask, hook } from "@earendil-works/pi-durable";
@@ -554,9 +554,7 @@ async function openRunHarness(
           contextFiles: resources.contextFiles,
           includeSkills: activeToolNames.includes("read"),
         }),
-        home: sessionHome(context.session.id)
-          ? `${homeInstructions}${agent.id}/issues/:issueId. Ask which issue if the target is ambiguous. Keep issue updates conversational and concise: state the outcome or question, with a link when useful. Leave checks, artifacts, logs, and uncertainty on the issue page. Use session_search to recover older decisions. Private chat facts must not be automatically saved into agent-shared memory.`
-          : undefined,
+        home: sessionHome(context.session.id) ? buildHomeInstructions(agent.id) : undefined,
         issue: sessionAddons?.instructions,
         browser: agent.permissions.bash ? browserInstructions : undefined,
         knowledge:
