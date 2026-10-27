@@ -9,6 +9,8 @@ type Fixture = {
   url: string;
   agentId: string;
   secondAgentId: string;
+  homeIssueId: string;
+  homeReviewIssueId: string;
   reviewIssueId: string;
   backlogIssueId: string;
   previousSessionId: string;
@@ -258,7 +260,7 @@ test("questions, credentials, and browser help share a request area beside the c
   for (const width of [390, 1280]) {
     browser("set", "viewport", String(width), "900");
     open(agentPath(`sessions/${fixture.secretSessionId}`));
-    browser("wait", '[data-agent-request-area] input[type="password"]');
+    browser("wait", '[data-agent-request-area] textarea[id$="-secret"]');
     assert.equal(
       evaluate(`(() => {
       const host = document.querySelector('.agent-chat-host').getBoundingClientRect();
@@ -270,17 +272,17 @@ test("questions, credentials, and browser help share a request area beside the c
     );
     assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
   }
-  browser("fill", 'input[type="password"]', "unsent-private-request-draft");
+  browser("fill", 'textarea[id$="-secret"]', "unsent-private-request-draft");
   clickSelector('[data-agent-request-kind="browser"] button');
   browser("wait", '[aria-label="Agent browser"] [data-agent-request-area]');
   clickSelector('header button[aria-label="Close browser"]');
-  browser("wait", '[data-agent-request-area] input[type="password"]');
+  browser("wait", '[data-agent-request-area] textarea[id$="-secret"]');
   assert.equal(
-    evaluate("document.querySelector('input[type=\"password\"]').value"),
+    evaluate("document.querySelector('textarea[id$=\"-secret\"]').value"),
     "unsent-private-request-draft",
     "opening browser assistance preserves an unsent credential in component memory",
   );
-  browser("fill", 'input[type="password"]', "");
+  browser("fill", 'textarea[id$="-secret"]', "");
 });
 
 test(
@@ -341,10 +343,12 @@ test(
   { timeout: 90_000 },
   () => {
     open(agentPath(`sessions/${fixture.secretSessionId}`));
-    browser("wait", 'input[type="password"]');
-    const dummyToken = "ghp_browser_fixture_private_value";
-    browser("fill", 'input[type="password"]', dummyToken);
-    assert.equal(evaluate(`document.querySelector('input[type="password"]').autocomplete`), "off");
+    browser("wait", 'textarea[id$="-secret"]');
+    const dummyToken =
+      "-----BEGIN PRIVATE KEY-----\nghp_browser_fixture_private_value\n-----END PRIVATE KEY-----\n";
+    browser("fill", 'textarea[id$="-secret"]', dummyToken);
+    assert.equal(evaluate(`document.querySelector('textarea[id$="-secret"]').autocomplete`), "off");
+    assert.equal(value('textarea[id$="-secret"]'), dummyToken);
     click("button", "Provide credential");
     browser("wait", "--text", "This session only");
     browser("wait", "--text", "Resume agent");
@@ -366,7 +370,7 @@ test(
     );
     open(agentPath(`sessions/${fixture.secretSessionId}`));
     browser("wait", "--text", "This session only");
-    assert.equal(evaluate(`document.querySelectorAll('input[type="password"]').length`), 0);
+    assert.equal(evaluate(`document.querySelectorAll('textarea[id$="-secret"]').length`), 0);
     click("button", "Save for this agent");
     browser("wait", "--text", "Saved for this agent");
     open(agentPath(`sessions/${fixture.secretSessionId}`));
@@ -731,6 +735,7 @@ test("agent settings fields have accessible names and navigation protects unsave
   browser("find", "label", "Container path", "fill", "/mount");
   click("button", "Remove mount");
   click("link", "Templates");
+  browser("wait", 'input[id$="-template-name"]');
   assert.match(snapshot(), /textbox "Template name"/);
   assert.match(snapshot(), /textbox "Template text"/);
   click("link", "General");
@@ -1773,3 +1778,51 @@ test(
     assert.doesNotMatch(snapshot(), /link "Knowledge"/);
   },
 );
+
+test("Home shows compact issue cards and opens evidence in the same app while preserving drafts", () => {
+  const homePath = `/agents/${fixture.secondAgentId}/home`;
+  for (const width of [1280, 390]) {
+    browser("set", "viewport", String(width), "900");
+    open(homePath);
+    browser("wait", `[data-home-issue="${fixture.homeIssueId}"]`);
+    browser("wait", `[data-home-issue="${fixture.homeReviewIssueId}"]`);
+    assert.match(
+      evaluate<string>(
+        `document.querySelector('[data-home-issue="${fixture.homeIssueId}"]').textContent`,
+      ),
+      /Needs input/,
+    );
+    assert.match(
+      evaluate<string>(
+        `document.querySelector('[data-home-issue="${fixture.homeReviewIssueId}"]').textContent`,
+      ),
+      /In review/,
+    );
+    assert.doesNotMatch(
+      evaluate<string>('document.querySelector("[data-chat-history]").innerText'),
+      /Client scan|KUBECONFIG|needs_input|Checks, artifacts, and uncertainty/,
+    );
+    assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+    browser("wait", 'textarea[aria-label="Message"]');
+    browser("fill", 'textarea[aria-label="Message"]', "You can install the missing clients.");
+    click("link", "Open issue: Check k3s cluster health");
+    browser("wait", "--url", `**/issues/${fixture.homeIssueId}?from=home`);
+    browser("wait", "--text", "Checks, artifacts, and uncertainty");
+    browser("wait", "--text", "Client scan: kubectl is missing.");
+    click("link", "Second agent / Home");
+    browser("wait", "--url", `**${homePath}`);
+    waitForValue('textarea[aria-label="Message"]', "You can install the missing clients.");
+    assert.equal(
+      evaluate(
+        `Array.from(document.querySelectorAll('a')).find(link => link.textContent === 'a read-only cluster check').getAttribute('target')`,
+      ),
+      null,
+    );
+    click("link", "a read-only cluster check");
+    browser("wait", "--url", `**/issues/${fixture.homeIssueId}?from=home`);
+    click("link", "Second agent / Home");
+    browser("wait", "--url", `**${homePath}`);
+    waitForValue('textarea[aria-label="Message"]', "You can install the missing clients.");
+    browser("fill", 'textarea[aria-label="Message"]', "");
+  }
+});

@@ -3,8 +3,9 @@ import { FileInputIcon, KeyRoundIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner";
 import { agentSecretNameError, type AgentSecret } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { confirmAction } from "@/lib/action-dialogs";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
@@ -167,7 +168,7 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
       )}
 
       {draft ? (
-        <div className="grid gap-3 rounded-md border p-3">
+        <FieldGroup className="gap-3 rounded-md border p-3">
           <Field>
             <FieldLabel htmlFor="agent-secret-name">Name</FieldLabel>
             <Input
@@ -181,10 +182,13 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
           </Field>
           <Field>
             <FieldLabel htmlFor="agent-secret-value">Value</FieldLabel>
-            <Input
+            <Textarea
               id="agent-secret-value"
-              type="password"
+              className="max-h-48 font-mono"
               autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              maxLength={8192}
               value={draft.value}
               onChange={(event) => setDraft({ ...draft, value: event.target.value })}
             />
@@ -197,7 +201,7 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
               Save secret
             </Button>
           </div>
-        </div>
+        </FieldGroup>
       ) : (
         <div className="flex flex-wrap gap-2">
           <Button

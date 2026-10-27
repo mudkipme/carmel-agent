@@ -27,7 +27,9 @@ const states: Record<IssueStatus, [string, LucideIcon, IssueState["attention"]]>
   done: ["Done", CircleCheckIcon, "none"],
   cancelled: ["Cancelled", CircleSlashIcon, "none"],
 };
-export function describeIssue(issue: Issue): IssueState {
+export function describeIssue(
+  issue: Pick<Issue, "status" | "running" | "lastRunOutcome">,
+): IssueState {
   if (
     !isClosedIssue(issue) &&
     !issue.running &&
@@ -53,7 +55,7 @@ export function describeIssue(issue: Issue): IssueState {
         : "text-muted-foreground",
   };
 }
-export function isClosedIssue(issue: Issue) {
+export function isClosedIssue(issue: Pick<Issue, "status">) {
   return issue.status === "done" || issue.status === "cancelled";
 }
 export function sortIssues(a: Issue, b: Issue) {

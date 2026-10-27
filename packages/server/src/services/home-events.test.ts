@@ -28,6 +28,12 @@ test("stopped Home retains one passive notice per report and notifications do no
     sourceKey: "issue:attempt-one",
     kind: "issue" as const,
     text: "[Review result](/result)",
+    issue: {
+      id: "reported-issue",
+      agentId: fixture.agentId,
+      title: "Review result",
+      status: "needs_input" as const,
+    },
   };
   publishHomeEvent(fixture.userId, fixture.agentId, report);
   publishHomeEvent(fixture.userId, fixture.agentId, report);
@@ -43,7 +49,9 @@ test("stopped Home retains one passive notice per report and notifications do no
     first,
   );
   const snapshot = (await readSessionSnapshot(fixture.userId, home.sessionId))!;
-  assert.equal(snapshot.messages.filter((message) => message.role === "homeNotice").length, 1);
+  const notices = snapshot.messages.filter((message) => message.role === "homeNotice");
+  assert.equal(notices.length, 1);
+  assert.deepEqual(notices[0]?.issue, report.issue);
   assert.equal(
     db.select().from(homeEvents).where(eq(homeEvents.sessionId, home.sessionId)).get()!.status,
     "queued",

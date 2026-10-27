@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import type { IssueDetail } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
 import { db, initialize } from "../db/index.ts";
-import { issues, issueAttempts, modelRefs, sessions, users } from "../db/schema.ts";
+import { issues, issueAttempts, modelRefs, sessions, users, homeEvents } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
@@ -170,6 +170,26 @@ test("needs-input, failed reports, and restart recovery preserve attempt evidenc
   });
   finishIssueAttempt(f.attemptId, { outcome: "succeeded" });
   assert.equal(readIssueView(f.userId, f.agentId, f.issueId).status, "needs_input");
+  const update = db
+    .select()
+    .from(homeEvents)
+    .all()
+    .find((event) => event.sourceKey.endsWith(`issue:${f.attemptId}`))!;
+  assert.ok(update);
+  assert.match(update.prompt.text, /Which branch\?/);
+  assert.doesNotMatch(update.prompt.text, /Inspected branches/);
+  assert.deepEqual(update.prompt.issue, {
+    id: f.issueId,
+    agentId: f.agentId,
+    title: readIssueView(f.userId, f.agentId, f.issueId).title,
+    status: "needs_input",
+    lastRunOutcome: "succeeded",
+  });
+  assert.equal(
+    readIssueView(f.userId, f.agentId, f.issueId).attempts[0]?.evidence,
+    "Inspected branches.",
+  );
+
   const failure = activeFixture();
   await report(failure, {
     state: "done",

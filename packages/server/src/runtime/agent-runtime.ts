@@ -555,7 +555,7 @@ async function openRunHarness(
           includeSkills: activeToolNames.includes("read"),
         }),
         home: sessionHome(context.session.id)
-          ? `${homeInstructions}${agent.id}/issues/:issueId. Ask which issue if the target is ambiguous. Use session_search to recover older decisions. Private chat facts must not be automatically saved into agent-shared memory.`
+          ? `${homeInstructions}${agent.id}/issues/:issueId. Ask which issue if the target is ambiguous. Keep issue updates conversational and concise: state the outcome or question, with a link when useful. Leave checks, artifacts, logs, and uncertainty on the issue page. Use session_search to recover older decisions. Private chat facts must not be automatically saved into agent-shared memory.`
           : undefined,
         issue: sessionAddons?.instructions,
         browser: agent.permissions.bash ? browserInstructions : undefined,

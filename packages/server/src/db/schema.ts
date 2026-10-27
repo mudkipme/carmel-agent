@@ -14,6 +14,7 @@ import type {
   AgentMount,
   AgentIcon,
   AgentColor,
+  HomeIssueUpdate,
   AgentMcpServer,
   AgentPermissions,
   AgentTaskOutcome,
@@ -547,7 +548,7 @@ export const homeEvents = sqliteTable(
       onDelete: "set null",
     }),
     prompt: text("prompt", { mode: "json" })
-      .$type<import("@carmel-agent/shared").PromptInput>()
+      .$type<import("@carmel-agent/shared").PromptInput & { issue?: HomeIssueUpdate }>()
       .notNull(),
     status: text("status")
       .$type<"preparing" | "queued" | "running" | "done" | "failed" | "cancelled" | "interrupted">()

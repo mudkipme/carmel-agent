@@ -347,6 +347,62 @@ await replacePiSessionMessages(chatSessionId, [
     "## A clearer path to deployment\n\nThe guide now separates **initial setup** from **everyday updates**, with a short checklist for each.\n\n- Start with the required environment variables.\n- Install dependencies and run the checks.\n- Build the app, then start the server.\n\n```bash\npnpm install --frozen-lockfile\npnpm check\npnpm build\n```\n\nThe local checks passed. The documentation search was unavailable, so I used the repository’s guide.",
   ),
 ]);
+const { ensureHome } = await import("../src/services/agent-homes.ts");
+const homeIssue = createIssue(fixture.userId, secondAgentId, {
+  title: "Check k3s cluster health",
+  description: "Run a read-only health check.",
+  criteria: [],
+  priority: "normal",
+});
+const homeReviewIssue = createIssue(fixture.userId, secondAgentId, {
+  title: "Review the cluster configuration",
+  description: "Review the configuration.",
+  criteria: [],
+  priority: "normal",
+});
+db.update(issues).set({ status: "needs_input" }).where(eq(issues.id, homeIssue.id)).run();
+db.update(issues).set({ status: "in_review" }).where(eq(issues.id, homeReviewIssue.id)).run();
+db.insert(issueAttempts)
+  .values({
+    id: "browser-home-issue-attempt",
+    issueId: homeIssue.id,
+    instructions: "",
+    brief: "Check cluster health.",
+    outcome: "succeeded",
+    summary: "A read-only kubeconfig is needed.",
+    evidence:
+      "Client scan: kubectl is missing. KUBECONFIG is unset. Checks and artifacts remain on this page.",
+    createdAt: timestamp,
+    finishedAt: timestamp + 1000,
+  })
+  .run();
+const issueHome = ensureHome(fixture.userId, secondAgentId);
+await replacePiSessionMessages(issueHome.sessionId, [
+  { role: "user", content: "Check the cluster and review its configuration.", timestamp },
+  fauxAssistantMessage(
+    `I've queued [a read-only cluster check](/agents/${secondAgentId}/issues/${homeIssue.id}). You can keep chatting while it runs.`,
+  ),
+  {
+    role: "homeNotice",
+    text: `[${homeIssue.title}](/agents/${secondAgentId}/issues/${homeIssue.id}?from=home) — needs_input\n\nA read-only kubeconfig is needed.\n\nClient scan: kubectl is missing. KUBECONFIG is unset. Checks and artifacts remain on this page.`,
+    timestamp: timestamp + 1,
+  },
+  fauxAssistantMessage(
+    "The health check needs a read-only kubeconfig. Add it securely, then tell me which path to use.",
+  ),
+  {
+    role: "homeNotice",
+    text: "Configuration review delivered.",
+    issue: {
+      id: homeReviewIssue.id,
+      agentId: secondAgentId,
+      title: homeReviewIssue.title,
+      status: "in_review",
+      lastRunOutcome: "succeeded",
+    },
+    timestamp: timestamp + 2,
+  },
+]);
 const app = createApp();
 const { withPiSession } = await import("../src/services/pi-session-storage.ts");
 const { createUserRequest, answerSecretRequest, pendingUserReply, markUserReplySubmitted } =
@@ -499,6 +555,8 @@ const server = serve(
         url: `http://127.0.0.1:${address.port}`,
         agentId: fixture.agentId,
         secondAgentId,
+        homeIssueId: homeIssue.id,
+        homeReviewIssueId: homeReviewIssue.id,
         reviewIssueId: reviewIssue.id,
         backlogIssueId: backlogIssue.id,
         previousSessionId,

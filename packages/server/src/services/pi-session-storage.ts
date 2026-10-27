@@ -9,6 +9,7 @@ import {
   type UserRequestReceiptMessage,
   type MessageReference,
   type ReferenceMessage,
+  type HomeIssueUpdate,
 } from "@carmel-agent/shared";
 import { createModels, type Models, type Message } from "@earendil-works/pi-ai";
 import { piClientIdentity } from "../runtime/client-identity.ts";
@@ -250,6 +251,8 @@ export function displayEntries(
       | {
           carmelMessage?: AgentMessage;
           timestamp?: number;
+          text?: string;
+          issue?: HomeIssueUpdate;
           carmelDisplayText?: string;
           carmelReferences?: MessageReference[];
           carmelUserRequestReceipt?: UserRequestReceipt;
@@ -308,8 +311,9 @@ export function displayEntries(
       (["carmel.notice", "carmel.helper-result"].includes(entry.kind)
         ? {
             role: "homeNotice" as const,
-            text: (entry.data as { text: string }).text,
-            timestamp: (entry.data as { timestamp?: number }).timestamp ?? 0,
+            text: data?.text ?? "",
+            ...(data?.issue ? { issue: data.issue } : {}),
+            timestamp: data?.timestamp ?? 0,
           }
         : undefined) ??
       data?.carmelMessage ??

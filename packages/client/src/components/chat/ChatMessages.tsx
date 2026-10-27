@@ -1,6 +1,7 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { NestedToolSlot } from "@carmel-agent/shared";
-import { getUserRequestReceipt } from "@carmel-agent/shared";
+import { getUserRequestReceipt, homeIssueUpdate } from "@carmel-agent/shared";
+import { HomeIssueCard } from "./HomeIssueCard";
 import { KeyRoundIcon, MessageSquareTextIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -348,12 +349,15 @@ const MessageItem = memo(function MessageItem({
   onRetryMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
 }) {
-  if (message.role === "homeNotice")
+  if (message.role === "homeNotice") {
+    const issue = homeIssueUpdate(message);
+    if (issue) return <HomeIssueCard issue={issue} />;
     return (
       <div role="status" className="py-3 text-sm text-muted-foreground">
         <MarkdownContent content={message.text} />
       </div>
     );
+  }
   if (message.role === "assistant") {
     return (
       <div className="group flex min-w-0 flex-col gap-1">

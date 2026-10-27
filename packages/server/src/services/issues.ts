@@ -620,8 +620,15 @@ export function finishIssueAttempt(attemptId: string, result: AgentRunResult) {
     publishHomeEvent(issue.userId, issue.agentId, {
       sourceKey: `issue:${attempt.id}`,
       kind: "issue",
+      issue: {
+        id: issue.id,
+        agentId: issue.agentId,
+        title: issue.title,
+        status: db.select().from(issues).where(eq(issues.id, issue.id)).get()!.status,
+        lastRunOutcome: result.outcome,
+      },
       notifyPlatform: alreadyNotified ? undefined : (issue.notifyPlatform ?? undefined),
-      text: `[${issue.title.replaceAll("[", "").replaceAll("]", "")}](/agents/${issue.agentId}/issues/${issue.id}?from=home) — ${result.outcome === "succeeded" ? (issue.verdict === "done" ? "Ready for review" : (issue.verdict ?? "Needs your input")) : result.outcome}\n\n${(result.detail ?? attempt.summary ?? "The attempt ended without a result report.").slice(0, 4000)}${attempt.evidence ? `\n\n${attempt.evidence.slice(0, 8000)}` : ""}`,
+      text: `[${issue.title.replaceAll("[", "").replaceAll("]", "")}](/agents/${issue.agentId}/issues/${issue.id}?from=home) — ${result.outcome === "succeeded" ? (issue.verdict === "done" ? "Ready for review" : issue.verdict === "blocked" ? "Blocked" : "Needs input") : result.outcome}\n\n${(result.detail ?? attempt.summary ?? "The attempt ended without a result report.").slice(0, 4000)}`,
     });
   }
   wakeQueue(issue.agentId);

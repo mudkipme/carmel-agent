@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import Markdown, { type Components } from "react-markdown";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import { agentFilesPath, workspaceFileFromHref } from "@/lib/file-links";
 import { cn } from "@/lib/utils";
@@ -83,6 +83,17 @@ function MarkdownLink({
   const agentId = useContext(WorkspaceFileLinkAgentContext);
   const sourceFile = useContext(WorkspaceFilePathContext);
   const [params] = useSearchParams();
+  const location = useLocation();
+  if (href?.startsWith("/agents/")) {
+    const to = new URL(href, window.location.origin);
+    if (to.pathname.includes("/issues/") && location.pathname.endsWith("/home"))
+      to.searchParams.set("from", "home");
+    return (
+      <Link {...props} to={`${to.pathname}${to.search}${to.hash}`}>
+        {children}
+      </Link>
+    );
+  }
   const filePath = agentId ? workspaceFileFromHref(href, sourceFile) : undefined;
   if (agentId && filePath) {
     const path = agentFilesPath(agentId, filePath);

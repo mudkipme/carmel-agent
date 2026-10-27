@@ -1,6 +1,12 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { AgentRunResult, AgentThinkingLevel, PromptInput } from "@carmel-agent/shared";
+import type {
+  AgentRunResult,
+  AgentThinkingLevel,
+  PromptInput,
+  HomeIssueUpdate,
+} from "@carmel-agent/shared";
+import { homeIssueUpdate } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { agentHomes, homeEvents, sessions } from "../db/schema.ts";
 import { imInbox, imIntegrations } from "../db/im-schema.ts";
@@ -44,6 +50,7 @@ export function publishHomeEvent(
     sourceKey: string;
     kind: "issue" | "notification" | "notice";
     text: string;
+    issue?: HomeIssueUpdate;
     notifyPlatform?: import("@carmel-agent/shared").ImPlatform;
   },
 ) {
@@ -71,7 +78,7 @@ export function publishHomeEvent(
       kind: input.kind,
       origin: "background",
       integrationId,
-      prompt: { text: input.text.slice(0, 16000) },
+      prompt: { text: input.text.slice(0, 16000), ...(input.issue ? { issue: input.issue } : {}) },
       status: "queued",
       createdAt: now(),
     })
@@ -91,7 +98,12 @@ async function publishNotice(event: HomeEvent) {
       if (published[event.id]) return false;
       const entry = await tx.appendEntry(pi.conversation.id, {
         kind: "carmel.notice",
-        data: { text: event.prompt.text, timestamp: event.createdAt, homeEventId: event.id },
+        data: {
+          text: event.prompt.text,
+          timestamp: event.createdAt,
+          homeEventId: event.id,
+          ...(event.prompt.issue ? { issue: event.prompt.issue } : {}),
+        },
       });
       published[event.id] = entry.id;
       return true;
@@ -337,7 +349,7 @@ export async function dispatchHome(sessionId: string) {
         event.kind === "input"
           ? event.prompt
           : {
-              text: `A background job reported the following source material. Briefly tell the user the result or decision needed, with its link. Do not accept the result, repeat completed work, or start another job unless the user asked.\n\n${event.prompt.text}`,
+              text: `A background job reported the following source material. ${homeIssueUpdate(event.prompt) ? "A linked issue status card is already visible in Home; do not repeat its heading or status. " : ""}Briefly tell the user the outcome or the specific reply needed, with its link when useful. Keep checks, artifacts, logs, detailed evidence, and uncertainty on the issue page; use read_issue only if more context is needed to answer. Do not accept the result, repeat completed work, or start another job unless the user asked.\n\n${event.prompt.text}`,
             },
       timezone: event.timezone ?? undefined,
       promptDelivery: {

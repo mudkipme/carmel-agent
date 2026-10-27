@@ -7,7 +7,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AgentRequestCard } from "./AgentRequestCard";
 import { FieldGroup, Field, FieldLabel, FieldDescription } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -228,10 +227,11 @@ function UserRequestCard({
             {request.kind === "secret" ? (
               <Field data-invalid={Boolean(error)}>
                 <FieldLabel htmlFor={`${inputId}-secret`}>Secret value</FieldLabel>
-                <Input
+                <Textarea
                   id={`${inputId}-secret`}
-                  type="password"
+                  className="max-h-48 font-mono"
                   autoComplete="off"
+                  autoCapitalize="off"
                   spellCheck={false}
                   value={secretValue}
                   disabled={locked}
