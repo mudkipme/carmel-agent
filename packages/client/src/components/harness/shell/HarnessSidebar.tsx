@@ -161,16 +161,16 @@ export function HarnessSidebar({
                             contentView === "sessions" || (contentView === "chat" && !homeView),
                         },
                         {
-                          label: "Issues",
-                          path: "issues",
-                          icon: ListTodoIcon,
-                          active: contentView === "issues",
-                        },
-                        {
                           label: "Tasks",
                           path: "tasks",
-                          icon: CalendarClockIcon,
+                          icon: ListTodoIcon,
                           active: contentView === "tasks",
+                        },
+                        {
+                          label: "Schedules",
+                          path: "schedules",
+                          icon: CalendarClockIcon,
+                          active: contentView === "schedules",
                         },
                         ...(agent.permissions.read && knowledge.data?.enabled
                           ? [

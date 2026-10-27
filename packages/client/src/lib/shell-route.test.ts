@@ -89,7 +89,7 @@ test("files, sessions, and issues belong to the agent, whatever session the URL 
     kind: "ready",
     agent: agentA,
   });
-  assert.deepEqual(resolveShellRoute(input({ view: "issues", routeAgentId: "agent_a" })), {
+  assert.deepEqual(resolveShellRoute(input({ view: "tasks", routeAgentId: "agent_a" })), {
     kind: "ready",
     agent: agentA,
   });

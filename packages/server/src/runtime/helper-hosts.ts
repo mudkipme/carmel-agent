@@ -66,11 +66,11 @@ export async function retainHelperHost(session: PiSession, execution: Execution)
 
 async function configureHost(host: HeldHost) {
   const row = db.select().from(sessions).where(eq(sessions.id, host.session.id)).get();
-  if (!row) throw new Error("The helper's session is unavailable.");
+  if (!row) throw new Error("The subtask's session is unavailable.");
   const agent = readVisibleAgent(row.userId, row.agentId);
-  if (!agent) throw new Error("This agent is no longer available. Stop its helpers.");
+  if (!agent) throw new Error("This agent is no longer available. Stop its subtasks.");
   const model = await resolveRunModel(row.userId, row.modelRefId, row.thinkingLevel);
-  if (!model.ok) throw new Error("Configure the session's model, then resume its helpers.");
+  if (!model.ok) throw new Error("Configure the session's model, then resume its subtasks.");
   const execution = createServerExecution(agent, undefined, row.userId, row.id);
   try {
     await execution.prepare();
@@ -154,7 +154,7 @@ export async function resumeHelperHost(sessionId: string, retry = false) {
       );
       if (pending)
         throw new Error(
-          "Resume or stop the unfinished parent conversation before recovering its helpers.",
+          "Resume or stop the unfinished parent conversation before recovering its subtasks.",
         );
       const helpers = await readHelpers(host.session);
       if (
@@ -171,7 +171,7 @@ export async function resumeHelperHost(sessionId: string, retry = false) {
     }
     const row = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     const agent = row ? readVisibleAgent(row.userId, row.agentId) : undefined;
-    if (!agent) throw new Error("This agent is no longer available. Stop its helpers.");
+    if (!agent) throw new Error("This agent is no longer available. Stop its subtasks.");
     if (host.agentRevision !== undefined && host.agentRevision !== agent.updatedAt)
       await configureHost(host);
     if (retry) {

@@ -41,7 +41,7 @@ export function TaskRunBanner({ session }: { session: SessionMetadata }) {
       <div className="flex shrink-0 items-center gap-1">
         <Button asChild size="xs" variant="ghost">
           <Link
-            to={`/agents/${session.agentId}/tasks?task=${encodeURIComponent(session.taskId ?? "")}`}
+            to={`/agents/${session.agentId}/schedules?task=${encodeURIComponent(session.taskId ?? "")}`}
           >
             Run history
           </Link>

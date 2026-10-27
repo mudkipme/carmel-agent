@@ -12,6 +12,8 @@ type Fixture = {
   homeIssueId: string;
   homeReviewIssueId: string;
   reviewIssueId: string;
+  subtaskId: number;
+  subtaskSessionId: string;
   backlogIssueId: string;
   previousSessionId: string;
   pendingSessionId: string;
@@ -670,7 +672,7 @@ test("new chat drafts retain text, references, and images across navigation and 
   })()`);
   browser("wait", 'button[aria-label="Remove draft.png"]');
   const text = value('textarea[aria-label="Message"]');
-  click("link", "Tasks");
+  click("link", "Schedules");
   click("link", "Sessions");
   click("link", "New session");
   assert.equal(value('textarea[aria-label="Message"]'), text);
@@ -914,7 +916,7 @@ test("mobile settings keep the selected section visible and permission labels to
   waitForSelectedSection("archived");
   assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
   click("button", "Back to agent");
-  open(agentPath("issues"));
+  open(agentPath("tasks"));
   browser("wait", '[role="tab"]');
   assert.equal(
     evaluate(`Array.from(document.querySelectorAll('[role="tab"]')).every(el => {
@@ -964,8 +966,8 @@ test("private integrations show QR setup, cancel it, and persist proactive messa
 });
 
 test("earlier issue conversations open the correct persisted session", () => {
-  open(agentPath(`issues/${fixture.reviewIssueId}`));
-  browser("wait", "--text", "Run history & issue events");
+  open(agentPath(`tasks/${fixture.reviewIssueId}`));
+  browser("wait", "--text", "Run history & task events");
   // Target the summary: a text locator can match the enclosing details and click its content.
   clickSelector("summary.text-muted-foreground");
   evaluate(`Array.from(document.querySelectorAll('summary'))
@@ -978,56 +980,69 @@ test("earlier issue conversations open the correct persisted session", () => {
   );
 });
 
+test("native subtasks open inside their parent task and legacy helper links redirect there", () => {
+  open(agentPath(`tasks/${fixture.reviewIssueId}`));
+  browser("wait", "--text", "Subtasks");
+  click("button", "Database verification");
+  browser("wait", "--text", "Verified database connections.");
+  assert.match(browser<{ url: string }>("get", "url").url, /\/tasks\/[^?]+\?subtask=/);
+  assert.equal(evaluate<boolean>('document.body.innerText.includes("Open helper")'), false);
+  open(agentPath(`sessions/${fixture.subtaskSessionId}/helpers/${fixture.subtaskId}`));
+  browser("wait", "--url", `**/tasks/${fixture.reviewIssueId}?subtask=*`);
+  browser("wait", "--text", "Verified database connections.");
+  assert.match(snapshot(), /button "Database verification" \[expanded/);
+});
+
 test("returning from an issue preserves the selected tab and search", () => {
-  open(agentPath("issues"));
+  open(agentPath("tasks"));
   click("tab", "Needs you");
-  browser("find", "label", "Search issues", "fill", "guide");
+  browser("find", "label", "Search tasks", "fill", "guide");
   click("link", "Review the deployment guide", false);
-  click("link", "Browser test agent / Issues");
+  click("link", "Browser test agent / Tasks");
   browser("wait", '[role="tab"][aria-label="Needs you"][aria-selected="true"]');
   assert.match(snapshot(), /tab "Needs you" \[selected/);
-  assert.equal(value('[aria-label="Search issues"]'), "guide");
+  assert.equal(value('[aria-label="Search tasks"]'), "guide");
   assert.match(browser<{ url: string }>("get", "url").url, /filter=attention&q=guide$/);
 });
 
 test("new issue drafts survive navigation and reload, remain scoped to their agent, and clear on cancel", () => {
-  open(agentPath("issues/new"));
+  open(agentPath("tasks/new"));
   browser("find", "label", "Title", "fill", "Keep my unfinished brief");
   browser("find", "label", "Details", "fill", "Keep the context too");
+  click("link", "Schedules");
   click("link", "Tasks");
-  click("link", "Issues");
-  click("link", "New issue");
+  click("link", "New task");
   assert.equal(value("#issue-title"), "Keep my unfinished brief");
   browser("reload");
   browser("wait", "#issue-title");
   assert.equal(value("#issue-description"), "Keep the context too");
-  open(`/agents/${fixture.secondAgentId}/issues/new`);
+  open(`/agents/${fixture.secondAgentId}/tasks/new`);
   browser("wait", "#issue-title");
   assert.equal(value("#issue-title"), "");
-  open(agentPath("issues/new"));
+  open(agentPath("tasks/new"));
   browser("wait", "#issue-title");
   assert.equal(value("#issue-title"), "Keep my unfinished brief");
   click("button", "Cancel");
-  click("link", "New issue");
+  click("link", "New task");
   assert.equal(value("#issue-title"), "");
 });
 
 test("saved issue drafts clear only after the server accepts them", () => {
-  open(agentPath("issues/new"));
+  open(agentPath("tasks/new"));
   browser("find", "label", "Title", "fill", "A saved backlog brief");
   click("button", "Save to backlog");
   browser("wait", "--text", "Edit brief");
-  click("link", "Browser test agent / Issues");
-  click("link", "New issue");
+  click("link", "Browser test agent / Tasks");
+  click("link", "New task");
   assert.equal(value("#issue-title"), "");
 });
 
 test("issue replies survive leaving the conversation and clear after saving", () => {
-  open(agentPath(`issues/${fixture.reviewIssueId}`));
+  open(agentPath(`tasks/${fixture.reviewIssueId}`));
   browser("wait", "#issue-reply");
   browser("find", "label", "Instructions or feedback", "fill", "Please verify the setup commands");
-  click("link", "Tasks");
-  open(agentPath(`issues/${fixture.reviewIssueId}`));
+  click("link", "Schedules");
+  open(agentPath(`tasks/${fixture.reviewIssueId}`));
   browser("wait", "#issue-reply");
   assert.equal(value("#issue-reply"), "Please verify the setup commands");
   click("button", "Save note");
@@ -1038,7 +1053,7 @@ test("issue replies survive leaving the conversation and clear after saving", ()
 test("long task titles and controls fit mobile; creation controls have accessible labels", (t) => {
   t.after(() => browser("set", "viewport", "1440", "900"));
   browser("set", "viewport", "390", "844");
-  open(agentPath("tasks"));
+  open(agentPath("schedules"));
   browser("wait", "--text", fixture.taskName);
   assert.equal(
     evaluate<boolean>(
@@ -1047,7 +1062,7 @@ test("long task titles and controls fit mobile; creation controls have accessibl
     true,
   );
   assert.match(snapshot(), /Edit Review/);
-  click("button", "New task");
+  click("button", "New schedule");
   browser("find", "label", "Name", "fill", "A labelled task");
   // Sample the first enabled frame in the same browser call as the input event.
   // CLI latency otherwise hides an opacity fade from the disabled appearance.
@@ -1074,12 +1089,12 @@ test("long task titles and controls fit mobile; creation controls have accessibl
 });
 
 test("existing tasks can be edited without changing their paused state", () => {
-  open(agentPath("tasks"));
+  open(agentPath("schedules"));
   click("button", `Edit ${fixture.taskName}`);
   assert.equal(value("#task-prompt"), "Review the guide.");
   assert.equal(value("#task-schedule"), "1440");
   browser("find", "label", "Prompt", "fill", "Review the guide and verify backups.");
-  click("button", "Save task");
+  click("button", "Save schedule");
   browser("wait", "--fn", '!document.querySelector("#task-name")');
   click("button", `Edit ${fixture.taskName}`);
   assert.equal(value("#task-prompt"), "Review the guide and verify backups.");
@@ -1591,7 +1606,7 @@ test("browser clipboard controls and shortcuts transfer text without adding chat
 test("a task conversation returns to its run history and keeps it open after reload", () => {
   open(agentPath(`sessions/${fixture.taskSessionId}`));
   click("link", "Run history");
-  browser("wait", "--url", "**/tasks?task=browser-task");
+  browser("wait", "--url", "**/schedules?task=browser-task");
   click("link", "Open conversation");
   browser("wait", "--url", `**/sessions/${fixture.taskSessionId}`);
   click("link", "Run history");
@@ -1609,18 +1624,18 @@ test("failed issue loading shows an error and Retry instead of an empty list", (
   const url = `${fixture.url}/api/agents/${fixture.agentId}/issues`;
   browser("network", "route", url, "--abort");
   try {
-    open(agentPath("issues"));
-    browser("wait", "--text", "Unable to load issues");
+    open(agentPath("tasks"));
+    browser("wait", "--text", "Unable to load tasks");
     assert.match(snapshot(), /button "Retry"/);
     assert.equal(evaluate<boolean>('document.body.innerText.includes("No queued work")'), false);
   } finally {
     browser("network", "unroute", url);
   }
   click("button", "Retry");
-  browser("wait", "--fn", '!document.body.innerText.includes("Unable to load issues")');
+  browser("wait", "--fn", '!document.body.innerText.includes("Unable to load tasks")');
   click("tab", "Backlog");
   // Retry clears the error before the response and route transition finish.
-  browser("wait", `[role="tabpanel"] a[href^="${agentPath(`issues/${fixture.backlogIssueId}`)}"]`);
+  browser("wait", `[role="tabpanel"] a[href^="${agentPath(`tasks/${fixture.backlogIssueId}`)}"]`);
   assert.match(snapshot(), /Explain backups/);
 });
 
@@ -1628,8 +1643,8 @@ test("failed task loading can be retried and successful edits are not reported a
   const url = `${fixture.url}/api/agents/${fixture.agentId}/tasks`;
   browser("network", "route", url, "--abort");
   try {
-    open(agentPath("tasks"));
-    browser("wait", "--text", "Unable to load tasks");
+    open(agentPath("schedules"));
+    browser("wait", "--text", "Unable to load schedules");
     assert.equal(
       evaluate<boolean>('document.body.innerText.includes("No scheduled tasks")'),
       false,
@@ -1643,10 +1658,10 @@ test("failed task loading can be retried and successful edits are not reported a
   browser("find", "label", "Prompt", "fill", "An edit accepted before refresh fails.");
   browser("network", "route", url, "--abort");
   try {
-    click("button", "Save task");
-    browser("wait", "--text", "Unable to load tasks");
+    click("button", "Save schedule");
+    browser("wait", "--text", "Unable to load schedules");
     assert.equal(
-      evaluate<boolean>('document.body.innerText.includes("Unable to save task")'),
+      evaluate<boolean>('document.body.innerText.includes("Unable to save schedule")'),
       false,
     );
     assert.equal(evaluate<boolean>('Boolean(document.querySelector("#task-name"))'), false);
@@ -1654,7 +1669,7 @@ test("failed task loading can be retried and successful edits are not reported a
     browser("network", "unroute", url);
   }
   click("button", "Retry");
-  browser("wait", "--fn", '!document.body.innerText.includes("Unable to load tasks")');
+  browser("wait", "--fn", '!document.body.innerText.includes("Unable to load schedules")');
   click("button", `Edit ${fixture.taskName}`);
   assert.equal(value("#task-prompt"), "An edit accepted before refresh fails.");
   click("button", "Cancel");
@@ -1859,8 +1874,8 @@ test("Home shows compact issue cards and opens evidence in the same app while pr
     assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
     browser("wait", 'textarea[aria-label="Message"]');
     browser("fill", 'textarea[aria-label="Message"]', "You can install the missing clients.");
-    click("link", "Open issue: Check k3s cluster health");
-    browser("wait", "--url", `**/issues/${fixture.homeIssueId}?from=home`);
+    click("link", "Open task: Check k3s cluster health");
+    browser("wait", "--url", `**/tasks/${fixture.homeIssueId}?from=home`);
     browser("wait", "--text", "Checks, artifacts, and uncertainty");
     browser("wait", "--text", "Client scan: kubectl is missing.");
     click("link", "Second agent / Home");
@@ -1873,7 +1888,7 @@ test("Home shows compact issue cards and opens evidence in the same app while pr
       null,
     );
     click("link", "a read-only cluster check");
-    browser("wait", "--url", `**/issues/${fixture.homeIssueId}?from=home`);
+    browser("wait", "--url", `**/tasks/${fixture.homeIssueId}?from=home`);
     click("link", "Second agent / Home");
     browser("wait", "--url", `**${homePath}`);
     waitForValue('textarea[aria-label="Message"]', "You can install the missing clients.");

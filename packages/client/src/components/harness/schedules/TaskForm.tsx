@@ -70,7 +70,7 @@ export function TaskForm({
       onSubmit={submit}
       className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-3 sm:p-4"
     >
-      <h2 className="text-sm font-semibold">{editing ? "Edit task" : "New task"}</h2>
+      <h2 className="text-sm font-semibold">{editing ? "Edit schedule" : "New schedule"}</h2>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="task-name">Name</FieldLabel>
@@ -207,7 +207,7 @@ export function TaskForm({
           Cancel
         </Button>
         <Button type="submit" disabled={busy || !draft.name.trim() || !draft.prompt.trim()}>
-          {busy ? "Saving…" : editing ? "Save task" : "Create task"}
+          {busy ? "Saving…" : editing ? "Save schedule" : "Create schedule"}
         </Button>
       </div>
     </form>

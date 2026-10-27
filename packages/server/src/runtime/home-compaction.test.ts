@@ -4,6 +4,7 @@ import { createModels } from "@earendil-works/pi-ai";
 import {
   fauxAssistantMessage,
   fauxProvider,
+  fauxToolCall,
   type FauxResponseFactory,
 } from "@earendil-works/pi-ai/providers/faux";
 import { estimateMessageTokens } from "@earendil-works/pi-ai/utils/estimate";
@@ -254,3 +255,75 @@ test("Home budgets rendered system text, skill maps, MCP schemas and Codemode be
   assert.ok(fixed[1]! > fixed[0]! + 5_000, "MCP declaration schemas contribute to fixed overhead");
   assert.ok(fixed[2]! > fixed[1]!, "the rendered Codemode catalog also contributes");
 });
+
+test(
+  "Home can compact inside one long tool loop while task sessions retain their normal context budget",
+  { timeout: 15_000 },
+  async () => {
+    for (const kind of ["home", "session"] as const) {
+      const { sessionId } = createSession();
+      const faux = fauxProvider({
+        models: [{ id: "long-run", contextWindow: 200_000 }],
+        tokensPerSecond: 1e9,
+        tokenSize: { min: 10_000, max: 10_000 },
+      });
+      const models = createModels();
+      models.setProvider(faux.provider);
+      const model = faux.getModel();
+      let reads = 0;
+      let summaries = 0;
+      let summariesBeforeAnswer = 0;
+      let answered = false;
+      const respond: FauxResponseFactory = (context) => {
+        if (JSON.stringify(context.messages[0]).includes("context summarization assistant")) {
+          if (!answered) summariesBeforeAnswer++;
+          summaries++;
+          return fauxAssistantMessage("Keep inspecting the evidence for the current request.");
+        }
+        if (reads++ < 18)
+          return fauxAssistantMessage([fauxToolCall("read", {})], { stopReason: "toolUse" });
+        answered = true;
+        return fauxAssistantMessage("All evidence inspected.");
+      };
+      faux.setResponses(Array.from({ length: 40 }, () => respond));
+      const pi = await openTestHarness(sessionId, {
+        models,
+        model,
+        systemPrompt: "Inspect the evidence.",
+        compaction: compactionSettingsForWindow(model.contextWindow),
+        tools: [
+          {
+            name: "read",
+            description: "Read evidence",
+            parameters: { type: "object", properties: {} },
+            async execute() {
+              return { output: [{ type: "text", text: "Evidence. ".repeat(2_800) }] };
+            },
+          },
+        ],
+      });
+      try {
+        if (kind === "home")
+          await configureHomeCompaction(pi.session, model.contextWindow, pi.context);
+        pi.session.settings = { ...pi.session.settings, stream: { cacheRetention: "none" } };
+        await pi.prompt("Inspect all eighteen evidence blocks in this one request.");
+        assert.equal(answered, true);
+        if (kind === "home")
+          assert.ok(
+            summariesBeforeAnswer > 0,
+            "compaction starts before the one foreground request ends",
+          );
+        else {
+          assert.equal(summaries, 0);
+          const context = await pi.session.conversation.context(pi.context);
+          assert.ok(
+            context.messages.reduce((total, message) => total + estimateMessageTokens(message), 0) >
+              100_000,
+          );
+        }
+      } finally {
+        await pi.close();
+      }
+    }
+  },
+);

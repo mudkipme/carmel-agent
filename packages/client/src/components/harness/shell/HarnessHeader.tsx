@@ -57,8 +57,8 @@ export function HarnessHeader({
       ? "Sessions"
       : contentView === "knowledge"
         ? "Knowledge"
-        : contentView === "tasks"
-          ? "Tasks"
+        : contentView === "schedules"
+          ? "Schedules"
           : contentView === "files"
             ? "Files"
             : contentView === "changes"
@@ -67,8 +67,8 @@ export function HarnessHeader({
                 ? "Browser"
                 : contentView === "terminal"
                   ? "Terminal"
-                  : contentView === "issues"
-                    ? (issueTitle ?? "Issues")
+                  : contentView === "tasks"
+                    ? (issueTitle ?? "Tasks")
                     : homeView || activeSession?.home
                       ? "Home"
                       : (activeSession?.title ?? "New session");

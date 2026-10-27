@@ -1,4 +1,4 @@
-import { HelperView } from "@/components/harness/HelperView";
+import { SubtaskRedirect } from "@/components/harness/SubtaskRedirect";
 import { useEffect } from "react";
 import {
   createBrowserRouter,
@@ -7,6 +7,7 @@ import {
   Route,
   RouterProvider,
   useParams,
+  useLocation,
 } from "react-router-dom";
 import { AgentSettingsPage } from "@/components/harness/AgentSettingsPage";
 import { HarnessShell } from "@/components/harness/HarnessShell";
@@ -32,7 +33,22 @@ function AgentHomeRedirect() {
 
 function AgentTasksRedirect() {
   const { agentId } = useParams();
-  return <Navigate to={`/agents/${agentId}/tasks`} replace />;
+  return <Navigate to={`/agents/${agentId}/schedules`} replace />;
+}
+
+function LegacyIssueRedirect() {
+  const location = useLocation();
+  return (
+    <Navigate to={`${location.pathname.replace("/issues", "/tasks")}${location.search}`} replace />
+  );
+}
+
+function TasksRoute() {
+  const location = useLocation();
+  const { agentId } = useParams();
+  if (new URLSearchParams(location.search).has("task"))
+    return <Navigate to={`/agents/${agentId}/schedules${location.search}`} replace />;
+  return <HarnessShell view="tasks" />;
 }
 
 export default function App() {
@@ -104,6 +120,7 @@ const router = createBrowserRouter(
       <Route path="/agents/:agentId" element={<AgentHomeRedirect />} />
       <Route path="/agents/:agentId/home" element={<HarnessShell homeView />} />
       <Route path="/agents/:agentId/settings" element={<AgentSettingsRedirect />} />
+      <Route path="/agents/:agentId/settings/schedules" element={<AgentTasksRedirect />} />
       <Route path="/agents/:agentId/settings/tasks" element={<AgentTasksRedirect />} />
       <Route path="/agents/:agentId/settings/:section" element={<AgentSettingsPage />} />
       {/* The splat carries the file being edited, and matches the bare
@@ -118,12 +135,14 @@ const router = createBrowserRouter(
       <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
       <Route
         path="/agents/:agentId/sessions/:sessionId/helpers/:helperId"
-        element={<HelperView />}
+        element={<SubtaskRedirect />}
       />
-      <Route path="/agents/:agentId/tasks" element={<HarnessShell view="tasks" />} />
+      <Route path="/agents/:agentId/schedules" element={<HarnessShell view="schedules" />} />
       <Route path="/agents/:agentId/knowledge" element={<HarnessShell view="knowledge" />} />
-      <Route path="/agents/:agentId/issues" element={<HarnessShell view="issues" />} />
-      <Route path="/agents/:agentId/issues/:issueId" element={<HarnessShell view="issues" />} />
+      <Route path="/agents/:agentId/tasks" element={<TasksRoute />} />
+      <Route path="/agents/:agentId/tasks/:issueId" element={<HarnessShell view="tasks" />} />
+      <Route path="/agents/:agentId/issues" element={<LegacyIssueRedirect />} />
+      <Route path="/agents/:agentId/issues/:issueId" element={<LegacyIssueRedirect />} />
       <Route path="/settings" element={<Navigate to="/settings/models" replace />} />
       <Route path="/settings/:section" element={<SettingsPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,7 +1,9 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { NestedToolSlot } from "@carmel-agent/shared";
 import { getUserRequestReceipt, homeIssueUpdate } from "@carmel-agent/shared";
-import { HomeIssueCard } from "./HomeIssueCard";
+import { HomeTaskCard } from "./HomeTaskCard";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { KeyRoundIcon, MessageSquareTextIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -351,7 +353,16 @@ const MessageItem = memo(function MessageItem({
 }) {
   if (message.role === "homeNotice") {
     const issue = homeIssueUpdate(message);
-    if (issue) return <HomeIssueCard issue={issue} />;
+    if (issue) return <HomeTaskCard issue={issue} />;
+    const legacySubtask = message.text.match(
+      /\[Open helper\]\((\/agents\/[^\s)]+\/helpers\/\d+)\)/,
+    );
+    if (legacySubtask)
+      return (
+        <Button asChild variant="outline">
+          <Link to={legacySubtask[1]}>View subtask result</Link>
+        </Button>
+      );
     return (
       <div role="status" className="py-3 text-sm text-muted-foreground">
         <MarkdownContent content={message.text} />

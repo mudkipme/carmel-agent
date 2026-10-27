@@ -1,7 +1,7 @@
 import { AgentSessionsPage } from "./AgentSessionsPage";
 import { ConversationSwitcher } from "./shell/ConversationSwitcher";
-import { IssuesOverview } from "./issues/IssuesOverview";
-import { AgentTasksPage } from "./AgentTasksPage";
+import { TasksOverview } from "./tasks/TasksOverview";
+import { AgentSchedulesPage } from "./AgentSchedulesPage";
 import { AgentKnowledgePage } from "./AgentKnowledgePage";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { ResourceError } from "./ResourceFeedback";
@@ -20,8 +20,8 @@ import {
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PiChat } from "@/components/PiChat";
 import { NewSessionView } from "@/components/harness/NewSessionView";
-import { IssueView } from "@/components/harness/issues/IssueView";
-import { NewIssueView } from "@/components/harness/issues/NewIssueView";
+import { TaskView } from "@/components/harness/tasks/TaskView";
+import { NewTaskView } from "@/components/harness/tasks/NewTaskView";
 
 const FileEditorView = lazy(() =>
   import("@/components/harness/files/FileEditorView").then((module) => ({
@@ -208,7 +208,7 @@ export function HarnessShell({
     () => issues.filter((issue) => issue.agentId === activeAgent?.id && issue.userId === userId),
     [activeAgent?.id, issues, userId],
   );
-  const activeIssueId = view === "issues" ? routeIssueId : undefined;
+  const activeIssueId = view === "tasks" ? routeIssueId : undefined;
   const activeIssue = visibleIssues.find((issue) => issue.id === activeIssueId);
   const chatPath = activeSession?.home
     ? `/agents/${activeSession.agentId}/home`
@@ -360,7 +360,7 @@ export function HarnessShell({
     pollInterval: (data) =>
       data?.some((issue) => issue.running || issue.status === "queued")
         ? 4_000
-        : view === "issues"
+        : view === "tasks"
           ? 30_000
           : false,
   });
@@ -481,7 +481,7 @@ export function HarnessShell({
           sidebarOpen={sidebarOpen}
           activeAgent={activeAgent}
           activeSession={activeSessionMetadata}
-          issueTitle={activeIssueId === "new" ? "New issue" : activeIssue?.title}
+          issueTitle={activeIssueId === "new" ? "New task" : activeIssue?.title}
           contentView={view}
           homeView={homeView}
           companionVisible={isWorkspaceView(view) && workspaceSplit}
@@ -566,20 +566,20 @@ export function HarnessShell({
               />
             ) : view === "knowledge" && activeAgent ? (
               <AgentKnowledgePage key={activeAgent.id} agent={activeAgent} />
+            ) : view === "schedules" && activeAgent ? (
+              <AgentSchedulesPage key={activeAgent.id} agent={activeAgent} />
             ) : view === "tasks" && activeAgent ? (
-              <AgentTasksPage key={activeAgent.id} agent={activeAgent} />
-            ) : view === "issues" && activeAgent ? (
               activeIssueId === "new" ? (
-                <NewIssueView key={activeAgent.id} agent={activeAgent} />
+                <NewTaskView key={activeAgent.id} agent={activeAgent} />
               ) : activeIssueId ? (
-                <IssueView
+                <TaskView
                   key={activeIssueId}
                   agent={activeAgent}
                   issueId={activeIssueId}
                   onIssuesChanged={issueList.refresh}
                 />
               ) : (
-                <IssuesOverview
+                <TasksOverview
                   key={activeAgent.id}
                   agent={activeAgent}
                   issues={visibleIssues}

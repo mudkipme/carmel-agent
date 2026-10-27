@@ -15,7 +15,7 @@ import {
 } from "@earendil-works/pi-durable";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
-import { helperHosts } from "../db/schema.ts";
+import { helperHosts, sessions } from "../db/schema.ts";
 import { publishHomeEvent } from "../services/home-events.ts";
 import { withPiSession, type PiSession } from "../services/pi-session-storage.ts";
 
@@ -71,6 +71,12 @@ const Anchor = defineTask<null, { phase: "done" }, null>({
 });
 
 type ReporterInput = { sessionId: string; userId: string; agentId: string; helperId: number };
+function subtaskPath(owner: { sessionId: string; agentId: string }, id: number) {
+  const parent = db.select().from(sessions).where(eq(sessions.id, owner.sessionId)).get();
+  return parent?.issueId
+    ? `/agents/${owner.agentId}/tasks/${parent.issueId}?subtask=${id}&subtaskSession=${owner.sessionId}`
+    : `/agents/${owner.agentId}/sessions/${owner.sessionId}?subtask=${id}`;
+}
 type ReporterState =
   | { phase: "wait" }
   | { phase: "work" }
@@ -98,7 +104,7 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
             status: "running",
             checkpoint: {
               phase: "report",
-              answer: "The helper reached its five-minute limit.",
+              answer: "The subtask reached its five-minute limit.",
               failed: true,
             },
           }),
@@ -141,7 +147,7 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
               status: "running",
               checkpoint: {
                 phase: "report",
-                answer: `The helper ${runtime.now() >= helper.deadline ? "reached its time limit" : settled.status === "unanswered" ? settled.reason : "stopped"}.`,
+                answer: `The subtask ${runtime.now() >= helper.deadline ? "reached its time limit" : settled.status === "unanswered" ? settled.reason : "stopped"}.`,
                 failed: true,
               },
             }),
@@ -157,23 +163,18 @@ const Reporter = defineTask<ReporterInput, ReporterState, null>({
       const helper = (await runtime.snapshot(Helpers, context))!.items[
         String(task.input.helperId)
       ]!;
-      const text = `**${helper.name}** ${checkpoint.failed ? "stopped" : "finished"}.\n\n${checkpoint.answer}\n\n[Open helper](/agents/${task.input.agentId}/sessions/${task.input.sessionId}/helpers/${helper.id})`;
+      const parent = db.select().from(sessions).where(eq(sessions.id, task.input.sessionId)).get();
+      const text = `[${helper.name}](${subtaskPath(task.input, helper.id)}) ${checkpoint.failed ? "stopped" : "finished"}.`;
       await runtime.commit(async (tx) => {
         const record = (await tx.doc(Helpers)).items[String(helper.id)]!;
-        if (!record.reportEntry)
-          record.reportEntry = (
-            await tx.appendEntry(helper.parentId as ConversationId, {
-              kind: "carmel.helper-result",
-              data: { text, timestamp: runtime.now() },
-            })
-          ).id;
         record.status = "reporting";
       }, context);
-      publishHomeEvent(task.input.userId, task.input.agentId, {
-        sourceKey: `helper:${task.input.sessionId}:${task.id}`,
-        kind: "issue",
-        text,
-      });
+      if (!parent?.issueId)
+        publishHomeEvent(task.input.userId, task.input.agentId, {
+          sourceKey: `helper:${task.input.sessionId}:${task.id}`,
+          kind: "notice",
+          text,
+        });
       await runtime.commit(async (tx) => {
         const record = (await tx.doc(Helpers)).items[String(helper.id)]!;
         record.status = checkpoint.failed ? "failed" : "done";
@@ -231,9 +232,9 @@ export function createHelperExtension(owner: {
     name: "carmel-helpers",
     tools: [
       defineTool({
-        name: "start_helper",
+        name: "start_subtask",
         description:
-          "Delegate bounded read-only research or analysis to a helper of this same agent. Pass a self-contained task and relevant constraints. Helpers cannot edit files, browse, send messages, create issues, or delegate. Up to four may work at once; each has five minutes. Foreground returns its answer; background continues after this reply and reports to Home. wakeAt is optional UTC epoch milliseconds for a background helper to wake later.",
+          "Create a read-only subtask within the current task. Delegate a bounded research or analysis question to this same agent with isolated context. Pass a self-contained task and relevant constraints. Subtasks cannot edit files, browse, send messages, create tasks, or delegate. Up to four may work at once; each has five minutes. Foreground returns its answer. Use background=true to run independent subtasks in parallel, then wait_subtask to collect each result before reporting the parent task complete. Results and evidence stay on the parent task. wakeAt is optional UTC epoch milliseconds for a background subtask to wake later.",
         parameters: Type.Object({
           name: Type.String({ minLength: 1, maxLength: 100 }),
           task: Type.String({ minLength: 1, maxLength: 16000 }),
@@ -248,7 +249,7 @@ export function createHelperExtension(owner: {
           const background = args.background === true;
           const wakeAt = args.wakeAt ?? api.now();
           if ((!background && wakeAt > api.now()) || wakeAt > api.now() + 7 * 86400000)
-            throw new Error("Delayed helpers must be background work and wake within seven days.");
+            throw new Error("Delayed subtasks must be background work and wake within seven days.");
           if (background)
             db.insert(helperHosts)
               .values({ sessionId: owner.sessionId, updatedAt: Date.now() })
@@ -269,7 +270,7 @@ export function createHelperExtension(owner: {
                 ["working", "sleeping", "reporting"].includes(item.status),
               ).length >= 4
             )
-              throw new Error("Four helpers are already active. Wait for one or stop it.");
+              throw new Error("Four subtasks are already active. Wait for one or stop it.");
             const ownership = background
               ? {
                   kind: "task" as const,
@@ -284,7 +285,7 @@ export function createHelperExtension(owner: {
               tools: enabled,
               modelTools: enabled,
               extensions: { remove: [HelpersExtensionPlaceholder] },
-              instructions: `You are the read-only helper ${args.name}. Complete only the supplied task. Return a concise answer with evidence and uncertainties. You share this agent's readable files; you have no private filesystem copy. Do not ask the user questions or delegate.`,
+              instructions: `You are executing the read-only subtask ${args.name}. Complete only the supplied task. Return a concise answer with evidence and uncertainties. You share this agent's readable files; you have no private filesystem copy. Do not ask the user questions or delegate.`,
             });
             const record: HelperRecord = {
               userId: owner.userId,
@@ -316,9 +317,9 @@ export function createHelperExtension(owner: {
                 {
                   type: "text",
                   text: JSON.stringify({
-                    helperId: helper.id,
+                    subtaskId: helper.id,
                     status: helper.status,
-                    link: `/agents/${owner.agentId}/sessions/${owner.sessionId}/helpers/${helper.id}`,
+                    link: subtaskPath(owner, helper.id),
                   }),
                 },
               ],
@@ -326,7 +327,7 @@ export function createHelperExtension(owner: {
           const child = (await api.conversation(helper.id as ConversationId, context))!;
           if (api.now() >= helper.deadline) {
             await child.abort(context);
-            const answer = "The helper reached its five-minute limit.";
+            const answer = "The subtask reached its five-minute limit.";
             await api.commit(async (tx) => {
               const record = (await tx.doc(Helpers)).items[String(helper.id)]!;
               record.status = "failed";
@@ -367,7 +368,7 @@ export function createHelperExtension(owner: {
                       .map((part) => part.text)
                       .join("\n")
                       .slice(0, 12000)
-                  : "The helper stopped without an answer.";
+                  : "The subtask stopped without an answer.";
               return record.answer;
             }, context);
             return { output: [{ type: "text", text: answer }] };
@@ -377,8 +378,34 @@ export function createHelperExtension(owner: {
         },
       }),
       defineTool({
-        name: "helper_status",
-        description: "List this conversation's helpers and their answers or progress.",
+        name: "wait_subtask",
+        description:
+          "Wait for a selected background subtask and return its answer. Join every background subtask before reporting the parent task complete; do not poll in a loop.",
+        parameters: Type.Object({ subtaskId: Type.Number() }),
+        replay: "safe",
+        async execute(args, api, context) {
+          let helper = (await api.snapshot(Helpers, context))?.items[String(args.subtaskId)];
+          if (!helper || helper.parentId !== api.conversationId)
+            throw new Error("Select a subtask of this task.");
+          if (helper.reporterId) await api.waitForTask(helper.reporterId as TaskId, context);
+          helper = (await api.snapshot(Helpers, context))!.items[String(args.subtaskId)]!;
+          return {
+            output: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  subtaskId: helper.id,
+                  status: helper.status,
+                  answer: helper.answer,
+                }),
+              },
+            ],
+          };
+        },
+      }),
+      defineTool({
+        name: "list_subtasks",
+        description: "List this task's subtasks and their answers or progress.",
         parameters: Type.Object({}),
         replay: "safe",
         execute: async (_args, api, context) => ({
@@ -395,35 +422,34 @@ export function createHelperExtension(owner: {
         }),
       }),
       defineTool({
-        name: "stop_helper",
-        description:
-          "Stop a selected helper of this conversation, including a helper waiting to wake later.",
-        parameters: Type.Object({ helperId: Type.Number() }),
+        name: "stop_subtask",
+        description: "Stop a selected subtask, including a subtask waiting to wake later.",
+        parameters: Type.Object({ subtaskId: Type.Number() }),
         replay: "unsafe",
         execute: async (args, api, context) => {
-          const helper = (await api.snapshot(Helpers, context))?.items[String(args.helperId)];
+          const helper = (await api.snapshot(Helpers, context))?.items[String(args.subtaskId)];
           if (!helper || helper.parentId !== api.conversationId)
-            throw new Error("Select a helper of this conversation.");
+            throw new Error("Select a subtask of this conversation.");
           await withPiSession(owner.sessionId, (pi) => stopHelper(pi, helper.id));
-          return { output: [{ type: "text", text: "Helper stopped." }] };
+          return { output: [{ type: "text", text: "Subtask stopped." }] };
         },
       }),
       defineTool({
-        name: "send_helper",
-        description: "Send a steering update to a selected active helper of this conversation.",
+        name: "send_subtask_update",
+        description: "Send a steering update to a selected active subtask.",
         parameters: Type.Object({
-          helperId: Type.Number(),
+          subtaskId: Type.Number(),
           text: Type.String({ minLength: 1, maxLength: 16000 }),
         }),
         replay: "unsafe",
         execute: async (args, api, context) => {
-          const helper = (await api.snapshot(Helpers, context))?.items[String(args.helperId)];
+          const helper = (await api.snapshot(Helpers, context))?.items[String(args.subtaskId)];
           if (
             !helper ||
             helper.parentId !== api.conversationId ||
             !["working", "sleeping"].includes(helper.status)
           )
-            throw new Error("Select an active helper of this conversation.");
+            throw new Error("Select an active subtask of this conversation.");
           if (helper.status === "sleeping") {
             await api.commit(async (tx) => {
               (await tx.doc(Helpers)).items[String(helper.id)]!.task += `\n\nUpdate: ${args.text}`;
@@ -462,7 +488,7 @@ export async function readHelpers(session: PiSession) {
 
 export async function stopHelper(session: PiSession, helperId: number) {
   const helper = (await readHelpers(session)).find((item) => item.id === helperId);
-  if (!helper) throw new Error("Helper not found.");
+  if (!helper) throw new Error("Subtask not found.");
   session.registry.install(helperTasks);
   if (helper.reporterId)
     await session.native.abortTask(helper.reporterId as TaskId, BACKGROUND_CONTEXT);

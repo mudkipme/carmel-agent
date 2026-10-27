@@ -11,7 +11,7 @@ export type HomeIssueUpdate = {
 export function homeIssueUpdate(message: { text: string; issue?: HomeIssueUpdate }) {
   if (message.issue) return message.issue;
   const match = message.text.match(
-    /^\[([^\]\n]+)\]\(\/agents\/([^/\s)]+)\/issues\/([^/?\s)]+)(?:\?[^)]*)?\) — ([^\n]+)/,
+    /^\[([^\]\n]+)\]\(\/agents\/([^/\s)]+)\/(?:issues|tasks)\/([^/?\s)]+)(?:\?[^)]*)?\) — ([^\n]+)/,
   );
   if (!match) return;
   const status = {

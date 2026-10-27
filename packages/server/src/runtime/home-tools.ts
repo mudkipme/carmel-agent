@@ -22,7 +22,7 @@ import {
   removeIssueFromQueue,
 } from "../services/issues.ts";
 
-const issueId = z.object({ issueId: z.string().min(1) }).strict();
+const taskId = z.object({ taskId: z.string().min(1) }).strict();
 export function createHomeTools(userId: string, agentId: string): ToolRegistration[] {
   const tool = (
     name: string,
@@ -43,79 +43,79 @@ export function createHomeTools(userId: string, agentId: string): ToolRegistrati
   });
   return [
     tool(
-      "list_issues",
-      "List this user's issues for this agent, including queue and review state.",
+      "list_tasks",
+      "List this user's tasks for this agent, including queue and review state.",
       z.object({}).strict(),
       () => readIssues(userId, agentId),
       true,
     ),
     tool(
-      "read_issue",
-      "Read an issue's brief, discussion, saved attempt results, and evidence.",
-      issueId,
-      (args) => readIssueView(userId, agentId, issueId.parse(args).issueId),
+      "read_task",
+      "Read a task's brief, discussion, saved attempt results, and evidence.",
+      taskId,
+      (args) => readIssueView(userId, agentId, taskId.parse(args).taskId),
       true,
     ),
     tool(
-      "create_issue",
+      "create_task",
       "Create a bounded background job. Set queue=true to start it. Include the user's relevant constraints and acceptance criteria. notifyPlatform is only for a requested external notification; omit otherwise. Results return to Home. Only the user accepts completed work.",
       issueCreateSchema,
       (args) => createIssue(userId, agentId, issueCreateSchema.parse(args)),
     ),
     tool(
-      "queue_issue",
-      "Queue/retry an existing issue. Revisions reuse its conversation unless fresh is explicitly requested.",
-      issueId.extend({
+      "queue_task",
+      "Queue/retry an existing task. Revisions reuse its conversation unless fresh is explicitly requested.",
+      taskId.extend({
         instructions: z.string().max(40000).optional(),
         fresh: z.boolean().optional(),
       }),
       (args) => {
-        const value = issueId
+        const value = taskId
           .extend({ instructions: z.string().optional(), fresh: z.boolean().optional() })
           .parse(args);
         return runIssue(
           userId,
           agentId,
-          value.issueId,
+          value.taskId,
           issueRunSchema.parse({ instructions: value.instructions, fresh: value.fresh }),
         );
       },
     ),
     tool(
-      "update_issue",
-      "Revise an idle issue's brief or criteria. Running work takes an update instead.",
-      issueId.extend({ patch: issuePatchSchema }),
+      "update_task",
+      "Revise an idle task's brief or criteria. Running work takes an update instead.",
+      taskId.extend({ patch: issuePatchSchema }),
       (args) => {
-        const value = issueId.extend({ patch: issuePatchSchema }).parse(args);
-        return updateIssue(userId, agentId, value.issueId, value.patch);
+        const value = taskId.extend({ patch: issuePatchSchema }).parse(args);
+        return updateIssue(userId, agentId, value.taskId, value.patch);
       },
     ),
     tool(
-      "send_issue_update",
+      "send_task_update",
       "Send an instruction to the explicitly selected running issue, or save a note for its next run.",
-      issueId.extend({ text: z.string().min(1).max(40000), sendNow: z.boolean().default(false) }),
+      taskId.extend({ text: z.string().min(1).max(40000), sendNow: z.boolean().default(false) }),
       (args) => {
-        const value = issueId.extend({ text: z.string(), sendNow: z.boolean() }).parse(args);
+        const value = taskId.extend({ text: z.string(), sendNow: z.boolean() }).parse(args);
         return value.sendNow
-          ? sendIssueUpdate(userId, agentId, value.issueId, value.text)
-          : addIssueNote(userId, agentId, value.issueId, value.text);
+          ? sendIssueUpdate(userId, agentId, value.taskId, value.text)
+          : addIssueNote(userId, agentId, value.taskId, value.text);
       },
     ),
     tool(
-      "move_issue",
-      "Move this user's queued issue up or down in the agent queue.",
-      issueId.extend({ direction: z.enum(["up", "down"]) }),
+      "move_task",
+      "Move this user's queued task up or down in the agent queue.",
+      taskId.extend({ direction: z.enum(["up", "down"]) }),
       (args) => {
-        const value = issueId.extend({ direction: z.enum(["up", "down"]) }).parse(args);
-        return moveQueuedIssue(userId, agentId, value.issueId, value.direction);
+        const value = taskId.extend({ direction: z.enum(["up", "down"]) }).parse(args);
+        return moveQueuedIssue(userId, agentId, value.taskId, value.direction);
       },
     ),
     tool(
-      "stop_issue",
-      "Stop the selected issue attempt or remove queued work. Other jobs and schedules continue.",
-      issueId,
+      "stop_task",
+      "Stop the selected task attempt or remove queued work. Other jobs and schedules continue.",
+      taskId,
       (args) => {
-        const selected = issueId.parse(args).issueId;
+        const selected = taskId.parse(args).taskId;
         const current = readIssueView(userId, agentId, selected);
         return current.status === "queued"
           ? removeIssueFromQueue(userId, agentId, selected)
@@ -129,11 +129,11 @@ export function buildHomeInstructions(agentId: string, availableToolNames: reado
   const tools = new Set(availableToolNames);
   return [
     "This is Home, this user's persistent private conversation with this agent. The same Home can span many days and messages across the web and paired private messaging channels. Conversation history, saved memory, and background work can persist beyond the active model context, which may be compacted or explicitly reset.",
-    "Stay available for discussion and coordinate substantial work through issues. New independent jobs get separate issue sessions; updates and revisions reuse the relevant issue. Pass a bounded brief and relevant constraints, not all Home history. Background results can arrive asynchronously while the conversation continues. Read authoritative issue state when asked about progress, and ask which issue if the target is ambiguous.",
-    `Keep issue updates conversational and concise: state the outcome or question, with a link to /agents/${agentId}/issues/:issueId when useful. Leave checks, artifacts, logs, and uncertainty on the issue page. Completed work still requires the user's explicit acceptance.`,
+    "Stay available for discussion and delegate substantial work through create_task with queue=true before starting it in Home. Multi-step investigations, broad file or log reading, implementation, verification, and work likely to need many tool rounds belong in a task even if the user did not explicitly ask for delegation. Home is for coordination, focused recall, and brief answers. Its smaller context budget can compact within a single long tool loop; do not keep doing the delegated work in Home after creating a task. New independent tasks get separate task sessions; updates and revisions reuse the relevant task. Pass a bounded brief and relevant constraints, not all Home history. Background results can arrive asynchronously while the conversation continues. Read authoritative task state when asked about progress, and ask which task if the target is ambiguous.",
+    `Keep task updates conversational and concise: state the outcome or question, with a link to /agents/${agentId}/tasks/:taskId when useful. Leave checks, artifacts, logs, and uncertainty on the task page. Completed work still requires the user's explicit acceptance.`,
     "Actively recover relevant context in Home. Before answering references to earlier conversations, decisions, preferences, people, or ongoing work, use session_search and focused session_read excerpts unless the needed facts are already verified in the current exchange. After compaction, a context reset, or a return to an older topic, treat summaries as pointers and retrieve details before relying on them. Search before asking the user to repeat information they previously provided. Reuse evidence already retrieved for the current topic; do not search for unrelated requests or repeatedly load unchanged history. Keep reads focused rather than filling the context with entire conversations.",
     tools.has("knowledge_search") && tools.has("knowledge_read")
-      ? 'When relevant facts are not already verified for the current topic, proactively recall saved facts, preferences, and decisions with knowledge_search using sourceId="memories", then knowledge_read to verify the needed note. Follow the knowledge-search built-in skill workflow before memory searches or changes. Search conversation history for personal context that is not in saved memory; use read_issue for current issue state. Save, update, or forget memories when the user asks, and keep notes concise and attributed. Private chat facts must not be automatically saved into agent-shared memory.'
+      ? 'When relevant facts are not already verified for the current topic, proactively recall saved facts, preferences, and decisions with knowledge_search using sourceId="memories", then knowledge_read to verify the needed note. Follow the knowledge-search built-in skill workflow before memory searches or changes. Search conversation history for personal context that is not in saved memory; use read_task for current task state. Save, update, or forget memories when the user asks, and keep notes concise and attributed. Private chat facts must not be automatically saved into agent-shared memory.'
       : undefined,
     "New context resets the active model context while retaining readable history, saved memory, and background jobs. Stopping Home stops its reply and pending user messages; background jobs continue.",
   ]

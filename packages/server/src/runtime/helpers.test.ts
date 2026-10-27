@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { fauxAssistantMessage, fauxToolCall, Type } from "@earendil-works/pi-ai";
 import { db, initialize } from "../db/index.ts";
-import { agents, homeEvents, users } from "../db/schema.ts";
+import { agents, homeEvents, users, issues, issueAttempts, sessions } from "../db/schema.ts";
+import { createIssue, issueRunAddons } from "../services/issues.ts";
 import { createSession, createUser } from "../test-support.ts";
 import {
   fauxHarnessModels,
@@ -30,7 +31,143 @@ function setup() {
   };
 }
 const call = (args: Record<string, string | boolean | number>) =>
-  fauxAssistantMessage([fauxToolCall("start_helper", args)], { stopReason: "toolUse" });
+  fauxAssistantMessage([fauxToolCall("start_subtask", args)], { stopReason: "toolUse" });
+
+test(
+  "task subtasks are joined before review and do not publish a second Home report",
+  { timeout: 10_000 },
+  async () => {
+    const { fixture, models, options } = setup();
+    const task = createIssue(fixture.userId, fixture.agentId, {
+      title: "Verify migration",
+      description: "Check the evidence",
+      criteria: [],
+      priority: "normal",
+    });
+    const attemptId = `attempt_${crypto.randomUUID()}`;
+    db.update(sessions).set({ issueId: task.id }).where(eq(sessions.id, fixture.sessionId)).run();
+    db.update(issues)
+      .set({ sessionId: fixture.sessionId, status: "in_progress" })
+      .where(eq(issues.id, task.id))
+      .run();
+    db.insert(issueAttempts)
+      .values({
+        id: attemptId,
+        issueId: task.id,
+        sessionId: fixture.sessionId,
+        instructions: "",
+        brief: "Verify",
+        outcome: "running",
+        createdAt: Date.now(),
+      })
+      .run();
+    const addons = issueRunAddons(task.id, attemptId);
+    let subtaskId = 0;
+    let release!: () => void;
+    const research = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const respond = async (context: import("@earendil-works/pi-ai").TranscriptContext) => {
+      if (
+        !context.messages.some(
+          (message) =>
+            message.role === "system" && JSON.stringify(message).includes('"name":"report_task"'),
+        )
+      ) {
+        await research;
+        return fauxAssistantMessage("Verified evidence from the subtask.");
+      }
+      const result = context.messages.findLast((message) => message.role === "toolResult");
+      if (!result || result.role !== "toolResult")
+        return call({
+          name: "Database check",
+          task: "Verify the database evidence",
+          background: true,
+        });
+      if (result.toolName === "start_subtask") {
+        subtaskId = JSON.parse((result.content[0] as { text: string }).text).subtaskId;
+        return fauxAssistantMessage(
+          [
+            fauxToolCall("report_task", {
+              state: "done",
+              summary: "Complete",
+              evidence: "Database checked",
+            }),
+          ],
+          { stopReason: "toolUse" },
+        );
+      }
+      if (result.toolName === "report_task" && result.isError) {
+        release();
+        return fauxAssistantMessage([fauxToolCall("wait_subtask", { subtaskId })], {
+          stopReason: "toolUse",
+        });
+      }
+      if (result.toolName === "wait_subtask")
+        return fauxAssistantMessage(
+          [
+            fauxToolCall("report_task", {
+              state: "done",
+              summary: "Complete",
+              evidence: "Verified evidence from the subtask",
+            }),
+          ],
+          { stopReason: "toolUse" },
+        );
+      return fauxAssistantMessage("Ready for your review.");
+    };
+    models.faux.setResponses(Array.from({ length: 15 }, () => respond));
+    const pi = await openTestHarness(fixture.sessionId, {
+      ...options,
+      tools: [...options.tools, ...addons.tools],
+    });
+    try {
+      await pi.prompt("Complete the task using a background subtask");
+      assert.equal((await readHelpers(pi.session))[0]?.status, "done");
+      const results = (await pi.branch()).flatMap((entry) =>
+        entry.type === "message" &&
+        entry.message.role === "toolResult" &&
+        entry.message.toolName === "report_task"
+          ? [entry.message]
+          : [],
+      );
+      assert.deepEqual(
+        results.map((result) => result.isError),
+        [true, false],
+      );
+      assert.match(JSON.stringify(results[0]), /Subtasks are still running/);
+      assert.equal(
+        db
+          .select()
+          .from(homeEvents)
+          .all()
+          .filter((event) => event.sourceKey.includes(`helper:${fixture.sessionId}:`)).length,
+        0,
+      );
+      assert.equal(db.select().from(issues).where(eq(issues.id, task.id)).get()?.verdict, "done");
+    } finally {
+      release();
+      await pi.close();
+    }
+  },
+);
+
+test("stopping a task cancels its native background subtasks", async () => {
+  const { fixture, models, options } = setup();
+  models.faux.setResponses([
+    call({ name: "Waiting", task: "Read later", background: true, wakeAt: Date.now() + 60_000 }),
+    fauxAssistantMessage("Started."),
+  ]);
+  const pi = await openTestHarness(fixture.sessionId, options);
+  try {
+    await pi.prompt("Start research");
+    await issueRunAddons("task", "attempt").onRunSettling!(pi.session, true);
+    assert.equal((await readHelpers(pi.session))[0]?.status, "stopped");
+    assert.equal(await hasPendingPiSessionWork(fixture.sessionId, true), false);
+  } finally {
+    await pi.close();
+  }
+});
 
 test("foreground helpers return their result, inherit only read tools, and cannot delegate", async () => {
   const { fixture, models, options } = setup();
@@ -60,7 +197,7 @@ test("foreground helpers return their result, inherit only read tools, and canno
     ))!;
     assert.ok(
       (await child.agent(TEST_CONTEXT)).tools.every(
-        (tool) => tool.name !== "write" && tool.name !== "start_helper",
+        (tool) => tool.name !== "write" && tool.name !== "start_subtask",
       ),
     );
   } finally {
@@ -101,7 +238,7 @@ test("background sleep survives reopen, parent stop leaves it running, and its r
     const notices = (await pi.branch()).filter(
       (entry) => entry.type === "message" && entry.message.role === "homeNotice",
     );
-    assert.equal(notices.length, 1);
+    assert.equal(notices.length, 0);
     const count = db
       .select()
       .from(homeEvents)
@@ -115,7 +252,7 @@ test("background sleep survives reopen, parent stop leaves it running, and its r
       (await pi.branch()).filter(
         (entry) => entry.type === "message" && entry.message.role === "homeNotice",
       ).length,
-      1,
+      0,
     );
   } finally {
     await pi.close();

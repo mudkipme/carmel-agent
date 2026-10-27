@@ -58,12 +58,12 @@ export function createHelperRoutes() {
     const helperId = Number(c.req.param("helperId"));
     return withPiSession(row.id, async (pi) => {
       const helper = (await readHelpers(pi)).find((item) => item.id === helperId);
-      if (!helper) return c.json({ error: "Helper not found." }, 404);
+      if (!helper) return c.json({ error: "Subtask not found." }, 404);
       const conversation = await pi.native.conversation(
         helper.id as ConversationId,
         BACKGROUND_CONTEXT,
       );
-      if (!conversation) return c.json({ error: "Helper not found." }, 404);
+      if (!conversation) return c.json({ error: "Subtask not found." }, 404);
       const page = await readPiSessionPage({ ...pi, conversation }, c.req.query("before"));
       const messages = page.entries.flatMap((entry) => (entry.type === "message" ? [entry] : []));
       return c.json({
@@ -97,7 +97,7 @@ export function createHelperRoutes() {
     return withPiSession(c.req.param("id"), async (pi) => {
       const helperId = Number(c.req.param("helperId"));
       if (!(await readHelpers(pi)).some((helper) => helper.id === helperId))
-        return c.json({ error: "Helper not found." }, 404);
+        return c.json({ error: "Subtask not found." }, 404);
       await stopHelper(pi, helperId);
       return c.json({ ok: true });
     });

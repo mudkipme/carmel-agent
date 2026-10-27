@@ -403,6 +403,42 @@ await replacePiSessionMessages(issueHome.sessionId, [
     timestamp: timestamp + 2,
   },
 ]);
+const { openPiSession, closePiSession, messageDraft } =
+  await import("../src/services/pi-session-storage.ts");
+const { Helpers } = await import("../src/runtime/helpers.ts");
+const { BACKGROUND_CONTEXT } = await import("@earendil-works/chord/context");
+const taskSession = await openPiSession(fixture.sessionId);
+const subtaskId = await taskSession.conversation.commit(async (tx) => {
+  const state = await tx.doc(Helpers);
+  const child = await tx.createConversation({ ownership: { kind: "ownerless" } });
+  await tx.appendEntry(
+    child.id,
+    messageDraft({ role: "user", content: "Verify the database connections.", timestamp }),
+  );
+  await tx.appendEntry(
+    child.id,
+    messageDraft(
+      fauxAssistantMessage("Verified database connections. All eleven applications were checked."),
+    ),
+  );
+  state.items[String(child.id)] = {
+    userId: fixture.userId,
+    agentId: fixture.agentId,
+    callId: 0,
+    id: child.id,
+    parentId: taskSession.conversation.id,
+    name: "Database verification",
+    task: "Verify the database connections.",
+    background: true,
+    createdAt: timestamp,
+    wakeAt: timestamp,
+    deadline: timestamp + 300_000,
+    status: "done",
+    answer: "Verified database connections. All eleven applications were checked.",
+  };
+  return child.id;
+}, BACKGROUND_CONTEXT);
+await closePiSession(taskSession);
 const app = createApp();
 const { withPiSession } = await import("../src/services/pi-session-storage.ts");
 const { createUserRequest, answerSecretRequest, pendingUserReply, markUserReplySubmitted } =
@@ -558,6 +594,8 @@ const server = serve(
         homeIssueId: homeIssue.id,
         homeReviewIssueId: homeReviewIssue.id,
         reviewIssueId: reviewIssue.id,
+        subtaskId,
+        subtaskSessionId: fixture.sessionId,
         backlogIssueId: backlogIssue.id,
         previousSessionId,
         pendingSessionId,

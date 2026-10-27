@@ -21,12 +21,13 @@ import { formatRelativeTime } from "@/lib/utils";
 import { useHarnessStore } from "@/store/harness-store";
 import { MarkdownContent } from "@/components/chat/MarkdownContent";
 import { WorkspaceFileLinkAgentContext } from "@/components/chat/workspace-file-links";
+import { TaskSubtasks } from "@/components/tasks/TaskSubtasks";
 import { describeIssue, isClosedIssue } from "./issue-state";
-import { IssueBriefForm } from "./IssueBriefForm";
-import { IssueConversation } from "./IssueConversation";
-import { IssueResult } from "./IssueResult";
+import { TaskBriefForm } from "./TaskBriefForm";
+import { TaskConversation } from "./TaskConversation";
+import { TaskResult } from "./TaskResult";
 
-export function IssueView({
+export function TaskView({
   agent,
   issueId,
   onIssuesChanged,
@@ -40,7 +41,7 @@ export function IssueView({
   const fromHome = params.get("from") === "home";
   const listPath = fromHome
     ? `/agents/${agent.id}/home`
-    : `/agents/${agent.id}/issues${issueListSearch(params)}`;
+    : `/agents/${agent.id}/tasks${issueListSearch(params)}`;
   const userId = useHarnessStore((s) => s.activeUserId);
   const briefDraftKey = draftStorageKey(userId, agent.id, issueId, "brief");
   const replyDraftKey = draftStorageKey(userId, agent.id, issueId, "reply");
@@ -74,7 +75,7 @@ export function IssueView({
       await refresh();
       await onIssuesChanged();
     } catch (cause) {
-      showError("Unable to update issue", cause);
+      showError("Unable to update task", cause);
       await refresh();
       await onIssuesChanged();
     } finally {
@@ -87,7 +88,7 @@ export function IssueView({
       <div className="flex flex-col gap-4 p-8">
         {loading ? <ResourceLoading label="Loading issue" /> : null}
         {error ? (
-          <ResourceError error={error} title="Unable to load issue" onRetry={refresh} />
+          <ResourceError error={error} title="Unable to load task" onRetry={refresh} />
         ) : null}
         <Button asChild variant="link">
           <Link to={listPath}>Back to issues</Link>
@@ -126,7 +127,7 @@ export function IssueView({
             to={listPath}
           >
             <ArrowLeftIcon className="size-4" />
-            {agent.name} / {fromHome ? "Home" : "Issues"}
+            {agent.name} / {fromHome ? "Home" : "Tasks"}
           </Link>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -211,7 +212,7 @@ export function IssueView({
               <AlertDescription>
                 {issue.lastRunDetail ??
                   (stopped
-                    ? "Execution stopped. Queue this issue to continue."
+                    ? "Execution stopped. Queue this task to continue."
                     : "The run ended before completing the work. Queue a retry to continue.")}
               </AlertDescription>
             </Alert>
@@ -229,7 +230,7 @@ export function IssueView({
           ) : null}
           {editing ? (
             <div className="rounded-lg border p-4">
-              <IssueBriefForm
+              <TaskBriefForm
                 draftKey={briefDraftKey}
                 busy={busy}
                 initial={{
@@ -279,7 +280,7 @@ export function IssueView({
           <div className="flex min-w-0 flex-col gap-4">
             <h2 className="text-sm font-medium">Conversation</h2>
             {issue.sessionId ? (
-              <IssueConversation
+              <TaskConversation
                 key={issue.sessionId}
                 agent={agent}
                 sessionId={issue.sessionId}
@@ -288,7 +289,7 @@ export function IssueView({
               />
             ) : (
               <p className="text-sm text-muted-foreground">
-                Queue this issue to hand it to {agent.name}.
+                Queue this task to hand it to {agent.name}.
               </p>
             )}
             {!issue.sessionId
@@ -301,9 +302,12 @@ export function IssueView({
                   ))
               : null}
             {!issue.running && latest && (latest.summary || latest.evidence) ? (
-              <IssueResult attempt={latest} />
+              <TaskResult attempt={latest} />
             ) : null}
           </div>
+          {issue.sessionId ? (
+            <TaskSubtasks sessionId={params.get("subtaskSession") ?? issue.sessionId} />
+          ) : null}
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <Field>
               <FieldLabel htmlFor="issue-reply">
@@ -332,7 +336,7 @@ export function IssueView({
                 {issue.running
                   ? "Updates reach the agent at its next step. Delivery is shown in the conversation."
                   : queued
-                    ? "Remove this issue from the queue to change the instructions. You can still save notes."
+                    ? "Remove this task from the queue to change the instructions. You can still save notes."
                     : "Replies continue this conversation. Queueing work starts it when the agent is available."}
               </FieldDescription>
             </Field>
@@ -378,7 +382,7 @@ export function IssueView({
           {issue.attempts.length || issue.notes.length ? (
             <details className="rounded-lg border">
               <summary className="cursor-pointer px-4 py-3 text-sm text-muted-foreground">
-                Run history & issue events · {issue.attempts.length} runs
+                Run history & task events · {issue.attempts.length} runs
               </summary>
               <div className="flex flex-col gap-4 border-t p-4">
                 {issue.attempts.map((attempt, index) => (
@@ -403,7 +407,7 @@ export function IssueView({
                           </Link>
                         </Button>
                       ) : null}
-                      {attempt.outcome !== "running" ? <IssueResult attempt={attempt} /> : null}
+                      {attempt.outcome !== "running" ? <TaskResult attempt={attempt} /> : null}
                       <details>
                         <summary className="cursor-pointer text-xs text-muted-foreground">
                           Brief used for this run
@@ -438,17 +442,17 @@ export function IssueView({
                   void act(async () => {
                     if (
                       await confirmAction({
-                        title: "Cancel issue?",
+                        title: "Cancel task?",
                         description:
-                          "Stop any active run and close this issue. You can reopen it later.",
-                        actionLabel: "Cancel issue",
+                          "Stop any active run and close this task. You can reopen it later.",
+                        actionLabel: "Cancel task",
                       })
                     )
                       await api.cancelIssue(agent.id, issueId);
                   })
                 }
               >
-                Cancel issue
+                Cancel task
               </Button>
             ) : null}
             <Button
@@ -458,7 +462,7 @@ export function IssueView({
               onClick={async () => {
                 if (
                   !(await confirmAction({
-                    title: "Delete issue?",
+                    title: "Delete task?",
                     description:
                       "Delete the brief, discussion, saved results, and all conversations.",
                     actionLabel: "Delete",
@@ -478,7 +482,7 @@ export function IssueView({
                 }
               }}
             >
-              Delete issue
+              Delete task
             </Button>
           </div>
         </div>

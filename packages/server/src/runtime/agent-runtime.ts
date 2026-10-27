@@ -142,7 +142,7 @@ export type AgentRunInput = {
   timezone?: string;
   /**
    * What the session the run is in adds to the agent: tools and instructions
-   * that only make sense there, like an issue's `report_issue`. Offered on top
+   * that only make sense there, like an issue's `report_task`. Offered on top
    * of the agent's own tools, and not gated by its permissions, which are about
    * reaching the outside world -- these only ever reach Carmel's own state.
    */

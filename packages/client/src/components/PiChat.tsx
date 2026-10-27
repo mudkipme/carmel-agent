@@ -1,4 +1,4 @@
-import { SessionHelpers } from "@/components/chat/SessionHelpers";
+import { TaskSubtasks } from "@/components/tasks/TaskSubtasks";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
@@ -203,7 +203,11 @@ export function PiChat({
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
-        {!session.home ? <SessionHelpers sessionId={session.id} agentId={agentConfig.id} /> : null}
+        {!session.home ? (
+          <div className="px-4">
+            <TaskSubtasks sessionId={session.id} />
+          </div>
+        ) : null}
         {session.home &&
         homeStatus.data?.deliveries.some((delivery) =>
           ["uncertain", "failed"].includes(delivery.status),
@@ -258,7 +262,7 @@ export function PiChat({
           <div className="flex items-center justify-between gap-3 border-b px-4 py-2 text-sm text-muted-foreground">
             <span>Issue conversation · Read-only history</span>
             <Button asChild variant="outline" size="sm">
-              <Link to={`/agents/${session.agentId}/issues/${session.issueId}`}>Back to issue</Link>
+              <Link to={`/agents/${session.agentId}/tasks/${session.issueId}`}>Back to issue</Link>
             </Button>
           </div>
         ) : null}

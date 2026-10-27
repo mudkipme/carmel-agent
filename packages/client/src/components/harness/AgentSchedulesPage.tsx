@@ -34,10 +34,10 @@ import {
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { useHarnessStore } from "@/store/harness-store";
 import { ResourceError, ResourceLoading } from "./ResourceFeedback";
-import { TaskForm } from "./tasks/TaskForm";
-import { TaskRunHistory } from "./tasks/TaskRunHistory";
+import { TaskForm } from "./schedules/TaskForm";
+import { TaskRunHistory } from "./schedules/TaskRunHistory";
 
-export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
+export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
   const userId = useHarnessStore((state) => state.activeUserId);
   const tasks = useRemoteResource({
     key: `tasks:${agent.id}`,
@@ -73,7 +73,7 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
     <div className="h-full min-w-0 overflow-y-auto px-4 py-4 sm:px-6">
       <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4">
         <PageHeader
-          title="Tasks"
+          title="Schedules"
 
           icon={CalendarClockIcon}
           actions={
@@ -82,12 +82,16 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
               onClick={() => setEditor({ initial: emptyTaskDraft() })}
             >
               <PlusIcon data-icon="inline-start" />
-              New task
+              New schedule
             </Button>
           }
         />
         {tasks.error ? (
-          <ResourceError error={tasks.error} title="Unable to load tasks" onRetry={tasks.refresh} />
+          <ResourceError
+            error={tasks.error}
+            title="Unable to load schedules"
+            onRetry={tasks.refresh}
+          />
         ) : null}
         {editor ? (
           <TaskForm
@@ -108,7 +112,7 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
                   else await api.createAgentTask(agent.id, draft);
                   closeEditor();
                 },
-                editor.id ? "Unable to save task" : "Unable to create task",
+                editor.id ? "Unable to save schedule" : "Unable to create schedule",
               )
             }
           />
@@ -121,7 +125,7 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
               <EmptyMedia variant="icon">
                 <CalendarClockIcon />
               </EmptyMedia>
-              <EmptyTitle>No scheduled tasks</EmptyTitle>
+              <EmptyTitle>No schedules</EmptyTitle>
               <EmptyDescription>
                 Create a task to run this agent on a schedule, even while the app is closed.
               </EmptyDescription>
@@ -227,7 +231,7 @@ export function AgentTasksPage({ agent }: { agent: AgentConfig }) {
                             title: `Delete “${task.name}”?`,
                             description:
                               "This deletes the task and its run conversations. Runs moved to your session list are kept.",
-                            actionLabel: "Delete task",
+                            actionLabel: "Delete schedule",
                           })
                         ) {
                           void act(async () => {

@@ -9,8 +9,8 @@ export type ContentView =
   | "changes"
   | "terminal"
   | "browser"
-  | "issues"
   | "tasks"
+  | "schedules"
   | "knowledge";
 
 export type ShellRouteInput = {

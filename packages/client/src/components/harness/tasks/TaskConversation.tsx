@@ -9,7 +9,7 @@ import { ResourceError, ResourceLoading } from "../ResourceFeedback";
 import { ChatMessages } from "@/components/chat/ChatMessages";
 import { ContextPressureNotice } from "@/components/chat/ContextPressureNotice";
 
-export function IssueConversation({
+export function TaskConversation({
   agent,
   sessionId,
   notes,
@@ -130,7 +130,7 @@ function withNotes(messages: AgentMessage[], notes: IssueNote[]): AgentMessage[]
       content:
         instructions && instructions !== "Carry out the brief."
           ? instructions
-          : "Work on this issue.",
+          : "Work on this task.",
     };
   });
   for (const note of notes.filter((n) => n.kind === "note" && n.delivery !== "delivered")) {

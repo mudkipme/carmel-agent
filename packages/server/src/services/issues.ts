@@ -29,7 +29,8 @@ import {
 } from "../runtime/run-stream.ts";
 import { readVisibleAgent } from "./agent-access.ts";
 import { NO_PROVIDER_AUTH_MESSAGE, resolveRunModel } from "./model-context.ts";
-import { deletePiSession } from "./pi-session-storage.ts";
+import { deletePiSession, withPiSession } from "./pi-session-storage.ts";
+import { readHelpers } from "../runtime/helpers.ts";
 import { insertSession } from "./session-launch.ts";
 import { captureIssueWorkspace, compareIssueWorkspace } from "./issue-results.ts";
 
@@ -169,7 +170,7 @@ function wakeQueue(agentId: string) {
 function enqueueIssue(userId: string, agentId: string, issueId: string, command: IssueRunCommand) {
   const current = readIssue(userId, agentId, issueId);
   requireIdle(current);
-  if (closed(current)) throw new IssueError("Reopen the issue before queueing work.", 409);
+  if (closed(current)) throw new IssueError("Reopen the task before queueing work.", 409);
   if (current.status === "queued") throw new IssueError("This issue is already queued.", 409);
   if (["in_review", "needs_input"].includes(current.status) && !command.instructions?.trim())
     throw new IssueError("Provide feedback or an answer before starting another run.", 400);
@@ -300,7 +301,7 @@ export async function pumpIssueQueue(agentId: string) {
       providerConfig,
       modelRuntime,
       thinkingLevel,
-      promptInput: { text: command.instructions || "Work on this issue." },
+      promptInput: { text: command.instructions || "Work on this task." },
       sessionAddons: issueRunAddons(issueId, attemptId, brief),
     });
     onRunFinished(run, (result) => {
@@ -433,7 +434,7 @@ export function issueRunAddons(
   brief?: string,
 ): SessionRunAddons {
   return {
-    instructions: `You are executing one attempt on a durable issue in this agent's workspace. The brief and acceptance criteria are the contract. Runs continue the same conversation unless the user explicitly starts fresh. Inspect existing work before changing it. When you stop, call report_issue as your final action. Use done when ready for human review, needs_input with specific questions, or blocked with the obstacle. Include concrete verification evidence, and distinguish checked results from assumptions. Reporting done never closes the issue; only the user accepts it.${brief ? `\n\n## Issue brief\n\n${brief}` : ""}`,
+    instructions: `You are executing one attempt on a durable task in this agent's workspace. The brief and acceptance criteria are the contract. Runs continue the same conversation unless the user explicitly starts fresh. Inspect existing work before changing it. Use start_subtask for bounded read-only research with isolated context, including independent questions that can run in parallel. Wait for every background subtask with wait_subtask and incorporate its evidence before reporting done. Keep subtask details on this task; Home receives the parent result. When you stop, call report_task as your final action. Use done when ready for human review, needs_input with specific questions, or blocked with the obstacle. Include concrete verification evidence, and distinguish checked results from assumptions. Reporting done never closes the task; only the user accepts it.${brief ? `\n\n## Task brief\n\n${brief}` : ""}`,
     onQueueUpdate(entryIds) {
       for (const note of db
         .select()
@@ -447,6 +448,7 @@ export function issueRunAddons(
             .run();
     },
     async onRunSettling(session, aborted) {
+      if (aborted) await session.conversation.abort(BACKGROUND_CONTEXT, { background: true });
       const inbox = await session.native.snapshot(
         InboxDoc,
         session.conversation.id,
@@ -475,7 +477,7 @@ export function issueRunAddons(
     },
     tools: [
       {
-        name: "report_issue",
+        name: "report_task",
         description: "Report the outcome and evidence for human review.",
         parameters: {
           type: "object",
@@ -517,6 +519,17 @@ export function issueRunAddons(
             issue?.status !== "in_progress"
           )
             throw new Error("This attempt is no longer active.");
+          if (args.state === "done" && attempt.sessionId) {
+            const pending = await withPiSession(attempt.sessionId, async (session) =>
+              (await readHelpers(session)).some((subtask) =>
+                ["working", "sleeping", "reporting"].includes(subtask.status),
+              ),
+            );
+            if (pending)
+              throw new Error(
+                "Subtasks are still running. Use wait_subtask to collect their results before reporting this task complete.",
+              );
+          }
           db.transaction(() => {
             db.update(issueAttempts)
               .set({
@@ -628,7 +641,7 @@ export function finishIssueAttempt(attemptId: string, result: AgentRunResult) {
         lastRunOutcome: result.outcome,
       },
       notifyPlatform: alreadyNotified ? undefined : (issue.notifyPlatform ?? undefined),
-      text: `[${issue.title.replaceAll("[", "").replaceAll("]", "")}](/agents/${issue.agentId}/issues/${issue.id}?from=home) — ${result.outcome === "succeeded" ? (issue.verdict === "done" ? "Ready for review" : issue.verdict === "blocked" ? "Blocked" : "Needs input") : result.outcome}\n\n${(result.detail ?? attempt.summary ?? "The attempt ended without a result report.").slice(0, 4000)}`,
+      text: `[${issue.title.replaceAll("[", "").replaceAll("]", "")}](/agents/${issue.agentId}/tasks/${issue.id}?from=home) — ${result.outcome === "succeeded" ? (issue.verdict === "done" ? "Ready for review" : issue.verdict === "blocked" ? "Blocked" : "Needs input") : result.outcome}\n\n${(result.detail ?? attempt.summary ?? "The attempt ended without a result report.").slice(0, 4000)}`,
     });
   }
   wakeQueue(issue.agentId);
@@ -642,9 +655,9 @@ export function updateIssue(
 ): IssueDetail {
   const current = readIssue(userId, agentId, issueId);
   requireIdle(current);
-  if (closed(current)) throw new IssueError("Reopen the issue before editing its brief.", 409);
+  if (closed(current)) throw new IssueError("Reopen the task before editing its brief.", 409);
   if (current.status === "queued")
-    throw new IssueError("Remove this issue from the queue before editing its brief.", 409);
+    throw new IssueError("Remove this task from the queue before editing its brief.", 409);
   if (patch.status && !["backlog", "todo"].includes(current.status))
     throw new IssueError("Only unstarted issues can move between Backlog and To do.", 409);
   db.transaction(() => {
@@ -734,7 +747,7 @@ export function recoverIssueAttempts() {
     finishIssueAttempt(attempt.id, {
       outcome: "interrupted",
       detail:
-        "The server restarted before this attempt finished. Queue this issue to continue the conversation.",
+        "The server restarted before this attempt finished. Queue this task to continue the conversation.",
     });
   }
 }
@@ -747,7 +760,7 @@ function activeAttempt(issueId: string) {
 }
 function requireIdle(issue: IssueRecord) {
   if (activeAttempt(issue.id))
-    throw new IssueError("The agent is still working. Stop it before changing this issue.", 409);
+    throw new IssueError("The agent is still working. Stop it before changing this task.", 409);
 }
 function closed(issue: IssueRecord) {
   return issue.status === "done" || issue.status === "cancelled";

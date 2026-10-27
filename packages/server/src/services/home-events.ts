@@ -376,7 +376,7 @@ export async function dispatchHome(sessionId: string) {
         event.kind === "input"
           ? event.prompt
           : {
-              text: `A background job reported the following source material. ${homeIssueUpdate(event.prompt) ? "A linked issue status card is already visible in Home; do not repeat its heading or status. " : ""}Briefly tell the user the outcome or the specific reply needed, with its link when useful. Keep checks, artifacts, logs, detailed evidence, and uncertainty on the issue page; use read_issue only if more context is needed to answer. Do not accept the result, repeat completed work, or start another job unless the user asked.\n\n${event.prompt.text}`,
+              text: `A background job reported the following source material. ${homeIssueUpdate(event.prompt) ? "A linked issue status card is already visible in Home; do not repeat its heading or status. " : ""}Briefly tell the user the outcome or the specific reply needed, with its link when useful. Keep checks, artifacts, logs, detailed evidence, and uncertainty on the task page; use read_task only if more context is needed to answer. Do not accept the result, repeat completed work, or start another job unless the user asked.\n\n${event.prompt.text}`,
             },
       timezone: event.timezone ?? undefined,
       promptDelivery: {

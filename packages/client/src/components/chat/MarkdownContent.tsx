@@ -86,7 +86,7 @@ function MarkdownLink({
   const location = useLocation();
   if (href?.startsWith("/agents/")) {
     const to = new URL(href, window.location.origin);
-    if (to.pathname.includes("/issues/") && location.pathname.endsWith("/home"))
+    if (/\/(?:issues|tasks)\//.test(to.pathname) && location.pathname.endsWith("/home"))
       to.searchParams.set("from", "home");
     return (
       <Link {...props} to={`${to.pathname}${to.search}${to.hash}`}>

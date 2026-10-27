@@ -2,15 +2,15 @@ import { ChevronRightIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { HomeIssueUpdate } from "@carmel-agent/shared";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
-import { describeIssue } from "@/components/harness/issues/issue-state";
+import { describeIssue } from "@/components/harness/tasks/issue-state";
 import { cn } from "@/lib/utils";
 
-export function HomeIssueCard({ issue }: { issue: HomeIssueUpdate }) {
+export function HomeTaskCard({ issue }: { issue: HomeIssueUpdate }) {
   const state = describeIssue({ ...issue, running: false });
   return (
     <Link
-      to={`/agents/${issue.agentId}/issues/${issue.id}?from=home`}
-      aria-label={`Open issue: ${issue.title}`}
+      to={`/agents/${issue.agentId}/tasks/${issue.id}?from=home`}
+      aria-label={`Open task: ${issue.title}`}
       className="group block w-full max-w-md rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
       data-home-issue={issue.id}
     >

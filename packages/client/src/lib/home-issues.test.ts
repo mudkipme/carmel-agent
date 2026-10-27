@@ -4,7 +4,7 @@ import { homeIssueUpdate } from "@carmel-agent/shared";
 
 test("saved legacy issue reports become compact updates without their evidence", () => {
   const text =
-    "[Check cluster health](/agents/agent_one/issues/issue_one?from=home) — needs_input\n\nMissing kubectl.\n\nChecks, artifacts, and uncertainty: full diagnostics.";
+    "[Check cluster health](/agents/agent_one/tasks/issue_one?from=home) — needs_input\n\nMissing kubectl.\n\nChecks, artifacts, and uncertainty: full diagnostics.";
   assert.deepEqual(homeIssueUpdate({ text }), {
     id: "issue_one",
     agentId: "agent_one",

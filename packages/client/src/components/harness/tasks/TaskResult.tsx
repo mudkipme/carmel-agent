@@ -3,7 +3,7 @@ import { MarkdownContent } from "@/components/chat/MarkdownContent";
 import { Badge } from "@/components/ui/badge";
 
 /** Always show the saved run versions, never the files from a later job. */
-export function IssueResult({ attempt }: { attempt: IssueAttempt }) {
+export function TaskResult({ attempt }: { attempt: IssueAttempt }) {
   return (
     <div className="flex min-w-0 flex-col gap-4 rounded-lg border p-4">
       <h3 className="text-sm font-medium">

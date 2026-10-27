@@ -14,7 +14,7 @@ import { showError } from "@/lib/errors";
 import { issueFilters, issueListSearch, readIssueFilter } from "@/lib/issue-navigation";
 import { ResourceError, ResourceLoading } from "../ResourceFeedback";
 import { describeIssue, issueGroup, sortIssues } from "./issue-state";
-export function IssuesOverview({
+export function TasksOverview({
   agent,
   issues,
   loading,
@@ -73,7 +73,7 @@ export function IssuesOverview({
         return (
           <div key={issue.id} className="flex min-w-0 items-center border-b last:border-0">
             <Link
-              to={`/agents/${agent.id}/issues/${issue.id}${listSearch}`}
+              to={`/agents/${agent.id}/tasks/${issue.id}${listSearch}`}
               className="flex min-w-0 flex-1 items-start gap-2 px-3 py-2.5 transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
             >
               <state.Icon className={cn("mt-0.5 size-4 shrink-0", state.className)} />
@@ -123,14 +123,14 @@ export function IssuesOverview({
         <EmptyMedia variant="icon">{query ? <SearchIcon /> : <ListTodoIcon />}</EmptyMedia>
         <EmptyTitle>
           {query
-            ? "No matching issues"
+            ? "No matching tasks"
             : filter === "attention"
               ? "Nothing needs your attention"
               : filter === "queue"
                 ? "No queued work"
                 : filter === "backlog"
                   ? "Backlog is empty"
-                  : "No completed issues"}
+                  : "No completed tasks"}
         </EmptyTitle>
       </EmptyHeader>
     </Empty>
@@ -139,14 +139,14 @@ export function IssuesOverview({
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6">
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <PageHeader
-          title="Issues"
+          title="Tasks"
 
           icon={ListTodoIcon}
           actions={
             <Button asChild>
-              <Link to={`/agents/${agent.id}/issues/new${listSearch}`}>
+              <Link to={`/agents/${agent.id}/tasks/new${listSearch}`}>
                 <PlusIcon data-icon="inline-start" />
-                New issue
+                New task
               </Link>
             </Button>
           }
@@ -205,15 +205,15 @@ export function IssuesOverview({
               />
               <Input
                 className="w-full pl-9 sm:w-56"
-                aria-label="Search issues"
-                placeholder="Search issues…"
+                aria-label="Search tasks"
+                placeholder="Search tasks…"
                 value={query}
                 onChange={(e) => updateParams("q", e.target.value, true)}
               />
             </div>
           </div>
           {error ? (
-            <ResourceError error={error} title="Unable to load issues" onRetry={onRefresh} />
+            <ResourceError error={error} title="Unable to load tasks" onRetry={onRefresh} />
           ) : null}
           {issueFilters.map((value) => (
             <TabsContent key={value} value={value}>

@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-export function IssueBriefForm({
+export function TaskBriefForm({
   initial,
   draftKey,
   busy,

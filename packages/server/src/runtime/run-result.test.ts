@@ -778,7 +778,7 @@ function respond(
             id: "call_helper",
             type: "function",
             function: {
-              name: "start_helper",
+              name: "start_subtask",
               arguments: JSON.stringify({
                 name: "Research",
                 task: "Summarize the evidence",

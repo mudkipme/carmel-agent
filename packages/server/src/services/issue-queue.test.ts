@@ -102,7 +102,7 @@ test("revisions keep the Pi conversation; a fresh start creates a new one", asyn
     assert.ok(
       revisionRequest.messages.some(
         (message) =>
-          message.role === "user" && contentText(message.content).includes("Work on this issue."),
+          message.role === "user" && contentText(message.content).includes("Work on this task."),
       ),
     );
     assert.ok(revisionRequest.messages.some((message) => message.role === "assistant"));
@@ -424,7 +424,7 @@ async function fakeProvider(root: string) {
       .filter((message) => message.role === "system")
       .map((message) => contentText(message.content))
       .join("\n");
-    const currentTitle = context.match(/## Issue brief\n\n# ([^\n]+)/)?.[1] ?? "";
+    const currentTitle = context.match(/## Task brief\n\n# ([^\n]+)/)?.[1] ?? "";
     if (`${context} ${last}`.includes("Fail this job")) {
       response
         .writeHead(401, { "content-type": "application/json" })
@@ -464,7 +464,7 @@ async function fakeProvider(root: string) {
       });
       send({}, "stop");
     } else {
-      starts.push(last === "Work on this issue." ? `# ${currentTitle}` : last);
+      starts.push(last === "Work on this task." ? `# ${currentTitle}` : last);
       await writeFile(join(root, "result.txt"), `version ${++serial}`);
       send({
         role: "assistant",
@@ -474,7 +474,7 @@ async function fakeProvider(root: string) {
             id: `report_${serial}`,
             type: "function",
             function: {
-              name: "report_issue",
+              name: "report_task",
               arguments: JSON.stringify({
                 state: "done",
                 summary: `Delivered version ${serial}`,

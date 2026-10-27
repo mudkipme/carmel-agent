@@ -249,7 +249,7 @@ test("codemode combines MCP, native files, and session tools after session overr
     },
   };
   const report: Tool = {
-    name: "report_issue",
+    name: "report_task",
     description: "A session-specific tool",
     parameters: { type: "object", properties: {} },
     async execute() {
@@ -268,7 +268,7 @@ test("codemode combines MCP, native files, and session tools after session overr
       const remote = await tools.${name}({text:"hello"});
       const local = await tools.read({key:"brief"});
       await tools.write({path:"report.json", content:JSON.stringify({remote:remote, local:local})});
-      text(await tools.report_issue({}));
+      text(await tools.report_task({}));
       text("codemode" in tools);
     `,
       { env: execution.env },
@@ -280,7 +280,7 @@ test("codemode combines MCP, native files, and session tools after session overr
     });
     assert.deepEqual(
       calls(result).map((call) => call.name),
-      [name, "read", "write", "report_issue"],
+      [name, "read", "write", "report_task"],
     );
     assert.match(JSON.stringify(result.content), /reported/);
     assert.match(JSON.stringify(result.content), /false/);
