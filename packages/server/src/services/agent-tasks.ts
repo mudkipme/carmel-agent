@@ -211,7 +211,7 @@ export function readTaskRuns(
   taskId: string,
   limit = 50,
 ): AgentTaskRun[] {
-  readAgentTask(user, agentId, taskId);
+  const task = readAgentTask(user, agentId, taskId);
   return db
     .select()
     .from(agentTaskRuns)
@@ -219,7 +219,7 @@ export function readTaskRuns(
     .orderBy(desc(agentTaskRuns.startedAt))
     .limit(limit)
     .all()
-    .map(serializeRun);
+    .map((row) => serializeRun(row, task));
 }
 
 /**
@@ -380,8 +380,7 @@ function serializeTask(row: TaskRecord): AgentTask {
   };
 }
 
-function serializeRun(row: typeof agentTaskRuns.$inferSelect): AgentTaskRun {
-  const task = db.select().from(agentTasks).where(eq(agentTasks.id, row.taskId)).get();
+function serializeRun(row: typeof agentTaskRuns.$inferSelect, task: TaskRecord): AgentTaskRun {
   return {
     id: row.id,
     taskId: row.taskId,
@@ -392,7 +391,7 @@ function serializeRun(row: typeof agentTaskRuns.$inferSelect): AgentTaskRun {
     detail: row.detail ?? undefined,
     sessionId: row.sessionId ?? undefined,
     deliveries:
-      task && row.sessionId && readVisibleAgent(task.userId, task.agentId)
+      row.sessionId && readVisibleAgent(task.userId, task.agentId)
         ? listImDeliveries(task.userId, task.agentId, row.sessionId)
         : [],
   };

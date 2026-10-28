@@ -19,21 +19,21 @@ import { runTaskNow } from "../runtime/task-scheduler.ts";
  */
 export function createAgentTaskRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
+  route.onError((error, c) => {
+    if (error instanceof AgentTaskError) return c.json({ error: error.message }, error.status);
+    throw error;
+  });
 
   route.get("/agents/:agentId/tasks", (c) =>
-    respond(c, () => readAgentTasks(c.get("user"), c.req.param("agentId"))),
+    c.json(readAgentTasks(c.get("user"), c.req.param("agentId"))),
   );
 
   route.post("/agents/:agentId/tasks", jsonValidator(agentTaskCreateSchema), (c) =>
-    respond(
-      c,
-      () => createAgentTask(c.get("user"), c.req.param("agentId"), c.req.valid("json")),
-      201,
-    ),
+    c.json(createAgentTask(c.get("user"), c.req.param("agentId"), c.req.valid("json")), 201),
   );
 
   route.patch("/agents/:agentId/tasks/:taskId", jsonValidator(agentTaskPatchSchema), (c) =>
-    respond(c, () =>
+    c.json(
       updateAgentTask(
         c.get("user"),
         c.req.param("agentId"),
@@ -44,17 +44,12 @@ export function createAgentTaskRoutes() {
   );
 
   route.delete("/agents/:agentId/tasks/:taskId", async (c) => {
-    try {
-      await deleteAgentTask(c.get("user"), c.req.param("agentId"), c.req.param("taskId"));
-      return c.json({ ok: true });
-    } catch (error) {
-      if (error instanceof AgentTaskError) return c.json({ error: error.message }, error.status);
-      throw error;
-    }
+    await deleteAgentTask(c.get("user"), c.req.param("agentId"), c.req.param("taskId"));
+    return c.json({ ok: true });
   });
 
   route.get("/agents/:agentId/tasks/:taskId/runs", (c) =>
-    respond(c, () => readTaskRuns(c.get("user"), c.req.param("agentId"), c.req.param("taskId"))),
+    c.json(readTaskRuns(c.get("user"), c.req.param("agentId"), c.req.param("taskId"))),
   );
 
   /**
@@ -63,28 +58,9 @@ export function createAgentTaskRoutes() {
    * watch; the run log records how it ends.
    */
   route.post("/agents/:agentId/tasks/:taskId/run", async (c) => {
-    let task;
-    try {
-      task = readAgentTask(c.get("user"), c.req.param("agentId"), c.req.param("taskId"));
-    } catch (error) {
-      if (error instanceof AgentTaskError) return c.json({ error: error.message }, error.status);
-      throw error;
-    }
+    const task = readAgentTask(c.get("user"), c.req.param("agentId"), c.req.param("taskId"));
     return c.json(await runTaskNow(task));
   });
 
   return route;
-}
-
-function respond<T>(
-  c: { json: (body: unknown, status?: 200 | 201 | 400 | 404 | 409) => Response },
-  read: () => T,
-  status: 200 | 201 = 200,
-) {
-  try {
-    return c.json(read() as object, status);
-  } catch (error) {
-    if (error instanceof AgentTaskError) return c.json({ error: error.message }, error.status);
-    throw error;
-  }
 }

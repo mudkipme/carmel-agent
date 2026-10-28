@@ -91,13 +91,12 @@ export class ApiError extends Error {
  * themselves; everything else should go through `request`.
  */
 export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("content-type")) headers.set("content-type", "application/json");
   return fetch(url, {
     ...init,
     credentials: "include",
-    headers: {
-      "content-type": "application/json",
-      ...init?.headers,
-    },
+    headers,
   });
 }
 
@@ -142,6 +141,10 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
   if (options.overwrite) query.set("overwrite", "true");
 
   return new Promise<AgentFileEntry>((resolve, reject) => {
+    if (options.signal?.aborted) {
+      reject(new ApiError("Upload cancelled", 0));
+      return;
+    }
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", `/api/agents/${agentId}/files/upload?${query}`);
     xhr.withCredentials = true;
@@ -151,8 +154,13 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
     });
     xhr.addEventListener("load", () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        options.onProgress?.(1);
-        resolve(JSON.parse(xhr.responseText) as AgentFileEntry);
+        try {
+          const entry = JSON.parse(xhr.responseText) as AgentFileEntry;
+          options.onProgress?.(1);
+          resolve(entry);
+        } catch (error) {
+          reject(error);
+        }
         return;
       }
       reject(
@@ -164,7 +172,11 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
     });
     xhr.addEventListener("error", () => reject(new ApiError(`Unable to upload ${path}`, 0)));
     xhr.addEventListener("abort", () => reject(new ApiError("Upload cancelled", 0)));
-    options.signal?.addEventListener("abort", () => xhr.abort(), { once: true });
+    const abort = () => xhr.abort();
+    options.signal?.addEventListener("abort", abort, { once: true });
+    xhr.addEventListener("loadend", () => options.signal?.removeEventListener("abort", abort), {
+      once: true,
+    });
     xhr.send(file);
   });
 }
