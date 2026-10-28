@@ -2,8 +2,10 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { NestedToolSlot } from "@carmel-agent/shared";
 import { getUserRequestReceipt, homeIssueUpdate } from "@carmel-agent/shared";
 import { HomeTaskCard } from "./HomeTaskCard";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { subtaskLinkTarget } from "@/lib/subtask-navigation";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { KeyRoundIcon, MessageSquareTextIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -354,15 +356,22 @@ const MessageItem = memo(function MessageItem({
   if (message.role === "homeNotice") {
     const issue = homeIssueUpdate(message);
     if (issue) return <HomeTaskCard issue={issue} />;
+    if (message.text === "New context")
+      return (
+        <div
+          role="separator"
+          aria-label="New context"
+          className="flex min-w-0 items-center gap-3 py-2 text-xs text-muted-foreground"
+        >
+          <Separator className="min-w-0 flex-1" />
+          <span className="shrink-0">New context</span>
+          <Separator className="min-w-0 flex-1" />
+        </div>
+      );
     const legacySubtask = message.text.match(
       /\[Open helper\]\((\/agents\/[^\s)]+\/helpers\/\d+)\)/,
     );
-    if (legacySubtask)
-      return (
-        <Button asChild variant="outline">
-          <Link to={legacySubtask[1]}>View subtask result</Link>
-        </Button>
-      );
+    if (legacySubtask) return <SubtaskResultLink href={legacySubtask[1]!} />;
     return (
       <div role="status" className="py-3 text-sm text-muted-foreground">
         <MarkdownContent content={message.text} />
@@ -654,4 +663,15 @@ function ImagePreview({
   if (!src) return null;
 
   return <ZoomableImage src={src} alt={label} caption={label} />;
+}
+
+function SubtaskResultLink({ href }: { href: string }) {
+  const location = useLocation();
+  return (
+    <Button asChild variant="outline">
+      <Link to={subtaskLinkTarget(href, location) ?? href} replace preventScrollReset>
+        View subtask result
+      </Link>
+    </Button>
+  );
 }

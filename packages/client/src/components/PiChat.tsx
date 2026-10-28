@@ -205,7 +205,7 @@ export function PiChat({
       <div className="relative flex h-full min-h-0 flex-col">
         {!session.home || searchParams.has("subtask") ? (
           <div className="max-h-1/2 shrink-0 overflow-y-auto px-4">
-            <TaskSubtasks sessionId={session.id} />
+            <TaskSubtasks sessionId={searchParams.get("subtaskSession") ?? session.id} />
           </div>
         ) : null}
         {session.home &&

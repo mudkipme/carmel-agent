@@ -13,6 +13,7 @@ import { agentFilesPath, workspaceFileFromHref } from "@/lib/file-links";
 import { cn } from "@/lib/utils";
 import { preserveSoftLineBreaks } from "@/lib/markdown";
 import { api } from "@/lib/api";
+import { subtaskLinkTarget } from "@/lib/subtask-navigation";
 import { workspaceChatPath } from "@/lib/workspace-layout";
 import { CodeBlock } from "./CodeBlock";
 import { MermaidBlock } from "./MermaidBlock";
@@ -85,6 +86,13 @@ function MarkdownLink({
   const [params] = useSearchParams();
   const location = useLocation();
   if (href?.startsWith("/agents/")) {
+    const subtask = subtaskLinkTarget(href, location);
+    if (subtask)
+      return (
+        <Link {...props} to={subtask} replace preventScrollReset>
+          {children}
+        </Link>
+      );
     const to = new URL(href, window.location.origin);
     if (/\/(?:issues|tasks)\//.test(to.pathname) && location.pathname.endsWith("/home"))
       to.searchParams.set("from", "home");

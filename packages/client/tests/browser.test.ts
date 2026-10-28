@@ -993,10 +993,44 @@ test("native subtasks open inside their parent task and legacy helper links redi
   assertSelectedSubtaskVisible();
   click("button", "Close subtasks");
   click("tab", "Conversation");
+  rememberSubtaskPage("[data-task-conversation]");
   click("link", "View subtask result");
   browser("wait", "--text", "Verified database connections.");
   assertSelectedSubtaskVisible();
+  assertSubtaskPagePreserved();
+  assert.equal(
+    evaluate(
+      'document.querySelector("[data-task-conversation]").scrollTop === window.subtaskPage.scrollTop',
+    ),
+    true,
+  );
+  assert.equal(
+    new URL(browser<{ url: string }>("get", "url").url).searchParams.get("view"),
+    "conversation",
+  );
 });
+
+function rememberSubtaskPage(transcript: string) {
+  waitForClickTarget("a", "View subtask result");
+  evaluate(`(() => { window.subtaskPage = {
+    pathname: location.pathname,
+    workspace: document.querySelector('[data-workspace-layout]'),
+    transcript: document.querySelector(${JSON.stringify(transcript)}),
+    composer: document.querySelector('textarea[aria-label="Message"]'),
+    scrollTop: document.querySelector(${JSON.stringify(transcript)}).scrollTop,
+  }; return true; })()`);
+}
+
+function assertSubtaskPagePreserved() {
+  assert.equal(
+    evaluate(`(() => {
+    const saved = window.subtaskPage;
+    return saved.pathname === location.pathname && saved.workspace.isConnected && saved.transcript.isConnected && saved.composer === document.querySelector('textarea[aria-label="Message"]');
+  })()`),
+    true,
+    "Opening a subtask must preserve the workspace, conversation, and composer",
+  );
+}
 
 function assertSelectedSubtaskVisible() {
   assert.equal(
@@ -1013,9 +1047,14 @@ function assertSelectedSubtaskVisible() {
 
 test("Home subtask result links reveal the selected result", () => {
   open(`/agents/${fixture.secondAgentId}/home`);
+  browser("wait", 'textarea[aria-label="Message"]');
+  browser("fill", 'textarea[aria-label="Message"]', "Keep my Home draft");
+  rememberSubtaskPage("[data-chat-history]");
   click("link", "View subtask result");
   browser("wait", "--text", "Verified database connections.");
   assertSelectedSubtaskVisible();
+  assertSubtaskPagePreserved();
+  assert.equal(value('textarea[aria-label="Message"]'), "Keep my Home draft");
 });
 
 test("returning from an issue preserves the selected tab and search", () => {
@@ -2028,6 +2067,20 @@ test("Home shows compact issue cards and opens evidence in the same app while pr
     browser("wait", "--url", `**/tasks/${fixture.homeIssueId}?from=home`);
     click("link", "Second agent / Home");
     browser("wait", "--url", `**${homePath}`);
+    waitForValue('textarea[aria-label="Message"]', "You can install the missing clients.");
+    click("button", "New context");
+    browser("wait", '[role="separator"][aria-label="New context"]');
+    assert.equal(
+      evaluate(`Boolean(document.querySelector('[data-home-issue="${fixture.homeIssueId}"]'))`),
+      true,
+    );
+    assert.equal(
+      evaluate(
+        `document.querySelector('[role="separator"][aria-label="New context"]').getBoundingClientRect().height < 48`,
+      ),
+      true,
+    );
+    assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
     waitForValue('textarea[aria-label="Message"]', "You can install the missing clients.");
     browser("fill", 'textarea[aria-label="Message"]', "");
   }
