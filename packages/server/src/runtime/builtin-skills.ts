@@ -72,7 +72,7 @@ export function formatBuiltinSkillsForSystemPrompt(skills: Skill[]) {
   const builtins = skills.filter(isBuiltinSkill);
   if (!builtins.length) return "";
   return (
-    "Built-in skills: before doing a matching task, call load_builtin_skill with its name to load the guide. These are application resources; do not try to read their server paths through bash or workspace file tools.\n" +
+    "Before matching work, use load_builtin_skill to load the named built-in guide. Built-ins are app resources; do not read their server paths with bash or workspace file tools.\n" +
     builtins.map(({ name, description }) => JSON.stringify({ name, description })).join("\n")
   );
 }

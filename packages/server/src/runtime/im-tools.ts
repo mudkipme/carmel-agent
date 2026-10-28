@@ -70,10 +70,10 @@ export function createSendUserMessageTool(context: {
 }
 export function messagingInstructions(platforms: ImPlatform[], requested?: ImPlatform) {
   return [
-    `Private messaging integrations for this user and agent: ${platforms.join(", ") || "none available"}.`,
-    "Use send_user_message for requested reminders, task results, or conditional alerts. The recipient is always this user. Do not invent chat IDs or use other users' integrations. A pending result means queued, not delivered. If unavailable, report that in the task result instead of claiming a notification was sent.",
+    `Private IM platforms for this user and agent: ${platforms.join(", ") || "none available"}.`,
+    "Use send_user_message for requested reminders, task results, or conditional alerts to this user only. Do not invent chat IDs or use other users' integrations. Pending means queued, not delivered; report unavailable delivery in the task result instead of claiming it was sent.",
     requested
-      ? `This scheduled task's saved notification destination is ${requested}. Follow the task's conditions; when a notification is due, call send_user_message with platform '${requested}'. Do not merely write the notification as a final answer. This run starts a fresh session; no IM conversation needs to be active.`
+      ? `This schedule's saved notification destination is ${requested}. When its conditions require notification, call send_user_message with platform '${requested}', not just a final answer. Runs start fresh; no active IM conversation is required.`
       : "",
   ]
     .filter(Boolean)

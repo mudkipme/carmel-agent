@@ -200,7 +200,7 @@ test("Home and the Sessions page preserve separate drafts without starting a run
   browser("fill", 'textarea[aria-label="Message"]', "Independent session draft");
   click("link", "Home");
   browser("wait", "--url", `**/agents/${fixture.agentId}/home`);
-  browser("wait", "--text", "New context");
+  browser("wait", "--text", "What can Browser test agent help with?");
   waitForValue('textarea[aria-label="Message"]', "");
   browser("fill", 'textarea[aria-label="Message"]', "Home draft");
   evaluate(`(() => {
@@ -223,11 +223,26 @@ test("Home and the Sessions page preserve separate drafts without starting a run
   evaluate("window.releaseSessionResponse()");
   waitForValue('textarea[aria-label="Message"]', "Independent session draft");
   click("link", "Home");
-  browser("wait", "--text", "New context");
+  browser("wait", "--text", "What can Browser test agent help with?");
   waitForValue('textarea[aria-label="Message"]', "Home draft");
   browser("reload");
-  browser("wait", "--text", "New context");
+  browser("wait", "--text", "What can Browser test agent help with?");
   waitForValue('textarea[aria-label="Message"]', "Home draft");
+  for (const width of [1280, 390]) {
+    browser("set", "viewport", String(width), "900");
+    assert.equal(
+      evaluate(`(() => {
+      const welcome = document.querySelector('[data-slot="empty"]');
+      const composer = document.querySelector('.chat-composer');
+      const bounds = composer.getBoundingClientRect();
+      return welcome && welcome.getBoundingClientRect().bottom <= bounds.top && bounds.bottom < innerHeight - 48 && bounds.left >= 0 && bounds.right <= innerWidth && !Array.from(document.querySelectorAll('button')).some(button => button.textContent.trim() === 'New context') && document.documentElement.scrollWidth <= innerWidth;
+    })()`),
+      true,
+      "Empty Home should center its welcome and composer without a reset action",
+    );
+    assert.equal(value('textarea[aria-label="Message"]'), "Home draft");
+  }
+  browser("set", "viewport", "1280", "900");
   assert.equal(evaluate('document.querySelector("nav[aria-label=Agents]") !== null'), true);
   assert.equal(
     evaluate(

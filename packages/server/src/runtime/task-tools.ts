@@ -88,14 +88,14 @@ export function createScheduleTaskTool(context: SchedulingContext): ToolRegistra
 
 export function buildSchedulingInstructions(timezone?: string, platforms: string[] = []): string {
   return [
-    "## Scheduled tasks and reminders",
+    "## Schedules and reminders",
     timezone
-      ? `User's browser time zone: ${timezoneSchema.parse(timezone)}. Use it for local times unless the user specifies another zone.`
-      : "User time zone is unknown. Ask for it when interpreting a local clock time; do not assume the server's zone.",
-    "When the user asks 'remind me at ...', 'in ...', or for recurring work, use schedule_task. Do not merely promise to remember, save a memory, or wait/sleep in the current run. For relative dates, check the current time with bash if available; otherwise ask the user for it. Ask a concise follow-up if the reminder content or intended time is ambiguous or missing.",
-    "Write a self-contained prompt for the future run: it starts a fresh session without this chat. For reminders, tell it to deliver the reminder when run, not schedule another reminder. Only confirm creation after schedule_task succeeds; include the returned time, time zone, and delivery destination. Existing tasks can be edited, paused, or deleted in Tasks.",
+      ? `User's browser time zone: ${timezoneSchema.parse(timezone)}; use for local times unless overridden.`
+      : "User time zone unknown: ask before interpreting local clock times; do not assume the server's zone.",
+    "For reminders at a time, after a delay, or recurring work, use schedule_task; do not substitute promises, memory saves, or waiting/sleeping. For relative dates, check the current time with bash if available; otherwise ask the user. Clarify missing or ambiguous reminder content or times.",
+    "Future runs start fresh without this chat: give a self-contained prompt. A reminder must deliver when run, not reschedule itself. Confirm only after schedule_task succeeds, using its returned time, time zone, and destination. Edit, pause, or delete schedules in Schedules.",
     platforms.length
-      ? `Available IM destinations: ${platforms.join(", ")}. For requested reminders or alerts, save notifyPlatform and include any notification conditions in the prompt. If multiple destinations are available, use the user's chosen platform or ask which one. The future run uses send_user_message; notification delivery can fail independently of task execution.`
-      : "No proactive IM integration is available. Explain that results are saved in Tasks history and do not promise push/email notifications.",
+      ? `IM destinations: ${platforms.join(", ")}. For requested reminders/alerts, save notifyPlatform and put notification conditions in the prompt. Use the chosen platform, or ask when several are available. Future runs use send_user_message; delivery may fail independently of execution.`
+      : "No proactive IM integration: results are saved in Schedules history; do not promise push/email notifications.",
   ].join("\n");
 }

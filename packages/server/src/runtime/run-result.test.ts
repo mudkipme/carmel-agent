@@ -140,6 +140,8 @@ test("the server runtime ends for a question and delivers its saved answer on th
 
 test("IM messages share private Home context and reset context while preserving its history", async () => {
   const previousKey = process.env.CARMEL_SECRET_KEY;
+  const previousPublicUrl = process.env.CARMEL_PUBLIC_URL;
+  process.env.CARMEL_PUBLIC_URL = "https://carmel.example.test/app/";
   process.env.CARMEL_SECRET_KEY = "im-conversation-fixture-key";
   const sent: string[] = [];
   const manager = new ImManager(() => ({
@@ -157,6 +159,11 @@ test("IM messages share private Home context and reset context while preserving 
     const initial = await startRun("reply");
     await finished(initial);
     const source = db.select().from(sessions).where(eq(sessions.id, initial.sessionId)).get()!;
+    assert.ok(
+      provider.systemPrompts
+        .at(-1)
+        ?.includes(`https://carmel.example.test/app/agents/${source.agentId}/home`),
+    );
     const integrationId = id("im_conversation");
     db.insert(imIntegrations)
       .values({
@@ -195,7 +202,18 @@ test("IM messages share private Home context and reset context while preserving 
     assert.notEqual(firstSessionId, source.id);
     assert.equal((await loadSession(firstSessionId))!.userId, source.userId);
     assert.ok(sent.includes("Hi there."));
+    assert.ok(
+      provider.systemPrompts
+        .at(-1)
+        ?.includes(`https://carmel.example.test/app/agents/${source.agentId}/home`),
+    );
+    delete process.env.CARMEL_PUBLIC_URL;
     await send("Continue this conversation");
+    assert.match(
+      provider.systemPrompts.at(-1)!,
+      /CARMEL_PUBLIC_URL is unavailable; keep Carmel links app-relative/,
+    );
+    assert.doesNotMatch(provider.systemPrompts.at(-1)!, /https:\/\/carmel\.example\.test/);
     assert.equal(binding().sessionId, firstSessionId);
     const first = await loadSession(firstSessionId);
     assert.match(JSON.stringify(first!.messages), /First private IM prompt/);
@@ -212,6 +230,8 @@ test("IM messages share private Home context and reset context while preserving 
     manager.stop();
     if (previousKey === undefined) delete process.env.CARMEL_SECRET_KEY;
     else process.env.CARMEL_SECRET_KEY = previousKey;
+    if (previousPublicUrl === undefined) delete process.env.CARMEL_PUBLIC_URL;
+    else process.env.CARMEL_PUBLIC_URL = previousPublicUrl;
   }
 });
 

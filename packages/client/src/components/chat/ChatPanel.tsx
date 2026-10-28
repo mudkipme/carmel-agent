@@ -1,4 +1,5 @@
 import { useHarnessStore } from "@/store/harness-store";
+import { cn } from "@/lib/utils";
 import { draftStorageKey } from "@/lib/session-draft";
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
@@ -26,6 +27,7 @@ type ChatPanelProps = {
   initialReferences?: MessageReference[];
   onReferencesChange?: (references: MessageReference[]) => void;
   readOnly?: boolean;
+  emptyState?: ReactNode;
   allowQueuedInput?: boolean;
   onAtBottomChange?: (atBottom: boolean) => void;
   onLoadEarlier?: () => Promise<void>;
@@ -68,6 +70,7 @@ export function ChatPanel({
   initialReferences,
   onReferencesChange,
   readOnly,
+  emptyState,
   allowQueuedInput,
   onAtBottomChange,
   onLoadEarlier,
@@ -137,11 +140,19 @@ export function ChatPanel({
   }, [renderKey, scrollToBottom]);
 
   return (
-    <div className="agent-chat-host flex h-full min-h-0 flex-col bg-background text-foreground">
+    <div
+      className={cn(
+        "agent-chat-host flex h-full min-h-0 flex-col bg-background text-foreground",
+        emptyState && "overflow-y-auto",
+      )}
+    >
       <div
         ref={scrollRef}
         data-chat-history
-        className="min-h-0 flex-1 overflow-y-auto"
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto",
+          emptyState && "mt-auto flex-none overflow-visible",
+        )}
         onScroll={(event) => {
           const element = event.currentTarget;
           const distanceFromBottom =
@@ -194,6 +205,7 @@ export function ChatPanel({
               ) : null}
             </div>
           ) : null}
+          {emptyState}
           <ChatMessages
             messages={messages}
             streamingMessage={streamingMessage}
@@ -213,9 +225,17 @@ export function ChatPanel({
       {!readOnly ? (
         <div
           hidden={waitingForAnswer}
-          className="shrink-0 px-3 pt-2 pb-[calc(0.75rem+var(--safe-bottom))] sm:px-4"
+          className={cn(
+            "shrink-0 px-3 pt-2 pb-[calc(0.75rem+var(--safe-bottom))] sm:px-4",
+            emptyState && "mb-auto pb-6",
+          )}
         >
-          <div className="mx-auto w-full max-w-[var(--line-width)] min-w-0">
+          <div
+            className={cn(
+              "mx-auto w-full max-w-[var(--line-width)] min-w-0",
+              emptyState && "px-1 sm:px-5",
+            )}
+          >
             <ChatInput
               draftKey={draftStorageKey(userId, "session", sessionId)}
               agentId={agentId}
@@ -225,6 +245,8 @@ export function ChatPanel({
               initialReferences={initialReferences}
               onReferencesChange={onReferencesChange}
               ref={inputRef}
+              autoFocus={Boolean(emptyState)}
+              textareaClassName={emptyState ? "min-h-20" : undefined}
               leadingActions={inputLeadingActions}
               currentModel={currentModel}
               thinkingLevel={thinkingLevel}

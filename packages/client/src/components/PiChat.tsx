@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
 import type { ChatInputHandle } from "@/components/chat/ChatInput";
 import { ChatErrorNotice } from "@/components/chat/ChatErrorNotice";
+import { ChatWelcome } from "@/components/chat/ChatWelcome";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { UserRequestCards } from "@/components/chat/UserRequestCards";
 import { useHarnessStore } from "@/store/harness-store";
@@ -200,6 +201,19 @@ export function PiChat({
     [respondedSecrets, requestCards],
   );
 
+  const emptyHome = Boolean(
+    session.home &&
+    !snapshot.messages.length &&
+    !snapshot.olderCursor &&
+    !snapshot.historyOnly &&
+    !snapshot.isStreaming &&
+    !snapshot.streamingMessage &&
+    !snapshot.hasPendingWork &&
+    !queued &&
+    !waiting.length &&
+    !searchParams.has("subtask"),
+  );
+
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
@@ -227,7 +241,7 @@ export function PiChat({
             onDismiss={() => setDismissedHomeErrors((current) => [...current, homeError.id])}
           />
         ) : null}
-        {session.home ? (
+        {session.home && (!emptyHome || homeStatus.data?.home?.paused) ? (
           <div className="flex justify-end border-b px-4 py-1">
             {homeStatus.data?.home?.paused ? (
               <Button
@@ -243,19 +257,21 @@ export function PiChat({
                 Stop Home
               </Button>
             ) : null}
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={snapshot.isStreaming || snapshot.hasPendingWork || queued > 0}
-              onClick={() =>
-                void api
-                  .resetHome(agentConfig.id)
-                  .then(() => agent?.refreshConnection())
-                  .catch((error) => showError("Unable to start a new context", error))
-              }
-            >
-              New context
-            </Button>
+            {!emptyHome ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={snapshot.isStreaming || snapshot.hasPendingWork || queued > 0}
+                onClick={() =>
+                  void api
+                    .resetHome(agentConfig.id)
+                    .then(() => agent?.refreshConnection())
+                    .catch((error) => showError("Unable to start a new context", error))
+                }
+              >
+                New context
+              </Button>
+            ) : null}
           </div>
         ) : null}
         {session.issueId ? (
@@ -299,6 +315,7 @@ export function PiChat({
             <ChatPanel
               agentId={agentConfig.id}
               sessionId={session.id}
+              emptyState={emptyHome ? <ChatWelcome agent={agentConfig} /> : undefined}
               onAtBottomChange={setAtBottom}
               allowQueuedInput={Boolean(session.home)}
               canReadFiles={agentConfig.permissions.read}

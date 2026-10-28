@@ -13,6 +13,7 @@ import { readVisibleAgent } from "../services/agent-access.ts";
 import { resolveRunModel } from "../services/model-context.ts";
 import { closePiSession, openPiSession, type PiSession } from "../services/pi-session-storage.ts";
 import { createServerExecution } from "./tools.ts";
+import { carmelLinkInstructions } from "./carmel-links.ts";
 import { createSessionSearchTools } from "./session-search-tools.ts";
 import {
   createHelperExtension,
@@ -86,6 +87,7 @@ async function configureHost(host: HeldHost) {
           () => agent.systemPrompt || "You are a helpful read-only research assistant.",
           { tag: false },
         ),
+        section("links", () => carmelLinkInstructions(agent.id), { tag: false }),
       ],
     });
     const extension = createHelperExtension({

@@ -1,6 +1,7 @@
 import { createHelperExtension, helperTasks } from "./helpers.ts";
 import { retainHelperHost } from "./helper-hosts.ts";
 import { createHomeTools, buildHomeInstructions, configureHomeCompaction } from "./home-tools.ts";
+import { carmelLinkInstructions } from "./carmel-links.ts";
 import { createSessionSearchTools } from "./session-search-tools.ts";
 import { sessionHome } from "../services/agent-homes.ts";
 import { CompactionEntry, GenerationTask, hook } from "@earendil-works/pi-durable";
@@ -558,6 +559,7 @@ async function openRunHarness(
           contextFiles: resources.contextFiles,
           includeSkills: activeToolNames.includes("read"),
         }),
+        links: carmelLinkInstructions(agent.id),
         home: home ? buildHomeInstructions(agent.id, activeToolNames) : undefined,
         issue: sessionAddons?.instructions,
         browser: agent.permissions.bash ? browserInstructions : undefined,

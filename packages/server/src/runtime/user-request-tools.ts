@@ -242,11 +242,11 @@ export function guardUserRequests(
 export function userRequestInstructions(userId: string, sessionId: string, bash: boolean) {
   const available = bash ? readSessionSecrets(userId, sessionId) : [];
   return [
-    "When you need a choice or clarification, use ask_user_question. Call request tools directly, outside codemode, as the only tool in the turn; they end the run until a human responds. A declined/expired request is not permission to repeat it.",
+    "For choices or clarification, use ask_user_question. Call request tools directly, outside codemode, as the turn's only tool; they pause the run for a human response. Decline/expiry does not authorize repeating a request.",
     ...(bash
       ? [
-          "For API keys or tokens use request_secret; never ask for secret values in chat or ordinary question fields. Values are stored separately and injected into bash. Refer to environment variable names, never literal values. Do not print, encode, persist, commit, or send credentials except to the intended authentication service. Never use shell tracing with credentials.",
-          "Credentials default to the current session. When reuse across future sessions fits the user's intent, use promote_secret with its secret reference. No extra confirmation is needed for already-authorized reuse. Agent-level credentials on a shared agent are usable by its other runners; only its owner can promote. Do not silently replace credentials.",
+          "For API keys/tokens, use request_secret, never chat or ordinary question fields. Secrets are stored separately and injected into bash; use environment variable names, never literal values. Do not print, encode, persist, commit, or send credentials except to the intended authentication service. Never use shell tracing with credentials.",
+          "Credentials default to this session. For user-intended reuse across future sessions, use promote_secret with its secret reference; already-authorized reuse needs no extra confirmation. Promoted credentials on a shared agent are usable by its other runners; only its owner may promote. Never silently replace credentials.",
           `Available credential metadata: ${JSON.stringify(available)}.`,
         ]
       : []),

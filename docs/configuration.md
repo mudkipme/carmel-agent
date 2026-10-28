@@ -12,7 +12,7 @@ Carmel Agent reads `.env`, `.env.local`, `packages/server/.env`, and `packages/s
 - `CARMEL_AGENT_DATA_DIR` — base data directory for databases and default agent workspaces. The container image sets `/data`.
 - `CARMEL_AGENT_DIR` — Pi agent runtime directory. Defaults to `data/pi-agent`.
 - `CLIENT_DIST_DIR` — override for the built web client directory.
-- `CARMEL_PUBLIC_URL` — absolute browser URL, also used by IM `/web` links. Required when OIDC is enabled.
+- `CARMEL_PUBLIC_URL` — absolute browser URL, also used by IM `/web` links and supplied to agents as the base for absolute Carmel links. Required when OIDC is enabled.
 
 ## Secrets
 

@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { AgentRequestArea } from "@/components/chat/AgentRequestCard";
 import { useNavigate } from "react-router-dom";
 import { AgentCommandPalette } from "@/components/harness/AgentCommandPalette";
-import { AgentAvatar } from "@/components/harness/shell/AgentAvatar";
+import { ChatWelcome } from "@/components/chat/ChatWelcome";
 import { ChatInput, type ChatInputHandle } from "@/components/chat/ChatInput";
 import { ModelCommandDialog } from "@/components/chat/ModelCommandDialog";
 import { errorMessage, showError } from "@/lib/errors";
@@ -96,12 +96,7 @@ export function NewSessionView({
         {/* Margins rather than justify-center, so a composer taller than the
             viewport scrolls instead of being clipped at the top. */}
         <div className="mx-auto my-auto flex w-full max-w-[var(--line-width)] min-w-0 flex-col gap-5 px-1 py-6 sm:px-5">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <AgentAvatar agent={agent} className="size-10 rounded-lg" />
-            <h1 className="text-lg font-medium tracking-tight sm:text-xl">
-              What can {agent.name} help with?
-            </h1>
-          </div>
+          <ChatWelcome agent={agent} />
           {browserRequest ? <AgentRequestArea>{browserRequest}</AgentRequestArea> : null}
           <ChatInput
             draftKey={draftKey}
