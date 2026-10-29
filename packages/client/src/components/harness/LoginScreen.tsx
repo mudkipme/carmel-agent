@@ -1,3 +1,6 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
+import { LanguagePicker } from "@/components/harness/settings/LanguagePicker";
 import { LogInIcon } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +11,7 @@ import { OidcLoginButton } from "@/components/harness/OidcLoginButton";
 import { useHarnessStore } from "@/store/harness-store";
 
 export function LoginScreen() {
+  const { i18n } = useLingui();
   const login = useHarnessStore((state) => state.login);
   const error = useHarnessStore((state) => state.error);
   const authOptions = useHarnessStore((state) => state.authOptions);
@@ -36,11 +40,14 @@ export function LoginScreen() {
           <CardTitle>Carmel Agent</CardTitle>
           <CardDescription>
             {passwordLogin
-              ? "Sign in with a server-created account."
-              : `Sign in with ${oidc?.providerName ?? "single sign-on"}.`}
+              ? i18n._("Sign in with a server-created account.")
+              : i18n._("Sign in with {value}.", {
+                  value: oidc?.providerName ?? i18n._("single sign-on"),
+                })}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          <LanguagePicker />
           {oidc ? (
             <OidcLoginButton
               providerName={oidc.providerName}
@@ -48,13 +55,17 @@ export function LoginScreen() {
             />
           ) : null}
           {oidc && passwordLogin ? (
-            <FieldSeparator className="[&>span]:bg-card">or</FieldSeparator>
+            <FieldSeparator className="[&>span]:bg-card">
+              <Trans>or</Trans>
+            </FieldSeparator>
           ) : null}
           {passwordLogin ? (
             <form className="flex flex-col gap-4" onSubmit={submit}>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="login-username">Username</FieldLabel>
+                  <FieldLabel htmlFor="login-username">
+                    <Trans>Username</Trans>
+                  </FieldLabel>
                   <Input
                     id="login-username"
                     value={username}
@@ -63,7 +74,9 @@ export function LoginScreen() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="login-password">Password</FieldLabel>
+                  <FieldLabel htmlFor="login-password">
+                    <Trans>Password</Trans>
+                  </FieldLabel>
                   <Input
                     id="login-password"
                     value={password}
@@ -76,7 +89,7 @@ export function LoginScreen() {
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
               <Button type="submit" disabled={!username || !password || submitting}>
                 <LogInIcon data-icon="inline-start" />
-                {submitting ? "Signing in" : "Sign in"}
+                {submitting ? i18n._("Signing in") : i18n._("Sign in")}
               </Button>
             </form>
           ) : error ? (

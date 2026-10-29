@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import type { SessionMetadata } from "@carmel-agent/shared";
 
 export type SessionGroup<T> = { label: string; sessions: T[] };
@@ -31,13 +32,14 @@ export function matchesSessionQuery(session: Pick<SessionMetadata, "title">, que
 export function groupSessions<T extends Groupable>(
   sessions: readonly T[],
   now = Date.now(),
+  locale = i18n.locale,
 ): SessionGroup<T>[] {
   const todayStart = startOfDay(now);
   const buckets: Array<{ label: string; from: number }> = [
-    { label: "Today", from: todayStart },
-    { label: "Yesterday", from: todayStart - DAY_MS },
-    { label: "Previous 7 days", from: todayStart - 7 * DAY_MS },
-    { label: "Previous 30 days", from: todayStart - 30 * DAY_MS },
+    { label: i18n._("Today"), from: todayStart },
+    { label: i18n._("Yesterday"), from: todayStart - DAY_MS },
+    { label: i18n._("Previous 7 days"), from: todayStart - 7 * DAY_MS },
+    { label: i18n._("Previous 30 days"), from: todayStart - 30 * DAY_MS },
   ];
   const groups = new Map<string, T[]>();
   const add = (label: string, session: T) => {
@@ -48,11 +50,11 @@ export function groupSessions<T extends Groupable>(
 
   for (const session of [...sessions].sort(sortSessions)) {
     if (session.pinnedAt) {
-      add("Pinned", session);
+      add(i18n._("Pinned"), session);
       continue;
     }
     const bucket = buckets.find((candidate) => session.updatedAt >= candidate.from);
-    add(bucket?.label ?? monthLabel(session.updatedAt, now), session);
+    add(bucket?.label ?? monthLabel(session.updatedAt, now, locale), session);
   }
   return [...groups].map(([label, grouped]) => ({ label, sessions: grouped }));
 }
@@ -85,11 +87,11 @@ function startOfDay(time: number) {
   return date.getTime();
 }
 
-function monthLabel(time: number, now: number) {
+function monthLabel(time: number, now: number, locale: string) {
   const date = new Date(time);
   const sameYear = date.getFullYear() === new Date(now).getFullYear();
   return date.toLocaleDateString(
-    "en-US",
+    locale,
     sameYear ? { month: "long" } : { month: "long", year: "numeric" },
   );
 }

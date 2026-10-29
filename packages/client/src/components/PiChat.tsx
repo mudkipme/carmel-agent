@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { TaskSubtasks } from "@/components/tasks/TaskSubtasks";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
@@ -52,6 +54,7 @@ export function PiChat({
   onStreamingChange,
   browserRequest,
 }: PiChatProps) {
+  const { i18n } = useLingui();
   const [searchParams] = useSearchParams();
   const entryAnchor = searchParams.get("entry");
   const chatInputRef = useRef<ChatInputHandle | null>(null);
@@ -109,8 +112,8 @@ export function PiChat({
     if (agent && entryAnchor)
       void agent
         .openEntry(entryAnchor)
-        .catch((error) => showError("Unable to open the earlier message", error));
-  }, [agent, entryAnchor]);
+        .catch((error) => showError(i18n._("Unable to open the earlier message"), error));
+  }, [agent, entryAnchor, i18n]);
   const mutations = useMessageMutations(agentRef, sessionRef);
   const modelSelection = useModelSelection({
     agent,
@@ -227,12 +230,16 @@ export function PiChat({
           ["uncertain", "failed"].includes(delivery.status),
         ) ? (
           <p role="status" className="px-4 py-2 text-sm text-muted-foreground">
-            An IM delivery needs attention. Check Integrations for its status before resending.
+            <Trans>
+              An IM delivery needs attention. Check Integrations for its status before resending.
+            </Trans>
           </p>
         ) : null}
         {session.home && queued ? (
           <p role="status" className="px-4 py-2 text-sm text-muted-foreground">
-            {queued} message{queued === 1 ? "" : "s"} queued
+            {i18n._("{count, plural, one {# message queued} other {# messages queued}}", {
+              count: queued,
+            })}
           </p>
         ) : null}
         {session.home && homeError ? (
@@ -249,12 +256,12 @@ export function PiChat({
                 variant="ghost"
                 onClick={() => void api.resumeHome(agentConfig.id).then(homeStatus.refresh)}
               >
-                Resume updates
+                <Trans>Resume updates</Trans>
               </Button>
             ) : null}
             {snapshot.isStreaming || snapshot.hasPendingWork || queued ? (
               <Button size="sm" variant="ghost" onClick={() => void agent?.abort()}>
-                Stop Home
+                <Trans>Stop Home</Trans>
               </Button>
             ) : null}
             {!emptyHome ? (
@@ -266,19 +273,23 @@ export function PiChat({
                   void api
                     .resetHome(agentConfig.id)
                     .then(() => agent?.refreshConnection())
-                    .catch((error) => showError("Unable to start a new context", error))
+                    .catch((error) => showError(i18n._("Unable to start a new context"), error))
                 }
               >
-                New context
+                <Trans>New context</Trans>
               </Button>
             ) : null}
           </div>
         ) : null}
         {session.issueId ? (
           <div className="flex items-center justify-between gap-3 border-b px-4 py-2 text-sm text-muted-foreground">
-            <span>Issue conversation · Read-only history</span>
+            <span>
+              <Trans>Issue conversation · Read-only history</Trans>
+            </span>
             <Button asChild variant="outline" size="sm">
-              <Link to={`/agents/${session.agentId}/tasks/${session.issueId}`}>Back to issue</Link>
+              <Link to={`/agents/${session.agentId}/tasks/${session.issueId}`}>
+                <Trans>Back to issue</Trans>
+              </Link>
             </Button>
           </div>
         ) : null}
@@ -297,14 +308,16 @@ export function PiChat({
             className="flex flex-wrap items-center gap-2 border-b bg-muted px-4 py-2 text-sm"
           >
             <span className="min-w-0 flex-1">
-              This conversation has unfinished work. Resume or stop it before retrying or editing
-              messages.
+              <Trans>
+                This conversation has unfinished work. Resume or stop it before retrying or editing
+                messages.
+              </Trans>
             </span>
             <Button variant="outline" size="sm" onClick={() => void agent?.resume()}>
-              Resume
+              <Trans>Resume</Trans>
             </Button>
             <Button variant="outline" size="sm" onClick={() => void agent?.abort()}>
-              Stop
+              <Trans>Stop</Trans>
             </Button>
           </div>
         ) : null}
@@ -330,7 +343,7 @@ export function PiChat({
                       try {
                         await agent.loadOlder();
                       } catch (error) {
-                        showError("Unable to load history", error);
+                        showError(i18n._("Unable to load history"), error);
                       }
                     }
                   : undefined
@@ -341,7 +354,7 @@ export function PiChat({
                       try {
                         await agent.refreshConnection();
                       } catch (error) {
-                        showError("Unable to load the latest messages", error);
+                        showError(i18n._("Unable to load the latest messages"), error);
                       }
                     }
                   : undefined
@@ -385,7 +398,7 @@ export function PiChat({
             />
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-              Loading chat...
+              <Trans>Loading chat...</Trans>
             </div>
           )}
         </div>

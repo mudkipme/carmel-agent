@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 /** Convert displayed image coordinates to viewport CSS pixels, independent of preview scaling. */
 export function browserPoint(
   x: number,
@@ -34,6 +35,6 @@ export function browserAddress(value: string) {
   if (address === "about:blank") return address;
   const url = new URL(/^[a-z][a-z\d+.-]*:/i.test(address) ? address : `https://${address}`);
   if (!["http:", "https:"].includes(url.protocol))
-    throw new Error("Enter an HTTP or HTTPS address.");
+    throw new Error(i18n._("Enter an HTTP or HTTPS address."));
   return url.href;
 }

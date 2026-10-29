@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,7 @@ export function AgentTemplatesSettings({
   templates: PromptTemplate[];
   onChange: (templates: PromptTemplate[]) => void;
 }) {
+  const { i18n } = useLingui();
   const fieldId = useId();
   const [templateName, setTemplateName] = useState("");
   const [templateBody, setTemplateBody] = useState("");
@@ -30,7 +33,7 @@ export function AgentTemplatesSettings({
   return (
     <section className="grid gap-4">
       <p className="text-sm text-muted-foreground">
-        Templates appear in this agent's chat command palette.
+        <Trans>Templates appear in this agent's chat command palette.</Trans>
       </p>
       <div className="grid gap-3">
         {templates.length > 0 ? (
@@ -47,7 +50,7 @@ export function AgentTemplatesSettings({
                   type="button"
                   size="icon-xs"
                   variant="ghost"
-                  title="Delete template"
+                  title={i18n._("Delete template")}
                   onClick={() => onChange(templates.filter((item) => item.id !== template.id))}
                 >
                   <Trash2Icon />
@@ -58,7 +61,9 @@ export function AgentTemplatesSettings({
         ) : null}
         <div className="grid gap-3 rounded-md border p-3">
           <Field>
-            <FieldLabel htmlFor={`${fieldId}-template-name`}>Template name</FieldLabel>
+            <FieldLabel htmlFor={`${fieldId}-template-name`}>
+              <Trans>Template name</Trans>
+            </FieldLabel>
             <Input
               id={`${fieldId}-template-name`}
               value={templateName}
@@ -66,7 +71,9 @@ export function AgentTemplatesSettings({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor={`${fieldId}-template-body`}>Template text</FieldLabel>
+            <FieldLabel htmlFor={`${fieldId}-template-body`}>
+              <Trans>Template text</Trans>
+            </FieldLabel>
             <Textarea
               id={`${fieldId}-template-body`}
               value={templateBody}
@@ -76,7 +83,7 @@ export function AgentTemplatesSettings({
           <div>
             <Button type="button" variant="secondary" onClick={addPromptTemplate}>
               <PlusIcon data-icon="inline-start" />
-              Add template
+              <Trans>Add template</Trans>
             </Button>
           </div>
         </div>

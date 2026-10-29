@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { PanelLeftCloseIcon, PanelLeftIcon, SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDefaultSidebarWidth } from "./sidebar-utils";
@@ -13,7 +14,9 @@ export function HarnessSkeleton() {
       aria-busy="true"
       className="relative flex h-[100dvh] min-h-0 overflow-hidden bg-background text-foreground"
     >
-      <span className="sr-only">Loading Carmel Agent</span>
+      <span className="sr-only">
+        <Trans>Loading Carmel Agent</Trans>
+      </span>
       <aside
         className="hidden min-h-0 shrink-0 flex-col border-r bg-sidebar pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:flex"
         style={{ width: getDefaultSidebarWidth() }}

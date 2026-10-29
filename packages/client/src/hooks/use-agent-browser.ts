@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { browserClipboardLimit } from "@carmel-agent/shared";
 import type {
@@ -9,6 +10,7 @@ import type {
 } from "@carmel-agent/shared";
 
 export function useAgentBrowser(agentId: string) {
+  const { i18n } = useLingui();
   const socket = useRef<WebSocket | undefined>(undefined);
   const pendingAck = useRef<number | undefined>(undefined);
   const clipboardRequests = useRef(
@@ -24,10 +26,10 @@ export function useAgentBrowser(agentId: string) {
   const cancelClipboard = useCallback(() => {
     for (const request of clipboardRequests.current.values()) {
       clearTimeout(request.timer);
-      request.reject(new Error("Browser clipboard transfer was interrupted."));
+      request.reject(new Error(i18n._("Browser clipboard transfer was interrupted.")));
     }
     clipboardRequests.current.clear();
-  }, []);
+  }, [i18n]);
   const [attempt, setAttempt] = useState(0);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string>();
@@ -47,15 +49,17 @@ export function useAgentBrowser(agentId: string) {
   const clipboard = useCallback(
     (operation: "copy" | "paste", text = "") => {
       if (socket.current?.readyState !== WebSocket.OPEN)
-        return Promise.reject(new Error("Browser disconnected."));
+        return Promise.reject(new Error(i18n._("Browser disconnected.")));
       if (text.length > browserClipboardLimit)
-        return Promise.reject(new Error("Paste at most 16,384 characters at a time."));
+        return Promise.reject(new Error(i18n._("Paste at most 16,384 characters at a time.")));
       const requestId = crypto.randomUUID();
       return new Promise<string>((resolve, reject) => {
         const timer = setTimeout(() => {
           clipboardRequests.current.delete(requestId);
           reject(
-            new Error("Clipboard transfer timed out. Reconnect the browser before trying again."),
+            new Error(
+              i18n._("Clipboard transfer timed out. Reconnect the browser before trying again."),
+            ),
           );
         }, 120000);
         clipboardRequests.current.set(requestId, { resolve, reject, timer });
@@ -66,7 +70,7 @@ export function useAgentBrowser(agentId: string) {
         );
       });
     },
-    [send],
+    [send, i18n],
   );
 
   useEffect(() => {
@@ -144,7 +148,7 @@ export function useAgentBrowser(agentId: string) {
         setConnected(false);
         setHasControl(false);
         setFrame(undefined);
-        setError((previous) => previous ?? "Browser disconnected. Reconnecting…");
+        setError((previous) => previous ?? i18n._("Browser disconnected. Reconnecting…"));
         if (++failures <= 3) retry = setTimeout(connect, Math.min(15000, failures * 2000));
       };
       ws.onerror = () => {
@@ -160,7 +164,7 @@ export function useAgentBrowser(agentId: string) {
       socket.current?.close();
       socket.current = undefined;
     };
-  }, [agentId, attempt, send, cancelClipboard]);
+  }, [agentId, attempt, send, cancelClipboard, i18n]);
 
   return {
     connected,

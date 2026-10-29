@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import { useEffect } from "react";
@@ -14,6 +15,7 @@ export function useModelSelection(options: {
   session: Session;
   snapshot: AgentSnapshot;
 }) {
+  const { i18n } = useLingui();
   const { agent, agentRef, modelRef, resolvedModel, session, snapshot } = options;
   const updateSession = useHarnessStore((state) => state.updateSession);
 
@@ -44,7 +46,7 @@ export function useModelSelection(options: {
     try {
       await updateSession(session.id, { modelRefId: nextModelRef.id, thinkingLevel });
     } catch (error) {
-      showError("Unable to change model", error);
+      showError(i18n._("Unable to change model"), error);
     }
   };
 

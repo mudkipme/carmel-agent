@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { AgentConfig, IssueCreateCommand } from "@carmel-agent/shared";
@@ -7,6 +9,7 @@ import { issueListSearch } from "@/lib/issue-navigation";
 import { showError } from "@/lib/errors";
 import { TaskBriefForm } from "./TaskBriefForm";
 export function NewTaskView({ agent }: { agent: AgentConfig }) {
+  const { i18n } = useLingui();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const search = issueListSearch(params);
@@ -22,7 +25,7 @@ export function NewTaskView({ agent }: { agent: AgentConfig }) {
       clearSessionDraft(draftKey);
       navigate(`/agents/${agent.id}/tasks/${issue.id}${search}`);
     } catch (error) {
-      showError("Unable to create task", error);
+      showError(i18n._("Unable to create task"), error);
       setBusy(false);
     }
   };
@@ -30,9 +33,11 @@ export function NewTaskView({ agent }: { agent: AgentConfig }) {
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-4">
         <Link className="text-sm text-muted-foreground hover:underline" to={listPath}>
-          {agent.name} / Tasks
+          <Trans>{agent.name} / Tasks</Trans>
         </Link>
-        <h1 className="text-base font-semibold">New task</h1>
+        <h1 className="text-base font-semibold">
+          <Trans>New task</Trans>
+        </h1>
         <TaskBriefForm
           busy={busy}
           draftKey={draftKey}

@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { FileIcon, FolderIcon, MessageSquareIcon, ArrowLeftIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AgentFileEntry, MessageReference } from "@carmel-agent/shared";
@@ -28,6 +30,7 @@ export function ReferencePicker({
   onOpenChange: (open: boolean) => void;
   onSelect: (reference: MessageReference) => void;
 }) {
+  const { i18n } = useLingui();
   const sessions = useHarnessStore((state) => state.sessions);
   const [query, setQuery] = useState("");
   const [files, setFiles] = useState<AgentFileEntry[]>([]);
@@ -68,28 +71,30 @@ export function ReferencePicker({
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Mention a reference"
-      description="Choose a file, folder, or conversation to include with your message."
+      title={i18n._("Mention a reference")}
+      description={i18n._("Choose a file, folder, or conversation to include with your message.")}
     >
       <CommandInput
         value={query}
         onValueChange={setQuery}
-        placeholder="Search conversations or type a file path…"
+        placeholder={i18n._("Search conversations or type a file path…")}
       />
-      <CommandList aria-label="References">
+      <CommandList aria-label={i18n._("References")}>
         {loading ? (
           <div role="status" className="px-3 py-2 text-sm text-muted-foreground">
-            Loading files…
+            <Trans>Loading files…</Trans>
           </div>
         ) : null}
         {error ? (
           <div role="status" className="px-3 py-2 text-sm text-muted-foreground">
-            Files unavailable: {error}
+            <Trans>Files unavailable: {error}</Trans>
           </div>
         ) : null}
-        <CommandEmpty>No matching references.</CommandEmpty>
+        <CommandEmpty>
+          <Trans>No matching references.</Trans>
+        </CommandEmpty>
         {canReadFiles ? (
-          <CommandGroup heading={directory || "Workspace files and folders"}>
+          <CommandGroup heading={directory || i18n._("Workspace files and folders")}>
             {directory && query.endsWith("/") ? (
               <CommandItem
                 value={`back:${directory}`}
@@ -101,7 +106,7 @@ export function ReferencePicker({
                   )
                 }
               >
-                <ArrowLeftIcon /> Back
+                <ArrowLeftIcon /> <Trans>Back</Trans>
               </CommandItem>
             ) : null}
             {!loading && !error && (!query || query.endsWith("/")) ? (
@@ -110,7 +115,8 @@ export function ReferencePicker({
                 forceMount
                 onSelect={() => onSelect({ kind: "folder", path: directory || "." })}
               >
-                <FolderIcon /> Mention {directory ? `${directory}/` : "workspace folder"}
+                <FolderIcon />{" "}
+                <Trans>Mention {directory ? `${directory}/` : "workspace folder"}</Trans>
               </CommandItem>
             ) : null}
             {files.map((file) => (
@@ -128,13 +134,15 @@ export function ReferencePicker({
                   {file.type === "directory" ? "/" : ""}
                 </span>
                 {file.type === "directory" ? (
-                  <span className="ml-auto text-xs text-muted-foreground">Browse</span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    <Trans>Browse</Trans>
+                  </span>
                 ) : null}
               </CommandItem>
             ))}
           </CommandGroup>
         ) : null}
-        <CommandGroup heading="Conversations">
+        <CommandGroup heading={i18n._("Conversations")}>
           {sessions
             .filter((session) => session.id !== sessionId && !session.taskId && !session.issueId)
             .map((session) => (

@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useState } from "react";
 import { HomeIcon, MessageSquarePlusIcon, MessagesSquareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,7 @@ export function ConversationSwitcher({
   runOverrides: Record<string, boolean>;
   onSelect: (session: SessionMetadata | "home" | "new") => void;
 }) {
+  const { i18n } = useLingui();
   const [open, setOpen] = useState(false);
   const select = (session: SessionMetadata | "home" | "new") => {
     onSelect(session);
@@ -32,22 +35,24 @@ export function ConversationSwitcher({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon-sm" title="Switch conversation">
+        <Button variant="ghost" size="icon-sm" title={i18n._("Switch conversation")}>
           <MessagesSquareIcon />
         </Button>
       </DialogTrigger>
       <DialogContent className="flex max-h-[80dvh] flex-col" aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>Switch conversation</DialogTitle>
+          <DialogTitle>
+            <Trans>Switch conversation</Trans>
+          </DialogTitle>
         </DialogHeader>
         <div className="flex shrink-0 gap-2">
           <Button variant="outline" onClick={() => select("home")}>
             <HomeIcon data-icon="inline-start" />
-            Home
+            <Trans>Home</Trans>
           </Button>
           <Button variant="outline" onClick={() => select("new")}>
             <MessageSquarePlusIcon data-icon="inline-start" />
-            New session
+            <Trans>New session</Trans>
           </Button>
         </div>
         <SessionList

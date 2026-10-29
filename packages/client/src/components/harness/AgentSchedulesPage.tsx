@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -38,6 +40,7 @@ import { TaskForm } from "./schedules/TaskForm";
 import { TaskRunHistory } from "./schedules/TaskRunHistory";
 
 export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
+  const { i18n } = useLingui();
   const userId = useHarnessStore((state) => state.activeUserId);
   const tasks = useRemoteResource({
     key: `tasks:${agent.id}`,
@@ -73,7 +76,7 @@ export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
     <div className="h-full min-w-0 overflow-y-auto px-4 py-4 sm:px-6">
       <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-4">
         <PageHeader
-          title="Schedules"
+          title={i18n._("Schedules")}
 
           icon={CalendarClockIcon}
           actions={
@@ -82,14 +85,14 @@ export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
               onClick={() => setEditor({ initial: emptyTaskDraft() })}
             >
               <PlusIcon data-icon="inline-start" />
-              New schedule
+              <Trans>New schedule</Trans>
             </Button>
           }
         />
         {tasks.error ? (
           <ResourceError
             error={tasks.error}
-            title="Unable to load schedules"
+            title={i18n._("Unable to load schedules")}
             onRetry={tasks.refresh}
           />
         ) : null}
@@ -112,22 +115,26 @@ export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
                   else await api.createAgentTask(agent.id, draft);
                   closeEditor();
                 },
-                editor.id ? "Unable to save schedule" : "Unable to create schedule",
+                editor.id ? i18n._("Unable to save schedule") : i18n._("Unable to create schedule"),
               )
             }
           />
         ) : null}
         {tasks.loading ? (
-          <ResourceLoading label="Loading tasks" />
+          <ResourceLoading label={i18n._("Loading tasks")} />
         ) : tasks.data?.length === 0 && !tasks.error ? (
           <Empty className="min-h-48 border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <CalendarClockIcon />
               </EmptyMedia>
-              <EmptyTitle>No schedules</EmptyTitle>
+              <EmptyTitle>
+                <Trans>No schedules</Trans>
+              </EmptyTitle>
               <EmptyDescription>
-                Create a task to run this agent on a schedule, even while the app is closed.
+                <Trans>
+                  Create a task to run this agent on a schedule, even while the app is closed.
+                </Trans>
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -144,12 +151,12 @@ export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
                       <Badge variant={task.status === "disabled" ? "destructive" : "secondary"}>
                         {task.status === "paused" ? <PauseIcon /> : <ClockIcon />}
                         {task.status === "active"
-                          ? "Scheduled"
+                          ? i18n._("Scheduled")
                           : task.status === "paused"
-                            ? "Paused"
+                            ? i18n._("Paused")
                             : task.status === "completed"
-                              ? "Completed"
-                              : "Disabled"}
+                              ? i18n._("Completed")
+                              : i18n._("Disabled")}
                       </Badge>
                     </div>
                     <h2 className="text-sm font-medium break-words">{task.name}</h2>
@@ -166,32 +173,32 @@ export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
                     <Button
                       variant="outline"
                       size="sm"
-                      aria-label={`Run ${task.name} now`}
+                      aria-label={i18n._("Run {name} now", { name: task.name })}
                       disabled={busy}
                       onClick={() =>
                         void act(async () => {
                           const result = await api.runAgentTaskNow(agent.id, task.id);
                           if (result.outcome !== "running")
-                            throw new Error(result.detail ?? "The task did not run.");
+                            throw new Error(result.detail ?? i18n._("The task did not run."));
                           setHistoryTaskId(task.id);
                           setHistoryRevision((revision) => revision + 1);
-                        }, "Unable to run task")
+                        }, i18n._("Unable to run task"))
                       }
                     >
                       <PlayIcon data-icon="inline-start" />
-                      Run now
+                      <Trans>Run now</Trans>
                     </Button>
                     <Button
                       variant={historyTaskId === task.id ? "secondary" : "ghost"}
                       size="sm"
-                      aria-label={`Run history for ${task.name}`}
+                      aria-label={i18n._("Run history for {name}", { name: task.name })}
                       aria-expanded={historyTaskId === task.id}
                       onClick={() =>
                         setHistoryTaskId(historyTaskId === task.id ? undefined : task.id)
                       }
                     >
                       <HistoryIcon data-icon="inline-start" />
-                      History
+                      <Trans>History</Trans>
                     </Button>
                     <Button
                       variant="ghost"
@@ -203,35 +210,36 @@ export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
                             api.updateAgentTask(agent.id, task.id, {
                               status: task.status === "active" ? "paused" : "active",
                             }),
-                          "Unable to update task",
+                          i18n._("Unable to update task"),
                         )
                       }
                     >
-                      {task.status === "active" ? "Pause" : "Resume"}
+                      {task.status === "active" ? i18n._("Pause") : i18n._("Resume")}
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      aria-label={`Edit ${task.name}`}
+                      aria-label={i18n._("Edit {name}", { name: task.name })}
                       disabled={busy || Boolean(editor)}
                       onClick={() => setEditor({ id: task.id, initial: taskDraft(task) })}
                     >
                       <PencilIcon data-icon="inline-start" />
-                      Edit
+                      <Trans>Edit</Trans>
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon-sm"
                       className="ml-auto"
-                      aria-label={`Delete ${task.name}`}
+                      aria-label={i18n._("Delete {name}", { name: task.name })}
                       disabled={busy}
                       onClick={async () => {
                         if (
                           await confirmAction({
-                            title: `Delete “${task.name}”?`,
-                            description:
+                            title: i18n._("Delete “{name}”?", { name: task.name }),
+                            description: i18n._(
                               "This deletes the task and its run conversations. Runs moved to your session list are kept.",
-                            actionLabel: "Delete schedule",
+                            ),
+                            actionLabel: i18n._("Delete schedule"),
                           })
                         ) {
                           void act(async () => {
@@ -239,7 +247,7 @@ export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
                             clearSessionDraft(draftStorageKey(userId, agent.id, "task", task.id));
                             if (historyTaskId === task.id) setHistoryTaskId(undefined);
                             if (editor?.id === task.id) setEditor(undefined);
-                          }, "Unable to delete task");
+                          }, i18n._("Unable to delete task"));
                         }
                       }}
                     >

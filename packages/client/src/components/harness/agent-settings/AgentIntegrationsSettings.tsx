@@ -1,3 +1,6 @@
+import { statusLabel } from "@/lib/labels";
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { CopyIcon, ExternalLinkIcon } from "lucide-react";
@@ -15,9 +18,14 @@ import { api } from "@/lib/api";
 import { confirmAction } from "@/lib/action-dialogs";
 import { errorMessage, showError } from "@/lib/errors";
 
-const names: Record<ImPlatform, string> = { telegram: "Telegram", feishu: "Feishu", lark: "Lark" };
+const names: Record<ImPlatform, string> = {
+  telegram: "Telegram",
+  feishu: /*i18n*/ "Feishu",
+  lark: "Lark",
+};
 
 export function AgentIntegrationsSettings({ agentId }: { agentId: string }) {
+  const { i18n } = useLingui();
   const resource = useRemoteResource({
     key: `im-integrations:${agentId}`,
     load: async (signal) => {
@@ -37,17 +45,19 @@ export function AgentIntegrationsSettings({ agentId }: { agentId: string }) {
   return (
     <section className="flex flex-col gap-6">
       <p className="text-sm text-muted-foreground">
-        Connections belong to you, including on shared agents. Use a dedicated bot for each.
+        <Trans>
+          Connections belong to you, including on shared agents. Use a dedicated bot for each.
+        </Trans>
       </p>
       {resource.error ? (
         <ResourceError
           error={resource.error}
-          title="Unable to load integrations"
+          title={i18n._("Unable to load integrations")}
           onRetry={resource.refresh}
         />
       ) : null}
       {resource.loading ? (
-        <ResourceLoading label="Loading integrations" />
+        <ResourceLoading label={i18n._("Loading integrations")} />
       ) : data ? (
         <>
           {(["telegram", "feishu", "lark"] as const).map((platform) => (
@@ -79,6 +89,7 @@ function PlatformSettings({
   setup?: ImSetup;
   onChange: () => Promise<unknown>;
 }) {
+  const { i18n } = useLingui();
   const [editing, setEditing] = useState(false);
   const [token, setToken] = useState("");
   const [appId, setAppId] = useState("");
@@ -94,7 +105,7 @@ function PlatformSettings({
       await onChange();
       return true;
     } catch (error) {
-      setError(errorMessage(error, "Unable to update integration"));
+      setError(errorMessage(error, i18n._("Unable to update integration")));
       return false;
     } finally {
       setBusy(false);
@@ -121,10 +132,11 @@ function PlatformSettings({
     if (
       !integration ||
       !(await confirmAction({
-        title: `Disconnect ${names[platform]}?`,
-        description:
+        title: i18n._("Disconnect {value}?", { value: i18n._(names[platform]) }),
+        description: i18n._(
           "Removes this connection and its credentials. Your Carmel conversations are kept.",
-        actionLabel: "Disconnect",
+        ),
+        actionLabel: i18n._("Disconnect"),
       }))
     )
       return;
@@ -132,23 +144,27 @@ function PlatformSettings({
   };
   return (
     <section
-      aria-label={`${names[platform]} integration`}
+      aria-label={i18n._("{platform} integration", { platform: i18n._(names[platform]) })}
       className="flex flex-col gap-4 border-b pb-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">{names[platform]}</h3>
+        <h3 className="text-sm font-medium">{i18n._(names[platform])}</h3>
         <Badge variant={integration?.status === "error" ? "destructive" : "secondary"}>
-          {integration ? integration.status : "Not connected"}
+          {integration ? statusLabel(integration.status) : i18n._("Not connected")}
         </Badge>
       </div>
       {integration ? (
         <>
           <p className="break-words text-sm text-muted-foreground">
-            {integration.botName} · Paired account {integration.senderId}
+            <Trans>
+              {integration.botName} · Paired account {integration.senderId}
+            </Trans>
           </p>
           {integration.error ? (
             <Alert variant="destructive">
-              <AlertTitle>Connection needs attention</AlertTitle>
+              <AlertTitle>
+                <Trans>Connection needs attention</Trans>
+              </AlertTitle>
               <AlertDescription>{integration.error}</AlertDescription>
             </Alert>
           ) : null}
@@ -162,7 +178,9 @@ function PlatformSettings({
                   void act(() => api.updateIm(agentId, integration.id, { enabled }))
                 }
               />
-              <FieldLabel htmlFor={`${platform}-enabled`}>Receive and send messages</FieldLabel>
+              <FieldLabel htmlFor={`${platform}-enabled`}>
+                <Trans>Receive and send messages</Trans>
+              </FieldLabel>
             </Field>
             <Field orientation="horizontal">
               <Switch
@@ -174,7 +192,7 @@ function PlatformSettings({
                 }
               />
               <FieldLabel htmlFor={`${platform}-proactive`}>
-                Allow proactive messages, including scheduled task alerts
+                <Trans>Allow proactive messages, including scheduled task alerts</Trans>
               </FieldLabel>
             </Field>
             <Field orientation="horizontal">
@@ -187,7 +205,7 @@ function PlatformSettings({
                 }
               />
               <FieldLabel htmlFor={`${platform}-default`}>
-                Default notification destination
+                <Trans>Default notification destination</Trans>
               </FieldLabel>
             </Field>
           </FieldGroup>
@@ -198,7 +216,7 @@ function PlatformSettings({
               disabled={busy || Boolean(pending)}
               onClick={() => setEditing(!editing)}
             >
-              Replace credentials
+              <Trans>Replace credentials</Trans>
             </Button>
             <Button
               variant="outline"
@@ -208,15 +226,15 @@ function PlatformSettings({
                 void act(() => api.updateIm(agentId, integration.id, { enabled: true }))
               }
             >
-              Reconnect
+              <Trans>Reconnect</Trans>
             </Button>
             <Button variant="ghost" size="sm" disabled={busy} onClick={() => void disconnect()}>
-              Disconnect
+              <Trans>Disconnect</Trans>
             </Button>
             {integration.sessionId ? (
               <Button asChild variant="ghost" size="sm">
                 <Link to={`/agents/${agentId}/sessions/${integration.sessionId}`}>
-                  Open conversation
+                  <Trans>Open conversation</Trans>
                 </Link>
               </Button>
             ) : null}
@@ -225,8 +243,8 @@ function PlatformSettings({
       ) : (
         <p className="text-sm text-muted-foreground">
           {platform === "telegram"
-            ? "Create a dedicated bot with BotFather, then connect its token."
-            : "Scan a QR code to create and authorize a bot, or connect an existing app."}
+            ? i18n._("Create a dedicated bot with BotFather, then connect its token.")
+            : i18n._("Scan a QR code to create and authorize a bot, or connect an existing app.")}
         </p>
       )}
       {setup ? <SetupProgress agentId={agentId} setup={setup} busy={busy} act={act} /> : null}
@@ -238,7 +256,7 @@ function PlatformSettings({
               disabled={busy}
               onClick={() => void act(() => api.beginImQr(agentId, platform))}
             >
-              Scan QR code
+              <Trans>Scan QR code</Trans>
             </Button>
           ) : null}
           <Button
@@ -247,7 +265,7 @@ function PlatformSettings({
             disabled={busy}
             onClick={() => setEditing(true)}
           >
-            {platform === "telegram" ? "Connect Telegram" : "Use existing app"}
+            {platform === "telegram" ? i18n._("Connect Telegram") : i18n._("Use existing app")}
           </Button>
         </div>
       ) : null}
@@ -256,7 +274,9 @@ function PlatformSettings({
           <FieldGroup>
             {platform === "telegram" ? (
               <Field>
-                <FieldLabel htmlFor={`${platform}-token`}>Bot token</FieldLabel>
+                <FieldLabel htmlFor={`${platform}-token`}>
+                  <Trans>Bot token</Trans>
+                </FieldLabel>
                 <Input
                   id={`${platform}-token`}
                   required
@@ -266,13 +286,17 @@ function PlatformSettings({
                   onChange={(event) => setToken(event.target.value)}
                 />
                 <FieldDescription>
-                  Get this from @BotFather. Carmel stores it encrypted and never shows it again.
+                  <Trans>
+                    Get this from @BotFather. Carmel stores it encrypted and never shows it again.
+                  </Trans>
                 </FieldDescription>
               </Field>
             ) : (
               <>
                 <Field>
-                  <FieldLabel htmlFor={`${platform}-app-id`}>App ID</FieldLabel>
+                  <FieldLabel htmlFor={`${platform}-app-id`}>
+                    <Trans>App ID</Trans>
+                  </FieldLabel>
                   <Input
                     id={`${platform}-app-id`}
                     required
@@ -281,7 +305,9 @@ function PlatformSettings({
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor={`${platform}-app-secret`}>App Secret</FieldLabel>
+                  <FieldLabel htmlFor={`${platform}-app-secret`}>
+                    <Trans>App Secret</Trans>
+                  </FieldLabel>
                   <Input
                     id={`${platform}-app-secret`}
                     required
@@ -291,8 +317,10 @@ function PlatformSettings({
                     onChange={(event) => setAppSecret(event.target.value)}
                   />
                   <FieldDescription>
-                    Enable the bot, publish the app, and subscribe to message events using a long
-                    connection.
+                    <Trans>
+                      Enable the bot, publish the app, and subscribe to message events using a long
+                      connection.
+                    </Trans>
                   </FieldDescription>
                 </Field>
               </>
@@ -300,7 +328,7 @@ function PlatformSettings({
           </FieldGroup>
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={busy}>
-              {busy ? "Connecting…" : "Connect"}
+              {busy ? i18n._("Connecting…") : i18n._("Connect")}
             </Button>
             <Button
               type="button"
@@ -313,14 +341,16 @@ function PlatformSettings({
                 setAppSecret("");
               }}
             >
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
           </div>
         </form>
       ) : null}
       {error ? (
         <Alert variant="destructive">
-          <AlertTitle>Unable to update integration</AlertTitle>
+          <AlertTitle>
+            <Trans>Unable to update integration</Trans>
+          </AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
@@ -338,25 +368,26 @@ function SetupProgress({
   busy: boolean;
   act: (action: () => Promise<unknown>) => Promise<boolean>;
 }) {
+  const { i18n } = useLingui();
   const pending = ["authorizing", "pairing"].includes(setup.status);
   return (
     <div className="flex flex-col gap-3">
       {setup.status === "authorizing" ? (
         <>
           <p className="text-sm">
-            Scan with the Feishu or Lark mobile app and approve creation of your bot.
+            <Trans>Scan with the Feishu or Lark mobile app and approve creation of your bot.</Trans>
           </p>
           {setup.qrDataUrl ? (
             <img
               src={setup.qrDataUrl}
-              alt="Scan to create your Feishu or Lark bot"
+              alt={i18n._("Scan to create your Feishu or Lark bot")}
               className="size-56 max-w-full self-start rounded-md"
             />
           ) : null}
           {setup.verificationUrl ? (
             <Button asChild variant="outline" size="sm">
               <a href={setup.verificationUrl} target="_blank" rel="noreferrer">
-                Open authorization link
+                <Trans>Open authorization link</Trans>
                 <ExternalLinkIcon data-icon="inline-end" />
               </a>
             </Button>
@@ -365,12 +396,16 @@ function SetupProgress({
       ) : setup.status === "pairing" ? (
         <>
           <p className="text-sm">
-            Finish connecting {setup.botName}: open the bot and send the command below from your
-            private account.
+            <Trans>
+              Finish connecting {setup.botName}: open the bot and send the command below from your
+              private account.
+            </Trans>
           </p>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor={`${setup.id}-pair`}>Pairing command</FieldLabel>
+              <FieldLabel htmlFor={`${setup.id}-pair`}>
+                <Trans>Pairing command</Trans>
+              </FieldLabel>
               <Input
                 id={`${setup.id}-pair`}
                 value={setup.pairCommand ?? ""}
@@ -383,7 +418,7 @@ function SetupProgress({
             {setup.botUrl ? (
               <Button asChild size="sm">
                 <a href={setup.botUrl} target="_blank" rel="noreferrer">
-                  Open bot
+                  <Trans>Open bot</Trans>
                   <ExternalLinkIcon data-icon="inline-end" />
                 </a>
               </Button>
@@ -394,11 +429,11 @@ function SetupProgress({
               onClick={() =>
                 void navigator.clipboard
                   .writeText(setup.pairCommand ?? "")
-                  .catch((error) => showError("Unable to copy command", error))
+                  .catch((error) => showError(i18n._("Unable to copy command"), error))
               }
             >
               <CopyIcon data-icon="inline-start" />
-              Copy command
+              <Trans>Copy command</Trans>
             </Button>
           </div>
         </>
@@ -406,18 +441,20 @@ function SetupProgress({
         <Alert>
           <AlertTitle>
             {setup.status === "expired"
-              ? "Setup expired"
+              ? i18n._("Setup expired")
               : setup.status === "denied"
-                ? "Authorization declined"
-                : "Setup needs attention"}
+                ? i18n._("Authorization declined")
+                : i18n._("Setup needs attention")}
           </AlertTitle>
-          <AlertDescription>{setup.error ?? "Start again when you are ready."}</AlertDescription>
+          <AlertDescription>
+            {setup.error ?? i18n._("Start again when you are ready.")}
+          </AlertDescription>
         </Alert>
       )}
       {pending ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            Expires {new Date(setup.expiresAt).toLocaleTimeString()}
+            <Trans>Expires {new Date(setup.expiresAt).toLocaleTimeString(i18n.locale)}</Trans>
           </p>
           <Button
             variant="ghost"
@@ -425,13 +462,15 @@ function SetupProgress({
             disabled={busy}
             onClick={() => void act(() => api.cancelImSetup(agentId, setup.id))}
           >
-            Cancel setup
+            <Trans>Cancel setup</Trans>
           </Button>
         </div>
       ) : null}
       {pending && setup.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Check bot configuration</AlertTitle>
+          <AlertTitle>
+            <Trans>Check bot configuration</Trans>
+          </AlertTitle>
           <AlertDescription>{setup.error}</AlertDescription>
         </Alert>
       ) : null}
@@ -439,11 +478,14 @@ function SetupProgress({
   );
 }
 function DeliveryHistory({ deliveries }: { deliveries: ImDelivery[] }) {
+  const { i18n } = useLingui();
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
-        title="Recent deliveries"
-        description="Task execution and notification delivery are tracked separately. An uncertain delivery may already be in your chat; check before resending."
+        title={i18n._("Recent deliveries")}
+        description={i18n._(
+          "Task execution and notification delivery are tracked separately. An uncertain delivery may already be in your chat; check before resending.",
+        )}
       />
       <ul className="flex flex-col gap-2">
         {deliveries.slice(0, 10).map((delivery) => (
@@ -453,7 +495,8 @@ function DeliveryHistory({ deliveries }: { deliveries: ImDelivery[] }) {
           >
             <div>
               <p>
-                {names[delivery.platform]} · {new Date(delivery.createdAt).toLocaleString()}
+                {i18n._(names[delivery.platform])} ·{" "}
+                {new Date(delivery.createdAt).toLocaleString(i18n.locale)}
               </p>
               {delivery.error ? (
                 <p className="break-words text-muted-foreground">{delivery.error}</p>
@@ -466,7 +509,7 @@ function DeliveryHistory({ deliveries }: { deliveries: ImDelivery[] }) {
                   : "secondary"
               }
             >
-              {delivery.status}
+              {statusLabel(delivery.status)}
             </Badge>
           </li>
         ))}

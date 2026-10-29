@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useCallback, useState } from "react";
 import { useBeforeUnload, useBlocker, type BlockerFunction } from "react-router-dom";
 import {
@@ -23,6 +25,7 @@ export function UnsavedChangesDialog({
   shouldBlock: BlockerFunction;
   onSave: () => Promise<boolean>;
 }) {
+  const { i18n } = useLingui();
   const blocker = useBlocker(
     useCallback<BlockerFunction>(
       (navigation) => dirty && shouldBlock(navigation),
@@ -67,28 +70,36 @@ export function UnsavedChangesDialog({
     <AlertDialog open={blocker.state === "blocked"} onOpenChange={(open) => !open && cancel()}>
       <AlertDialogContent onEscapeKeyDown={(event) => busy && event.preventDefault()}>
         <AlertDialogHeader>
-          <AlertDialogTitle>Save your changes?</AlertDialogTitle>
+          <AlertDialogTitle>
+            <Trans>Save your changes?</Trans>
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            You have unsaved changes. Save them before leaving, discard them, or cancel to keep
-            editing.
+            <Trans>
+              You have unsaved changes. Save them before leaving, discard them, or cancel to keep
+              editing.
+            </Trans>
           </AlertDialogDescription>
         </AlertDialogHeader>
         {saveFailed ? (
           <p role="alert" className="text-sm text-destructive">
-            Unable to save. Your changes are still here. Try again or cancel to keep editing.
+            <Trans>
+              Unable to save. Your changes are still here. Try again or cancel to keep editing.
+            </Trans>
           </p>
         ) : null}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={busy}>
+            <Trans>Cancel</Trans>
+          </AlertDialogCancel>
           <Button
             variant="destructive"
             disabled={busy}
             onClick={() => blocker.state === "blocked" && blocker.proceed()}
           >
-            Discard changes
+            <Trans>Discard changes</Trans>
           </Button>
           <Button disabled={busy} onClick={() => void saveAndLeave()}>
-            {busy ? "Saving…" : "Save and leave"}
+            {busy ? i18n._("Saving…") : i18n._("Save and leave")}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

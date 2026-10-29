@@ -1,3 +1,6 @@
+import { useLingui } from "@lingui/react";
+import { i18n } from "@lingui/core";
+import { Trans } from "@lingui/react/macro";
 import { ArrowLeftIcon, ExternalLinkIcon, GitBranchIcon, RefreshCwIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useElementWidth } from "@/hooks/use-element-width";
@@ -28,10 +31,10 @@ type ChangesViewProps = {
 };
 
 const GROUPS: ReadonlyArray<{ area: GitChangeArea; label: string }> = [
-  { area: "conflicted", label: "Conflicts" },
-  { area: "staged", label: "Staged" },
-  { area: "unstaged", label: "Changes" },
-  { area: "untracked", label: "Untracked" },
+  { area: "conflicted", label: /*i18n*/ "Conflicts" },
+  { area: "staged", label: /*i18n*/ "Staged" },
+  { area: "unstaged", label: /*i18n*/ "Changes" },
+  { area: "untracked", label: /*i18n*/ "Untracked" },
 ];
 
 const LAYOUT_STORAGE_KEY = "carmel-diff-layout";
@@ -48,6 +51,7 @@ export function ChangesView({
   onOpenChange,
   onOpenFile,
 }: ChangesViewProps) {
+  const { i18n } = useLingui();
   const [host, width] = useElementWidth<HTMLDivElement>();
   const [status, setStatus] = useState<GitStatus>();
   const [statusError, setStatusError] = useState("");
@@ -61,12 +65,12 @@ export function ChangesView({
       setStatus(await api.getAgentGitStatus(agent.id));
       setStatusError("");
     } catch (error) {
-      setStatusError(errorMessage(error, "Unable to read git status"));
+      setStatusError(errorMessage(error, i18n._("Unable to read git status")));
     } finally {
       setLoading(false);
       setRevision((current) => current + 1);
     }
-  }, [agent.id]);
+  }, [agent.id, i18n]);
 
   useEffect(() => {
     void loadStatus();
@@ -103,7 +107,7 @@ export function ChangesView({
           <Button
             size="icon-sm"
             variant="ghost"
-            title="Refresh"
+            title={i18n._("Refresh")}
             disabled={loading}
             onClick={() => void loadStatus()}
           >
@@ -115,16 +119,18 @@ export function ChangesView({
             <p className="px-3 py-3 text-xs break-words text-destructive">{statusError}</p>
           ) : status && !status.repository ? (
             <p className="px-3 py-3 text-xs text-muted-foreground">
-              This agent's working directory is not a git repository.
+              <Trans>This agent's working directory is not a git repository.</Trans>
             </p>
           ) : status && changes.length === 0 ? (
-            <p className="px-3 py-3 text-xs text-muted-foreground">No uncommitted changes.</p>
+            <p className="px-3 py-3 text-xs text-muted-foreground">
+              <Trans>No uncommitted changes.</Trans>
+            </p>
           ) : (
             GROUPS.map(({ area: groupArea, label }) => {
               const group = changes.filter((change) => change.area === groupArea);
               if (group.length === 0) return null;
               return (
-                <section key={groupArea} aria-label={label}>
+                <section key={groupArea} aria-label={i18n._(label)}>
                   <h3 className="nav-label px-3 pt-3 pb-1">
                     {label} <span className="tabular-nums">{group.length}</span>
                   </h3>
@@ -142,8 +148,10 @@ export function ChangesView({
           )}
           {status?.repository && status.truncated ? (
             <p className="px-3 py-2 text-xs text-muted-foreground">
-              The list was cut off; there are more changes than it shows. An untracked dependency
-              folder usually belongs in .gitignore.
+              <Trans>
+                The list was cut off; there are more changes than it shows. An untracked dependency
+                folder usually belongs in .gitignore.
+              </Trans>
             </p>
           ) : null}
         </div>
@@ -171,16 +179,16 @@ export function ChangesView({
               </EmptyMedia>
               <EmptyTitle>
                 {loading
-                  ? "Loading changes"
+                  ? i18n._("Loading changes")
                   : statusError
-                    ? "Changes unavailable"
+                    ? i18n._("Changes unavailable")
                     : changePath
-                      ? "No diff to show"
+                      ? i18n._("No diff to show")
                       : changes.length > 0
-                        ? "Select a file"
+                        ? i18n._("Select a file")
                         : status?.repository
-                          ? "Working tree is clean"
-                          : "No Git repository"}
+                          ? i18n._("Working tree is clean")
+                          : i18n._("No Git repository")}
               </EmptyTitle>
             </EmptyHeader>
             {changePath ? (
@@ -191,7 +199,7 @@ export function ChangesView({
                 onClick={() => onOpenChange()}
               >
                 <ArrowLeftIcon />
-                All changes
+                <Trans>All changes</Trans>
               </Button>
             ) : null}
           </Empty>
@@ -210,6 +218,7 @@ function ChangeRow({
   active: boolean;
   onOpen: () => void;
 }) {
+  const { i18n } = useLingui();
   const slash = change.path.lastIndexOf("/");
   const name = change.path.slice(slash + 1);
   const directory = slash >= 0 ? change.path.slice(0, slash) : "";
@@ -223,7 +232,7 @@ function ChangeRow({
       onClick={onOpen}
     >
       <span
-        aria-label={badge.label}
+        aria-label={i18n._(badge.label)}
         className={cn(
           "w-3 shrink-0 text-center font-mono text-[11px] font-semibold",
           badge.className,
@@ -241,21 +250,25 @@ function ChangeRow({
 
 const KIND_BADGES: Record<GitChange["kind"], { letter: string; label: string; className: string }> =
   {
-    added: { letter: "A", label: "Added", className: "text-[var(--color-green)]" },
-    untracked: { letter: "U", label: "Untracked", className: "text-[var(--color-green)]" },
-    modified: { letter: "M", label: "Modified", className: "text-[var(--color-orange)]" },
-    type_changed: { letter: "T", label: "Type changed", className: "text-[var(--color-orange)]" },
-    renamed: { letter: "R", label: "Renamed", className: "text-[var(--color-blue)]" },
-    copied: { letter: "C", label: "Copied", className: "text-[var(--color-blue)]" },
-    deleted: { letter: "D", label: "Deleted", className: "text-destructive" },
-    conflicted: { letter: "!", label: "Conflicted", className: "text-destructive" },
+    added: { letter: "A", label: /*i18n*/ "Added", className: "text-[var(--color-green)]" },
+    untracked: { letter: "U", label: /*i18n*/ "Untracked", className: "text-[var(--color-green)]" },
+    modified: { letter: "M", label: /*i18n*/ "Modified", className: "text-[var(--color-orange)]" },
+    type_changed: {
+      letter: "T",
+      label: /*i18n*/ "Type changed",
+      className: "text-[var(--color-orange)]",
+    },
+    renamed: { letter: "R", label: /*i18n*/ "Renamed", className: "text-[var(--color-blue)]" },
+    copied: { letter: "C", label: /*i18n*/ "Copied", className: "text-[var(--color-blue)]" },
+    deleted: { letter: "D", label: /*i18n*/ "Deleted", className: "text-destructive" },
+    conflicted: { letter: "!", label: /*i18n*/ "Conflicted", className: "text-destructive" },
   };
 
 const AREA_LABELS: Record<GitChangeArea, string> = {
-  staged: "Staged: HEAD → index",
-  unstaged: "Unstaged: index → working tree",
-  untracked: "Untracked: new file",
-  conflicted: "Conflicted: ours → working tree",
+  staged: /*i18n*/ "Staged: HEAD → index",
+  unstaged: /*i18n*/ "Unstaged: index → working tree",
+  untracked: /*i18n*/ "Untracked: new file",
+  conflicted: /*i18n*/ "Conflicted: ours → working tree",
 };
 
 function DiffPanel({
@@ -271,6 +284,7 @@ function DiffPanel({
   onOpenFile: (path: string) => void;
   wide: boolean;
 }) {
+  const { i18n } = useLingui();
   const dark = isDarkTheme(useThemePreference());
   const [diff, setDiff] = useState<GitFileDiff>();
   const [error, setError] = useState("");
@@ -285,12 +299,12 @@ function DiffPanel({
         if (!cancelled) setDiff(loaded);
       })
       .catch((loadError) => {
-        if (!cancelled) setError(errorMessage(loadError, "Unable to load this diff"));
+        if (!cancelled) setError(errorMessage(loadError, i18n._("Unable to load this diff")));
       });
     return () => {
       cancelled = true;
     };
-  }, [agent.id, change]);
+  }, [agent.id, change, i18n]);
 
   const unavailable = diff ? unavailableReason(diff.original, diff.modified) : undefined;
   // The working-tree file, when there is one to open.
@@ -306,7 +320,7 @@ function DiffPanel({
           size="icon-sm"
           variant="ghost"
           className="@[48rem]/changes:hidden"
-          title="All changes"
+          title={i18n._("All changes")}
           onClick={onBack}
         >
           <ArrowLeftIcon />
@@ -315,11 +329,13 @@ function DiffPanel({
           <h2 className="truncate text-[13px] font-medium">
             {change.originalPath ? `${change.originalPath} → ${change.path}` : change.path}
           </h2>
-          <p className="truncate text-xs text-muted-foreground">{AREA_LABELS[change.area]}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {i18n._(AREA_LABELS[change.area])}
+          </p>
         </div>
         <div
           role="group"
-          aria-label="Diff layout"
+          aria-label={i18n._("Diff layout")}
           className="hidden shrink-0 rounded-md border p-0.5 @[48rem]/changes:flex"
         >
           {(["split", "unified"] as const).map((option) => (
@@ -340,7 +356,7 @@ function DiffPanel({
         {openablePath ? (
           <Button size="sm" variant="outline" onClick={() => onOpenFile(openablePath)}>
             <ExternalLinkIcon />
-            Open file
+            <Trans>Open file</Trans>
           </Button>
         ) : null}
       </div>
@@ -348,7 +364,9 @@ function DiffPanel({
         {error ? (
           <p className="p-4 text-xs break-words text-destructive">{error}</p>
         ) : !diff ? (
-          <p className="p-4 text-xs text-muted-foreground">Loading diff...</p>
+          <p className="p-4 text-xs text-muted-foreground">
+            <Trans>Loading diff...</Trans>
+          </p>
         ) : unavailable ? (
           <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
             {unavailable}
@@ -384,11 +402,12 @@ function useDiffLayout(wide: boolean): [DiffLayout, (layout: DiffLayout) => void
 
 function unavailableReason(original: GitDiffSide, modified: GitDiffSide) {
   if (original.kind === "binary" || modified.kind === "binary")
-    return "Binary file; no text diff to show.";
+    return i18n._("Binary file; no text diff to show.");
   const tooLarge = [original, modified].find((side) => side.kind === "too_large");
   if (tooLarge?.kind === "too_large")
-    return `Too large to diff here (${formatBytes(tooLarge.bytes)}).`;
-  if (original.kind === "absent" && modified.kind === "absent") return "Nothing to compare.";
+    return i18n._("Too large to diff here ({value}).", { value: formatBytes(tooLarge.bytes) });
+  if (original.kind === "absent" && modified.kind === "absent")
+    return i18n._("Nothing to compare.");
   return undefined;
 }
 
@@ -397,19 +416,22 @@ function sideText(side: GitDiffSide) {
 }
 
 function branchLabel(status: GitStatus | undefined) {
-  if (!status?.repository) return "Changes";
+  if (!status?.repository) return i18n._("Changes");
   return (
-    status.branch ?? (status.head ? `Detached at ${status.head.slice(0, 7)}` : "No commits yet")
+    status.branch ??
+    (status.head
+      ? i18n._("Detached at {value}", { value: status.head.slice(0, 7) })
+      : i18n._("No commits yet"))
   );
 }
 
 function summaryLabel(status: GitStatus | undefined, loading: boolean) {
-  if (!status) return loading ? "Reading git status..." : "";
-  if (!status.repository) return "Not a repository";
+  if (!status) return loading ? i18n._("Reading git status...") : "";
+  if (!status.repository) return i18n._("Not a repository");
   const count = status.changes.length;
   const sync = [
-    status.ahead ? `${status.ahead} ahead` : "",
-    status.behind ? `${status.behind} behind` : "",
+    status.ahead ? i18n._("{count} ahead", { count: status.ahead }) : "",
+    status.behind ? i18n._("{count} behind", { count: status.behind }) : "",
   ]
     .filter(Boolean)
     .join(", ");

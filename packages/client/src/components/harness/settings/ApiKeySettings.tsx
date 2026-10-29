@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useCallback, useEffect, useState } from "react";
 import { CheckIcon, CopyIcon, KeySquareIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import type { ApiKey, ApiKeyCreated } from "@carmel-agent/shared";
@@ -14,6 +16,7 @@ import { errorMessage } from "@/lib/errors";
  * and replaced, never recovered.
  */
 export function ApiKeySettings() {
+  const { i18n } = useLingui();
   const [keys, setKeys] = useState<ApiKey[] | undefined>();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -26,9 +29,9 @@ export function ApiKeySettings() {
       setKeys(await api.listApiKeys());
       setError(undefined);
     } catch (loadError) {
-      setError(errorMessage(loadError, "Unable to load API keys"));
+      setError(errorMessage(loadError, i18n._("Unable to load API keys")));
     }
-  }, []);
+  }, [i18n]);
 
   useEffect(() => {
     void reload();
@@ -37,7 +40,7 @@ export function ApiKeySettings() {
   const createKey = async () => {
     const name = draftName?.trim();
     if (!name) {
-      setError("A name is required.");
+      setError(i18n._("A name is required."));
       return;
     }
     setBusy(true);
@@ -46,7 +49,7 @@ export function ApiKeySettings() {
       setDraftName(undefined);
       await reload();
     } catch (createError) {
-      setError(errorMessage(createError, "Unable to create API key"));
+      setError(errorMessage(createError, i18n._("Unable to create API key")));
     } finally {
       setBusy(false);
     }
@@ -54,9 +57,9 @@ export function ApiKeySettings() {
 
   const revokeKey = async (key: ApiKey) => {
     const confirmed = await confirmAction({
-      title: `Revoke ${key.name}?`,
-      description: "Anything using this key stops working immediately.",
-      actionLabel: "Revoke key",
+      title: i18n._("Revoke {name}?", { name: key.name }),
+      description: i18n._("Anything using this key stops working immediately."),
+      actionLabel: i18n._("Revoke key"),
     });
     if (!confirmed) return;
     setBusy(true);
@@ -65,7 +68,7 @@ export function ApiKeySettings() {
       if (created?.id === key.id) setCreated(undefined);
       await reload();
     } catch (deleteError) {
-      setError(errorMessage(deleteError, "Unable to revoke API key"));
+      setError(errorMessage(deleteError, i18n._("Unable to revoke API key")));
     } finally {
       setBusy(false);
     }
@@ -74,30 +77,40 @@ export function ApiKeySettings() {
   return (
     <section className="grid gap-4">
       <p className="text-sm text-muted-foreground">
-        Use your models from an OpenAI-compatible client. Tool calls return to that client to run.
+        <Trans>
+          Use your models from an OpenAI-compatible client. Tool calls return to that client to run.
+        </Trans>
       </p>
 
       <div className="grid gap-1 rounded-md border px-3 py-2 text-sm">
-        <span className="text-muted-foreground">Base URL</span>
+        <span className="text-muted-foreground">
+          <Trans>Base URL</Trans>
+        </span>
         <CopyableValue value={baseUrl} />
       </div>
 
       {created ? (
         <div className="grid gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
-          <p className="font-medium">Copy your new key now — it will not be shown again.</p>
+          <p className="font-medium">
+            <Trans>Copy your new key now — it will not be shown again.</Trans>
+          </p>
           <CopyableValue value={created.key} />
           <div className="flex justify-end">
             <Button variant="ghost" size="sm" onClick={() => setCreated(undefined)}>
-              Done
+              <Trans>Done</Trans>
             </Button>
           </div>
         </div>
       ) : null}
 
       {keys === undefined ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>Loading…</Trans>
+        </p>
       ) : keys.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No API keys yet.</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>No API keys yet.</Trans>
+        </p>
       ) : (
         <ul className="grid gap-2">
           {keys.map((key) => (
@@ -113,10 +126,14 @@ export function ApiKeySettings() {
                     <span className="font-mono text-muted-foreground">{key.prefix}…</span>
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    Created {new Date(key.createdAt).toLocaleString()} ·{" "}
-                    {key.lastUsedAt
-                      ? `last used ${new Date(key.lastUsedAt).toLocaleString()}`
-                      : "never used"}
+                    <Trans>
+                      Created {new Date(key.createdAt).toLocaleString(i18n.locale)} ·{" "}
+                      {key.lastUsedAt
+                        ? i18n._("last used {value}", {
+                            value: new Date(key.lastUsedAt).toLocaleString(i18n.locale),
+                          })
+                        : "never used"}
+                    </Trans>
                   </p>
                 </div>
               </div>
@@ -124,7 +141,7 @@ export function ApiKeySettings() {
                 variant="ghost"
                 size="sm"
                 disabled={busy}
-                title="Revoke key"
+                title={i18n._("Revoke key")}
                 onClick={() => void revokeKey(key)}
               >
                 <Trash2Icon data-icon="inline-start" />
@@ -137,11 +154,13 @@ export function ApiKeySettings() {
       {draftName !== undefined ? (
         <div className="grid gap-3 rounded-md border p-3">
           <Field>
-            <FieldLabel htmlFor="api-key-name">Name</FieldLabel>
+            <FieldLabel htmlFor="api-key-name">
+              <Trans>Name</Trans>
+            </FieldLabel>
             <Input
               id="api-key-name"
               autoFocus
-              placeholder="Laptop editor"
+              placeholder={i18n._("Laptop editor")}
               maxLength={100}
               value={draftName}
               onChange={(event) => setDraftName(event.target.value)}
@@ -157,10 +176,10 @@ export function ApiKeySettings() {
               disabled={busy}
               onClick={() => setDraftName(undefined)}
             >
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <Button size="sm" disabled={busy || !draftName.trim()} onClick={() => void createKey()}>
-              Create key
+              <Trans>Create key</Trans>
             </Button>
           </div>
         </div>
@@ -168,7 +187,7 @@ export function ApiKeySettings() {
         <div>
           <Button variant="outline" size="sm" disabled={busy} onClick={() => setDraftName("")}>
             <PlusIcon data-icon="inline-start" />
-            Create key
+            <Trans>Create key</Trans>
           </Button>
         </div>
       )}
@@ -179,6 +198,7 @@ export function ApiKeySettings() {
 }
 
 function CopyableValue({ value }: { value: string }) {
+  const { i18n } = useLingui();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -192,7 +212,7 @@ function CopyableValue({ value }: { value: string }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       <code className="min-w-0 flex-1 truncate font-mono text-sm select-all">{value}</code>
-      <Button variant="ghost" size="icon-sm" title="Copy" onClick={() => void copy()}>
+      <Button variant="ghost" size="icon-sm" title={i18n._("Copy")} onClick={() => void copy()}>
         {copied ? <CheckIcon /> : <CopyIcon />}
       </Button>
     </div>

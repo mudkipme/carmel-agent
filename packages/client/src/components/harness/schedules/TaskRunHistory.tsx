@@ -1,3 +1,6 @@
+import { statusLabel, platformLabel } from "@/lib/labels";
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { MessageSquareIcon } from "lucide-react";
@@ -20,6 +23,7 @@ export function TaskRunHistory({
   revision: number;
   onRunFinished: () => Promise<unknown>;
 }) {
+  const { i18n } = useLingui();
   const canOpenSessions = useHarnessStore((state) => state.activeUserId === task.userId);
   const {
     data: runs,
@@ -41,14 +45,22 @@ export function TaskRunHistory({
 
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-lg bg-muted/50 p-3">
-      <h3 className="text-sm font-medium">Run history</h3>
+      <h3 className="text-sm font-medium">
+        <Trans>Run history</Trans>
+      </h3>
       {error ? (
-        <ResourceError error={error} title="Unable to load run history" onRetry={refresh} />
+        <ResourceError
+          error={error}
+          title={i18n._("Unable to load run history")}
+          onRetry={refresh}
+        />
       ) : null}
       {loading ? (
-        <ResourceLoading label="Loading run history" />
+        <ResourceLoading label={i18n._("Loading run history")} />
       ) : runs?.length === 0 && !error ? (
-        <p className="text-sm text-muted-foreground">No runs yet.</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>No runs yet.</Trans>
+        </p>
       ) : (
         <ul className="flex min-w-0 flex-col gap-2">
           {runs?.map((run) => (
@@ -74,8 +86,11 @@ export function TaskRunHistory({
                 {canOpenSessions
                   ? run.deliveries?.map((delivery) => (
                       <p key={delivery.id} className="break-words text-muted-foreground">
-                        {delivery.platform} notification: {delivery.status}
-                        {delivery.error ? ` · ${delivery.error}` : ""}
+                        <Trans>
+                          {platformLabel(delivery.platform)} notification:{" "}
+                          {statusLabel(delivery.status)}
+                          {delivery.error ? ` · ${delivery.error}` : ""}
+                        </Trans>
                       </p>
                     ))
                   : null}
@@ -89,7 +104,7 @@ export function TaskRunHistory({
                     })}
                   >
                     <MessageSquareIcon data-icon="inline-start" />
-                    Open conversation
+                    <Trans>Open conversation</Trans>
                   </Link>
                 </Button>
               ) : null}

@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import {
   FolderIcon,
   GitCompareIcon,
@@ -50,13 +52,14 @@ export function HarnessHeader({
   onContentViewChange: (view: ContentView) => void;
   onOpenAgentSettings: () => void;
 }) {
+  const { i18n } = useLingui();
   if (taskHeaderRef)
     return (
       <header className="flex shrink-0 items-start gap-2 border-b bg-background px-2 pt-[var(--safe-top)] sm:px-5">
         <Button
           size="icon-sm"
           variant="ghost"
-          title="Show sidebar"
+          title={i18n._("Show sidebar")}
           className={sidebarOpen ? "mt-3 lg:hidden" : "mt-3"}
           onClick={onToggleSidebar}
         >
@@ -68,27 +71,27 @@ export function HarnessHeader({
   /* In split view the workspace names itself, leaving the main header for chat. */
   const title = companionVisible
     ? activeSession?.home
-      ? "Home"
-      : (activeSession?.title ?? "New session")
+      ? i18n._("Home")
+      : (activeSession?.title ?? i18n._("New session"))
     : contentView === "sessions"
-      ? "Sessions"
+      ? i18n._("Sessions")
       : contentView === "knowledge"
-        ? "Knowledge"
+        ? i18n._("Knowledge")
         : contentView === "schedules"
-          ? "Schedules"
+          ? i18n._("Schedules")
           : contentView === "files"
-            ? "Files"
+            ? i18n._("Files")
             : contentView === "changes"
-              ? "Changes"
+              ? i18n._("Changes")
               : contentView === "browser"
-                ? "Browser"
+                ? i18n._("Browser")
                 : contentView === "terminal"
-                  ? "Terminal"
+                  ? i18n._("Terminal")
                   : contentView === "tasks"
-                    ? (issueTitle ?? "Tasks")
+                    ? (issueTitle ?? i18n._("Tasks"))
                     : homeView || activeSession?.home
-                      ? "Home"
-                      : (activeSession?.title ?? "New session");
+                      ? i18n._("Home")
+                      : (activeSession?.title ?? i18n._("New session"));
   /* The subtitle carries only what nothing else on screen says: the model is
      already named in the composer, and the working directory is worth the room
      just when the agent runs somewhere other than its own default. */
@@ -106,7 +109,7 @@ export function HarnessHeader({
         <Button
           size="icon-sm"
           variant="ghost"
-          title="Show sidebar"
+          title={i18n._("Show sidebar")}
           className={sidebarOpen ? "lg:hidden" : undefined}
           onClick={onToggleSidebar}
         >
@@ -118,18 +121,20 @@ export function HarnessHeader({
           {activeAgent && contentView === "chat" && !homeView && !activeSession?.home ? (
             <Link
               to={`/agents/${activeAgent.id}/sessions`}
-              aria-label="Back to sessions"
+              aria-label={i18n._("Back to sessions")}
               className="text-ui-smaller flex min-w-0 items-center gap-1 text-muted-foreground hover:text-foreground"
             >
               <ArrowLeftIcon className="size-3 shrink-0" />
               <span className="truncate">
-                Sessions · {activeAgent.name}
-                {customWorkingDir ? ` · ${customWorkingDir}` : ""}
+                <Trans>
+                  Sessions · {activeAgent.name}
+                  {customWorkingDir ? ` · ${customWorkingDir}` : ""}
+                </Trans>
               </span>
             </Link>
           ) : (
             <p className="text-ui-smaller truncate text-muted-foreground">
-              {activeAgent?.name ?? "No agent"}
+              {activeAgent?.name ?? i18n._("No agent")}
               {customWorkingDir ? ` · ${customWorkingDir}` : ""}
             </p>
           )}
@@ -141,7 +146,7 @@ export function HarnessHeader({
           <Button
             variant={contentView === "files" ? "secondary" : "ghost"}
             size="icon-sm"
-            title={contentView === "files" ? "Close files" : "Browse files"}
+            title={contentView === "files" ? i18n._("Close files") : i18n._("Browse files")}
             aria-pressed={contentView === "files"}
             onClick={() => onContentViewChange(contentView === "files" ? "chat" : "files")}
           >
@@ -152,7 +157,9 @@ export function HarnessHeader({
           <Button
             variant={contentView === "changes" ? "secondary" : "ghost"}
             size="icon-sm"
-            title={contentView === "changes" ? "Close changes" : "Uncommitted changes"}
+            title={
+              contentView === "changes" ? i18n._("Close changes") : i18n._("Uncommitted changes")
+            }
             aria-pressed={contentView === "changes"}
             onClick={() => onContentViewChange(contentView === "changes" ? "chat" : "changes")}
           >
@@ -163,7 +170,7 @@ export function HarnessHeader({
           <Button
             variant={contentView === "terminal" ? "secondary" : "ghost"}
             size="icon-sm"
-            title={contentView === "terminal" ? "Close terminal" : "Open terminal"}
+            title={contentView === "terminal" ? i18n._("Close terminal") : i18n._("Open terminal")}
             aria-pressed={contentView === "terminal"}
             onClick={() => onContentViewChange(contentView === "terminal" ? "chat" : "terminal")}
           >
@@ -175,8 +182,8 @@ export function HarnessHeader({
             variant={browserOpen ? "secondary" : "ghost"}
             size="icon-sm"
             className="relative"
-            title={browserOpen ? "Close browser" : "Open browser"}
-            aria-label={browserOpen ? "Close browser" : "Open browser"}
+            title={browserOpen ? i18n._("Close browser") : i18n._("Open browser")}
+            aria-label={browserOpen ? i18n._("Close browser") : i18n._("Open browser")}
             aria-pressed={browserOpen}
             onClick={onToggleBrowser}
           >
@@ -192,8 +199,8 @@ export function HarnessHeader({
           <Button
             variant="ghost"
             size="icon-sm"
-            title="Agent settings"
-            aria-label="Agent settings"
+            title={i18n._("Agent settings")}
+            aria-label={i18n._("Agent settings")}
             onClick={onOpenAgentSettings}
           >
             <SettingsIcon />

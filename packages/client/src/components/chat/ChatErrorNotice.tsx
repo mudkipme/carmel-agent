@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { AlertCircleIcon, Loader2Icon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isReconnectingMessage } from "@/lib/remote-agent";
@@ -19,6 +20,7 @@ export function ChatErrorNotice({
   message: string;
   onDismiss: () => void;
 }) {
+  const { i18n } = useLingui();
   const reconnecting = isReconnectingMessage(message);
   return (
     <div
@@ -39,7 +41,7 @@ export function ChatErrorNotice({
           type="button"
           variant="ghost"
           size="icon-xs"
-          aria-label="Dismiss error"
+          aria-label={i18n._("Dismiss error")}
           className="-mr-1 shrink-0"
           onClick={onDismiss}
         >

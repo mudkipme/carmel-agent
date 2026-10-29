@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { ChevronRightIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { HomeIssueUpdate } from "@carmel-agent/shared";
@@ -6,11 +7,12 @@ import { describeIssue } from "@/components/harness/tasks/issue-state";
 import { cn } from "@/lib/utils";
 
 export function HomeTaskCard({ issue }: { issue: HomeIssueUpdate }) {
+  const { i18n } = useLingui();
   const state = describeIssue({ ...issue, running: false });
   return (
     <Link
       to={`/agents/${issue.agentId}/tasks/${issue.id}?from=home`}
-      aria-label={`Open task: ${issue.title}`}
+      aria-label={i18n._("Open task: {title}", { title: issue.title })}
       className="group block w-full max-w-md rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
       data-home-issue={issue.id}
     >

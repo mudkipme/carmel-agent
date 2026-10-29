@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import {
   ArchiveIcon,
   EllipsisIcon,
@@ -45,6 +47,7 @@ export function SessionList({
   activeSessionId?: string;
   onSelectSession: (session: SessionMetadata) => void;
 }) {
+  const { i18n } = useLingui();
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -52,16 +55,16 @@ export function SessionList({
     const matching = query.trim()
       ? sessions.filter((session) => matchesSessionQuery(session, query))
       : sessions;
-    return limitGroups(groupSessions(matching), limit);
-  }, [limit, query, sessions]);
+    return limitGroups(groupSessions(matching, undefined, i18n.locale), limit);
+  }, [limit, query, sessions, i18n.locale]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-4 shrink-0">
         <Input
           type="search"
-          aria-label="Search sessions"
-          placeholder="Search sessions"
+          aria-label={i18n._("Search sessions")}
+          placeholder={i18n._("Search sessions")}
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
@@ -84,7 +87,9 @@ export function SessionList({
                   className="flex h-full min-w-0 flex-1 items-center rounded-md text-left focus-visible:outline-2 focus-visible:outline-ring"
                   onClick={() => onSelectSession(session)}
                 >
-                  <span className="sr-only">Open session </span>
+                  <span className="sr-only">
+                    <Trans>Open session</Trans>{" "}
+                  </span>
                   <span className="flex min-w-0 items-center gap-1.5">
                     {(runOverrides[session.id] ?? runningSessionIds.has(session.id)) ? (
                       <LoaderCircleIcon
@@ -96,7 +101,9 @@ export function SessionList({
                     <span className="truncate text-sm">{session.title}</span>
                   </span>
                   {(runOverrides[session.id] ?? runningSessionIds.has(session.id)) ? (
-                    <span className="sr-only">Running</span>
+                    <span className="sr-only">
+                      <Trans>Running</Trans>
+                    </span>
                   ) : null}
                 </button>
                 <SessionActions
@@ -113,7 +120,9 @@ export function SessionList({
           <Empty>
             <EmptyHeader>
               <EmptyTitle>
-                {query.trim() ? `No sessions match “${query.trim()}”.` : "No sessions yet"}
+                {query.trim()
+                  ? i18n._("No sessions match “{value}”.", { value: query.trim() })
+                  : i18n._("No sessions yet")}
               </EmptyTitle>
             </EmptyHeader>
           </Empty>
@@ -125,7 +134,7 @@ export function SessionList({
             className="mx-1 my-1 shrink-0 justify-start text-muted-foreground"
             onClick={() => setLimit((current) => current + PAGE_SIZE)}
           >
-            Show {Math.min(hidden, PAGE_SIZE)} more
+            <Trans>Show {Math.min(hidden, PAGE_SIZE)} more</Trans>
           </Button>
         ) : null}
       </div>
@@ -145,6 +154,7 @@ function SessionActions({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { i18n } = useLingui();
   const navigate = useNavigate();
   const updateSession = useHarnessStore((state) => state.updateSession);
   const deleteSession = useHarnessStore((state) => state.deleteSession);
@@ -155,24 +165,24 @@ function SessionActions({
     try {
       await archiveSession(session.id);
     } catch (error) {
-      showError("Unable to archive session", error);
+      showError(i18n._("Unable to archive session"), error);
       return;
     }
     // An archived session leaves the list, so the chat it was showing moves on
     // to history; undoing brings both back.
     if (isOpen) navigate(`/agents/${session.agentId}/sessions`);
-    toast.success("Session archived", {
-      description: "Archived sessions are listed in agent settings.",
+    toast.success(i18n._("Session archived"), {
+      description: i18n._("Archived sessions are listed in agent settings."),
       // Long enough to notice and reach for; the default is gone before that.
       duration: 10_000,
       action: {
-        label: "Undo",
+        label: i18n._("Undo"),
         onClick: () => {
           void restoreSession(session.id)
             .then(() => {
               if (isOpen) navigate(sessionPath(session));
             })
-            .catch((error) => showError("Unable to restore session", error));
+            .catch((error) => showError(i18n._("Unable to restore session"), error));
         },
       },
     });
@@ -193,7 +203,7 @@ function SessionActions({
           <Button
             size="icon-xs"
             variant="ghost"
-            title="Session actions"
+            title={i18n._("Session actions")}
             className="coarse-pointer-visible absolute right-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
           >
             <EllipsisIcon />
@@ -207,34 +217,37 @@ function SessionActions({
                   pinnedAt: session.pinnedAt ? null : Date.now(),
                 }).catch((error) =>
                   showError(
-                    session.pinnedAt ? "Unable to unpin session" : "Unable to pin session",
+                    session.pinnedAt
+                      ? i18n._("Unable to unpin session")
+                      : i18n._("Unable to pin session"),
                     error,
                   ),
                 );
               }}
             >
               {session.pinnedAt ? <PinOff /> : <Pin />}
-              {session.pinnedAt ? "Unpin" : "Pin"}
+              {session.pinnedAt ? i18n._("Unpin") : i18n._("Pin")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
-                void promptText({ title: "Rename session", initialValue: session.title }).then(
-                  (nextTitle) => {
-                    const title = nextTitle?.trim();
-                    if (!title || title === session.title) return;
-                    void updateSession(session.id, { title }).catch((error) =>
-                      showError("Unable to rename session", error),
-                    );
-                  },
-                );
+                void promptText({
+                  title: i18n._("Rename session"),
+                  initialValue: session.title,
+                }).then((nextTitle) => {
+                  const title = nextTitle?.trim();
+                  if (!title || title === session.title) return;
+                  void updateSession(session.id, { title }).catch((error) =>
+                    showError(i18n._("Unable to rename session"), error),
+                  );
+                });
               }}
             >
               <PencilIcon />
-              Rename
+              <Trans>Rename</Trans>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => void archive()}>
               <ArchiveIcon />
-              Archive
+              <Trans>Archive</Trans>
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
@@ -243,19 +256,21 @@ function SessionActions({
               variant="destructive"
               onSelect={() => {
                 void confirmAction({
-                  title: `Delete “${session.title}”?`,
-                  description: "This session and its message history will be permanently deleted.",
-                  actionLabel: "Delete session",
+                  title: i18n._("Delete “{title}”?", { title: session.title }),
+                  description: i18n._(
+                    "This session and its message history will be permanently deleted.",
+                  ),
+                  actionLabel: i18n._("Delete session"),
                 }).then((confirmed) => {
                   if (confirmed)
                     void deleteSession(session.id).catch((error) =>
-                      showError("Unable to delete session", error),
+                      showError(i18n._("Unable to delete session"), error),
                     );
                 });
               }}
             >
               <Trash2Icon />
-              Delete
+              <Trans>Delete</Trans>
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>

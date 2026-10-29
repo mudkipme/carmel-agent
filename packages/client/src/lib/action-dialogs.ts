@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 export type ConfirmRequest = {
   kind: "confirm";
   title: string;
@@ -26,7 +27,7 @@ export function confirmAction(options: {
 }) {
   return enqueue<boolean>((resolve) => ({
     kind: "confirm",
-    actionLabel: options.actionLabel ?? "Continue",
+    actionLabel: options.actionLabel ?? i18n._("Continue"),
     ...options,
     resolve,
   }));
@@ -43,7 +44,7 @@ export function promptText(options: {
     title: options.title,
     description: options.description,
     initialValue: options.initialValue ?? "",
-    actionLabel: options.actionLabel ?? "Save",
+    actionLabel: options.actionLabel ?? i18n._("Save"),
     resolve,
   }));
 }

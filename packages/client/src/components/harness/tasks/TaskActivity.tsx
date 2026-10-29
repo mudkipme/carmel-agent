@@ -1,3 +1,6 @@
+import { describeTaskOutcome } from "@/lib/task-schedule";
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { Link } from "react-router-dom";
 import { CircleCheckIcon, CircleDotIcon, MessageSquareIcon } from "lucide-react";
 import type { IssueDetail } from "@carmel-agent/shared";
@@ -14,6 +17,7 @@ export function TaskActivity({
   issue: IssueDetail;
   onViewResult: (id: string) => void;
 }) {
+  const { i18n } = useLingui();
   const events = [
     ...issue.attempts.map((attempt, index) => ({
       kind: "run" as const,
@@ -43,10 +47,16 @@ export function TaskActivity({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-medium">
                 {event.kind === "run"
-                  ? `Run ${event.number} · ${event.attempt.outcome === "succeeded" ? "Completed" : event.attempt.outcome.replaceAll("_", " ")}`
+                  ? i18n._("Run {number} · {value}", {
+                      number: event.number,
+                      value:
+                        event.attempt.outcome === "succeeded"
+                          ? i18n._("Completed")
+                          : describeTaskOutcome(event.attempt.outcome),
+                    })
                   : event.note.kind === "note"
-                    ? "Note"
-                    : "Task updated"}
+                    ? i18n._("Note")
+                    : i18n._("Task updated")}
               </h3>
               <time
                 className="text-xs text-muted-foreground"
@@ -65,26 +75,28 @@ export function TaskActivity({
                     <Button
                       variant="outline"
                       size="sm"
-                      aria-label={`View result for run ${event.number}`}
+                      aria-label={i18n._("View result for run {number}", { number: event.number })}
                       onClick={() => onViewResult(event.id)}
                     >
-                      View result
+                      <Trans>View result</Trans>
                     </Button>
                   ) : null}
                   {event.attempt.sessionId ? (
                     <Button asChild variant="ghost" size="sm">
                       <Link
-                        aria-label={`Open conversation for run ${event.number}`}
+                        aria-label={i18n._("Open conversation for run {number}", {
+                          number: event.number,
+                        })}
                         to={sessionPath({ agentId: issue.agentId, id: event.attempt.sessionId })}
                       >
-                        Open conversation
+                        <Trans>Open conversation</Trans>
                       </Link>
                     </Button>
                   ) : null}
                 </div>
                 <details>
                   <summary className="cursor-pointer text-xs text-muted-foreground">
-                    Brief used for this run
+                    <Trans>Brief used for this run</Trans>
                   </summary>
                   <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">
                     {event.attempt.brief}
@@ -98,7 +110,9 @@ export function TaskActivity({
         </li>
       ))}
       {!events.length ? (
-        <li className="py-5 text-sm text-muted-foreground">No activity yet.</li>
+        <li className="py-5 text-sm text-muted-foreground">
+          <Trans>No activity yet.</Trans>
+        </li>
       ) : null}
     </ol>
   );

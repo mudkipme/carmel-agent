@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChevronDownIcon, ChevronRightIcon, SquareIcon } from "lucide-react";
@@ -27,6 +29,7 @@ export function SubtaskList({
   resource: ReturnType<typeof useSubtasks>;
   showHeading?: boolean;
 }) {
+  const { i18n } = useLingui();
   const [params, setParams] = useSearchParams();
   const selected = Number(params.get("subtask")) || undefined;
   if (!resource.data?.helpers.length && !resource.data?.error && !resource.error) return null;
@@ -47,12 +50,16 @@ export function SubtaskList({
       await action;
       await resource.refresh();
     } catch (error) {
-      showError("Unable to update subtasks", error);
+      showError(i18n._("Unable to update subtasks"), error);
     }
   };
   return (
-    <section className="flex min-w-0 flex-col gap-2" aria-label="Subtasks">
-      {showHeading ? <h2 className="text-sm font-medium">Subtasks</h2> : null}
+    <section className="flex min-w-0 flex-col gap-2" aria-label={i18n._("Subtasks")}>
+      {showHeading ? (
+        <h2 className="text-sm font-medium">
+          <Trans>Subtasks</Trans>
+        </h2>
+      ) : null}
       {resource.error ? <ResourceError error={resource.error} onRetry={resource.refresh} /> : null}
       {resource.data?.error ? (
         <div role="status" className="flex items-center justify-between gap-3 text-sm">
@@ -62,7 +69,7 @@ export function SubtaskList({
             size="sm"
             onClick={() => void act(api.resumeSubtasks(sessionId))}
           >
-            Resume
+            <Trans>Resume</Trans>
           </Button>
         </div>
       ) : null}
@@ -86,22 +93,22 @@ export function SubtaskList({
               </Button>
               <Badge variant={subtask.status === "failed" ? "destructive" : "secondary"}>
                 {subtask.status === "done"
-                  ? "Completed"
+                  ? i18n._("Completed")
                   : subtask.status === "working"
-                    ? "Running"
+                    ? i18n._("Running")
                     : subtask.status === "sleeping"
-                      ? "Scheduled"
+                      ? i18n._("Scheduled")
                       : subtask.status === "reporting"
-                        ? "Finishing"
+                        ? i18n._("Finishing")
                         : subtask.status === "stopped"
-                          ? "Stopped"
-                          : "Failed"}
+                          ? i18n._("Stopped")
+                          : i18n._("Failed")}
               </Badge>
               {active(subtask.status) ? (
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Stop ${subtask.name}`}
+                  aria-label={i18n._("Stop {name}", { name: subtask.name })}
                   onClick={() => void act(api.stopSubtask(sessionId, subtask.id))}
                 >
                   <SquareIcon />
@@ -131,6 +138,7 @@ function SubtaskDetail({
   id: number;
   running: boolean;
 }) {
+  const { i18n } = useLingui();
   const [params, setParams] = useSearchParams();
   const panel = useRef<HTMLDivElement>(null);
   const before = params.get("subtaskBefore") ?? undefined;
@@ -157,12 +165,12 @@ function SubtaskDetail({
     <>
       {detail.session.olderCursor ? (
         <Button variant="ghost" size="sm" onClick={() => page(detail.session.olderCursor!)}>
-          Earlier messages
+          <Trans>Earlier messages</Trans>
         </Button>
       ) : null}
       {before ? (
         <Button variant="ghost" size="sm" onClick={() => page()}>
-          Latest messages
+          <Trans>Latest messages</Trans>
         </Button>
       ) : null}
       <ChatMessages
@@ -182,7 +190,7 @@ function SubtaskDetail({
       {resource.error ? (
         <ResourceError error={resource.error} onRetry={resource.refresh} />
       ) : !detail ? (
-        <ResourceLoading label="Loading subtask" />
+        <ResourceLoading label={i18n._("Loading subtask")} />
       ) : (
         <>
           {detail.helper.answer ? (
@@ -193,7 +201,7 @@ function SubtaskDetail({
           {detail.helper.answer ? (
             <details open={Boolean(before) || undefined}>
               <summary className="cursor-pointer text-xs text-muted-foreground">
-                Conversation
+                <Trans>Conversation</Trans>
               </summary>
               <div className="flex min-w-0 flex-col gap-4 pt-4">{transcript}</div>
             </details>

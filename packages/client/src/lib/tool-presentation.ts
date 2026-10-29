@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 /** Keep summaries deliberate: never dump arbitrary tool arguments into the transcript. */
 export function toolPresentation(name: string, args: Record<string, unknown>) {
   const shortName = name.split("__").at(-1) ?? name;
@@ -13,20 +14,20 @@ export function toolPresentation(name: string, args: Record<string, unknown>) {
             ? "web"
             : "tool";
   const labels: Record<string, string> = {
-    bash: "Run command",
-    exec_command: "Run command",
-    shell: "Run command",
-    read: "Read file",
-    read_file: "Read file",
-    write: "Write file",
-    write_file: "Write file",
-    edit: "Edit file",
-    edit_file: "Edit file",
-    apply_patch: "Apply patch",
-    grep: "Search content",
-    glob: "Find files",
-    ls: "List files",
-    codemode: "Run code",
+    bash: i18n._("Run command"),
+    exec_command: i18n._("Run command"),
+    shell: i18n._("Run command"),
+    read: i18n._("Read file"),
+    read_file: i18n._("Read file"),
+    write: i18n._("Write file"),
+    write_file: i18n._("Write file"),
+    edit: i18n._("Edit file"),
+    edit_file: i18n._("Edit file"),
+    apply_patch: i18n._("Apply patch"),
+    grep: i18n._("Search content"),
+    glob: i18n._("Find files"),
+    ls: i18n._("List files"),
+    codemode: i18n._("Run code"),
   };
   const keys =
     kind === "terminal"

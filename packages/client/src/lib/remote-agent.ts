@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import type {
@@ -243,7 +244,7 @@ export class RemoteAgent {
           },
         );
         if (!response.ok) {
-          const error = await apiError(response, "Unable to queue this message.");
+          const error = await apiError(response, i18n._("Unable to queue this message."));
           this.fail(error);
           return { status: "rejected", error: errorMessage(error) };
         }
@@ -254,7 +255,7 @@ export class RemoteAgent {
         return { status: "unknown", error: errorMessage(error) };
       }
     }
-    if (this.abortController) throw new Error("Agent is already processing.");
+    if (this.abortController) throw new Error(i18n._("Agent is already processing."));
     if (promptInput && references?.length) promptInput.references = references;
     const controller = this.beginRun();
     // Set as soon as a server run exists for this submission, and read by the
@@ -297,7 +298,9 @@ export class RemoteAgent {
         // The session already had a run in flight, so this message was refused.
         // The client still follows the run that holds the session -- but it is
         // somebody else's turn, and this prompt was never sent.
-        rejection = "This conversation already has a run in progress; your message was not sent.";
+        rejection = i18n._(
+          "This conversation already has a run in progress; your message was not sent.",
+        );
         if (!activeRunId) throw new Error(rejection);
         const connection = await this.readConnection(controller.signal);
         this.applyConnectionSnapshot(connection);
@@ -313,7 +316,10 @@ export class RemoteAgent {
       if (!response.ok || !response.body) {
         // The server answered and started nothing, so the message is still the
         // caller's to keep.
-        const error = await apiError(response, `Agent request failed with ${response.status}`);
+        const error = await apiError(
+          response,
+          i18n._("Agent request failed with {status}", { status: response.status }),
+        );
         rejection = errorMessage(error);
         throw error;
       }
@@ -322,7 +328,7 @@ export class RemoteAgent {
         | { runId?: string }
         | undefined;
       const runId = response.headers.get("x-agent-run-id") ?? admittedRun?.runId;
-      if (!runId) throw new Error("Agent response did not identify its server run.");
+      if (!runId) throw new Error(i18n._("Agent response did not identify its server run."));
       this.rememberRun(runId);
       admitted = true;
       this.hasPendingWork = false;
@@ -344,7 +350,7 @@ export class RemoteAgent {
   }
 
   async attachToRun(runId: string, baseMessages?: AgentMessage[], afterSequence = 0) {
-    if (this.abortController) throw new Error("Agent is already processing.");
+    if (this.abortController) throw new Error(i18n._("Agent is already processing."));
     if (baseMessages) this.messages = [...baseMessages];
     const controller = this.beginRun(afterSequence);
     this.runId = runId;
@@ -365,7 +371,7 @@ export class RemoteAgent {
   async continue() {
     const lastMessage = this.messages[this.messages.length - 1];
     if (!lastMessage || lastMessage.role !== "user") {
-      throw new Error("Cannot continue from current message state.");
+      throw new Error(i18n._("Cannot continue from current message state."));
     }
     this.replaceNextUserMessage = true;
     return this.prompt([]);
@@ -474,9 +480,13 @@ export class RemoteAgent {
         continue;
       }
       if (!response.ok || !response.body) {
-        if (response.status === 400) throw await apiError(response, "Invalid agent event cursor.");
+        if (response.status === 400)
+          throw await apiError(response, i18n._("Invalid agent event cursor."));
         this.markReconnecting(
-          await apiError(response, `Agent event stream failed with ${response.status}`),
+          await apiError(
+            response,
+            i18n._("Agent event stream failed with {status}", { status: response.status }),
+          ),
         );
         retryDelayMs = nextReconnectDelay(retryDelayMs);
         continue;
@@ -620,12 +630,15 @@ export class RemoteAgent {
 
   private processEnvelope(envelope: AgentRunEventEnvelope) {
     if (!Number.isSafeInteger(envelope.sequence) || envelope.sequence < 1 || !envelope.event) {
-      throw new Error("Invalid agent event envelope.");
+      throw new Error(i18n._("Invalid agent event envelope."));
     }
     if (envelope.sequence <= this.lastSequence) return;
     if (envelope.sequence !== this.lastSequence + 1) {
       throw new Error(
-        `Agent event sequence gap: expected ${this.lastSequence + 1}, received ${envelope.sequence}.`,
+        i18n._("Agent event sequence gap: expected {value}, received {sequence}.", {
+          value: this.lastSequence + 1,
+          sequence: envelope.sequence,
+        }),
       );
     }
     this.lastSequence = envelope.sequence;
@@ -757,7 +770,8 @@ export class RemoteAgent {
           (event.result.outcome === "failed" || event.result.outcome === "interrupted") &&
           !this.errorMessage
         ) {
-          this.errorMessage = event.result.detail ?? "This run did not finish successfully.";
+          this.errorMessage =
+            event.result.detail ?? i18n._("This run did not finish successfully.");
         }
         break;
     }

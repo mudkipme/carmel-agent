@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -26,6 +27,7 @@ const EMPTY_SNAPSHOT: AgentSnapshot = {
 };
 
 export function useSessionAgent(agentConfig: AgentConfig, session: Session, modelRef: ModelRef) {
+  const { i18n } = useLingui();
   const connectSession = useHarnessStore((state) => state.connectSession);
   const updateSession = useHarnessStore((state) => state.updateSession);
   const resolvedModel = useMemo(() => resolveModelRef(modelRef), [modelRef]);
@@ -150,9 +152,12 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
       const activeAgent = agentRef.current;
       const { isStreaming, thinkingLevel } = activeAgent?.getSnapshot() ?? EMPTY_SNAPSHOT;
       if (!activeAgent)
-        return { status: "rejected", error: "Not connected to this conversation yet." };
+        return { status: "rejected", error: i18n._("Not connected to this conversation yet.") };
       if (isStreaming && !sessionRef.current.home)
-        return { status: "rejected", error: "This conversation already has a run in progress." };
+        return {
+          status: "rejected",
+          error: i18n._("This conversation already has a run in progress."),
+        };
       const currentSession = sessionRef.current;
       if (thinkingLevel !== currentSession.thinkingLevel) {
         try {
@@ -163,7 +168,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
       }
       return activeAgent.prompt(text, images, references);
     },
-    [updateSession],
+    [updateSession, i18n],
   );
 
   return { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot };

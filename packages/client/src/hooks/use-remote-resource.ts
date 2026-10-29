@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createResourceLoader } from "@/lib/resource-loader";
 import { errorMessage } from "@/lib/errors";
@@ -18,6 +19,7 @@ export function useRemoteResource<T>({
   pollInterval?: number | false | ((data: T | undefined) => number | false);
   refreshKey?: unknown;
 }) {
+  const { i18n } = useLingui();
   const [state, setState] = useState<ResourceState<T>>({ key });
   const options = useRef({ load, pollInterval });
   options.current = { load, pollInterval };
@@ -39,7 +41,7 @@ export function useRemoteResource<T>({
           setState((previous) => ({
             key,
             data: previous.key === key ? previous.data : undefined,
-            error: errorMessage(result.error, "Unable to load data"),
+            error: errorMessage(result.error, i18n._("Unable to load data")),
           }));
         } else {
           data = result.data;
@@ -74,7 +76,7 @@ export function useRemoteResource<T>({
       window.removeEventListener("online", reconnect);
       document.removeEventListener("visibilitychange", reconnect);
     };
-  }, [enabled, key, refreshKey]);
+  }, [enabled, key, refreshKey, i18n]);
 
   const current = state.key === key ? state : undefined;
   return {

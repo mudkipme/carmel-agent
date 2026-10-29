@@ -1,5 +1,7 @@
 "use client";
 
+import { i18n } from "@lingui/core";
+import { useLingui } from "@lingui/react";
 import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { SearchIcon } from "lucide-react";
@@ -27,8 +29,8 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
 }
 
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
+  title = i18n._("Command Palette"),
+  description = i18n._("Search for a command to run..."),
   children,
   className,
   showCloseButton = true,
@@ -39,6 +41,7 @@ function CommandDialog({
   className?: string;
   showCloseButton?: boolean;
 }) {
+  useLingui();
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">

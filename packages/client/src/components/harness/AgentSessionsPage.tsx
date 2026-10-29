@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { MessageSquarePlusIcon, UploadIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -19,6 +21,7 @@ export function AgentSessionsPage({
   onSelectSession: (session: SessionMetadata) => void;
   onOpenImport: () => void;
 }) {
+  const { i18n } = useLingui();
   return (
     <div className="flex h-full min-h-0 flex-col p-4 sm:p-6">
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-4">
@@ -26,7 +29,7 @@ export function AgentSessionsPage({
           <Button
             variant="outline"
             size="icon"
-            title="Import Open WebUI export"
+            title={i18n._("Import Open WebUI export")}
             onClick={onOpenImport}
           >
             <UploadIcon />
@@ -34,7 +37,7 @@ export function AgentSessionsPage({
           <Button asChild>
             <Link to={`/agents/${agent.id}/sessions/new`}>
               <MessageSquarePlusIcon data-icon="inline-start" />
-              New session
+              <Trans>New session</Trans>
             </Link>
           </Button>
         </div>

@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { lazy, Suspense, useState } from "react";
 
 const ZoomableLightbox = lazy(() => import("./ZoomableLightbox"));
@@ -9,6 +10,7 @@ type ZoomableImageProps = {
 };
 
 export function ZoomableImage({ src, alt, caption }: ZoomableImageProps) {
+  const { i18n } = useLingui();
   const [open, setOpen] = useState(false);
 
   return (
@@ -18,7 +20,7 @@ export function ZoomableImage({ src, alt, caption }: ZoomableImageProps) {
           type="button"
           className="block w-full cursor-zoom-in"
           onClick={() => setOpen(true)}
-          aria-label={`Zoom ${caption ?? alt}`}
+          aria-label={i18n._("Zoom {value}", { value: caption ?? alt })}
         >
           <img className="aspect-square w-full object-cover" src={src} alt={alt} />
         </button>

@@ -1,3 +1,5 @@
+import { thinkingLevelLabel } from "@/lib/labels";
+import { useLingui } from "@lingui/react";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
@@ -119,6 +121,7 @@ export function ChatInput({
   onAbort,
   onModelSelect,
 }: ChatInputProps) {
+  const { i18n } = useLingui();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [draft, setDraft] = useSessionDraft<ComposerDraft>(
@@ -204,7 +207,9 @@ export function ChatInput({
   const send = () => {
     if (!canSend || processingFilesRef.current) return;
     if (!supportsImages && attachments.some((attachment) => attachment.type === "image")) {
-      toast.error("This model does not support images. Remove them or choose another model.");
+      toast.error(
+        i18n._("This model does not support images. Remove them or choose another model."),
+      );
       return;
     }
     const submittedText = value;
@@ -241,7 +246,9 @@ export function ChatInput({
   const addFiles = async (files: File[]) => {
     if (processingFilesRef.current || files.length === 0) return;
     if (attachments.length + referencesRef.current.length + files.length > MAX_FILES) {
-      toast.error(`Maximum ${MAX_FILES} attachments and references allowed.`);
+      toast.error(
+        i18n._("Maximum {MAX_FILES} attachments and references allowed.", { MAX_FILES: MAX_FILES }),
+      );
       return;
     }
 
@@ -253,16 +260,16 @@ export function ChatInput({
         const isImage = file.type.startsWith("image/");
         if (!isImage && !canUploadFiles) {
           toast.error(
-            "Enable read and write permissions for this agent to upload workspace files.",
+            i18n._("Enable read and write permissions for this agent to upload workspace files."),
           );
           continue;
         }
         if (isImage && !supportsImages) {
-          toast.error("This model does not support images.");
+          toast.error(i18n._("This model does not support images."));
           continue;
         }
         if (file.size > MAX_CHAT_FILE_SIZE) {
-          toast.error(`${file.name} exceeds the 20MB file limit.`);
+          toast.error(i18n._("{name} exceeds the 20MB file limit.", { name: file.name }));
           continue;
         }
         try {
@@ -274,7 +281,10 @@ export function ChatInput({
             );
             if (referencesRef.current.length >= MAX_FILES) {
               toast.error(
-                `${file.name} was uploaded, but the message already has ${MAX_FILES} references.`,
+                i18n._("{name} was uploaded, but the message already has {MAX_FILES} references.", {
+                  name: file.name,
+                  MAX_FILES: MAX_FILES,
+                }),
               );
               continue;
             }
@@ -288,7 +298,7 @@ export function ChatInput({
             updateValue(inserted.text);
           }
         } catch (error) {
-          showError("Unable to attach file", error);
+          showError(i18n._("Unable to attach file"), error);
         }
       }
       setAttachments((current) => [...current, ...nextAttachments]);
@@ -328,7 +338,7 @@ export function ChatInput({
     >
       {dragging ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-primary/10 text-sm font-medium text-primary">
-          {canUploadFiles ? "Drop files here" : "Drop images here"}
+          {canUploadFiles ? i18n._("Drop files here") : i18n._("Drop images here")}
         </div>
       ) : null}
       {attachments.length > 0 ? (
@@ -354,7 +364,7 @@ export function ChatInput({
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                aria-label={`Remove ${attachment.fileName}`}
+                aria-label={i18n._("Remove {fileName}", { fileName: attachment.fileName })}
                 onClick={() =>
                   setAttachments((current) => current.filter((item) => item.id !== attachment.id))
                 }
@@ -366,7 +376,7 @@ export function ChatInput({
         </div>
       ) : null}
       {references.some((reference) => !hasInlineReference(value, reference)) ? (
-        <div className="flex flex-wrap gap-2 px-3 pt-3" aria-label="Selected references">
+        <div className="flex flex-wrap gap-2 px-3 pt-3" aria-label={i18n._("Selected references")}>
           {references
             .filter((reference) => !hasInlineReference(value, reference))
             .map((reference) => (
@@ -379,7 +389,9 @@ export function ChatInput({
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  aria-label={`Remove reference ${referenceLabel(reference)}`}
+                  aria-label={i18n._("Remove reference {value}", {
+                    value: referenceLabel(reference),
+                  })}
                   onClick={() =>
                     updateReferences(
                       references.filter((item) => referenceKey(item) !== referenceKey(reference)),
@@ -398,8 +410,8 @@ export function ChatInput({
         rows={2}
         autoFocus={autoFocus && !isTouchPrimaryInput()}
         enterKeyHint="enter"
-        placeholder="Type a message..."
-        aria-label="Message"
+        placeholder={i18n._("Type a message...")}
+        aria-label={i18n._("Message")}
         className={cn(
           "max-h-60 min-h-16 px-3 pt-3 pb-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0",
           textareaClassName,
@@ -457,8 +469,8 @@ export function ChatInput({
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label="Mention a reference"
-              title="Mention a file, folder, or conversation"
+              aria-label={i18n._("Mention a reference")}
+              title={i18n._("Mention a file, folder, or conversation")}
               disabled={
                 isStreaming ||
                 processingFiles ||
@@ -480,13 +492,13 @@ export function ChatInput({
             variant="ghost"
             size="icon-sm"
             disabled={processingFiles || (!supportsImages && !canUploadFiles)}
-            aria-label="Attach files"
+            aria-label={i18n._("Attach files")}
             title={
               canUploadFiles
-                ? "Attach files"
+                ? i18n._("Attach files")
                 : supportsImages
-                  ? "Attach images"
-                  : "Enable read and write permissions to upload files"
+                  ? i18n._("Attach images")
+                  : i18n._("Enable read and write permissions to upload files")
             }
             onClick={() => fileInputRef.current?.click()}
           >
@@ -502,7 +514,7 @@ export function ChatInput({
             >
               <SelectTrigger
                 size="sm"
-                aria-label="Thinking level"
+                aria-label={i18n._("Thinking level")}
                 className="shrink-0 border-0 shadow-none"
               >
                 <BrainIcon />
@@ -512,7 +524,7 @@ export function ChatInput({
                 <SelectGroup>
                   {supportedThinkingLevels.map((level) => (
                     <SelectItem key={level} value={level}>
-                      {level}
+                      {thinkingLevelLabel(level)}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -524,7 +536,7 @@ export function ChatInput({
             variant="ghost"
             size="sm"
             className="min-w-0 flex-1 justify-start transition-colors @[28rem]:flex-initial"
-            aria-label={`Choose model (${currentModel.id})`}
+            aria-label={i18n._("Choose model ({id})", { id: currentModel.id })}
             title={currentModel.id}
             disabled={isStreaming}
             onClick={onModelSelect}
@@ -539,8 +551,8 @@ export function ChatInput({
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label="Abort"
-              title="Abort"
+              aria-label={i18n._("Abort")}
+              title={i18n._("Abort")}
               onClick={onAbort}
             >
               <SquareIcon />
@@ -552,8 +564,8 @@ export function ChatInput({
               size="icon-sm"
               className="rounded-full"
               disabled={!canSend}
-              aria-label="Send"
-              title="Send"
+              aria-label={i18n._("Send")}
+              title={i18n._("Send")}
               onClick={send}
             >
               <ArrowUpIcon />
@@ -571,7 +583,11 @@ export function ChatInput({
           onSelect={(reference) => {
             if (!references.some((item) => referenceKey(item) === referenceKey(reference))) {
               if (references.length + attachments.length >= MAX_FILES) {
-                toast.error(`Maximum ${MAX_FILES} attachments and references allowed.`);
+                toast.error(
+                  i18n._("Maximum {MAX_FILES} attachments and references allowed.", {
+                    MAX_FILES: MAX_FILES,
+                  }),
+                );
                 return;
               }
               updateReferences([...references, reference]);

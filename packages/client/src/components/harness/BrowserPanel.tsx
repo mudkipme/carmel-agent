@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
   ArrowLeftIcon,
@@ -37,6 +39,7 @@ import { useAgentBrowser } from "@/hooks/use-agent-browser";
 import { browserAddress, browserModifiers, browserPoint } from "@/lib/browser-input";
 
 export function BrowserPanel({ agent }: { agent: AgentConfig }) {
+  const { i18n } = useLingui();
   const browser = useAgentBrowser(agent.id);
   const { send, frame, hasControl } = browser;
   const image = useRef<HTMLImageElement>(null);
@@ -215,7 +218,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
         } catch {
           if (active()) {
             setKeyboardOpen(true);
-            toast.info("Paste text into the text entry field, then select Send text.", {
+            toast.info(i18n._("Paste text into the text entry field, then select Send text."), {
               position: "top-center",
             });
           }
@@ -227,22 +230,24 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
       if (!active()) return;
       if (operation === "copy") {
         if (!result) {
-          toast.info("Select text in the remote page before copying.", { position: "top-center" });
+          toast.info(i18n._("Select text in the remote page before copying."), {
+            position: "top-center",
+          });
           return;
         }
         try {
           await navigator.clipboard.writeText(result);
-          toast.success("Copied from browser", { position: "top-center" });
+          toast.success(i18n._("Copied from browser"), { position: "top-center" });
         } catch {
           if (active()) setCopiedText(result);
         }
       } else {
         setTyped("");
-        toast.success("Pasted into browser", { position: "top-center" });
+        toast.success(i18n._("Pasted into browser"), { position: "top-center" });
       }
     } catch (error) {
       if (active())
-        toast.error(error instanceof Error ? error.message : "Clipboard transfer failed.", {
+        toast.error(error instanceof Error ? error.message : i18n._("Clipboard transfer failed."), {
           position: "top-center",
         });
     } finally {
@@ -251,16 +256,16 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
     }
   };
   const status = !browser.connected
-    ? "Connecting"
+    ? i18n._("Connecting")
     : hasControl
-      ? "You have control"
+      ? i18n._("You have control")
       : control.phase === "pausing"
-        ? "Pausing agent…"
+        ? i18n._("Pausing agent…")
         : control.controllerName
-          ? `${control.controllerName} has control`
+          ? i18n._("{controllerName} has control", { controllerName: control.controllerName })
           : control.phase === "waiting"
-            ? "Waiting for help"
-            : "Agent has control";
+            ? i18n._("Waiting for help")
+            : i18n._("Agent has control");
   const controlDisabled =
     !browser.connected ||
     control.phase === "pausing" ||
@@ -271,17 +276,22 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-background" aria-label="Agent browser">
+    <section
+      className="flex h-full min-h-0 flex-col bg-background"
+      aria-label={i18n._("Agent browser")}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
         <div className="flex min-w-0 items-center gap-2">
           <GlobeIcon className="size-4" />
-          <span className="text-sm font-medium">Browser</span>
+          <span className="text-sm font-medium">
+            <Trans>Browser</Trans>
+          </span>
           <Badge variant="secondary">{status}</Badge>
         </div>
         {control.phase === "agent" ? (
           <div className="flex items-center gap-1">
             <Button size="sm" disabled={controlDisabled} onClick={changeControl}>
-              {hasControl ? "Resume agent" : "Take control"}
+              {hasControl ? i18n._("Resume agent") : i18n._("Take control")}
             </Button>
           </div>
         ) : null}
@@ -294,7 +304,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             send({ type: "navigate", url: browserAddress(address) });
             setAddressError(undefined);
           } catch {
-            setAddressError("Enter an HTTP or HTTPS address.");
+            setAddressError(i18n._("Enter an HTTP or HTTPS address."));
           }
         }}
       >
@@ -302,7 +312,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label="Browser back"
+          aria-label={i18n._("Browser back")}
           disabled={!hasControl}
           onClick={() => send({ type: "back" })}
         >
@@ -312,7 +322,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label="Browser forward"
+          aria-label={i18n._("Browser forward")}
           disabled={!hasControl}
           onClick={() => send({ type: "forward" })}
         >
@@ -322,7 +332,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label="Reload browser page"
+          aria-label={i18n._("Reload browser page")}
           disabled={!hasControl}
           onClick={() => send({ type: "reload" })}
         >
@@ -330,7 +340,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
         </Button>
         <Field className="min-w-0 flex-1">
           <FieldLabel htmlFor="browser-address" className="sr-only">
-            Browser address
+            <Trans>Browser address</Trans>
           </FieldLabel>
           <Input
             id="browser-address"
@@ -344,7 +354,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           />
         </Field>
         <Button size="sm" variant="outline" type="submit" disabled={!hasControl}>
-          Go
+          <Trans>Go</Trans>
         </Button>
       </form>
       {browser.tabs.length > 1 ? (
@@ -354,14 +364,14 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             disabled={!hasControl}
             onValueChange={(id) => send({ type: "tab", id })}
           >
-            <SelectTrigger className="w-full" aria-label="Browser tab">
-              <SelectValue placeholder="Select tab" />
+            <SelectTrigger className="w-full" aria-label={i18n._("Browser tab")}>
+              <SelectValue placeholder={i18n._("Select tab")} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 {browser.tabs.map((tab) => (
                   <SelectItem key={tab.id} value={tab.id}>
-                    {tab.title || tab.url || "Untitled"}
+                    {tab.title || tab.url || i18n._("Untitled")}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -372,11 +382,13 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
       {browser.error || addressError ? (
         <div className="px-3 py-2">
           <Alert variant="destructive">
-            <AlertTitle>Browser connection</AlertTitle>
+            <AlertTitle>
+              <Trans>Browser connection</Trans>
+            </AlertTitle>
             <AlertDescription>
               {addressError ?? browser.error}
               <Button variant="outline" size="sm" onClick={browser.reconnect}>
-                Reconnect
+                <Trans>Reconnect</Trans>
               </Button>
             </AlertDescription>
           </Alert>
@@ -390,8 +402,10 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             role="application"
             aria-label={
               canInput
-                ? "Remote browser. Click to focus, then type or use copy and paste shortcuts. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile."
-                : "Live browser preview. Take control to interact."
+                ? i18n._(
+                    "Remote browser. Click to focus, then type or use copy and paste shortcuts. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile.",
+                  )
+                : i18n._("Live browser preview. Take control to interact.")
             }
             onKeyDown={(event) => key(event, "keyDown")}
             onKeyUp={(event) => key(event, "keyUp")}
@@ -411,7 +425,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             <textarea
               ref={keyboard}
               className="sr-only"
-              aria-label="Remote browser keyboard input"
+              aria-label={i18n._("Remote browser keyboard input")}
               tabIndex={-1}
               autoComplete="off"
               value=""
@@ -421,7 +435,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             <img
               ref={image}
               src={`data:image/${frame.data.startsWith("iVBOR") ? "png" : "jpeg"};base64,${frame.data}`}
-              alt="Live page in the agent's browser"
+              alt={i18n._("Live page in the agent's browser")}
               className="block h-auto w-full select-none"
               style={{ touchAction: canInput ? "none" : "auto" }}
               draggable={false}
@@ -443,11 +457,13 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
                 <GlobeIcon />
               </EmptyMedia>
               <EmptyTitle>
-                {browser.connected ? "Waiting for the page" : "Connecting to the browser"}
+                {browser.connected
+                  ? i18n._("Waiting for the page")
+                  : i18n._("Connecting to the browser")}
               </EmptyTitle>
               {!browser.connected ? (
                 <EmptyDescription>
-                  Reconnecting preserves the agent’s browser and saved sign-ins.
+                  <Trans>Reconnecting preserves the agent’s browser and saved sign-ins.</Trans>
                 </EmptyDescription>
               ) : null}
             </EmptyHeader>
@@ -463,7 +479,9 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           }}
         >
           <Field className="min-w-0 flex-1">
-            <FieldLabel htmlFor="browser-text">Type into the focused browser field</FieldLabel>
+            <FieldLabel htmlFor="browser-text">
+              <Trans>Type into the focused browser field</Trans>
+            </FieldLabel>
             <Textarea
               id="browser-text"
               value={typed}
@@ -472,16 +490,20 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             />
           </Field>
           <Button type="submit" size="sm" disabled={!typed || transferring}>
-            Send text
+            <Trans>Send text</Trans>
           </Button>
         </form>
       ) : null}
       {copiedText !== undefined && hasControl ? (
         <Field className="p-3">
-          <FieldLabel htmlFor="browser-copied-text">Copy from browser</FieldLabel>
+          <FieldLabel htmlFor="browser-copied-text">
+            <Trans>Copy from browser</Trans>
+          </FieldLabel>
           <p className="text-xs text-muted-foreground">
-            Clipboard access is blocked. Select this text and copy it using your device’s copy
-            command.
+            <Trans>
+              Clipboard access is blocked. Select this text and copy it using your device’s copy
+              command.
+            </Trans>
           </p>
           <Textarea
             id="browser-copied-text"
@@ -491,7 +513,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             onFocus={(event) => event.currentTarget.select()}
           />
           <Button variant="outline" size="sm" onClick={() => setCopiedText(undefined)}>
-            Dismiss
+            <Trans>Dismiss</Trans>
           </Button>
         </Field>
       ) : null}
@@ -500,7 +522,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
           <BrowserRequestCard
             control={control}
             hasControl={hasControl}
-            actionLabel={hasControl ? "Resume agent" : "Take control"}
+            actionLabel={hasControl ? i18n._("Resume agent") : i18n._("Take control")}
             disabled={controlDisabled}
             onAction={changeControl}
           />
@@ -508,7 +530,9 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2">
         <span className="text-xs text-muted-foreground">
-          {agent.shared ? "Shared agent · Shared sign-ins" : "Agent profile · Sign-ins retained"}
+          {agent.shared
+            ? i18n._("Shared agent · Shared sign-ins")
+            : i18n._("Agent profile · Sign-ins retained")}
         </span>
         <div className="flex flex-wrap items-center gap-1">
           <Button
@@ -518,7 +542,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             onClick={() => void transfer("copy")}
           >
             <CopyIcon data-icon="inline-start" />
-            Copy selection
+            <Trans>Copy selection</Trans>
           </Button>
           <Button
             variant="ghost"
@@ -527,7 +551,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             onClick={() => void transfer("paste")}
           >
             <ClipboardPasteIcon data-icon="inline-start" />
-            Paste
+            <Trans>Paste</Trans>
           </Button>
           <Button
             variant="ghost"
@@ -537,7 +561,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             aria-pressed={keyboardOpen}
           >
             <KeyboardIcon data-icon="inline-start" />
-            Keyboard
+            <Trans>Keyboard</Trans>
           </Button>
         </div>
       </div>

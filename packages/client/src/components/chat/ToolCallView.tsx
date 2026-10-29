@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import type { ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
 import type { NestedToolSlot, CodemodeToolDetails, CodemodeNestedCall } from "@carmel-agent/shared";
 import {
@@ -38,21 +40,22 @@ export function ToolCallView({
   aborted = false,
   nestedTools,
 }: ToolCallViewProps) {
+  const { i18n } = useLingui();
   const [open, setOpen] = useState(false);
   const detailsId = useId();
   const isError = result?.isError;
   const state = aborted
-    ? "Stopped"
+    ? i18n._("Stopped")
     : isError
-      ? "Error"
+      ? i18n._("Error")
       : result
-        ? "Complete"
+        ? i18n._("Complete")
         : pending
-          ? "Running"
+          ? i18n._("Running")
           : streaming
-            ? "Preparing"
-            : "Pending";
-  const active = state === "Preparing" || state === "Running";
+            ? i18n._("Preparing")
+            : i18n._("Pending");
+  const active = !aborted && !isError && !result && (streaming || pending);
   const presentation = toolPresentation(toolCall.name, toolCall.arguments);
   const ToolIcon =
     {
@@ -72,7 +75,19 @@ export function ToolCallView({
         "tool-call overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground",
         isError && "border-destructive/30",
       )}
-      data-state={state.toLowerCase()}
+      data-state={
+        aborted
+          ? "stopped"
+          : isError
+            ? "error"
+            : result
+              ? "complete"
+              : pending
+                ? "running"
+                : streaming
+                  ? "preparing"
+                  : "pending"
+      }
     >
       <button
         type="button"
@@ -114,7 +129,7 @@ export function ToolCallView({
           ) : result ? (
             <CheckIcon aria-hidden="true" className="size-3.5 text-success" />
           ) : null}
-          <span className={cn(state === "Complete" && "sr-only")}>{state}</span>
+          <span className={cn(Boolean(result) && !isError && !aborted && "sr-only")}>{state}</span>
           <ChevronRightIcon
             aria-hidden="true"
             className={cn(
@@ -131,7 +146,7 @@ export function ToolCallView({
         >
           <div className="break-all font-mono text-xs text-muted-foreground">{toolCall.name}</div>
           <CodePanel
-            label="Input"
+            label={i18n._("Input")}
             value={toolCall.argumentsError ?? formatJson(toolCall.arguments)}
             language={toolCall.argumentsError ? "text" : "json"}
           />
@@ -141,15 +156,21 @@ export function ToolCallView({
             stopped={aborted || Boolean(result)}
           />
           <CodePanel
-            label="Output"
-            value={aborted ? "Tool call aborted." : formatToolResult(result)}
+            label={i18n._("Output")}
+            value={aborted ? i18n._("Tool call aborted.") : formatToolResult(result)}
           />
           {images.length > 0 ? (
             <div className="flex min-w-0 flex-col gap-1">
-              <div className="text-xs font-medium text-muted-foreground">Images</div>
+              <div className="text-xs font-medium text-muted-foreground">
+                <Trans>Images</Trans>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {images.map((image, index) => (
-                  <ZoomableImage key={`${image.src}:${index}`} src={image.src} alt="Tool result" />
+                  <ZoomableImage
+                    key={`${image.src}:${index}`}
+                    src={image.src}
+                    alt={i18n._("Tool result")}
+                  />
                 ))}
               </div>
             </div>
@@ -163,7 +184,7 @@ export function ToolCallView({
 function CodePanel({
   label,
   value,
-  language = label === "Input" ? "json" : "text",
+  language = "text",
 }: {
   label: string;
   value: string;
@@ -196,11 +217,12 @@ function NestedCalls({
   slots: readonly NestedToolSlot[];
   stopped: boolean;
 }) {
+  const { i18n } = useLingui();
   if (!calls?.length && !slots.length) return null;
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div className="text-xs font-medium text-muted-foreground">
-        Nested tool calls ({calls?.length ?? slots.length})
+        <Trans>Nested tool calls ({calls?.length ?? slots.length})</Trans>
       </div>
       {(calls ?? slots).map((call) => {
         const saved = "id" in call;
@@ -230,12 +252,12 @@ function NestedCalls({
               ) : null}
               <Badge variant={state === "error" ? "destructive" : "secondary"}>
                 {state === "running"
-                  ? "Running"
+                  ? i18n._("Running")
                   : state === "ok"
-                    ? "Complete"
+                    ? i18n._("Complete")
                     : state === "cancelled"
-                      ? "Cancelled"
-                      : "Error"}
+                      ? i18n._("Cancelled")
+                      : i18n._("Error")}
               </Badge>
             </span>
           </div>

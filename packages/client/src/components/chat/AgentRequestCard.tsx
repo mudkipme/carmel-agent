@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -48,10 +49,11 @@ export function AgentRequestCard({
 
 /** Active requests stay beside the composer rather than scrolling with history. */
 export function AgentRequestArea({ children }: { children: ReactNode }) {
+  const { i18n } = useLingui();
   if (!children) return null;
   return (
     <section
-      aria-label="Agent requests"
+      aria-label={i18n._("Agent requests")}
       data-agent-request-area
       className="max-h-[55%] min-h-0 shrink-0 overflow-y-auto px-3 py-3 sm:px-4"
     >

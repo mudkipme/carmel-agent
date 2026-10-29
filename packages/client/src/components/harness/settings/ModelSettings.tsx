@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { CheckIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { SectionHeader } from "@/components/harness/form-primitives";
@@ -35,6 +37,7 @@ export function ModelSettings({
   updating: boolean;
   status: { tone: "muted" | "destructive"; message: string } | null;
 }) {
+  const { i18n } = useLingui();
   const activeUserId = useHarnessStore((state) => state.activeUserId);
   const management = useModelManagement(modelRefs, providerConfigs);
 
@@ -42,11 +45,15 @@ export function ModelSettings({
     <div className="flex min-w-0 flex-col gap-6">
       <section className="grid min-w-0 gap-4">
         <SectionHeader
-          title="Fast Task Model"
-          description="Used for lightweight background tasks such as session title generation."
+          title={i18n._("Fast Task Model")}
+          description={i18n._(
+            "Used for lightweight background tasks such as session title generation.",
+          )}
         />
         <Field>
-          <FieldLabel htmlFor="fast-task-model">Model</FieldLabel>
+          <FieldLabel htmlFor="fast-task-model">
+            <Trans>Model</Trans>
+          </FieldLabel>
           <Select
             value={fastTaskModelRefId || "__session_model__"}
             disabled={updating}
@@ -59,7 +66,9 @@ export function ModelSettings({
             </SelectTrigger>
             <SelectContent className="max-w-[calc(100vw-2rem)]">
               <SelectGroup>
-                <SelectItem value="__session_model__">Use current session model</SelectItem>
+                <SelectItem value="__session_model__">
+                  <Trans>Use current session model</Trans>
+                </SelectItem>
                 {modelRefs.map((model) => (
                   <SelectItem key={model.id} value={model.id}>
                     {model.label}
@@ -73,7 +82,7 @@ export function ModelSettings({
       </section>
 
       <section className="grid min-w-0 gap-4 border-t pt-6">
-        <SectionHeader title="Model Management" />
+        <SectionHeader title={i18n._("Model Management")} />
         <div className="grid gap-2">
           {modelRefs.map((model) => {
             const providerConfig = providerConfigs.find(
@@ -88,11 +97,15 @@ export function ModelSettings({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 truncate">
                     <span className="truncate text-sm font-medium">{model.label}</span>
-                    {model.shared ? <Badge variant="secondary">shared</Badge> : null}
+                    {model.shared ? (
+                      <Badge variant="secondary">
+                        <Trans>shared</Trans>
+                      </Badge>
+                    ) : null}
                   </div>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {providerConfig?.label ?? (owned ? model.provider : "Shared provider")} ·{" "}
-                    {model.modelId}
+                    {providerConfig?.label ?? (owned ? model.provider : i18n._("Shared provider"))}{" "}
+                    · {model.modelId}
                   </p>
                 </div>
                 {owned ? (
@@ -104,13 +117,13 @@ export function ModelSettings({
                       disabled={updating}
                       onClick={() => onModelChange({ ...model, shared: !model.shared })}
                     >
-                      {model.shared ? "Shared" : "Share"}
+                      {model.shared ? i18n._("Shared") : i18n._("Share")}
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon-sm"
                       onClick={() => void management.removeModel(model)}
-                      title="Delete model"
+                      title={i18n._("Delete model")}
                     >
                       <Trash2Icon />
                     </Button>
@@ -133,15 +146,15 @@ export function ModelSettings({
       </section>
 
       <section className="grid min-w-0 gap-4 border-t pt-6">
-        <SectionHeader title="Add Model" />
+        <SectionHeader title={i18n._("Add Model")} />
         <div className="grid gap-3">
           <Select
             value={management.providerConfigId}
             disabled={providerConfigs.length === 0}
             onValueChange={management.selectProviderConfig}
           >
-            <SelectTrigger aria-label="Model provider" className="w-full">
-              <SelectValue placeholder="Choose a provider" />
+            <SelectTrigger aria-label={i18n._("Model provider")} className="w-full">
+              <SelectValue placeholder={i18n._("Choose a provider")} />
             </SelectTrigger>
             <SelectContent className="max-w-[calc(100vw-2rem)]">
               <SelectGroup>
@@ -161,7 +174,9 @@ export function ModelSettings({
           />
           {management.isOllamaProvider ? (
             <Field>
-              <FieldLabel>Model ID</FieldLabel>
+              <FieldLabel>
+                <Trans>Model ID</Trans>
+              </FieldLabel>
               <Input
                 value={management.modelId}
                 placeholder="llama3.2:latest"
@@ -176,7 +191,7 @@ export function ModelSettings({
             onClick={() => void management.loadProviderModels()}
             disabled={management.loadingProviderModels || !management.selectedProviderConfig}
           >
-            {management.loadingProviderModels ? "Refreshing..." : "Refresh models"}
+            {management.loadingProviderModels ? i18n._("Refreshing...") : i18n._("Refresh models")}
           </Button>
           {management.providerModelsError ? (
             <p className="text-xs text-destructive">{management.providerModelsError}</p>
@@ -186,7 +201,7 @@ export function ModelSettings({
             onClick={() => void management.addModel()}
             disabled={!management.modelId.trim() || !management.selectedProviderConfig}
           >
-            {management.existingModel ? "Already configured" : "Add model"}
+            {management.existingModel ? i18n._("Already configured") : i18n._("Add model")}
           </Button>
         </div>
       </section>
@@ -203,6 +218,7 @@ function ModelPicker({
   value: string;
   onValueChange: (value: string) => void;
 }) {
+  const { i18n } = useLingui();
   const [query, setQuery] = useState("");
   const selectedModel = models.find((model) => model.id === value);
   const normalizedQuery = query.trim().toLowerCase();
@@ -222,8 +238,8 @@ function ModelPicker({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            aria-label="Search models"
-            placeholder={`Search ${models.length} models...`}
+            aria-label={i18n._("Search models")}
+            placeholder={i18n._("Search {length} models...", { length: models.length })}
             className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
           />
         </div>
@@ -248,14 +264,16 @@ function ModelPicker({
             ))
           ) : (
             <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-              No models found.
+              <Trans>No models found.</Trans>
             </div>
           )}
         </div>
       </div>
       {selectedModel ? (
         <p className="truncate text-xs text-muted-foreground">
-          Selected: {selectedModel.name} · {selectedModel.id}
+          <Trans>
+            Selected: {selectedModel.name} · {selectedModel.id}
+          </Trans>
         </p>
       ) : null}
     </div>

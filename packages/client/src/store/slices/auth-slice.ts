@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import type { StoreApi } from "zustand";
 import { ApiError, api } from "@/lib/api";
 import { oidcErrorMessage, takeOidcErrorCode } from "@/lib/auth-errors";
@@ -35,7 +36,7 @@ export function createAuthSlice(
         }
         set({
           status: "error",
-          error: errorMessage(error, "Something went wrong while loading your workspace."),
+          error: errorMessage(error, i18n._("Something went wrong while loading your workspace.")),
         });
       }
     },
@@ -46,7 +47,7 @@ export function createAuthSlice(
       } catch (error) {
         set((state) => ({
           ...resetState({ status: "setup" }, state),
-          error: errorMessage(error, "Setup failed"),
+          error: errorMessage(error, i18n._("Setup failed")),
         }));
       }
     },
@@ -57,7 +58,7 @@ export function createAuthSlice(
       } catch (error) {
         set((state) => ({
           ...resetState({ status: "unauthenticated" }, state),
-          error: errorMessage(error, "Login failed"),
+          error: errorMessage(error, i18n._("Login failed")),
         }));
       }
     },

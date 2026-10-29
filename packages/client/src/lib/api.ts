@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import type {
   KnowledgeOverview,
   KnowledgeSettings,
@@ -103,7 +104,7 @@ export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
 /** Build the `ApiError` for a failed response, unwrapping the server's `{error}` body. */
 export async function apiError(
   response: Response,
-  fallback = `Request failed: ${response.status}`,
+  fallback = i18n._("Request failed: {status}", { status: response.status }),
 ) {
   const body = await response.text().catch(() => "");
   return new ApiError(readErrorMessage(body) || fallback, response.status);
@@ -142,7 +143,7 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
 
   return new Promise<AgentFileEntry>((resolve, reject) => {
     if (options.signal?.aborted) {
-      reject(new ApiError("Upload cancelled", 0));
+      reject(new ApiError(i18n._("Upload cancelled"), 0));
       return;
     }
     const xhr = new XMLHttpRequest();
@@ -165,13 +166,16 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
       }
       reject(
         new ApiError(
-          readErrorMessage(xhr.responseText) || `Upload failed: ${xhr.status}`,
+          readErrorMessage(xhr.responseText) ||
+            i18n._("Upload failed: {status}", { status: xhr.status }),
           xhr.status,
         ),
       );
     });
-    xhr.addEventListener("error", () => reject(new ApiError(`Unable to upload ${path}`, 0)));
-    xhr.addEventListener("abort", () => reject(new ApiError("Upload cancelled", 0)));
+    xhr.addEventListener("error", () =>
+      reject(new ApiError(i18n._("Unable to upload {path}", { path }), 0)),
+    );
+    xhr.addEventListener("abort", () => reject(new ApiError(i18n._("Upload cancelled"), 0)));
     const abort = () => xhr.abort();
     options.signal?.addEventListener("abort", abort, { once: true });
     xhr.addEventListener("loadend", () => options.signal?.removeEventListener("abort", abort), {

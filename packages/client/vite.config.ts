@@ -1,9 +1,10 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { lingui } from "@lingui/vite-plugin";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [lingui({ macroTransform: true }), react(), tailwindcss()],
   server: {
     proxy: {
       // The terminal upgrades to a WebSocket, which the default proxy entry

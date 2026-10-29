@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { useEffect, useState } from "react";
 import type { User, UserRole } from "@carmel-agent/shared";
 import { api } from "@/lib/api";
@@ -5,6 +6,7 @@ import { confirmAction } from "@/lib/action-dialogs";
 import { errorMessage } from "@/lib/errors";
 
 export function useUserAdministration() {
+  const { i18n } = useLingui();
   const [users, setUsers] = useState<User[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [username, setUsername] = useState("");
@@ -23,13 +25,13 @@ export function useUserAdministration() {
         if (!cancelled) setUsers(list);
       },
       (error: unknown) => {
-        if (!cancelled) setLoadError(errorMessage(error, "Unable to load users"));
+        if (!cancelled) setLoadError(errorMessage(error, i18n._("Unable to load users")));
       },
     );
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [i18n]);
 
   const changeRole = async (userId: string, nextRole: UserRole) => {
     setStatus(null);
@@ -37,7 +39,7 @@ export function useUserAdministration() {
       const updated = await api.updateUserRole(userId, nextRole);
       setUsers((current) => current.map((item) => (item.id === userId ? updated : item)));
     } catch (error) {
-      setStatus(errorMessage(error, "Unable to update role."));
+      setStatus(errorMessage(error, i18n._("Unable to update role.")));
     }
   };
 
@@ -47,9 +49,9 @@ export function useUserAdministration() {
       await api.resetUserPassword(userId, resetPassword);
       setResetUserId(null);
       setResetPassword("");
-      setStatus("Password reset.");
+      setStatus(i18n._("Password reset."));
     } catch (error) {
-      setStatus(errorMessage(error, "Unable to reset password."));
+      setStatus(errorMessage(error, i18n._("Unable to reset password.")));
     }
   };
 
@@ -60,10 +62,11 @@ export function useUserAdministration() {
 
   const removeUser = async (user: User) => {
     const confirmed = await confirmAction({
-      title: `Delete ${user.username ?? user.name}?`,
-      description:
+      title: i18n._("Delete {value}?", { value: user.username ?? user.name }),
+      description: i18n._(
         "Their agents and models will transfer to your account; their sessions will be deleted.",
-      actionLabel: "Delete user",
+      ),
+      actionLabel: i18n._("Delete user"),
     });
     if (!confirmed) return;
     setStatus(null);
@@ -71,7 +74,7 @@ export function useUserAdministration() {
       await api.deleteUser(user.id);
       setUsers((current) => current.filter((item) => item.id !== user.id));
     } catch (error) {
-      setStatus(errorMessage(error, "Unable to delete user."));
+      setStatus(errorMessage(error, i18n._("Unable to delete user.")));
     }
   };
 
@@ -85,9 +88,9 @@ export function useUserAdministration() {
       setEmail("");
       setPassword("");
       setRole("user");
-      setStatus(`Created ${created.username}.`);
+      setStatus(i18n._("Created {username}.", { username: created.username }));
     } catch (error) {
-      setStatus(errorMessage(error, "Unable to create user."));
+      setStatus(errorMessage(error, i18n._("Unable to create user.")));
     } finally {
       setCreating(false);
     }

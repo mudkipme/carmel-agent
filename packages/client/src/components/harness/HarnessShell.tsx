@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { AgentSessionsPage } from "./AgentSessionsPage";
 import { ConversationSwitcher } from "./shell/ConversationSwitcher";
 import { TasksOverview } from "./tasks/TasksOverview";
@@ -89,6 +91,7 @@ export function HarnessShell({
   view?: ContentView;
   homeView?: boolean;
 }) {
+  const { i18n } = useLingui();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -447,7 +450,7 @@ export function HarnessShell({
     <main className="relative flex h-[100dvh] min-h-0 overflow-hidden bg-background text-foreground">
       <button
         type="button"
-        aria-label="Close sidebar"
+        aria-label={i18n._("Close sidebar")}
         inert={!sidebarOpen}
         className={cn(
           /* visibility rides the same transition so the scrim fades out fully
@@ -482,7 +485,7 @@ export function HarnessShell({
           sidebarOpen={sidebarOpen}
           activeAgent={activeAgent}
           activeSession={activeSessionMetadata}
-          issueTitle={activeIssueId === "new" ? "New task" : activeIssue?.title}
+          issueTitle={activeIssueId === "new" ? i18n._("New task") : activeIssue?.title}
           taskHeaderRef={activeIssueId && activeIssueId !== "new" ? setTaskHeaderTarget : undefined}
           contentView={view}
           homeView={homeView}
@@ -506,7 +509,7 @@ export function HarnessShell({
                           ),
                         ),
                       )
-                      .catch((error) => showError("Unable to open Home", error));
+                      .catch((error) => showError(i18n._("Unable to open Home"), error));
                   } else {
                     navigate(
                       workspaceChatPath(
@@ -534,7 +537,7 @@ export function HarnessShell({
         {homeView && homeResource.error ? (
           <ResourceError
             error={homeResource.error}
-            title="Unable to open Home"
+            title={i18n._("Unable to open Home")}
             onRetry={homeResource.refresh}
           />
         ) : null}
@@ -542,7 +545,7 @@ export function HarnessShell({
           <div className="p-3">
             <ResourceError
               error={activity.error}
-              title="Unable to refresh session status"
+              title={i18n._("Unable to refresh session status")}
               onRetry={activity.refresh}
             />
           </div>
@@ -620,14 +623,18 @@ export function HarnessShell({
             ) : (
               <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
                 {route.kind === "empty"
-                  ? "Create an agent to start chatting."
-                  : "Loading session..."}
+                  ? i18n._("Create an agent to start chatting.")
+                  : i18n._("Loading session...")}
               </div>
             )
           }
         >
           <Suspense
-            fallback={<div className="p-6 text-sm text-muted-foreground">Loading {view}…</div>}
+            fallback={
+              <div className="p-6 text-sm text-muted-foreground">
+                <Trans>Loading {view}…</Trans>
+              </div>
+            }
           >
             {view === "terminal" && canOpenTerminal && activeAgent ? (
               <TerminalPanel key={activeAgent.id} agent={activeAgent} />

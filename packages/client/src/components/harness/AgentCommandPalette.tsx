@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { CommandIcon, FileTextIcon, SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ type AgentCommandPaletteProps = {
 };
 
 export function AgentCommandPalette({ agent, onInsert, className }: AgentCommandPaletteProps) {
+  const { i18n } = useLingui();
   const [open, setOpen] = useState(false);
   const [payload, setPayload] = useState<AgentCommandPayload>({
     commands: [],
@@ -89,8 +92,8 @@ export function AgentCommandPalette({ agent, onInsert, className }: AgentCommand
         className={className}
         variant="ghost"
         size="icon-sm"
-        title="Commands"
-        aria-label="Commands"
+        title={i18n._("Commands")}
+        aria-label={i18n._("Commands")}
         onClick={() => setPaletteOpen(true)}
       >
         <CommandIcon />
@@ -98,14 +101,16 @@ export function AgentCommandPalette({ agent, onInsert, className }: AgentCommand
       <CommandDialog
         open={open}
         onOpenChange={setPaletteOpen}
-        title="Command Palette"
-        description="Insert a prompt template or skill command."
+        title={i18n._("Command Palette")}
+        description={i18n._("Insert a prompt template or skill command.")}
       >
-        <CommandInput placeholder="Search templates and skills..." />
+        <CommandInput placeholder={i18n._("Search templates and skills...")} />
         <CommandList>
-          <CommandEmpty>{loading ? "Loading..." : "No commands found."}</CommandEmpty>
+          <CommandEmpty>
+            {loading ? i18n._("Loading...") : i18n._("No commands found.")}
+          </CommandEmpty>
           <CommandSection
-            heading="Prompt Commands"
+            heading={i18n._("Prompt Commands")}
             commands={groupedCommands.prompt}
             icon={FileTextIcon}
             onSelect={insertCommand}
@@ -114,14 +119,16 @@ export function AgentCommandPalette({ agent, onInsert, className }: AgentCommand
             <CommandSeparator />
           ) : null}
           <CommandSection
-            heading="Skill Commands"
+            heading={i18n._("Skill Commands")}
             commands={groupedCommands.skill}
             icon={SparklesIcon}
             onSelect={insertCommand}
           />
           {!loading && !hasCommands ? (
-            <CommandGroup heading="Commands">
-              <CommandItem disabled>No slash commands are available for this agent.</CommandItem>
+            <CommandGroup heading={i18n._("Commands")}>
+              <CommandItem disabled>
+                <Trans>No slash commands are available for this agent.</Trans>
+              </CommandItem>
             </CommandGroup>
           ) : null}
         </CommandList>

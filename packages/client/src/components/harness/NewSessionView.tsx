@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { clampThinkingLevel, type ImageContent } from "@earendil-works/pi-ai";
 import { useMemo, useRef, useState, type ReactNode } from "react";
@@ -38,6 +40,7 @@ export function NewSessionView({
   onOpenSession,
   browserRequest,
 }: NewSessionViewProps) {
+  const { i18n } = useLingui();
   const navigate = useNavigate();
   const createSession = useHarnessStore((state) => state.createSession);
   const activeUserId = useHarnessStore((state) => state.activeUserId);
@@ -60,7 +63,7 @@ export function NewSessionView({
   if (!modelRef || !model) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-        Add a model in Settings to start chatting.
+        <Trans>Add a model in Settings to start chatting.</Trans>
       </div>
     );
   }
@@ -71,7 +74,7 @@ export function NewSessionView({
     references?: MessageReference[],
   ): Promise<PromptOutcome> => {
     if (creatingRef.current)
-      return { status: "rejected", error: "A session is already being created." };
+      return { status: "rejected", error: i18n._("A session is already being created.") };
     creatingRef.current = true;
     try {
       const session = await createSession({
@@ -85,7 +88,7 @@ export function NewSessionView({
       return { status: "accepted" };
     } catch (error) {
       creatingRef.current = false;
-      showError("Unable to create session", error);
+      showError(i18n._("Unable to create session"), error);
       return { status: "rejected", error: errorMessage(error) };
     }
   };

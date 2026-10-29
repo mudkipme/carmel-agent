@@ -1,3 +1,6 @@
+import { priorityLabel } from "@/lib/labels";
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { type FormEvent } from "react";
 import type { IssueCreateCommand, IssuePriority } from "@carmel-agent/shared";
 import { useSessionDraft } from "@/hooks/use-session-draft";
@@ -26,6 +29,7 @@ export function TaskBriefForm({
   onSave: (draft: IssueCreateCommand) => void;
   onCancel?: () => void;
 }) {
+  const { i18n } = useLingui();
   const [draft, setDraft] = useSessionDraft(
     draftKey,
     {
@@ -60,7 +64,9 @@ export function TaskBriefForm({
     <form onSubmit={submit} className="flex flex-col gap-6">
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="issue-title">Title</FieldLabel>
+          <FieldLabel htmlFor="issue-title">
+            <Trans>Title</Trans>
+          </FieldLabel>
           <Input
             id="issue-title"
             autoFocus
@@ -68,12 +74,15 @@ export function TaskBriefForm({
             maxLength={200}
             value={title}
             onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            placeholder="What needs to change?"
+            placeholder={i18n._("What needs to change?")}
           />
         </Field>
         <Field>
           <FieldLabel htmlFor="issue-description">
-            Details <span className="text-muted-foreground">(optional)</span>
+            <Trans>Details</Trans>{" "}
+            <span className="text-muted-foreground">
+              <Trans>(optional)</Trans>
+            </span>
           </FieldLabel>
           <Textarea
             id="issue-description"
@@ -81,28 +90,32 @@ export function TaskBriefForm({
             className="min-h-40"
             value={description}
             onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            placeholder="Describe the outcome, context, and constraints."
+            placeholder={i18n._("Describe the outcome, context, and constraints.")}
           />
         </Field>
         <details className="rounded-lg border p-4">
           <summary className="cursor-pointer text-sm text-muted-foreground">
-            Acceptance criteria & priority
+            <Trans>Acceptance criteria & priority</Trans>
           </summary>
           <div className="mt-4 flex flex-col gap-4">
             {" "}
             <Field>
-              <FieldLabel htmlFor="issue-criteria">Acceptance criteria</FieldLabel>
+              <FieldLabel htmlFor="issue-criteria">
+                <Trans>Acceptance criteria</Trans>
+              </FieldLabel>
               <Textarea
                 id="issue-criteria"
                 className="min-h-24"
                 value={criteria}
                 onChange={(e) => setDraft({ ...draft, criteria: e.target.value })}
-                placeholder="One criterion per line"
+                placeholder={i18n._("One criterion per line")}
               />
             </Field>
             <div className="flex flex-wrap gap-4">
               <Field className="w-40">
-                <FieldLabel htmlFor="issue-priority">Priority</FieldLabel>
+                <FieldLabel htmlFor="issue-priority">
+                  <Trans>Priority</Trans>
+                </FieldLabel>
                 <Select
                   value={priority}
                   onValueChange={(v) => setDraft({ ...draft, priority: v as IssuePriority })}
@@ -112,9 +125,9 @@ export function TaskBriefForm({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {["low", "normal", "high", "urgent"].map((v) => (
+                      {(["low", "normal", "high", "urgent"] as const).map((v) => (
                         <SelectItem key={v} value={v}>
-                          {v[0]!.toUpperCase() + v.slice(1)}
+                          {priorityLabel(v)}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -128,7 +141,7 @@ export function TaskBriefForm({
       <div className="flex items-center justify-end gap-2">
         {onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
         ) : null}
         <Button
@@ -136,11 +149,11 @@ export function TaskBriefForm({
           variant={initial ? "default" : "outline"}
           disabled={busy || !title.trim()}
         >
-          {busy ? "Saving…" : initial ? "Save brief" : "Save to backlog"}
+          {busy ? i18n._("Saving…") : initial ? i18n._("Save brief") : i18n._("Save to backlog")}
         </Button>
         {!initial ? (
           <Button type="submit" name="queue" disabled={busy || !title.trim()}>
-            Queue work
+            <Trans>Queue work</Trans>
           </Button>
         ) : null}
       </div>

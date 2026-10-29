@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { CheckIcon } from "lucide-react";
 import type { ModelRef, ProviderConfig } from "@carmel-agent/shared";
 import {
@@ -24,18 +26,21 @@ export function ModelCommandDialog({
   selectedModelRefId: string;
   onSelect: (modelRef: ModelRef) => void;
 }) {
+  const { i18n } = useLingui();
   return (
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Select Model"
-      description="Select one of the models configured in settings."
+      title={i18n._("Select Model")}
+      description={i18n._("Select one of the models configured in settings.")}
       className="w-[calc(100vw-1.5rem)] max-w-md sm:max-w-lg"
     >
-      <CommandInput placeholder="Search configured models..." />
+      <CommandInput placeholder={i18n._("Search configured models...")} />
       <CommandList>
-        <CommandEmpty>No configured models found.</CommandEmpty>
-        <CommandGroup heading="Models">
+        <CommandEmpty>
+          <Trans>No configured models found.</Trans>
+        </CommandEmpty>
+        <CommandGroup heading={i18n._("Models")}>
           {modelRefs.map((configuredModel) => {
             const configuredProvider = providerConfigs.find(
               (item) => item.id === configuredModel.providerConfigId,

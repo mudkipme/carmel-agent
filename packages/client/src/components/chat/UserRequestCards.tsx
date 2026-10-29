@@ -1,3 +1,6 @@
+import { statusLabel } from "@/lib/labels";
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useEffect, useState } from "react";
 import type { UserRequest, SessionSecret } from "@carmel-agent/shared";
 import { KeyRoundIcon, MessageCircleQuestionIcon } from "lucide-react";
@@ -58,6 +61,7 @@ function UserRequestCard({
   onChanged: () => Promise<void>;
   onContinue: () => Promise<unknown>;
 }) {
+  const { i18n } = useLingui();
   const [selected, setSelected] = useState<string[]>([]);
   const [text, setText] = useState("");
   // Component memory only: never shared with the composer, drafts, or client store.
@@ -92,7 +96,7 @@ function UserRequestCard({
       await onChanged();
       if (resume) await onContinue();
     } catch (error) {
-      setError(errorMessage(error, "Unable to respond to this request."));
+      setError(errorMessage(error, i18n._("Unable to respond to this request.")));
     } finally {
       setBusy(false);
     }
@@ -102,8 +106,8 @@ function UserRequestCard({
     <AgentRequestCard
       label={
         request.kind === "secret"
-          ? `Credential request: ${request.secret?.name}`
-          : "Question from agent"
+          ? i18n._("Credential request: {value}", { value: request.secret?.name })
+          : i18n._("Question from agent")
       }
       kind={request.kind}
       icon={
@@ -115,14 +119,18 @@ function UserRequestCard({
       }
       title={request.kind === "secret" ? request.secret?.name : request.question?.question}
       status={
-        pending ? "Waiting for you" : request.status === "answered" ? "Answered" : request.status
+        pending
+          ? i18n._("Waiting for you")
+          : request.status === "answered"
+            ? i18n._("Answered")
+            : statusLabel(request.status)
       }
       description={
         request.kind === "secret"
           ? request.secret?.reason
           : pending
-            ? "Choose an option or enter your answer."
-            : "Your response is saved with this conversation."
+            ? i18n._("Choose an option or enter your answer.")
+            : i18n._("Your response is saved with this conversation.")
       }
       actions={
         pending ? (
@@ -136,7 +144,7 @@ function UserRequestCard({
                 (request.kind === "secret" ? !secretValue : !selected.length && !text.trim())
               }
             >
-              {request.kind === "secret" ? "Provide credential" : "Submit answer"}
+              {request.kind === "secret" ? i18n._("Provide credential") : i18n._("Submit answer")}
             </Button>
             {existing ? (
               <Button
@@ -147,7 +155,7 @@ function UserRequestCard({
                   void act(() => api.useRequestedSecret(request.sessionId, request.id), true)
                 }
               >
-                Use saved credential
+                <Trans>Use saved credential</Trans>
               </Button>
             ) : null}
             <Button
@@ -158,14 +166,14 @@ function UserRequestCard({
                 void act(() => api.cancelUserRequest(request.sessionId, request.id), true)
               }
             >
-              Decline
+              <Trans>Decline</Trans>
             </Button>
           </>
         ) : (
           <>
             {request.delivery === "pending" ? (
               <Button size="sm" disabled={locked} onClick={() => void act(onContinue)}>
-                Resume agent
+                <Trans>Resume agent</Trans>
               </Button>
             ) : null}
             {request.credential ? (
@@ -184,8 +192,8 @@ function UserRequestCard({
                     }
                   >
                     {request.credential.scope === "session"
-                      ? "Save for this agent"
-                      : "Use in this session only"}
+                      ? i18n._("Save for this agent")
+                      : i18n._("Use in this session only")}
                   </Button>
                 ) : null}
                 {request.credential.scope === "session" || canManageAgentSecrets ? (
@@ -199,7 +207,7 @@ function UserRequestCard({
                       )
                     }
                   >
-                    Revoke credential
+                    <Trans>Revoke credential</Trans>
                   </Button>
                 ) : null}
               </>
@@ -226,7 +234,9 @@ function UserRequestCard({
           <FieldGroup>
             {request.kind === "secret" ? (
               <Field data-invalid={Boolean(error)}>
-                <FieldLabel htmlFor={`${inputId}-secret`}>Secret value</FieldLabel>
+                <FieldLabel htmlFor={`${inputId}-secret`}>
+                  <Trans>Secret value</Trans>
+                </FieldLabel>
                 <Textarea
                   id={`${inputId}-secret`}
                   className="max-h-48 font-mono"
@@ -240,15 +250,19 @@ function UserRequestCard({
                   onChange={(event) => setSecretValue(event.target.value)}
                 />
                 <FieldDescription>
-                  Available to this session’s shell. The submitted value is stored separately and is
-                  not sent as a chat message.
+                  <Trans>
+                    Available to this session’s shell. The submitted value is stored separately and
+                    is not sent as a chat message.
+                  </Trans>
                 </FieldDescription>
               </Field>
             ) : (
               <>
                 {request.question!.options.length ? (
                   <Field>
-                    <FieldLabel>Options</FieldLabel>
+                    <FieldLabel>
+                      <Trans>Options</Trans>
+                    </FieldLabel>
                     {request.question!.multiple ? (
                       <ToggleGroup
                         type="multiple"
@@ -258,7 +272,7 @@ function UserRequestCard({
                         onValueChange={setSelected}
                         disabled={locked}
                         className="flex-wrap"
-                        aria-label="Answer options"
+                        aria-label={i18n._("Answer options")}
                       >
                         {request.question!.options.map((option) => (
                           <ToggleGroupItem
@@ -280,7 +294,7 @@ function UserRequestCard({
                         onValueChange={(value) => setSelected(value ? [value] : [])}
                         disabled={locked}
                         className="flex-wrap"
-                        aria-label="Answer options"
+                        aria-label={i18n._("Answer options")}
                       >
                         {request.question!.options.map((option) => (
                           <ToggleGroupItem
@@ -298,7 +312,9 @@ function UserRequestCard({
                 ) : null}
                 {request.question!.allowFreeText ? (
                   <Field data-invalid={Boolean(error)}>
-                    <FieldLabel htmlFor={`${inputId}-text`}>Your answer</FieldLabel>
+                    <FieldLabel htmlFor={`${inputId}-text`}>
+                      <Trans>Your answer</Trans>
+                    </FieldLabel>
                     <Textarea
                       id={`${inputId}-text`}
                       value={text}
@@ -316,10 +332,15 @@ function UserRequestCard({
       ) : request.kind === "secret" ? (
         <p className="text-sm text-muted-foreground">
           {request.credential
-            ? `Credential provided · ${request.credential.scope === "agent" ? "Saved for this agent" : "This session only"}`
+            ? i18n._("Credential provided · {value}", {
+                value:
+                  request.credential.scope === "agent"
+                    ? i18n._("Saved for this agent")
+                    : i18n._("This session only"),
+              })
             : request.status === "answered"
-              ? "Credential revoked."
-              : "No credential was provided."}
+              ? i18n._("Credential revoked.")
+              : i18n._("No credential was provided.")}
         </p>
       ) : request.answer ? (
         <p className="text-sm whitespace-pre-wrap">
@@ -335,7 +356,7 @@ function UserRequestCard({
       ) : null}
       {sharedAgent && request.kind === "secret" && request.credential?.scope === "agent" ? (
         <p className="mt-2 text-sm text-muted-foreground">
-          People who can run this shared agent can use this credential.
+          <Trans>People who can run this shared agent can use this credential.</Trans>
         </p>
       ) : null}
       {error ? (

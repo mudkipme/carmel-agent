@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { SubtaskRedirect } from "@/components/harness/SubtaskRedirect";
 import { useEffect } from "react";
 import {
@@ -52,6 +53,7 @@ function TasksRoute() {
 }
 
 export default function App() {
+  const { i18n } = useLingui();
   const status = useHarnessStore((state) => state.status);
   const error = useHarnessStore((state) => state.error);
   const bootstrap = useHarnessStore((state) => state.bootstrap);
@@ -93,10 +95,12 @@ export default function App() {
   if (status === "error") {
     return (
       <Splash
-        title="Can't reach Carmel Agent"
+        title={i18n._("Can't reach Carmel Agent")}
         detail={
           error ??
-          "We couldn't connect to the server. Check that it's running, then reload this page."
+          i18n._(
+            "We couldn't connect to the server. Check that it's running, then reload this page.",
+          )
         }
       />
     );

@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useElementWidth } from "@/hooks/use-element-width";
 import { Maximize2Icon, Columns2Icon, XIcon } from "lucide-react";
@@ -17,10 +18,10 @@ import {
 } from "@/lib/workspace-layout";
 
 const LABELS: Record<WorkspaceView, string> = {
-  files: "Files",
-  changes: "Changes",
-  terminal: "Terminal",
-  browser: "Browser",
+  files: /*i18n*/ "Files",
+  changes: /*i18n*/ "Changes",
+  terminal: /*i18n*/ "Terminal",
+  browser: /*i18n*/ "Browser",
 };
 
 /** The two content slots stay in place when a pane expands or the window narrows. */
@@ -39,6 +40,7 @@ export function WorkspaceLayout({
   legacyMode?: WorkspaceMode;
   onSplitChange: (split: boolean) => void;
 }) {
+  const { i18n } = useLingui();
   const [host, available] = useElementWidth<HTMLDivElement>();
   const [mode, setMode] = useState<WorkspaceMode>(() =>
     readWorkspacePreference(WORKSPACE_MODE_KEY) === "full" ? "full" : "split",
@@ -91,7 +93,7 @@ export function WorkspaceLayout({
       <section
         id="workspace-conversation"
         className={cn("min-h-0 min-w-0 flex-1", view && !split && "hidden")}
-        aria-label="Conversation"
+        aria-label={i18n._("Conversation")}
       >
         {primary}
       </section>
@@ -99,13 +101,13 @@ export function WorkspaceLayout({
         <button
           type="button"
           role="separator"
-          aria-label="Resize workspace pane"
+          aria-label={i18n._("Resize workspace pane")}
           aria-orientation="vertical"
           aria-controls="workspace-conversation workspace-pane"
           aria-valuemin={MIN_PANE_WIDTH}
           aria-valuemax={Math.max(MIN_PANE_WIDTH, available - MIN_PANE_WIDTH - 1)}
           aria-valuenow={width}
-          aria-valuetext={`${width} pixels`}
+          aria-valuetext={i18n._("{width} pixels", { width })}
           className={cn(
             "absolute inset-y-0 -left-1 w-[9px] touch-none cursor-col-resize focus-visible:bg-ring/20 focus-visible:outline-none hover:bg-border/70",
             resizing && "bg-ring/20",
@@ -151,19 +153,29 @@ export function WorkspaceLayout({
       </div>
       <section
         id="workspace-pane"
-        aria-label={view ? `${LABELS[view]} workspace` : "Workspace"}
+        aria-label={
+          view ? i18n._("{view} workspace", { view: i18n._(LABELS[view]) }) : i18n._("Workspace")
+        }
         className={cn("flex min-h-0 min-w-0 flex-col", !view && "hidden", !split && "flex-1")}
         style={split ? { width } : undefined}
       >
         <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b px-3">
-          <span className="truncate text-sm font-medium">{view ? LABELS[view] : "Workspace"}</span>
+          <span className="truncate text-sm font-medium">
+            {view ? i18n._(LABELS[view]) : i18n._("Workspace")}
+          </span>
           <div className="flex shrink-0 items-center gap-1">
             {canSplit ? (
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label={split ? `Expand ${view}` : "Show beside chat"}
-                title={split ? "Use full main area" : "Show beside chat"}
+                aria-label={
+                  split
+                    ? i18n._("Expand {view}", {
+                        view: view ? i18n._(LABELS[view]).toLowerCase() : "",
+                      })
+                    : i18n._("Show beside chat")
+                }
+                title={split ? i18n._("Use full main area") : i18n._("Show beside chat")}
                 onClick={() => {
                   const next = split ? "full" : "split";
                   setMode(next);
@@ -176,8 +188,8 @@ export function WorkspaceLayout({
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Close workspace"
-              title="Back to chat"
+              aria-label={i18n._("Close workspace")}
+              title={i18n._("Back to chat")}
               onClick={onClose}
             >
               <XIcon />

@@ -1,3 +1,6 @@
+import { useLingui } from "@lingui/react";
+import { i18n } from "@lingui/core";
+import { Trans } from "@lingui/react/macro";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { NestedToolSlot } from "@carmel-agent/shared";
 import { getUserRequestReceipt, homeIssueUpdate } from "@carmel-agent/shared";
@@ -177,6 +180,7 @@ function CollapsedRun({
   onEditMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
 }) {
+  const { i18n } = useLingui();
   const [expanded, setExpanded] = useState(false);
   const workId = useId();
   const assistants = messages.filter(
@@ -206,8 +210,10 @@ function CollapsedRun({
     return <>{messages.map((entry) => renderMessage(entry.message, entry.index))}</>;
 
   const summary = [
-    toolCalls > 0 ? `${toolCalls} tool call${toolCalls === 1 ? "" : "s"}` : "",
-    thought ? "thinking" : "",
+    toolCalls > 0
+      ? i18n._("{count, plural, one {# tool call} other {# tool calls}}", { count: toolCalls })
+      : "",
+    thought ? i18n._("thinking") : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -235,15 +241,17 @@ function CollapsedRun({
         <span className="truncate">
           {active
             ? currentTool
-              ? `Working · ${currentTool}`
-              : "Working"
+              ? i18n._("Working · {currentTool}", { currentTool: currentTool })
+              : i18n._("Working")
             : expanded
-              ? "Hide work"
-              : "Show work"}
+              ? i18n._("Hide work")
+              : i18n._("Show work")}
           {summary ? ` · ${summary}` : ""}
         </span>
         {failedTools > 0 ? (
-          <span className="shrink-0 text-destructive">{failedTools} failed</span>
+          <span className="shrink-0 text-destructive">
+            <Trans>{failedTools} failed</Trans>
+          </span>
         ) : null}
       </button>
       {expanded ? (
@@ -286,6 +294,7 @@ function AnswerOnly({
   onEditMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
 }) {
+  const { i18n } = useLingui();
   const text = message.content
     .filter((part) => part.type === "text" && part.text.trim())
     .map((part) => (part as { text: string }).text)
@@ -300,7 +309,7 @@ function AnswerOnly({
             data={part.data}
             url={part.url}
             mimeType={part.mimeType}
-            label="Image"
+            label={i18n._("Image")}
           />
         ) : null,
       )}
@@ -322,7 +331,11 @@ function RunEnding({ message }: { message: AssistantMessageType }) {
     );
   }
   if (message.stopReason === "aborted")
-    return <div className="px-4 text-sm italic text-destructive">Interrupted</div>;
+    return (
+      <div className="px-4 text-sm italic text-destructive">
+        <Trans>Interrupted</Trans>
+      </div>
+    );
   return null;
 }
 
@@ -360,11 +373,13 @@ const MessageItem = memo(function MessageItem({
       return (
         <div
           role="separator"
-          aria-label="New context"
+          aria-label={i18n._("New context")}
           className="flex min-w-0 items-center gap-3 py-2 text-xs text-muted-foreground"
         >
           <Separator className="min-w-0 flex-1" />
-          <span className="shrink-0">New context</span>
+          <span className="shrink-0">
+            <Trans>New context</Trans>
+          </span>
           <Separator className="min-w-0 flex-1" />
         </div>
       );
@@ -413,32 +428,32 @@ const MessageItem = memo(function MessageItem({
               {receipt.kind === "secret" ? (
                 <code>{receipt.name}</code>
               ) : answered ? (
-                "Answer sent"
+                i18n._("Answer sent")
               ) : (
-                "Question response"
+                i18n._("Question response")
               )}
               <Badge variant="secondary">
                 {answered
                   ? receipt.kind === "secret"
-                    ? "Credential provided"
-                    : "Answered"
+                    ? i18n._("Credential provided")
+                    : i18n._("Answered")
                   : receipt.status === "cancelled"
-                    ? "Declined"
+                    ? i18n._("Declined")
                     : receipt.status === "expired"
-                      ? "Expired"
-                      : "Unavailable"}
+                      ? i18n._("Expired")
+                      : i18n._("Unavailable")}
               </Badge>
             </AlertTitle>
             <AlertDescription>
               {receipt.kind === "secret" ? (
                 answered ? (
                   receipt.scope === "agent" ? (
-                    "Saved for reuse across this agent’s sessions."
+                    i18n._("Saved for reuse across this agent’s sessions.")
                   ) : (
-                    "Provided for this session only."
+                    i18n._("Provided for this session only.")
                   )
                 ) : (
-                  "This request did not make a credential available to the agent."
+                  i18n._("This request did not make a credential available to the agent.")
                 )
               ) : (
                 <>
@@ -470,6 +485,7 @@ const MessageItem = memo(function MessageItem({
 });
 
 function UserMessage({ message }: { message: AgentMessage }) {
+  const { i18n } = useLingui();
   const text = getMessageText(message);
   const skill = parseSkillInvocation(text);
   const images = getMessageImages(message);
@@ -480,7 +496,7 @@ function UserMessage({ message }: { message: AgentMessage }) {
         {skill ? (
           <details>
             <summary className="cursor-pointer text-sm font-medium">
-              Using skill: {skill.name}
+              <Trans>Using skill: {skill.name}</Trans>
             </summary>
             <div className="mt-2 border-l pl-3 text-xs text-muted-foreground">
               <div className="truncate">{skill.location}</div>
@@ -504,7 +520,7 @@ function UserMessage({ message }: { message: AgentMessage }) {
                 data={image.data}
                 url={image.url}
                 mimeType={image.mimeType}
-                label="Image"
+                label={i18n._("Image")}
               />
             ))}
           </div>
@@ -539,6 +555,7 @@ function AssistantMessage({
   onEditMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
 }) {
+  const { i18n } = useLingui();
   const usageText = !streaming ? formatUsage(message.usage) : "";
   const assistantContent = (message.content as DisplayAssistantContentPart[]).filter(
     (part) =>
@@ -580,7 +597,7 @@ function AssistantMessage({
                 data={image.data}
                 url={image.url}
                 mimeType={image.mimeType}
-                label="Image"
+                label={i18n._("Image")}
               />
             </div>
           );
@@ -614,7 +631,9 @@ function AssistantMessage({
         </div>
       ) : null}
       {!hideRunEnding && message.stopReason === "aborted" ? (
-        <div className="text-sm italic text-destructive">Request aborted</div>
+        <div className="text-sm italic text-destructive">
+          <Trans>Request aborted</Trans>
+        </div>
       ) : null}
     </div>
   );
@@ -638,7 +657,7 @@ function ThinkingDetails({ thinking, streaming }: { thinking: string; streaming:
     >
       <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium">
         <BrainIcon className="size-3.5" />
-        Thinking
+        <Trans>Thinking</Trans>
         <ChevronRightIcon className="thinking-chevron ml-auto size-3.5" />
       </summary>
       <div className="mt-2">
@@ -670,7 +689,7 @@ function SubtaskResultLink({ href }: { href: string }) {
   return (
     <Button asChild variant="outline">
       <Link to={subtaskLinkTarget(href, location) ?? href} replace preventScrollReset>
-        View subtask result
+        <Trans>View subtask result</Trans>
       </Link>
     </Button>
   );

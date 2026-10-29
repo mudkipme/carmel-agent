@@ -1,3 +1,5 @@
+import { i18n } from "@lingui/core";
+import { useLingui } from "@lingui/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentConfig, AgentFileEntry } from "@carmel-agent/shared";
 import { api } from "@/lib/api";
@@ -23,6 +25,7 @@ export function useFileBrowser({
   agent?: AgentConfig;
   onOpenFile?: (path: string) => void;
 }) {
+  const { i18n } = useLingui();
   const agentId = agent?.id;
   const [path, setPath] = useState("");
   const [entries, setEntries] = useState<AgentFileEntry[]>([]);
@@ -55,12 +58,12 @@ export function useFileBrowser({
       } catch (loadError) {
         if (requestId !== requestIdRef.current) return;
         setEntries([]);
-        setError(errorMessage(loadError, "Unable to load files"));
+        setError(errorMessage(loadError, i18n._("Unable to load files")));
       } finally {
         if (requestId === requestIdRef.current) setLoading(false);
       }
     },
-    [agentId],
+    [agentId, i18n],
   );
 
   useEffect(() => {
@@ -163,8 +166,8 @@ export function useFileBrowser({
     async (type: AgentFileEntry["type"]) => {
       if (!agentId) return;
       const name = await promptText({
-        title: type === "directory" ? "Folder name" : "File name",
-        actionLabel: type === "directory" ? "Create folder" : "Create file",
+        title: type === "directory" ? i18n._("Folder name") : i18n._("File name"),
+        actionLabel: type === "directory" ? i18n._("Create folder") : i18n._("Create file"),
       });
       const cleanName = name?.trim();
       if (!cleanName) return;
@@ -172,17 +175,17 @@ export function useFileBrowser({
         await api.createAgentFileEntry(agentId, joinPath(pathRef.current, cleanName), type);
         refresh();
       } catch (createError) {
-        showError("Unable to create entry", createError);
+        showError(i18n._("Unable to create entry"), createError);
       }
     },
-    [agentId, refresh],
+    [agentId, refresh, i18n],
   );
 
   const renameEntry = useCallback(
     async (entry: AgentFileEntry) => {
       if (!agentId) return;
       const nextName = await promptText({
-        title: `Rename ${entry.name}`,
+        title: i18n._("Rename {name}", { name: entry.name }),
         initialValue: entry.name,
       });
       const cleanName = nextName?.trim();
@@ -195,23 +198,26 @@ export function useFileBrowser({
         );
         refresh();
       } catch (renameError) {
-        showError("Unable to rename entry", renameError);
+        showError(i18n._("Unable to rename entry"), renameError);
       }
     },
-    [agentId, refresh],
+    [agentId, refresh, i18n],
   );
 
   const deleteEntries = useCallback(
     async (targets: AgentFileEntry[]) => {
       if (!agentId || targets.length === 0) return;
-      const label = targets.length === 1 ? `“${targets[0].name}”` : `${targets.length} items`;
+      const label =
+        targets.length === 1
+          ? `“${targets[0].name}”`
+          : i18n._("{count, plural, one {# item} other {# items}}", { count: targets.length });
       const confirmed = await confirmAction({
-        title: `Delete ${label}?`,
+        title: i18n._("Delete {label}?", { label: label }),
         description:
           targets.length === 1 && targets[0].type === "directory"
-            ? "The folder and everything inside it will be permanently deleted."
-            : "The selected entries will be permanently deleted.",
-        actionLabel: "Delete",
+            ? i18n._("The folder and everything inside it will be permanently deleted.")
+            : i18n._("The selected entries will be permanently deleted."),
+        actionLabel: i18n._("Delete"),
       });
       if (!confirmed) return;
       try {
@@ -219,14 +225,14 @@ export function useFileBrowser({
           operation: "delete",
           paths: targets.map((entry) => entry.path),
         });
-        reportFailures("Some entries could not be deleted", result.failed);
+        reportFailures(i18n._("Some entries could not be deleted"), result.failed);
         setSelectedPaths((current) => current.filter((item) => !result.completed.includes(item)));
         refresh();
       } catch (deleteError) {
-        showError("Unable to delete entries", deleteError);
+        showError(i18n._("Unable to delete entries"), deleteError);
       }
     },
-    [agentId, refresh],
+    [agentId, refresh, i18n],
   );
 
   const download = useCallback(
@@ -262,10 +268,10 @@ export function useFileBrowser({
         overwrite = await confirmAction({
           title:
             clashes.length === 1
-              ? `Replace “${clashes[0].name}”?`
-              : `Replace ${clashes.length} files?`,
-          description: "Files with the same name in this folder will be overwritten.",
-          actionLabel: "Replace",
+              ? i18n._("Replace “{name}”?", { name: clashes[0].name })
+              : i18n._("Replace {length} files?", { length: clashes.length }),
+          description: i18n._("Files with the same name in this folder will be overwritten."),
+          actionLabel: i18n._("Replace"),
         });
         if (!overwrite) return;
       }
@@ -287,7 +293,7 @@ export function useFileBrowser({
             },
           });
         } catch (uploadError) {
-          const message = errorMessage(uploadError, "Upload failed");
+          const message = errorMessage(uploadError, i18n._("Upload failed"));
           failures.push(`${name}: ${message}`);
           setUploads((current) =>
             current.map((upload) => (upload.id === id ? { ...upload, error: message } : upload)),
@@ -297,7 +303,9 @@ export function useFileBrowser({
       if (failures.length > 0) {
         // Failed rows stay on screen so the reason keeps its place in the list.
         showError(
-          failures.length === 1 ? "Upload failed" : `${failures.length} uploads failed`,
+          failures.length === 1
+            ? i18n._("Upload failed")
+            : i18n._("{length} uploads failed", { length: failures.length }),
           new Error(failures.join("\n")),
         );
       } else {
@@ -305,7 +313,7 @@ export function useFileBrowser({
       }
       refresh();
     },
-    [agentId, entries, refresh],
+    [agentId, entries, refresh, i18n],
   );
 
   const cut = useCallback((paths: string[]) => setClipboard({ operation: "move", paths }), []);
@@ -321,16 +329,16 @@ export function useFileBrowser({
       });
       reportFailures(
         clipboard.operation === "move"
-          ? "Some entries could not be moved"
-          : "Some entries could not be copied",
+          ? i18n._("Some entries could not be moved")
+          : i18n._("Some entries could not be copied"),
         result.failed,
       );
       if (clipboard.operation === "move" || result.failed.length === 0) setClipboard(undefined);
       refresh();
     } catch (pasteError) {
-      showError("Unable to paste entries", pasteError);
+      showError(i18n._("Unable to paste entries"), pasteError);
     }
-  }, [agentId, clipboard, refresh]);
+  }, [agentId, clipboard, refresh, i18n]);
 
   return {
     agentId,
@@ -396,8 +404,8 @@ export function formatFileTimestamp(timestamp: number) {
   const stamp = new Date(timestamp);
   const sameYear = stamp.getFullYear() === new Date().getFullYear();
   const recent = Date.now() - timestamp < dayMs;
-  if (recent) return stamp.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  return stamp.toLocaleDateString(undefined, {
+  if (recent) return stamp.toLocaleTimeString(i18n.locale, { hour: "2-digit", minute: "2-digit" });
+  return stamp.toLocaleDateString(i18n.locale, {
     month: "short",
     day: "numeric",
     year: sameYear ? undefined : "numeric",

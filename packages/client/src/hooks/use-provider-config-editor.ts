@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { useState } from "react";
 import {
   defaultBaseUrlForProvider,
@@ -16,6 +17,7 @@ export function useProviderConfigEditor(
   modelRefs: ModelRef[],
   oauthProviders: OAuthProviderSummary[],
 ) {
+  const { i18n } = useLingui();
   const activeUserId = useHarnessStore((state) => state.activeUserId);
   const modelCatalog = useHarnessStore((state) => state.modelCatalog);
   const upsertProviderConfig = useHarnessStore((state) => state.upsertProviderConfig);
@@ -68,7 +70,7 @@ export function useProviderConfigEditor(
     await upsertProviderConfig({
       id: selectedConfig?.id ?? createClientId("provider"),
       userId: activeUserId,
-      label: label.trim() || selectedConfig?.label || `${provider} config`,
+      label: label.trim() || selectedConfig?.label || i18n._("{provider} config", { provider }),
       provider,
       authType,
       apiKey: authType === "api_key" ? apiKey || selectedConfig?.apiKey : undefined,
@@ -84,16 +86,19 @@ export function useProviderConfigEditor(
   const remove = async (config: ProviderConfig) => {
     const relatedModels = modelRefs.filter((model) => model.providerConfigId === config.id);
     const confirmed = await confirmAction({
-      title: `Delete ${config.label}?`,
-      description: `This also removes ${relatedModels.length} model entries. Affected agents and sessions will fall back automatically.`,
-      actionLabel: "Delete provider",
+      title: i18n._("Delete {label}?", { label: config.label }),
+      description: i18n._(
+        "This also removes {length} model entries. Affected agents and sessions will fall back automatically.",
+        { length: relatedModels.length },
+      ),
+      actionLabel: i18n._("Delete provider"),
     });
     if (!confirmed) return;
     try {
       await deleteProviderConfig(config.id);
       if (selectedConfigId === config.id) resetEditor();
     } catch (error) {
-      showError("Unable to delete provider config", error);
+      showError(i18n._("Unable to delete provider config"), error);
     }
   };
 

@@ -1,3 +1,6 @@
+import { statusLabel } from "@/lib/labels";
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BookOpenIcon, PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
@@ -34,6 +37,7 @@ import { PageHeader } from "./form-primitives";
 import { ResourceError, ResourceLoading } from "./ResourceFeedback";
 
 export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
+  const { i18n } = useLingui();
   const userId = useHarnessStore((s) => s.activeUserId);
   const users = useHarnessStore((s) => s.users);
   const owner = agent.ownerUserId === userId;
@@ -65,7 +69,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
       await operation();
       await overview.refresh();
     } catch (error) {
-      showError("Knowledge action failed", error);
+      showError(i18n._("Knowledge action failed"), error);
     } finally {
       setBusy(false);
     }
@@ -76,13 +80,15 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
     <div className="h-full min-w-0 overflow-y-auto px-4 py-4 sm:px-6">
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <PageHeader
-          title="Knowledge"
+          title={i18n._("Knowledge")}
 
           icon={BookOpenIcon}
           actions={
             owner ? (
               <Button variant="outline" asChild>
-                <Link to={`/agents/${agent.id}/settings/knowledge`}>Knowledge settings</Link>
+                <Link to={`/agents/${agent.id}/settings/knowledge`}>
+                  <Trans>Knowledge settings</Trans>
+                </Link>
               </Button>
             ) : null
           }
@@ -90,16 +96,20 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
         {overview.error ? (
           <ResourceError error={overview.error} onRetry={overview.refresh} />
         ) : null}
-        {overview.loading ? <ResourceLoading label="Loading knowledge" /> : null}
+        {overview.loading ? <ResourceLoading label={i18n._("Loading knowledge")} /> : null}
         {data ? (
           <>
             {!data.settings.enabled ? (
               <Alert>
-                <AlertTitle>Knowledge is off</AlertTitle>
+                <AlertTitle>
+                  <Trans>Knowledge is off</Trans>
+                </AlertTitle>
                 <AlertDescription>
                   {owner
-                    ? "Enable knowledge in settings to register searchable sources and save memories."
-                    : "The agent owner can enable knowledge in settings."}
+                    ? i18n._(
+                        "Enable knowledge in settings to register searchable sources and save memories.",
+                      )
+                    : i18n._("The agent owner can enable knowledge in settings.")}
                 </AlertDescription>
               </Alert>
             ) : (
@@ -109,11 +119,15 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                   role="status"
                 >
                   <Badge variant={data.status.state === "error" ? "destructive" : "secondary"}>
-                    {data.status.state}
+                    {statusLabel(data.status.state)}
                   </Badge>
-                  <span>{data.status.documents} documents</span>
+                  <span>
+                    <Trans>{data.status.documents} documents</Trans>
+                  </span>
                   {data.status.needsEmbedding > 0 ? (
-                    <span>{data.status.needsEmbedding} awaiting embeddings</span>
+                    <span>
+                      <Trans>{data.status.needsEmbedding} awaiting embeddings</Trans>
+                    </span>
                   ) : null}
                   {data.status.backend ? (
                     <span>
@@ -122,12 +136,18 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                     </span>
                   ) : null}
                   {data.status.lastUpdatedAt ? (
-                    <span>Updated {new Date(data.status.lastUpdatedAt).toLocaleString()}</span>
+                    <span>
+                      <Trans>
+                        Updated {new Date(data.status.lastUpdatedAt).toLocaleString(i18n.locale)}
+                      </Trans>
+                    </span>
                   ) : null}
                 </div>
                 {data.status.error ? (
                   <Alert variant="destructive">
-                    <AlertTitle>Index needs attention</AlertTitle>
+                    <AlertTitle>
+                      <Trans>Index needs attention</Trans>
+                    </AlertTitle>
                     <AlertDescription>{data.status.error}</AlertDescription>
                   </Alert>
                 ) : null}
@@ -139,57 +159,71 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                     try {
                       setResults(await api.searchKnowledge(agent.id, { query, mode }));
                     } catch (error) {
-                      showError("Search failed", error);
+                      showError(i18n._("Search failed"), error);
                     } finally {
                       setSearching(false);
                     }
                   }}
                 >
                   <Field className="min-w-40 flex-1">
-                    <FieldLabel htmlFor="knowledge-query">Search knowledge</FieldLabel>
+                    <FieldLabel htmlFor="knowledge-query">
+                      <Trans>Search knowledge</Trans>
+                    </FieldLabel>
                     <Input
                       id="knowledge-query"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Find notes, decisions, or preferences…"
+                      placeholder={i18n._("Find notes, decisions, or preferences…")}
                       required
                       maxLength={2000}
                     />
                   </Field>
                   <Field className="w-36">
-                    <FieldLabel htmlFor="knowledge-mode">Search mode</FieldLabel>
+                    <FieldLabel htmlFor="knowledge-mode">
+                      <Trans>Search mode</Trans>
+                    </FieldLabel>
                     <Select value={mode} onValueChange={(value) => setMode(value as typeof mode)}>
                       <SelectTrigger id="knowledge-mode">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="fast">Fast</SelectItem>
-                          <SelectItem value="semantic">Semantic</SelectItem>
-                          <SelectItem value="deep">Deep</SelectItem>
+                          <SelectItem value="fast">
+                            <Trans>Fast</Trans>
+                          </SelectItem>
+                          <SelectItem value="semantic">
+                            <Trans>Semantic</Trans>
+                          </SelectItem>
+                          <SelectItem value="deep">
+                            <Trans>Deep</Trans>
+                          </SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>
                   </Field>
                   <Button type="submit" disabled={searching || !query.trim()}>
                     <SearchIcon data-icon="inline-start" />
-                    {searching ? "Searching…" : "Search"}
+                    {searching ? i18n._("Searching…") : i18n._("Search")}
                   </Button>
                 </form>
                 {results ? (
                   <div className="flex flex-col gap-3" aria-live="polite">
                     {results.warning ? (
                       <Alert>
-                        <AlertTitle>Search notice</AlertTitle>
+                        <AlertTitle>
+                          <Trans>Search notice</Trans>
+                        </AlertTitle>
                         <AlertDescription>{results.warning}</AlertDescription>
                       </Alert>
                     ) : null}
                     {!results.hits.length ? (
                       <Empty>
                         <EmptyHeader>
-                          <EmptyTitle>No matches</EmptyTitle>
+                          <EmptyTitle>
+                            <Trans>No matches</Trans>
+                          </EmptyTitle>
                           <EmptyDescription>
-                            Try another phrase or refresh the source index.
+                            <Trans>Try another phrase or refresh the source index.</Trans>
                           </EmptyDescription>
                         </EmptyHeader>
                       </Empty>
@@ -211,7 +245,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                             <Button variant="outline" size="sm" asChild>
                               <Link to={hit.citation}>
                                 <BookOpenIcon data-icon="inline-start" />
-                                Read source
+                                <Trans>Read source</Trans>
                               </Link>
                             </Button>
                           </CardFooter>
@@ -225,11 +259,11 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
             {sourceId && path ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>{doc.data?.title ?? "Source document"}</CardTitle>
+                  <CardTitle>{doc.data?.title ?? i18n._("Source document")}</CardTitle>
                   <CardDescription>{path}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {doc.loading ? <ResourceLoading label="Loading source" /> : null}
+                  {doc.loading ? <ResourceLoading label={i18n._("Loading source")} /> : null}
                   {doc.error ? <ResourceError error={doc.error} onRetry={doc.refresh} /> : null}
                   {doc.data ? (
                     <pre className="whitespace-pre-wrap break-words font-mono text-sm">
@@ -242,7 +276,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                 </CardContent>
                 <CardFooter className="gap-2">
                   <Button variant="outline" onClick={() => setParams({})}>
-                    Close source
+                    <Trans>Close source</Trans>
                   </Button>
                   {doc.data && fromLine + 100 <= doc.data.totalLines ? (
                     <Button
@@ -255,15 +289,17 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                         })
                       }
                     >
-                      Next lines
+                      <Trans>Next lines</Trans>
                     </Button>
                   ) : null}
                 </CardFooter>
               </Card>
             ) : null}
-            <section className="flex flex-col gap-3" aria-label="Saved memories">
+            <section className="flex flex-col gap-3" aria-label={i18n._("Saved memories")}>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold">Saved memories</h2>
+                <h2 className="text-sm font-semibold">
+                  <Trans>Saved memories</Trans>
+                </h2>
                 {agent.permissions.write && data.settings.enabled ? (
                   <Button
                     variant="outline"
@@ -271,7 +307,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                     onClick={() => setEditor("new")}
                   >
                     <PlusIcon data-icon="inline-start" />
-                    New memory
+                    <Trans>New memory</Trans>
                   </Button>
                 ) : null}
               </div>
@@ -300,9 +336,11 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
               {!data.memories.length ? (
                 <Empty>
                   <EmptyHeader>
-                    <EmptyTitle>No saved memories</EmptyTitle>
+                    <EmptyTitle>
+                      <Trans>No saved memories</Trans>
+                    </EmptyTitle>
                     <EmptyDescription>
-                      Ask the agent to remember a fact or decision, or add one here.
+                      <Trans>Ask the agent to remember a fact or decision, or add one here.</Trans>
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
@@ -312,9 +350,12 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                     <CardHeader>
                       <CardTitle>{memory.title}</CardTitle>
                       <CardDescription>
-                        Saved by{" "}
-                        {users.find((u) => u.id === memory.contributorId)?.name ?? "an agent user"}{" "}
-                        · {new Date(memory.updatedAt).toLocaleString()}
+                        <Trans>
+                          Saved by{" "}
+                          {users.find((u) => u.id === memory.contributorId)?.name ??
+                            "an agent user"}{" "}
+                          · {new Date(memory.updatedAt).toLocaleString(i18n.locale)}
+                        </Trans>
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -328,7 +369,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                           disabled={busy || Boolean(editor) || !data.settings.enabled}
                           onClick={() => setEditor(memory)}
                         >
-                          Edit memory
+                          <Trans>Edit memory</Trans>
                         </Button>
                         <Button
                           variant="ghost"
@@ -337,16 +378,17 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                           onClick={async () => {
                             if (
                               await confirmAction({
-                                title: `Forget “${memory.title}”?`,
-                                description:
+                                title: i18n._("Forget “{title}”?", { title: memory.title }),
+                                description: i18n._(
                                   "This removes the saved memory for everyone using this agent. Source documents and conversations are kept.",
-                                actionLabel: "Forget memory",
+                                ),
+                                actionLabel: i18n._("Forget memory"),
                               })
                             )
                               void act(() => api.forgetMemory(agent.id, memory));
                           }}
                         >
-                          Forget memory
+                          <Trans>Forget memory</Trans>
                         </Button>
                       </CardFooter>
                     ) : null}
@@ -354,9 +396,11 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                 ))
               )}
             </section>
-            <section className="flex flex-col gap-3" aria-label="Knowledge sources">
+            <section className="flex flex-col gap-3" aria-label={i18n._("Knowledge sources")}>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold">Sources</h2>
+                <h2 className="text-sm font-semibold">
+                  <Trans>Sources</Trans>
+                </h2>
                 {owner && data.settings.enabled ? (
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -365,7 +409,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                       onClick={() => void act(() => api.refreshKnowledge(agent.id))}
                     >
                       <RefreshCwIcon data-icon="inline-start" />
-                      Refresh index
+                      <Trans>Refresh index</Trans>
                     </Button>
                     <Button
                       variant="outline"
@@ -376,7 +420,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                         )
                       }
                     >
-                      Build embeddings
+                      <Trans>Build embeddings</Trans>
                     </Button>
                     <Button
                       variant="outline"
@@ -387,7 +431,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                         )
                       }
                     >
-                      Prepare deep search
+                      <Trans>Prepare deep search</Trans>
                     </Button>
                     <Button
                       variant="outline"
@@ -395,15 +439,17 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                       onClick={() => setAddSource(true)}
                     >
                       <PlusIcon data-icon="inline-start" />
-                      Add source
+                      <Trans>Add source</Trans>
                     </Button>
                   </div>
                 ) : null}
               </div>
               {owner && data.settings.enabled ? (
                 <p className="text-sm text-muted-foreground">
-                  Markdown directories from this agent's workspace or mounts. Embeddings use the
-                  configured model; missing models can download when the agent has network access.
+                  <Trans>
+                    Markdown directories from this agent's workspace or mounts. Embeddings use the
+                    configured model; missing models can download when the agent has network access.
+                  </Trans>
                 </p>
               ) : null}
               {addSource ? (
@@ -430,7 +476,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      {source.description || "Markdown documents"}
+                      {source.description || i18n._("Markdown documents")}
                     </p>
                   </CardContent>
                   {owner ? (
@@ -443,7 +489,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                           void act(() => api.deleteKnowledgeSource(agent.id, source.id))
                         }
                       >
-                        Disconnect source
+                        <Trans>Disconnect source</Trans>
                       </Button>
                     </CardFooter>
                   ) : null}
@@ -468,6 +514,7 @@ function MemoryForm({
   onCancel: () => void;
   onSave: (title: string, content: string) => void;
 }) {
+  const { i18n } = useLingui();
   const [title, setTitle] = useState(memory?.title ?? ""),
     [content, setContent] = useState(memory?.content ?? "");
   return (
@@ -479,15 +526,19 @@ function MemoryForm({
     >
       <Card>
         <CardHeader>
-          <CardTitle>{memory ? "Edit memory" : "New memory"}</CardTitle>
+          <CardTitle>{memory ? i18n._("Edit memory") : i18n._("New memory")}</CardTitle>
           <CardDescription>
-            Keep facts specific and identify whose preferences or decisions they describe.
+            <Trans>
+              Keep facts specific and identify whose preferences or decisions they describe.
+            </Trans>
           </CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="memory-title">Title</FieldLabel>
+              <FieldLabel htmlFor="memory-title">
+                <Trans>Title</Trans>
+              </FieldLabel>
               <Input
                 id="memory-title"
                 required
@@ -497,7 +548,9 @@ function MemoryForm({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="memory-content">Memory</FieldLabel>
+              <FieldLabel htmlFor="memory-content">
+                <Trans>Memory</Trans>
+              </FieldLabel>
               <Textarea
                 id="memory-content"
                 required
@@ -511,10 +564,10 @@ function MemoryForm({
         </CardContent>
         <CardFooter className="gap-2">
           <Button type="submit" disabled={busy}>
-            Save memory
+            <Trans>Save memory</Trans>
           </Button>
           <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
         </CardFooter>
       </Card>
@@ -530,6 +583,7 @@ function SourceForm({
   onCancel: () => void;
   onSave: (name: string, path: string, description: string) => void;
 }) {
+  const { i18n } = useLingui();
   const [name, setName] = useState(""),
     [path, setPath] = useState(""),
     [description, setDescription] = useState("");
@@ -542,13 +596,19 @@ function SourceForm({
     >
       <Card>
         <CardHeader>
-          <CardTitle>Add source</CardTitle>
-          <CardDescription>The original files stay in their existing location.</CardDescription>
+          <CardTitle>
+            <Trans>Add source</Trans>
+          </CardTitle>
+          <CardDescription>
+            <Trans>The original files stay in their existing location.</Trans>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="source-name">Name</FieldLabel>
+              <FieldLabel htmlFor="source-name">
+                <Trans>Name</Trans>
+              </FieldLabel>
               <Input
                 id="source-name"
                 required
@@ -558,34 +618,38 @@ function SourceForm({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="source-path">Directory</FieldLabel>
+              <FieldLabel htmlFor="source-path">
+                <Trans>Directory</Trans>
+              </FieldLabel>
               <Input
                 id="source-path"
                 required
                 maxLength={2000}
                 value={path}
                 onChange={(e) => setPath(e.target.value)}
-                placeholder="docs or /mounted-vault"
+                placeholder={i18n._("docs or /mounted-vault")}
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="source-description">Description</FieldLabel>
+              <FieldLabel htmlFor="source-description">
+                <Trans>Description</Trans>
+              </FieldLabel>
               <Textarea
                 id="source-description"
                 maxLength={1000}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="What is this collection useful for?"
+                placeholder={i18n._("What is this collection useful for?")}
               />
             </Field>
           </FieldGroup>
         </CardContent>
         <CardFooter className="gap-2">
           <Button type="submit" disabled={busy}>
-            Add source
+            <Trans>Add source</Trans>
           </Button>
           <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
         </CardFooter>
       </Card>

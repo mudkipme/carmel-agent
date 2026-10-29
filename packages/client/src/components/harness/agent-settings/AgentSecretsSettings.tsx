@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useCallback, useEffect, useState } from "react";
 import { FileInputIcon, KeyRoundIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +22,7 @@ import { errorMessage } from "@/lib/errors";
  * can be replaced here but never read.
  */
 export function AgentSecretsSettings({ agentId, shared }: { agentId: string; shared: boolean }) {
+  const { i18n } = useLingui();
   const [secrets, setSecrets] = useState<AgentSecret[] | undefined>();
   const [canImportEnv, setCanImportEnv] = useState(false);
   const [error, setError] = useState<string>();
@@ -36,9 +39,9 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
       setCanImportEnv(dotEnv.available);
       setError(undefined);
     } catch (loadError) {
-      setError(errorMessage(loadError, "Unable to load secrets"));
+      setError(errorMessage(loadError, i18n._("Unable to load secrets")));
     }
-  }, [agentId]);
+  }, [agentId, i18n]);
 
   useEffect(() => {
     void reload();
@@ -68,20 +71,23 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
       return;
     }
     if (!draft.value) {
-      setError("A secret value is required.");
+      setError(i18n._("A secret value is required."));
       return;
     }
     const replacing = secrets?.some((secret) => secret.name === name);
     if (replacing) {
       const confirmed = await confirmAction({
-        title: `Replace ${name}?`,
-        description: "The current value is overwritten and cannot be recovered.",
-        actionLabel: "Replace secret",
+        title: i18n._("Replace {name}?", { name: name }),
+        description: i18n._("The current value is overwritten and cannot be recovered."),
+        actionLabel: i18n._("Replace secret"),
       });
       if (!confirmed) return;
     }
     if (
-      await act(() => api.writeAgentSecret(agentId, name, draft.value), "Unable to save secret")
+      await act(
+        () => api.writeAgentSecret(agentId, name, draft.value),
+        i18n._("Unable to save secret"),
+      )
     ) {
       setDraft(undefined);
     }
@@ -89,12 +95,12 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
 
   const removeSecret = async (name: string) => {
     const confirmed = await confirmAction({
-      title: `Delete ${name}?`,
-      description: "Commands this agent runs will no longer see this variable.",
-      actionLabel: "Delete secret",
+      title: i18n._("Delete {name}?", { name: name }),
+      description: i18n._("Commands this agent runs will no longer see this variable."),
+      actionLabel: i18n._("Delete secret"),
     });
     if (!confirmed) return;
-    await act(() => api.deleteAgentSecret(agentId, name), "Unable to delete secret");
+    await act(() => api.deleteAgentSecret(agentId, name), i18n._("Unable to delete secret"));
   };
 
   const importEnv = async () => {
@@ -102,15 +108,24 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
     if (
       await act(async () => {
         result = await api.importAgentWorkspaceDotEnv(agentId);
-      }, "Unable to import .env")
+      }, i18n._("Unable to import .env"))
     ) {
       toast.success(
-        `Imported ${result!.imported} ${result!.imported === 1 ? "secret" : "secrets"} from .env`,
+        i18n._(
+          "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}",
+          { count: result!.imported },
+        ),
         {
           description:
             [
-              result!.skippedExisting && `${result!.skippedExisting} already stored`,
-              result!.skippedInvalid && `${result!.skippedInvalid} invalid or empty`,
+              result!.skippedExisting &&
+                i18n._("{skippedExisting} already stored", {
+                  skippedExisting: result!.skippedExisting,
+                }),
+              result!.skippedInvalid &&
+                i18n._("{skippedInvalid} invalid or empty", {
+                  skippedInvalid: result!.skippedInvalid,
+                }),
             ]
               .filter(Boolean)
               .join(" · ") || undefined,
@@ -122,21 +137,29 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
   return (
     <section className="grid gap-4">
       <p className="text-sm text-muted-foreground">
-        Secrets become environment variables in this agent's shell. Saved values can be replaced but
-        cannot be viewed.
+        <Trans>
+          Secrets become environment variables in this agent's shell. Saved values can be replaced
+          but cannot be viewed.
+        </Trans>
       </p>
 
       {shared ? (
         <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
-          This agent is shared. Anyone who can run it runs commands with these secrets in their
-          environment.
+          <Trans>
+            This agent is shared. Anyone who can run it runs commands with these secrets in their
+            environment.
+          </Trans>
         </p>
       ) : null}
 
       {secrets === undefined ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>Loading…</Trans>
+        </p>
       ) : secrets.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No secrets yet.</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>No secrets yet.</Trans>
+        </p>
       ) : (
         <ul className="grid gap-2">
           {secrets.map((secret) => (
@@ -149,7 +172,7 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
                 <div className="min-w-0">
                   <p className="truncate font-mono text-sm">{secret.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    Set {new Date(secret.updatedAt).toLocaleString()}
+                    <Trans>Set {new Date(secret.updatedAt).toLocaleString(i18n.locale)}</Trans>
                   </p>
                 </div>
               </div>
@@ -157,7 +180,7 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
                 variant="ghost"
                 size="sm"
                 disabled={busy}
-                title="Delete secret"
+                title={i18n._("Delete secret")}
                 onClick={() => void removeSecret(secret.name)}
               >
                 <Trash2Icon data-icon="inline-start" />
@@ -170,7 +193,9 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
       {draft ? (
         <FieldGroup className="gap-3 rounded-md border p-3">
           <Field>
-            <FieldLabel htmlFor="agent-secret-name">Name</FieldLabel>
+            <FieldLabel htmlFor="agent-secret-name">
+              <Trans>Name</Trans>
+            </FieldLabel>
             <Input
               id="agent-secret-name"
               autoFocus
@@ -181,7 +206,9 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="agent-secret-value">Value</FieldLabel>
+            <FieldLabel htmlFor="agent-secret-value">
+              <Trans>Value</Trans>
+            </FieldLabel>
             <Textarea
               id="agent-secret-value"
               className="max-h-48 font-mono"
@@ -195,10 +222,10 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
           </Field>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" disabled={busy} onClick={() => setDraft(undefined)}>
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <Button size="sm" disabled={busy} onClick={() => void saveDraft()}>
-              Save secret
+              <Trans>Save secret</Trans>
             </Button>
           </div>
         </FieldGroup>
@@ -211,12 +238,12 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
             onClick={() => setDraft({ name: "", value: "" })}
           >
             <PlusIcon data-icon="inline-start" />
-            Add secret
+            <Trans>Add secret</Trans>
           </Button>
           {canImportEnv ? (
             <Button variant="outline" size="sm" disabled={busy} onClick={() => void importEnv()}>
               <FileInputIcon data-icon="inline-start" />
-              Import .env
+              <Trans>Import .env</Trans>
             </Button>
           ) : null}
         </div>

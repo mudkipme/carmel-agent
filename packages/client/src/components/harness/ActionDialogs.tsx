@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   AlertDialog,
@@ -27,6 +29,7 @@ import {
 } from "@/lib/action-dialogs";
 
 export function ActionDialogs() {
+  const { i18n } = useLingui();
   const request = useSyncExternalStore(
     subscribeActionDialogs,
     getActionDialogSnapshot,
@@ -48,16 +51,18 @@ export function ActionDialogs() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {request?.kind === "confirm" ? request.title : "Confirm action"}
+              {request?.kind === "confirm" ? request.title : i18n._("Confirm action")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {request?.kind === "confirm" ? request.description : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>
+              <Trans>Cancel</Trans>
+            </AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={() => resolveActionDialog(true)}>
-              {request?.kind === "confirm" ? request.actionLabel : "Continue"}
+              {request?.kind === "confirm" ? request.actionLabel : i18n._("Continue")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -72,14 +77,16 @@ export function ActionDialogs() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {request?.kind === "prompt" ? request.title : "Enter a value"}
+              {request?.kind === "prompt" ? request.title : i18n._("Enter a value")}
             </DialogTitle>
             {request?.kind === "prompt" && request.description ? (
               <DialogDescription>{request.description}</DialogDescription>
             ) : null}
           </DialogHeader>
           <Field>
-            <FieldLabel htmlFor="action-dialog-value">Name</FieldLabel>
+            <FieldLabel htmlFor="action-dialog-value">
+              <Trans>Name</Trans>
+            </FieldLabel>
             <Input
               id="action-dialog-value"
               autoFocus
@@ -92,10 +99,10 @@ export function ActionDialogs() {
           </Field>
           <DialogFooter>
             <Button variant="outline" onClick={() => resolveActionDialog(null)}>
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <Button disabled={!draft.trim()} onClick={() => resolveActionDialog(draft.trim())}>
-              {request?.kind === "prompt" ? request.actionLabel : "Save"}
+              {request?.kind === "prompt" ? request.actionLabel : i18n._("Save")}
             </Button>
           </DialogFooter>
         </DialogContent>

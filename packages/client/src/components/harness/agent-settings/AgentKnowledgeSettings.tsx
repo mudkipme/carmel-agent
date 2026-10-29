@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -19,6 +21,7 @@ import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { ResourceError, ResourceLoading } from "../ResourceFeedback";
 
 export function AgentKnowledgeSettings({ agentId }: { agentId: string }) {
+  const { i18n } = useLingui();
   const overview = useRemoteResource({
     key: `knowledge:${agentId}`,
     load: (signal) => api.knowledge(agentId, signal),
@@ -29,9 +32,9 @@ export function AgentKnowledgeSettings({ agentId }: { agentId: string }) {
     try {
       await api.saveKnowledgeSettings(agentId, settings);
       await overview.refresh();
-      toast.success("Knowledge settings saved.");
+      toast.success(i18n._("Knowledge settings saved."));
     } catch (error) {
-      showError("Unable to save knowledge settings", error);
+      showError(i18n._("Unable to save knowledge settings"), error);
     } finally {
       setBusy(false);
     }
@@ -40,7 +43,7 @@ export function AgentKnowledgeSettings({ agentId }: { agentId: string }) {
   return (
     <>
       {overview.error ? <ResourceError error={overview.error} onRetry={overview.refresh} /> : null}
-      {overview.loading ? <ResourceLoading label="Loading knowledge settings" /> : null}
+      {overview.loading ? <ResourceLoading label={i18n._("Loading knowledge settings")} /> : null}
       {overview.data ? (
         <KnowledgeSettingsForm
           key={agentId}
@@ -68,6 +71,7 @@ function KnowledgeSettingsForm({
   busy: boolean;
   onSave: (value: KnowledgeSettings) => void;
 }) {
+  const { i18n } = useLingui();
   const [enabled, setEnabled] = useState(initial.enabled);
   const [acceleration, setAcceleration] = useState(initial.acceleration);
   return (
@@ -80,7 +84,9 @@ function KnowledgeSettingsForm({
     >
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="knowledge-enabled">Knowledge and memory</FieldLabel>
+          <FieldLabel htmlFor="knowledge-enabled">
+            <Trans>Knowledge and memory</Trans>
+          </FieldLabel>
           <Select
             value={enabled ? "on" : "off"}
             onValueChange={(value) => setEnabled(value === "on")}
@@ -90,17 +96,26 @@ function KnowledgeSettingsForm({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="off">Off</SelectItem>
-                <SelectItem value="on">On</SelectItem>
+                <SelectItem value="off">
+                  <Trans>Off</Trans>
+                </SelectItem>
+                <SelectItem value="on">
+                  <Trans>On</Trans>
+                </SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
           <FieldDescription>
-            Agents save memories only when asked. Existing memories are retained when switched off.
+            <Trans>
+              Agents save memories only when asked. Existing memories are retained when switched
+              off.
+            </Trans>
           </FieldDescription>
         </Field>
         <Field>
-          <FieldLabel htmlFor="knowledge-acceleration">Acceleration</FieldLabel>
+          <FieldLabel htmlFor="knowledge-acceleration">
+            <Trans>Acceleration</Trans>
+          </FieldLabel>
           <Select
             value={acceleration}
             onValueChange={(value) => setAcceleration(value as typeof acceleration)}
@@ -112,30 +127,36 @@ function KnowledgeSettingsForm({
               <SelectGroup>
                 {["auto", "cpu", "vulkan", "cuda"].map((value) => (
                   <SelectItem key={value} value={value}>
-                    {value === "auto" ? "Automatic" : value.toUpperCase()}
+                    {value === "auto" ? i18n._("Automatic") : value.toUpperCase()}
                   </SelectItem>
                 ))}
               </SelectGroup>
             </SelectContent>
           </Select>
           <FieldDescription>
-            Uses GPUs exposed to the runner. Vulkan works with compatible NVIDIA and AMD drivers.
+            <Trans>
+              Uses GPUs exposed to the runner. Vulkan works with compatible NVIDIA and AMD drivers.
+            </Trans>
           </FieldDescription>
         </Field>
         <Field>
-          <FieldLabel htmlFor="knowledge-model">Embedding model</FieldLabel>
+          <FieldLabel htmlFor="knowledge-model">
+            <Trans>Embedding model</Trans>
+          </FieldLabel>
           <Input id="knowledge-model" value={embeddingModel} readOnly />
           <FieldDescription>
-            Shared by all agents. The server administrator configures this model.
+            <Trans>Shared by all agents. The server administrator configures this model.</Trans>
           </FieldDescription>
         </Field>
       </FieldGroup>
       <div className="flex flex-wrap gap-2">
         <Button disabled={busy} type="submit">
-          {busy ? "Saving…" : "Save settings"}
+          {busy ? i18n._("Saving…") : i18n._("Save settings")}
         </Button>
         <Button asChild variant="outline">
-          <Link to={`/agents/${agentId}/knowledge`}>Open knowledge</Link>
+          <Link to={`/agents/${agentId}/knowledge`}>
+            <Trans>Open knowledge</Trans>
+          </Link>
         </Button>
       </div>
     </form>

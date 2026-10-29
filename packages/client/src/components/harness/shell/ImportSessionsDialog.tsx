@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -26,6 +28,7 @@ export function ImportSessionsDialog({
   onOpenChange: (open: boolean) => void;
   onAfterImport: () => void;
 }) {
+  const { i18n } = useLingui();
   const navigate = useNavigate();
   const importOpenWebuiSessions = useHarnessStore((state) => state.importOpenWebuiSessions);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -64,7 +67,7 @@ export function ImportSessionsDialog({
       onOpenChange(false);
       reset();
     } catch (error) {
-      setImportError(errorMessage(error, "Unable to import sessions"));
+      setImportError(errorMessage(error, i18n._("Unable to import sessions")));
     } finally {
       setImporting(false);
     }
@@ -80,9 +83,11 @@ export function ImportSessionsDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Import Sessions</DialogTitle>
+          <DialogTitle>
+            <Trans>Import Sessions</Trans>
+          </DialogTitle>
           <DialogDescription>
-            Import Open WebUI JSON exports into the selected agent.
+            <Trans>Import Open WebUI JSON exports into the selected agent.</Trans>
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2">
@@ -95,18 +100,20 @@ export function ImportSessionsDialog({
             className="h-9 rounded-md border bg-background px-3 py-1.5 text-sm file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium"
           />
           <p className="text-xs text-muted-foreground">
-            Target: {activeAgent?.name ?? "No agent"} ·{" "}
-            {modelRefs.find((model) => model.id === activeAgent?.defaultModelRefId)?.label ??
-              "No model"}
+            <Trans>
+              Target: {activeAgent?.name ?? i18n._("No agent")} ·{" "}
+              {modelRefs.find((model) => model.id === activeAgent?.defaultModelRefId)?.label ??
+                i18n._("No model")}
+            </Trans>
           </p>
           {importError ? <p className="text-sm text-destructive">{importError}</p> : null}
         </div>
         <DialogFooter>
           <Button variant="outline" disabled={importing} onClick={() => onOpenChange(false)}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
           <Button disabled={!importFile || importing} onClick={() => void importSessions()}>
-            {importing ? "Importing..." : "Import"}
+            {importing ? i18n._("Importing...") : i18n._("Import")}
           </Button>
         </DialogFooter>
       </DialogContent>

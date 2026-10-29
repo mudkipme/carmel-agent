@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { ExternalLinkIcon, Trash2Icon } from "lucide-react";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +25,7 @@ export function ProviderSettings({
   modelRefs: ModelRef[];
   oauthProviders: OAuthProviderSummary[];
 }) {
+  const { i18n } = useLingui();
   const editor = useProviderConfigEditor(providerConfigs, modelRefs, oauthProviders);
   const {
     providers,
@@ -60,7 +63,7 @@ export function ProviderSettings({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      title="Delete provider config"
+                      title={i18n._("Delete provider config")}
                       onClick={() => void editor.remove(item)}
                     >
                       <Trash2Icon />
@@ -68,15 +71,17 @@ export function ProviderSettings({
                   </div>
                 </div>
                 <p className="mt-1 truncate text-xs text-muted-foreground">
-                  {item.baseUrl ?? "default endpoint"} ·{" "}
-                  {item.authType === "oauth"
-                    ? item.hasOAuth
-                      ? "oauth connected"
-                      : "oauth not connected"
-                    : item.hasApiKey
-                      ? "key saved"
-                      : "no key"}{" "}
-                  · {relatedModels.length} models
+                  <Trans>
+                    {item.baseUrl ?? "default endpoint"} ·{" "}
+                    {item.authType === "oauth"
+                      ? item.hasOAuth
+                        ? "oauth connected"
+                        : "oauth not connected"
+                      : item.hasApiKey
+                        ? "key saved"
+                        : "no key"}{" "}
+                    · {relatedModels.length} models
+                  </Trans>
                 </p>
               </div>
             );
@@ -86,14 +91,18 @@ export function ProviderSettings({
 
       <section className="grid gap-3 border-t pt-6">
         <Field>
-          <FieldLabel>Provider config</FieldLabel>
+          <FieldLabel>
+            <Trans>Provider config</Trans>
+          </FieldLabel>
           <Select value={selectedConfigId} onValueChange={editor.selectConfig}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="new">New provider config</SelectItem>
+                <SelectItem value="new">
+                  <Trans>New provider config</Trans>
+                </SelectItem>
                 {providerConfigs.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
                     {item.label}
@@ -104,7 +113,9 @@ export function ProviderSettings({
           </Select>
         </Field>
         <Field>
-          <FieldLabel>Provider type</FieldLabel>
+          <FieldLabel>
+            <Trans>Provider type</Trans>
+          </FieldLabel>
           <Select value={provider} onValueChange={editor.selectProvider}>
             <SelectTrigger className="w-full">
               <SelectValue />
@@ -121,23 +132,29 @@ export function ProviderSettings({
           </Select>
         </Field>
         <Field>
-          <FieldLabel>Label</FieldLabel>
+          <FieldLabel>
+            <Trans>Label</Trans>
+          </FieldLabel>
           <Input
             value={label}
-            placeholder="Provider label"
+            placeholder={i18n._("Provider label")}
             onChange={(event) => setLabel(event.target.value)}
           />
         </Field>
         <Field>
-          <FieldLabel>Base URL</FieldLabel>
+          <FieldLabel>
+            <Trans>Base URL</Trans>
+          </FieldLabel>
           <Input
             value={baseUrl}
-            placeholder="Optional API base URL"
+            placeholder={i18n._("Optional API base URL")}
             onChange={(event) => setBaseUrl(event.target.value)}
           />
         </Field>
         <Field>
-          <FieldLabel>Authentication</FieldLabel>
+          <FieldLabel>
+            <Trans>Authentication</Trans>
+          </FieldLabel>
           <Select
             value={authType}
             onValueChange={(value) => setAuthType(value as "api_key" | "oauth")}
@@ -147,19 +164,27 @@ export function ProviderSettings({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="api_key">API key</SelectItem>
-                {oauthProvider ? <SelectItem value="oauth">OAuth login</SelectItem> : null}
+                <SelectItem value="api_key">
+                  <Trans>API key</Trans>
+                </SelectItem>
+                {oauthProvider ? (
+                  <SelectItem value="oauth">
+                    <Trans>OAuth login</Trans>
+                  </SelectItem>
+                ) : null}
               </SelectGroup>
             </SelectContent>
           </Select>
         </Field>
         {authType === "api_key" ? (
           <Field>
-            <FieldLabel>API key</FieldLabel>
+            <FieldLabel>
+              <Trans>API key</Trans>
+            </FieldLabel>
             <Input
               value={apiKey}
               type="password"
-              placeholder="API key"
+              placeholder={i18n._("API key")}
               onChange={(event) => setApiKey(event.target.value)}
             />
           </Field>
@@ -169,7 +194,7 @@ export function ProviderSettings({
               <div className="min-w-0">
                 <div className="text-sm font-medium">{oauthProvider?.name ?? provider}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  {selectedConfig?.hasOAuth ? "Connected" : "Not connected"}
+                  {selectedConfig?.hasOAuth ? i18n._("Connected") : i18n._("Not connected")}
                 </div>
               </div>
               <Button
@@ -178,7 +203,7 @@ export function ProviderSettings({
                 onClick={() => void oauth.start()}
                 disabled={!selectedConfig}
               >
-                Login
+                <Trans>Login</Trans>
               </Button>
             </div>
             {oauth.flow?.auth ? (
@@ -188,7 +213,7 @@ export function ProviderSettings({
                 onClick={() => window.open(oauth.flow?.auth?.url, "_blank", "noopener,noreferrer")}
               >
                 <ExternalLinkIcon data-icon="inline-start" />
-                Open login page
+                <Trans>Open login page</Trans>
               </Button>
             ) : null}
             {oauth.flow?.auth?.instructions ? (
@@ -228,25 +253,31 @@ export function ProviderSettings({
                   onClick={() => void oauth.submit()}
                   disabled={!oauth.flow.prompt.allowEmpty && !oauth.input}
                 >
-                  Continue
+                  <Trans>Continue</Trans>
                 </Button>
               </div>
             ) : null}
             {oauth.flow?.status === "success" ? (
-              <p className="text-xs text-muted-foreground">OAuth login completed.</p>
+              <p className="text-xs text-muted-foreground">
+                <Trans>OAuth login completed.</Trans>
+              </p>
             ) : null}
             {oauth.flow?.error ? (
               <p className="text-xs text-destructive">{oauth.flow.error}</p>
             ) : null}
             {!selectedConfig ? (
               <p className="text-xs text-muted-foreground">
-                Create the provider before logging in.
+                <Trans>Create the provider before logging in.</Trans>
               </p>
             ) : null}
           </div>
         )}
         <Button onClick={() => void editor.save()}>
-          {saved ? "Saved" : selectedConfig ? "Update provider" : "Create provider"}
+          {saved
+            ? i18n._("Saved")
+            : selectedConfig
+              ? i18n._("Update provider")
+              : i18n._("Create provider")}
         </Button>
       </section>
     </div>

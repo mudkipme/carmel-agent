@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import type { FormEvent } from "react";
 import { agentTaskCreateSchema, type AgentTaskCreateCommand } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ export function TaskForm({
   onSave: (draft: AgentTaskCreateCommand) => Promise<void>;
   onCancel: () => void;
 }) {
+  const { i18n } = useLingui();
   const [draft, setDraft] = useSessionDraft(
     draftKey,
     initial,
@@ -70,10 +73,14 @@ export function TaskForm({
       onSubmit={submit}
       className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-3 sm:p-4"
     >
-      <h2 className="text-sm font-semibold">{editing ? "Edit schedule" : "New schedule"}</h2>
+      <h2 className="text-sm font-semibold">
+        {editing ? i18n._("Edit schedule") : i18n._("New schedule")}
+      </h2>
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="task-name">Name</FieldLabel>
+          <FieldLabel htmlFor="task-name">
+            <Trans>Name</Trans>
+          </FieldLabel>
           <Input
             id="task-name"
             autoFocus
@@ -83,7 +90,9 @@ export function TaskForm({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="task-prompt">Prompt</FieldLabel>
+          <FieldLabel htmlFor="task-prompt">
+            <Trans>Prompt</Trans>
+          </FieldLabel>
           <Textarea
             id="task-prompt"
             required
@@ -94,7 +103,9 @@ export function TaskForm({
         </Field>
         <FieldGroup className="grid min-w-0 gap-4 sm:grid-cols-2">
           <Field>
-            <FieldLabel htmlFor="task-repeats">Repeats</FieldLabel>
+            <FieldLabel htmlFor="task-repeats">
+              <Trans>Repeats</Trans>
+            </FieldLabel>
             <Select
               value={draft.scheduleKind}
               onValueChange={(value) =>
@@ -114,9 +125,15 @@ export function TaskForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="cron">On a cron schedule</SelectItem>
-                  <SelectItem value="interval">Every N minutes</SelectItem>
-                  <SelectItem value="once">Once, at a time</SelectItem>
+                  <SelectItem value="cron">
+                    <Trans>On a cron schedule</Trans>
+                  </SelectItem>
+                  <SelectItem value="interval">
+                    <Trans>Every N minutes</Trans>
+                  </SelectItem>
+                  <SelectItem value="once">
+                    <Trans>Once, at a time</Trans>
+                  </SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -124,10 +141,10 @@ export function TaskForm({
           <Field>
             <FieldLabel htmlFor="task-schedule">
               {draft.scheduleKind === "interval"
-                ? "Minutes"
+                ? i18n._("Minutes")
                 : draft.scheduleKind === "once"
-                  ? "When (ISO date and time)"
-                  : "Cron expression"}
+                  ? i18n._("When (ISO date and time)")
+                  : i18n._("Cron expression")}
             </FieldLabel>
             <Input
               id="task-schedule"
@@ -153,15 +170,17 @@ export function TaskForm({
             {draft.scheduleKind !== "interval" ? (
               <FieldDescription>
                 {draft.scheduleKind === "cron"
-                  ? "Minute, hour, day of month, month, weekday."
-                  : "Include a time zone, for example 2026-10-01T09:00:00+08:00."}
+                  ? i18n._("Minute, hour, day of month, month, weekday.")
+                  : i18n._("Include a time zone, for example 2026-10-01T09:00:00+08:00.")}
               </FieldDescription>
             ) : null}
           </Field>
         </FieldGroup>
         {draft.scheduleKind === "cron" ? (
           <Field>
-            <FieldLabel htmlFor="task-timezone">Time zone</FieldLabel>
+            <FieldLabel htmlFor="task-timezone">
+              <Trans>Time zone</Trans>
+            </FieldLabel>
             <Input
               id="task-timezone"
               value={draft.timezone ?? ""}
@@ -171,7 +190,9 @@ export function TaskForm({
           </Field>
         ) : null}
         <Field>
-          <FieldLabel htmlFor="task-notifications">Notification destination</FieldLabel>
+          <FieldLabel htmlFor="task-notifications">
+            <Trans>Notification destination</Trans>
+          </FieldLabel>
           <Select
             value={draft.notifyPlatform ?? "none"}
             onValueChange={(value) =>
@@ -188,26 +209,32 @@ export function TaskForm({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="none">Task history only</SelectItem>
+                <SelectItem value="none">
+                  <Trans>Task history only</Trans>
+                </SelectItem>
                 <SelectItem value="telegram">Telegram</SelectItem>
-                <SelectItem value="feishu">Feishu</SelectItem>
+                <SelectItem value="feishu">
+                  <Trans>Feishu</Trans>
+                </SelectItem>
                 <SelectItem value="lark">Lark</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
           <FieldDescription>
-            Connect your bot in this agent's Integrations settings first. Describe when to notify
-            you in the prompt, including any conditions.
+            <Trans>
+              Connect your bot in this agent's Integrations settings first. Describe when to notify
+              you in the prompt, including any conditions.
+            </Trans>
           </FieldDescription>
         </Field>
       </FieldGroup>
       <p className="text-sm text-muted-foreground">{describeTaskSchedule(draft)}</p>
       <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button type="submit" disabled={busy || !draft.name.trim() || !draft.prompt.trim()}>
-          {busy ? "Saving…" : editing ? "Save schedule" : "Create schedule"}
+          {busy ? i18n._("Saving…") : editing ? i18n._("Save schedule") : i18n._("Create schedule")}
         </Button>
       </div>
     </form>

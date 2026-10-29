@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import {
   DatabaseIcon,
   KeySquareIcon,
@@ -22,16 +23,17 @@ import { type ModelRef, type OAuthProviderSummary } from "@carmel-agent/shared";
 import { errorMessage } from "@/lib/errors";
 
 const allSettingsSections = [
-  { id: "models", label: "Models", icon: DatabaseIcon, adminOnly: false },
-  { id: "providers", label: "Providers", icon: KeyRoundIcon, adminOnly: true },
-  { id: "api-keys", label: "API Keys", icon: KeySquareIcon, adminOnly: false },
-  { id: "appearance", label: "Appearance", icon: MonitorIcon, adminOnly: false },
-  { id: "users", label: "Users", icon: UsersIcon, adminOnly: true },
-  { id: "account", label: "Account", icon: UserIcon, adminOnly: false },
+  { id: "models", label: /*i18n*/ "Models", icon: DatabaseIcon, adminOnly: false },
+  { id: "providers", label: /*i18n*/ "Providers", icon: KeyRoundIcon, adminOnly: true },
+  { id: "api-keys", label: /*i18n*/ "API Keys", icon: KeySquareIcon, adminOnly: false },
+  { id: "appearance", label: /*i18n*/ "Appearance", icon: MonitorIcon, adminOnly: false },
+  { id: "users", label: /*i18n*/ "Users", icon: UsersIcon, adminOnly: true },
+  { id: "account", label: /*i18n*/ "Account", icon: UserIcon, adminOnly: false },
 ] as const;
 type SettingsSection = (typeof allSettingsSections)[number]["id"];
 
 export function SettingsPage() {
+  const { i18n } = useLingui();
   const navigate = useNavigate();
   const { section } = useParams();
   const modelRefs = useHarnessStore((state) => state.modelRefs);
@@ -77,17 +79,17 @@ export function SettingsPage() {
   const updateFastTaskModel = async (modelRefId: string) => {
     if (!activeUser) return;
     setUpdatingModelSettings(true);
-    setModelStatus({ tone: "muted", message: "Saving fast task model..." });
+    setModelStatus({ tone: "muted", message: i18n._("Saving fast task model...") });
     try {
       await upsertUser({
         ...activeUser,
         fastTaskModelRefId: modelRefId || undefined,
       });
-      setModelStatus({ tone: "muted", message: "Fast task model saved." });
+      setModelStatus({ tone: "muted", message: i18n._("Fast task model saved.") });
     } catch (error) {
       setModelStatus({
         tone: "destructive",
-        message: errorMessage(error, "Unable to save fast task model"),
+        message: errorMessage(error, i18n._("Unable to save fast task model")),
       });
     } finally {
       setUpdatingModelSettings(false);
@@ -96,14 +98,14 @@ export function SettingsPage() {
 
   const updateModelSharing = async (model: ModelRef) => {
     setUpdatingModelSettings(true);
-    setModelStatus({ tone: "muted", message: "Saving model sharing..." });
+    setModelStatus({ tone: "muted", message: i18n._("Saving model sharing...") });
     try {
       await upsertModelRef(model);
-      setModelStatus({ tone: "muted", message: "Model sharing saved." });
+      setModelStatus({ tone: "muted", message: i18n._("Model sharing saved.") });
     } catch (error) {
       setModelStatus({
         tone: "destructive",
-        message: errorMessage(error, "Unable to save model sharing"),
+        message: errorMessage(error, i18n._("Unable to save model sharing")),
       });
     } finally {
       setUpdatingModelSettings(false);
@@ -112,16 +114,20 @@ export function SettingsPage() {
 
   const saveAppearanceSettings = () => {
     setThemePreference(draftThemePreference);
-    setAppearanceSaveMessage("Appearance saved.");
+    setAppearanceSaveMessage(i18n._("Appearance saved."));
   };
 
   return (
     <SettingsLayout
-      title="Settings"
-      backLabel="Back to harness"
+      title={i18n._("Settings")}
+      backLabel={i18n._("Back to harness")}
       onBack={() => navigate("/")}
       activeSection={activeSection}
-      sections={settingsSections.map((item) => ({ ...item, to: `/settings/${item.id}` }))}
+      sections={settingsSections.map((item) => ({
+        ...item,
+        label: i18n._(item.label),
+        to: `/settings/${item.id}`,
+      }))}
     >
       {activeSection === "models" ? (
         <ModelSettings

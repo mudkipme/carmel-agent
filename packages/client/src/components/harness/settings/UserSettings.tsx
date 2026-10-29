@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { KeyRoundIcon, Trash2Icon, UserPlusIcon } from "lucide-react";
 import { SectionHeader } from "@/components/harness/form-primitives";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -16,6 +18,7 @@ import { useHarnessStore } from "@/store/harness-store";
 import type { UserRole } from "@carmel-agent/shared";
 
 export function UserSettings() {
+  const { i18n } = useLingui();
   const currentUserId = useHarnessStore((state) => state.activeUserId);
   const admin = useUserAdministration();
   const {
@@ -54,7 +57,9 @@ export function UserSettings() {
                     </span>
                   </span>
                   {isSelf ? (
-                    <Badge variant="default">{user.role} (you)</Badge>
+                    <Badge variant="default">
+                      <Trans>{user.role} (you)</Trans>
+                    </Badge>
                   ) : (
                     <div className="flex shrink-0 items-center gap-2">
                       <Select
@@ -65,14 +70,18 @@ export function UserSettings() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="user">
+                            <Trans>User</Trans>
+                          </SelectItem>
+                          <SelectItem value="admin">
+                            <Trans>Admin</Trans>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        title="Reset password"
+                        title={i18n._("Reset password")}
                         onClick={() => {
                           admin.togglePasswordReset(user.id);
                         }}
@@ -82,7 +91,7 @@ export function UserSettings() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        title="Delete user"
+                        title={i18n._("Delete user")}
                         onClick={() => void admin.removeUser(user)}
                       >
                         <Trash2Icon className="size-4" />
@@ -96,7 +105,7 @@ export function UserSettings() {
                       value={resetPassword}
                       type="password"
                       autoComplete="new-password"
-                      placeholder="New password"
+                      placeholder={i18n._("New password")}
                       onChange={(event) => setResetPassword(event.target.value)}
                     />
                     <Button
@@ -104,10 +113,10 @@ export function UserSettings() {
                       disabled={resetPassword.length < 8}
                       onClick={() => void admin.submitPasswordReset(user.id)}
                     >
-                      Set
+                      <Trans>Set</Trans>
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setResetUserId(null)}>
-                      Cancel
+                      <Trans>Cancel</Trans>
                     </Button>
                   </div>
                 ) : null}
@@ -118,9 +127,11 @@ export function UserSettings() {
       </section>
 
       <section className="grid gap-3 border-t pt-6">
-        <SectionHeader title="Create User" />
+        <SectionHeader title={i18n._("Create User")} />
         <Field>
-          <FieldLabel>Username</FieldLabel>
+          <FieldLabel>
+            <Trans>Username</Trans>
+          </FieldLabel>
           <Input
             value={username}
             autoComplete="off"
@@ -128,7 +139,9 @@ export function UserSettings() {
           />
         </Field>
         <Field>
-          <FieldLabel>Email</FieldLabel>
+          <FieldLabel>
+            <Trans>Email</Trans>
+          </FieldLabel>
           <Input
             value={email}
             type="email"
@@ -137,7 +150,9 @@ export function UserSettings() {
           />
         </Field>
         <Field>
-          <FieldLabel>Password</FieldLabel>
+          <FieldLabel>
+            <Trans>Password</Trans>
+          </FieldLabel>
           <Input
             value={password}
             type="password"
@@ -146,14 +161,20 @@ export function UserSettings() {
           />
         </Field>
         <Field>
-          <FieldLabel>Role</FieldLabel>
+          <FieldLabel>
+            <Trans>Role</Trans>
+          </FieldLabel>
           <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="user">User</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="user">
+                <Trans>User</Trans>
+              </SelectItem>
+              <SelectItem value="admin">
+                <Trans>Admin</Trans>
+              </SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -163,9 +184,11 @@ export function UserSettings() {
           disabled={creating || !username.trim() || !email.trim() || password.length < 8}
         >
           <UserPlusIcon data-icon="inline-start" />
-          Create user
+          <Trans>Create user</Trans>
         </Button>
-        <p className="text-xs text-muted-foreground">Password must be at least 8 characters.</p>
+        <p className="text-xs text-muted-foreground">
+          <Trans>Password must be at least 8 characters.</Trans>
+        </p>
       </section>
     </div>
   );

@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { ArrowLeftIcon, DownloadIcon, RotateCcwIcon, SaveIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentConfig } from "@carmel-agent/shared";
@@ -22,6 +24,7 @@ type FileEditorViewProps = {
 };
 
 export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps) {
+  const { i18n } = useLingui();
   const themePreference = useThemePreference();
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
@@ -51,11 +54,11 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
     } catch (loadError) {
       setContent("");
       setSavedContent("");
-      setError(errorMessage(loadError, "Unable to open file"));
+      setError(errorMessage(loadError, i18n._("Unable to open file")));
     } finally {
       setLoading(false);
     }
-  }, [agent, filePath]);
+  }, [agent, filePath, i18n]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -74,7 +77,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
       setSavedContent(result.content);
       return true;
     } catch (saveError) {
-      setError(errorMessage(saveError, "Unable to save file"));
+      setError(errorMessage(saveError, i18n._("Unable to save file")));
       return false;
     } finally {
       setSaving(false);
@@ -87,7 +90,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
   if (!agent) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-        Select an agent to browse files.
+        <Trans>Select an agent to browse files.</Trans>
       </div>
     );
   }
@@ -95,7 +98,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
   if (!filePath) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-        Select a file from the sidebar.
+        <Trans>Select a file from the sidebar.</Trans>
       </div>
     );
   }
@@ -104,7 +107,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
       <div className="flex min-w-0 flex-1 basis-full items-center gap-2 @[48rem]/file-editor:basis-0">
         {onClose ? (
-          <Button size="icon-sm" variant="ghost" title="Back to files" onClick={onClose}>
+          <Button size="icon-sm" variant="ghost" title={i18n._("Back to files")} onClick={onClose}>
             <ArrowLeftIcon />
           </Button>
         ) : null}
@@ -113,29 +116,37 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
             {filePath}
           </h2>
           <p className="truncate text-xs text-muted-foreground">
-            {isImage ? "Image preview" : isDirty ? "Unsaved changes" : "Saved"}
+            {isImage
+              ? i18n._("Image preview")
+              : isDirty
+                ? i18n._("Unsaved changes")
+                : i18n._("Saved")}
             {loading ? " · Loading..." : ""}
           </p>
         </div>
       </div>
       <div className="flex max-w-full flex-wrap items-center gap-2">
         {isMarkdown ? (
-          <TabsList aria-label="Markdown view">
-            <TabsTrigger value="preview">Preview</TabsTrigger>
+          <TabsList aria-label={i18n._("Markdown view")}>
+            <TabsTrigger value="preview">
+              <Trans>Preview</Trans>
+            </TabsTrigger>
             <TabsTrigger value="edit" disabled={loading}>
-              Edit
+              <Trans>Edit</Trans>
             </TabsTrigger>
           </TabsList>
         ) : null}
         <Button
           size="sm"
           variant="outline"
-          title="Download this file"
-          aria-label="Download this file"
+          title={i18n._("Download this file")}
+          aria-label={i18n._("Download this file")}
           onClick={() => downloadFile(agent.id, filePath)}
         >
           <DownloadIcon />
-          <span className="hidden @[32rem]/file-editor:inline">Download</span>
+          <span className="hidden @[32rem]/file-editor:inline">
+            <Trans>Download</Trans>
+          </span>
         </Button>
         {!isImage ? (
           <>
@@ -143,23 +154,25 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
               size="sm"
               variant="outline"
               disabled={!isDirty || saving || loading}
-              aria-label="Discard"
-              title="Discard unsaved changes"
+              aria-label={i18n._("Discard")}
+              title={i18n._("Discard unsaved changes")}
               onClick={() => setContent(savedContent)}
             >
               <RotateCcwIcon />
-              <span className="hidden @[32rem]/file-editor:inline">Discard</span>
+              <span className="hidden @[32rem]/file-editor:inline">
+                <Trans>Discard</Trans>
+              </span>
             </Button>
             <Button
               size="sm"
               disabled={!isDirty || saving || loading}
-              aria-label={saving ? "Saving..." : "Save"}
-              title="Save file"
+              aria-label={saving ? i18n._("Saving...") : i18n._("Save")}
+              title={i18n._("Save file")}
               onClick={() => void saveFile()}
             >
               <SaveIcon />
               <span className="hidden @[32rem]/file-editor:inline">
-                {saving ? "Saving..." : "Save"}
+                {saving ? i18n._("Saving...") : i18n._("Save")}
               </span>
             </Button>
           </>
@@ -198,7 +211,9 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
           className="min-h-0 overflow-auto p-4 data-[state=inactive]:hidden sm:p-6"
         >
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading Markdown…</p>
+            <p className="text-sm text-muted-foreground">
+              <Trans>Loading Markdown…</Trans>
+            </p>
           ) : (
             <div className="mx-auto max-w-[var(--line-width)]">
               <WorkspaceFileLinkAgentContext value={agent.id}>
@@ -245,7 +260,7 @@ function ImagePreview({ agentId, filePath }: { agentId: string; filePath: string
   if (failed) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-        Unable to preview this image.
+        <Trans>Unable to preview this image.</Trans>
       </div>
     );
   }

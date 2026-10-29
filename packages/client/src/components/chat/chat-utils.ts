@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type {
   AssistantMessage,
@@ -64,7 +65,7 @@ export function getEditableUserImages(message: AgentMessage): EditableUserImage[
   const images: EditableUserImage[] = getMessageImages(message).map((image, index) => ({
     key: `content:${index}`,
     src: imageSrc(image),
-    label: "Image",
+    label: i18n._("Image"),
     removal: { kind: "content", index },
   }));
 
@@ -95,10 +96,12 @@ export function buildToolResultsById(messages: AgentMessage[]) {
 export function formatUsage(usage?: Usage) {
   if (!usage) return "";
   const parts: string[] = [];
-  if (usage.input) parts.push(`in ${formatTokenCount(usage.input)}`);
-  if (usage.output) parts.push(`out ${formatTokenCount(usage.output)}`);
-  if (usage.cacheRead) parts.push(`read ${formatTokenCount(usage.cacheRead)}`);
-  if (usage.cacheWrite) parts.push(`write ${formatTokenCount(usage.cacheWrite)}`);
+  if (usage.input) parts.push(i18n._("in {value}", { value: formatTokenCount(usage.input) }));
+  if (usage.output) parts.push(i18n._("out {value}", { value: formatTokenCount(usage.output) }));
+  if (usage.cacheRead)
+    parts.push(i18n._("read {value}", { value: formatTokenCount(usage.cacheRead) }));
+  if (usage.cacheWrite)
+    parts.push(i18n._("write {value}", { value: formatTokenCount(usage.cacheWrite) }));
   if (usage.cost?.total) parts.push(`$${usage.cost.total.toFixed(4)}`);
   return parts.join(" ");
 }
@@ -108,7 +111,8 @@ export function formatToolResult(result?: ToolResultMessage) {
   const text = result.content
     ?.map((part) => {
       if (part.type === "text") return part.text;
-      if (part.type === "image") return `[Image output: ${part.mimeType}]`;
+      if (part.type === "image")
+        return i18n._("[Image output: {mimeType}]", { mimeType: part.mimeType });
       return "";
     })
     .filter(Boolean)
@@ -143,7 +147,8 @@ export async function copyText(text: string) {
 }
 
 export async function fileToImageAttachment(file: File): Promise<ChatAttachment> {
-  if (!file.type.startsWith("image/")) throw new Error(`${file.name} is not an image.`);
+  if (!file.type.startsWith("image/"))
+    throw new Error(i18n._("{name} is not an image.", { name: file.name }));
   const dataUrl = await readFileAsDataUrl(file);
   const content = dataUrl.split(",", 2)[1] ?? "";
   return {
@@ -158,7 +163,8 @@ export async function fileToImageAttachment(file: File): Promise<ChatAttachment>
 }
 
 export function attachmentToImageContent(attachment: ChatAttachment): ImageContent {
-  if (!attachment.content) throw new Error(`${attachment.fileName} has no image content.`);
+  if (!attachment.content)
+    throw new Error(i18n._("{fileName} has no image content.", { fileName: attachment.fileName }));
   return {
     type: "image",
     data: attachment.content,
@@ -204,7 +210,10 @@ function formatTokenCount(count: number) {
 function summarize(text: string) {
   const max = 2_000;
   if (text.length <= max) return text;
-  return `${text.slice(0, max)}\n\n[Truncated ${text.length - max} characters for display]`;
+  return i18n._("{value}\n\n[Truncated {value2} characters for display]", {
+    value: text.slice(0, max),
+    value2: text.length - max,
+  });
 }
 
 function readFileAsDataUrl(file: File) {
@@ -212,7 +221,7 @@ function readFileAsDataUrl(file: File) {
     const reader = new FileReader();
     reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
     reader.addEventListener("error", () =>
-      reject(reader.error ?? new Error("Failed to read file.")),
+      reject(reader.error ?? new Error(i18n._("Failed to read file."))),
     );
     reader.readAsDataURL(file);
   });

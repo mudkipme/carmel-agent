@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { AgentAvatar } from "./AgentAvatar";
 import {
   PanelLeftCloseIcon,
@@ -53,6 +55,7 @@ export function HarnessSidebar({
   onResizeWidth: (width: number) => void;
   onOpenSettings: () => void;
 }) {
+  const { i18n } = useLingui();
   const navigate = useNavigate();
   const createAgent = useHarnessStore((state) => state.createAgent);
   const modelRefs = useHarnessStore((state) => state.modelRefs);
@@ -72,11 +75,11 @@ export function HarnessSidebar({
   const createSidebarAgent = async (): Promise<AgentConfig | undefined> => {
     try {
       return await createAgent({
-        name: `Agent ${visibleAgents.length + 1}`,
+        name: i18n._("Agent {number}", { number: visibleAgents.length + 1 }),
         defaultModelRefId: modelRefs[0]?.id,
       });
     } catch (error) {
-      showError("Unable to create agent", error);
+      showError(i18n._("Unable to create agent"), error);
       return undefined;
     }
   };
@@ -104,12 +107,20 @@ export function HarnessSidebar({
           <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
             Carmel Agent
           </h1>
-          <Button size="icon-sm" variant="ghost" title="Collapse sidebar" onClick={onClose}>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title={i18n._("Collapse sidebar")}
+            onClick={onClose}
+          >
             <PanelLeftCloseIcon />
           </Button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
-          <nav aria-label="Agents" className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto">
+          <nav
+            aria-label={i18n._("Agents")}
+            className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto"
+          >
             {visibleAgents.map((agent) => {
               const selected = agent.id === activeAgent?.id;
               const home = homes.data?.find((item) => item.agentId === agent.id);
@@ -124,50 +135,53 @@ export function HarnessSidebar({
                       <AgentAvatar agent={agent} />
                       <span className="min-w-0 flex-1 truncate">{agent.name}</span>
                       {home?.needsAttention ? (
-                        <span title="Needs your attention" aria-label="Needs your attention">
+                        <span
+                          title={i18n._("Needs your attention")}
+                          aria-label={i18n._("Needs your attention")}
+                        >
                           !
                         </span>
                       ) : null}
                       {home?.working ? (
                         <span className="text-muted-foreground" role="status">
-                          Working
+                          <Trans>Working</Trans>
                         </span>
                       ) : null}
                       {home?.unread ? (
                         <span
                           className="size-2 shrink-0 rounded-full bg-primary"
-                          aria-label="Unread messages"
+                          aria-label={i18n._("Unread messages")}
                         />
                       ) : null}
                     </Link>
                   </Button>
                   {selected ? (
                     <nav
-                      aria-label="Agent work"
+                      aria-label={i18n._("Agent work")}
                       className="ml-4 flex flex-col gap-1 border-l pl-2 pb-2"
                     >
                       {[
                         {
-                          label: "Home",
+                          label: i18n._("Home"),
                           path: "home",
                           icon: HomeIcon,
                           active: contentView === "chat" && Boolean(homeView),
                         },
                         {
-                          label: "Sessions",
+                          label: i18n._("Sessions"),
                           path: "sessions",
                           icon: MessagesSquareIcon,
                           active:
                             contentView === "sessions" || (contentView === "chat" && !homeView),
                         },
                         {
-                          label: "Tasks",
+                          label: i18n._("Tasks"),
                           path: "tasks",
                           icon: ListTodoIcon,
                           active: contentView === "tasks",
                         },
                         {
-                          label: "Schedules",
+                          label: i18n._("Schedules"),
                           path: "schedules",
                           icon: CalendarClockIcon,
                           active: contentView === "schedules",
@@ -175,7 +189,7 @@ export function HarnessSidebar({
                         ...(agent.permissions.read && knowledge.data?.enabled
                           ? [
                               {
-                                label: "Knowledge",
+                                label: i18n._("Knowledge"),
                                 path: "knowledge",
                                 icon: BookOpenIcon,
                                 active: contentView === "knowledge",
@@ -218,7 +232,7 @@ export function HarnessSidebar({
             }
           >
             <PlusIcon data-icon="inline-start" />
-            New agent
+            <Trans>New agent</Trans>
           </Button>
         </div>
         <Separator />
@@ -232,8 +246,8 @@ export function HarnessSidebar({
           <Button
             variant="ghost"
             size="icon-sm"
-            title="Settings"
-            aria-label="Settings"
+            title={i18n._("Settings")}
+            aria-label={i18n._("Settings")}
             onClick={onOpenSettings}
           >
             <SettingsIcon />
@@ -243,7 +257,7 @@ export function HarnessSidebar({
       <button
         type="button"
         role="separator"
-        aria-label="Resize sidebar"
+        aria-label={i18n._("Resize sidebar")}
         aria-orientation="vertical"
         aria-valuemin={MIN_SIDEBAR_WIDTH}
         aria-valuemax={MAX_SIDEBAR_WIDTH}

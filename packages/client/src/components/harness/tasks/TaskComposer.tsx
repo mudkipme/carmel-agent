@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import type { Ref } from "react";
 import { ArrowUpIcon, MoreHorizontalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,11 +34,12 @@ export function TaskComposer({
   placeholder: string;
   fresh: boolean;
 }) {
+  const { i18n } = useLingui();
   const canSend = !busy && Boolean(message.trim());
   return (
     <div className="shrink-0 px-3 pt-2 pb-[calc(0.75rem+var(--safe-bottom))] sm:px-4">
       <form
-        aria-label="Task reply"
+        aria-label={i18n._("Task reply")}
         className="chat-composer mx-auto flex w-full max-w-[var(--line-width)] flex-col gap-2 rounded-xl border bg-card p-3 shadow-sm"
         onSubmit={(event) => {
           event.preventDefault();
@@ -46,7 +49,7 @@ export function TaskComposer({
         <Textarea
           ref={inputRef}
           id="issue-reply"
-          aria-label="Message"
+          aria-label={i18n._("Message")}
           value={message}
           maxLength={20000}
           className="max-h-40 min-h-16 resize-none border-0 bg-transparent px-1 py-0 shadow-none focus-visible:ring-0"
@@ -62,22 +65,31 @@ export function TaskComposer({
         <div className="flex items-center justify-between gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="Reply options">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={i18n._("Reply options")}
+              >
                 <MoreHorizontalIcon />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuGroup>
                 <DropdownMenuItem disabled={!canSend} onSelect={onSaveNote}>
-                  Save as note
+                  <Trans>Save as note</Trans>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="flex items-center gap-2">
-            {fresh ? <Badge variant="secondary">Fresh conversation</Badge> : null}
+            {fresh ? (
+              <Badge variant="secondary">
+                <Trans>Fresh conversation</Trans>
+              </Badge>
+            ) : null}
             <Button type="submit" size="sm" disabled={!canSend}>
-              {onSend ? sendLabel : "Save note"}
+              {onSend ? sendLabel : i18n._("Save note")}
               <ArrowUpIcon data-icon="inline-end" />
             </Button>
           </div>

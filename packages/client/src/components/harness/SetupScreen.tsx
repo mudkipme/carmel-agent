@@ -1,3 +1,6 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
+import { LanguagePicker } from "@/components/harness/settings/LanguagePicker";
 import { ShieldCheckIcon } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +11,7 @@ import { OidcLoginButton } from "@/components/harness/OidcLoginButton";
 import { useHarnessStore } from "@/store/harness-store";
 
 export function SetupScreen() {
+  const { i18n } = useLingui();
   const setup = useHarnessStore((state) => state.setup);
   const error = useHarnessStore((state) => state.error);
   const authOptions = useHarnessStore((state) => state.authOptions);
@@ -32,29 +36,38 @@ export function SetupScreen() {
     <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Welcome to Carmel Agent</CardTitle>
+          <CardTitle>
+            <Trans>Welcome to Carmel Agent</Trans>
+          </CardTitle>
           <CardDescription>
             {passwordLogin
-              ? "Create the first account. It will be the administrator."
-              : `The first person to sign in with ${oidc?.providerName ?? "single sign-on"} becomes the administrator.`}
+              ? i18n._("Create the first account. It will be the administrator.")
+              : i18n._("The first person to sign in with {value} becomes the administrator.", {
+                  value: oidc?.providerName ?? i18n._("single sign-on"),
+                })}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          <LanguagePicker />
           {oidc ? (
             <OidcLoginButton
               providerName={oidc.providerName}
-              label={`Continue with ${oidc.providerName}`}
+              label={i18n._("Continue with {providerName}", { providerName: oidc.providerName })}
               variant={passwordLogin ? "outline" : "default"}
             />
           ) : null}
           {oidc && passwordLogin ? (
-            <FieldSeparator className="[&>span]:bg-card">or</FieldSeparator>
+            <FieldSeparator className="[&>span]:bg-card">
+              <Trans>or</Trans>
+            </FieldSeparator>
           ) : null}
           {passwordLogin ? (
             <form className="flex flex-col gap-4" onSubmit={submit}>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="setup-username">Username</FieldLabel>
+                  <FieldLabel htmlFor="setup-username">
+                    <Trans>Username</Trans>
+                  </FieldLabel>
                   <Input
                     id="setup-username"
                     value={username}
@@ -63,7 +76,9 @@ export function SetupScreen() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="setup-email">Email</FieldLabel>
+                  <FieldLabel htmlFor="setup-email">
+                    <Trans>Email</Trans>
+                  </FieldLabel>
                   <Input
                     id="setup-email"
                     value={email}
@@ -73,7 +88,9 @@ export function SetupScreen() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="setup-password">Password</FieldLabel>
+                  <FieldLabel htmlFor="setup-password">
+                    <Trans>Password</Trans>
+                  </FieldLabel>
                   <Input
                     id="setup-password"
                     value={password}
@@ -86,10 +103,10 @@ export function SetupScreen() {
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
               <Button type="submit" disabled={!username || password.length < 8 || submitting}>
                 <ShieldCheckIcon data-icon="inline-start" />
-                {submitting ? "Creating account" : "Create admin account"}
+                {submitting ? i18n._("Creating account") : i18n._("Create admin account")}
               </Button>
               <p className="text-xs text-muted-foreground">
-                Password must be at least 8 characters.
+                <Trans>Password must be at least 8 characters.</Trans>
               </p>
             </form>
           ) : error ? (

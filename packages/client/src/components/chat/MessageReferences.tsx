@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { AtSignIcon } from "lucide-react";
 import { useContext } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -9,13 +10,14 @@ import { workspaceChatPath } from "@/lib/workspace-layout";
 import { WorkspaceFileLinkAgentContext } from "./workspace-file-links";
 
 export function MessageReferences({ message }: { message: AgentMessage }) {
+  const { i18n } = useLingui();
   const references = getMessageReferences(message);
   const agentId = useContext(WorkspaceFileLinkAgentContext);
   const { sessionId } = useParams();
   const [params] = useSearchParams();
   if (!references.length) return null;
   return (
-    <div className="mt-2 flex flex-wrap gap-1" aria-label="Message references">
+    <div className="mt-2 flex flex-wrap gap-1" aria-label={i18n._("Message references")}>
       {references.map((reference) => {
         const label = referenceLabel(reference);
         const href =

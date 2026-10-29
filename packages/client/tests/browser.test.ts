@@ -395,7 +395,7 @@ test(
     browser("wait", "--text", "Resume agent");
     assert.match(
       evaluate<string>(`document.querySelector('[aria-label="Question from agent"]').textContent`),
-      /cancelled/,
+      /Cancelled/,
     );
   },
 );
@@ -1924,13 +1924,13 @@ test("chat controls fit narrow touch screens with reasoning and long model names
     assert.deepEqual(resizeFailures, [], `${path} during composer resize`);
     browser("set", "viewport", "320", "740");
     click("combobox", "Thinking level");
-    click("option", "high");
+    click("option", "High");
     browser(
       "wait",
       "--fn",
-      'document.querySelector(\'[role="combobox"][aria-label="Thinking level"]\')?.textContent.trim() === "high"',
+      'document.querySelector(\'[role="combobox"][aria-label="Thinking level"]\')?.textContent.trim() === "High"',
     );
-    assert.match(snapshot(), /combobox "Thinking level".*high/);
+    assert.match(snapshot(), /combobox "Thinking level".*High/);
     clickSelector('.agent-chat-host button[aria-label^="Choose model"]');
     browser("wait", '[role="dialog"]');
     assert.match(browser<{ snapshot: string }>("snapshot").snapshot, /Select Model/);
@@ -2099,4 +2099,42 @@ test("Home shows compact issue cards and opens evidence in the same app while pr
     waitForValue('textarea[aria-label="Message"]', "You can install the missing clients.");
     browser("fill", 'textarea[aria-label="Message"]', "");
   }
+});
+
+test("language selection updates settings in place and persists across reload and navigation", (t) => {
+  t.after(() => {
+    evaluate(`localStorage.setItem('carmel-agent-language', 'en')`);
+    browser("reload");
+    browser("wait", "--text", "Save appearance");
+  });
+  browser("open", `${fixture.url}/settings/appearance`);
+  browser("wait", '[role="combobox"]#appearance-theme');
+  clickSelector('[role="combobox"]#appearance-theme');
+  click("option", "Dark");
+
+  const selectLanguage = (label: string, option: string) => {
+    browser("find", "label", label, "click");
+    click("option", option);
+  };
+  selectLanguage("Language", "简体中文");
+  browser("wait", "--text", "保存外观");
+  assert.equal(evaluate("document.documentElement.lang"), "zh-Hans");
+  assert.equal(evaluate(`document.querySelector('#appearance-theme').textContent.trim()`), "深色");
+  assert.match(snapshot(), /模型/);
+
+  selectLanguage("语言", "繁體中文");
+  browser("wait", "--text", "儲存外觀");
+  assert.equal(evaluate("document.documentElement.lang"), "zh-Hant");
+  assert.equal(evaluate(`document.querySelector('#appearance-theme').textContent.trim()`), "深色");
+  assert.equal(evaluate(`localStorage.getItem('carmel-agent-language')`), "zh-Hant");
+  browser("reload");
+  browser("wait", "--text", "儲存外觀");
+  assert.equal(evaluate("document.documentElement.lang"), "zh-Hant");
+  click("link", "帳號");
+  browser("wait", "--text", "登出");
+  click("link", "外觀");
+  browser("wait", "--text", "儲存外觀");
+  selectLanguage("語言", "English");
+  browser("wait", "--text", "Save appearance");
+  assert.equal(evaluate("document.documentElement.lang"), "en");
 });

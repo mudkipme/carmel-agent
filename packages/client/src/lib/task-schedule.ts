@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import type { AgentTask, AgentTaskCreateCommand, AgentTaskRun } from "@carmel-agent/shared";
 
 export function localTimezone() {
@@ -29,11 +30,11 @@ export function taskDraft(task: AgentTask): AgentTaskCreateCommand {
 
 export function formatTaskTime(value: number) {
   return Number.isFinite(value)
-    ? new Date(value).toLocaleString(undefined, {
+    ? new Date(value).toLocaleString(i18n.locale, {
         dateStyle: "medium",
         timeStyle: "short",
       })
-    : "Unknown time";
+    : i18n._("Unknown time");
 }
 
 export function describeTaskSchedule(
@@ -49,13 +50,22 @@ export function describeTaskSchedule(
     ] as const) {
       if (minutes >= size && minutes % size === 0) {
         const amount = minutes / size;
-        return amount === 1 ? `Every ${unit}` : `Every ${amount} ${unit}s`;
+        return {
+          week: i18n._("{amount, plural, one {Every week} other {Every # weeks}}", { amount }),
+          day: i18n._("{amount, plural, one {Every day} other {Every # days}}", { amount }),
+          hour: i18n._("{amount, plural, one {Every hour} other {Every # hours}}", { amount }),
+          minute: i18n._("{amount, plural, one {Every minute} other {Every # minutes}}", {
+            amount,
+          }),
+        }[unit];
       }
     }
-    return `Every ${Number(task.scheduleValue) / 1_000} seconds`;
+    return i18n._("{amount, plural, one {Every second} other {Every # seconds}}", {
+      amount: Number(task.scheduleValue) / 1_000,
+    });
   }
   if (task.scheduleKind === "once")
-    return `Once at ${formatTaskTime(Date.parse(task.scheduleValue))}`;
+    return i18n._("Once at {value}", { value: formatTaskTime(Date.parse(task.scheduleValue)) });
   const [minute, hour, day, month, weekday, extra] = task.scheduleValue.trim().split(/\s+/);
   const timezone = task.timezone ? ` (${task.timezone})` : "";
   if (
@@ -68,43 +78,60 @@ export function describeTaskSchedule(
     month === "*"
   ) {
     const time = `${hour!.padStart(2, "0")}:${minute!.padStart(2, "0")}`;
-    if (weekday === "*") return `Every day at ${time}${timezone}`;
-    if (weekday === "1-5") return `Every weekday at ${time}${timezone}`;
+    if (weekday === "*")
+      return i18n._("Every day at {time}{timezone}", { time: time, timezone: timezone });
+    if (weekday === "1-5")
+      return i18n._("Every weekday at {time}{timezone}", { time: time, timezone: timezone });
     const weekdays = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-      "Sunday",
+      i18n._("Sunday"),
+      i18n._("Monday"),
+      i18n._("Tuesday"),
+      i18n._("Wednesday"),
+      i18n._("Thursday"),
+      i18n._("Friday"),
+      i18n._("Saturday"),
+      i18n._("Sunday"),
     ];
     if (/^[0-7]$/.test(weekday ?? ""))
-      return `Every ${weekdays[Number(weekday)]} at ${time}${timezone}`;
+      return i18n._("Every {weekday} at {time}{timezone}", {
+        weekday: weekdays[Number(weekday)],
+        time,
+        timezone,
+      });
   }
-  return `Cron: ${task.scheduleValue}${timezone}`;
+  return i18n._("Cron: {scheduleValue}{timezone}", {
+    scheduleValue: task.scheduleValue,
+    timezone: timezone,
+  });
 }
 
 export function describeTaskState(task: AgentTask) {
-  if (task.status === "paused") return "Paused";
-  if (task.status === "completed") return "Completed";
+  if (task.status === "paused") return i18n._("Paused");
+  if (task.status === "completed") return i18n._("Completed");
   if (task.status === "disabled")
-    return `Disabled · ${task.lastError ?? "Unable to read the schedule"}`;
-  const next = task.nextRunAt ? `Next run: ${formatTaskTime(task.nextRunAt)}` : "Not scheduled";
+    return i18n._("Disabled · {value}", {
+      value: task.lastError ?? i18n._("Unable to read the schedule"),
+    });
+  const next = task.nextRunAt
+    ? i18n._("Next run: {value}", { value: formatTaskTime(task.nextRunAt) })
+    : i18n._("Not scheduled");
   if (!task.lastRunAt) return next;
-  const last = `${next} · Last run: ${describeTaskOutcome(task.lastOutcome ?? "succeeded")} · ${formatTaskTime(task.lastRunAt)}`;
+  const last = i18n._("{next} · Last run: {value} · {value2}", {
+    next: next,
+    value: describeTaskOutcome(task.lastOutcome ?? "succeeded"),
+    value2: formatTaskTime(task.lastRunAt),
+  });
   return task.lastError && task.lastOutcome !== "succeeded" ? `${last} · ${task.lastError}` : last;
 }
 
 export function describeTaskOutcome(outcome: AgentTaskRun["outcome"]) {
   return {
-    running: "Running",
-    succeeded: "Succeeded",
-    failed: "Failed",
-    cancelled: "Cancelled",
-    interrupted: "Interrupted",
-    missed: "Missed",
-    skipped: "Skipped",
+    running: i18n._("Running"),
+    succeeded: i18n._("Succeeded"),
+    failed: i18n._("Failed"),
+    cancelled: i18n._("Cancelled"),
+    interrupted: i18n._("Interrupted"),
+    missed: i18n._("Missed"),
+    skipped: i18n._("Skipped"),
   }[outcome];
 }

@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { clampThinkingLevel, getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import {
   ArchiveIcon,
@@ -30,15 +32,15 @@ import { useHarnessStore } from "@/store/harness-store";
 import { resolveModelRef, type AgentConfig, type AgentThinkingLevel } from "@carmel-agent/shared";
 
 const agentSettingsSections = [
-  { id: "general", label: "General", icon: SlidersHorizontalIcon },
-  { id: "knowledge", label: "Knowledge", icon: BookOpenIcon },
-  { id: "templates", label: "Templates", icon: FileTextIcon },
-  { id: "permissions", label: "Permissions", icon: ShieldIcon },
-  { id: "codemode", label: "Codemode", icon: CodeIcon },
-  { id: "secrets", label: "Secrets", icon: KeyRoundIcon },
+  { id: "general", label: /*i18n*/ "General", icon: SlidersHorizontalIcon },
+  { id: "knowledge", label: /*i18n*/ "Knowledge", icon: BookOpenIcon },
+  { id: "templates", label: /*i18n*/ "Templates", icon: FileTextIcon },
+  { id: "permissions", label: /*i18n*/ "Permissions", icon: ShieldIcon },
+  { id: "codemode", label: /*i18n*/ "Codemode", icon: CodeIcon },
+  { id: "secrets", label: /*i18n*/ "Secrets", icon: KeyRoundIcon },
   { id: "mcp", label: "MCP", icon: PlugIcon },
-  { id: "integrations", label: "Integrations", icon: PlugIcon },
-  { id: "archived", label: "Archived", icon: ArchiveIcon },
+  { id: "integrations", label: /*i18n*/ "Integrations", icon: PlugIcon },
+  { id: "archived", label: /*i18n*/ "Archived", icon: ArchiveIcon },
 ] as const;
 type AgentSettingsSection = (typeof agentSettingsSections)[number]["id"];
 
@@ -49,6 +51,7 @@ const sharedAgentSettingsSections = agentSettingsSections.filter(
 );
 
 export function AgentSettingsPage() {
+  const { i18n } = useLingui();
   const navigate = useNavigate();
   const { agentId = "", section } = useParams();
   const modelRefs = useHarnessStore((state) => state.modelRefs);
@@ -113,12 +116,12 @@ export function AgentSettingsPage() {
         }
       })
       .catch((error: unknown) => {
-        if (!cancelled) setLoadError(errorMessage(error, "Unable to load agent settings"));
+        if (!cancelled) setLoadError(errorMessage(error, i18n._("Unable to load agent settings")));
       });
     return () => {
       cancelled = true;
     };
-  }, [agentId, owned]);
+  }, [agentId, owned, i18n]);
 
   const updateDraft = (patch: Partial<AgentConfig>) => {
     setSaveMessage(null);
@@ -151,10 +154,10 @@ export function AgentSettingsPage() {
         updatedAt: Date.now(),
       });
       setSavedDraft(draft);
-      setSaveMessage("Agent saved.");
+      setSaveMessage(i18n._("Agent saved."));
       return true;
     } catch (error) {
-      setSaveError(errorMessage(error, "Unable to save agent"));
+      setSaveError(errorMessage(error, i18n._("Unable to save agent")));
       return false;
     } finally {
       setSaving(false);
@@ -164,16 +167,16 @@ export function AgentSettingsPage() {
   const removeAgent = async () => {
     if (!agent) return;
     const confirmed = await confirmAction({
-      title: `Delete ${agent.name}?`,
-      description: "This permanently deletes the agent and all of its sessions.",
-      actionLabel: "Delete agent",
+      title: i18n._("Delete {name}?", { name: agent.name }),
+      description: i18n._("This permanently deletes the agent and all of its sessions."),
+      actionLabel: i18n._("Delete agent"),
     });
     if (!confirmed) return;
     try {
       await deleteAgent(agent.id);
       navigate("/", { replace: true });
     } catch (error) {
-      showError("Unable to delete agent", error);
+      showError(i18n._("Unable to delete agent"), error);
     }
   };
 
@@ -181,13 +184,14 @@ export function AgentSettingsPage() {
 
   return (
     <SettingsLayout
-      title="Agent Settings"
+      title={i18n._("Agent Settings")}
       subtitle={agent.name}
-      backLabel="Back to agent"
+      backLabel={i18n._("Back to agent")}
       onBack={() => navigate(`/agents/${agent.id}`)}
       activeSection={activeSection}
       sections={sections.map((item) => ({
         ...item,
+        label: i18n._(item.label),
         to: `/agents/${agent.id}/settings/${item.id}`,
       }))}
       footer={
@@ -196,7 +200,7 @@ export function AgentSettingsPage() {
             {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
             {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
             <Button type="button" onClick={() => void saveAgent()} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? i18n._("Saving...") : i18n._("Save")}
             </Button>
           </footer>
         ) : null
@@ -219,7 +223,9 @@ export function AgentSettingsPage() {
         <p className="text-sm text-destructive">{loadError}</p>
       ) : null}
       {owned && !callerSection && !draft && !loadError ? (
-        <p className="text-sm text-muted-foreground">Loading agent settings...</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>Loading agent settings...</Trans>
+        </p>
       ) : null}
       {draft ? (
         <>

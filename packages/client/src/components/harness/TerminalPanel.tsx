@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
@@ -26,6 +28,7 @@ type ServerMessage =
 type Status = { kind: "connecting" } | { kind: "open" } | { kind: "closed"; reason: string };
 
 export function TerminalPanel({ agent }: { agent: AgentConfig }) {
+  const { i18n } = useLingui();
   const hostRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal>(undefined);
   const fitRef = useRef<FitAddon>(undefined);
@@ -99,7 +102,9 @@ export function TerminalPanel({ agent }: { agent: AgentConfig }) {
        already set a more useful reason than "connection lost". */
     socket.onclose = () =>
       setStatus((current) =>
-        current.kind === "closed" ? current : { kind: "closed", reason: "Connection lost." },
+        current.kind === "closed"
+          ? current
+          : { kind: "closed", reason: i18n._("Connection lost.") },
       );
 
     const inputSubscription = terminal.onData((data) => send({ type: "input", data }));
@@ -126,7 +131,7 @@ export function TerminalPanel({ agent }: { agent: AgentConfig }) {
       fitRef.current = undefined;
       socketRef.current = undefined;
     };
-  }, [agent.id, applyTheme, attempt, bashEnabled]);
+  }, [agent.id, applyTheme, attempt, bashEnabled, i18n]);
 
   // Repaint on a theme change without rebuilding the terminal or the session.
   useEffect(() => {
@@ -136,7 +141,9 @@ export function TerminalPanel({ agent }: { agent: AgentConfig }) {
   if (!bashEnabled) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-center text-sm text-muted-foreground">
-        Bash is disabled for this agent. Enable it in the agent's permissions to open a terminal.
+        <Trans>
+          Bash is disabled for this agent. Enable it in the agent's permissions to open a terminal.
+        </Trans>
       </div>
     );
   }
@@ -146,12 +153,12 @@ export function TerminalPanel({ agent }: { agent: AgentConfig }) {
       {status.kind !== "open" ? (
         <div className="flex shrink-0 items-center justify-between gap-3 border-b px-3 py-1.5">
           <p className="truncate text-xs text-muted-foreground">
-            {status.kind === "connecting" ? "Starting shell…" : status.reason}
+            {status.kind === "connecting" ? i18n._("Starting shell…") : status.reason}
           </p>
           {status.kind === "closed" ? (
             <Button size="sm" variant="ghost" onClick={() => setAttempt((value) => value + 1)}>
               <RotateCcwIcon data-icon="inline-start" />
-              Restart
+              <Trans>Restart</Trans>
             </Button>
           ) : null}
         </div>

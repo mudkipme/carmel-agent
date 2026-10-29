@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { i18n } from "@lingui/core";
 import { useEffect, useLayoutEffect, useRef, type ComponentProps } from "react";
 import type { AgentConfig, IssueNote, ModelRef, Session } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
@@ -20,6 +22,7 @@ export function TaskConversation({
   notes: IssueNote[];
   running: boolean;
 }) {
+  const { i18n } = useLingui();
   const modelRefs = useHarnessStore((s) => s.modelRefs);
   const {
     data: connection,
@@ -33,9 +36,13 @@ export function TaskConversation({
   const modelRef = modelRefs.find((m) => m.id === session?.modelRefId);
   if (!session)
     return error ? (
-      <ResourceError error={error} title="Unable to load conversation" onRetry={refresh} />
+      <ResourceError
+        error={error}
+        title={i18n._("Unable to load conversation")}
+        onRetry={refresh}
+      />
     ) : (
-      <ResourceLoading label="Connecting to conversation" />
+      <ResourceLoading label={i18n._("Connecting to conversation")} />
     );
   if (!modelRef)
     return (
@@ -69,6 +76,7 @@ function ConnectedConversation({
   notes: IssueNote[];
   running: boolean;
 }) {
+  const { i18n } = useLingui();
   const { agent, snapshot } = useSessionAgent(config, session, modelRef);
   const connection = useRemoteResource({
     key: `live-conversation:${session.id}`,
@@ -88,7 +96,7 @@ function ConnectedConversation({
       {connection.error && !snapshot.isStreaming ? (
         <ResourceError
           error={connection.error}
-          title="Unable to refresh conversation"
+          title={i18n._("Unable to refresh conversation")}
           onRetry={connection.refresh}
         />
       ) : null}
@@ -130,16 +138,16 @@ function withNotes(messages: AgentMessage[], notes: IssueNote[]): AgentMessage[]
       content:
         instructions && instructions !== "Carry out the brief."
           ? instructions
-          : "Work on this task.",
+          : i18n._("Work on this task."),
     };
   });
   for (const note of notes.filter((n) => n.kind === "note" && n.delivery !== "delivered")) {
     const label =
       note.delivery === "queued"
-        ? "Update queued"
+        ? i18n._("Update queued")
         : note.delivery === "not_delivered"
-          ? "Update saved · Not delivered"
-          : "Saved note";
+          ? i18n._("Update saved · Not delivered")
+          : i18n._("Saved note");
     const message: AgentMessage = {
       role: "user",
       content: `${label}\n\n${note.body}`,

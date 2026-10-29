@@ -1,3 +1,6 @@
+import { useLingui } from "@lingui/react";
+import { i18n } from "@lingui/core";
+import { Trans } from "@lingui/react/macro";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -5,19 +8,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function ResourceError({
   error,
   onRetry,
-  title = "Unable to load updates",
+  title = i18n._("Unable to load updates"),
 }: {
   error: string;
   onRetry: () => unknown;
   title?: string;
 }) {
+  useLingui();
   return (
     <Alert variant="destructive">
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>
         <p>{error}</p>
         <Button variant="outline" size="sm" onClick={() => void onRetry()}>
-          Retry
+          <Trans>Retry</Trans>
         </Button>
       </AlertDescription>
     </Alert>

@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { highlightCode } from "@/lib/highlight";
@@ -10,6 +11,7 @@ type CodeBlockProps = {
 };
 
 export function CodeBlock({ code, language, label }: CodeBlockProps) {
+  const { i18n } = useLingui();
   const [copied, setCopied] = useState(false);
   const displayLanguage = language || "plaintext";
   const plainText = language === "text" || language === "plaintext";
@@ -35,12 +37,16 @@ export function CodeBlock({ code, language, label }: CodeBlockProps) {
         <button
           type="button"
           onClick={() => void handleCopy()}
-          title={label ? `Copy ${label.toLowerCase()}` : "Copy code"}
-          aria-label={label ? `Copy ${label.toLowerCase()}` : "Copy code"}
+          title={
+            label ? i18n._("Copy {value}", { value: label.toLowerCase() }) : i18n._("Copy code")
+          }
+          aria-label={
+            label ? i18n._("Copy {value}", { value: label.toLowerCase() }) : i18n._("Copy code")
+          }
           className="text-ui-smaller inline-flex items-center gap-1 rounded px-2 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           {copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-          <span>{copied ? "Copied!" : "Copy"}</span>
+          <span>{copied ? i18n._("Copied!") : i18n._("Copy")}</span>
         </button>
       </div>
       <div className="max-h-96 overflow-auto">

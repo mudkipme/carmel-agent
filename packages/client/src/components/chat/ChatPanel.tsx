@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { useHarnessStore } from "@/store/harness-store";
 import { cn } from "@/lib/utils";
 import { draftStorageKey } from "@/lib/session-draft";
@@ -184,7 +185,7 @@ export function ChatPanel({
                     );
                   }}
                 >
-                  Earlier messages
+                  <Trans>Earlier messages</Trans>
                 </Button>
               ) : null}
               {onLoadLatest ? (
@@ -200,7 +201,7 @@ export function ChatPanel({
                     });
                   }}
                 >
-                  Latest messages
+                  <Trans>Latest messages</Trans>
                 </Button>
               ) : null}
             </div>

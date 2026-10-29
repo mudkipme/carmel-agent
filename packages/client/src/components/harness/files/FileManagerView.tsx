@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import {
   ArrowDownUpIcon,
   ClipboardPasteIcon,
@@ -49,12 +51,13 @@ type FileManagerViewProps = {
 };
 
 const sortLabels: Record<FileSortKey, string> = {
-  name: "Name",
-  size: "Size",
-  updatedAt: "Modified",
+  name: /*i18n*/ "Name",
+  size: /*i18n*/ "Size",
+  updatedAt: /*i18n*/ "Modified",
 };
 
 export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
+  const { i18n } = useLingui();
   const browser = useFileBrowser({ agent, onOpenFile });
   const [dragDepth, setDragDepth] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,7 +66,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
   if (!agent) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-        Select an agent to browse files.
+        <Trans>Select an agent to browse files.</Trans>
       </div>
     );
   }
@@ -114,12 +117,12 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
             onClick={() => fileInputRef.current?.click()}
           >
             <UploadIcon />
-            Upload
+            <Trans>Upload</Trans>
           </Button>
           <Button
             size="icon-sm"
             variant="ghost"
-            title="New file"
+            title={i18n._("New file")}
             disabled={!canWrite}
             onClick={() => void browser.createEntry("file")}
           >
@@ -128,18 +131,23 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
           <Button
             size="icon-sm"
             variant="ghost"
-            title="New folder"
+            title={i18n._("New folder")}
             disabled={!canWrite}
             onClick={() => void browser.createEntry("directory")}
           >
             <FolderPlusIcon />
           </Button>
-          <Button size="icon-sm" variant="ghost" title="Refresh" onClick={browser.refresh}>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title={i18n._("Refresh")}
+            onClick={browser.refresh}
+          >
             <RefreshCwIcon />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon-sm" variant="ghost" title="View options">
+              <Button size="icon-sm" variant="ghost" title={i18n._("View options")}>
                 <MoreHorizontalIcon />
               </Button>
             </DropdownMenuTrigger>
@@ -149,19 +157,19 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
                 onSelect={() => folderInputRef.current?.click()}
               >
                 <UploadIcon />
-                Upload folder
+                <Trans>Upload folder</Trans>
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!canRead}
                 onSelect={() => browser.download([browser.path])}
               >
                 <DownloadIcon />
-                Download this folder
+                <Trans>Download this folder</Trans>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => browser.setShowHidden(!browser.showHidden)}>
                 {browser.showHidden ? <EyeOffIcon /> : <EyeIcon />}
-                {browser.showHidden ? "Hide hidden files" : "Show hidden files"}
+                {browser.showHidden ? i18n._("Hide hidden files") : i18n._("Show hidden files")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {(Object.keys(sortLabels) as FileSortKey[]).map((key) => (
@@ -175,12 +183,14 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
                   }
                 >
                   <ArrowDownUpIcon />
-                  Sort by {sortLabels[key].toLowerCase()}
-                  {browser.sort.key === key ? (
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {browser.sort.ascending ? "A→Z" : "Z→A"}
-                    </span>
-                  ) : null}
+                  <Trans>
+                    Sort by {i18n._(sortLabels[key]).toLowerCase()}
+                    {browser.sort.key === key ? (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {browser.sort.ascending ? "A→Z" : "Z→A"}
+                      </span>
+                    ) : null}
+                  </Trans>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -191,16 +201,21 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
         <Input
           value={browser.filter}
-          aria-label="Filter this folder"
-          placeholder="Filter this folder"
+          aria-label={i18n._("Filter this folder")}
+          placeholder={i18n._("Filter this folder")}
           className="h-8 max-w-64 flex-1"
           onChange={(event) => browser.setFilter(event.target.value)}
         />
         {clipboard ? (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <span>
-              {clipboard.paths.length} item{clipboard.paths.length === 1 ? "" : "s"} to{" "}
-              {clipboard.operation === "move" ? "move" : "copy"}
+              {clipboard.operation === "move"
+                ? i18n._("{count, plural, one {# item to move} other {# items to move}}", {
+                    count: clipboard.paths.length,
+                  })
+                : i18n._("{count, plural, one {# item to copy} other {# items to copy}}", {
+                    count: clipboard.paths.length,
+                  })}
             </span>
             <Button
               size="xs"
@@ -209,7 +224,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
               onClick={() => void browser.paste()}
             >
               <ClipboardPasteIcon />
-              Paste here
+              <Trans>Paste here</Trans>
             </Button>
           </div>
         ) : null}
@@ -217,7 +232,9 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
 
       {selected.length > 0 ? (
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-accent/40 px-3 py-2">
-          <span className="text-xs font-medium">{selected.length} selected</span>
+          <span className="text-xs font-medium">
+            <Trans>{selected.length} selected</Trans>
+          </span>
           <Button
             size="xs"
             variant="outline"
@@ -225,7 +242,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
             onClick={() => browser.download(selected)}
           >
             <DownloadIcon />
-            Download
+            <Trans>Download</Trans>
           </Button>
           <Button
             size="xs"
@@ -234,7 +251,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
             onClick={() => browser.copy(selected)}
           >
             <CopyIcon />
-            Copy
+            <Trans>Copy</Trans>
           </Button>
           <Button
             size="xs"
@@ -243,7 +260,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
             onClick={() => browser.cut(selected)}
           >
             <ScissorsIcon />
-            Cut
+            <Trans>Cut</Trans>
           </Button>
           <Button
             size="xs"
@@ -252,11 +269,11 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
             onClick={() => void browser.deleteEntries(selectedEntries)}
           >
             <Trash2Icon />
-            Delete
+            <Trans>Delete</Trans>
           </Button>
           <Button size="xs" variant="ghost" className="ml-auto" onClick={browser.clearSelection}>
             <XIcon />
-            Clear
+            <Trans>Clear</Trans>
           </Button>
         </div>
       ) : null}
@@ -271,16 +288,22 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
         <div className="sticky top-0 z-10 flex h-10 items-center gap-3 border-b bg-muted px-4 text-ui-smaller text-muted-foreground">
           <Checkbox
             className="shrink-0"
-            aria-label="Select all"
+            aria-label={i18n._("Select all")}
             disabled={entries.length === 0}
             checked={allSelected ? true : selected.length > 0 ? "indeterminate" : false}
             onCheckedChange={(checked) =>
               checked ? browser.selectAll() : browser.clearSelection()
             }
           />
-          <span className="flex-1">Name</span>
-          <span className="hidden w-20 text-right sm:block">Size</span>
-          <span className="hidden w-24 text-right sm:block">Modified</span>
+          <span className="flex-1">
+            <Trans>Name</Trans>
+          </span>
+          <span className="hidden w-20 text-right sm:block">
+            <Trans>Size</Trans>
+          </span>
+          <span className="hidden w-24 text-right sm:block">
+            <Trans>Modified</Trans>
+          </span>
           <span className="w-6" />
         </div>
         {browser.path ? (
@@ -295,7 +318,9 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
           </button>
         ) : null}
         {browser.loading ? (
-          <p className="px-3 py-3 text-xs text-muted-foreground">Loading files...</p>
+          <p className="px-3 py-3 text-xs text-muted-foreground">
+            <Trans>Loading files...</Trans>
+          </p>
         ) : null}
         {!browser.loading && !browser.error && entries.length === 0 ? (
           <Empty className="min-h-64">
@@ -304,17 +329,17 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
                 {browser.filter ? <SearchIcon /> : <FolderIcon />}
               </EmptyMedia>
               <EmptyTitle>
-                {browser.filter ? "No matching files" : "This folder is empty"}
+                {browser.filter ? i18n._("No matching files") : i18n._("This folder is empty")}
               </EmptyTitle>
             </EmptyHeader>
             {browser.filter ? (
               <Button variant="outline" size="sm" onClick={() => browser.setFilter("")}>
-                Clear filter
+                <Trans>Clear filter</Trans>
               </Button>
             ) : canWrite ? (
               <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                 <UploadIcon data-icon="inline-start" />
-                Upload files
+                <Trans>Upload files</Trans>
               </Button>
             ) : null}
           </Empty>
@@ -335,7 +360,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
           >
             <Checkbox
               className="shrink-0"
-              aria-label={`Select ${entry.name}`}
+              aria-label={i18n._("Select {name}", { name: entry.name })}
               checked={selectedSet.has(entry.path)}
               onClick={(event) => {
                 event.stopPropagation();
@@ -360,21 +385,27 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
             </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(event) => event.stopPropagation()}>
-                <Button size="icon-xs" variant="ghost" title={`Actions for ${entry.name}`}>
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  title={i18n._("Actions for {name}", { name: entry.name })}
+                >
                   <MoreHorizontalIcon />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuItem onSelect={() => browser.openEntry(entry)}>
-                  {entry.type === "directory" ? <FolderIcon /> : <FileIcon />}
-                  Open
+                  <Trans>
+                    {entry.type === "directory" ? <FolderIcon /> : <FileIcon />}
+                    Open
+                  </Trans>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={!canRead}
                   onSelect={() => browser.download([entry.path])}
                 >
                   <DownloadIcon />
-                  Download
+                  <Trans>Download</Trans>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -382,15 +413,15 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
                   onSelect={() => void browser.renameEntry(entry)}
                 >
                   <PencilIcon />
-                  Rename
+                  <Trans>Rename</Trans>
                 </DropdownMenuItem>
                 <DropdownMenuItem disabled={!canWrite} onSelect={() => browser.copy([entry.path])}>
                   <CopyIcon />
-                  Copy
+                  <Trans>Copy</Trans>
                 </DropdownMenuItem>
                 <DropdownMenuItem disabled={!canWrite} onSelect={() => browser.cut([entry.path])}>
                   <ScissorsIcon />
-                  Cut
+                  <Trans>Cut</Trans>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -399,7 +430,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
                   onSelect={() => void browser.deleteEntries([entry])}
                 >
                   <Trash2Icon />
-                  Delete
+                  <Trans>Delete</Trans>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -432,7 +463,7 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
 
       {dragDepth > 0 && canWrite ? (
         <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-background/80 text-sm font-medium">
-          Drop to upload into {browser.path || "the working directory"}
+          <Trans>Drop to upload into {browser.path || "the working directory"}</Trans>
         </div>
       ) : null}
 
@@ -465,17 +496,18 @@ export function FileManagerView({ agent, onOpenFile }: FileManagerViewProps) {
 }
 
 function Breadcrumbs({ path, onNavigate }: { path: string; onNavigate: (path: string) => void }) {
+  const { i18n } = useLingui();
   const segments = path.split("/").filter(Boolean);
 
   return (
     <nav
-      aria-label="File location"
+      aria-label={i18n._("File location")}
       className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-[13px]"
     >
       <Button
         size="icon-xs"
         variant="ghost"
-        title="Working directory"
+        title={i18n._("Working directory")}
         onClick={() => onNavigate("")}
       >
         <HomeIcon />

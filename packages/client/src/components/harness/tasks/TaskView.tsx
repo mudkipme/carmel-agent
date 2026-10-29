@@ -1,3 +1,6 @@
+import { priorityLabel } from "@/lib/labels";
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -59,6 +62,7 @@ export function TaskView({
   onIssuesChanged: () => Promise<unknown>;
   headerTarget: HTMLElement | null;
 }) {
+  const { i18n } = useLingui();
   const resource = useRemoteResource({
     key: `${agent.id}:${issueId}`,
     load: (signal) => api.getIssue(agent.id, issueId, signal),
@@ -67,16 +71,18 @@ export function TaskView({
   if (!resource.data)
     return (
       <div className="flex flex-col gap-4 p-6">
-        {resource.loading ? <ResourceLoading label="Loading task" /> : null}
+        {resource.loading ? <ResourceLoading label={i18n._("Loading task")} /> : null}
         {resource.error ? (
           <ResourceError
             error={resource.error}
-            title="Unable to load task"
+            title={i18n._("Unable to load task")}
             onRetry={resource.refresh}
           />
         ) : null}
         <Button asChild variant="link">
-          <Link to={`/agents/${agent.id}/tasks`}>Back to tasks</Link>
+          <Link to={`/agents/${agent.id}/tasks`}>
+            <Trans>Back to tasks</Trans>
+          </Link>
         </Button>
       </div>
     );
@@ -104,6 +110,7 @@ function TaskWorkspace({
   onIssuesChanged: () => Promise<unknown>;
   headerTarget: HTMLElement | null;
 }) {
+  const { i18n } = useLingui();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [host, width] = useElementWidth<HTMLDivElement>();
@@ -206,7 +213,7 @@ function TaskWorkspace({
       await resource.refresh();
       await onIssuesChanged();
     } catch (cause) {
-      showError("Unable to update task", cause);
+      showError(i18n._("Unable to update task"), cause);
       await resource.refresh();
       await onIssuesChanged();
     } finally {
@@ -222,9 +229,9 @@ function TaskWorkspace({
   const deleteTask = async () => {
     if (
       !(await confirmAction({
-        title: "Delete task?",
-        description: "Delete the brief, discussion, saved results, and all conversations.",
-        actionLabel: "Delete",
+        title: i18n._("Delete task?"),
+        description: i18n._("Delete the brief, discussion, saved results, and all conversations."),
+        actionLabel: i18n._("Delete"),
       }))
     )
       return;
@@ -236,7 +243,7 @@ function TaskWorkspace({
       await onIssuesChanged();
       navigate(listPath);
     } catch (cause) {
-      showError("Unable to delete task", cause);
+      showError(i18n._("Unable to delete task"), cause);
       setBusy(false);
     }
   };
@@ -244,7 +251,10 @@ function TaskWorkspace({
     <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
       <div className="flex min-w-0 flex-1 basis-full items-start gap-2 sm:basis-0">
         <Button asChild variant="ghost" size="icon-sm">
-          <Link to={listPath} aria-label={`${agent.name} / ${fromHome ? "Home" : "Tasks"}`}>
+          <Link
+            to={listPath}
+            aria-label={`${agent.name} / ${fromHome ? i18n._("Home") : i18n._("Tasks")}`}
+          >
             <ArrowLeftIcon />
           </Link>
         </Button>
@@ -260,8 +270,14 @@ function TaskWorkspace({
               <state.Icon className={cn("size-3.5", state.className)} />
               {state.label}
             </span>
-            {issue.priority !== "normal" ? <span>{issue.priority} priority</span> : null}
-            <span>Updated {formatRelativeTime(issue.updatedAt)}</span>
+            {issue.priority !== "normal" ? (
+              <span>
+                <Trans>{priorityLabel(issue.priority)} priority</Trans>
+              </span>
+            ) : null}
+            <span>
+              <Trans>Updated {formatRelativeTime(issue.updatedAt)}</Trans>
+            </span>
           </div>
         </div>
       </div>
@@ -273,7 +289,7 @@ function TaskWorkspace({
             onClick={() => void act(() => api.interruptIssue(agent.id, issue.id))}
           >
             <SquareIcon data-icon="inline-start" />
-            Stop run
+            <Trans>Stop run</Trans>
           </Button>
         ) : queued ? null : closed ? (
           <Button
@@ -281,13 +297,13 @@ function TaskWorkspace({
             disabled={busy}
             onClick={() => void act(() => api.reopenIssue(agent.id, issue.id))}
           >
-            Reopen task
+            <Trans>Reopen task</Trans>
           </Button>
         ) : issue.status === "in_review" ? (
           <>
             {tab !== "conversation" ? (
               <Button variant="ghost" onClick={focusReply}>
-                Request changes
+                <Trans>Request changes</Trans>
               </Button>
             ) : null}
             <Button
@@ -295,20 +311,22 @@ function TaskWorkspace({
               onClick={() => void act(() => api.acceptIssue(agent.id, issue.id))}
             >
               <CheckIcon data-icon="inline-start" />
-              Accept result
+              <Trans>Accept result</Trans>
             </Button>
           </>
         ) : issue.status === "needs_input" ? (
-          <Button onClick={focusReply}>Reply to agent</Button>
+          <Button onClick={focusReply}>
+            <Trans>Reply to agent</Trans>
+          </Button>
         ) : (
           <Button disabled={busy || editing} onClick={() => void queueWork()}>
             <PlayIcon data-icon="inline-start" />
-            {failed ? "Retry task" : "Queue task"}
+            {failed ? i18n._("Retry task") : i18n._("Queue task")}
           </Button>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Task actions">
+            <Button variant="ghost" size="icon-sm" aria-label={i18n._("Task actions")}>
               <MoreHorizontalIcon />
             </Button>
           </DropdownMenuTrigger>
@@ -322,14 +340,14 @@ function TaskWorkspace({
                     setEditing(true);
                   }}
                 >
-                  Edit brief
+                  <Trans>Edit brief</Trans>
                 </DropdownMenuItem>
               ) : null}
               {issue.sessionId && !issue.running && !closed && !queued ? (
                 <DropdownMenuItem onSelect={() => setFresh(!fresh)}>
                   {fresh
-                    ? "Continue this conversation next run"
-                    : "Use a fresh conversation next run"}
+                    ? i18n._("Continue this conversation next run")
+                    : i18n._("Use a fresh conversation next run")}
                 </DropdownMenuItem>
               ) : null}
               {queued ? (
@@ -337,7 +355,7 @@ function TaskWorkspace({
                   disabled={busy}
                   onSelect={() => void act(() => api.removeIssueFromQueue(agent.id, issue.id))}
                 >
-                  Remove from queue
+                  <Trans>Remove from queue</Trans>
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuGroup>
@@ -350,17 +368,18 @@ function TaskWorkspace({
                     void (async () => {
                       if (
                         await confirmAction({
-                          title: "Cancel task?",
-                          description:
+                          title: i18n._("Cancel task?"),
+                          description: i18n._(
                             "Stop any active run and close this task. You can reopen it later.",
-                          actionLabel: "Cancel task",
+                          ),
+                          actionLabel: i18n._("Cancel task"),
                         })
                       )
                         await act(() => api.cancelIssue(agent.id, issue.id));
                     })()
                   }
                 >
-                  Cancel task
+                  <Trans>Cancel task</Trans>
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem
@@ -368,7 +387,7 @@ function TaskWorkspace({
                 disabled={busy || issue.running}
                 onSelect={() => void deleteTask()}
               >
-                Delete task
+                <Trans>Delete task</Trans>
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
@@ -381,7 +400,9 @@ function TaskWorkspace({
       {issue.description ? <MarkdownContent content={issue.description} /> : null}
       {issue.criteria.length ? (
         <div className="flex flex-col gap-3">
-          <h3 className="text-xs font-medium text-muted-foreground">Acceptance criteria</h3>
+          <h3 className="text-xs font-medium text-muted-foreground">
+            <Trans>Acceptance criteria</Trans>
+          </h3>
           <ul className="flex list-disc flex-col gap-2 pl-5 text-sm">
             {issue.criteria.map((criterion, index) => (
               <li key={index} className="break-words">
@@ -403,19 +424,23 @@ function TaskWorkspace({
         className="flex h-full min-h-0 flex-col gap-0"
       >
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-1 border-b px-3 py-1 sm:px-5">
-          <TabsList variant="line" aria-label="Task views">
-            <TabsTrigger value="conversation">Conversation</TabsTrigger>
-            <TabsTrigger value="result" disabled={!issue.attempts.some(hasTaskResult)}>
-              Result
+          <TabsList variant="line" aria-label={i18n._("Task views")}>
+            <TabsTrigger value="conversation">
+              <Trans>Conversation</Trans>
             </TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="result" disabled={!issue.attempts.some(hasTaskResult)}>
+              <Trans>Result</Trans>
+            </TabsTrigger>
+            <TabsTrigger value="activity">
+              <Trans>Activity</Trans>
+            </TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-1">
             {subtaskCount || subtasks.data?.error || subtasks.error ? (
               <Button
                 variant="ghost"
                 size="sm"
-                aria-label="Subtasks"
+                aria-label={i18n._("Subtasks")}
                 aria-expanded={panel === "subtasks"}
                 onClick={() => (panel === "subtasks" ? closePanel() : openPanel("subtasks"))}
               >
@@ -423,27 +448,31 @@ function TaskWorkspace({
                 <span className="sm:hidden">{subtaskCount}</span>
                 <span className="hidden sm:inline">
                   {activeSubtaskCount
-                    ? `${activeSubtaskCount} running`
-                    : `${subtaskCount} subtask${subtaskCount === 1 ? "" : "s"}`}
+                    ? i18n._("{count} running", { count: activeSubtaskCount })
+                    : i18n._("{count, plural, one {# subtask} other {# subtasks}}", {
+                        count: subtaskCount,
+                      })}
                 </span>
               </Button>
             ) : null}
             <Button
               variant="ghost"
               size="sm"
-              aria-label="Details"
+              aria-label={i18n._("Details")}
               aria-expanded={panel === "details"}
               onClick={() => (panel === "details" ? closePanel() : openPanel("details"))}
             >
               <InfoIcon data-icon="inline-start" />
-              <span className="hidden sm:inline">Details</span>
+              <span className="hidden sm:inline">
+                <Trans>Details</Trans>
+              </span>
             </Button>
           </div>
         </div>
         {resource.error ? (
           <ResourceError
             error={resource.error}
-            title="Connection lost"
+            title={i18n._("Connection lost")}
             onRetry={resource.refresh}
           />
         ) : null}
@@ -458,7 +487,11 @@ function TaskWorkspace({
                 <div className="mx-auto max-h-48 w-full max-w-[var(--line-width)] shrink-0 overflow-y-auto px-4 pt-4">
                   <Alert variant={failed ? "destructive" : "default"}>
                     <AlertTitle>
-                      {failed ? (stopped ? "Run stopped" : "Run failed") : "Needs your input"}
+                      {failed
+                        ? stopped
+                          ? i18n._("Run stopped")
+                          : i18n._("Run failed")
+                        : i18n._("Needs your input")}
                     </AlertTitle>
                     <AlertDescription>
                       <MarkdownContent
@@ -466,8 +499,8 @@ function TaskWorkspace({
                           failed
                             ? (issue.lastRunDetail ??
                               (stopped
-                                ? "Queue this task to continue."
-                                : "Retry this task to continue."))
+                                ? i18n._("Queue this task to continue.")
+                                : i18n._("Retry this task to continue.")))
                             : inputRequest!
                         }
                       />
@@ -478,10 +511,12 @@ function TaskWorkspace({
               {queued ? (
                 <div className="mx-auto w-full max-w-[var(--line-width)] px-4 pt-4">
                   <Alert>
-                    <AlertTitle>Queued</AlertTitle>
+                    <AlertTitle>
+                      <Trans>Queued</Trans>
+                    </AlertTitle>
                     <AlertDescription>
                       {issue.queuedInstructions ??
-                        "This task will start when the agent is available."}
+                        i18n._("This task will start when the agent is available.")}
                     </AlertDescription>
                   </Alert>
                 </div>
@@ -517,19 +552,19 @@ function TaskWorkspace({
                 fresh={fresh}
                 sendLabel={
                   issue.running
-                    ? "Send update"
+                    ? i18n._("Send update")
                     : issue.status === "in_review"
-                      ? "Request changes"
-                      : "Send & queue"
+                      ? i18n._("Request changes")
+                      : i18n._("Send & queue")
                 }
                 placeholder={
                   closed || queued
-                    ? "Leave a note…"
+                    ? i18n._("Leave a note…")
                     : issue.status === "needs_input"
-                      ? "Answer the agent’s question…"
+                      ? i18n._("Answer the agent’s question…")
                       : issue.status === "in_review"
-                        ? "Describe what should change…"
-                        : "Reply to the agent…"
+                        ? i18n._("Describe what should change…")
+                        : i18n._("Reply to the agent…")
                 }
                 onSend={
                   closed || queued
@@ -550,8 +585,10 @@ function TaskWorkspace({
                 <div className="mx-auto flex max-w-[var(--line-width)] flex-col gap-6 px-4 py-6">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                     <span>
-                      Run {issue.attempts.length - issue.attempts.indexOf(attempt)} ·{" "}
-                      {attempt.outcome.replaceAll("_", " ")}
+                      <Trans>
+                        Run {issue.attempts.length - issue.attempts.indexOf(attempt)} ·{" "}
+                        {attempt.outcome.replaceAll("_", " ")}
+                      </Trans>
                     </span>
                     {attempt.finishedAt ? (
                       <span>{formatRelativeTime(attempt.finishedAt)}</span>
@@ -564,14 +601,14 @@ function TaskWorkspace({
                       size="sm"
                       onClick={() => updateLocation((next) => next.delete("run"))}
                     >
-                      Latest result
+                      <Trans>Latest result</Trans>
                     </Button>
                   ) : null}
                   <TaskResult key={attempt.id} attempt={attempt} />
                   {attempt.sessionId && attempt.sessionId !== issue.sessionId ? (
                     <Button asChild variant="ghost" size="sm" className="self-start">
                       <Link to={sessionPath({ agentId: agent.id, id: attempt.sessionId })}>
-                        View conversation
+                        <Trans>View conversation</Trans>
                       </Link>
                     </Button>
                   ) : (
@@ -581,7 +618,7 @@ function TaskWorkspace({
                       size="sm"
                       onClick={() => selectTab("conversation")}
                     >
-                      View conversation
+                      <Trans>View conversation</Trans>
                     </Button>
                   )}
                 </div>
@@ -608,7 +645,7 @@ function TaskWorkspace({
           {panel === "details" || panel === "subtasks" ? (
             <TaskPanel
               key={panel}
-              title={panel === "details" ? "Task details" : "Subtasks"}
+              title={panel === "details" ? i18n._("Task details") : i18n._("Subtasks")}
               inline={width >= 1000}
               onClose={closePanel}
             >
@@ -646,10 +683,12 @@ function TaskWorkspace({
                       disabled={busy}
                       onClick={() => setEditing(true)}
                     >
-                      Edit brief
+                      <Trans>Edit brief</Trans>
                     </Button>
                   ) : null}
-                  <span className="text-xs text-muted-foreground">Priority · {issue.priority}</span>
+                  <span className="text-xs text-muted-foreground">
+                    <Trans>Priority · {priorityLabel(issue.priority)}</Trans>
+                  </span>
                 </div>
               )}
             </TaskPanel>

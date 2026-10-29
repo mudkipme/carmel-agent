@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useCallback, useEffect, useState } from "react";
 import { ArchiveRestoreIcon, Trash2Icon } from "lucide-react";
 import type { SessionMetadata } from "@carmel-agent/shared";
@@ -16,6 +18,7 @@ import { useHarnessStore } from "@/store/harness-store";
  * immediately rather than waiting for the page's Save.
  */
 export function AgentArchivedSessionsSettings({ agentId }: { agentId: string }) {
+  const { i18n } = useLingui();
   const restoreSession = useHarnessStore((state) => state.restoreSession);
   const deleteSession = useHarnessStore((state) => state.deleteSession);
   const [sessions, setSessions] = useState<SessionMetadata[] | undefined>();
@@ -27,9 +30,9 @@ export function AgentArchivedSessionsSettings({ agentId }: { agentId: string }) 
       setSessions(await api.listArchivedSessions(agentId));
       setError(undefined);
     } catch (loadError) {
-      setError(errorMessage(loadError, "Unable to load archived sessions"));
+      setError(errorMessage(loadError, i18n._("Unable to load archived sessions")));
     }
-  }, [agentId]);
+  }, [agentId, i18n]);
 
   useEffect(() => {
     void reload();
@@ -50,21 +53,25 @@ export function AgentArchivedSessionsSettings({ agentId }: { agentId: string }) 
 
   const removeSession = async (session: SessionMetadata) => {
     const confirmed = await confirmAction({
-      title: `Delete “${session.title}”?`,
-      description: "This session and its message history will be permanently deleted.",
-      actionLabel: "Delete session",
+      title: i18n._("Delete “{title}”?", { title: session.title }),
+      description: i18n._("This session and its message history will be permanently deleted."),
+      actionLabel: i18n._("Delete session"),
     });
-    if (confirmed) await act(() => deleteSession(session.id), "Unable to delete session");
+    if (confirmed) await act(() => deleteSession(session.id), i18n._("Unable to delete session"));
   };
 
   return (
     <section className="grid gap-4">
       {sessions === undefined ? (
         error ? null : (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground">
+            <Trans>Loading…</Trans>
+          </p>
         )
       ) : sessions.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No archived sessions.</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>No archived sessions.</Trans>
+        </p>
       ) : (
         <ul className="grid gap-2">
           {sessions.map((session) => (
@@ -76,8 +83,10 @@ export function AgentArchivedSessionsSettings({ agentId }: { agentId: string }) 
                 <p className="truncate font-medium">{session.title}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {session.archivedAt
-                    ? `Archived ${formatRelativeTime(session.archivedAt)} ago`
-                    : "Archived"}
+                    ? i18n._("Archived {value} ago", {
+                        value: formatRelativeTime(session.archivedAt),
+                      })
+                    : i18n._("Archived")}
                 </p>
               </div>
               <div className="flex shrink-0 gap-1">
@@ -86,16 +95,16 @@ export function AgentArchivedSessionsSettings({ agentId }: { agentId: string }) 
                   size="sm"
                   disabled={busy}
                   onClick={() =>
-                    void act(() => restoreSession(session.id), "Unable to restore session")
+                    void act(() => restoreSession(session.id), i18n._("Unable to restore session"))
                   }
                 >
                   <ArchiveRestoreIcon data-icon="inline-start" />
-                  Restore
+                  <Trans>Restore</Trans>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  title="Delete session"
+                  title={i18n._("Delete session")}
                   disabled={busy}
                   onClick={() => void removeSession(session)}
                 >

@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { CalendarClockIcon, ListPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -13,6 +15,7 @@ import type { SessionMetadata } from "@carmel-agent/shared";
  * for a run worth keeping around.
  */
 export function TaskRunBanner({ session }: { session: SessionMetadata }) {
+  const { i18n } = useLingui();
   const moveSessionToList = useHarnessStore((state) => state.moveSessionToList);
   const [moving, setMoving] = useState(false);
 
@@ -20,9 +23,9 @@ export function TaskRunBanner({ session }: { session: SessionMetadata }) {
     setMoving(true);
     try {
       await moveSessionToList(session.id);
-      toast.success("Moved to sessions");
+      toast.success(i18n._("Moved to sessions"));
     } catch (error) {
-      showError("Unable to move session", error);
+      showError(i18n._("Unable to move session"), error);
     } finally {
       setMoving(false);
     }
@@ -32,8 +35,8 @@ export function TaskRunBanner({ session }: { session: SessionMetadata }) {
     <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b bg-muted/40 px-3 py-1.5 text-[13px]">
       <CalendarClockIcon className="size-3.5 shrink-0 text-muted-foreground" />
       <p className="min-w-0 flex-1 truncate text-muted-foreground">
-        Task run · <span className="text-foreground">{session.title}</span> ·{" "}
-        {new Date(session.createdAt).toLocaleString(undefined, {
+        <Trans>Task run ·</Trans> <span className="text-foreground">{session.title}</span> ·{" "}
+        {new Date(session.createdAt).toLocaleString(i18n.locale, {
           dateStyle: "medium",
           timeStyle: "short",
         })}
@@ -43,12 +46,12 @@ export function TaskRunBanner({ session }: { session: SessionMetadata }) {
           <Link
             to={`/agents/${session.agentId}/schedules?task=${encodeURIComponent(session.taskId ?? "")}`}
           >
-            Run history
+            <Trans>Run history</Trans>
           </Link>
         </Button>
         <Button size="xs" variant="outline" disabled={moving} onClick={() => void move()}>
           <ListPlusIcon data-icon="inline-start" />
-          Move to sessions
+          <Trans>Move to sessions</Trans>
         </Button>
       </div>
     </div>

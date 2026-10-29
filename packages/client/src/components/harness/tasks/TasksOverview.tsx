@@ -1,3 +1,6 @@
+import { priorityLabel } from "@/lib/labels";
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { PlusIcon, ArrowUpIcon, ArrowDownIcon, ListTodoIcon, SearchIcon } from "lucide-react";
@@ -27,6 +30,7 @@ export function TasksOverview({
   error?: string;
   onRefresh: () => Promise<unknown>;
 }) {
+  const { i18n } = useLingui();
   const [params, setParams] = useSearchParams();
   const filter = readIssueFilter(params);
   const query = params.get("q") ?? "";
@@ -61,7 +65,7 @@ export function TasksOverview({
       await api.moveQueuedIssue(agent.id, issueId, direction);
       await onRefresh();
     } catch (error) {
-      showError("Unable to reorder queue", error);
+      showError(i18n._("Unable to reorder queue"), error);
     } finally {
       setBusy(false);
     }
@@ -90,7 +94,7 @@ export function TasksOverview({
                 {formatRelativeTime(issue.updatedAt)}
               </span>
               {issue.priority !== "normal" ? (
-                <Badge variant="outline">{issue.priority}</Badge>
+                <Badge variant="outline">{priorityLabel(issue.priority)}</Badge>
               ) : null}
             </Link>
             {issue.status === "queued" ? (
@@ -98,7 +102,7 @@ export function TasksOverview({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Move ${issue.title} up`}
+                  aria-label={i18n._("Move {title} up", { title: issue.title })}
                   disabled={busy || queue[0]?.id === issue.id}
                   onClick={() => void move(issue.id, "up")}
                 >
@@ -107,7 +111,7 @@ export function TasksOverview({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Move ${issue.title} down`}
+                  aria-label={i18n._("Move {title} down", { title: issue.title })}
                   disabled={busy || queue.at(-1)?.id === issue.id}
                   onClick={() => void move(issue.id, "down")}
                 >
@@ -125,14 +129,14 @@ export function TasksOverview({
         <EmptyMedia variant="icon">{query ? <SearchIcon /> : <ListTodoIcon />}</EmptyMedia>
         <EmptyTitle>
           {query
-            ? "No matching tasks"
+            ? i18n._("No matching tasks")
             : filter === "attention"
-              ? "Nothing needs your attention"
+              ? i18n._("Nothing needs your attention")
               : filter === "queue"
-                ? "No queued work"
+                ? i18n._("No queued work")
                 : filter === "backlog"
-                  ? "Backlog is empty"
-                  : "No completed tasks"}
+                  ? i18n._("Backlog is empty")
+                  : i18n._("No completed tasks")}
         </EmptyTitle>
       </EmptyHeader>
     </Empty>
@@ -141,14 +145,14 @@ export function TasksOverview({
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6">
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <PageHeader
-          title="Tasks"
+          title={i18n._("Tasks")}
 
           icon={ListTodoIcon}
           actions={
             <Button asChild>
               <Link to={`/agents/${agent.id}/tasks/new${listSearch}`}>
                 <PlusIcon data-icon="inline-start" />
-                New task
+                <Trans>New task</Trans>
               </Link>
             </Button>
           }
@@ -160,8 +164,8 @@ export function TasksOverview({
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TabsList className="w-full sm:w-auto">
-              <TabsTrigger value="queue" aria-label="Queue">
-                Queue
+              <TabsTrigger value="queue" aria-label={i18n._("Queue")}>
+                <Trans>Queue</Trans>
                 <span
                   aria-hidden="true"
                   className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
@@ -172,8 +176,8 @@ export function TasksOverview({
                   }
                 </span>
               </TabsTrigger>
-              <TabsTrigger value="attention" aria-label="Needs you">
-                Needs you
+              <TabsTrigger value="attention" aria-label={i18n._("Needs you")}>
+                <Trans>Needs you</Trans>
                 <span
                   aria-hidden="true"
                   className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
@@ -181,8 +185,8 @@ export function TasksOverview({
                   {issues.filter((issue) => ["Needs you"].includes(issueGroup(issue))).length}
                 </span>
               </TabsTrigger>
-              <TabsTrigger value="backlog" aria-label="Backlog">
-                Backlog
+              <TabsTrigger value="backlog" aria-label={i18n._("Backlog")}>
+                <Trans>Backlog</Trans>
                 <span
                   aria-hidden="true"
                   className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
@@ -190,8 +194,8 @@ export function TasksOverview({
                   {issues.filter((issue) => ["Backlog"].includes(issueGroup(issue))).length}
                 </span>
               </TabsTrigger>
-              <TabsTrigger value="done" aria-label="Done">
-                Done
+              <TabsTrigger value="done" aria-label={i18n._("Done")}>
+                <Trans>Done</Trans>
                 <span
                   aria-hidden="true"
                   className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
@@ -207,21 +211,25 @@ export function TasksOverview({
               />
               <Input
                 className="w-full pl-9 sm:w-56"
-                aria-label="Search tasks"
-                placeholder="Search tasks…"
+                aria-label={i18n._("Search tasks")}
+                placeholder={i18n._("Search tasks…")}
                 value={query}
                 onChange={(e) => updateParams("q", e.target.value, true)}
               />
             </div>
           </div>
           {error ? (
-            <ResourceError error={error} title="Unable to load tasks" onRetry={onRefresh} />
+            <ResourceError
+              error={error}
+              title={i18n._("Unable to load tasks")}
+              onRetry={onRefresh}
+            />
           ) : null}
           {issueFilters.map((value) => (
             <TabsContent key={value} value={value}>
               {filter === value ? (
                 loading ? (
-                  <ResourceLoading label="Loading issues" />
+                  <ResourceLoading label={i18n._("Loading issues")} />
                 ) : error && !issues.length ? null : (
                   rows
                 )

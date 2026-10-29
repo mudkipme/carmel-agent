@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { UserMessageEditOptions } from "@carmel-agent/shared";
 import { XIcon } from "lucide-react";
@@ -35,6 +37,7 @@ export function MessageEditDialog({
     removals: UserMessageEditOptions,
   ) => Promise<void>;
 }) {
+  const { i18n } = useLingui();
   const survivingImages = value
     ? value.images.filter((image) => !value.removedKeys.has(image.key))
     : [];
@@ -62,12 +65,18 @@ export function MessageEditDialog({
       <DialogContent className={fullscreenDialogContentClass("sm:max-w-4xl")}>
         <DialogHeader className="shrink-0 pr-8 text-left">
           <DialogTitle className="text-base sm:text-lg">
-            {value?.kind === "assistant" ? "Edit Assistant Message" : "Edit Message"}
+            {value?.kind === "assistant"
+              ? i18n._("Edit Assistant Message")
+              : i18n._("Edit Message")}
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
             {value?.kind === "assistant"
-              ? "Rewrites this assistant message in place. It won't rerun anything and only affects the next turn."
-              : "Save updates the message only. Submit saves it and reruns from this point."}
+              ? i18n._(
+                  "Rewrites this assistant message in place. It won't rerun anything and only affects the next turn.",
+                )
+              : i18n._(
+                  "Save updates the message only. Submit saves it and reruns from this point.",
+                )}
           </DialogDescription>
         </DialogHeader>
         <Textarea
@@ -96,7 +105,7 @@ export function MessageEditDialog({
                   variant="secondary"
                   size="icon-xs"
                   className="absolute -right-2 -top-2 rounded-full border shadow-xs"
-                  aria-label={`Remove ${image.label}`}
+                  aria-label={i18n._("Remove {label}", { label: image.label })}
                   onClick={() => removeImage(image.key)}
                 >
                   <XIcon />
@@ -107,18 +116,18 @@ export function MessageEditDialog({
         ) : null}
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onChange(null)}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
           <Button
             variant={value?.kind === "assistant" ? undefined : "outline"}
             disabled={!canCommit}
             onClick={() => void save(false)}
           >
-            Save
+            <Trans>Save</Trans>
           </Button>
           {value?.kind === "assistant" ? null : (
             <Button disabled={!canCommit} onClick={() => void save(true)}>
-              Submit
+              <Trans>Submit</Trans>
             </Button>
           )}
         </DialogFooter>

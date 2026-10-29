@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { CheckIcon, CopyIcon, GitForkIcon, PencilIcon, RotateCcwIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -14,6 +15,7 @@ type MessageActionsProps = {
 };
 
 export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActionsProps) {
+  const { i18n } = useLingui();
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!copied) return;
@@ -31,12 +33,12 @@ export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActi
           type="button"
           variant="ghost"
           size="icon-xs"
-          title={copied ? "Copied" : "Copy message"}
-          aria-label={copied ? "Copied" : "Copy message"}
+          title={copied ? i18n._("Copied") : i18n._("Copy message")}
+          aria-label={copied ? i18n._("Copied") : i18n._("Copy message")}
           onClick={() =>
             void copyText(copyValue)
               .then(() => setCopied(true))
-              .catch(() => toast.error("Unable to copy message"))
+              .catch(() => toast.error(i18n._("Unable to copy message")))
           }
         >
           {copied ? <CheckIcon /> : <CopyIcon />}
@@ -47,8 +49,8 @@ export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActi
           type="button"
           variant="ghost"
           size="icon-xs"
-          title="Fork from this message"
-          aria-label="Fork from this message"
+          title={i18n._("Fork from this message")}
+          aria-label={i18n._("Fork from this message")}
           onClick={() => onFork(message)}
         >
           <GitForkIcon />
@@ -59,8 +61,8 @@ export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActi
           type="button"
           variant="ghost"
           size="icon-xs"
-          title="Edit message"
-          aria-label="Edit message"
+          title={i18n._("Edit message")}
+          aria-label={i18n._("Edit message")}
           onClick={() => onEdit(message)}
         >
           <PencilIcon />
@@ -71,8 +73,8 @@ export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActi
           type="button"
           variant="ghost"
           size="icon-xs"
-          title="Retry from this message"
-          aria-label="Retry from this message"
+          title={i18n._("Retry from this message")}
+          aria-label={i18n._("Retry from this message")}
           onClick={() => onRetry(message)}
         >
           <RotateCcwIcon />

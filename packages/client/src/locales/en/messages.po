@@ -1,0 +1,5461 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-29 19:02+0800\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+
+#. js-lingui-explicit-id
+#: src/App.tsx:98
+msgid "Can't reach Carmel Agent"
+msgstr "Can't reach Carmel Agent"
+
+#. js-lingui-explicit-id
+#: src/App.tsx:101
+msgid "We couldn't connect to the server. Check that it's running, then reload this page."
+msgstr "We couldn't connect to the server. Check that it's running, then reload this page."
+
+#. js-lingui-explicit-id
+#: src/store/slices/auth-slice.ts:39
+msgid "Something went wrong while loading your workspace."
+msgstr "Something went wrong while loading your workspace."
+
+#. js-lingui-explicit-id
+#: src/store/slices/auth-slice.ts:50
+msgid "Setup failed"
+msgstr "Setup failed"
+
+#. js-lingui-explicit-id
+#: src/store/slices/auth-slice.ts:61
+msgid "Login failed"
+msgstr "Login failed"
+
+#. js-lingui-explicit-id
+#: src/store/slices/resource-slice.ts:46
+msgid "Create a model before creating an agent."
+msgstr "Create a model before creating an agent."
+
+#. js-lingui-explicit-id
+#: src/store/slices/resource-slice.ts:52
+msgid "New agent"
+msgstr "New agent"
+
+#. js-lingui-explicit-id
+#: src/store/slices/resource-slice.ts:55
+msgid "Personal agent"
+msgstr "Personal agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/ActionDialogs.tsx:65
+#: src/lib/action-dialogs.ts:30
+msgid "Continue"
+msgstr "Continue"
+
+#. js-lingui-explicit-id
+#: src/components/harness/ActionDialogs.tsx:105
+#: src/components/harness/AgentSettingsPage.tsx:203
+#: src/components/harness/files/FileEditorView.tsx:169
+#: src/components/harness/files/FileEditorView.tsx:175
+#: src/lib/action-dialogs.ts:47
+msgid "Save"
+msgstr "Save"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:19
+msgid "Bot"
+msgstr "Bot"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:20
+msgid "Sparkles"
+msgstr "Sparkles"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:21
+msgid "Orbit"
+msgstr "Orbit"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:22
+msgid "Compass"
+msgstr "Compass"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:23
+msgid "Sprout"
+msgstr "Sprout"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:24
+msgid "Sun"
+msgstr "Sun"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:25
+msgid "Moon"
+msgstr "Moon"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:26
+msgid "Rocket"
+msgstr "Rocket"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:27
+msgid "Book"
+msgstr "Book"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:28
+msgid "Code"
+msgstr "Code"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:29
+msgid "Palette"
+msgstr "Palette"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:30
+msgid "Heart"
+msgstr "Heart"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:38
+msgid "Blue"
+msgstr "Blue"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:39
+msgid "Green"
+msgstr "Green"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:40
+msgid "Orange"
+msgstr "Orange"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:41
+msgid "Violet"
+msgstr "Violet"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:42
+msgid "Teal"
+msgstr "Teal"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:43
+msgid "Rose"
+msgstr "Rose"
+
+#. js-lingui-explicit-id
+#: src/lib/api.ts:107
+msgid "Request failed: {status}"
+msgstr "Request failed: {status}"
+
+#. js-lingui-explicit-id
+#: src/lib/api.ts:146
+#: src/lib/api.ts:178
+msgid "Upload cancelled"
+msgstr "Upload cancelled"
+
+#. js-lingui-explicit-id
+#: src/lib/api.ts:170
+msgid "Upload failed: {status}"
+msgstr "Upload failed: {status}"
+
+#. js-lingui-explicit-id
+#: src/lib/api.ts:176
+msgid "Unable to upload {path}"
+msgstr "Unable to upload {path}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/LoginScreen.tsx:45
+#: src/components/harness/SetupScreen.tsx:46
+#: src/lib/auth-errors.ts:19
+msgid "single sign-on"
+msgstr "single sign-on"
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:21
+msgid "Your {providerName} account isn't allowed to use Carmel Agent."
+msgstr "Your {providerName} account isn't allowed to use Carmel Agent."
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:24
+msgid "No Carmel Agent account is linked to your {providerName} sign-in. Ask an administrator to create one."
+msgstr "No Carmel Agent account is linked to your {providerName} sign-in. Ask an administrator to create one."
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:28
+msgid "More than one Carmel Agent account matches your {providerName} sign-in. Ask an administrator to resolve it."
+msgstr "More than one Carmel Agent account matches your {providerName} sign-in. Ask an administrator to resolve it."
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:32
+msgid "The matching Carmel Agent account is already linked to a different {providerName} sign-in."
+msgstr "The matching Carmel Agent account is already linked to a different {providerName} sign-in."
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:36
+msgid "That sign-in expired or was started in another browser. Try again."
+msgstr "That sign-in expired or was started in another browser. Try again."
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:37
+msgid "Sign-in with {providerName} was cancelled."
+msgstr "Sign-in with {providerName} was cancelled."
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:38
+msgid "Sign-in with {providerName} failed. Try again, or ask an administrator if it keeps happening."
+msgstr "Sign-in with {providerName} failed. Try again, or ask an administrator if it keeps happening."
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:307
+#: src/lib/browser-input.ts:38
+msgid "Enter an HTTP or HTTPS address."
+msgstr "Enter an HTTP or HTTPS address."
+
+#. js-lingui-explicit-id
+#: src/lib/chat-attachments.ts:12
+msgid "Upload filenames must not contain a path."
+msgstr "Upload filenames must not contain a path."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:272
+#: src/lib/chat-attachments.ts:15
+msgid "{name} exceeds the 20MB file limit."
+msgstr "{name} exceeds the 20MB file limit."
+
+#. js-lingui-explicit-id
+#: src/lib/errors.ts:4
+msgid "Unexpected error"
+msgstr "Unexpected error"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:6
+msgid "Off"
+msgstr "Off"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:7
+msgid "Minimal"
+msgstr "Minimal"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:8
+#: src/lib/labels.ts:18
+msgid "Low"
+msgstr "Low"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:9
+msgid "Medium"
+msgstr "Medium"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:10
+#: src/lib/labels.ts:20
+msgid "High"
+msgstr "High"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:11
+msgid "X-High"
+msgstr "X-High"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:12
+msgid "Max"
+msgstr "Max"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:19
+msgid "Normal"
+msgstr "Normal"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:21
+msgid "Urgent"
+msgstr "Urgent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:259
+#: src/lib/labels.ts:27
+msgid "Connecting"
+msgstr "Connecting"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:197
+#: src/lib/labels.ts:28
+msgid "Connected"
+msgstr "Connected"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:159
+#: src/lib/labels.ts:29
+msgid "Disabled"
+msgstr "Disabled"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:50
+#: src/components/chat/ToolCallView.tsx:260
+#: src/lib/labels.ts:30
+msgid "Error"
+msgstr "Error"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:57
+#: src/lib/labels.ts:31
+msgid "Pending"
+msgstr "Pending"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:32
+msgid "Sending"
+msgstr "Sending"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:33
+msgid "Sent"
+msgstr "Sent"
+
+#. js-lingui-explicit-id
+#: src/components/tasks/TaskSubtasks.tsx:105
+#: src/lib/labels.ts:34
+#: src/lib/task-schedule.ts:131
+msgid "Failed"
+msgstr "Failed"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:259
+#: src/components/harness/tasks/issue-state.ts:29
+#: src/lib/labels.ts:35
+#: src/lib/task-schedule.ts:132
+msgid "Cancelled"
+msgstr "Cancelled"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:36
+msgid "Uncertain"
+msgstr "Uncertain"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:37
+msgid "Idle"
+msgstr "Idle"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:38
+msgid "Updating"
+msgstr "Updating"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:39
+msgid "Building embeddings"
+msgstr "Building embeddings"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:40
+msgid "Ready"
+msgstr "Ready"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:439
+#: src/components/chat/UserRequestCards.tsx:125
+#: src/lib/labels.ts:41
+msgid "Answered"
+msgstr "Answered"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:443
+#: src/lib/labels.ts:42
+msgid "Expired"
+msgstr "Expired"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:23
+#: src/lib/labels.ts:48
+msgid "Feishu"
+msgstr "Feishu"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:247
+msgid "Unable to queue this message."
+msgstr "Unable to queue this message."
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:258
+#: src/lib/remote-agent.ts:353
+msgid "Agent is already processing."
+msgstr "Agent is already processing."
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:301
+msgid "This conversation already has a run in progress; your message was not sent."
+msgstr "This conversation already has a run in progress; your message was not sent."
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:321
+msgid "Agent request failed with {status}"
+msgstr "Agent request failed with {status}"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:331
+msgid "Agent response did not identify its server run."
+msgstr "Agent response did not identify its server run."
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:374
+msgid "Cannot continue from current message state."
+msgstr "Cannot continue from current message state."
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:484
+msgid "Invalid agent event cursor."
+msgstr "Invalid agent event cursor."
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:488
+msgid "Agent event stream failed with {status}"
+msgstr "Agent event stream failed with {status}"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:633
+msgid "Invalid agent event envelope."
+msgstr "Invalid agent event envelope."
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:638
+msgid "Agent event sequence gap: expected {value}, received {sequence}."
+msgstr "Agent event sequence gap: expected {value}, received {sequence}."
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:774
+msgid "This run did not finish successfully."
+msgstr "This run did not finish successfully."
+
+#. js-lingui-explicit-id
+#: src/lib/session-groups.ts:39
+msgid "Today"
+msgstr "Today"
+
+#. js-lingui-explicit-id
+#: src/lib/session-groups.ts:40
+msgid "Yesterday"
+msgstr "Yesterday"
+
+#. js-lingui-explicit-id
+#: src/lib/session-groups.ts:41
+msgid "Previous 7 days"
+msgstr "Previous 7 days"
+
+#. js-lingui-explicit-id
+#: src/lib/session-groups.ts:42
+msgid "Previous 30 days"
+msgstr "Previous 30 days"
+
+#. js-lingui-explicit-id
+#: src/lib/session-groups.ts:53
+msgid "Pinned"
+msgstr "Pinned"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:37
+msgid "Unknown time"
+msgstr "Unknown time"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:54
+msgid "{amount, plural, one {Every week} other {Every # weeks}}"
+msgstr "{amount, plural, one {Every week} other {Every # weeks}}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:55
+msgid "{amount, plural, one {Every day} other {Every # days}}"
+msgstr "{amount, plural, one {Every day} other {Every # days}}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:56
+msgid "{amount, plural, one {Every hour} other {Every # hours}}"
+msgstr "{amount, plural, one {Every hour} other {Every # hours}}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:57
+msgid "{amount, plural, one {Every minute} other {Every # minutes}}"
+msgstr "{amount, plural, one {Every minute} other {Every # minutes}}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:63
+msgid "{amount, plural, one {Every second} other {Every # seconds}}"
+msgstr "{amount, plural, one {Every second} other {Every # seconds}}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:68
+msgid "Once at {value}"
+msgstr "Once at {value}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:82
+msgid "Every day at {time}{timezone}"
+msgstr "Every day at {time}{timezone}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:84
+msgid "Every weekday at {time}{timezone}"
+msgstr "Every weekday at {time}{timezone}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:86
+#: src/lib/task-schedule.ts:93
+msgid "Sunday"
+msgstr "Sunday"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:87
+msgid "Monday"
+msgstr "Monday"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:88
+msgid "Tuesday"
+msgstr "Tuesday"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:89
+msgid "Wednesday"
+msgstr "Wednesday"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:90
+msgid "Thursday"
+msgstr "Thursday"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:91
+msgid "Friday"
+msgstr "Friday"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:92
+msgid "Saturday"
+msgstr "Saturday"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:96
+msgid "Every {weekday} at {time}{timezone}"
+msgstr "Every {weekday} at {time}{timezone}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:102
+msgid "Cron: {scheduleValue}{timezone}"
+msgstr "Cron: {scheduleValue}{timezone}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:156
+#: src/lib/task-schedule.ts:109
+msgid "Paused"
+msgstr "Paused"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:158
+#: src/components/harness/tasks/TaskActivity.tsx:54
+#: src/components/tasks/TaskSubtasks.tsx:96
+#: src/lib/task-schedule.ts:110
+msgid "Completed"
+msgstr "Completed"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:112
+msgid "Disabled · {value}"
+msgstr "Disabled · {value}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:113
+msgid "Unable to read the schedule"
+msgstr "Unable to read the schedule"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:116
+msgid "Next run: {value}"
+msgstr "Next run: {value}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:117
+msgid "Not scheduled"
+msgstr "Not scheduled"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:119
+msgid "{next} · Last run: {value} · {value2}"
+msgstr "{next} · Last run: {value} · {value2}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:54
+#: src/components/chat/ToolCallView.tsx:255
+#: src/components/tasks/TaskSubtasks.tsx:98
+#: src/lib/task-schedule.ts:129
+msgid "Running"
+msgstr "Running"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:130
+msgid "Succeeded"
+msgstr "Succeeded"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:133
+msgid "Interrupted"
+msgstr "Interrupted"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:134
+msgid "Missed"
+msgstr "Missed"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:135
+msgid "Skipped"
+msgstr "Skipped"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:17
+#: src/lib/tool-presentation.ts:18
+#: src/lib/tool-presentation.ts:19
+msgid "Run command"
+msgstr "Run command"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:20
+#: src/lib/tool-presentation.ts:21
+msgid "Read file"
+msgstr "Read file"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:22
+#: src/lib/tool-presentation.ts:23
+msgid "Write file"
+msgstr "Write file"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:24
+#: src/lib/tool-presentation.ts:25
+msgid "Edit file"
+msgstr "Edit file"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:26
+msgid "Apply patch"
+msgstr "Apply patch"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:27
+msgid "Search content"
+msgstr "Search content"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:28
+msgid "Find files"
+msgstr "Find files"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:29
+msgid "List files"
+msgstr "List files"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:30
+msgid "Run code"
+msgstr "Run code"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:11
+msgid "{count}s"
+msgstr "{count}s"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:13
+msgid "{count}m"
+msgstr "{count}m"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:15
+msgid "{count}h"
+msgstr "{count}h"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:17
+msgid "{count}d"
+msgstr "{count}d"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:19
+msgid "{count}w"
+msgstr "{count}w"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:20
+msgid "{count}y"
+msgstr "{count}y"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:29
+msgid "Browser clipboard transfer was interrupted."
+msgstr "Browser clipboard transfer was interrupted."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:52
+msgid "Browser disconnected."
+msgstr "Browser disconnected."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:54
+msgid "Paste at most 16,384 characters at a time."
+msgstr "Paste at most 16,384 characters at a time."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:61
+msgid "Clipboard transfer timed out. Reconnect the browser before trying again."
+msgstr "Clipboard transfer timed out. Reconnect the browser before trying again."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:151
+msgid "Browser disconnected. Reconnecting…"
+msgstr "Browser disconnected. Reconnecting…"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:61
+msgid "Unable to load files"
+msgstr "Unable to load files"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:169
+msgid "Folder name"
+msgstr "Folder name"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:169
+msgid "File name"
+msgstr "File name"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:170
+msgid "Create folder"
+msgstr "Create folder"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:170
+msgid "Create file"
+msgstr "Create file"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:178
+msgid "Unable to create entry"
+msgstr "Unable to create entry"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:188
+msgid "Rename {name}"
+msgstr "Rename {name}"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:201
+msgid "Unable to rename entry"
+msgstr "Unable to rename entry"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:213
+msgid "{count, plural, one {# item} other {# items}}"
+msgstr "{count, plural, one {# item} other {# items}}"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:215
+#: src/hooks/use-model-management.ts:103
+#: src/hooks/use-provider-config-editor.ts:89
+msgid "Delete {label}?"
+msgstr "Delete {label}?"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:218
+msgid "The folder and everything inside it will be permanently deleted."
+msgstr "The folder and everything inside it will be permanently deleted."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:219
+msgid "The selected entries will be permanently deleted."
+msgstr "The selected entries will be permanently deleted."
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:234
+#: src/hooks/use-file-browser.ts:220
+msgid "Delete"
+msgstr "Delete"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:228
+msgid "Some entries could not be deleted"
+msgstr "Some entries could not be deleted"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:232
+msgid "Unable to delete entries"
+msgstr "Unable to delete entries"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:271
+msgid "Replace “{name}”?"
+msgstr "Replace “{name}”?"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:272
+msgid "Replace {length} files?"
+msgstr "Replace {length} files?"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:273
+msgid "Files with the same name in this folder will be overwritten."
+msgstr "Files with the same name in this folder will be overwritten."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:274
+msgid "Replace"
+msgstr "Replace"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:296
+#: src/hooks/use-file-browser.ts:307
+msgid "Upload failed"
+msgstr "Upload failed"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:308
+msgid "{length} uploads failed"
+msgstr "{length} uploads failed"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:332
+msgid "Some entries could not be moved"
+msgstr "Some entries could not be moved"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:333
+msgid "Some entries could not be copied"
+msgstr "Some entries could not be copied"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:339
+msgid "Unable to paste entries"
+msgstr "Unable to paste entries"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:50
+msgid "Unable to update messages"
+msgstr "Unable to update messages"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:78
+msgid "Unable to retry message"
+msgstr "Unable to retry message"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:114
+msgid "Unable to save message"
+msgstr "Unable to save message"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:136
+msgid "Unable to save assistant message"
+msgstr "Unable to save assistant message"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:154
+msgid "Unable to fork session"
+msgstr "Unable to fork session"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-model-management.ts:46
+#: src/hooks/use-model-management.ts:67
+msgid "Unable to load provider models"
+msgstr "Unable to load provider models"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-model-management.ts:104
+msgid "Agents and sessions using it will fall back to another available model."
+msgstr "Agents and sessions using it will fall back to another available model."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:126
+#: src/hooks/use-model-management.ts:107
+msgid "Delete model"
+msgstr "Delete model"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-model-management.ts:113
+msgid "Unable to delete model"
+msgstr "Unable to delete model"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-model-selection.ts:49
+msgid "Unable to change model"
+msgstr "Unable to change model"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-config-editor.ts:73
+msgid "{provider} config"
+msgstr "{provider} config"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-config-editor.ts:90
+msgid "This also removes {length} model entries. Affected agents and sessions will fall back automatically."
+msgstr "This also removes {length} model entries. Affected agents and sessions will fall back automatically."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-config-editor.ts:94
+msgid "Delete provider"
+msgstr "Delete provider"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-config-editor.ts:101
+msgid "Unable to delete provider config"
+msgstr "Unable to delete provider config"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-remote-resource.ts:44
+msgid "Unable to load data"
+msgstr "Unable to load data"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-session-agent.ts:155
+msgid "Not connected to this conversation yet."
+msgstr "Not connected to this conversation yet."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-session-agent.ts:159
+msgid "This conversation already has a run in progress."
+msgstr "This conversation already has a run in progress."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:28
+msgid "Unable to load users"
+msgstr "Unable to load users"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:42
+msgid "Unable to update role."
+msgstr "Unable to update role."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:52
+msgid "Password reset."
+msgstr "Password reset."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:54
+msgid "Unable to reset password."
+msgstr "Unable to reset password."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:65
+msgid "Delete {value}?"
+msgstr "Delete {value}?"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:66
+msgid "Their agents and models will transfer to your account; their sessions will be deleted."
+msgstr "Their agents and models will transfer to your account; their sessions will be deleted."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/UserSettings.tsx:94
+#: src/hooks/use-user-administration.ts:69
+msgid "Delete user"
+msgstr "Delete user"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:77
+msgid "Unable to delete user."
+msgstr "Unable to delete user."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:91
+msgid "Created {username}."
+msgstr "Created {username}."
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:93
+msgid "Unable to create user."
+msgstr "Unable to create user."
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:115
+msgid "Unable to open the earlier message"
+msgstr "Unable to open the earlier message"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:240
+msgid "{count, plural, one {# message queued} other {# messages queued}}"
+msgstr "{count, plural, one {# message queued} other {# messages queued}}"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:276
+msgid "Unable to start a new context"
+msgstr "Unable to start a new context"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:346
+msgid "Unable to load history"
+msgstr "Unable to load history"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:357
+msgid "Unable to load the latest messages"
+msgstr "Unable to load the latest messages"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:104
+#: src/components/ui/command.tsx:32
+msgid "Command Palette"
+msgstr "Command Palette"
+
+#. js-lingui-explicit-id
+#: src/components/ui/command.tsx:33
+msgid "Search for a command to run..."
+msgstr "Search for a command to run..."
+
+#. js-lingui-explicit-id
+#: src/components/tasks/TaskSubtasks.tsx:53
+msgid "Unable to update subtasks"
+msgstr "Unable to update subtasks"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:443
+#: src/components/harness/tasks/TaskView.tsx:648
+#: src/components/tasks/TaskSubtasks.tsx:57
+msgid "Subtasks"
+msgstr "Subtasks"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:154
+#: src/components/tasks/TaskSubtasks.tsx:100
+msgid "Scheduled"
+msgstr "Scheduled"
+
+#. js-lingui-explicit-id
+#: src/components/tasks/TaskSubtasks.tsx:102
+msgid "Finishing"
+msgstr "Finishing"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:48
+#: src/components/harness/tasks/issue-state.ts:43
+#: src/components/tasks/TaskSubtasks.tsx:104
+msgid "Stopped"
+msgstr "Stopped"
+
+#. js-lingui-explicit-id
+#: src/components/tasks/TaskSubtasks.tsx:111
+msgid "Stop {name}"
+msgstr "Stop {name}"
+
+#. js-lingui-explicit-id
+#: src/components/tasks/TaskSubtasks.tsx:193
+msgid "Loading subtask"
+msgstr "Loading subtask"
+
+#. js-lingui-explicit-id
+#: src/components/harness/ActionDialogs.tsx:54
+msgid "Confirm action"
+msgstr "Confirm action"
+
+#. js-lingui-explicit-id
+#: src/components/harness/ActionDialogs.tsx:80
+msgid "Enter a value"
+msgstr "Enter a value"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:95
+#: src/components/harness/AgentCommandPalette.tsx:96
+#: src/components/harness/AgentCommandPalette.tsx:128
+msgid "Commands"
+msgstr "Commands"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:105
+msgid "Insert a prompt template or skill command."
+msgstr "Insert a prompt template or skill command."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:107
+msgid "Search templates and skills..."
+msgstr "Search templates and skills..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:110
+msgid "Loading..."
+msgstr "Loading..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:110
+msgid "No commands found."
+msgstr "No commands found."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:113
+msgid "Prompt Commands"
+msgstr "Prompt Commands"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:122
+msgid "Skill Commands"
+msgstr "Skill Commands"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:72
+msgid "Knowledge action failed"
+msgstr "Knowledge action failed"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:83
+#: src/components/harness/AgentSettingsPage.tsx:36
+#: src/components/harness/shell/HarnessHeader.tsx:79
+#: src/components/harness/shell/HarnessSidebar.tsx:192
+msgid "Knowledge"
+msgstr "Knowledge"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:99
+msgid "Loading knowledge"
+msgstr "Loading knowledge"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:109
+msgid "Enable knowledge in settings to register searchable sources and save memories."
+msgstr "Enable knowledge in settings to register searchable sources and save memories."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:112
+msgid "The agent owner can enable knowledge in settings."
+msgstr "The agent owner can enable knowledge in settings."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:162
+msgid "Search failed"
+msgstr "Search failed"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:176
+msgid "Find notes, decisions, or preferences…"
+msgstr "Find notes, decisions, or preferences…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:206
+msgid "Searching…"
+msgstr "Searching…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:206
+msgid "Search"
+msgstr "Search"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:262
+msgid "Source document"
+msgstr "Source document"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:266
+msgid "Loading source"
+msgstr "Loading source"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:298
+msgid "Saved memories"
+msgstr "Saved memories"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:381
+msgid "Forget “{title}”?"
+msgstr "Forget “{title}”?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:382
+msgid "This removes the saved memory for everyone using this agent. Source documents and conversations are kept."
+msgstr "This removes the saved memory for everyone using this agent. Source documents and conversations are kept."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:385
+msgid "Forget memory"
+msgstr "Forget memory"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:399
+msgid "Knowledge sources"
+msgstr "Knowledge sources"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:479
+msgid "Markdown documents"
+msgstr "Markdown documents"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:529
+msgid "Edit memory"
+msgstr "Edit memory"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:529
+msgid "New memory"
+msgstr "New memory"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:630
+msgid "docs or /mounted-vault"
+msgstr "docs or /mounted-vault"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:642
+msgid "What is this collection useful for?"
+msgstr "What is this collection useful for?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:79
+#: src/components/harness/shell/HarnessHeader.tsx:81
+#: src/components/harness/shell/HarnessSidebar.tsx:184
+msgid "Schedules"
+msgstr "Schedules"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:95
+msgid "Unable to load schedules"
+msgstr "Unable to load schedules"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:118
+msgid "Unable to save schedule"
+msgstr "Unable to save schedule"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:118
+msgid "Unable to create schedule"
+msgstr "Unable to create schedule"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:124
+msgid "Loading tasks"
+msgstr "Loading tasks"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:176
+msgid "Run {name} now"
+msgstr "Run {name} now"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:182
+msgid "The task did not run."
+msgstr "The task did not run."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:185
+msgid "Unable to run task"
+msgstr "Unable to run task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:194
+msgid "Run history for {name}"
+msgstr "Run history for {name}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:213
+#: src/components/harness/tasks/TaskView.tsx:216
+msgid "Unable to update task"
+msgstr "Unable to update task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:217
+msgid "Pause"
+msgstr "Pause"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:217
+msgid "Resume"
+msgstr "Resume"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:222
+msgid "Edit {name}"
+msgstr "Edit {name}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:233
+msgid "Delete {name}"
+msgstr "Delete {name}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:238
+msgid "Delete “{name}”?"
+msgstr "Delete “{name}”?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:239
+msgid "This deletes the task and its run conversations. Runs moved to your session list are kept."
+msgstr "This deletes the task and its run conversations. Runs moved to your session list are kept."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:242
+msgid "Delete schedule"
+msgstr "Delete schedule"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:250
+#: src/components/harness/tasks/TaskView.tsx:246
+msgid "Unable to delete task"
+msgstr "Unable to delete task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSessionsPage.tsx:32
+msgid "Import Open WebUI export"
+msgstr "Import Open WebUI export"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:35
+msgid "General"
+msgstr "General"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:37
+msgid "Templates"
+msgstr "Templates"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:38
+msgid "Permissions"
+msgstr "Permissions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:39
+msgid "Codemode"
+msgstr "Codemode"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:40
+msgid "Secrets"
+msgstr "Secrets"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:42
+msgid "Integrations"
+msgstr "Integrations"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:89
+#: src/components/harness/AgentSettingsPage.tsx:43
+msgid "Archived"
+msgstr "Archived"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:119
+msgid "Unable to load agent settings"
+msgstr "Unable to load agent settings"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:157
+msgid "Agent saved."
+msgstr "Agent saved."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:160
+msgid "Unable to save agent"
+msgstr "Unable to save agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:98
+#: src/components/harness/AgentSettingsPage.tsx:170
+msgid "Delete {name}?"
+msgstr "Delete {name}?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:171
+msgid "This permanently deletes the agent and all of its sessions."
+msgstr "This permanently deletes the agent and all of its sessions."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:172
+msgid "Delete agent"
+msgstr "Delete agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:179
+msgid "Unable to delete agent"
+msgstr "Unable to delete agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:187
+msgid "Agent Settings"
+msgstr "Agent Settings"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:189
+msgid "Back to agent"
+msgstr "Back to agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:203
+#: src/components/harness/files/FileEditorView.tsx:169
+#: src/components/harness/files/FileEditorView.tsx:175
+msgid "Saving..."
+msgstr "Saving..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:221
+msgid "Paste text into the text entry field, then select Send text."
+msgstr "Paste text into the text entry field, then select Send text."
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:233
+msgid "Select text in the remote page before copying."
+msgstr "Select text in the remote page before copying."
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:240
+msgid "Copied from browser"
+msgstr "Copied from browser"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:246
+msgid "Pasted into browser"
+msgstr "Pasted into browser"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:250
+msgid "Clipboard transfer failed."
+msgstr "Clipboard transfer failed."
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:30
+#: src/components/harness/BrowserPanel.tsx:261
+msgid "You have control"
+msgstr "You have control"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:32
+#: src/components/harness/BrowserPanel.tsx:263
+msgid "Pausing agent…"
+msgstr "Pausing agent…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:265
+msgid "{controllerName} has control"
+msgstr "{controllerName} has control"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:267
+msgid "Waiting for help"
+msgstr "Waiting for help"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:268
+msgid "Agent has control"
+msgstr "Agent has control"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:281
+msgid "Agent browser"
+msgstr "Agent browser"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:294
+#: src/components/harness/BrowserPanel.tsx:525
+msgid "Resume agent"
+msgstr "Resume agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:294
+#: src/components/harness/BrowserPanel.tsx:525
+msgid "Take control"
+msgstr "Take control"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:315
+msgid "Browser back"
+msgstr "Browser back"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:325
+msgid "Browser forward"
+msgstr "Browser forward"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:335
+msgid "Reload browser page"
+msgstr "Reload browser page"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:367
+msgid "Browser tab"
+msgstr "Browser tab"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:368
+msgid "Select tab"
+msgstr "Select tab"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:374
+msgid "Untitled"
+msgstr "Untitled"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:405
+msgid "Remote browser. Click to focus, then type or use copy and paste shortcuts. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile."
+msgstr "Remote browser. Click to focus, then type or use copy and paste shortcuts. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile."
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:408
+msgid "Live browser preview. Take control to interact."
+msgstr "Live browser preview. Take control to interact."
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:428
+msgid "Remote browser keyboard input"
+msgstr "Remote browser keyboard input"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:438
+msgid "Live page in the agent's browser"
+msgstr "Live page in the agent's browser"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:461
+msgid "Waiting for the page"
+msgstr "Waiting for the page"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:462
+msgid "Connecting to the browser"
+msgstr "Connecting to the browser"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:534
+msgid "Shared agent · Shared sign-ins"
+msgstr "Shared agent · Shared sign-ins"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:535
+msgid "Agent profile · Sign-ins retained"
+msgstr "Agent profile · Sign-ins retained"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:453
+msgid "Close sidebar"
+msgstr "Close sidebar"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:488
+msgid "New task"
+msgstr "New task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:512
+#: src/components/harness/HarnessShell.tsx:540
+msgid "Unable to open Home"
+msgstr "Unable to open Home"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:548
+msgid "Unable to refresh session status"
+msgstr "Unable to refresh session status"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:626
+msgid "Create an agent to start chatting."
+msgstr "Create an agent to start chatting."
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:627
+msgid "Loading session..."
+msgstr "Loading session..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/LoginScreen.tsx:43
+msgid "Sign in with a server-created account."
+msgstr "Sign in with a server-created account."
+
+#. js-lingui-explicit-id
+#: src/components/harness/LoginScreen.tsx:44
+msgid "Sign in with {value}."
+msgstr "Sign in with {value}."
+
+#. js-lingui-explicit-id
+#: src/components/harness/LoginScreen.tsx:92
+msgid "Signing in"
+msgstr "Signing in"
+
+#. js-lingui-explicit-id
+#: src/components/harness/LoginScreen.tsx:92
+msgid "Sign in"
+msgstr "Sign in"
+
+#. js-lingui-explicit-id
+#: src/components/harness/NewSessionView.tsx:77
+msgid "A session is already being created."
+msgstr "A session is already being created."
+
+#. js-lingui-explicit-id
+#: src/components/harness/NewSessionView.tsx:91
+msgid "Unable to create session"
+msgstr "Unable to create session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/OidcLoginButton.tsx:10
+msgid "Sign in with {providerName}"
+msgstr "Sign in with {providerName}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/OidcLoginButton.tsx:33
+msgid "Redirecting to {providerName}"
+msgstr "Redirecting to {providerName}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/ResourceFeedback.tsx:11
+msgid "Unable to load updates"
+msgstr "Unable to load updates"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ModelCommandDialog.tsx:43
+#: src/components/harness/SettingsPage.tsx:26
+msgid "Models"
+msgstr "Models"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:27
+msgid "Providers"
+msgstr "Providers"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:28
+msgid "API Keys"
+msgstr "API Keys"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:29
+msgid "Appearance"
+msgstr "Appearance"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:30
+msgid "Users"
+msgstr "Users"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:31
+msgid "Account"
+msgstr "Account"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:82
+msgid "Saving fast task model..."
+msgstr "Saving fast task model..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:88
+msgid "Fast task model saved."
+msgstr "Fast task model saved."
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:92
+msgid "Unable to save fast task model"
+msgstr "Unable to save fast task model"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:101
+msgid "Saving model sharing..."
+msgstr "Saving model sharing..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:104
+msgid "Model sharing saved."
+msgstr "Model sharing saved."
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:108
+msgid "Unable to save model sharing"
+msgstr "Unable to save model sharing"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:117
+msgid "Appearance saved."
+msgstr "Appearance saved."
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:122
+#: src/components/harness/shell/HarnessSidebar.tsx:249
+#: src/components/harness/shell/HarnessSidebar.tsx:250
+msgid "Settings"
+msgstr "Settings"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:123
+msgid "Back to harness"
+msgstr "Back to harness"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SetupScreen.tsx:44
+msgid "Create the first account. It will be the administrator."
+msgstr "Create the first account. It will be the administrator."
+
+#. js-lingui-explicit-id
+#: src/components/harness/SetupScreen.tsx:45
+msgid "The first person to sign in with {value} becomes the administrator."
+msgstr "The first person to sign in with {value} becomes the administrator."
+
+#. js-lingui-explicit-id
+#: src/components/harness/SetupScreen.tsx:55
+msgid "Continue with {providerName}"
+msgstr "Continue with {providerName}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SetupScreen.tsx:106
+msgid "Creating account"
+msgstr "Creating account"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SetupScreen.tsx:106
+msgid "Create admin account"
+msgstr "Create admin account"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SubtaskRedirect.tsx:15
+msgid "Opening task"
+msgstr "Opening task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/TerminalPanel.tsx:107
+msgid "Connection lost."
+msgstr "Connection lost."
+
+#. js-lingui-explicit-id
+#: src/components/harness/TerminalPanel.tsx:156
+msgid "Starting shell…"
+msgstr "Starting shell…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:154
+#: src/components/harness/schedules/TaskForm.tsx:237
+#: src/components/harness/tasks/TaskBriefForm.tsx:152
+#: src/components/harness/UnsavedChangesDialog.tsx:102
+msgid "Saving…"
+msgstr "Saving…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/UnsavedChangesDialog.tsx:102
+msgid "Save and leave"
+msgstr "Save and leave"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/NewTaskView.tsx:28
+msgid "Unable to create task"
+msgstr "Unable to create task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskActivity.tsx:50
+msgid "Run {number} · {value}"
+msgstr "Run {number} · {value}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskActivity.tsx:58
+msgid "Note"
+msgstr "Note"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskActivity.tsx:59
+msgid "Task updated"
+msgstr "Task updated"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskActivity.tsx:78
+msgid "View result for run {number}"
+msgstr "View result for run {number}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskActivity.tsx:87
+msgid "Open conversation for run {number}"
+msgstr "Open conversation for run {number}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskBriefForm.tsx:77
+msgid "What needs to change?"
+msgstr "What needs to change?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskBriefForm.tsx:93
+msgid "Describe the outcome, context, and constraints."
+msgstr "Describe the outcome, context, and constraints."
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskBriefForm.tsx:111
+msgid "One criterion per line"
+msgstr "One criterion per line"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskBriefForm.tsx:152
+msgid "Save brief"
+msgstr "Save brief"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskBriefForm.tsx:152
+msgid "Save to backlog"
+msgstr "Save to backlog"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskComposer.tsx:42
+msgid "Task reply"
+msgstr "Task reply"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:414
+#: src/components/harness/tasks/TaskComposer.tsx:52
+msgid "Message"
+msgstr "Message"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskComposer.tsx:72
+msgid "Reply options"
+msgstr "Reply options"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskComposer.tsx:92
+msgid "Save note"
+msgstr "Save note"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:41
+msgid "Unable to load conversation"
+msgstr "Unable to load conversation"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:45
+msgid "Connecting to conversation"
+msgstr "Connecting to conversation"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:99
+msgid "Unable to refresh conversation"
+msgstr "Unable to refresh conversation"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:141
+msgid "Work on this task."
+msgstr "Work on this task."
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:147
+msgid "Update queued"
+msgstr "Update queued"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:149
+msgid "Update saved · Not delivered"
+msgstr "Update saved · Not delivered"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:150
+msgid "Saved note"
+msgstr "Saved note"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskPanel.tsx:32
+#: src/components/harness/tasks/TaskPanel.tsx:58
+msgid "Close {value}"
+msgstr "Close {value}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskResult.tsx:43
+msgid "Before this run"
+msgstr "Before this run"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskResult.tsx:43
+msgid "After this run"
+msgstr "After this run"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskResult.tsx:49
+msgid "File did not exist"
+msgstr "File did not exist"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskResult.tsx:50
+msgid "File deleted"
+msgstr "File deleted"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:74
+msgid "Loading task"
+msgstr "Loading task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:78
+msgid "Unable to load task"
+msgstr "Unable to load task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:232
+msgid "Delete task?"
+msgstr "Delete task?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:233
+msgid "Delete the brief, discussion, saved results, and all conversations."
+msgstr "Delete the brief, discussion, saved results, and all conversations."
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:74
+#: src/components/harness/shell/HarnessHeader.tsx:93
+#: src/components/harness/shell/HarnessSidebar.tsx:165
+#: src/components/harness/tasks/TaskView.tsx:256
+msgid "Home"
+msgstr "Home"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:91
+#: src/components/harness/shell/HarnessSidebar.tsx:178
+#: src/components/harness/tasks/TasksOverview.tsx:148
+#: src/components/harness/tasks/TaskView.tsx:256
+msgid "Tasks"
+msgstr "Tasks"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:324
+msgid "Retry task"
+msgstr "Retry task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:324
+msgid "Queue task"
+msgstr "Queue task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:329
+msgid "Task actions"
+msgstr "Task actions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:349
+msgid "Continue this conversation next run"
+msgstr "Continue this conversation next run"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:350
+msgid "Use a fresh conversation next run"
+msgstr "Use a fresh conversation next run"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:371
+msgid "Cancel task?"
+msgstr "Cancel task?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:372
+msgid "Stop any active run and close this task. You can reopen it later."
+msgstr "Stop any active run and close this task. You can reopen it later."
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:375
+msgid "Cancel task"
+msgstr "Cancel task"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:427
+msgid "Task views"
+msgstr "Task views"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:451
+msgid "{count} running"
+msgstr "{count} running"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:452
+msgid "{count, plural, one {# subtask} other {# subtasks}}"
+msgstr "{count, plural, one {# subtask} other {# subtasks}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:461
+msgid "Details"
+msgstr "Details"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:475
+msgid "Connection lost"
+msgstr "Connection lost"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:492
+msgid "Run stopped"
+msgstr "Run stopped"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:44
+#: src/components/harness/tasks/TaskView.tsx:493
+msgid "Run failed"
+msgstr "Run failed"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:494
+msgid "Needs your input"
+msgstr "Needs your input"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:502
+msgid "Queue this task to continue."
+msgstr "Queue this task to continue."
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:503
+msgid "Retry this task to continue."
+msgstr "Retry this task to continue."
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:519
+msgid "This task will start when the agent is available."
+msgstr "This task will start when the agent is available."
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:555
+msgid "Send update"
+msgstr "Send update"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:557
+msgid "Request changes"
+msgstr "Request changes"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:558
+msgid "Send & queue"
+msgstr "Send & queue"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:562
+msgid "Leave a note…"
+msgstr "Leave a note…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:564
+msgid "Answer the agent’s question…"
+msgstr "Answer the agent’s question…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:566
+msgid "Describe what should change…"
+msgstr "Describe what should change…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:567
+msgid "Reply to the agent…"
+msgstr "Reply to the agent…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:648
+msgid "Task details"
+msgstr "Task details"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:68
+msgid "Unable to reorder queue"
+msgstr "Unable to reorder queue"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:105
+msgid "Move {title} up"
+msgstr "Move {title} up"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:114
+msgid "Move {title} down"
+msgstr "Move {title} down"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:132
+msgid "No matching tasks"
+msgstr "No matching tasks"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:134
+msgid "Nothing needs your attention"
+msgstr "Nothing needs your attention"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:136
+msgid "No queued work"
+msgstr "No queued work"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:138
+msgid "Backlog is empty"
+msgstr "Backlog is empty"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:139
+msgid "No completed tasks"
+msgstr "No completed tasks"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:167
+msgid "Queue"
+msgstr "Queue"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:179
+msgid "Needs you"
+msgstr "Needs you"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:21
+#: src/components/harness/tasks/issue-state.ts:22
+#: src/components/harness/tasks/TasksOverview.tsx:188
+msgid "Backlog"
+msgstr "Backlog"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:28
+#: src/components/harness/tasks/TasksOverview.tsx:197
+msgid "Done"
+msgstr "Done"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:214
+msgid "Search tasks"
+msgstr "Search tasks"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:215
+msgid "Search tasks…"
+msgstr "Search tasks…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:224
+msgid "Unable to load tasks"
+msgstr "Unable to load tasks"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:232
+msgid "Loading issues"
+msgstr "Loading issues"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:23
+msgid "Queued"
+msgstr "Queued"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:245
+#: src/components/harness/tasks/issue-state.ts:24
+msgid "Working"
+msgstr "Working"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:25
+msgid "Needs input"
+msgstr "Needs input"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:26
+msgid "Blocked"
+msgstr "Blocked"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:27
+msgid "In review"
+msgstr "In review"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/ConversationSwitcher.tsx:38
+msgid "Switch conversation"
+msgstr "Switch conversation"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:62
+#: src/components/harness/shell/HarnessHeader.tsx:112
+msgid "Show sidebar"
+msgstr "Show sidebar"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:75
+#: src/components/harness/shell/HarnessHeader.tsx:94
+msgid "New session"
+msgstr "New session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:77
+#: src/components/harness/shell/HarnessSidebar.tsx:171
+msgid "Sessions"
+msgstr "Sessions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:83
+#: src/components/harness/shell/WorkspaceLayout.tsx:21
+msgid "Files"
+msgstr "Files"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:36
+#: src/components/harness/changes/ChangesView.tsx:419
+#: src/components/harness/shell/HarnessHeader.tsx:85
+#: src/components/harness/shell/WorkspaceLayout.tsx:22
+msgid "Changes"
+msgstr "Changes"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:87
+#: src/components/harness/shell/WorkspaceLayout.tsx:24
+msgid "Browser"
+msgstr "Browser"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:89
+#: src/components/harness/shell/WorkspaceLayout.tsx:23
+msgid "Terminal"
+msgstr "Terminal"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:124
+msgid "Back to sessions"
+msgstr "Back to sessions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:137
+#: src/components/harness/shell/ImportSessionsDialog.tsx:104
+msgid "No agent"
+msgstr "No agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:149
+msgid "Close files"
+msgstr "Close files"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:149
+msgid "Browse files"
+msgstr "Browse files"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:161
+msgid "Close changes"
+msgstr "Close changes"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:161
+msgid "Uncommitted changes"
+msgstr "Uncommitted changes"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:173
+msgid "Close terminal"
+msgstr "Close terminal"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:173
+msgid "Open terminal"
+msgstr "Open terminal"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:185
+#: src/components/harness/shell/HarnessHeader.tsx:186
+msgid "Close browser"
+msgstr "Close browser"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:11
+#: src/components/harness/shell/HarnessHeader.tsx:185
+#: src/components/harness/shell/HarnessHeader.tsx:186
+msgid "Open browser"
+msgstr "Open browser"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:202
+#: src/components/harness/shell/HarnessHeader.tsx:203
+msgid "Agent settings"
+msgstr "Agent settings"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:78
+msgid "Agent {number}"
+msgstr "Agent {number}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:82
+msgid "Unable to create agent"
+msgstr "Unable to create agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:113
+msgid "Collapse sidebar"
+msgstr "Collapse sidebar"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:121
+msgid "Agents"
+msgstr "Agents"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:139
+#: src/components/harness/shell/HarnessSidebar.tsx:140
+msgid "Needs your attention"
+msgstr "Needs your attention"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:153
+msgid "Unread messages"
+msgstr "Unread messages"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:160
+msgid "Agent work"
+msgstr "Agent work"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:260
+msgid "Resize sidebar"
+msgstr "Resize sidebar"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/ImportSessionsDialog.tsx:70
+msgid "Unable to import sessions"
+msgstr "Unable to import sessions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/ImportSessionsDialog.tsx:106
+msgid "No model"
+msgstr "No model"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/ImportSessionsDialog.tsx:116
+msgid "Importing..."
+msgstr "Importing..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/ImportSessionsDialog.tsx:116
+msgid "Import"
+msgstr "Import"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:66
+#: src/components/harness/shell/SessionList.tsx:67
+msgid "Search sessions"
+msgstr "Search sessions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:124
+msgid "No sessions match “{value}”."
+msgstr "No sessions match “{value}”."
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:125
+msgid "No sessions yet"
+msgstr "No sessions yet"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:168
+msgid "Unable to archive session"
+msgstr "Unable to archive session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:174
+msgid "Session archived"
+msgstr "Session archived"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:175
+msgid "Archived sessions are listed in agent settings."
+msgstr "Archived sessions are listed in agent settings."
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:179
+msgid "Undo"
+msgstr "Undo"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:98
+#: src/components/harness/shell/SessionList.tsx:185
+msgid "Unable to restore session"
+msgstr "Unable to restore session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:206
+msgid "Session actions"
+msgstr "Session actions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:221
+msgid "Unable to unpin session"
+msgstr "Unable to unpin session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:222
+msgid "Unable to pin session"
+msgstr "Unable to pin session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:229
+msgid "Unpin"
+msgstr "Unpin"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:229
+msgid "Pin"
+msgstr "Pin"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:234
+msgid "Rename session"
+msgstr "Rename session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:240
+msgid "Unable to rename session"
+msgstr "Unable to rename session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:56
+#: src/components/harness/shell/SessionList.tsx:259
+msgid "Delete “{title}”?"
+msgstr "Delete “{title}”?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:57
+#: src/components/harness/shell/SessionList.tsx:260
+msgid "This session and its message history will be permanently deleted."
+msgstr "This session and its message history will be permanently deleted."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:58
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:107
+#: src/components/harness/shell/SessionList.tsx:263
+msgid "Delete session"
+msgstr "Delete session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:60
+#: src/components/harness/shell/SessionList.tsx:267
+msgid "Unable to delete session"
+msgstr "Unable to delete session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/TaskRunBanner.tsx:26
+msgid "Moved to sessions"
+msgstr "Moved to sessions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/TaskRunBanner.tsx:28
+msgid "Unable to move session"
+msgstr "Unable to move session"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:96
+msgid "Conversation"
+msgstr "Conversation"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:104
+msgid "Resize workspace pane"
+msgstr "Resize workspace pane"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:110
+msgid "{width} pixels"
+msgstr "{width} pixels"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:157
+msgid "{view} workspace"
+msgstr "{view} workspace"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:157
+#: src/components/harness/shell/WorkspaceLayout.tsx:164
+msgid "Workspace"
+msgstr "Workspace"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:173
+msgid "Expand {view}"
+msgstr "Expand {view}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:176
+#: src/components/harness/shell/WorkspaceLayout.tsx:178
+msgid "Show beside chat"
+msgstr "Show beside chat"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:178
+msgid "Use full main area"
+msgstr "Use full main area"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:191
+msgid "Close workspace"
+msgstr "Close workspace"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:192
+msgid "Back to chat"
+msgstr "Back to chat"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:32
+msgid "Email and password updated."
+msgstr "Email and password updated."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:32
+msgid "Email updated."
+msgstr "Email updated."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:34
+msgid "Unable to update account."
+msgstr "Unable to update account."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:58
+msgid "Single sign-on"
+msgstr "Single sign-on"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:59
+msgid "This account signs in through your identity provider, which also manages its name and email. Changes there apply the next time you sign in."
+msgstr "This account signs in through your identity provider, which also manages its name and email. Changes there apply the next time you sign in."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:67
+msgid "Email & Password"
+msgstr "Email & Password"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:68
+msgid "Confirm your current password to change your email. Leave the new password blank to keep it."
+msgstr "Confirm your current password to change your email. Leave the new password blank to keep it."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:32
+msgid "Unable to load API keys"
+msgstr "Unable to load API keys"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:43
+msgid "A name is required."
+msgstr "A name is required."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:52
+msgid "Unable to create API key"
+msgstr "Unable to create API key"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:60
+msgid "Revoke {name}?"
+msgstr "Revoke {name}?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:61
+msgid "Anything using this key stops working immediately."
+msgstr "Anything using this key stops working immediately."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:62
+#: src/components/harness/settings/ApiKeySettings.tsx:144
+msgid "Revoke key"
+msgstr "Revoke key"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:71
+msgid "Unable to revoke API key"
+msgstr "Unable to revoke API key"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:132
+msgid "last used {value}"
+msgstr "last used {value}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:163
+msgid "Laptop editor"
+msgstr "Laptop editor"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CodeBlock.tsx:49
+#: src/components/harness/settings/ApiKeySettings.tsx:215
+msgid "Copy"
+msgstr "Copy"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/LanguagePicker.tsx:22
+msgid "Language"
+msgstr "Language"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/LanguagePicker.tsx:34
+msgid "System"
+msgstr "System"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:48
+msgid "Fast Task Model"
+msgstr "Fast Task Model"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:49
+msgid "Used for lightweight background tasks such as session title generation."
+msgstr "Used for lightweight background tasks such as session title generation."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:85
+msgid "Model Management"
+msgstr "Model Management"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:107
+msgid "Shared provider"
+msgstr "Shared provider"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:266
+#: src/components/harness/settings/ModelSettings.tsx:120
+msgid "Shared"
+msgstr "Shared"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:120
+msgid "Share"
+msgstr "Share"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:149
+msgid "Add Model"
+msgstr "Add Model"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:156
+msgid "Model provider"
+msgstr "Model provider"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:157
+msgid "Choose a provider"
+msgstr "Choose a provider"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:194
+msgid "Refreshing..."
+msgstr "Refreshing..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:194
+msgid "Refresh models"
+msgstr "Refresh models"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:204
+msgid "Already configured"
+msgstr "Already configured"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:204
+msgid "Add model"
+msgstr "Add model"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:241
+msgid "Search models"
+msgstr "Search models"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:242
+msgid "Search {length} models..."
+msgstr "Search {length} models..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:66
+msgid "Delete provider config"
+msgstr "Delete provider config"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:140
+msgid "Provider label"
+msgstr "Provider label"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:150
+msgid "Optional API base URL"
+msgstr "Optional API base URL"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:187
+msgid "API key"
+msgstr "API key"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:153
+#: src/components/harness/settings/ProviderSettings.tsx:197
+msgid "Not connected"
+msgstr "Not connected"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:123
+#: src/components/harness/settings/ProviderSettings.tsx:277
+msgid "Saved"
+msgstr "Saved"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:279
+msgid "Update provider"
+msgstr "Update provider"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:280
+msgid "Create provider"
+msgstr "Create provider"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/UserSettings.tsx:84
+msgid "Reset password"
+msgstr "Reset password"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/UserSettings.tsx:108
+msgid "New password"
+msgstr "New password"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/UserSettings.tsx:130
+msgid "Create User"
+msgstr "Create User"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:77
+msgid "Edit schedule"
+msgstr "Edit schedule"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:77
+msgid "New schedule"
+msgstr "New schedule"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:144
+msgid "Minutes"
+msgstr "Minutes"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:146
+msgid "When (ISO date and time)"
+msgstr "When (ISO date and time)"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:147
+msgid "Cron expression"
+msgstr "Cron expression"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:173
+msgid "Minute, hour, day of month, month, weekday."
+msgstr "Minute, hour, day of month, month, weekday."
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:174
+msgid "Include a time zone, for example 2026-10-01T09:00:00+08:00."
+msgstr "Include a time zone, for example 2026-10-01T09:00:00+08:00."
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:237
+msgid "Save schedule"
+msgstr "Save schedule"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:237
+msgid "Create schedule"
+msgstr "Create schedule"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskRunHistory.tsx:54
+msgid "Unable to load run history"
+msgstr "Unable to load run history"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskRunHistory.tsx:59
+msgid "Loading run history"
+msgstr "Loading run history"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:57
+msgid "Unable to open file"
+msgstr "Unable to open file"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:80
+msgid "Unable to save file"
+msgstr "Unable to save file"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:110
+msgid "Back to files"
+msgstr "Back to files"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:120
+msgid "Image preview"
+msgstr "Image preview"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:122
+msgid "Unsaved changes"
+msgstr "Unsaved changes"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:130
+msgid "Markdown view"
+msgstr "Markdown view"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:142
+#: src/components/harness/files/FileEditorView.tsx:143
+msgid "Download this file"
+msgstr "Download this file"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:157
+msgid "Discard"
+msgstr "Discard"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:158
+msgid "Discard unsaved changes"
+msgstr "Discard unsaved changes"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:170
+msgid "Save file"
+msgstr "Save file"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:54
+msgid "Name"
+msgstr "Name"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:55
+msgid "Size"
+msgstr "Size"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:255
+#: src/components/harness/files/FileManagerView.tsx:56
+msgid "Modified"
+msgstr "Modified"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:125
+msgid "New file"
+msgstr "New file"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:134
+msgid "New folder"
+msgstr "New folder"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:110
+#: src/components/harness/files/FileManagerView.tsx:143
+msgid "Refresh"
+msgstr "Refresh"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:150
+msgid "View options"
+msgstr "View options"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:172
+msgid "Hide hidden files"
+msgstr "Hide hidden files"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:172
+msgid "Show hidden files"
+msgstr "Show hidden files"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:204
+#: src/components/harness/files/FileManagerView.tsx:205
+msgid "Filter this folder"
+msgstr "Filter this folder"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:213
+msgid "{count, plural, one {# item to move} other {# items to move}}"
+msgstr "{count, plural, one {# item to move} other {# items to move}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:216
+msgid "{count, plural, one {# item to copy} other {# items to copy}}"
+msgstr "{count, plural, one {# item to copy} other {# items to copy}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:291
+msgid "Select all"
+msgstr "Select all"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:332
+msgid "No matching files"
+msgstr "No matching files"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:332
+msgid "This folder is empty"
+msgstr "This folder is empty"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:363
+msgid "Select {name}"
+msgstr "Select {name}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:391
+msgid "Actions for {name}"
+msgstr "Actions for {name}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:504
+msgid "File location"
+msgstr "File location"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:510
+msgid "Working directory"
+msgstr "Working directory"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:34
+msgid "Conflicts"
+msgstr "Conflicts"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:35
+msgid "Staged"
+msgstr "Staged"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:37
+#: src/components/harness/changes/ChangesView.tsx:254
+msgid "Untracked"
+msgstr "Untracked"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:68
+msgid "Unable to read git status"
+msgstr "Unable to read git status"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:182
+msgid "Loading changes"
+msgstr "Loading changes"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:184
+msgid "Changes unavailable"
+msgstr "Changes unavailable"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:186
+msgid "No diff to show"
+msgstr "No diff to show"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:188
+msgid "Select a file"
+msgstr "Select a file"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:190
+msgid "Working tree is clean"
+msgstr "Working tree is clean"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:191
+msgid "No Git repository"
+msgstr "No Git repository"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:253
+msgid "Added"
+msgstr "Added"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:258
+msgid "Type changed"
+msgstr "Type changed"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:261
+msgid "Renamed"
+msgstr "Renamed"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:36
+#: src/components/chat/MessageActions.tsx:37
+#: src/components/harness/changes/ChangesView.tsx:262
+msgid "Copied"
+msgstr "Copied"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:263
+msgid "Deleted"
+msgstr "Deleted"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:264
+msgid "Conflicted"
+msgstr "Conflicted"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:268
+msgid "Staged: HEAD → index"
+msgstr "Staged: HEAD → index"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:269
+msgid "Unstaged: index → working tree"
+msgstr "Unstaged: index → working tree"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:270
+msgid "Untracked: new file"
+msgstr "Untracked: new file"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:271
+msgid "Conflicted: ours → working tree"
+msgstr "Conflicted: ours → working tree"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:302
+msgid "Unable to load this diff"
+msgstr "Unable to load this diff"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:323
+msgid "All changes"
+msgstr "All changes"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:338
+msgid "Diff layout"
+msgstr "Diff layout"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:405
+msgid "Binary file; no text diff to show."
+msgstr "Binary file; no text diff to show."
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:408
+msgid "Too large to diff here ({value})."
+msgstr "Too large to diff here ({value})."
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:410
+msgid "Nothing to compare."
+msgstr "Nothing to compare."
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:423
+msgid "Detached at {value}"
+msgstr "Detached at {value}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:424
+msgid "No commits yet"
+msgstr "No commits yet"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:429
+msgid "Reading git status..."
+msgstr "Reading git status..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:430
+msgid "Not a repository"
+msgstr "Not a repository"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:433
+msgid "{count} ahead"
+msgstr "{count} ahead"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:434
+msgid "{count} behind"
+msgstr "{count} behind"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentAppearancePicker.tsx:28
+msgid "Agent icon"
+msgstr "Agent icon"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentAppearancePicker.tsx:56
+msgid "Agent color"
+msgstr "Agent color"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:33
+msgid "Unable to load archived sessions"
+msgstr "Unable to load archived sessions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:86
+msgid "Archived {value} ago"
+msgstr "Archived {value} ago"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:125
+msgid "Manual server folder"
+msgstr "Manual server folder"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:169
+msgid "Remove mount"
+msgstr "Remove mount"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:183
+msgid "Container path (defaults to source)"
+msgstr "Container path (defaults to source)"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:187
+msgid "Read only"
+msgstr "Read only"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:275
+msgid "Danger Zone"
+msgstr "Danger Zone"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:276
+msgid "Deleting an agent also deletes sessions that belong to it."
+msgstr "Deleting an agent also deletes sessions that belong to it."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:55
+msgid "Unable to load integrations"
+msgstr "Unable to load integrations"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:60
+msgid "Loading integrations"
+msgstr "Loading integrations"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:108
+msgid "Unable to update integration"
+msgstr "Unable to update integration"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:135
+msgid "Disconnect {value}?"
+msgstr "Disconnect {value}?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:136
+msgid "Removes this connection and its credentials. Your Carmel conversations are kept."
+msgstr "Removes this connection and its credentials. Your Carmel conversations are kept."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:139
+msgid "Disconnect"
+msgstr "Disconnect"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:147
+msgid "{platform} integration"
+msgstr "{platform} integration"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:246
+msgid "Create a dedicated bot with BotFather, then connect its token."
+msgstr "Create a dedicated bot with BotFather, then connect its token."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:247
+msgid "Scan a QR code to create and authorize a bot, or connect an existing app."
+msgstr "Scan a QR code to create and authorize a bot, or connect an existing app."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:268
+msgid "Connect Telegram"
+msgstr "Connect Telegram"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:268
+msgid "Use existing app"
+msgstr "Use existing app"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:331
+msgid "Connecting…"
+msgstr "Connecting…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:331
+msgid "Connect"
+msgstr "Connect"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:383
+msgid "Scan to create your Feishu or Lark bot"
+msgstr "Scan to create your Feishu or Lark bot"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:432
+msgid "Unable to copy command"
+msgstr "Unable to copy command"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:444
+msgid "Setup expired"
+msgstr "Setup expired"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:446
+msgid "Authorization declined"
+msgstr "Authorization declined"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:447
+msgid "Setup needs attention"
+msgstr "Setup needs attention"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:450
+msgid "Start again when you are ready."
+msgstr "Start again when you are ready."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:485
+msgid "Recent deliveries"
+msgstr "Recent deliveries"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:486
+msgid "Task execution and notification delivery are tracked separately. An uncertain delivery may already be in your chat; check before resending."
+msgstr "Task execution and notification delivery are tracked separately. An uncertain delivery may already be in your chat; check before resending."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:35
+msgid "Knowledge settings saved."
+msgstr "Knowledge settings saved."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:37
+msgid "Unable to save knowledge settings"
+msgstr "Unable to save knowledge settings"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:46
+msgid "Loading knowledge settings"
+msgstr "Loading knowledge settings"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:130
+msgid "Automatic"
+msgstr "Automatic"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:154
+msgid "Save settings"
+msgstr "Save settings"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:107
+msgid "Choose a unique server ID."
+msgstr "Choose a unique server ID."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:115
+msgid "Check the server configuration."
+msgstr "Check the server configuration."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:126
+msgid "{length} tools available{value}"
+msgstr "{length} tools available{value}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:137
+msgid "Connection failed."
+msgstr "Connection failed."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:185
+msgid "Connecting..."
+msgstr "Connecting..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:185
+msgid "Test connection"
+msgstr "Test connection"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:213
+msgid "Edit {editing}"
+msgstr "Edit {editing}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:213
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:366
+msgid "Add server"
+msgstr "Add server"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:257
+msgid "Requires network permission."
+msgstr "Requires network permission."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:258
+msgid "Runs inside the agent sandbox and requires bash permission. The command must be installed in the runner."
+msgstr "Runs inside the agent sandbox and requires bash permission. The command must be installed in the runner."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:311
+msgid "HTTP headers"
+msgstr "HTTP headers"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:311
+msgid "Environment variables"
+msgstr "Environment variables"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:319
+msgid "Enter a JSON object of string values. Use $'{'SECRET_NAME'}' to reference an agent secret."
+msgstr "Enter a JSON object of string values. Use $'{'SECRET_NAME'}' to reference an agent secret."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:366
+msgid "Update server"
+msgstr "Update server"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:14
+msgid "Read files"
+msgstr "Read files"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:15
+msgid "Write files"
+msgstr "Write files"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:16
+msgid "Edit files"
+msgstr "Edit files"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:17
+msgid "Run commands"
+msgstr "Run commands"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:18
+msgid "Network access"
+msgstr "Network access"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:42
+msgid "Unable to load secrets"
+msgstr "Unable to load secrets"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:74
+msgid "A secret value is required."
+msgstr "A secret value is required."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:80
+msgid "Replace {name}?"
+msgstr "Replace {name}?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:81
+msgid "The current value is overwritten and cannot be recovered."
+msgstr "The current value is overwritten and cannot be recovered."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:82
+msgid "Replace secret"
+msgstr "Replace secret"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:89
+msgid "Unable to save secret"
+msgstr "Unable to save secret"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:99
+msgid "Commands this agent runs will no longer see this variable."
+msgstr "Commands this agent runs will no longer see this variable."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:100
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:183
+msgid "Delete secret"
+msgstr "Delete secret"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:103
+msgid "Unable to delete secret"
+msgstr "Unable to delete secret"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:111
+msgid "Unable to import .env"
+msgstr "Unable to import .env"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:114
+msgid "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}"
+msgstr "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:122
+msgid "{skippedExisting} already stored"
+msgstr "{skippedExisting} already stored"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:126
+msgid "{skippedInvalid} invalid or empty"
+msgstr "{skippedInvalid} invalid or empty"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:53
+msgid "Delete template"
+msgstr "Delete template"
+
+#. js-lingui-explicit-id
+#: src/components/chat/AgentRequestCard.tsx:56
+msgid "Agent requests"
+msgstr "Agent requests"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:24
+#: src/components/chat/BrowserRequestCard.tsx:27
+msgid "Browser assistance"
+msgstr "Browser assistance"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:34
+msgid "Browser in use"
+msgstr "Browser in use"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:35
+#: src/components/chat/UserRequestCards.tsx:123
+msgid "Waiting for you"
+msgstr "Waiting for you"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:37
+msgid "The agent needs your help in the browser."
+msgstr "The agent needs your help in the browser."
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:46
+msgid "Complete the action, then select Resume agent. Your browser input is not added to chat."
+msgstr "Complete the action, then select Resume agent. Your browser input is not added to chat."
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:50
+msgid "Waiting for the current tool call to finish before handing over control."
+msgstr "Waiting for the current tool call to finish before handing over control."
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:52
+msgid "{controllerName} is helping. Automation stays paused until they resume the agent."
+msgstr "{controllerName} is helping. Automation stays paused until they resume the agent."
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:56
+msgid "Take control to complete the action, then resume the agent."
+msgstr "Take control to complete the action, then resume the agent."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatErrorNotice.tsx:44
+msgid "Dismiss error"
+msgstr "Dismiss error"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:211
+msgid "This model does not support images. Remove them or choose another model."
+msgstr "This model does not support images. Remove them or choose another model."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:250
+#: src/components/chat/ChatInput.tsx:587
+msgid "Maximum {MAX_FILES} attachments and references allowed."
+msgstr "Maximum {MAX_FILES} attachments and references allowed."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:263
+msgid "Enable read and write permissions for this agent to upload workspace files."
+msgstr "Enable read and write permissions for this agent to upload workspace files."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:268
+msgid "This model does not support images."
+msgstr "This model does not support images."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:284
+msgid "{name} was uploaded, but the message already has {MAX_FILES} references."
+msgstr "{name} was uploaded, but the message already has {MAX_FILES} references."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:301
+msgid "Unable to attach file"
+msgstr "Unable to attach file"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:341
+msgid "Drop files here"
+msgstr "Drop files here"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:341
+msgid "Drop images here"
+msgstr "Drop images here"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:367
+msgid "Remove {fileName}"
+msgstr "Remove {fileName}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:379
+msgid "Selected references"
+msgstr "Selected references"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:392
+msgid "Remove reference {value}"
+msgstr "Remove reference {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:413
+msgid "Type a message..."
+msgstr "Type a message..."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:472
+#: src/components/chat/ReferencePicker.tsx:74
+msgid "Mention a reference"
+msgstr "Mention a reference"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:473
+msgid "Mention a file, folder, or conversation"
+msgstr "Mention a file, folder, or conversation"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:495
+#: src/components/chat/ChatInput.tsx:498
+msgid "Attach files"
+msgstr "Attach files"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:500
+msgid "Attach images"
+msgstr "Attach images"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:501
+msgid "Enable read and write permissions to upload files"
+msgstr "Enable read and write permissions to upload files"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:517
+msgid "Thinking level"
+msgstr "Thinking level"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:539
+msgid "Choose model ({id})"
+msgstr "Choose model ({id})"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:554
+#: src/components/chat/ChatInput.tsx:555
+msgid "Abort"
+msgstr "Abort"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:567
+#: src/components/chat/ChatInput.tsx:568
+msgid "Send"
+msgstr "Send"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:214
+msgid "{count, plural, one {# tool call} other {# tool calls}}"
+msgstr "{count, plural, one {# tool call} other {# tool calls}}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:216
+msgid "thinking"
+msgstr "thinking"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:244
+msgid "Working · {currentTool}"
+msgstr "Working · {currentTool}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:247
+msgid "Hide work"
+msgstr "Hide work"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:248
+msgid "Show work"
+msgstr "Show work"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:68
+#: src/components/chat/ChatMessages.tsx:312
+#: src/components/chat/ChatMessages.tsx:523
+#: src/components/chat/ChatMessages.tsx:600
+msgid "Image"
+msgstr "Image"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:376
+msgid "New context"
+msgstr "New context"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:431
+msgid "Answer sent"
+msgstr "Answer sent"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:433
+msgid "Question response"
+msgstr "Question response"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:438
+msgid "Credential provided"
+msgstr "Credential provided"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:441
+msgid "Declined"
+msgstr "Declined"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:444
+msgid "Unavailable"
+msgstr "Unavailable"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:451
+msgid "Saved for reuse across this agent’s sessions."
+msgstr "Saved for reuse across this agent’s sessions."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:453
+msgid "Provided for this session only."
+msgstr "Provided for this session only."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:456
+msgid "This request did not make a credential available to the agent."
+msgstr "This request did not make a credential available to the agent."
+
+#. js-lingui-explicit-id
+#: src/components/chat/CodeBlock.tsx:41
+#: src/components/chat/CodeBlock.tsx:44
+msgid "Copy {value}"
+msgstr "Copy {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CodeBlock.tsx:41
+#: src/components/chat/CodeBlock.tsx:44
+msgid "Copy code"
+msgstr "Copy code"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CodeBlock.tsx:49
+msgid "Copied!"
+msgstr "Copied!"
+
+#. js-lingui-explicit-id
+#: src/components/chat/HomeTaskCard.tsx:15
+msgid "Open task: {title}"
+msgstr "Open task: {title}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:36
+#: src/components/chat/MessageActions.tsx:37
+msgid "Copy message"
+msgstr "Copy message"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:41
+msgid "Unable to copy message"
+msgstr "Unable to copy message"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:52
+#: src/components/chat/MessageActions.tsx:53
+msgid "Fork from this message"
+msgstr "Fork from this message"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:64
+#: src/components/chat/MessageActions.tsx:65
+msgid "Edit message"
+msgstr "Edit message"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:76
+#: src/components/chat/MessageActions.tsx:77
+msgid "Retry from this message"
+msgstr "Retry from this message"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageEditDialog.tsx:69
+msgid "Edit Assistant Message"
+msgstr "Edit Assistant Message"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageEditDialog.tsx:70
+msgid "Edit Message"
+msgstr "Edit Message"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageEditDialog.tsx:74
+msgid "Rewrites this assistant message in place. It won't rerun anything and only affects the next turn."
+msgstr "Rewrites this assistant message in place. It won't rerun anything and only affects the next turn."
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageEditDialog.tsx:77
+msgid "Save updates the message only. Submit saves it and reruns from this point."
+msgstr "Save updates the message only. Submit saves it and reruns from this point."
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageEditDialog.tsx:108
+msgid "Remove {label}"
+msgstr "Remove {label}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageReferences.tsx:20
+msgid "Message references"
+msgstr "Message references"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ModelCommandDialog.tsx:34
+msgid "Select Model"
+msgstr "Select Model"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ModelCommandDialog.tsx:35
+msgid "Select one of the models configured in settings."
+msgstr "Select one of the models configured in settings."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ModelCommandDialog.tsx:38
+msgid "Search configured models..."
+msgstr "Search configured models..."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:75
+msgid "Choose a file, folder, or conversation to include with your message."
+msgstr "Choose a file, folder, or conversation to include with your message."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:80
+msgid "Search conversations or type a file path…"
+msgstr "Search conversations or type a file path…"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:82
+msgid "References"
+msgstr "References"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:97
+msgid "Workspace files and folders"
+msgstr "Workspace files and folders"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:145
+msgid "Conversations"
+msgstr "Conversations"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:52
+#: src/components/chat/ToolCallView.tsx:257
+msgid "Complete"
+msgstr "Complete"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:56
+msgid "Preparing"
+msgstr "Preparing"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:149
+msgid "Input"
+msgstr "Input"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:159
+msgid "Output"
+msgstr "Output"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:160
+msgid "Tool call aborted."
+msgstr "Tool call aborted."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:172
+msgid "Tool result"
+msgstr "Tool result"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:99
+msgid "Unable to respond to this request."
+msgstr "Unable to respond to this request."
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:109
+msgid "Credential request: {value}"
+msgstr "Credential request: {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:110
+msgid "Question from agent"
+msgstr "Question from agent"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:132
+msgid "Choose an option or enter your answer."
+msgstr "Choose an option or enter your answer."
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:133
+msgid "Your response is saved with this conversation."
+msgstr "Your response is saved with this conversation."
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:147
+msgid "Provide credential"
+msgstr "Provide credential"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:147
+msgid "Submit answer"
+msgstr "Submit answer"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:195
+msgid "Save for this agent"
+msgstr "Save for this agent"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:196
+msgid "Use in this session only"
+msgstr "Use in this session only"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:275
+#: src/components/chat/UserRequestCards.tsx:297
+msgid "Answer options"
+msgstr "Answer options"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:335
+msgid "Credential provided · {value}"
+msgstr "Credential provided · {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:338
+msgid "Saved for this agent"
+msgstr "Saved for this agent"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:339
+msgid "This session only"
+msgstr "This session only"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:342
+msgid "Credential revoked."
+msgstr "Credential revoked."
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:343
+msgid "No credential was provided."
+msgstr "No credential was provided."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ZoomableImage.tsx:23
+msgid "Zoom {value}"
+msgstr "Zoom {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ZoomableLightbox.tsx:18
+msgid "Close"
+msgstr "Close"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ZoomableLightbox.tsx:19
+msgid "Zoom in"
+msgstr "Zoom in"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ZoomableLightbox.tsx:20
+msgid "Zoom out"
+msgstr "Zoom out"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:99
+msgid "in {value}"
+msgstr "in {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:100
+msgid "out {value}"
+msgstr "out {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:102
+msgid "read {value}"
+msgstr "read {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:104
+msgid "write {value}"
+msgstr "write {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:115
+msgid "[Image output: {mimeType}]"
+msgstr "[Image output: {mimeType}]"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:151
+msgid "{name} is not an image."
+msgstr "{name} is not an image."
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:167
+msgid "{fileName} has no image content."
+msgstr "{fileName} has no image content."
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:213
+msgid "{value}\n"
+"\n"
+"[Truncated {value2} characters for display]"
+msgstr "{value}\n"
+"\n"
+"[Truncated {value2} characters for display]"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:224
+msgid "Failed to read file."
+msgstr "Failed to read file."
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:84
+msgid "(optional)"
+msgstr "(optional)"
+
+#. placeholder {0}: item.baseUrl ?? "default endpoint"
+#. placeholder {1}: item.authType === "oauth" ? item.hasOAuth ? "oauth connected" : "oauth not connected" : item.hasApiKey ? "key saved" : "no key"
+#. placeholder {2}: relatedModels.length
+#: src/components/harness/settings/ProviderSettings.tsx:74
+msgid "{0} · {1} · {2} models"
+msgstr "{0} · {1} · {2} models"
+
+#. placeholder {0}: integration.botName
+#. placeholder {1}: integration.senderId
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:159
+msgid "{0} · Paired account {1}"
+msgstr "{0} · Paired account {1}"
+
+#. placeholder {0}: user.role
+#: src/components/harness/settings/UserSettings.tsx:61
+msgid "{0} (you)"
+msgstr "{0} (you)"
+
+#. placeholder {0}: agent.name
+#: src/components/harness/tasks/NewTaskView.tsx:36
+msgid "{0} / Tasks"
+msgstr "{0} / Tasks"
+
+#. placeholder {0}: data.status.needsEmbedding
+#: src/components/harness/AgentKnowledgePage.tsx:129
+msgid "{0} awaiting embeddings"
+msgstr "{0} awaiting embeddings"
+
+#. placeholder {0}: data.status.documents
+#: src/components/harness/AgentKnowledgePage.tsx:125
+msgid "{0} documents"
+msgstr "{0} documents"
+
+#. placeholder {0}: platformLabel(delivery.platform)
+#. placeholder {1}: statusLabel(delivery.status)
+#. placeholder {2}: delivery.error ? ` · ${delivery.error}` : ""
+#: src/components/harness/schedules/TaskRunHistory.tsx:89
+msgid "{0} notification: {1}{2}"
+msgstr "{0} notification: {1}{2}"
+
+#. placeholder {0}: priorityLabel(issue.priority)
+#: src/components/harness/tasks/TaskView.tsx:275
+msgid "{0} priority"
+msgstr "{0} priority"
+
+#. placeholder {0}: selected.length
+#: src/components/harness/files/FileManagerView.tsx:236
+msgid "{0} selected"
+msgstr "{0} selected"
+
+#. placeholder {0}: entry.type === "directory" ? <FolderIcon /> : <FileIcon />
+#: src/components/harness/files/FileManagerView.tsx:398
+msgid "{0}Open"
+msgstr "{0}Open"
+
+#: src/components/chat/ChatMessages.tsx:253
+msgid "{failedTools} failed"
+msgstr "{failedTools} failed"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:117
+msgid "Acceleration"
+msgstr "Acceleration"
+
+#: src/components/harness/tasks/TaskView.tsx:314
+msgid "Accept result"
+msgstr "Accept result"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:104
+#: src/components/harness/tasks/TaskView.tsx:404
+msgid "Acceptance criteria"
+msgstr "Acceptance criteria"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:98
+msgid "Acceptance criteria & priority"
+msgstr "Acceptance criteria & priority"
+
+#: src/components/harness/tasks/TaskView.tsx:435
+msgid "Activity"
+msgstr "Activity"
+
+#: src/components/harness/NewSessionView.tsx:66
+msgid "Add a model in Settings to start chatting."
+msgstr "Add a model in Settings to start chatting."
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:205
+msgid "Add mount"
+msgstr "Add mount"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:241
+msgid "Add secret"
+msgstr "Add secret"
+
+#: src/components/harness/AgentKnowledgePage.tsx:442
+#: src/components/harness/AgentKnowledgePage.tsx:600
+#: src/components/harness/AgentKnowledgePage.tsx:649
+msgid "Add source"
+msgstr "Add source"
+
+#: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:86
+msgid "Add template"
+msgstr "Add template"
+
+#: src/components/harness/settings/UserSettings.tsx:77
+#: src/components/harness/settings/UserSettings.tsx:176
+msgid "Admin"
+msgstr "Admin"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:109
+msgid "Agents save memories only when asked. Existing memories are retained when switched off."
+msgstr "Agents save memories only when asked. Existing memories are retained when switched off."
+
+#: src/components/harness/changes/ChangesView.tsx:202
+msgid "All changes"
+msgstr "All changes"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:195
+msgid "Allow proactive messages, including scheduled task alerts"
+msgstr "Allow proactive messages, including scheduled task alerts"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:333
+msgid "Allowed tools"
+msgstr "Allowed tools"
+
+#: src/components/PiChat.tsx:233
+msgid "An IM delivery needs attention. Check Integrations for its status before resending."
+msgstr "An IM delivery needs attention. Check Integrations for its status before resending."
+
+#: src/components/harness/settings/ProviderSettings.tsx:168
+#: src/components/harness/settings/ProviderSettings.tsx:182
+msgid "API key"
+msgstr "API key"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:298
+msgid "App ID"
+msgstr "App ID"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:309
+msgid "App Secret"
+msgstr "App Secret"
+
+#: src/components/harness/shell/SessionList.tsx:250
+msgid "Archive"
+msgstr "Archive"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:293
+msgid "Arguments"
+msgstr "Arguments"
+
+#: src/components/harness/AgentKnowledgePage.tsx:343
+msgid "Ask the agent to remember a fact or decision, or add one here."
+msgstr "Ask the agent to remember a fact or decision, or add one here."
+
+#: src/components/harness/settings/ProviderSettings.tsx:156
+msgid "Authentication"
+msgstr "Authentication"
+
+#: src/components/chat/UserRequestCards.tsx:253
+msgid "Available to this session’s shell. The submitted value is stored separately and is not sent as a chat message."
+msgstr "Available to this session’s shell. The submitted value is stored separately and is not sent as a chat message."
+
+#: src/components/chat/ReferencePicker.tsx:109
+msgid "Back"
+msgstr "Back"
+
+#: src/components/PiChat.tsx:291
+msgid "Back to issue"
+msgstr "Back to issue"
+
+#: src/components/harness/tasks/TaskView.tsx:84
+msgid "Back to tasks"
+msgstr "Back to tasks"
+
+#: src/components/harness/tasks/TasksOverview.tsx:189
+msgid "Backlog"
+msgstr "Backlog"
+
+#: src/components/harness/settings/ApiKeySettings.tsx:87
+#: src/components/harness/settings/ProviderSettings.tsx:146
+msgid "Base URL"
+msgstr "Base URL"
+
+#: src/components/harness/TerminalPanel.tsx:144
+msgid "Bash is disabled for this agent. Enable it in the agent's permissions to open a terminal."
+msgstr "Bash is disabled for this agent. Enable it in the agent's permissions to open a terminal."
+
+#: src/components/harness/tasks/TaskResult.tsx:36
+msgid "Binary content was not captured."
+msgstr "Binary content was not captured."
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:278
+msgid "Bot token"
+msgstr "Bot token"
+
+#: src/components/harness/tasks/TaskActivity.tsx:99
+msgid "Brief used for this run"
+msgstr "Brief used for this run"
+
+#: src/components/chat/ReferencePicker.tsx:138
+msgid "Browse"
+msgstr "Browse"
+
+#: src/components/harness/BrowserPanel.tsx:287
+msgid "Browser"
+msgstr "Browser"
+
+#: src/components/harness/BrowserPanel.tsx:343
+msgid "Browser address"
+msgstr "Browser address"
+
+#: src/components/harness/BrowserPanel.tsx:386
+msgid "Browser connection"
+msgstr "Browser connection"
+
+#: src/components/harness/AgentKnowledgePage.tsx:423
+msgid "Build embeddings"
+msgstr "Build embeddings"
+
+#: src/components/chat/MessageEditDialog.tsx:119
+#: src/components/harness/ActionDialogs.tsx:62
+#: src/components/harness/ActionDialogs.tsx:102
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:344
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:370
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:225
+#: src/components/harness/AgentKnowledgePage.tsx:570
+#: src/components/harness/AgentKnowledgePage.tsx:652
+#: src/components/harness/schedules/TaskForm.tsx:234
+#: src/components/harness/settings/ApiKeySettings.tsx:179
+#: src/components/harness/settings/UserSettings.tsx:119
+#: src/components/harness/shell/ImportSessionsDialog.tsx:113
+#: src/components/harness/tasks/TaskBriefForm.tsx:144
+#: src/components/harness/UnsavedChangesDialog.tsx:92
+msgid "Cancel"
+msgstr "Cancel"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:465
+msgid "Cancel setup"
+msgstr "Cancel setup"
+
+#: src/components/harness/tasks/TaskView.tsx:382
+msgid "Cancel task"
+msgstr "Cancel task"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:472
+msgid "Check bot configuration"
+msgstr "Check bot configuration"
+
+#: src/components/harness/files/FileManagerView.tsx:276
+msgid "Clear"
+msgstr "Clear"
+
+#: src/components/harness/files/FileManagerView.tsx:337
+msgid "Clear filter"
+msgstr "Clear filter"
+
+#: src/components/harness/BrowserPanel.tsx:503
+msgid "Clipboard access is blocked. Select this text and copy it using your device’s copy command."
+msgstr "Clipboard access is blocked. Select this text and copy it using your device’s copy command."
+
+#: src/components/ui/dialog.tsx:70
+msgid "Close"
+msgstr "Close"
+
+#: src/components/harness/AgentKnowledgePage.tsx:279
+msgid "Close source"
+msgstr "Close source"
+
+#: src/components/harness/agent-settings/AgentAppearancePicker.tsx:50
+msgid "Color"
+msgstr "Color"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:282
+msgid "Command"
+msgstr "Command"
+
+#: src/components/harness/schedules/TaskForm.tsx:224
+msgid "Connect your bot in this agent's Integrations settings first. Describe when to notify you in the prompt, including any conditions."
+msgstr "Connect your bot in this agent's Integrations settings first. Describe when to notify you in the prompt, including any conditions."
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:232
+msgid "Connection"
+msgstr "Connection"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:166
+msgid "Connection needs attention"
+msgstr "Connection needs attention"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:48
+msgid "Connections belong to you, including on shared agents. Use a dedicated bot for each."
+msgstr "Connections belong to you, including on shared agents. Use a dedicated bot for each."
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:177
+msgid "Container path"
+msgstr "Container path"
+
+#: src/components/harness/settings/ProviderSettings.tsx:256
+msgid "Continue"
+msgstr "Continue"
+
+#: src/components/harness/tasks/TaskView.tsx:429
+#: src/components/tasks/TaskSubtasks.tsx:204
+msgid "Conversation"
+msgstr "Conversation"
+
+#: src/components/harness/files/FileManagerView.tsx:254
+#: src/components/harness/files/FileManagerView.tsx:420
+msgid "Copy"
+msgstr "Copy"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:436
+msgid "Copy command"
+msgstr "Copy command"
+
+#: src/components/harness/BrowserPanel.tsx:500
+msgid "Copy from browser"
+msgstr "Copy from browser"
+
+#: src/components/harness/BrowserPanel.tsx:545
+msgid "Copy selection"
+msgstr "Copy selection"
+
+#: src/components/harness/settings/ApiKeySettings.tsx:95
+msgid "Copy your new key now — it will not be shown again."
+msgstr "Copy your new key now — it will not be shown again."
+
+#: src/components/harness/AgentSchedulesPage.tsx:135
+msgid "Create a task to run this agent on a schedule, even while the app is closed."
+msgstr "Create a task to run this agent on a schedule, even while the app is closed."
+
+#: src/components/harness/settings/ApiKeySettings.tsx:182
+#: src/components/harness/settings/ApiKeySettings.tsx:190
+msgid "Create key"
+msgstr "Create key"
+
+#: src/components/harness/settings/ProviderSettings.tsx:270
+msgid "Create the provider before logging in."
+msgstr "Create the provider before logging in."
+
+#: src/components/harness/settings/UserSettings.tsx:187
+msgid "Create user"
+msgstr "Create user"
+
+#. placeholder {0}: new Date(key.createdAt).toLocaleString(i18n.locale)
+#. placeholder {1}: key.lastUsedAt ? i18n._("last used {value}", { value: new Date(key.lastUsedAt).toLocaleString(i18n.locale), }) : "never used"
+#: src/components/harness/settings/ApiKeySettings.tsx:129
+msgid "Created {0} · {1}"
+msgstr "Created {0} · {1}"
+
+#: src/components/harness/settings/AccountSettings.tsx:87
+msgid "Current password"
+msgstr "Current password"
+
+#: src/components/harness/files/FileManagerView.tsx:263
+#: src/components/harness/files/FileManagerView.tsx:424
+msgid "Cut"
+msgstr "Cut"
+
+#: src/components/harness/settings/AppearanceSettings.tsx:46
+msgid "Dark"
+msgstr "Dark"
+
+#: src/components/chat/UserRequestCards.tsx:169
+msgid "Decline"
+msgstr "Decline"
+
+#: src/components/harness/AgentKnowledgePage.tsx:198
+msgid "Deep"
+msgstr "Deep"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:212
+msgid "Default model"
+msgstr "Default model"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:208
+msgid "Default notification destination"
+msgstr "Default notification destination"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:113
+msgid "Default per-agent folder"
+msgstr "Default per-agent folder"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:233
+msgid "Default thinking"
+msgstr "Default thinking"
+
+#: src/components/harness/files/FileManagerView.tsx:272
+#: src/components/harness/files/FileManagerView.tsx:433
+#: src/components/harness/shell/SessionList.tsx:273
+msgid "Delete"
+msgstr "Delete"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:281
+msgid "Delete agent"
+msgstr "Delete agent"
+
+#: src/components/harness/tasks/TaskView.tsx:390
+msgid "Delete task"
+msgstr "Delete task"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:80
+#: src/components/harness/AgentKnowledgePage.tsx:635
+msgid "Description"
+msgstr "Description"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:82
+#: src/components/harness/tasks/TaskView.tsx:467
+msgid "Details"
+msgstr "Details"
+
+#: src/components/harness/AgentKnowledgePage.tsx:622
+msgid "Directory"
+msgstr "Directory"
+
+#: src/components/harness/files/FileEditorView.tsx:163
+msgid "Discard"
+msgstr "Discard"
+
+#: src/components/harness/UnsavedChangesDialog.tsx:99
+msgid "Discard changes"
+msgstr "Discard changes"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:232
+msgid "Disconnect"
+msgstr "Disconnect"
+
+#: src/components/harness/AgentKnowledgePage.tsx:492
+msgid "Disconnect source"
+msgstr "Disconnect source"
+
+#: src/components/harness/BrowserPanel.tsx:516
+msgid "Dismiss"
+msgstr "Dismiss"
+
+#: src/components/harness/settings/ApiKeySettings.tsx:100
+#: src/components/harness/tasks/TasksOverview.tsx:198
+msgid "Done"
+msgstr "Done"
+
+#: src/components/harness/files/FileEditorView.tsx:148
+#: src/components/harness/files/FileManagerView.tsx:245
+#: src/components/harness/files/FileManagerView.tsx:408
+msgid "Download"
+msgstr "Download"
+
+#: src/components/harness/files/FileManagerView.tsx:167
+msgid "Download this folder"
+msgstr "Download this folder"
+
+#. placeholder {0}: browser.path || "the working directory"
+#: src/components/harness/files/FileManagerView.tsx:466
+msgid "Drop to upload into {0}"
+msgstr "Drop to upload into {0}"
+
+#: src/components/chat/ChatPanel.tsx:188
+#: src/components/tasks/TaskSubtasks.tsx:168
+msgid "Earlier messages"
+msgstr "Earlier messages"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:176
+#: src/components/harness/AgentSchedulesPage.tsx:227
+#: src/components/harness/files/FileEditorView.tsx:135
+msgid "Edit"
+msgstr "Edit"
+
+#: src/components/harness/tasks/TaskView.tsx:343
+#: src/components/harness/tasks/TaskView.tsx:686
+msgid "Edit brief"
+msgstr "Edit brief"
+
+#: src/components/harness/AgentKnowledgePage.tsx:372
+msgid "Edit memory"
+msgstr "Edit memory"
+
+#: src/components/harness/settings/AccountSettings.tsx:75
+#: src/components/harness/settings/UserSettings.tsx:143
+#: src/components/harness/SetupScreen.tsx:80
+msgid "Email"
+msgstr "Email"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:144
+msgid "Embedding model"
+msgstr "Embedding model"
+
+#: src/components/harness/agent-settings/AgentCodemodeSettings.tsx:19
+msgid "Enable codemode"
+msgstr "Enable codemode"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:320
+msgid "Enable the bot, publish the app, and subscribe to message events using a long connection."
+msgstr "Enable the bot, publish the app, and subscribe to message events using a long connection."
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:171
+msgid "Enabled"
+msgstr "Enabled"
+
+#: src/components/harness/schedules/TaskForm.tsx:132
+msgid "Every N minutes"
+msgstr "Every N minutes"
+
+#. placeholder {0}: new Date(setup.expiresAt).toLocaleTimeString(i18n.locale)
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:457
+msgid "Expires {0}"
+msgstr "Expires {0}"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:327
+msgid "Expose all tools"
+msgstr "Expose all tools"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:136
+msgid "Extra runner mounts"
+msgstr "Extra runner mounts"
+
+#: src/components/harness/AgentKnowledgePage.tsx:192
+msgid "Fast"
+msgstr "Fast"
+
+#: src/components/harness/schedules/TaskForm.tsx:217
+msgid "Feishu"
+msgstr "Feishu"
+
+#: src/components/harness/tasks/TaskResult.tsx:24
+msgid "Files"
+msgstr "Files"
+
+#: src/components/chat/ReferencePicker.tsx:90
+msgid "Files unavailable: {error}"
+msgstr "Files unavailable: {error}"
+
+#. placeholder {0}: setup.botName
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:399
+msgid "Finish connecting {0}: open the bot and send the command below from your private account."
+msgstr "Finish connecting {0}: open the bot and send the command below from your private account."
+
+#: src/components/harness/AgentKnowledgePage.tsx:391
+msgid "Forget memory"
+msgstr "Forget memory"
+
+#: src/components/harness/tasks/TaskComposer.tsx:88
+msgid "Fresh conversation"
+msgstr "Fresh conversation"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:289
+msgid "Get this from @BotFather. Carmel stores it encrypted and never shows it again."
+msgstr "Get this from @BotFather. Carmel stores it encrypted and never shows it again."
+
+#: src/components/harness/BrowserPanel.tsx:357
+msgid "Go"
+msgstr "Go"
+
+#: src/components/harness/AgentSchedulesPage.tsx:201
+msgid "History"
+msgstr "History"
+
+#: src/components/harness/shell/ConversationSwitcher.tsx:51
+msgid "Home"
+msgstr "Home"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:140
+msgid "Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the host."
+msgstr "Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the host."
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:153
+msgid "Host path"
+msgstr "Host path"
+
+#: src/components/harness/agent-settings/AgentAppearancePicker.tsx:22
+msgid "Icon"
+msgstr "Icon"
+
+#: src/components/chat/ToolCallView.tsx:165
+msgid "Images"
+msgstr "Images"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:246
+msgid "Import .env"
+msgstr "Import .env"
+
+#: src/components/harness/shell/ImportSessionsDialog.tsx:90
+msgid "Import Open WebUI JSON exports into the selected agent."
+msgstr "Import Open WebUI JSON exports into the selected agent."
+
+#: src/components/harness/shell/ImportSessionsDialog.tsx:87
+msgid "Import Sessions"
+msgstr "Import Sessions"
+
+#: src/components/harness/AgentKnowledgePage.tsx:149
+msgid "Index needs attention"
+msgstr "Index needs attention"
+
+#: src/components/chat/ChatMessages.tsx:336
+msgid "Interrupted"
+msgstr "Interrupted"
+
+#: src/components/PiChat.tsx:287
+msgid "Issue conversation · Read-only history"
+msgstr "Issue conversation · Read-only history"
+
+#: src/components/harness/AgentKnowledgePage.tsx:531
+msgid "Keep facts specific and identify whose preferences or decisions they describe."
+msgstr "Keep facts specific and identify whose preferences or decisions they describe."
+
+#: src/components/harness/BrowserPanel.tsx:564
+msgid "Keyboard"
+msgstr "Keyboard"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:88
+msgid "Knowledge and memory"
+msgstr "Knowledge and memory"
+
+#: src/components/harness/AgentKnowledgePage.tsx:105
+msgid "Knowledge is off"
+msgstr "Knowledge is off"
+
+#: src/components/harness/AgentKnowledgePage.tsx:90
+msgid "Knowledge settings"
+msgstr "Knowledge settings"
+
+#: src/components/harness/settings/ProviderSettings.tsx:136
+msgid "Label"
+msgstr "Label"
+
+#: src/components/chat/ChatPanel.tsx:204
+#: src/components/tasks/TaskSubtasks.tsx:173
+msgid "Latest messages"
+msgstr "Latest messages"
+
+#: src/components/harness/tasks/TaskView.tsx:604
+msgid "Latest result"
+msgstr "Latest result"
+
+#: src/components/harness/settings/AppearanceSettings.tsx:43
+msgid "Light"
+msgstr "Light"
+
+#: src/components/harness/HarnessShell.tsx:635
+msgid "Loading {view}…"
+msgstr "Loading {view}…"
+
+#: src/components/harness/AgentSettingsPage.tsx:227
+msgid "Loading agent settings..."
+msgstr "Loading agent settings..."
+
+#: src/components/harness/shell/HarnessSkeleton.tsx:18
+msgid "Loading Carmel Agent"
+msgstr "Loading Carmel Agent"
+
+#: src/components/PiChat.tsx:401
+msgid "Loading chat..."
+msgstr "Loading chat..."
+
+#: src/components/harness/changes/ChangesView.tsx:368
+msgid "Loading diff..."
+msgstr "Loading diff..."
+
+#: src/components/harness/files/FileManagerView.tsx:322
+msgid "Loading files..."
+msgstr "Loading files..."
+
+#: src/components/chat/ReferencePicker.tsx:85
+msgid "Loading files…"
+msgstr "Loading files…"
+
+#: src/components/harness/files/FileEditorView.tsx:215
+msgid "Loading Markdown…"
+msgstr "Loading Markdown…"
+
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:68
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:157
+#: src/components/harness/settings/ApiKeySettings.tsx:108
+msgid "Loading…"
+msgstr "Loading…"
+
+#: src/components/harness/settings/ProviderSettings.tsx:206
+msgid "Login"
+msgstr "Login"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:117
+msgid "Manual server folder"
+msgstr "Manual server folder"
+
+#: src/components/harness/AgentKnowledgePage.tsx:449
+msgid "Markdown directories from this agent's workspace or mounts. Embeddings use the configured model; missing models can download when the agent has network access."
+msgstr "Markdown directories from this agent's workspace or mounts. Embeddings use the configured model; missing models can download when the agent has network access."
+
+#: src/components/harness/AgentKnowledgePage.tsx:552
+msgid "Memory"
+msgstr "Memory"
+
+#. placeholder {0}: directory ? `${directory}/` : "workspace folder"
+#: src/components/chat/ReferencePicker.tsx:119
+msgid "Mention {0}"
+msgstr "Mention {0}"
+
+#: src/components/harness/settings/ModelSettings.tsx:55
+msgid "Model"
+msgstr "Model"
+
+#: src/components/harness/settings/ModelSettings.tsx:178
+msgid "Model ID"
+msgstr "Model ID"
+
+#: src/components/harness/files/FileManagerView.tsx:305
+msgid "Modified"
+msgstr "Modified"
+
+#. placeholder {0}: index + 1
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:148
+msgid "Mount {0}"
+msgstr "Mount {0}"
+
+#: src/components/harness/shell/TaskRunBanner.tsx:54
+msgid "Move to sessions"
+msgstr "Move to sessions"
+
+#: src/components/harness/ActionDialogs.tsx:88
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:68
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:197
+#: src/components/harness/AgentKnowledgePage.tsx:610
+#: src/components/harness/files/FileManagerView.tsx:299
+#: src/components/harness/schedules/TaskForm.tsx:82
+#: src/components/harness/settings/ApiKeySettings.tsx:158
+msgid "Name"
+msgstr "Name"
+
+#: src/components/harness/tasks/TasksOverview.tsx:180
+msgid "Needs you"
+msgstr "Needs you"
+
+#. placeholder {0}: calls?.length ?? slots.length
+#: src/components/chat/ToolCallView.tsx:225
+msgid "Nested tool calls ({0})"
+msgstr "Nested tool calls ({0})"
+
+#: src/components/harness/shell/HarnessSidebar.tsx:235
+msgid "New agent"
+msgstr "New agent"
+
+#: src/components/chat/ChatMessages.tsx:381
+#: src/components/PiChat.tsx:279
+msgid "New context"
+msgstr "New context"
+
+#: src/components/harness/AgentKnowledgePage.tsx:310
+msgid "New memory"
+msgstr "New memory"
+
+#: src/components/harness/settings/AccountSettings.tsx:99
+msgid "New password (optional)"
+msgstr "New password (optional)"
+
+#: src/components/harness/settings/AccountSettings.tsx:112
+msgid "New password must be at least 8 characters."
+msgstr "New password must be at least 8 characters."
+
+#: src/components/harness/settings/ProviderSettings.tsx:104
+msgid "New provider config"
+msgstr "New provider config"
+
+#: src/components/harness/AgentSchedulesPage.tsx:88
+msgid "New schedule"
+msgstr "New schedule"
+
+#: src/components/harness/AgentSessionsPage.tsx:40
+#: src/components/harness/shell/ConversationSwitcher.tsx:55
+msgid "New session"
+msgstr "New session"
+
+#: src/components/harness/tasks/NewTaskView.tsx:39
+#: src/components/harness/tasks/TasksOverview.tsx:155
+msgid "New task"
+msgstr "New task"
+
+#: src/components/harness/AgentKnowledgePage.tsx:292
+msgid "Next lines"
+msgstr "Next lines"
+
+#: src/components/harness/tasks/TaskActivity.tsx:114
+msgid "No activity yet."
+msgstr "No activity yet."
+
+#: src/components/harness/settings/ApiKeySettings.tsx:112
+msgid "No API keys yet."
+msgstr "No API keys yet."
+
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:73
+msgid "No archived sessions."
+msgstr "No archived sessions."
+
+#: src/components/chat/ModelCommandDialog.tsx:41
+msgid "No configured models found."
+msgstr "No configured models found."
+
+#: src/components/harness/AgentKnowledgePage.tsx:223
+msgid "No matches"
+msgstr "No matches"
+
+#: src/components/chat/ReferencePicker.tsx:94
+msgid "No matching references."
+msgstr "No matching references."
+
+#: src/components/harness/settings/ModelSettings.tsx:267
+msgid "No models found."
+msgstr "No models found."
+
+#: src/components/harness/schedules/TaskRunHistory.tsx:62
+msgid "No runs yet."
+msgstr "No runs yet."
+
+#: src/components/harness/AgentKnowledgePage.tsx:340
+msgid "No saved memories"
+msgstr "No saved memories"
+
+#: src/components/harness/AgentSchedulesPage.tsx:132
+msgid "No schedules"
+msgstr "No schedules"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:161
+msgid "No secrets yet."
+msgstr "No secrets yet."
+
+#: src/components/harness/AgentCommandPalette.tsx:130
+msgid "No slash commands are available for this agent."
+msgstr "No slash commands are available for this agent."
+
+#: src/components/harness/changes/ChangesView.tsx:126
+msgid "No uncommitted changes."
+msgstr "No uncommitted changes."
+
+#: src/components/harness/schedules/TaskForm.tsx:194
+msgid "Notification destination"
+msgstr "Notification destination"
+
+#: src/components/harness/settings/ProviderSettings.tsx:172
+msgid "OAuth login"
+msgstr "OAuth login"
+
+#: src/components/harness/settings/ProviderSettings.tsx:262
+msgid "OAuth login completed."
+msgstr "OAuth login completed."
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:100
+msgid "Off"
+msgstr "Off"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:103
+msgid "On"
+msgstr "On"
+
+#: src/components/harness/schedules/TaskForm.tsx:129
+msgid "On a cron schedule"
+msgstr "On a cron schedule"
+
+#: src/components/harness/schedules/TaskForm.tsx:135
+msgid "Once, at a time"
+msgstr "Once, at a time"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:302
+msgid "One argument per line. Arguments are passed directly without shell expansion."
+msgstr "One argument per line. Arguments are passed directly without shell expansion."
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:341
+msgid "One original tool name per line. An empty list exposes no tools."
+msgstr "One original tool name per line. An empty list exposes no tools."
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:390
+msgid "Open authorization link"
+msgstr "Open authorization link"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:421
+msgid "Open bot"
+msgstr "Open bot"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:237
+#: src/components/harness/schedules/TaskRunHistory.tsx:107
+#: src/components/harness/tasks/TaskActivity.tsx:92
+msgid "Open conversation"
+msgstr "Open conversation"
+
+#: src/components/harness/changes/ChangesView.tsx:359
+msgid "Open file"
+msgstr "Open file"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:158
+msgid "Open knowledge"
+msgstr "Open knowledge"
+
+#: src/components/harness/settings/ProviderSettings.tsx:216
+msgid "Open login page"
+msgstr "Open login page"
+
+#: src/components/harness/shell/SessionList.tsx:91
+msgid "Open session"
+msgstr "Open session"
+
+#: src/components/chat/UserRequestCards.tsx:264
+msgid "Options"
+msgstr "Options"
+
+#: src/components/harness/LoginScreen.tsx:59
+#: src/components/harness/SetupScreen.tsx:61
+msgid "or"
+msgstr "or"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:407
+msgid "Pairing command"
+msgstr "Pairing command"
+
+#: src/components/harness/LoginScreen.tsx:78
+#: src/components/harness/settings/UserSettings.tsx:154
+#: src/components/harness/SetupScreen.tsx:92
+msgid "Password"
+msgstr "Password"
+
+#: src/components/harness/settings/UserSettings.tsx:190
+#: src/components/harness/SetupScreen.tsx:109
+msgid "Password must be at least 8 characters."
+msgstr "Password must be at least 8 characters."
+
+#: src/components/harness/BrowserPanel.tsx:554
+msgid "Paste"
+msgstr "Paste"
+
+#: src/components/harness/files/FileManagerView.tsx:227
+msgid "Paste here"
+msgstr "Paste here"
+
+#: src/components/chat/UserRequestCards.tsx:359
+msgid "People who can run this shared agent can use this credential."
+msgstr "People who can run this shared agent can use this credential."
+
+#: src/components/harness/AgentKnowledgePage.tsx:434
+msgid "Prepare deep search"
+msgstr "Prepare deep search"
+
+#: src/components/harness/files/FileEditorView.tsx:132
+msgid "Preview"
+msgstr "Preview"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:117
+msgid "Priority"
+msgstr "Priority"
+
+#. placeholder {0}: priorityLabel(issue.priority)
+#: src/components/harness/tasks/TaskView.tsx:690
+msgid "Priority · {0}"
+msgstr "Priority · {0}"
+
+#: src/components/harness/schedules/TaskForm.tsx:94
+msgid "Prompt"
+msgstr "Prompt"
+
+#: src/components/harness/settings/ProviderSettings.tsx:95
+msgid "Provider config"
+msgstr "Provider config"
+
+#: src/components/harness/settings/ProviderSettings.tsx:117
+msgid "Provider type"
+msgstr "Provider type"
+
+#: src/components/harness/tasks/TasksOverview.tsx:168
+msgid "Queue"
+msgstr "Queue"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:156
+msgid "Queue work"
+msgstr "Queue work"
+
+#: src/components/harness/tasks/TaskView.tsx:515
+msgid "Queued"
+msgstr "Queued"
+
+#: src/components/harness/AgentKnowledgePage.tsx:248
+msgid "Read source"
+msgstr "Read source"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:182
+msgid "Receive and send messages"
+msgstr "Receive and send messages"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:229
+#: src/components/harness/BrowserPanel.tsx:391
+msgid "Reconnect"
+msgstr "Reconnect"
+
+#: src/components/harness/BrowserPanel.tsx:466
+msgid "Reconnecting preserves the agent’s browser and saved sign-ins."
+msgstr "Reconnecting preserves the agent’s browser and saved sign-ins."
+
+#: src/components/harness/AgentKnowledgePage.tsx:412
+msgid "Refresh index"
+msgstr "Refresh index"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:247
+msgid "Remote HTTP"
+msgstr "Remote HTTP"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:196
+msgid "Remove"
+msgstr "Remove"
+
+#: src/components/harness/tasks/TaskView.tsx:358
+msgid "Remove from queue"
+msgstr "Remove from queue"
+
+#: src/components/harness/files/FileManagerView.tsx:416
+#: src/components/harness/shell/SessionList.tsx:246
+msgid "Rename"
+msgstr "Rename"
+
+#: src/components/harness/tasks/TaskView.tsx:300
+msgid "Reopen task"
+msgstr "Reopen task"
+
+#: src/components/harness/schedules/TaskForm.tsx:107
+msgid "Repeats"
+msgstr "Repeats"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:219
+msgid "Replace credentials"
+msgstr "Replace credentials"
+
+#: src/components/harness/tasks/TaskView.tsx:319
+msgid "Reply to agent"
+msgstr "Reply to agent"
+
+#: src/components/chat/ChatMessages.tsx:635
+msgid "Request aborted"
+msgstr "Request aborted"
+
+#: src/components/harness/tasks/TaskView.tsx:306
+msgid "Request changes"
+msgstr "Request changes"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:347
+msgid "Request timeout (seconds)"
+msgstr "Request timeout (seconds)"
+
+#: src/components/harness/TerminalPanel.tsx:161
+msgid "Restart"
+msgstr "Restart"
+
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
+msgid "Restore"
+msgstr "Restore"
+
+#: src/components/harness/tasks/TaskView.tsx:432
+msgid "Result"
+msgstr "Result"
+
+#: src/components/PiChat.tsx:317
+#: src/components/tasks/TaskSubtasks.tsx:72
+msgid "Resume"
+msgstr "Resume"
+
+#: src/components/chat/UserRequestCards.tsx:176
+msgid "Resume agent"
+msgstr "Resume agent"
+
+#: src/components/PiChat.tsx:259
+msgid "Resume updates"
+msgstr "Resume updates"
+
+#: src/components/harness/ResourceFeedback.tsx:24
+msgid "Retry"
+msgstr "Retry"
+
+#: src/components/chat/UserRequestCards.tsx:210
+msgid "Revoke credential"
+msgstr "Revoke credential"
+
+#: src/components/harness/settings/UserSettings.tsx:165
+msgid "Role"
+msgstr "Role"
+
+#. placeholder {0}: issue.attempts.length - issue.attempts.indexOf(attempt)
+#. placeholder {1}: attempt.outcome.replaceAll("_", " ")
+#: src/components/harness/tasks/TaskView.tsx:588
+msgid "Run {0} · {1}"
+msgstr "Run {0} · {1}"
+
+#: src/components/harness/schedules/TaskRunHistory.tsx:49
+#: src/components/harness/shell/TaskRunBanner.tsx:49
+msgid "Run history"
+msgstr "Run history"
+
+#: src/components/harness/AgentSchedulesPage.tsx:189
+msgid "Run now"
+msgstr "Run now"
+
+#: src/components/harness/shell/SessionList.tsx:105
+msgid "Running"
+msgstr "Running"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:250
+msgid "Sandbox stdio"
+msgstr "Sandbox stdio"
+
+#: src/components/chat/MessageEditDialog.tsx:126
+msgid "Save"
+msgstr "Save"
+
+#: src/components/harness/settings/AppearanceSettings.tsx:58
+msgid "Save appearance"
+msgstr "Save appearance"
+
+#: src/components/harness/tasks/TaskComposer.tsx:80
+msgid "Save as note"
+msgstr "Save as note"
+
+#: src/components/harness/settings/AccountSettings.tsx:121
+msgid "Save changes"
+msgstr "Save changes"
+
+#: src/components/harness/AgentKnowledgePage.tsx:567
+msgid "Save memory"
+msgstr "Save memory"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:228
+msgid "Save secret"
+msgstr "Save secret"
+
+#: src/components/harness/UnsavedChangesDialog.tsx:74
+msgid "Save your changes?"
+msgstr "Save your changes?"
+
+#. placeholder {0}: users.find((u) => u.id === memory.contributorId)?.name ?? "an agent user"
+#. placeholder {1}: new Date(memory.updatedAt).toLocaleString(i18n.locale)
+#: src/components/harness/AgentKnowledgePage.tsx:353
+msgid "Saved by {0} · {1}"
+msgstr "Saved by {0} · {1}"
+
+#: src/components/harness/AgentKnowledgePage.tsx:301
+msgid "Saved memories"
+msgstr "Saved memories"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:259
+msgid "Scan QR code"
+msgstr "Scan QR code"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:378
+msgid "Scan with the Feishu or Lark mobile app and approve creation of your bot."
+msgstr "Scan with the Feishu or Lark mobile app and approve creation of your bot."
+
+#: src/components/harness/AgentKnowledgePage.tsx:170
+msgid "Search knowledge"
+msgstr "Search knowledge"
+
+#: src/components/harness/AgentKnowledgePage.tsx:183
+msgid "Search mode"
+msgstr "Search mode"
+
+#: src/components/harness/AgentKnowledgePage.tsx:214
+msgid "Search notice"
+msgstr "Search notice"
+
+#: src/components/chat/UserRequestCards.tsx:238
+msgid "Secret value"
+msgstr "Secret value"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:140
+msgid "Secrets become environment variables in this agent's shell. Saved values can be replaced but cannot be viewed."
+msgstr "Secrets become environment variables in this agent's shell. Saved values can be replaced but cannot be viewed."
+
+#: src/components/harness/files/FileEditorView.tsx:101
+msgid "Select a file from the sidebar."
+msgstr "Select a file from the sidebar."
+
+#: src/components/harness/files/FileEditorView.tsx:93
+#: src/components/harness/files/FileManagerView.tsx:69
+msgid "Select an agent to browse files."
+msgstr "Select an agent to browse files."
+
+#. placeholder {0}: selectedModel.name
+#. placeholder {1}: selectedModel.id
+#: src/components/harness/settings/ModelSettings.tsx:274
+msgid "Selected: {0} · {1}"
+msgstr "Selected: {0} · {1}"
+
+#: src/components/harness/AgentKnowledgePage.tsx:195
+msgid "Semantic"
+msgstr "Semantic"
+
+#: src/components/harness/BrowserPanel.tsx:493
+msgid "Send text"
+msgstr "Send text"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:218
+msgid "Server ID"
+msgstr "Server ID"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:269
+msgid "Server URL"
+msgstr "Server URL"
+
+#. placeholder {0}: activeAgent.name
+#. placeholder {1}: customWorkingDir ? ` · ${customWorkingDir}` : ""
+#: src/components/harness/shell/HarnessHeader.tsx:129
+msgid "Sessions · {0}{1}"
+msgstr "Sessions · {0}{1}"
+
+#: src/components/harness/settings/UserSettings.tsx:116
+msgid "Set"
+msgstr "Set"
+
+#. placeholder {0}: new Date(secret.updatedAt).toLocaleString(i18n.locale)
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:175
+msgid "Set {0}"
+msgstr "Set {0}"
+
+#: src/components/harness/settings/ModelSettings.tsx:102
+msgid "shared"
+msgstr "shared"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:148
+msgid "Shared by all agents. The server administrator configures this model."
+msgstr "Shared by all agents. The server administrator configures this model."
+
+#. placeholder {0}: Math.min(hidden, PAGE_SIZE)
+#: src/components/harness/shell/SessionList.tsx:137
+msgid "Show {0} more"
+msgstr "Show {0} more"
+
+#: src/components/harness/settings/AccountSettings.tsx:52
+msgid "Sign out"
+msgstr "Sign out"
+
+#. placeholder {0}: user.username ?? user.name
+#: src/components/harness/settings/AccountSettings.tsx:47
+msgid "Signed in as {0}"
+msgstr "Signed in as {0}"
+
+#: src/components/harness/files/FileManagerView.tsx:302
+msgid "Size"
+msgstr "Size"
+
+#. placeholder {0}: i18n._(sortLabels[key]).toLowerCase()
+#. placeholder {1}: browser.sort.key === key ? ( <span className="ml-auto text-xs text-muted-foreground"> {browser.sort.ascending ? "A→Z" : "Z→A"} </span> ) : null
+#: src/components/harness/files/FileManagerView.tsx:186
+msgid "Sort by {0}{1}"
+msgstr "Sort by {0}{1}"
+
+#: src/components/chat/MermaidBlock.tsx:50
+msgid "Source"
+msgstr "Source"
+
+#: src/components/harness/AgentKnowledgePage.tsx:402
+msgid "Sources"
+msgstr "Sources"
+
+#: src/components/PiChat.tsx:320
+msgid "Stop"
+msgstr "Stop"
+
+#: src/components/PiChat.tsx:264
+msgid "Stop Home"
+msgstr "Stop Home"
+
+#: src/components/harness/tasks/TaskView.tsx:292
+msgid "Stop run"
+msgstr "Stop run"
+
+#: src/components/chat/MessageEditDialog.tsx:130
+msgid "Submit"
+msgstr "Submit"
+
+#: src/components/tasks/TaskSubtasks.tsx:60
+msgid "Subtasks"
+msgstr "Subtasks"
+
+#: src/components/harness/shell/ConversationSwitcher.tsx:45
+msgid "Switch conversation"
+msgstr "Switch conversation"
+
+#: src/components/harness/settings/AppearanceSettings.tsx:40
+msgid "System"
+msgstr "System"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:257
+msgid "System prompt"
+msgstr "System prompt"
+
+#. placeholder {0}: activeAgent?.name ?? i18n._("No agent")
+#. placeholder {1}: modelRefs.find((model) => model.id === activeAgent?.defaultModelRefId)?.label ?? i18n._("No model")
+#: src/components/harness/shell/ImportSessionsDialog.tsx:103
+msgid "Target: {0} · {1}"
+msgstr "Target: {0} · {1}"
+
+#: src/components/harness/schedules/TaskForm.tsx:213
+msgid "Task history only"
+msgstr "Task history only"
+
+#: src/components/harness/shell/TaskRunBanner.tsx:38
+msgid "Task run ·"
+msgstr "Task run ·"
+
+#: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:65
+msgid "Template name"
+msgstr "Template name"
+
+#: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:75
+msgid "Template text"
+msgstr "Template text"
+
+#: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:36
+msgid "Templates appear in this agent's chat command palette."
+msgstr "Templates appear in this agent's chat command palette."
+
+#: src/components/harness/changes/ChangesView.tsx:151
+msgid "The list was cut off; there are more changes than it shows. An untracked dependency folder usually belongs in .gitignore."
+msgstr "The list was cut off; there are more changes than it shows. An untracked dependency folder usually belongs in .gitignore."
+
+#: src/components/harness/AgentKnowledgePage.tsx:603
+msgid "The original files stay in their existing location."
+msgstr "The original files stay in their existing location."
+
+#: src/components/harness/settings/AppearanceSettings.tsx:31
+msgid "Theme"
+msgstr "Theme"
+
+#: src/components/chat/ChatMessages.tsx:660
+msgid "Thinking"
+msgstr "Thinking"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:148
+msgid "This agent is shared. Anyone who can run it runs commands with these secrets in their environment."
+msgstr "This agent is shared. Anyone who can run it runs commands with these secrets in their environment."
+
+#: src/components/harness/changes/ChangesView.tsx:122
+msgid "This agent's working directory is not a git repository."
+msgstr "This agent's working directory is not a git repository."
+
+#: src/components/PiChat.tsx:311
+msgid "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
+msgstr "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
+
+#: src/components/harness/schedules/TaskForm.tsx:182
+msgid "Time zone"
+msgstr "Time zone"
+
+#: src/components/harness/AgentKnowledgePage.tsx:540
+#: src/components/harness/tasks/TaskBriefForm.tsx:68
+msgid "Title"
+msgstr "Title"
+
+#: src/components/harness/AgentKnowledgePage.tsx:226
+msgid "Try another phrase or refresh the source index."
+msgstr "Try another phrase or refresh the source index."
+
+#: src/components/harness/BrowserPanel.tsx:483
+msgid "Type into the focused browser field"
+msgstr "Type into the focused browser field"
+
+#: src/components/harness/files/FileEditorView.tsx:263
+msgid "Unable to preview this image."
+msgstr "Unable to preview this image."
+
+#: src/components/harness/UnsavedChangesDialog.tsx:85
+msgid "Unable to save. Your changes are still here. Try again or cancel to keep editing."
+msgstr "Unable to save. Your changes are still here. Try again or cancel to keep editing."
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:352
+msgid "Unable to update integration"
+msgstr "Unable to update integration"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:227
+msgid "Up to 32 letters, numbers, underscores, or hyphens."
+msgstr "Up to 32 letters, numbers, underscores, or hyphens."
+
+#. placeholder {0}: formatRelativeTime(issue.updatedAt)
+#. placeholder {0}: new Date(data.status.lastUpdatedAt).toLocaleString(i18n.locale)
+#: src/components/harness/AgentKnowledgePage.tsx:140
+#: src/components/harness/tasks/TaskView.tsx:279
+msgid "Updated {0}"
+msgstr "Updated {0}"
+
+#: src/components/harness/files/FileManagerView.tsx:120
+msgid "Upload"
+msgstr "Upload"
+
+#: src/components/harness/files/FileManagerView.tsx:342
+msgid "Upload files"
+msgstr "Upload files"
+
+#: src/components/harness/files/FileManagerView.tsx:160
+msgid "Upload folder"
+msgstr "Upload folder"
+
+#: src/components/harness/settings/ModelSettings.tsx:70
+msgid "Use current session model"
+msgstr "Use current session model"
+
+#: src/components/chat/UserRequestCards.tsx:158
+msgid "Use saved credential"
+msgstr "Use saved credential"
+
+#: src/components/harness/settings/ApiKeySettings.tsx:80
+msgid "Use your models from an OpenAI-compatible client. Tool calls return to that client to run."
+msgstr "Use your models from an OpenAI-compatible client. Tool calls return to that client to run."
+
+#: src/components/harness/settings/UserSettings.tsx:74
+#: src/components/harness/settings/UserSettings.tsx:173
+msgid "User"
+msgstr "User"
+
+#: src/components/harness/LoginScreen.tsx:67
+#: src/components/harness/settings/UserSettings.tsx:133
+#: src/components/harness/SetupScreen.tsx:69
+msgid "Username"
+msgstr "Username"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:137
+msgid "Uses GPUs exposed to the runner. Vulkan works with compatible NVIDIA and AMD drivers."
+msgstr "Uses GPUs exposed to the runner. Vulkan works with compatible NVIDIA and AMD drivers."
+
+#: src/components/harness/agent-settings/AgentCodemodeSettings.tsx:23
+msgid "Uses this agent's permitted workspace, shell, network, MCP, and session tools. Existing permissions and MCP tool allowlists still apply."
+msgstr "Uses this agent's permitted workspace, shell, network, MCP, and session tools. Existing permissions and MCP tool allowlists still apply."
+
+#. placeholder {0}: skill.name
+#: src/components/chat/ChatMessages.tsx:499
+msgid "Using skill: {0}"
+msgstr "Using skill: {0}"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:210
+msgid "Value"
+msgstr "Value"
+
+#: src/components/harness/tasks/TaskResult.tsx:16
+msgid "Verification & evidence"
+msgstr "Verification & evidence"
+
+#: src/components/harness/tasks/TaskView.tsx:611
+#: src/components/harness/tasks/TaskView.tsx:621
+msgid "View conversation"
+msgstr "View conversation"
+
+#: src/components/harness/tasks/TaskActivity.tsx:81
+msgid "View result"
+msgstr "View result"
+
+#: src/components/chat/ChatMessages.tsx:692
+msgid "View subtask result"
+msgstr "View subtask result"
+
+#: src/components/harness/SetupScreen.tsx:40
+msgid "Welcome to Carmel Agent"
+msgstr "Welcome to Carmel Agent"
+
+#. placeholder {0}: agent.name
+#: src/components/chat/ChatWelcome.tsx:15
+msgid "What can {0} help with?"
+msgstr "What can {0} help with?"
+
+#: src/components/harness/shell/HarnessSidebar.tsx:147
+msgid "Working"
+msgstr "Working"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:90
+msgid "Working dir"
+msgstr "Working dir"
+
+#: src/components/harness/UnsavedChangesDialog.tsx:77
+msgid "You have unsaved changes. Save them before leaving, discard them, or cancel to keep editing."
+msgstr "You have unsaved changes. Save them before leaving, discard them, or cancel to keep editing."
+
+#: src/components/chat/UserRequestCards.tsx:316
+msgid "Your answer"
+msgstr "Your answer"

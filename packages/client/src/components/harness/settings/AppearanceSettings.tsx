@@ -1,3 +1,5 @@
+import { Trans } from "@lingui/react/macro";
+import { LanguagePicker } from "@/components/harness/settings/LanguagePicker";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,17 +25,26 @@ export function AppearanceSettings({
 }) {
   return (
     <div className="grid gap-4">
+      <LanguagePicker />
       <Field>
-        <FieldLabel htmlFor="appearance-theme">Theme</FieldLabel>
+        <FieldLabel htmlFor="appearance-theme">
+          <Trans>Theme</Trans>
+        </FieldLabel>
         <Select value={value} onValueChange={(nextValue) => onChange(nextValue as ThemePreference)}>
           <SelectTrigger id="appearance-theme" className="w-full sm:max-w-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="system">System</SelectItem>
-              <SelectItem value="light">Light</SelectItem>
-              <SelectItem value="dark">Dark</SelectItem>
+              <SelectItem value="system">
+                <Trans>System</Trans>
+              </SelectItem>
+              <SelectItem value="light">
+                <Trans>Light</Trans>
+              </SelectItem>
+              <SelectItem value="dark">
+                <Trans>Dark</Trans>
+              </SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -44,7 +55,7 @@ export function AppearanceSettings({
         </p>
       ) : null}
       <Button type="button" className="justify-self-start" onClick={onSave}>
-        Save appearance
+        <Trans>Save appearance</Trans>
       </Button>
     </div>
   );

@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 
@@ -14,11 +15,15 @@ export function AgentCodemodeSettings({
         <Field>
           <Field orientation="horizontal">
             <Switch id="agent-codemode" checked={enabled} onCheckedChange={onChange} />
-            <FieldLabel htmlFor="agent-codemode">Enable codemode</FieldLabel>
+            <FieldLabel htmlFor="agent-codemode">
+              <Trans>Enable codemode</Trans>
+            </FieldLabel>
           </Field>
           <FieldDescription>
-            Uses this agent's permitted workspace, shell, network, MCP, and session tools. Existing
-            permissions and MCP tool allowlists still apply.
+            <Trans>
+              Uses this agent's permitted workspace, shell, network, MCP, and session tools.
+              Existing permissions and MCP tool allowlists still apply.
+            </Trans>
           </FieldDescription>
         </Field>
       </FieldGroup>

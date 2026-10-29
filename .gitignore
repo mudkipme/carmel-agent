@@ -16,6 +16,7 @@ skills-lock.json
 .cache
 *.log
 *.tsbuildinfo
+packages/client/src/locales/*/messages.ts
 *.sqlite*
 *.pem
 *.key

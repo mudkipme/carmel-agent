@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import { useEffect, useState } from "react";
 import {
   OLLAMA_PROVIDER,
@@ -12,6 +13,7 @@ import { useHarnessStore } from "@/store/harness-store";
 import { makeModelRef } from "@/store/model-utils";
 
 export function useModelManagement(modelRefs: ModelRef[], providerConfigs: ProviderConfig[]) {
+  const { i18n } = useLingui();
   const activeUserId = useHarnessStore((state) => state.activeUserId);
   const modelCatalog = useHarnessStore((state) => state.modelCatalog);
   const upsertModelRef = useHarnessStore((state) => state.upsertModelRef);
@@ -41,7 +43,7 @@ export function useModelManagement(modelRefs: ModelRef[], providerConfigs: Provi
       setModelId((current) => current || (models[0]?.id ?? ""));
     } catch (error) {
       setProviderModels([]);
-      setProviderModelsError(errorMessage(error, "Unable to load provider models"));
+      setProviderModelsError(errorMessage(error, i18n._("Unable to load provider models")));
     } finally {
       setLoadingProviderModels(false);
     }
@@ -62,14 +64,14 @@ export function useModelManagement(modelRefs: ModelRef[], providerConfigs: Provi
       (error: unknown) => {
         if (cancelled) return;
         setProviderModels([]);
-        setProviderModelsError(errorMessage(error, "Unable to load provider models"));
+        setProviderModelsError(errorMessage(error, i18n._("Unable to load provider models")));
         setLoadingProviderModels(false);
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [selectedProviderConfigRecordId, provider]);
+  }, [selectedProviderConfigRecordId, provider, i18n]);
 
   const selectProviderConfig = (id: string) => {
     setProviderConfigId(id);
@@ -98,15 +100,17 @@ export function useModelManagement(modelRefs: ModelRef[], providerConfigs: Provi
 
   const removeModel = async (model: ModelRef) => {
     const confirmed = await confirmAction({
-      title: `Delete ${model.label}?`,
-      description: "Agents and sessions using it will fall back to another available model.",
-      actionLabel: "Delete model",
+      title: i18n._("Delete {label}?", { label: model.label }),
+      description: i18n._(
+        "Agents and sessions using it will fall back to another available model.",
+      ),
+      actionLabel: i18n._("Delete model"),
     });
     if (!confirmed) return;
     try {
       await deleteModelRef(model.id);
     } catch (error) {
-      showError("Unable to delete model", error);
+      showError(i18n._("Unable to delete model"), error);
     }
   };
 

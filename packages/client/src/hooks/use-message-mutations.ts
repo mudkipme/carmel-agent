@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +24,7 @@ export function useMessageMutations(
   agentRef: React.RefObject<RemoteAgent | null>,
   sessionRef: React.RefObject<Session>,
 ) {
+  const { i18n } = useLingui();
   const navigate = useNavigate();
   const truncateSessionMessages = useHarnessStore((state) => state.truncateSessionMessages);
   const editSessionMessage = useHarnessStore((state) => state.editSessionMessage);
@@ -45,10 +47,10 @@ export function useMessageMutations(
         await options?.afterCommit?.();
       } catch (error) {
         activeAgent.setMessages(previousMessages);
-        showError(options?.errorMessage ?? "Unable to update messages", error);
+        showError(options?.errorMessage ?? i18n._("Unable to update messages"), error);
       }
     },
-    [sessionRef],
+    [sessionRef, i18n],
   );
 
   const retryFromMessage = useCallback(
@@ -73,11 +75,11 @@ export function useMessageMutations(
         // notice, which reports rejected submissions as well as failed runs.
         {
           afterCommit: async () => void (await activeAgent.continue()),
-          errorMessage: "Unable to retry message",
+          errorMessage: i18n._("Unable to retry message"),
         },
       );
     },
-    [agentRef, applyOptimisticMessages, sessionRef, truncateSessionMessages],
+    [agentRef, applyOptimisticMessages, sessionRef, truncateSessionMessages, i18n],
   );
 
   const saveUserMessage = useCallback(
@@ -109,11 +111,11 @@ export function useMessageMutations(
           }),
         {
           afterCommit: submit ? async () => void (await activeAgent.continue()) : undefined,
-          errorMessage: "Unable to save message",
+          errorMessage: i18n._("Unable to save message"),
         },
       );
     },
-    [agentRef, applyOptimisticMessages, editSessionMessage, sessionRef],
+    [agentRef, applyOptimisticMessages, editSessionMessage, sessionRef, i18n],
   );
 
   const saveAssistantMessage = useCallback(
@@ -131,10 +133,10 @@ export function useMessageMutations(
         activeAgent,
         currentMessages.map((item, itemIndex) => (itemIndex === index ? editedMessage : item)),
         () => editSessionMessage(sessionRef.current.id, entryId, content, { truncate: false }),
-        { errorMessage: "Unable to save assistant message" },
+        { errorMessage: i18n._("Unable to save assistant message") },
       );
     },
-    [agentRef, applyOptimisticMessages, editSessionMessage, sessionRef],
+    [agentRef, applyOptimisticMessages, editSessionMessage, sessionRef, i18n],
   );
 
   const forkFromMessage = useCallback(
@@ -149,10 +151,10 @@ export function useMessageMutations(
         const fork = await forkSession(sessionRef.current.id, entryId);
         navigate(`/agents/${fork.agentId}/sessions/${fork.id}`);
       } catch (error) {
-        showError("Unable to fork session", error);
+        showError(i18n._("Unable to fork session"), error);
       }
     },
-    [agentRef, forkSession, navigate, sessionRef],
+    [agentRef, forkSession, navigate, sessionRef, i18n],
   );
 
   const editMessage = useCallback((message: AgentMessage) => {

@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { StoreApi } from "zustand";
 import { api } from "@/lib/api";
@@ -42,16 +43,16 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
     createAgent: async (draft) => {
       const timestamp = Date.now();
       const defaultModelRefId = draft?.defaultModelRefId ?? get().modelRefs[0]?.id;
-      if (!defaultModelRefId) throw new Error("Create a model before creating an agent.");
+      if (!defaultModelRefId) throw new Error(i18n._("Create a model before creating an agent."));
       const defaultModelRef = get().modelRefs.find((model) => model.id === defaultModelRefId);
       const agent: AgentConfig = {
         id: createClientId("agent"),
         ownerUserId: draft?.ownerUserId ?? get().activeUserId,
         shared: draft?.shared ?? false,
-        name: draft?.name ?? "New agent",
+        name: draft?.name ?? i18n._("New agent"),
         icon: draft?.icon ?? "bot",
         color: draft?.color,
-        description: draft?.description ?? "Personal agent",
+        description: draft?.description ?? i18n._("Personal agent"),
         workingDirMode: draft?.workingDirMode ?? "default",
         workingDir: draft?.workingDir ?? "",
         defaultWorkingDir: draft?.defaultWorkingDir,

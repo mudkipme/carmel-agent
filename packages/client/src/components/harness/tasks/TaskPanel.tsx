@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react";
 import type { ReactNode } from "react";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ export function TaskPanel({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const { i18n } = useLingui();
   if (inline)
     return (
       <aside aria-label={title} className="flex w-96 shrink-0 flex-col border-l">
@@ -27,7 +29,7 @@ export function TaskPanel({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Close ${title.toLowerCase()}`}
+            aria-label={i18n._("Close {value}", { value: title.toLowerCase() })}
             onClick={onClose}
           >
             <XIcon />
@@ -53,7 +55,7 @@ export function TaskPanel({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Close ${title.toLowerCase()}`}
+            aria-label={i18n._("Close {value}", { value: title.toLowerCase() })}
             onClick={onClose}
           >
             <XIcon />

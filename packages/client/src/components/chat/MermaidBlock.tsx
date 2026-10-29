@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { useEffect, useRef, useState } from "react";
 import type { Mounted } from "pele";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,7 @@ export function MermaidBlock({ code }: { code: string }) {
       ) : (
         <details className="mt-2">
           <summary className="w-fit cursor-pointer rounded text-xs text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring">
-            Source
+            <Trans>Source</Trans>
           </summary>
           <div className="mt-2">
             <CodeBlock code={code} language="mermaid" />

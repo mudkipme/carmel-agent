@@ -16,6 +16,12 @@ Tests use Node's test runner. Prefer the smallest focused command while iteratin
 
 The client uses ordinary React hooks without React Compiler. Lint keeps the compiler diagnostics for refs, manual memoization, and synchronous state synchronization off; hook ordering and effect dependencies remain checked.
 
+## Localization
+
+The client uses Lingui with English source messages and Simplified Chinese (`zh-Hans`) and Traditional Chinese (`zh-Hant`) catalogs. Mark interface text with `<Trans>` from `@lingui/react/macro` or `i18n._()` from `useLingui()`. Translate static label tables when rendering them so they follow language changes. Keep protocol values, user content, and model prompts unchanged.
+
+Run `pnpm --filter @carmel-agent/client i18n:extract` after changing messages, then update the PO files under `packages/client/src/locales`. Run `pnpm --filter @carmel-agent/client i18n:compile` to check for missing translations. Vite compiles catalogs and JSX macros for development and production; compiled TypeScript catalogs for tests are generated and ignored. The language selector is available at sign-in, setup, and Settings → Appearance, and the browser preference is used until a language is selected.
+
 ## Database Migrations
 
 Metadata tables, foreign keys, and indexes are declared in `packages/server/src/db/schema.ts` and `im-schema.ts`. After changing them, run `pnpm --filter @carmel-agent/server db:generate --name=describe_change`, review the generated SQL, and commit it with its snapshot and journal under `packages/server/drizzle`. Run `pnpm --filter @carmel-agent/server db:check` to validate migration history. Keep already shipped migrations unchanged.

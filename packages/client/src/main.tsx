@@ -1,4 +1,6 @@
 import { StrictMode } from "react";
+import { I18nProvider } from "@lingui/react";
+import { i18n } from "@/lib/i18n";
 import { createRoot } from "react-dom/client";
 import App from "@/App";
 import "@/index.css";
@@ -12,8 +14,10 @@ watchOnScreenKeyboard();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
-    <ActionDialogs />
-    <Toaster />
+    <I18nProvider i18n={i18n}>
+      <App />
+      <ActionDialogs />
+      <Toaster />
+    </I18nProvider>
   </StrictMode>,
 );

@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import {
@@ -40,6 +42,7 @@ export function AgentMcpSettings({
   permissions: AgentPermissions;
   onChange: (servers: AgentMcpServer[]) => void;
 }) {
+  const { i18n } = useLingui();
   const [editing, setEditing] = useState<string | null>(null);
   const [id, setId] = useState("");
   const [transport, setTransport] = useState<"http" | "stdio">("http");
@@ -101,7 +104,7 @@ export function AgentMcpSettings({
             }),
       });
       if (servers.some((entry) => entry.id === server.id && entry.id !== editing))
-        throw new Error("Choose a unique server ID.");
+        throw new Error(i18n._("Choose a unique server ID."));
       onChange(
         editing
           ? servers.map((entry) => (entry.id === editing ? server : entry))
@@ -109,7 +112,7 @@ export function AgentMcpSettings({
       );
       reset();
     } catch (error) {
-      setError(errorMessage(error, "Check the server configuration."));
+      setError(errorMessage(error, i18n._("Check the server configuration.")));
     }
   };
   const test = async (server: AgentMcpServer) => {
@@ -120,13 +123,18 @@ export function AgentMcpSettings({
         ...current,
         [server.id]: {
           error: false,
-          message: `${result.tools.length} tools available${result.tools.length ? `: ${result.tools.map((tool) => tool.name).join(", ")}` : "."}`,
+          message: i18n._("{length} tools available{value}", {
+            length: result.tools.length,
+            value: result.tools.length
+              ? `: ${result.tools.map((tool) => tool.name).join(", ")}`
+              : ".",
+          }),
         },
       }));
     } catch (error) {
       setResults((current) => ({
         ...current,
-        [server.id]: { error: true, message: errorMessage(error, "Connection failed.") },
+        [server.id]: { error: true, message: errorMessage(error, i18n._("Connection failed.")) },
       }));
     } finally {
       setTesting(null);
@@ -159,11 +167,13 @@ export function AgentMcpSettings({
                   )
                 }
               />
-              <FieldLabel htmlFor={`mcp-enabled-${server.id}`}>Enabled</FieldLabel>
+              <FieldLabel htmlFor={`mcp-enabled-${server.id}`}>
+                <Trans>Enabled</Trans>
+              </FieldLabel>
             </Field>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => edit(server)}>
-                Edit
+                <Trans>Edit</Trans>
               </Button>
               <Button
                 type="button"
@@ -172,7 +182,7 @@ export function AgentMcpSettings({
                 disabled={testing !== null}
                 onClick={() => void test(server)}
               >
-                {testing === server.id ? "Connecting..." : "Test connection"}
+                {testing === server.id ? i18n._("Connecting...") : i18n._("Test connection")}
               </Button>
               <Button
                 type="button"
@@ -183,7 +193,7 @@ export function AgentMcpSettings({
                   if (editing === server.id) reset();
                 }}
               >
-                <Trash2Icon data-icon="inline-start" /> Remove
+                <Trash2Icon data-icon="inline-start" /> <Trans>Remove</Trans>
               </Button>
             </div>
             {results[server.id] ? (
@@ -199,20 +209,28 @@ export function AgentMcpSettings({
         </FieldSet>
       ))}
       <FieldSet className="rounded-md border p-3">
-        <FieldLegend>{editing ? `Edit ${editing}` : "Add server"}</FieldLegend>
+        <FieldLegend>
+          {editing ? i18n._("Edit {editing}", { editing: editing }) : i18n._("Add server")}
+        </FieldLegend>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="mcp-id">Server ID</FieldLabel>
+            <FieldLabel htmlFor="mcp-id">
+              <Trans>Server ID</Trans>
+            </FieldLabel>
             <Input
               id="mcp-id"
               value={id}
               onChange={(event) => setId(event.target.value)}
               placeholder="github"
             />
-            <FieldDescription>Up to 32 letters, numbers, underscores, or hyphens.</FieldDescription>
+            <FieldDescription>
+              <Trans>Up to 32 letters, numbers, underscores, or hyphens.</Trans>
+            </FieldDescription>
           </Field>
           <Field>
-            <FieldLabel htmlFor="mcp-transport">Connection</FieldLabel>
+            <FieldLabel htmlFor="mcp-transport">
+              <Trans>Connection</Trans>
+            </FieldLabel>
             <Select
               value={transport}
               onValueChange={(value: "http" | "stdio") => {
@@ -225,15 +243,21 @@ export function AgentMcpSettings({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="http">Remote HTTP</SelectItem>
-                  <SelectItem value="stdio">Sandbox stdio</SelectItem>
+                  <SelectItem value="http">
+                    <Trans>Remote HTTP</Trans>
+                  </SelectItem>
+                  <SelectItem value="stdio">
+                    <Trans>Sandbox stdio</Trans>
+                  </SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
             <FieldDescription>
               {transport === "http"
-                ? "Requires network permission."
-                : "Runs inside the agent sandbox and requires bash permission. The command must be installed in the runner."}
+                ? i18n._("Requires network permission.")
+                : i18n._(
+                    "Runs inside the agent sandbox and requires bash permission. The command must be installed in the runner.",
+                  )}
               {!permissions[transport === "http" ? "network" : "bash"]
                 ? " Enable and save that permission before connecting."
                 : ""}
@@ -241,7 +265,9 @@ export function AgentMcpSettings({
           </Field>
           {transport === "http" ? (
             <Field>
-              <FieldLabel htmlFor="mcp-url">Server URL</FieldLabel>
+              <FieldLabel htmlFor="mcp-url">
+                <Trans>Server URL</Trans>
+              </FieldLabel>
               <Input
                 id="mcp-url"
                 value={url}
@@ -252,7 +278,9 @@ export function AgentMcpSettings({
           ) : (
             <>
               <Field>
-                <FieldLabel htmlFor="mcp-command">Command</FieldLabel>
+                <FieldLabel htmlFor="mcp-command">
+                  <Trans>Command</Trans>
+                </FieldLabel>
                 <Input
                   id="mcp-command"
                   value={command}
@@ -261,7 +289,9 @@ export function AgentMcpSettings({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="mcp-args">Arguments</FieldLabel>
+                <FieldLabel htmlFor="mcp-args">
+                  <Trans>Arguments</Trans>
+                </FieldLabel>
                 <Textarea
                   id="mcp-args"
                   value={args}
@@ -269,14 +299,16 @@ export function AgentMcpSettings({
                   placeholder={"-y\n@modelcontextprotocol/server-filesystem\n/workspace"}
                 />
                 <FieldDescription>
-                  One argument per line. Arguments are passed directly without shell expansion.
+                  <Trans>
+                    One argument per line. Arguments are passed directly without shell expansion.
+                  </Trans>
                 </FieldDescription>
               </Field>
             </>
           )}
           <Field>
             <FieldLabel htmlFor="mcp-values">
-              {transport === "http" ? "HTTP headers" : "Environment variables"}
+              {transport === "http" ? i18n._("HTTP headers") : i18n._("Environment variables")}
             </FieldLabel>
             <Textarea
               id="mcp-values"
@@ -284,30 +316,36 @@ export function AgentMcpSettings({
               onChange={(event) => setValues(event.target.value)}
             />
             <FieldDescription>
-              {
-                "Enter a JSON object of string values. Use ${SECRET_NAME} to reference an agent secret."
-              }
+              {i18n._(
+                "Enter a JSON object of string values. Use $'{'SECRET_NAME'}' to reference an agent secret.",
+              )}
             </FieldDescription>
           </Field>
           <Field orientation="horizontal">
             <Switch id="mcp-all-tools" checked={allTools} onCheckedChange={setAllTools} />
-            <FieldLabel htmlFor="mcp-all-tools">Expose all tools</FieldLabel>
+            <FieldLabel htmlFor="mcp-all-tools">
+              <Trans>Expose all tools</Trans>
+            </FieldLabel>
           </Field>
           {!allTools ? (
             <Field>
-              <FieldLabel htmlFor="mcp-tools">Allowed tools</FieldLabel>
+              <FieldLabel htmlFor="mcp-tools">
+                <Trans>Allowed tools</Trans>
+              </FieldLabel>
               <Textarea
                 id="mcp-tools"
                 value={tools}
                 onChange={(event) => setTools(event.target.value)}
               />
               <FieldDescription>
-                One original tool name per line. An empty list exposes no tools.
+                <Trans>One original tool name per line. An empty list exposes no tools.</Trans>
               </FieldDescription>
             </Field>
           ) : null}
           <Field>
-            <FieldLabel htmlFor="mcp-timeout">Request timeout (seconds)</FieldLabel>
+            <FieldLabel htmlFor="mcp-timeout">
+              <Trans>Request timeout (seconds)</Trans>
+            </FieldLabel>
             <Input
               id="mcp-timeout"
               type="number"
@@ -325,11 +363,11 @@ export function AgentMcpSettings({
           <div className="flex gap-2">
             <Button type="button" variant="secondary" onClick={save}>
               <PlusIcon data-icon="inline-start" />
-              {editing ? "Update server" : "Add server"}
+              {editing ? i18n._("Update server") : i18n._("Add server")}
             </Button>
             {editing ? (
               <Button type="button" variant="ghost" onClick={reset}>
-                Cancel
+                <Trans>Cancel</Trans>
               </Button>
             ) : null}
           </div>

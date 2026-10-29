@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import {
   CircleCheckIcon,
   CircleDotIcon,
@@ -17,15 +18,15 @@ type IssueState = {
   attention: "blocking" | "review" | "none";
 };
 const states: Record<IssueStatus, [string, LucideIcon, IssueState["attention"]]> = {
-  backlog: ["Backlog", CircleDashedIcon, "none"],
-  todo: ["Backlog", CircleDotIcon, "none"],
-  queued: ["Queued", CircleDotIcon, "none"],
-  in_progress: ["Working", LoaderCircleIcon, "none"],
-  needs_input: ["Needs input", MessageCircleQuestionMarkIcon, "blocking"],
-  blocked: ["Blocked", OctagonAlertIcon, "blocking"],
-  in_review: ["In review", ClipboardCheckIcon, "review"],
-  done: ["Done", CircleCheckIcon, "none"],
-  cancelled: ["Cancelled", CircleSlashIcon, "none"],
+  backlog: [/*i18n*/ "Backlog", CircleDashedIcon, "none"],
+  todo: [/*i18n*/ "Backlog", CircleDotIcon, "none"],
+  queued: [/*i18n*/ "Queued", CircleDotIcon, "none"],
+  in_progress: [/*i18n*/ "Working", LoaderCircleIcon, "none"],
+  needs_input: [/*i18n*/ "Needs input", MessageCircleQuestionMarkIcon, "blocking"],
+  blocked: [/*i18n*/ "Blocked", OctagonAlertIcon, "blocking"],
+  in_review: [/*i18n*/ "In review", ClipboardCheckIcon, "review"],
+  done: [/*i18n*/ "Done", CircleCheckIcon, "none"],
+  cancelled: [/*i18n*/ "Cancelled", CircleSlashIcon, "none"],
 };
 export function describeIssue(
   issue: Pick<Issue, "status" | "running" | "lastRunOutcome">,
@@ -38,14 +39,16 @@ export function describeIssue(
     issue.lastRunOutcome !== "succeeded"
   )
     return {
-      label: ["interrupted", "cancelled"].includes(issue.lastRunOutcome) ? "Stopped" : "Run failed",
+      label: ["interrupted", "cancelled"].includes(issue.lastRunOutcome)
+        ? i18n._("Stopped")
+        : i18n._("Run failed"),
       Icon: OctagonAlertIcon,
       attention: "blocking",
       className: "text-destructive",
     };
   const [label, Icon, attention] = states[issue.status];
   return {
-    label,
+    label: i18n._(label),
     Icon,
     attention,
     className: issue.running
