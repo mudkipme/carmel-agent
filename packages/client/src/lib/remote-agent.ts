@@ -6,6 +6,7 @@ import type {
   AgentRunEvent,
   AgentRunEventEnvelope,
   PromptInput,
+  ReferenceMessage,
   SessionConnection,
   NestedToolSlot,
   UserRequest,
@@ -55,11 +56,14 @@ export type PromptOutcome =
   | { status: "rejected"; error: string }
   | { status: "unknown"; error: string };
 
+type PendingMessage = { message: ReferenceMessage; eventId?: string };
+
 export class RemoteAgent {
   private storeListeners = new Set<() => void>();
   private snapshotValue: AgentSnapshot;
   private abortController?: AbortController;
   private messages: AgentMessage[];
+  private pendingMessages: PendingMessage[] = [];
   private messageEntryIds: string[];
   private loadedEarlier = false;
   private olderCursor?: string;
@@ -127,6 +131,7 @@ export class RemoteAgent {
   /** Replace the message list (e.g. an optimistic edit/retry) and notify subscribers. */
   setMessages(messages: AgentMessage[]) {
     this.messages = [...messages];
+    for (const message of messages) this.confirmPendingMessage(message);
     this.messageEntryIds = [];
     this.loadedEarlier = false;
     this.notify();
@@ -139,7 +144,9 @@ export class RemoteAgent {
 
   private buildSnapshot(): AgentSnapshot {
     return {
-      messages: this.messages,
+      messages: this.pendingMessages.length
+        ? [...this.messages, ...this.pendingMessages.map((pending) => pending.message)]
+        : this.messages,
       olderCursor: this.olderCursor,
       loadedEarlier: this.loadedEarlier,
       historyOnly: this.historyOnly,
@@ -173,6 +180,8 @@ export class RemoteAgent {
   async abort() {
     if (this.config.home) {
       await api.stopHome(this.config.agentId);
+      this.pendingMessages = [];
+      this.notify();
       if (!this.isStreaming) await this.refreshConnection();
       return;
     }
@@ -226,9 +235,40 @@ export class RemoteAgent {
     images?: ImageContent[],
     references?: PromptInput["references"],
   ): Promise<PromptOutcome> {
+    if (this.abortController && !this.config.home)
+      throw new Error(i18n._("Agent is already processing."));
     const promptInput = normalizePromptInput(input, images);
+    if (promptInput && references?.length) promptInput.references = references;
+    const pendingMessage: PendingMessage | undefined = promptInput
+      ? {
+          message: {
+            role: "user" as const,
+            content: [
+              { type: "text" as const, text: promptInput.text },
+              ...(promptInput.images ?? []),
+            ],
+            timestamp: Date.now(),
+            references: promptInput.references,
+          },
+        }
+      : undefined;
+    if (pendingMessage) {
+      this.pendingMessages = [...this.pendingMessages, pendingMessage];
+      this.notify();
+    }
+    const outcome = await this.submitPrompt(promptInput, pendingMessage);
+    if (outcome.status === "rejected" && pendingMessage) {
+      this.pendingMessages = this.pendingMessages.filter((message) => message !== pendingMessage);
+      this.notify();
+    }
+    return outcome;
+  }
+
+  private async submitPrompt(
+    promptInput: PromptInput | undefined,
+    pendingMessage?: PendingMessage,
+  ): Promise<PromptOutcome> {
     if (this.config.home && promptInput) {
-      if (references?.length) promptInput.references = references;
       try {
         const response = await apiFetch(
           `/api/agents/${encodeURIComponent(this.config.agentId)}/home/messages`,
@@ -248,6 +288,10 @@ export class RemoteAgent {
           this.fail(error);
           return { status: "rejected", error: errorMessage(error) };
         }
+        const admission = (await response.json()) as { eventId: string };
+        if (pendingMessage) pendingMessage.eventId = admission.eventId;
+        for (const message of this.messages) this.confirmPendingMessage(message);
+        this.notify();
         void this.refreshHome();
         return { status: "accepted" };
       } catch (error) {
@@ -256,7 +300,6 @@ export class RemoteAgent {
       }
     }
     if (this.abortController) throw new Error(i18n._("Agent is already processing."));
-    if (promptInput && references?.length) promptInput.references = references;
     const controller = this.beginRun();
     // Set as soon as a server run exists for this submission, and read by the
     // failure path: after admission the prompt is the server's, whatever the run
@@ -291,6 +334,7 @@ export class RemoteAgent {
         throw error;
       }
       if (response.status === 409) {
+        this.pendingMessages = [];
         const summary = (await response.json().catch(() => undefined)) as
           | Partial<ActiveAgentRunSummary>
           | undefined;
@@ -416,6 +460,7 @@ export class RemoteAgent {
   }
 
   private finishObservation() {
+    if (!this.config.home) this.pendingMessages = [];
     this.isStreaming = false;
     this.streamingMessage = undefined;
     this.pendingToolCalls = new Set();
@@ -558,6 +603,7 @@ export class RemoteAgent {
     } else this.loadedEarlier = false;
     this.config.onConnection?.(connection);
     this.messages = [...connection.session.messages];
+    for (const message of this.messages) this.confirmPendingMessage(message);
     this.messageEntryIds = [...connection.session.messageEntryIds];
     this.olderCursor = connection.session.olderCursor;
     this.hasPendingWork = connection.pendingWork ?? false;
@@ -666,6 +712,7 @@ export class RemoteAgent {
         break;
       case "message_end":
         this.streamingMessage = undefined;
+        this.confirmPendingMessage(event.message);
         if (this.replaceNextUserMessage && event.message.role === "user") {
           this.messages = [...this.messages.slice(0, -1), event.message];
           this.replaceNextUserMessage = false;
@@ -776,6 +823,15 @@ export class RemoteAgent {
         break;
     }
     this.notify();
+  }
+
+  private confirmPendingMessage(message: AgentMessage) {
+    if (message.role !== "user") return;
+    const eventId = (message as AgentMessage & { homeEventId?: string }).homeEventId;
+    const index = this.config.home
+      ? this.pendingMessages.findIndex((pending) => eventId && pending.eventId === eventId)
+      : 0;
+    if (index >= 0) this.pendingMessages = this.pendingMessages.filter((_, item) => item !== index);
   }
 }
 

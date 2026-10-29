@@ -277,6 +277,7 @@ export function displayEntries(
           carmelDisplayText?: string;
           carmelReferences?: MessageReference[];
           carmelUserRequestReceipt?: UserRequestReceipt;
+          homeEventId?: string;
         }
       | undefined;
     const native = entry.model?.[0];
@@ -358,7 +359,13 @@ export function displayEntries(
       ),
     };
     return message
-      ? { ...base, type: "message", message: message as AgentMessage }
+      ? {
+          ...base,
+          type: "message",
+          message: (data?.homeEventId
+            ? { ...message, homeEventId: data.homeEventId }
+            : message) as AgentMessage,
+        }
       : { ...base, type: "other", native: entry };
   });
 }

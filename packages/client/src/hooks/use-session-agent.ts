@@ -3,7 +3,6 @@ import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type AgentSnapshot, type PromptOutcome, RemoteAgent } from "@/lib/remote-agent";
-import { errorMessage } from "@/lib/errors";
 import { useHarnessStore } from "@/store/harness-store";
 import {
   resolveModelRef,
@@ -29,7 +28,6 @@ const EMPTY_SNAPSHOT: AgentSnapshot = {
 export function useSessionAgent(agentConfig: AgentConfig, session: Session, modelRef: ModelRef) {
   const { i18n } = useLingui();
   const connectSession = useHarnessStore((state) => state.connectSession);
-  const updateSession = useHarnessStore((state) => state.updateSession);
   const resolvedModel = useMemo(() => resolveModelRef(modelRef), [modelRef]);
   const agentRef = useRef<RemoteAgent | null>(null);
   const sessionRef = useRef(session);
@@ -150,7 +148,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
       references?: MessageReference[],
     ): Promise<PromptOutcome> => {
       const activeAgent = agentRef.current;
-      const { isStreaming, thinkingLevel } = activeAgent?.getSnapshot() ?? EMPTY_SNAPSHOT;
+      const { isStreaming } = activeAgent?.getSnapshot() ?? EMPTY_SNAPSHOT;
       if (!activeAgent)
         return { status: "rejected", error: i18n._("Not connected to this conversation yet.") };
       if (isStreaming && !sessionRef.current.home)
@@ -158,17 +156,9 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
           status: "rejected",
           error: i18n._("This conversation already has a run in progress."),
         };
-      const currentSession = sessionRef.current;
-      if (thinkingLevel !== currentSession.thinkingLevel) {
-        try {
-          await updateSession(currentSession.id, { thinkingLevel });
-        } catch (error) {
-          return { status: "rejected", error: errorMessage(error) };
-        }
-      }
       return activeAgent.prompt(text, images, references);
     },
-    [updateSession, i18n],
+    [i18n],
   );
 
   return { agent, agentRef, resolvedModel, sendMessage, sessionRef, snapshot };

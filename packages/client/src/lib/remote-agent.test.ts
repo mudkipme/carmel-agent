@@ -716,13 +716,63 @@ test("a rejected send reports the rejection and the error it failed with", async
     Response.json({ error: "No provider credentials are configured." }, { status: 400 });
   try {
     const agent = createAgent([]);
-    const outcome = await agent.prompt("question");
+    const sending = agent.prompt("question");
+    const pending = agent.getSnapshot().messages.at(-1);
+    assert.ok(pending?.role === "user");
+    assert.deepEqual(pending.content, [{ type: "text", text: "question" }]);
+    const outcome = await sending;
 
     assert.equal(outcome.status, "rejected");
     assert.match(agent.getSnapshot().errorMessage ?? "", /provider credentials/i);
     // Nothing was admitted, so the transcript must not pretend otherwise.
     assert.deepEqual(agent.getSnapshot().messages, []);
     assert.equal(agent.getSnapshot().isStreaming, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Home shows queued messages immediately and reconciles each admission with its persisted input", async () => {
+  const originalFetch = globalThis.fetch;
+  const earlier = { ...userMessage("same text"), homeEventId: "earlier" };
+  const first = { ...userMessage("expanded command"), homeEventId: "event_1" };
+  const second = { ...userMessage("same text"), homeEventId: "event_2" };
+  const agent = new RemoteAgent({
+    agentId: "agent_1",
+    sessionId: "session_1",
+    modelRefId: "model_1",
+    model,
+    thinkingLevel: "off",
+    home: true,
+    messages: [earlier],
+  });
+  let admit!: (response: Response) => void;
+  let nextEvent = 1;
+  globalThis.fetch = async (_input, init) => {
+    if (init?.method === "POST")
+      return new Promise<Response>((resolve) => {
+        admit = resolve;
+      });
+    return Response.json(connection([earlier], null));
+  };
+  try {
+    for (const text of ["/command", "same text"]) {
+      const sending = agent.prompt(text);
+      const pending = agent.getSnapshot().messages.at(-1);
+      assert.ok(pending?.role === "user");
+      assert.deepEqual(pending.content, [{ type: "text", text }]);
+      admit(Response.json({ eventId: `event_${nextEvent++}` }));
+      assert.equal((await sending).status, "accepted");
+    }
+    agent.applyConnectionSnapshot(connection([earlier], null));
+    assert.equal(agent.getSnapshot().messages.length, 3);
+    agent.applyConnectionSnapshot(connection([earlier, first], null));
+    assert.equal(agent.getSnapshot().messages.length, 3);
+    assert.deepEqual(agent.getSnapshot().messages[1], first);
+    agent.applyConnectionSnapshot(connection([earlier, first, second], null));
+    assert.deepEqual(agent.getSnapshot().messages, [earlier, first, second]);
+    agent.applyConnectionSnapshot(connection([earlier, first, second], null));
+    assert.deepEqual(agent.getSnapshot().messages, [earlier, first, second]);
   } finally {
     globalThis.fetch = originalFetch;
   }
