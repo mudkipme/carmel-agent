@@ -59,6 +59,8 @@ test("active session list includes only running listed sessions owned by the cal
     const active = await app.request(`/agents/${fixture.agentId}/active-sessions`);
     assert.equal(active.status, 200);
     assert.deepEqual(await active.json(), { sessionIds: [fixture.sessionId] });
+    const removedStream = await app.request(`/agent-runs/${runs[0]!.runId}/events`);
+    assert.equal(removedStream.status, 404);
 
     finishAgentRun(runs[0]!);
     const finished = await app.request(`/agents/${fixture.agentId}/active-sessions`);

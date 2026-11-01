@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react";
 import { i18n } from "@lingui/core";
-import { useEffect, useLayoutEffect, useRef, type ComponentProps } from "react";
+import { useLayoutEffect, useRef, type ComponentProps } from "react";
 import type { AgentConfig, IssueNote, ModelRef, Session } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { api } from "@/lib/api";
@@ -15,7 +15,6 @@ export function TaskConversation({
   agent,
   sessionId,
   notes,
-  running,
 }: {
   agent: AgentConfig;
   sessionId: string;
@@ -30,6 +29,7 @@ export function TaskConversation({
     refresh,
   } = useRemoteResource({
     key: `conversation:${sessionId}`,
+    topics: ["sessions"],
     load: (signal) => api.getSessionConnection(sessionId, signal),
   });
   const session = connection?.session;
@@ -53,13 +53,7 @@ export function TaskConversation({
       />
     );
   return (
-    <ConnectedConversation
-      agent={agent}
-      session={session}
-      modelRef={modelRef}
-      notes={notes}
-      running={running}
-    />
+    <ConnectedConversation agent={agent} session={session} modelRef={modelRef} notes={notes} />
   );
 }
 
@@ -68,36 +62,21 @@ function ConnectedConversation({
   session,
   modelRef,
   notes,
-  running,
 }: {
   agent: AgentConfig;
   session: Session;
   modelRef: ModelRef;
   notes: IssueNote[];
-  running: boolean;
 }) {
   const { i18n } = useLingui();
   const { agent, snapshot } = useSessionAgent(config, session, modelRef);
-  const connection = useRemoteResource({
-    key: `live-conversation:${session.id}`,
-    enabled: Boolean(agent) && !snapshot.isStreaming,
-    load: (signal) => api.getSessionConnection(session.id, signal),
-    pollInterval: running ? 2_000 : 30_000,
-    refreshKey: running,
-  });
-  useEffect(() => {
-    if (!agent || !connection.data || agent.getSnapshot().isStreaming) return;
-    const { activeRun, session: saved } = connection.data;
-    if (activeRun) void agent.attachToRun(activeRun.runId, saved.messages, activeRun.eventCursor);
-    else agent.setMessages(saved.messages);
-  }, [agent, connection.data]);
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-      {connection.error && !snapshot.isStreaming ? (
+      {snapshot.errorMessage && !snapshot.isStreaming ? (
         <ResourceError
-          error={connection.error}
+          error={snapshot.errorMessage}
           title={i18n._("Unable to refresh conversation")}
-          onRetry={connection.refresh}
+          onRetry={() => void agent?.refreshHome()}
         />
       ) : null}
       {snapshot.contextPressure ? (

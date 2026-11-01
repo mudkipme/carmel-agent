@@ -145,7 +145,7 @@ function SubtaskDetail({
   const resource = useRemoteResource({
     key: `subtask:${sessionId}:${id}:${before}`,
     load: (signal) => api.getSubtask(sessionId, id, before, signal),
-    pollInterval: running && !before ? 1500 : false,
+    topics: before ? [] : ["subtasks"],
     refreshKey: running,
   });
   const ready = Boolean(resource.data || resource.error);

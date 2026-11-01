@@ -8,7 +8,13 @@ import {
   fauxText,
   fauxThinking,
 } from "@earendil-works/pi-ai/providers/faux";
-import { applyStreamingEvent, isStreamingEvent, type AgentRunEvent } from "@carmel-agent/shared";
+import {
+  applyStreamingEvent,
+  isStreamingEvent,
+  type AgentRunEvent,
+  type SessionConnection,
+} from "@carmel-agent/shared";
+import { readSessionConnection } from "../services/session-snapshot.ts";
 import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import {
@@ -18,12 +24,7 @@ import {
 } from "../services/pi-session-storage.ts";
 import { attachTestHarness } from "../effectors/testing/pi-harness.ts";
 import { projectRunEvent } from "./run-events.ts";
-import {
-  createActiveAgentRun,
-  emitRunEvent,
-  finishAgentRun,
-  getActiveAgentRunForSessionId,
-} from "./run-stream.ts";
+import { createActiveAgentRun, emitRunEvent, finishAgentRun } from "./run-stream.ts";
 
 initialize();
 
@@ -56,14 +57,6 @@ class ClientView {
   }
 }
 
-/**
- * Stream one real turn, recording what a reconnect would be handed at each point.
- *
- * The recording is deliberately cheap -- reading the attach cursor is synchronous,
- * and the transcript is read only at `message_end`. An earlier version probed the
- * database on every event, and its own latency let the coalescing timer flush the
- * deltas it was trying to observe, so it almost never landed mid-message.
- */
 async function streamTurnRecordingReconnects() {
   const { sessionId, userId } = createSession();
   const faux = fauxProvider({
@@ -92,16 +85,17 @@ async function streamTurnRecordingReconnects() {
     systemPrompt: "Test assistant",
   });
 
-  // What `readSessionConnection` would answer, captured as the run produces it.
-  const reconnectPoints: Array<{ boundary: number; cursor: number }> = [];
-  const persistedAfter: Array<{ sequence: number; messages: AgentMessage[] }> = [];
   const lostBeforePersist: string[] = [];
-  let lastBoundary = 0;
+  const connectionSnapshots: SessionConnection[] = [];
 
   const unsubscribe = pi.observe(async (event) => {
     const wireEvent = projectRunEvent(event);
     if (!wireEvent) return;
     emitRunEvent(run, wireEvent);
+    if (event.type === "message_update" && connectionSnapshots.length < 3) {
+      const connection = await readSessionConnection(userId, sessionId);
+      if (connection) connectionSnapshots.push(connection);
+    }
 
     if (event.type === "message_end") {
       // A reconnect's snapshot is only safe if Pi persists before it notifies.
@@ -114,18 +108,7 @@ async function streamTurnRecordingReconnects() {
       ) {
         lostBeforePersist.push(`sequence ${run.nextSequence - 1}`);
       }
-      persistedAfter.push({ sequence: run.nextSequence - 1, messages: branch });
     }
-
-    // The coalescing timer publishes between subscriber calls, so probe whenever
-    // the stream has moved rather than only when this event published something.
-    const boundary = run.nextSequence - 1;
-    if (boundary <= lastBoundary) return;
-    lastBoundary = boundary;
-    reconnectPoints.push({
-      boundary,
-      cursor: getActiveAgentRunForSessionId(sessionId)!.eventCursor,
-    });
   });
 
   try {
@@ -138,44 +121,10 @@ async function streamTurnRecordingReconnects() {
 
   return {
     run,
-    reconnectPoints,
-    persistedAfter,
     lostBeforePersist,
+    connectionSnapshots,
     final: await transcript(sessionId),
   };
-}
-
-/**
- * The messages a reconnect's snapshot holds at `boundary`.
- *
- * Pi Durable commits messages before announcing their `message_end`. Reads
- * include committed live progress, so a reconnect also sees the reply in flight.
- */
-function snapshotAt(
-  persistedAfter: Array<{ sequence: number; messages: AgentMessage[] }>,
-  boundary: number,
-) {
-  let messages: AgentMessage[] = [];
-  for (const entry of persistedAfter) {
-    if (entry.sequence <= boundary) messages = entry.messages;
-  }
-  return messages;
-}
-
-/** Compact shape of what is on screen, so a divergence names itself. */
-function summarize(view: ClientView) {
-  return view
-    .onScreen()
-    .map((message) => {
-      const parts = Array.isArray(message.content)
-        ? message.content
-        : [{ type: "raw", text: message.content }];
-      const shape = (parts as Array<{ type: string; text?: string; thinking?: string }>)
-        .map((part) => `${part.type}:${(part.text ?? part.thinking ?? "").length}`)
-        .join(",");
-      return `${message.role}[${shape}]`;
-    })
-    .join(" | ");
 }
 
 async function transcript(sessionId: string): Promise<AgentMessage[]> {
@@ -198,60 +147,17 @@ test("every message_end is persisted before it reaches a subscriber", async () =
   assert.deepEqual(lostBeforePersist, []);
 });
 
-test("reopening mid-stream shows exactly what a session that stayed open shows", async () => {
-  const { run, reconnectPoints, persistedAfter, final } = await streamTurnRecordingReconnects();
-
-  const divergences: Array<{ renderedTheSame: boolean; detail: string }> = [];
-  let midMessageProbes = 0;
-
-  for (const { boundary, cursor } of reconnectPoints) {
-    const stayedOpen = new ClientView([]);
-    const reopened = new ClientView(snapshotAt(persistedAfter, boundary));
+test("real connection snapshots resume a partial message at their cursor without duplicating it", async () => {
+  const { run, connectionSnapshots, final } = await streamTurnRecordingReconnects();
+  assert.ok(connectionSnapshots.some((snapshot) => snapshot.runProgress?.streamingMessage));
+  for (const snapshot of connectionSnapshots) {
+    assert.ok(snapshot.activeRun);
+    assert.ok(snapshot.session.messageEntryIds.every((id) => !id.startsWith("pending:")));
+    const reopened = new ClientView(snapshot.session.messages);
+    reopened.streamingMessage = snapshot.runProgress?.streamingMessage;
     for (const envelope of run.events) {
-      if (envelope.sequence > boundary) continue;
-      stayedOpen.apply(envelope.event);
-      if (envelope.sequence > cursor) reopened.apply(envelope.event);
+      if (envelope.sequence > snapshot.activeRun.eventCursor) reopened.apply(envelope.event);
     }
-
-    // The probes that prove something: partway through a message, where the
-    // reopened client must rebuild content it never received live.
-    if (reopened.streamingMessage) midMessageProbes += 1;
-    if (JSON.stringify(reopened.onScreen()) !== JSON.stringify(stayedOpen.onScreen())) {
-      const rendered = summarize(reopened) === summarize(stayedOpen);
-      divergences.push({
-        // Content-identical divergences are the settle window: the message is
-        // all there, but its metadata is still the in-flight copy's.
-        renderedTheSame: rendered,
-        detail: `at sequence ${boundary} (cursor ${cursor}) reopened=${summarize(reopened)} stayedOpen=${summarize(stayedOpen)}`,
-      });
-    }
+    assert.deepEqual(reopened.onScreen(), JSON.parse(JSON.stringify(final)));
   }
-
-  // What still holds, and is what the user sees: a reopened session never
-  // renders anything different from one that stayed open. Reading the snapshot
-  // from the lane rather than the branch is what buys this -- the branch alone
-  // would be missing the whole in-flight reply.
-  //
-  // What no longer holds is byte-identity. Inside the settle window the reopened
-  // client holds the in-flight copy of the last message, whose `stopReason` and
-  // usage Pi fills in when the operation commits. Same content, later metadata.
-  const renderedDifferently = divergences
-    .filter((entry) => !entry.renderedTheSame)
-    .map((entry) => entry.detail);
-  assert.deepEqual(
-    renderedDifferently,
-    [],
-    "a reopened session must render the same thing as one that stayed open",
-  );
-  // Without mid-message probes the check above would prove nothing: the closing
-  // `message_end` is authoritative and heals any reconnect by itself.
-  assert.ok(midMessageProbes >= 3, `the turn must be probed mid-message (got ${midMessageProbes})`);
-
-  const fromStream = new ClientView([]);
-  for (const envelope of run.events) fromStream.apply(envelope.event);
-  assert.deepEqual(
-    fromStream.onScreen(),
-    JSON.parse(JSON.stringify(final)),
-    "the stream must fold to the persisted transcript",
-  );
 });

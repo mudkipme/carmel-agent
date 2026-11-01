@@ -84,12 +84,7 @@ type AgentRecord = typeof agents.$inferSelect;
 type ModelRefRecord = typeof modelRefs.$inferSelect;
 type ProviderConfigRecord = typeof providerConfigs.$inferSelect;
 type SessionRecord = typeof sessions.$inferSelect;
-export {
-  abortAgentRun,
-  createAgentRunEventStream,
-  getActiveAgentRunForSession,
-  whenRunFinished,
-} from "./run-stream.ts";
+export { abortAgentRun, getActiveAgentRunForSession, whenRunFinished } from "./run-stream.ts";
 
 export function normalizePromptInput(input?: PromptInput) {
   if (!input) return undefined;

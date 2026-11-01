@@ -44,7 +44,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
   const overview = useRemoteResource({
     key: `knowledge:${agent.id}`,
     load: (signal) => api.knowledge(agent.id, signal),
-    pollInterval: 5000,
+    topics: ["knowledge"],
   });
   const [params, setParams] = useSearchParams();
   const sourceId = params.get("source"),
@@ -52,6 +52,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
   const fromLine = Math.max(1, Number(params.get("line")) || 1);
   const doc = useRemoteResource({
     key: `knowledge-doc:${agent.id}:${sourceId}:${path}:${fromLine}`,
+    topics: ["knowledge"],
     enabled: Boolean(sourceId && path),
     load: (signal) =>
       api.readKnowledge(agent.id, { sourceId: sourceId!, path: path!, fromLine }, signal),

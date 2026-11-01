@@ -11,10 +11,11 @@ import type {
   NestedToolSlot,
   UserRequest,
 } from "@carmel-agent/shared";
-import { applyStreamingEvent } from "@carmel-agent/shared";
+import { applyRunProgress, type RunProgress } from "@carmel-agent/shared";
 
 import { api, ApiError, apiError, apiFetch } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
+import { openRunEventStream, type RunEventStream } from "./update-connection.ts";
 
 /**
  * Immutable view of the agent's observable state, and the only way to read it.
@@ -40,7 +41,7 @@ export type AgentSnapshot = {
   contextPressure?: ContextPressure;
 };
 
-export type ContextPressure = { level: "warning" | "critical"; message: string };
+export type ContextPressure = NonNullable<RunProgress["contextPressure"]>;
 
 /**
  * What happened to a submission, which is a different question from how the run
@@ -88,6 +89,8 @@ export class RemoteAgent {
    * before the model is called, and this is sent as soon as that id exists.
    */
   private stopRequested = false;
+  private connectionRefresh = 0;
+  private refreshWhenIdle = false;
 
   constructor(
     private readonly config: {
@@ -105,6 +108,7 @@ export class RemoteAgent {
       pendingWork?: boolean;
       userRequests?: UserRequest[];
       onRunComplete?: () => Promise<void> | void;
+      openRunStream?: typeof openRunEventStream;
     },
   ) {
     this.messages = [...config.messages];
@@ -217,6 +221,7 @@ export class RemoteAgent {
   }
 
   detach() {
+    this.connectionRefresh++;
     this.detachRequested = true;
     this.abortController?.abort();
   }
@@ -393,10 +398,15 @@ export class RemoteAgent {
     }
   }
 
-  async attachToRun(runId: string, baseMessages?: AgentMessage[], afterSequence = 0) {
+  async attachToRun(
+    runId: string,
+    baseMessages?: AgentMessage[],
+    afterSequence = 0,
+    progress?: RunProgress,
+  ) {
     if (this.abortController) throw new Error(i18n._("Agent is already processing."));
     if (baseMessages) this.messages = [...baseMessages];
-    const controller = this.beginRun(afterSequence);
+    const controller = this.beginRun(afterSequence, progress);
     this.runId = runId;
 
     try {
@@ -441,15 +451,18 @@ export class RemoteAgent {
     }
   }
 
-  private beginRun(afterSequence = 0) {
+  private beginRun(afterSequence = 0, progress?: RunProgress) {
+    this.connectionRefresh++;
     const controller = new AbortController();
     this.abortController = controller;
     this.isStreaming = true;
-    this.streamingMessage = undefined;
-    this.errorMessage = undefined;
+    this.streamingMessage = progress?.streamingMessage;
+    this.pendingToolCalls = new Set(progress?.pendingToolCalls);
+    this.nestedTools = progress?.nestedTools ?? [];
+    this.errorMessage = progress?.errorMessage;
     // Re-derived by every run: the new one may be on a different model, which is
     // the usual way this condition gets fixed.
-    this.contextPressure = undefined;
+    this.contextPressure = progress?.contextPressure;
     this.runId = undefined;
     this.lastSequence = afterSequence;
     this.runFinished = false;
@@ -460,6 +473,8 @@ export class RemoteAgent {
   }
 
   private finishObservation() {
+    const refresh = this.refreshWhenIdle && !this.detachRequested;
+    this.refreshWhenIdle = false;
     if (!this.config.home) this.pendingMessages = [];
     this.isStreaming = false;
     this.streamingMessage = undefined;
@@ -471,6 +486,7 @@ export class RemoteAgent {
     this.replaceNextUserMessage = false;
     this.stopRequested = false;
     this.notify();
+    if (refresh) void this.refreshHome().catch((error) => this.fail(error));
   }
 
   /** Record the server run and send a stop that arrived before its id did. */
@@ -496,12 +512,13 @@ export class RemoteAgent {
       if (signal.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
       if (retryDelayMs > 0) await waitForReconnect(retryDelayMs, signal);
 
-      let response: Response;
+      let response: RunEventStream;
       try {
-        const query = new URLSearchParams({ after: String(this.lastSequence) });
-        response = await apiFetch(`/api/agent-runs/${encodeURIComponent(runId)}/events?${query}`, {
+        response = await (this.config.openRunStream ?? openRunEventStream)(
+          runId,
+          this.lastSequence,
           signal,
-        });
+        );
       } catch (error) {
         if (signal.aborted) throw error;
         this.markReconnecting(error);
@@ -524,22 +541,11 @@ export class RemoteAgent {
         }
         continue;
       }
-      if (!response.ok || !response.body) {
-        if (response.status === 400)
-          throw await apiError(response, i18n._("Invalid agent event cursor."));
-        this.markReconnecting(
-          await apiError(
-            response,
-            i18n._("Agent event stream failed with {status}", { status: response.status }),
-          ),
-        );
-        retryDelayMs = nextReconnectDelay(retryDelayMs);
-        continue;
-      }
+      if (response.status !== 200) throw new Error(i18n._("Invalid agent event cursor."));
 
       this.clearReconnectError();
       try {
-        await this.consumeEvents(response.body);
+        await this.consumeEvents(response.events);
         if (this.runFinished) return;
         retryDelayMs = 0;
       } catch (error) {
@@ -609,9 +615,13 @@ export class RemoteAgent {
     this.hasPendingWork = connection.pendingWork ?? false;
     this.userRequests = connection.userRequests ?? [];
     this.thinkingLevel = connection.session.thinkingLevel;
-    this.streamingMessage = undefined;
-    this.pendingToolCalls = new Set();
-    this.nestedTools = [];
+    this.streamingMessage = connection.runProgress?.streamingMessage;
+    this.pendingToolCalls = new Set(connection.runProgress?.pendingToolCalls);
+    this.nestedTools = connection.runProgress?.nestedTools ?? [];
+    if (connection.runProgress) {
+      this.errorMessage = connection.runProgress.errorMessage;
+      this.contextPressure = connection.runProgress.contextPressure;
+    }
     this.notify();
   }
 
@@ -641,15 +651,27 @@ export class RemoteAgent {
   }
 
   async refreshHome() {
-    if (this.abortController || this.historyOnly) return;
+    if (this.abortController) {
+      this.refreshWhenIdle = true;
+      return;
+    }
+    if (this.historyOnly) return;
+    const refresh = ++this.connectionRefresh;
     const connection = await api.getSessionConnection(this.config.sessionId);
-    if (this.abortController || this.historyOnly || this.detachRequested) return;
+    if (
+      refresh !== this.connectionRefresh ||
+      this.abortController ||
+      this.historyOnly ||
+      this.detachRequested
+    )
+      return;
     this.applyConnectionSnapshot(connection);
     if (connection.activeRun && !this.historyOnly)
       void this.attachToRun(
         connection.activeRun.runId,
         this.messages,
         connection.activeRun.eventCursor,
+        connection.runProgress,
       );
   }
 
@@ -657,21 +679,18 @@ export class RemoteAgent {
     this.applyConnectionSnapshot(await api.getSessionConnection(this.config.sessionId), false);
   }
 
-  private async consumeEvents(body: ReadableStream<Uint8Array>) {
-    const reader = body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        if (line.trim()) this.processEnvelope(JSON.parse(line) as AgentRunEventEnvelope);
+  private async consumeEvents(events: ReadableStream<AgentRunEventEnvelope>) {
+    const reader = events.getReader();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) return;
+        this.processEnvelope(value);
       }
+    } finally {
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
     }
-    if (buffer.trim()) this.processEnvelope(JSON.parse(buffer) as AgentRunEventEnvelope);
   }
 
   private processEnvelope(envelope: AgentRunEventEnvelope) {
@@ -703,12 +722,22 @@ export class RemoteAgent {
   }
 
   private processEvent(event: AgentRunEvent) {
+    const progress = applyRunProgress(
+      {
+        streamingMessage: this.streamingMessage,
+        pendingToolCalls: [...this.pendingToolCalls],
+        nestedTools: this.nestedTools,
+        errorMessage: this.errorMessage,
+        contextPressure: this.contextPressure,
+      },
+      event,
+    );
+    this.streamingMessage = progress.streamingMessage;
+    this.pendingToolCalls = new Set(progress.pendingToolCalls);
+    this.nestedTools = progress.nestedTools;
     switch (event.type) {
       case "message_start":
       case "message_update":
-        // Text and thinking arrive as deltas, so the streaming message is
-        // rebuilt here rather than replaced wholesale.
-        this.streamingMessage = applyStreamingEvent(this.streamingMessage, event);
         break;
       case "message_end":
         this.streamingMessage = undefined;
@@ -720,70 +749,10 @@ export class RemoteAgent {
           this.messages = [...this.messages, event.message];
         }
         break;
-      case "tool_execution_start": {
-        if (event.parentToolCallId && event.taskId && event.parentTaskId) {
-          const slot: NestedToolSlot = {
-            callId: event.toolCallId,
-            name: event.toolName,
-            taskId: event.taskId,
-            parentCallId: event.parentToolCallId,
-            parentTaskId: event.parentTaskId,
-            arguments: event.args,
-            status: "running",
-          };
-          this.nestedTools = [
-            ...this.nestedTools.filter((call) => call.callId !== slot.callId),
-            slot,
-          ];
-        } else this.pendingToolCalls = new Set(this.pendingToolCalls).add(event.toolCallId);
-        break;
-      }
+      case "tool_execution_start":
       case "tool_execution_update":
-        this.nestedTools = this.nestedTools.map((call) => {
-          if (call.callId !== event.toolCallId) return call;
-          const { output, details, diagnostics } = event;
-          return {
-            ...call,
-            ...(output
-              ? {
-                  output:
-                    "set" in output
-                      ? output.set
-                      : (call.output ?? "").slice(output.trimStart ?? 0) + (output.append ?? ""),
-                }
-              : {}),
-            ...(details !== undefined ? { details } : {}),
-            ...(diagnostics ? { diagnostics: [...diagnostics] } : {}),
-          };
-        });
-        break;
-      case "tool_execution_end": {
-        if (event.parentToolCallId)
-          this.nestedTools = this.nestedTools.map((call) =>
-            call.callId === event.toolCallId
-              ? {
-                  ...call,
-                  status: "done",
-                  ...(event.result
-                    ? {
-                        summary: {
-                          isError: event.result.isError,
-                          durationMs: event.result.durationMs,
-                        },
-                      }
-                    : {}),
-                }
-              : call,
-          );
-        else {
-          const pending = new Set(this.pendingToolCalls);
-          pending.delete(event.toolCallId);
-          this.pendingToolCalls = pending;
-        }
-        break;
-      }
+      case "tool_execution_end":
       case "nested_tools":
-        this.nestedTools = event.tools;
         break;
       case "turn_end":
         if (event.errorMessage) this.errorMessage = event.errorMessage;

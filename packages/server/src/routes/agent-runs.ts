@@ -13,7 +13,6 @@ import { sessions } from "../db/schema.ts";
 import {
   abortAgentRun,
   admitAgentRun,
-  createAgentRunEventStream,
   getActiveAgentRunForSession,
   normalizePromptInput,
 } from "../runtime/agent-runtime.ts";
@@ -66,21 +65,6 @@ export function createAgentRunRoutes() {
     const aborted = abortAgentRun(c.get("user").id, c.req.param("runId"));
     if (!aborted) return c.json({ error: "Agent run not found" }, 404);
     return c.json({ ok: true });
-  });
-
-  route.get("/agent-runs/:runId/events", (c) => {
-    const rawCursor = c.req.query("after");
-    const afterSequence = rawCursor === undefined ? 0 : Number(rawCursor);
-    if (!Number.isSafeInteger(afterSequence) || afterSequence < 0) {
-      return c.json({ error: "Invalid event cursor" }, 400);
-    }
-    const response = createAgentRunEventStream(
-      c.get("user").id,
-      c.req.param("runId"),
-      afterSequence,
-    );
-    if (!response) return c.json({ error: "Agent run not found" }, 404);
-    return response;
   });
 
   route.get("/sessions/:id/connection", async (c) => {
@@ -210,9 +194,6 @@ export function createAgentRunRoutes() {
       );
     }
 
-    // The id is the whole response. Putting it on the event stream instead lets
-    // the server hold the headers until thinking tokens exist, so stop has
-    // nothing to cancel until the model is already going.
     const run = admitAgentRun({
       agent,
       session: currentSession,

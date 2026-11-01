@@ -6,10 +6,12 @@ export function createResourceLoader<T>(
   let controller: AbortController | undefined;
   let pending: Promise<T | undefined> | undefined;
   let disposed = false;
+  let refreshQueued = false;
 
   const refresh = (replace = false): Promise<T | undefined> => {
     if (disposed) return Promise.resolve(undefined);
     if (pending && !replace) return pending;
+    refreshQueued = false;
     controller?.abort();
     const request = new AbortController();
     controller = request;
@@ -27,14 +29,24 @@ export function createResourceLoader<T>(
         },
       )
       .finally(() => {
-        if (pending === promise) pending = undefined;
+        if (pending === promise) {
+          pending = undefined;
+          if (refreshQueued) invalidate();
+        }
       });
     pending = promise;
     return promise;
   };
 
+  const invalidate = () => {
+    if (disposed) return;
+    if (pending) refreshQueued = true;
+    else void refresh();
+  };
+
   return {
     refresh,
+    invalidate,
     dispose() {
       disposed = true;
       controller?.abort();

@@ -121,6 +121,8 @@ Maintainers: GitHub Actions tests PRs without registry credentials and publishes
 
 The server listens on `PORT` and serves both `/api/*` and the built web client from the same process. A typical deployment proxies everything to `http://127.0.0.1:8797` or to the container's published port.
 
+Forward WebSocket upgrades for `/api/updates`, `/api/browser`, and `/api/terminal`. The shared update connection carries live run progress and state notifications for every open client; configure the proxy's idle timeout to allow the server's 15-second heartbeat.
+
 If the public browser origin differs from the API origin, add it to `CARMEL_ALLOWED_ORIGINS`.
 
 If you terminate TLS at a reverse proxy, pass the usual `Host` and `X-Forwarded-*` headers. `X-Forwarded-For` is only honored by the login rate limiter when the direct peer is listed in `CARMEL_TRUSTED_PROXY`.

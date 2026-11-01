@@ -11,6 +11,7 @@ export default defineConfig({
       // would not carry.
       "/api/terminal": { target: "ws://localhost:8797", ws: true },
       "/api/browser": { target: "ws://localhost:8797", ws: true },
+      "/api/updates": { target: "ws://localhost:8797", ws: true },
       "/api": "http://localhost:8797",
     },
     allowedHosts: ["porygon-z.lan"],

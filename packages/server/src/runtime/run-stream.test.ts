@@ -1,14 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AgentRunEventEnvelope } from "@carmel-agent/shared";
 import {
   abortAgentRun,
   createActiveAgentRun,
-  createAgentRunEventStream,
+  agentRunSubscription,
+  observeRunEvents,
   emitRunEvent,
   finishAgentRun,
   getActiveAgentRunForSession,
+  sessionRunSnapshot,
+  sessionRunVersion,
 } from "./run-stream.ts";
 
 test("run events are sequenced and reconnect replays only events after the cursor", async () => {
@@ -31,21 +33,21 @@ test("run events are sequenced and reconnect replays only events after the curso
     });
     assert.equal(getActiveAgentRunForSession(run.userId, run.sessionId)?.eventCursor, 2);
 
-    const replay = createAgentRunEventStream(run.userId, run.runId, 1);
-    assert.ok(replay);
-    const firstReader = replay.body!.getReader();
+    const replay = agentRunSubscription(run.userId, run.runId, 1);
+    assert.equal(replay.status, 200);
+    const firstReader = observeRunEvents(run, 1).getReader();
     const first = await firstReader.read();
-    assert.equal(parseEnvelope(first.value).sequence, 2);
+    assert.equal(first.value?.sequence, 2);
     await firstReader.cancel();
 
     assert.equal(abortCalls, 0, "disconnecting an observer must not abort the run");
     emitRunEvent(run, { type: "agent_end" });
 
-    const resumed = createAgentRunEventStream(run.userId, run.runId, 2);
-    assert.ok(resumed);
-    const resumedReader = resumed.body!.getReader();
+    const resumed = agentRunSubscription(run.userId, run.runId, 2);
+    assert.equal(resumed.status, 200);
+    const resumedReader = observeRunEvents(run, 2).getReader();
     const next = await resumedReader.read();
-    assert.equal(parseEnvelope(next.value).sequence, 3);
+    assert.equal(next.value?.sequence, 3);
     await resumedReader.cancel();
     assert.equal(abortCalls, 0);
 
@@ -68,11 +70,9 @@ test("a replay buffer gap requires a fresh authoritative snapshot cursor", async
   try {
     for (let index = 0; index < 1_001; index += 1) emitRunEvent(run, { type: "turn_end" });
 
-    const response = createAgentRunEventStream(run.userId, run.runId, 0);
+    const response = agentRunSubscription(run.userId, run.runId, 0);
     assert.ok(response);
     assert.equal(response.status, 409);
-    assert.equal(response.headers.get("x-agent-event-cursor"), "1001");
-    assert.match(await response.text(), /refresh the session connection/i);
   } finally {
     finishAgentRun(run);
   }
@@ -108,79 +108,77 @@ test("native batches are sequenced immediately and retain part ordering", () => 
   }
 });
 
-test("a client attaching mid-message rewinds to the message_start it needs to rebuild from", async () => {
+test("a run snapshot restores partial text and tools after their opening events leave the replay buffer", () => {
   const run = createActiveAgentRun({
-    runId: "run_attach",
-    userId: "user_attach",
-    sessionId: "session_attach",
+    runId: "snapshot_run",
+    userId: "snapshot_user",
+    sessionId: "snapshot_session",
     abort: () => {},
   });
   try {
-    emitRunEvent(run, { type: "turn_end" });
-    emitRunEvent(run, { type: "message_start", message: assistantMessage() });
+    const message = assistantMessage();
+    assert.equal(message.role, "assistant");
+    if (message.role !== "assistant") throw new Error("Expected assistant");
+    emitRunEvent(run, { type: "message_start", message });
     emitRunEvent(run, {
-      type: "message_update",
-      usage: (assistantMessage() as import("@earendil-works/pi-ai").AssistantMessage).usage,
-      changes: [{ type: "text_delta", contentIndex: 0, delta: "partial" }],
+      type: "tool_execution_start",
+      toolCallId: "pending",
+      toolName: "read",
+      args: {},
     });
     emitRunEvent(run, {
       type: "tool_execution_start",
+      toolCallId: "nested",
+      toolName: "bash",
       args: {},
-      toolCallId: "call_1",
-      toolName: "read",
+      parentToolCallId: "pending",
+      taskId: 3 as never,
+      parentTaskId: 2 as never,
     });
-
-    // message_start is sequence 2, so the cursor must sit just before it.
-    assert.equal(getActiveAgentRunForSession(run.userId, run.sessionId)?.eventCursor, 1);
-    const stream = createAgentRunEventStream(run.userId, run.runId, 1);
-    assert.ok(stream);
-    assert.equal(stream.status, 200);
-    const reader = stream.body!.getReader();
-    assert.equal(parseEnvelope((await reader.read()).value).event.type, "message_start");
-    await reader.cancel();
-
-    // Once the message is complete there is nothing to rebuild, so the cursor
-    // returns to the newest event.
-    emitRunEvent(run, { type: "message_end", message: assistantMessage("partial") });
-    assert.equal(
-      getActiveAgentRunForSession(run.userId, run.sessionId)?.eventCursor,
-      run.nextSequence - 1,
+    emitRunEvent(run, {
+      type: "tool_execution_update",
+      toolCallId: "nested",
+      toolName: "bash",
+      parentToolCallId: "pending",
+      output: { append: "progress" },
+    });
+    for (let i = 0; i < 1001; i++)
+      emitRunEvent(run, {
+        type: "message_update",
+        usage: message.usage,
+        changes: [{ type: "text_delta", contentIndex: 0, delta: "x" }],
+      });
+    assert.ok(run.events.every((event) => event.event.type === "message_update"));
+    const snapshot = sessionRunSnapshot(run.userId, run.sessionId);
+    assert.equal(snapshot.activeRun?.eventCursor, run.nextSequence - 1);
+    const streaming = snapshot.runProgress?.streamingMessage;
+    assert.ok(streaming?.role === "assistant");
+    assert.deepEqual(streaming.content, [{ type: "text", text: "x".repeat(1001) }]);
+    assert.deepEqual(snapshot.runProgress?.pendingToolCalls, ["pending"]);
+    assert.equal(snapshot.runProgress?.nestedTools[0]?.output, "progress");
+    assert.equal(sessionRunSnapshot("another_user", run.sessionId).activeRun, null);
+    emitRunEvent(run, { type: "tool_execution_end", toolCallId: "pending", toolName: "read" });
+    assert.deepEqual(
+      sessionRunSnapshot(run.userId, run.sessionId).runProgress?.pendingToolCalls,
+      [],
     );
   } finally {
     finishAgentRun(run);
   }
 });
 
-test("the attach cursor never rewinds past the replay buffer", async () => {
+test("a run that starts and finishes between snapshot reads still changes the session version", () => {
+  const sessionId = "short_lived_snapshot_session";
+  const before = sessionRunVersion(sessionId);
   const run = createActiveAgentRun({
-    runId: "run_evicted",
-    userId: "user_evicted",
-    sessionId: "session_evicted",
+    runId: "short_lived_snapshot_run",
+    userId: "snapshot_user",
+    sessionId,
     abort: () => {},
   });
-  try {
-    emitRunEvent(run, { type: "message_start", message: assistantMessage() });
-    // Push the message_start out of the buffer with distinct, uncoalescable events.
-    for (let index = 0; index < 1_100; index += 1) {
-      emitRunEvent(run, {
-        type: "tool_execution_start",
-        args: {},
-        toolCallId: `call_${index}`,
-        toolName: "read",
-      });
-    }
-
-    const cursor = getActiveAgentRunForSession(run.userId, run.sessionId)?.eventCursor;
-    assert.ok(cursor !== undefined);
-    // A cursor below the buffer would 409, and the 409 path resolves by asking
-    // for this same cursor again -- so it has to be servable.
-    const stream = createAgentRunEventStream(run.userId, run.runId, cursor);
-    assert.ok(stream);
-    assert.equal(stream.status, 200);
-    await stream.body!.cancel();
-  } finally {
-    finishAgentRun(run);
-  }
+  finishAgentRun(run);
+  assert.ok(sessionRunVersion(sessionId) > before);
+  assert.equal(sessionRunSnapshot("snapshot_user", sessionId).activeRun, null);
 });
 
 function assistantMessage(text = ""): AgentMessage {
@@ -201,9 +199,4 @@ function assistantMessage(text = ""): AgentMessage {
     stopReason: "stop",
     timestamp: 1,
   };
-}
-
-function parseEnvelope(value: Uint8Array | undefined): AgentRunEventEnvelope {
-  assert.ok(value);
-  return JSON.parse(new TextDecoder().decode(value).trim()) as AgentRunEventEnvelope;
 }

@@ -6,6 +6,6 @@ export function useSubtasks(sessionId?: string) {
     key: `subtasks:${sessionId}`,
     enabled: Boolean(sessionId),
     load: (signal) => api.sessionSubtasks(sessionId!, signal),
-    pollInterval: 3000,
+    topics: ["subtasks"],
   });
 }

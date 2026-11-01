@@ -4,6 +4,7 @@ import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type AgentSnapshot, type PromptOutcome, RemoteAgent } from "@/lib/remote-agent";
 import { useHarnessStore } from "@/store/harness-store";
+import { updateConnection } from "@/lib/update-connection";
 import {
   resolveModelRef,
   type AgentConfig,
@@ -54,6 +55,7 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
   useEffect(() => {
     let cancelled = false;
     let activeAgent: RemoteAgent | undefined;
+    let refreshPending = false;
     const createAgent = (
       authoritativeSession: Session,
       pendingWork?: boolean,
@@ -112,24 +114,26 @@ export function useSessionAgent(agentConfig: AgentConfig, session: Session, mode
             connection.activeRun.runId,
             connection.session.messages,
             connection.activeRun.eventCursor,
+            connection.runProgress,
           );
         }
+        if (refreshPending) void activeAgent.refreshHome().catch(() => {});
       },
       () => {
         if (cancelled) return;
         activeAgent = createAgent({ ...sessionRef.current, messages: seedMessagesRef.current });
         agentRef.current = activeAgent;
         setAgent(activeAgent);
+        if (refreshPending) void activeAgent.refreshHome().catch(() => {});
       },
     );
 
-    const poll = session.home
-      ? setInterval(() => {
-          if (!document.hidden) void activeAgent?.refreshHome().catch(() => {});
-        }, 1500)
-      : undefined;
+    const unsubscribe = updateConnection.subscribe(["sessions", "homes"], () => {
+      if (activeAgent) void activeAgent.refreshHome().catch(() => {});
+      else refreshPending = true;
+    });
     return () => {
-      if (poll) clearInterval(poll);
+      unsubscribe();
       cancelled = true;
       if (activeAgent) seedMessagesRef.current = activeAgent.getSnapshot().messages;
       activeAgent?.detach();

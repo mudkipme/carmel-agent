@@ -12,7 +12,7 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-test("overlapping polls share a request; explicit refresh supersedes a stale response", async () => {
+test("overlapping reads share a request; explicit refresh supersedes a stale response", async () => {
   const requests: {
     signal: AbortSignal;
     result: ReturnType<typeof deferred<string>>;
@@ -41,6 +41,33 @@ test("overlapping polls share a request; explicit refresh supersedes a stale res
   loader.dispose();
 });
 
+test("updates during a slow read coalesce into a follow-up without starving either response", async () => {
+  const requests: ReturnType<typeof deferred<string>>[] = [];
+  const published: unknown[] = [];
+  const loader = createResourceLoader(
+    () => {
+      const request = deferred<string>();
+      requests.push(request);
+      return request.promise;
+    },
+    (result) => published.push(result),
+  );
+  const first = loader.refresh();
+  await Promise.resolve();
+  for (let index = 0; index < 10; index++) loader.invalidate();
+  assert.equal(requests.length, 1);
+  requests[0]!.resolve("First snapshot");
+  await first;
+  await Promise.resolve();
+  assert.equal(requests.length, 2);
+  const followUp = loader.refresh();
+  requests[1]!.resolve("Latest snapshot");
+  await followUp;
+  assert.deepEqual(published, [{ data: "First snapshot" }, { data: "Latest snapshot" }]);
+  assert.equal(requests.length, 2);
+  loader.dispose();
+});
+
 test("disposing a resource cancels the request and never publishes after navigation", async () => {
   const result = deferred<string>();
   let signal: AbortSignal | undefined;
@@ -54,6 +81,7 @@ test("disposing a resource cancels the request and never publishes after navigat
   );
   const pending = loader.refresh();
   await Promise.resolve();
+  loader.invalidate();
   loader.dispose();
   result.resolve("Late response");
   await pending;

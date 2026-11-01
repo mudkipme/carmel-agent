@@ -79,7 +79,7 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
         updatedAt: timestamp,
       };
       const saved = await api.upsertAgent(agent.id, toAgentCommand(agent));
-      set((state) => ({ agents: [...state.agents, saved] }));
+      set((state) => ({ agents: upsertById(state.agents, saved) }));
       return saved;
     },
     deleteAgent: async (agentId) => {

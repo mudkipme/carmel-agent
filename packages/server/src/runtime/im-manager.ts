@@ -7,7 +7,7 @@ import {
 } from "../services/home-events.ts";
 import { homeEvents, issues } from "../db/schema.ts";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { applyStreamingEvent, type AgentRunEventEnvelope } from "@carmel-agent/shared";
+import { applyStreamingEvent } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
@@ -37,7 +37,7 @@ import { hasPendingPiSessionWork } from "../services/pi-session-storage.ts";
 import { startDetachedAgentRun } from "./agent-runtime.ts";
 import {
   abortAgentRun,
-  createRunStream,
+  observeRunEvents,
   getActiveAgentRunForSession,
   whenRunFinished,
   type ActiveAgentRun,
@@ -655,9 +655,7 @@ export class ImManager {
     run: ActiveAgentRun,
     transport: ImTransport,
   ) {
-    const reader = createRunStream(run).body!.getReader();
-    const decoder = new TextDecoder();
-    let pending = "";
+    const reader = observeRunEvents(run).getReader();
     let message: AgentMessage | undefined;
     let text = "";
     let previewId: string | undefined;
@@ -667,37 +665,32 @@ export class ImManager {
       while (true) {
         const part = await reader.read();
         if (part.done) break;
-        pending += decoder.decode(part.value, { stream: true });
-        let newline: number;
-        while ((newline = pending.indexOf("\n")) >= 0) {
-          const { event } = JSON.parse(pending.slice(0, newline)) as AgentRunEventEnvelope;
-          pending = pending.slice(newline + 1);
-          if (event.type === "message_start" || event.type === "message_update")
-            message = applyStreamingEvent(message, event);
-          else if (event.type === "message_end") message = event.message;
-          if (message?.role !== "assistant") continue;
-          const currentText = message.content
-            .flatMap((block) => (block.type === "text" ? [block.text] : []))
-            .join("\n");
-          if (currentText) text = currentText;
-          if (
-            !previewDisabled &&
-            currentText &&
-            now() - lastPreview > 2000 &&
-            activeIntegration(integration.id) &&
-            !this.stopped
-          ) {
-            lastPreview = now();
-            try {
-              previewId = await transport.send(
-                chatId,
-                splitImText(currentText)[0],
-                `preview:${run.runId}`,
-                previewId,
-              );
-            } catch {
-              previewDisabled = true;
-            }
+        const { event } = part.value;
+        if (event.type === "message_start" || event.type === "message_update")
+          message = applyStreamingEvent(message, event);
+        else if (event.type === "message_end") message = event.message;
+        if (message?.role !== "assistant") continue;
+        const currentText = message.content
+          .flatMap((block) => (block.type === "text" ? [block.text] : []))
+          .join("\n");
+        if (currentText) text = currentText;
+        if (
+          !previewDisabled &&
+          currentText &&
+          now() - lastPreview > 2000 &&
+          activeIntegration(integration.id) &&
+          !this.stopped
+        ) {
+          lastPreview = now();
+          try {
+            previewId = await transport.send(
+              chatId,
+              splitImText(currentText)[0],
+              `preview:${run.runId}`,
+              previewId,
+            );
+          } catch {
+            previewDisabled = true;
           }
         }
       }

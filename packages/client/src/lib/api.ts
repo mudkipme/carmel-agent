@@ -1,4 +1,5 @@
 import { i18n } from "@lingui/core";
+import { updateConnection } from "./update-connection.ts";
 import type {
   KnowledgeOverview,
   KnowledgeSettings,
@@ -88,7 +89,7 @@ export class ApiError extends Error {
 
 /**
  * The one place credentials are attached. Returns the raw `Response` without
- * throwing, for callers (streaming runs) that must inspect status codes
+ * throwing, for run admission requests that must inspect status codes
  * themselves; everything else should go through `request`.
  */
 export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
@@ -113,7 +114,11 @@ export async function apiError(
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await apiFetch(url, init);
   if (!response.ok) throw await apiError(response);
-  return response.json() as Promise<T>;
+  const result = (await response.json()) as T;
+  // A command response can arrive after a newer socket notification.
+  if (init?.method && !["GET", "HEAD"].includes(init.method))
+    queueMicrotask(() => updateConnection.refreshState(["sessions"]));
+  return result;
 }
 
 function readErrorMessage(body: string) {

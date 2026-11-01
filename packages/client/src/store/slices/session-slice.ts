@@ -28,7 +28,10 @@ export function createSessionSlice(set: SetState): SessionActions {
     createSession: async (draft) => {
       const session = await api.createSession(draft);
       set((state) => ({
-        sessions: [toSessionMetadata(session), ...state.sessions],
+        sessions: [
+          toSessionMetadata(session),
+          ...state.sessions.filter((item) => item.id !== session.id),
+        ],
         sessionDetails: { ...state.sessionDetails, [session.id]: session },
       }));
       return session;
@@ -36,7 +39,10 @@ export function createSessionSlice(set: SetState): SessionActions {
     importOpenWebuiSessions: async (draft) => {
       const imported = (await api.importOpenWebuiSessions(draft)).sessions;
       set((state) => ({
-        sessions: [...imported.map(toSessionMetadata), ...state.sessions],
+        sessions: [
+          ...imported.map(toSessionMetadata),
+          ...state.sessions.filter((item) => !imported.some((session) => session.id === item.id)),
+        ],
         sessionDetails: {
           ...state.sessionDetails,
           ...Object.fromEntries(imported.map((session) => [session.id, session])),
@@ -71,7 +77,10 @@ export function createSessionSlice(set: SetState): SessionActions {
     forkSession: async (sessionId, entryId) => {
       const session = await api.forkSession(sessionId, entryId);
       set((state) => ({
-        sessions: [toSessionMetadata(session), ...state.sessions],
+        sessions: [
+          toSessionMetadata(session),
+          ...state.sessions.filter((item) => item.id !== session.id),
+        ],
         sessionDetails: { ...state.sessionDetails, [session.id]: session },
       }));
       return session;

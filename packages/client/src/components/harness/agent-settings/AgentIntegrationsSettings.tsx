@@ -36,10 +36,7 @@ export function AgentIntegrationsSettings({ agentId }: { agentId: string }) {
       ]);
       return { integrations, setups, deliveries };
     },
-    pollInterval: (data) =>
-      data?.setups.some((setup) => ["authorizing", "pairing"].includes(setup.status))
-        ? 2000
-        : 10_000,
+    topics: ["integrations"],
   });
   const data = resource.data;
   return (

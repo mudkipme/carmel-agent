@@ -16,6 +16,7 @@ export * from "./agent-appearance.ts";
 export * from "./home-issues.ts";
 export * from "./references.ts";
 export * from "./user-requests.ts";
+export * from "./updates.ts";
 export { browserClipboardLimit } from "./browser.ts";
 export type {
   BrowserControlState,
@@ -186,6 +187,7 @@ export type ActiveAgentRunSummary = {
 export type SessionConnection = {
   session: Session;
   activeRun: ActiveAgentRunSummary | null;
+  runProgress?: import("./run-events.ts").RunProgress;
   /** Saved Durable work that can be resumed or stopped after a server restart. */
   pendingWork?: boolean;
   userRequests?: import("./user-requests.ts").UserRequest[];

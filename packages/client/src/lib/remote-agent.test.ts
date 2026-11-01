@@ -9,6 +9,7 @@ import type {
   SessionConnection,
 } from "@carmel-agent/shared";
 import { RemoteAgent } from "./remote-agent.ts";
+import type { RunEventStream } from "./update-connection.ts";
 
 const model = {
   id: "test-model",
@@ -45,6 +46,7 @@ test("Home refresh preserves loaded pages and entry IDs while recent messages up
   };
   try {
     const agent = new RemoteAgent({
+      openRunStream: mockRunStream,
       agentId: "agent_1",
       sessionId: "session_1",
       modelRefId: "model_1",
@@ -91,6 +93,7 @@ test("Home discards loaded pages when the current branch no longer overlaps them
     });
   try {
     const agent = new RemoteAgent({
+      openRunStream: mockRunStream,
       agentId: "agent_1",
       sessionId: "session_1",
       modelRefId: "model_1",
@@ -134,7 +137,7 @@ test("Home keeps earlier pages while attaching to a live reply and applying its 
         messages: [earlier],
         messageEntryIds: ["earlier"],
       });
-    if (url.includes("/events"))
+    if (url.startsWith("test:run:"))
       return eventResponse([
         envelope(1, { type: "message_end", message: reply }),
         envelope(2, runFinished()),
@@ -149,6 +152,7 @@ test("Home keeps earlier pages while attaching to a live reply and applying its 
   };
   try {
     const agent = new RemoteAgent({
+      openRunStream: mockRunStream,
       agentId: "agent_1",
       sessionId: "session_1",
       modelRefId: "model_1",
@@ -200,6 +204,7 @@ test("Home preserves a bounded history window until Latest messages is requested
     );
   try {
     const agent = new RemoteAgent({
+      openRunStream: mockRunStream,
       agentId: "agent_1",
       sessionId: "session_1",
       modelRefId: "model_1",
@@ -236,7 +241,7 @@ test("reconnect starts after the snapshot cursor and does not duplicate persiste
   globalThis.fetch = async (input) => {
     const url = String(input);
     requests.push(url);
-    if (url.endsWith("/events?after=7")) {
+    if (url.endsWith("?after=7")) {
       return eventResponse([
         envelope(8, { type: "message_end", message: streamed }),
         envelope(9, agentEnd()),
@@ -249,7 +254,7 @@ test("reconnect starts after the snapshot cursor and does not duplicate persiste
     agent = createAgent([question, persisted], async () => agent.setMessages(final));
     await agent.attachToRun("run_cursor", [question, persisted], 7);
 
-    assert.deepEqual(requests, ["/api/agent-runs/run_cursor/events?after=7"]);
+    assert.deepEqual(requests, ["test:run:run_cursor?after=7"]);
     assert.deepEqual(agent.getSnapshot().messages, final);
   } finally {
     globalThis.fetch = originalFetch;
@@ -266,10 +271,10 @@ test("a broken observer stream reconnects after the last received sequence witho
   globalThis.fetch = async (input, init) => {
     const url = String(input);
     requests.push({ url, method: init?.method ?? "GET" });
-    if (url.endsWith("/events?after=1")) {
+    if (url.endsWith("?after=1")) {
       return failingEventResponse(envelope(2, { type: "message_start", message: streamed }));
     }
-    if (url.endsWith("/events?after=2")) {
+    if (url.endsWith("?after=2")) {
       return eventResponse([
         envelope(3, { type: "message_end", message: streamed }),
         envelope(4, agentEnd()),
@@ -283,8 +288,8 @@ test("a broken observer stream reconnects after the last received sequence witho
     await agent.attachToRun("run_reconnect", [question], 1);
 
     assert.deepEqual(requests, [
-      { url: "/api/agent-runs/run_reconnect/events?after=1", method: "GET" },
-      { url: "/api/agent-runs/run_reconnect/events?after=2", method: "GET" },
+      { url: "test:run:run_reconnect?after=1", method: "GET" },
+      { url: "test:run:run_reconnect?after=2", method: "GET" },
     ]);
     assert.equal(
       requests.some((request) => request.url.includes("/abort")),
@@ -313,7 +318,7 @@ test("an uncertain submit response recovers the server-owned run through session
         connection([question], { runId: "run_recovered", sessionId: "session_1", eventCursor: 1 }),
       );
     }
-    if (url.endsWith("/events?after=1")) {
+    if (url.endsWith("?after=1")) {
       return eventResponse([
         envelope(2, { type: "message_end", message: answer }),
         envelope(3, agentEnd()),
@@ -329,7 +334,7 @@ test("an uncertain submit response recovers the server-owned run through session
     assert.deepEqual(requests, [
       { url: "/api/agents/agent_1/run", method: "POST" },
       { url: "/api/sessions/session_1/connection", method: "GET" },
-      { url: "/api/agent-runs/run_recovered/events?after=1", method: "GET" },
+      { url: "test:run:run_recovered?after=1", method: "GET" },
     ]);
     assert.equal(
       requests.some((request) => request.url.includes("/abort")),
@@ -352,13 +357,13 @@ test("a replay gap replaces local messages with one authoritative connection sna
   globalThis.fetch = async (input) => {
     const url = String(input);
     requests.push(url);
-    if (url.endsWith("/events?after=5")) return new Response("gap", { status: 409 });
+    if (url.endsWith("?after=5")) return new Response("gap", { status: 409 });
     if (url.endsWith("/sessions/session_1/connection")) {
       return Response.json(
         connection(authoritative, { runId: "run_gap", sessionId: "session_1", eventCursor: 10 }),
       );
     }
-    if (url.endsWith("/events?after=10")) {
+    if (url.endsWith("?after=10")) {
       return eventResponse([envelope(11, { type: "message_end", message: streamed })]);
     }
     return new Response(null, { status: 404 });
@@ -368,10 +373,10 @@ test("a replay gap replaces local messages with one authoritative connection sna
     await agent.attachToRun("run_gap", stale, 5);
 
     assert.deepEqual(requests, [
-      "/api/agent-runs/run_gap/events?after=5",
+      "test:run:run_gap?after=5",
       "/api/sessions/session_1/connection",
-      "/api/agent-runs/run_gap/events?after=10",
-      "/api/agent-runs/run_gap/events?after=11",
+      "test:run:run_gap?after=10",
+      "test:run:run_gap?after=11",
     ]);
     assert.deepEqual(agent.getSnapshot().messages, final);
   } finally {
@@ -399,9 +404,7 @@ test("detaching cancels only the observer request and never calls the stop API",
     agent.detach();
     await observing;
 
-    assert.deepEqual(requests, [
-      { url: "/api/agent-runs/run_detach/events?after=3", method: "GET" },
-    ]);
+    assert.deepEqual(requests, [{ url: "test:run:run_detach?after=3", method: "GET" }]);
     assert.equal(agent.getSnapshot().isStreaming, false);
   } finally {
     globalThis.fetch = originalFetch;
@@ -423,7 +426,7 @@ test("a stop before the run id is known still aborts that run", async () => {
     requests.push({ url, method });
     if (method === "POST" && url.endsWith("/run")) return runResponse;
     if (method === "POST" && url.endsWith("/abort")) return Response.json({ ok: true });
-    if (url.includes("/events?")) {
+    if (url.startsWith("test:run:")) {
       return eventResponse([
         envelope(1, { type: "message_start", message: assistantMessage("") }),
         envelope(2, {
@@ -472,21 +475,20 @@ test("stopping while thinking is on screen aborts the run and still applies serv
   const question = userMessage("question");
   const aborted = assistantMessage("partial", "aborted");
   const requests: Array<{ url: string; method: string }> = [];
-  let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+  let streamController: ReadableStreamDefaultController<AgentRunEventEnvelope> | undefined;
   let agent: RemoteAgent;
   globalThis.fetch = async (input, init) => {
     const url = String(input);
     const method = init?.method ?? "GET";
     requests.push({ url, method });
     if (method === "POST" && url.endsWith("/abort")) return Response.json({ ok: true });
-    if (url.includes("/events?")) {
-      return new Response(
-        new ReadableStream<Uint8Array>({
+    if (url.startsWith("test:run:")) {
+      return eventStreamResponse(
+        new ReadableStream<AgentRunEventEnvelope>({
           start: (controller) => {
             streamController = controller;
           },
         }),
-        { status: 200 },
       );
     }
     throw new Error(`Unexpected request: ${method} ${url}`);
@@ -497,40 +499,37 @@ test("stopping while thinking is on screen aborts the run and still applies serv
     await Promise.resolve();
     await Promise.resolve();
     assert.ok(streamController);
-    streamController.enqueue(
-      encodeEvents([
-        envelope(1, { type: "message_start", message: assistantMessage("") }),
-        envelope(2, {
-          type: "message_update",
-          usage: emptyUsage(),
-          changes: [{ type: "thinking_delta", contentIndex: 0, delta: "first" }],
-        }),
-      ]),
-    );
+    for (const event of [
+      envelope(1, { type: "message_start", message: assistantMessage("") }),
+      envelope(2, {
+        type: "message_update",
+        usage: emptyUsage(),
+        changes: [{ type: "thinking_delta", contentIndex: 0, delta: "first" }],
+      }),
+    ])
+      streamController.enqueue(JSON.parse(JSON.stringify(event)));
     await Promise.resolve();
     await Promise.resolve();
     assert.equal(thinkingText(agent.getSnapshot().streamingMessage), "first");
 
     await agent.abort();
-    streamController.enqueue(
-      encodeEvents([
-        envelope(3, {
-          type: "message_update",
-          usage: emptyUsage(),
-          changes: [{ type: "thinking_delta", contentIndex: 0, delta: " and more" }],
-        }),
-      ]),
-    );
+    for (const event of [
+      envelope(3, {
+        type: "message_update",
+        usage: emptyUsage(),
+        changes: [{ type: "thinking_delta", contentIndex: 0, delta: " and more" }],
+      }),
+    ])
+      streamController.enqueue(JSON.parse(JSON.stringify(event)));
     await Promise.resolve();
     await Promise.resolve();
     assert.equal(thinkingText(agent.getSnapshot().streamingMessage), "first and more");
 
-    streamController.enqueue(
-      encodeEvents([
-        envelope(4, { type: "message_end", message: aborted }),
-        envelope(5, runFinished({ outcome: "cancelled" })),
-      ]),
-    );
+    for (const event of [
+      envelope(4, { type: "message_end", message: aborted }),
+      envelope(5, runFinished({ outcome: "cancelled" })),
+    ])
+      streamController.enqueue(JSON.parse(JSON.stringify(event)));
     streamController.close();
     await observing;
 
@@ -551,7 +550,7 @@ test("manual stop uses the abort API but keeps watching the server-persisted abo
   const aborted = assistantMessage("", "aborted", "Stopped by user");
   const final = [question, aborted];
   const requests: Array<{ url: string; method: string }> = [];
-  let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+  let streamController: ReadableStreamDefaultController<AgentRunEventEnvelope> | undefined;
   let eventRequests = 0;
   let agent: RemoteAgent;
   globalThis.fetch = async (input, init) => {
@@ -559,16 +558,15 @@ test("manual stop uses the abort API but keeps watching the server-persisted abo
     const method = init?.method ?? "GET";
     requests.push({ url, method });
     if (method === "POST" && url.endsWith("/abort")) return Response.json({ ok: true });
-    if (url.includes("/events?")) {
+    if (url.startsWith("test:run:")) {
       eventRequests += 1;
       if (eventRequests === 1) {
-        return new Response(
-          new ReadableStream<Uint8Array>({
+        return eventStreamResponse(
+          new ReadableStream<AgentRunEventEnvelope>({
             start: (controller) => {
               streamController = controller;
             },
           }),
-          { status: 200 },
         );
       }
       return new Response(null, { status: 404 });
@@ -584,14 +582,13 @@ test("manual stop uses the abort API but keeps watching the server-persisted abo
 
     assert.equal(agent.getSnapshot().isStreaming, true);
     assert.ok(streamController);
-    streamController.enqueue(
-      encodeEvents([
-        envelope(1, { type: "message_end", message: aborted }),
-        envelope(2, { type: "turn_end", errorMessage: "Stopped by user" }),
-        envelope(3, agentEnd()),
-        envelope(4, runFinished()),
-      ]),
-    );
+    for (const event of [
+      envelope(1, { type: "message_end", message: aborted }),
+      envelope(2, { type: "turn_end", errorMessage: "Stopped by user" }),
+      envelope(3, agentEnd()),
+      envelope(4, runFinished()),
+    ])
+      streamController.enqueue(JSON.parse(JSON.stringify(event)));
     streamController.close();
     await observing;
 
@@ -616,7 +613,7 @@ test("a server-persisted model failure is authoritative and is not duplicated sy
   let agent: RemoteAgent;
   globalThis.fetch = async (input) => {
     const url = String(input);
-    if (url.includes("/events?")) {
+    if (url.startsWith("test:run:")) {
       eventRequests += 1;
       if (eventRequests === 1) {
         return eventResponse([
@@ -653,7 +650,7 @@ test("the streaming message is rebuilt from deltas and tool-call parts", async (
   let agent: RemoteAgent;
   globalThis.fetch = async (input) => {
     const url = String(input);
-    if (url.includes("/events?")) {
+    if (url.startsWith("test:run:")) {
       return eventResponse([
         envelope(1, { type: "message_start", message: assistantMessage("") }),
         envelope(2, {
@@ -738,6 +735,7 @@ test("Home shows queued messages immediately and reconciles each admission with 
   const first = { ...userMessage("expanded command"), homeEventId: "event_1" };
   const second = { ...userMessage("same text"), homeEventId: "event_2" };
   const agent = new RemoteAgent({
+    openRunStream: mockRunStream,
     agentId: "agent_1",
     sessionId: "session_1",
     modelRefId: "model_1",
@@ -812,7 +810,7 @@ test("a send refused because the session is busy is rejected, not silently swall
         connection([question], { runId: "run_busy", sessionId: "session_1", eventCursor: 1 }),
       );
     }
-    if (url.endsWith("/events?after=1")) {
+    if (url.endsWith("?after=1")) {
       return eventResponse([
         envelope(2, { type: "message_end", message: answer }),
         envelope(3, agentEnd()),
@@ -877,7 +875,7 @@ test("a run that fails after admission is still an accepted submission", async (
         { headers: { "x-agent-run-id": "run_failing" } },
       );
     }
-    if (url.includes("/events?")) {
+    if (url.startsWith("test:run:")) {
       return eventResponse([
         envelope(1, { type: "message_end", message: question }),
         envelope(2, agentEnd()),
@@ -905,7 +903,7 @@ test("a run that failed where no turn could say so reports the server's reason",
   const answer = assistantMessage("answer");
   let agent: RemoteAgent;
   globalThis.fetch = async (input) => {
-    if (String(input).includes("/events?")) {
+    if (String(input).startsWith("test:run:")) {
       return eventResponse([
         envelope(1, { type: "message_end", message: answer }),
         envelope(2, { type: "turn_end" }),
@@ -945,7 +943,7 @@ test("a turn's own error wording is kept over the run's result, and a cancelled 
   ];
   let stream = 0;
   globalThis.fetch = async (input) =>
-    String(input).includes("/events?")
+    String(input).startsWith("test:run:")
       ? eventResponse(streams[stream++]!)
       : new Response(null, { status: 404 });
   try {
@@ -1098,7 +1096,7 @@ test("Resume admits saved work after a tool call without resending or rewinding 
         { headers: { "x-agent-run-id": "run_resumed" } },
       );
     }
-    if (url.includes("/events?")) return eventResponse([envelope(1, runFinished())]);
+    if (url.startsWith("test:run:")) return eventResponse([envelope(1, runFinished())]);
     throw new Error(`Unexpected request: ${init?.method ?? "GET"} ${url}`);
   };
   try {
@@ -1142,8 +1140,46 @@ test("Stop uses session authority for saved work when the server run ID was lost
   }
 });
 
+test("snapshot progress seeds a resumed stream without replaying or duplicating the partial message", async () => {
+  const originalFetch = globalThis.fetch;
+  const question = userMessage("question");
+  const partial = assistantMessage("prefix") as AssistantMessage;
+  const final = { ...partial, content: [{ type: "text" as const, text: "prefix suffix" }] };
+  let cursor = "";
+  globalThis.fetch = async (input) => {
+    cursor = String(input);
+    return eventResponse([
+      envelope(1501, {
+        type: "message_update",
+        usage: partial.usage,
+        changes: [{ type: "text_delta", contentIndex: 0, delta: " suffix" }],
+      }),
+      envelope(1502, { type: "tool_execution_end", toolCallId: "pending", toolName: "read" }),
+      envelope(1503, { type: "message_end", message: final }),
+      envelope(1504, runFinished()),
+    ]);
+  };
+  try {
+    const agent = createAgent([question]);
+    const observation = agent.attachToRun("snapshot_run", [question], 1500, {
+      streamingMessage: partial,
+      pendingToolCalls: ["pending"],
+      nestedTools: [],
+    });
+    assert.deepEqual(agent.getSnapshot().streamingMessage, partial);
+    assert.deepEqual([...agent.getSnapshot().pendingToolCalls], ["pending"]);
+    await observation;
+    assert.equal(cursor, "test:run:snapshot_run?after=1500");
+    assert.deepEqual(agent.getSnapshot().messages, JSON.parse(JSON.stringify([question, final])));
+    assert.equal(agent.getSnapshot().pendingToolCalls.size, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 function createAgent(messages: AgentMessage[], onRunComplete?: () => Promise<void> | void) {
   return new RemoteAgent({
+    openRunStream: mockRunStream,
     agentId: "agent_1",
     sessionId: "session_1",
     modelRefId: "model_1",
@@ -1205,29 +1241,48 @@ function runFinished(result: AgentRunResult = { outcome: "succeeded" }): AgentRu
   return { type: "run_finished", result };
 }
 
-function eventResponse(envelopes: AgentRunEventEnvelope[], headers?: Record<string, string>) {
-  return new Response(encodeEvents(envelopes), { status: 200, headers });
+async function mockRunStream(
+  runId: string,
+  after: number,
+  signal: AbortSignal,
+): Promise<RunEventStream> {
+  const response = await fetch(`test:run:${runId}?after=${after}`, { signal });
+  if (response.status !== 200) return { status: response.status as 400 | 404 | 409 };
+  return {
+    status: 200,
+    events: (response as Response & { events: ReadableStream<AgentRunEventEnvelope> }).events,
+  };
+}
+
+function eventStreamResponse(events: ReadableStream<AgentRunEventEnvelope>) {
+  return Object.assign(new Response(), { events });
+}
+
+function eventResponse(envelopes: AgentRunEventEnvelope[]) {
+  return eventStreamResponse(
+    new ReadableStream<AgentRunEventEnvelope>({
+      start(controller) {
+        for (const envelope of envelopes) controller.enqueue(JSON.parse(JSON.stringify(envelope)));
+        controller.close();
+      },
+    }),
+  );
 }
 
 function failingEventResponse(first: AgentRunEventEnvelope) {
   let sent = false;
-  return new Response(
-    new ReadableStream<Uint8Array>({
+  return eventStreamResponse(
+    new ReadableStream<AgentRunEventEnvelope>({
       pull(controller) {
         if (!sent) {
           sent = true;
-          controller.enqueue(encodeEvents([first]));
+          controller.enqueue(JSON.parse(JSON.stringify(first)));
           return;
         }
         controller.error(new Error("socket lost"));
       },
     }),
-    { status: 200 },
   );
-}
-
-function encodeEvents(envelopes: AgentRunEventEnvelope[]) {
-  return new TextEncoder().encode(envelopes.map((item) => JSON.stringify(item)).join("\n") + "\n");
 }
 
 function userMessage(content: string): AgentMessage {

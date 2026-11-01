@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Carmel Agent API
   version: 1.0.0
-  description: Authoritative HTTP contract for native and web Carmel Agent clients. Streams are NDJSON, never SSE.
+  description: Authoritative HTTP contract for native and web Carmel Agent clients. Live run events and state notifications use the authenticated /api/updates WebSocket.
 servers:
   - url: /
 security:
@@ -1028,26 +1028,39 @@ paths:
         requestBody: { $ref: "#/components/requestBodies/AgentRun" },
         responses:
           {
-            "200": { $ref: "#/components/responses/NDJSON" },
+            "200":
+              {
+                description: Run admitted. Subscribe to its events through /api/updates.,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          {
+                            type: object,
+                            required: [runId],
+                            properties: { runId: { type: string } },
+                          },
+                      },
+                  },
+              },
+            "202":
+              {
+                description: Home input queued.,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          {
+                            type: object,
+                            required: [eventId],
+                            properties: { eventId: { type: string }, runId: { type: string } },
+                          },
+                      },
+                  },
+              },
             "409": { $ref: "#/components/responses/ActiveRunConflict" },
-          },
-      }
-  /api/agent-runs/{runId}/events:
-    parameters:
-      [
-        { $ref: "#/components/parameters/RunID" },
-        { name: after, in: query, required: true, schema: { type: integer, minimum: 0 } },
-      ]
-    get:
-      {
-        operationId: watchAgentRun,
-        tags: [Runs],
-        responses:
-          {
-            "200": { $ref: "#/components/responses/NDJSON" },
-            "400": { $ref: "#/components/responses/Error" },
-            "404": { $ref: "#/components/responses/Error" },
-            "409": { $ref: "#/components/responses/Error" },
           },
       }
   /api/agent-runs/{runId}/abort:
@@ -2752,16 +2765,6 @@ components:
               },
           },
       }
-    NDJSON:
-      {
-        description: Live sequence-enveloped run events,
-        headers:
-          {
-            x-agent-run-id: { schema: { type: string } },
-            x-agent-event-cursor: { schema: { type: integer } },
-          },
-        content: { application/x-ndjson: { schema: { type: string, format: binary } } },
-      }
     Download:
       {
         description: File bytes or a zip archive,
@@ -3895,6 +3898,29 @@ components:
           {
             session: { $ref: "#/components/schemas/Session" },
             userRequests: { type: array, items: { $ref: "#/components/schemas/UserRequest" } },
+            runProgress:
+              {
+                type: object,
+                required: [pendingToolCalls, nestedTools],
+                properties:
+                  {
+                    streamingMessage: { type: object, additionalProperties: true },
+                    pendingToolCalls: { type: array, items: { type: string } },
+                    nestedTools:
+                      { type: array, items: { type: object, additionalProperties: true } },
+                    errorMessage: { type: string },
+                    contextPressure:
+                      {
+                        type: object,
+                        required: [level, message],
+                        properties:
+                          {
+                            level: { type: string, enum: [warning, critical] },
+                            message: { type: string },
+                          },
+                      },
+                  },
+              },
             pendingWork:
               { type: boolean, description: Saved Durable work awaiting resume or stop. },
             activeRun:

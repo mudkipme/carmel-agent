@@ -73,7 +73,7 @@ export function PiChat({
     key: `home-status:${session.id}`,
     enabled: Boolean(session.home),
     load: (signal) => api.homeStatus(agentConfig.id, signal),
-    pollInterval: 1500,
+    topics: ["homes"],
   });
   const [dismissedHomeErrors, setDismissedHomeErrors] = useState<string[]>([]);
   const homeError = homeStatus.data?.events.find(

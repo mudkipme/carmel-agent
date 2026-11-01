@@ -40,9 +40,13 @@ An agent stores:
 - secrets supplied to its sandbox and configured MCP connections
 - MCP server configuration and tool allowlists
 
-The server runs Pi Durable with its native SQLite backend, streams committed events to the browser as NDJSON, and stores conversation history, live progress, and execution checkpoints through Pi. Each Carmel session has its own native storage and tool/credential registry. See [Pi Durable storage](pi-durable.md) for storage and recovery behavior.
+The server runs Pi Durable with its native SQLite backend, streams committed events to the browser over a shared WebSocket at `/api/updates`, and stores conversation history, live progress, and execution checkpoints through Pi. Each Carmel session has its own native storage and tool/credential registry. See [Pi Durable storage](pi-durable.md) for storage and recovery behavior.
 
 Runs live on the server, not in the tab. Each event carries a sequence number, so a browser that reloads or reconnects resumes the stream from where it left off instead of losing the run. Runs can be aborted explicitly.
+
+Each browser shares one authenticated update connection across run subscriptions and state notifications. Run subscriptions are checked against session ownership. State notifications contain topic names and a process-local revision, with no entity contents; clients reload the affected resources through the authenticated HTTP API. Metadata writes and native subtask commits notify connected clients, including changes from background jobs. Origin checks, session revalidation, heartbeats, and a bounded outgoing socket buffer apply to the update connection.
+
+On reconnect, clients refresh their subscribed state and resume run events after the last applied sequence. If the bounded run history has expired, the client loads a connection snapshot containing committed messages, current partial reply, pending tools, nested tool progress, and the cursor to continue from. Update delivery and run replay are owned by the single server process; a restart refreshes client state from persisted storage.
 
 While a session has an active run, changes that would pull the ground out from under it are rejected with a conflict response: deleting or editing the model entry, provider config, agent, or user account that run depends on.
 

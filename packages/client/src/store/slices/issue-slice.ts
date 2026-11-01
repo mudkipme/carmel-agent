@@ -27,8 +27,7 @@ export function createIssueSlice(
         return loaded;
       set((state) => {
         const current = state.issues.filter((issue) => issue.agentId === agentId);
-        // Polls mostly come back unchanged; keeping the array avoids re-rendering
-        // everything that reads it.
+        // Unchanged refreshes keep the array identity for its subscribers.
         if (JSON.stringify(current) === JSON.stringify(loaded)) return state;
         return {
           issues: [...state.issues.filter((issue) => issue.agentId !== agentId), ...loaded],

@@ -24,6 +24,7 @@ export function AgentKnowledgeSettings({ agentId }: { agentId: string }) {
   const { i18n } = useLingui();
   const overview = useRemoteResource({
     key: `knowledge:${agentId}`,
+    topics: ["knowledge"],
     load: (signal) => api.knowledge(agentId, signal),
   });
   const [busy, setBusy] = useState(false);

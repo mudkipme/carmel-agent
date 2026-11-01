@@ -27,6 +27,7 @@ import {
 import { shutdownTerminals } from "./runtime/sandbox/terminal-sessions.ts";
 import { attachTerminalSocket } from "./terminal-socket.ts";
 import { attachBrowserSocket } from "./browser-socket.ts";
+import { attachUpdateSocket } from "./update-socket.ts";
 import { shutdownBrowsers } from "./runtime/sandbox/browser-sessions.ts";
 import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
 import { startTaskScheduler } from "./runtime/task-scheduler.ts";
@@ -103,6 +104,7 @@ const server = serve({ fetch: app.fetch, hostname, port }, (info) => {
 // The terminal upgrade is handled on the raw HTTP server; see terminal-socket.ts.
 attachTerminalSocket(server as unknown as import("node:http").Server);
 attachBrowserSocket(server as unknown as import("node:http").Server);
+const updateSockets = attachUpdateSocket(server as unknown as import("node:http").Server);
 
 let shuttingDown = false;
 async function shutdown(signal: string) {
@@ -138,6 +140,7 @@ async function shutdown(signal: string) {
     console.warn("Failed to stop sandbox containers:", errorMessage(error));
   }
   server.close();
+  for (const client of updateSockets.clients) client.close(1001, "Server shutting down");
   try {
     sqlite.close();
   } catch {

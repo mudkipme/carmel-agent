@@ -18,6 +18,7 @@ import { SetupScreen } from "@/components/harness/SetupScreen";
 import { SettingsPage } from "@/components/harness/SettingsPage";
 import { Splash } from "@/components/harness/Splash";
 import { useHarnessStore } from "@/store/harness-store";
+import { useWorkspaceUpdates } from "@/hooks/use-workspace-updates";
 
 /* Sections are routes, so the page stays mounted — and keeps its unsaved draft —
    while you move between them. That only holds if every entry lands on the same
@@ -53,6 +54,7 @@ function TasksRoute() {
 }
 
 export default function App() {
+  useWorkspaceUpdates();
   const { i18n } = useLingui();
   const status = useHarnessStore((state) => state.status);
   const error = useHarnessStore((state) => state.error);

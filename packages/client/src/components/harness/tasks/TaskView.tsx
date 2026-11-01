@@ -66,7 +66,7 @@ export function TaskView({
   const resource = useRemoteResource({
     key: `${agent.id}:${issueId}`,
     load: (signal) => api.getIssue(agent.id, issueId, signal),
-    pollInterval: (data) => (!data || data.running || data.status === "queued" ? 4_000 : 30_000),
+    topics: ["issues"],
   });
   if (!resource.data)
     return (

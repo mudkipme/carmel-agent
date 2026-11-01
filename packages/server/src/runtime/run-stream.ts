@@ -1,5 +1,7 @@
 import type { AgentRunEvent, AgentRunEventEnvelope, AgentRunResult } from "@carmel-agent/shared";
+import { applyRunProgress, type RunProgress } from "@carmel-agent/shared";
 import { INTERRUPTED_DETAIL, type RunAbortReason } from "../effectors/run-outcome.ts";
+import { publishStateChange } from "../state-changes.ts";
 
 const maxReplayEvents = 1_000;
 
@@ -18,19 +20,23 @@ export type ActiveAgentRun = {
   /** How the run ended. Set when it finishes. */
   result?: AgentRunResult;
   started: boolean;
-  /** Sequence of the `message_start` whose message is still streaming. */
-  streamingSince?: number;
+  progress: RunProgress;
   /** Called with the result as the run is released; see `onRunFinished`. */
   finishListeners?: Array<(result: AgentRunResult) => void>;
 };
 
-type RunSubscriber = {
+export type RunSubscriber = {
   enqueue: (envelope: AgentRunEventEnvelope) => boolean;
   close: () => void;
 };
 
 const activeAgentRuns = new Map<string, ActiveAgentRun>();
 const activeSessionRuns = new Map<string, string>();
+const sessionRunVersions = new Map<string, number>();
+
+function advanceSessionRun(sessionId: string) {
+  sessionRunVersions.set(sessionId, (sessionRunVersions.get(sessionId) ?? 0) + 1);
+}
 
 export function createActiveAgentRun(input: {
   runId: string;
@@ -45,9 +51,12 @@ export function createActiveAgentRun(input: {
     nextSequence: 1,
     finished: false,
     started: false,
+    progress: { pendingToolCalls: [], nestedTools: [] },
   };
   activeAgentRuns.set(run.runId, run);
   activeSessionRuns.set(run.sessionId, run.runId);
+  advanceSessionRun(run.sessionId);
+  publishStateChange("sessions", "homes", "tasks", "issues");
   return run;
 }
 
@@ -73,7 +82,7 @@ export function getActiveAgentRunForSessionId(sessionId: string) {
   return {
     runId: run.runId,
     sessionId: run.sessionId,
-    eventCursor: attachCursor(run),
+    eventCursor: run.nextSequence - 1,
   };
 }
 
@@ -83,36 +92,32 @@ export function getActiveSessionIdsForUser(userId: string) {
     .map((run) => run.sessionId);
 }
 
-/**
- * Where a client joining this run should start reading.
- *
- * A subscriber rebuilds the streaming message from deltas, so joining mid-message
- * has to rewind to the `message_start` that seeded it -- otherwise the first
- * deltas apply to nothing and the message shows up missing its beginning until
- * `message_end` lands. Never rewinds past what the replay buffer still holds:
- * that cursor would be rejected as a replay gap, and the 409 path resolves the
- * gap by asking for this same cursor again.
- */
-function attachCursor(run: ActiveAgentRun) {
-  const latest = run.nextSequence - 1;
-  if (run.streamingSince === undefined) return latest;
-  const firstAvailable = run.events[0]?.sequence ?? run.nextSequence;
-  return Math.max(run.streamingSince - 1, firstAvailable - 1);
+export function agentRunSubscription(userId: string, runId: string, afterSequence: number) {
+  const run = activeAgentRuns.get(runId);
+  if (!run || run.userId !== userId) return { status: 404 as const };
+  if (afterSequence > run.nextSequence - 1) return { status: 400 as const };
+  const first = run.events[0]?.sequence ?? run.nextSequence;
+  if (afterSequence < first - 1) return { status: 409 as const };
+  return {
+    status: 200 as const,
+    subscribe(subscriber: RunSubscriber) {
+      return subscribeRunEvents(run, afterSequence, subscriber);
+    },
+  };
 }
 
-export function createAgentRunEventStream(userId: string, runId: string, afterSequence = 0) {
-  const run = activeAgentRuns.get(runId);
-  if (!run || run.userId !== userId) return undefined;
+export function sessionRunVersion(sessionId: string) {
+  return sessionRunVersions.get(sessionId) ?? 0;
+}
 
-  const currentCursor = run.nextSequence - 1;
-  const firstAvailableSequence = run.events[0]?.sequence ?? run.nextSequence;
-  if (afterSequence > currentCursor) {
-    return jsonError("Event cursor is ahead of the active run.", 400, currentCursor);
-  }
-  if (afterSequence < firstAvailableSequence - 1) {
-    return jsonError("Event replay gap; refresh the session connection.", 409, currentCursor);
-  }
-  return createRunStream(run, new TextEncoder(), afterSequence);
+export function sessionRunSnapshot(userId: string, sessionId: string) {
+  const runId = activeSessionRuns.get(sessionId);
+  const run = runId ? activeAgentRuns.get(runId) : undefined;
+  if (!run || run.userId !== userId) return { activeRun: null };
+  return {
+    activeRun: { runId: run.runId, sessionId, eventCursor: run.nextSequence - 1 },
+    runProgress: run.progress,
+  };
 }
 
 // Abort every in-flight run and wait for their finally blocks to persist
@@ -140,6 +145,8 @@ export function finishAgentRun(run: ActiveAgentRun, result?: AgentRunResult) {
   run.finished = true;
   activeAgentRuns.delete(run.runId);
   activeSessionRuns.delete(run.sessionId);
+  advanceSessionRun(run.sessionId);
+  publishStateChange("sessions", "homes", "tasks", "issues");
   for (const subscriber of run.subscribers) subscriber.close();
   run.subscribers.clear();
   const listeners = run.finishListeners ?? [];
@@ -187,69 +194,45 @@ export async function whenRunFinished(run: ActiveAgentRun, pollMs = 200): Promis
   return runResultOf(run);
 }
 
-export function createRunStream(
-  run: ActiveAgentRun,
-  encoder = new TextEncoder(),
-  afterSequence = 0,
-) {
-  let subscriber: RunSubscriber | undefined;
-  return new Response(
-    new ReadableStream({
-      start(controller) {
-        let connected = true;
-        const nextSubscriber: RunSubscriber = {
-          enqueue: (envelope) => {
-            if (!connected) return false;
-            try {
-              controller.enqueue(encoder.encode(JSON.stringify(envelope) + "\n"));
-              return true;
-            } catch {
-              connected = false;
-              run.subscribers.delete(nextSubscriber);
-              return false;
-            }
-          },
-          close: () => {
-            if (!connected) return;
-            connected = false;
-            try {
-              controller.close();
-            } catch {
-              // The observer can close first. The server-owned run continues.
-            }
-          },
-        };
-        subscriber = nextSubscriber;
-
-        for (const envelope of run.events) {
-          if (envelope.sequence <= afterSequence) continue;
-          if (!nextSubscriber.enqueue(envelope)) return;
-        }
-        if (run.finished) {
-          nextSubscriber.close();
-          return;
-        }
-        run.subscribers.add(nextSubscriber);
-      },
-      cancel() {
-        if (subscriber) run.subscribers.delete(subscriber);
-      },
-    }),
-    {
-      headers: {
-        "content-type": "application/x-ndjson; charset=utf-8",
-        "x-agent-run-id": run.runId,
-        "x-agent-event-cursor": String(run.nextSequence - 1),
-      },
+export function observeRunEvents(run: ActiveAgentRun, afterSequence = 0) {
+  let unsubscribe: (() => void) | undefined;
+  return new ReadableStream<AgentRunEventEnvelope>({
+    start(controller) {
+      unsubscribe = subscribeRunEvents(run, afterSequence, {
+        enqueue: (envelope) => {
+          controller.enqueue(envelope);
+          return true;
+        },
+        close: () => controller.close(),
+      });
     },
-  );
+    cancel() {
+      unsubscribe?.();
+    },
+  });
 }
 
-/** Native Durable already batches progress; HTTP only sequences and replays it. */
+function subscribeRunEvents(run: ActiveAgentRun, afterSequence: number, subscriber: RunSubscriber) {
+  for (const event of run.events) {
+    if (event.sequence > afterSequence && !subscriber.enqueue(event)) return () => {};
+  }
+  if (run.finished) subscriber.close();
+  else run.subscribers.add(subscriber);
+  return () => run.subscribers.delete(subscriber);
+}
+
+/** Native Durable already batches progress; The transport sequences and replays it. */
 export function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
+  advanceSessionRun(run.sessionId);
+  run.progress = applyRunProgress(run.progress, event);
+  if (
+    event.type === "tool_execution_start" ||
+    event.type === "tool_execution_end" ||
+    event.type === "tool_execution_update" ||
+    event.type === "nested_tools"
+  )
+    publishStateChange("subtasks");
   const envelope: AgentRunEventEnvelope = { sequence: run.nextSequence++, event };
-  if (event.type === "message_start") run.streamingSince = envelope.sequence;
-  else if (event.type === "message_end") run.streamingSince = undefined;
 
   run.events.push(envelope);
   if (run.events.length > maxReplayEvents)
@@ -259,14 +242,4 @@ export function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
     if (!subscriber.enqueue(envelope)) run.subscribers.delete(subscriber);
   }
   return run.subscribers.size > 0;
-}
-
-function jsonError(message: string, status: 400 | 409, eventCursor: number) {
-  return new Response(JSON.stringify({ error: message }), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "x-agent-event-cursor": String(eventCursor),
-    },
-  });
 }

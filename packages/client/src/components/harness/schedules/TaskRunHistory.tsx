@@ -34,7 +34,7 @@ export function TaskRunHistory({
     key: `task-runs:${task.id}`,
     load: (signal) => api.listAgentTaskRuns(task.agentId, task.id, signal),
     refreshKey: revision,
-    pollInterval: (data) => (data?.some((run) => run.outcome === "running") ? 3_000 : 30_000),
+    topics: ["tasks"],
   });
   const running = runs?.some((run) => run.outcome === "running") ?? false;
   const wasRunning = useRef(false);

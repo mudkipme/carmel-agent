@@ -106,6 +106,7 @@ export function HarnessShell({
   const userId = useHarnessStore((state) => state.activeUserId);
   const homeResource = useRemoteResource({
     key: `home:${userId}:${routeAgentId}`,
+    topics: ["homes"],
     enabled: Boolean(homeView && routeAgentId),
     load: () => api.ensureHome(routeAgentId!),
   });
@@ -236,7 +237,7 @@ export function HarnessShell({
     key: `browser:${activeAgentId}`,
     enabled: Boolean(activeAgentId && activeAgent?.permissions.bash),
     load: (signal) => api.browserStatus(activeAgentId!, signal),
-    pollInterval: 3000,
+    topics: ["browser"],
   });
   const browserNeedsHelp = Boolean(
     browserStatus.data && browserStatus.data.control.phase !== "agent",
@@ -251,7 +252,7 @@ export function HarnessShell({
       const { sessionIds } = await api.listActiveSessions(activeAgentId!, signal);
       return { sessionIds, revision };
     },
-    pollInterval: 4_000,
+    topics: ["sessions"],
     refreshKey: openChatSessionId,
   });
   useEffect(() => {
@@ -361,12 +362,7 @@ export function HarnessShell({
     enabled: Boolean(activeAgentId),
     load: (signal) => loadIssues(activeAgentId!, signal),
     refreshKey: view,
-    pollInterval: (data) =>
-      data?.some((issue) => issue.running || issue.status === "queued")
-        ? 4_000
-        : view === "tasks"
-          ? 30_000
-          : false,
+    topics: ["issues"],
   });
 
   useEffect(() => {

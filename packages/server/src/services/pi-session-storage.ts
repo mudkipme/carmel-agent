@@ -43,6 +43,7 @@ import { sessions } from "../db/schema.ts";
 import { legacyUserRequestReceipt } from "./user-requests.ts";
 import { dataDir } from "../paths.ts";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
+import { publishStateChange } from "../state-changes.ts";
 
 const ctx = BACKGROUND_CONTEXT;
 export const PENDING_ENTRY_ID_PREFIX = "pending:";
@@ -160,6 +161,10 @@ async function openNative(id: string): Promise<PiSession> {
     session.conversation = saved?.id
       ? (await native.conversation(saved.id as ConversationId, ctx))!
       : root;
+    const unsubscribe = native.subscribeCommits((publication) => {
+      if (publication.changes.length) publishStateChange("subtasks");
+    });
+    native.subscribeClose(unsubscribe);
     return session;
   } catch (error) {
     await native.close(ctx);

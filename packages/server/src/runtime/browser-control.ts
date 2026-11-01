@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node
 import { join } from "node:path";
 import type { BrowserControlState } from "@carmel-agent/shared";
 import { dataDir } from "../paths.ts";
+import { publishStateChange } from "../state-changes.ts";
 import { holdAgentContainer, releaseAgentContainer } from "./sandbox/container-manager.ts";
 
 type SavedState = { paused: boolean; reason?: string; revision: number };
@@ -168,6 +169,7 @@ export function browserControl(agentId: string) {
       else releaseAgentContainer(agentId);
     };
     control.subscribe(updateHold);
+    control.subscribe(() => publishStateChange("browser"));
     updateHold();
   }
   return control;

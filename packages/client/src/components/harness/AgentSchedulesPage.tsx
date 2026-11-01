@@ -45,7 +45,7 @@ export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
   const tasks = useRemoteResource({
     key: `tasks:${agent.id}`,
     load: (signal) => api.listAgentTasks(agent.id, signal),
-    pollInterval: 30_000,
+    topics: ["tasks"],
   });
   const [editor, setEditor] = useState<{
     id?: string;

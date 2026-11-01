@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { dataDir, ensureParentDir } from "../paths.ts";
 import { initializeSchema } from "./setup.ts";
 import { seedDatabase } from "./seed.ts";
+import { observeDatabaseChanges } from "./state-changes.ts";
 
 const databaseUrl = process.env.DATABASE_URL ?? `${dataDir}/carmel-agent.sqlite`;
 const databasePath = databaseUrl.startsWith("file:") ? databaseUrl.slice(5) : databaseUrl;
@@ -17,6 +18,7 @@ export const db = drizzle(sqlite);
 
 export function initialize() {
   initializeSchema(sqlite);
+  observeDatabaseChanges(sqlite);
 }
 
 export function seed() {

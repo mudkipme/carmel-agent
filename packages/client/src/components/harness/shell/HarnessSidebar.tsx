@@ -64,13 +64,13 @@ export function HarnessSidebar({
     key: `homes:${activeUserId}`,
     enabled: Boolean(activeUserId),
     load: (signal) => api.homeSummaries(signal),
-    pollInterval: 3000,
+    topics: ["homes"],
   });
   const knowledge = useRemoteResource({
     key: `knowledge-settings:${activeUserId}:${activeAgent?.id}`,
     enabled: Boolean(activeAgent?.permissions.read),
     load: (signal) => api.knowledgeSettings(activeAgent!.id, signal),
-    pollInterval: 30_000,
+    topics: ["knowledge", "workspace"],
   });
   const createSidebarAgent = async (): Promise<AgentConfig | undefined> => {
     try {
