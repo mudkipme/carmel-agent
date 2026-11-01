@@ -24,6 +24,7 @@ type FileEditorViewProps = {
 };
 
 export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps) {
+  const agentId = agent?.id;
   const { i18n } = useLingui();
   const themePreference = useThemePreference();
   const [content, setContent] = useState("");
@@ -37,7 +38,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
   const darkEditor = isDarkTheme(themePreference);
 
   const loadFile = useCallback(async () => {
-    if (!agent || !filePath) return;
+    if (!agentId || !filePath) return;
     if (isImageFile(filePath)) {
       setContent("");
       setSavedContent("");
@@ -48,7 +49,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
     setLoading(true);
     setError("");
     try {
-      const result = await api.readAgentFile(agent.id, filePath);
+      const result = await api.readAgentFile(agentId, filePath);
       setContent(result.content);
       setSavedContent(result.content);
     } catch (loadError) {
@@ -58,7 +59,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
     } finally {
       setLoading(false);
     }
-  }, [agent, filePath, i18n]);
+  }, [agentId, filePath, i18n]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {

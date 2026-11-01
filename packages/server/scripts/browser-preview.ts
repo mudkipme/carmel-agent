@@ -58,6 +58,7 @@ const { agents, agentTasks, agentTaskRuns, issues, issueAttempts, modelRefs, ses
 const { createAgent, createSession } = await import("../src/test-support.ts");
 const { hashPassword } = await import("../src/auth.ts");
 const { attachBrowserSocket } = await import("../src/browser-socket.ts");
+const { attachUpdateSocket } = await import("../src/update-socket.ts");
 const { browserControl } = await import("../src/runtime/browser-control.ts");
 const { createIssue, stopIssueQueue } = await import("../src/services/issues.ts");
 stopIssueQueue();
@@ -660,6 +661,7 @@ const server = serve(
   },
 );
 // A deterministic stream fixture exercises the real gateway and handoff state without a container.
+const updateSockets = attachUpdateSocket(server as unknown as import("node:http").Server);
 const browserSockets = attachBrowserSocket(
   server as unknown as import("node:http").Server,
   async (_agent, onMessage) => {
@@ -713,6 +715,8 @@ const browserSockets = attachBrowserSocket(
 );
 void browserControl(fixture.agentId).requestHelp("Please sign in to the billing portal.");
 const stop = () => {
+  for (const client of updateSockets.clients) client.terminate();
+  updateSockets.close();
   for (const client of browserSockets.clients) client.terminate();
   browserSockets.close();
   server.close(
