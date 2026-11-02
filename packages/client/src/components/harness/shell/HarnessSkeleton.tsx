@@ -22,9 +22,13 @@ export function HarnessSkeleton() {
         style={{ width: getDefaultSidebarWidth() }}
       >
         <div className="flex h-[var(--header-height)] shrink-0 items-center gap-2 px-3">
-          <img src="/apple-touch-icon.png" alt="" className="size-6 rounded" draggable={false} />
-          <h1 className="min-w-0 flex-1 truncate text-[13px] font-medium">Carmel Agent</h1>
-          <Button size="icon-sm" variant="ghost" disabled>
+          <img
+            src="/apple-touch-icon.png"
+            alt="Carmel Agent"
+            className="size-6 rounded"
+            draggable={false}
+          />
+          <Button size="icon-sm" variant="ghost" className="ml-auto" disabled>
             <PanelLeftCloseIcon />
           </Button>
         </div>

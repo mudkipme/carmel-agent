@@ -103,11 +103,14 @@ export function HarnessSidebar({
     >
       <div className="flex min-h-0 w-full flex-1 flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] lg:w-[var(--sidebar-width)] lg:pl-0">
         <div className="flex h-[var(--header-height)] shrink-0 items-center gap-2 px-3">
-          <img src="/apple-touch-icon.png" alt="" className="size-7 rounded-lg" draggable={false} />
-          <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
-            Carmel Agent
-          </h1>
+          <img
+            src="/apple-touch-icon.png"
+            alt="Carmel Agent"
+            className="size-7 rounded-lg"
+            draggable={false}
+          />
           <Button
+            className="ml-auto"
             size="icon-sm"
             variant="ghost"
             title={i18n._("Collapse sidebar")}

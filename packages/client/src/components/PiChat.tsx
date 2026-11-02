@@ -1,5 +1,6 @@
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
+import { PlusIcon, SquareIcon } from "lucide-react";
 import { TaskSubtasks } from "@/components/tasks/TaskSubtasks";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
@@ -216,6 +217,13 @@ export function PiChat({
     !waiting.length &&
     !searchParams.has("subtask"),
   );
+  const homeBusy = snapshot.isStreaming || snapshot.hasPendingWork || queued > 0;
+  const startNewContext = () => {
+    void api
+      .resetHome(agentConfig.id)
+      .then(() => agent?.refreshConnection())
+      .catch((error) => showError(i18n._("Unable to start a new context"), error));
+  };
 
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
@@ -259,23 +267,13 @@ export function PiChat({
                 <Trans>Resume updates</Trans>
               </Button>
             ) : null}
-            {snapshot.isStreaming || snapshot.hasPendingWork || queued ? (
+            {homeBusy ? (
               <Button size="sm" variant="ghost" onClick={() => void agent?.abort()}>
                 <Trans>Stop Home</Trans>
               </Button>
             ) : null}
             {!emptyHome ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={snapshot.isStreaming || snapshot.hasPendingWork || queued > 0}
-                onClick={() =>
-                  void api
-                    .resetHome(agentConfig.id)
-                    .then(() => agent?.refreshConnection())
-                    .catch((error) => showError(i18n._("Unable to start a new context"), error))
-                }
-              >
+              <Button size="sm" variant="ghost" disabled={homeBusy} onClick={startNewContext}>
                 <Trans>New context</Trans>
               </Button>
             ) : null}
@@ -382,7 +380,30 @@ export function PiChat({
               thinkingLevel={snapshot.thinkingLevel}
               inputRef={chatInputRef}
               inputLeadingActions={
-                <AgentCommandPalette agent={agentConfig} onInsert={insertCommandText} />
+                <AgentCommandPalette
+                  agent={agentConfig}
+                  onInsert={insertCommandText}
+                  systemCommands={
+                    session.home
+                      ? [
+                          {
+                            name: "new",
+                            label: i18n._("New context"),
+                            icon: PlusIcon,
+                            disabled: homeBusy,
+                            onSelect: startNewContext,
+                          },
+                          {
+                            name: "stop",
+                            label: i18n._("Stop Home"),
+                            icon: SquareIcon,
+                            disabled: !homeBusy,
+                            onSelect: () => void agent.abort(),
+                          },
+                        ]
+                      : []
+                  }
+                />
               }
               initialInput={inputDraftRef.current}
               onInputDraftChange={(value) => {

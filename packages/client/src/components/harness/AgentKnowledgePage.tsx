@@ -3,7 +3,15 @@ import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { BookOpenIcon, PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
+import {
+  BookOpenIcon,
+  FolderIcon,
+  MoreHorizontalIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  SearchIcon,
+  UnplugIcon,
+} from "lucide-react";
 import type { AgentConfig, KnowledgeSearchResult, SavedMemory } from "@carmel-agent/shared";
 import { MarkdownContent } from "@/components/chat/MarkdownContent";
 import { Button } from "@/components/ui/button";
@@ -20,6 +28,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select,
   SelectTrigger,
   SelectValue,
@@ -28,7 +52,13 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "@/components/ui/empty";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
 import { confirmAction } from "@/lib/action-dialogs";
@@ -394,104 +424,157 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
               )}
             </section>
             <section className="flex flex-col gap-3" aria-label={i18n._("Knowledge sources")}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold">
-                  <Trans>Sources</Trans>
-                </h2>
-                {owner && data.settings.enabled ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={busy || working}
-                      onClick={() => void act(() => api.refreshKnowledge(agent.id))}
-                    >
-                      <RefreshCwIcon data-icon="inline-start" />
-                      <Trans>Refresh index</Trans>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={busy || working}
-                      onClick={() =>
-                        void act(() =>
-                          api.refreshKnowledge(agent.id, true, agent.permissions.network),
-                        )
-                      }
-                    >
-                      <Trans>Build embeddings</Trans>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={busy || working}
-                      onClick={() =>
-                        void act(() =>
-                          api.refreshKnowledge(agent.id, true, agent.permissions.network, true),
-                        )
-                      }
-                    >
-                      <Trans>Prepare deep search</Trans>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={busy || addSource}
-                      onClick={() => setAddSource(true)}
-                    >
-                      <PlusIcon data-icon="inline-start" />
-                      <Trans>Add source</Trans>
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-              {owner && data.settings.enabled ? (
-                <p className="text-sm text-muted-foreground">
-                  <Trans>
-                    Markdown directories from this agent's workspace or mounts. Embeddings use the
-                    configured model; missing models can download when the agent has network access.
-                  </Trans>
-                </p>
-              ) : null}
-              {addSource ? (
-                <SourceForm
-                  busy={busy}
-                  onCancel={() => setAddSource(false)}
-                  onSave={(name, path, description) =>
-                    void act(async () => {
-                      await api.addKnowledgeSource(agent.id, {
-                        name,
-                        path,
-                        description,
-                      });
-                      setAddSource(false);
-                    })
-                  }
-                />
-              ) : null}
-              {data.sources.map((source) => (
-                <Card key={source.id}>
-                  <CardHeader>
-                    <CardTitle>{source.name}</CardTitle>
-                    <CardDescription className="break-all">{source.path}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      {source.description || i18n._("Markdown documents")}
-                    </p>
-                  </CardContent>
-                  {owner ? (
-                    <CardFooter>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() =>
-                          void act(() => api.deleteKnowledgeSource(agent.id, source.id))
-                        }
-                      >
-                        <Trans>Disconnect source</Trans>
-                      </Button>
-                    </CardFooter>
+              <Dialog
+                open={addSource}
+                onOpenChange={(open) => {
+                  if (!busy) setAddSource(open);
+                }}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-sm font-semibold">
+                    <Trans>Sources</Trans>
+                  </h2>
+                  {owner && data.settings.enabled ? (
+                    <div className="flex items-center gap-2">
+                      <DialogTrigger asChild>
+                        <Button disabled={busy}>
+                          <PlusIcon data-icon="inline-start" />
+                          <Trans>Add source</Trans>
+                        </Button>
+                      </DialogTrigger>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={busy || working}
+                            aria-label={i18n._("Index actions")}
+                            title={i18n._("Index actions")}
+                          >
+                            <MoreHorizontalIcon />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              onSelect={() => void act(() => api.refreshKnowledge(agent.id))}
+                            >
+                              <RefreshCwIcon />
+                              <Trans>Refresh index</Trans>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                void act(() =>
+                                  api.refreshKnowledge(agent.id, true, agent.permissions.network),
+                                )
+                              }
+                            >
+                              <Trans>Build embeddings</Trans>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                void act(() =>
+                                  api.refreshKnowledge(
+                                    agent.id,
+                                    true,
+                                    agent.permissions.network,
+                                    true,
+                                  ),
+                                )
+                              }
+                            >
+                              <Trans>Prepare deep search</Trans>
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   ) : null}
-                </Card>
-              ))}
+                </div>
+                {addSource ? (
+                  <SourceForm
+                    busy={busy}
+                    onCancel={() => setAddSource(false)}
+                    onSave={(name, path, description) =>
+                      void act(async () => {
+                        await api.addKnowledgeSource(agent.id, {
+                          name,
+                          path,
+                          description,
+                        });
+                        setAddSource(false);
+                      })
+                    }
+                  />
+                ) : null}
+              </Dialog>
+              {data.sources.length ? (
+                <ul className="divide-y rounded-lg border">
+                  {data.sources.map((source) => (
+                    <li key={source.id} className="flex items-start gap-3 p-4">
+                      <FolderIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-medium break-words">{source.name}</h3>
+                        <p className="mt-1 font-mono text-xs break-all text-muted-foreground">
+                          {source.path}
+                        </p>
+                        {source.description ? (
+                          <p className="mt-2 text-sm break-words text-muted-foreground">
+                            {source.description}
+                          </p>
+                        ) : null}
+                      </div>
+                      {owner ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={busy}
+                              aria-label={i18n._("Source actions for {name}", {
+                                name: source.name,
+                              })}
+                            >
+                              <MoreHorizontalIcon />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuGroup>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={() =>
+                                  void act(() => api.deleteKnowledgeSource(agent.id, source.id))
+                                }
+                              >
+                                <UnplugIcon />
+                                <Trans>Disconnect source</Trans>
+                              </DropdownMenuItem>
+                            </DropdownMenuGroup>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty className="border">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <FolderIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>
+                      <Trans>No sources yet</Trans>
+                    </EmptyTitle>
+                    {owner && data.settings.enabled ? (
+                      <EmptyDescription>
+                        <Trans>
+                          Add a Markdown directory from this agent's workspace or mounts.
+                        </Trans>
+                      </EmptyDescription>
+                    ) : null}
+                  </EmptyHeader>
+                </Empty>
+              )}
             </section>
           </>
         ) : null}
@@ -585,71 +668,70 @@ function SourceForm({
     [path, setPath] = useState(""),
     [description, setDescription] = useState("");
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSave(name, path, description);
-      }}
-    >
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Trans>Add source</Trans>
-          </CardTitle>
-          <CardDescription>
-            <Trans>The original files stay in their existing location.</Trans>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="source-name">
-                <Trans>Name</Trans>
-              </FieldLabel>
-              <Input
-                id="source-name"
-                required
-                maxLength={120}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="source-path">
-                <Trans>Directory</Trans>
-              </FieldLabel>
-              <Input
-                id="source-path"
-                required
-                maxLength={2000}
-                value={path}
-                onChange={(e) => setPath(e.target.value)}
-                placeholder={i18n._("docs or /mounted-vault")}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="source-description">
-                <Trans>Description</Trans>
-              </FieldLabel>
-              <Textarea
-                id="source-description"
-                maxLength={1000}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={i18n._("What is this collection useful for?")}
-              />
-            </Field>
-          </FieldGroup>
-        </CardContent>
-        <CardFooter className="gap-2">
-          <Button type="submit" disabled={busy}>
-            <Trans>Add source</Trans>
-          </Button>
+    <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto" showCloseButton={!busy}>
+      <DialogHeader>
+        <DialogTitle>
+          <Trans>Add source</Trans>
+        </DialogTitle>
+        <DialogDescription>
+          <Trans>Add a Markdown directory from this agent's workspace or mounts.</Trans>
+        </DialogDescription>
+      </DialogHeader>
+      <form
+        className="flex flex-col gap-6"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave(name, path, description);
+        }}
+      >
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="source-name">
+              <Trans>Name</Trans>
+            </FieldLabel>
+            <Input
+              id="source-name"
+              required
+              maxLength={120}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="source-path">
+              <Trans>Directory</Trans>
+            </FieldLabel>
+            <Input
+              id="source-path"
+              required
+              maxLength={2000}
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              placeholder={i18n._("docs or /mounted-vault")}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="source-description">
+              <Trans>Description</Trans>
+            </FieldLabel>
+            <Textarea
+              id="source-description"
+              maxLength={1000}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={i18n._("What is this collection useful for?")}
+            />
+          </Field>
+        </FieldGroup>
+        <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
             <Trans>Cancel</Trans>
           </Button>
-        </CardFooter>
-      </Card>
-    </form>
+          <Button type="submit" disabled={busy}>
+            <Trans>Add source</Trans>
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   );
 }

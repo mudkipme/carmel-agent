@@ -23,10 +23,22 @@ import type {
 type AgentCommandPaletteProps = {
   agent: AgentConfig;
   onInsert: (text: string) => void;
+  systemCommands?: {
+    name: string;
+    label: string;
+    icon: ComponentType;
+    disabled?: boolean;
+    onSelect: () => void;
+  }[];
   className?: string;
 };
 
-export function AgentCommandPalette({ agent, onInsert, className }: AgentCommandPaletteProps) {
+export function AgentCommandPalette({
+  agent,
+  onInsert,
+  systemCommands = [],
+  className,
+}: AgentCommandPaletteProps) {
   const { i18n } = useLingui();
   const [open, setOpen] = useState(false);
   const [payload, setPayload] = useState<AgentCommandPayload>({
@@ -79,7 +91,7 @@ export function AgentCommandPalette({ agent, onInsert, className }: AgentCommand
   }, [open, setPaletteOpen]);
 
   const groupedCommands = groupCommands(payload.commands);
-  const hasCommands = payload.commands.length > 0;
+  const hasCommands = systemCommands.length > 0 || payload.commands.length > 0;
 
   const insertCommand = (command: AgentSlashCommand) => {
     onInsert(command.commandText);
@@ -102,13 +114,33 @@ export function AgentCommandPalette({ agent, onInsert, className }: AgentCommand
         open={open}
         onOpenChange={setPaletteOpen}
         title={i18n._("Command Palette")}
-        description={i18n._("Insert a prompt template or skill command.")}
+        description={i18n._("Search for a command to run...")}
       >
-        <CommandInput placeholder={i18n._("Search templates and skills...")} />
+        <CommandInput placeholder={i18n._("Search commands...")} />
         <CommandList>
           <CommandEmpty>
             {loading ? i18n._("Loading...") : i18n._("No commands found.")}
           </CommandEmpty>
+          {systemCommands.length > 0 ? (
+            <CommandGroup heading={i18n._("System Commands")}>
+              {systemCommands.map(({ name, label, icon: Icon, disabled, onSelect }) => (
+                <CommandItem
+                  key={name}
+                  value={`system /${name} ${label}`}
+                  disabled={disabled}
+                  onSelect={() => {
+                    setOpen(false);
+                    onSelect();
+                  }}
+                >
+                  <Icon />
+                  <span>/{name}</span>
+                  <span className="text-muted-foreground">{label}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ) : null}
+          {systemCommands.length > 0 && payload.commands.length > 0 ? <CommandSeparator /> : null}
           <CommandSection
             heading={i18n._("Prompt Commands")}
             commands={groupedCommands.prompt}

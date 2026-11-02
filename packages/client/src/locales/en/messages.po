@@ -8,6 +8,41 @@ msgstr ""
 "Language: en\n"
 
 #. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:451
+#: src/components/harness/AgentKnowledgePage.tsx:452
+msgid "Index actions"
+msgstr "Index actions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:534
+msgid "Source actions for {name}"
+msgstr "Source actions for {name}"
+
+#: src/components/harness/AgentKnowledgePage.tsx:570
+#: src/components/harness/AgentKnowledgePage.tsx:677
+msgid "Add a Markdown directory from this agent's workspace or mounts."
+msgstr "Add a Markdown directory from this agent's workspace or mounts."
+
+#: src/components/harness/AgentKnowledgePage.tsx:566
+msgid "No sources yet"
+msgstr "No sources yet"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:398
+msgid "Stop Home"
+msgstr "Stop Home"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:119
+msgid "Search commands..."
+msgstr "Search commands..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:125
+msgid "System Commands"
+msgstr "System Commands"
+
+#. js-lingui-explicit-id
 #: src/App.tsx:98
 msgid "Can't reach Carmel Agent"
 msgstr "Can't reach Carmel Agent"
@@ -991,37 +1026,38 @@ msgid "Unable to create user."
 msgstr "Unable to create user."
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:115
+#: src/components/PiChat.tsx:116
 msgid "Unable to open the earlier message"
 msgstr "Unable to open the earlier message"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:240
+#: src/components/PiChat.tsx:248
 msgid "{count, plural, one {# message queued} other {# messages queued}}"
 msgstr "{count, plural, one {# message queued} other {# messages queued}}"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:276
+#: src/components/PiChat.tsx:225
 msgid "Unable to start a new context"
 msgstr "Unable to start a new context"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:346
+#: src/components/PiChat.tsx:344
 msgid "Unable to load history"
 msgstr "Unable to load history"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:357
+#: src/components/PiChat.tsx:355
 msgid "Unable to load the latest messages"
 msgstr "Unable to load the latest messages"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentCommandPalette.tsx:104
+#: src/components/harness/AgentCommandPalette.tsx:116
 #: src/components/ui/command.tsx:32
 msgid "Command Palette"
 msgstr "Command Palette"
 
 #. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:117
 #: src/components/ui/command.tsx:33
 msgid "Search for a command to run..."
 msgstr "Search for a command to run..."
@@ -1077,147 +1113,132 @@ msgid "Enter a value"
 msgstr "Enter a value"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentCommandPalette.tsx:95
-#: src/components/harness/AgentCommandPalette.tsx:96
-#: src/components/harness/AgentCommandPalette.tsx:128
+#: src/components/harness/AgentCommandPalette.tsx:107
+#: src/components/harness/AgentCommandPalette.tsx:108
+#: src/components/harness/AgentCommandPalette.tsx:160
 msgid "Commands"
 msgstr "Commands"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentCommandPalette.tsx:105
-msgid "Insert a prompt template or skill command."
-msgstr "Insert a prompt template or skill command."
-
-#. js-lingui-explicit-id
-#: src/components/harness/AgentCommandPalette.tsx:107
-msgid "Search templates and skills..."
-msgstr "Search templates and skills..."
-
-#. js-lingui-explicit-id
-#: src/components/harness/AgentCommandPalette.tsx:110
+#: src/components/harness/AgentCommandPalette.tsx:122
 msgid "Loading..."
 msgstr "Loading..."
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentCommandPalette.tsx:110
+#: src/components/harness/AgentCommandPalette.tsx:122
 msgid "No commands found."
 msgstr "No commands found."
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentCommandPalette.tsx:113
+#: src/components/harness/AgentCommandPalette.tsx:145
 msgid "Prompt Commands"
 msgstr "Prompt Commands"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentCommandPalette.tsx:122
+#: src/components/harness/AgentCommandPalette.tsx:154
 msgid "Skill Commands"
 msgstr "Skill Commands"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:72
+#: src/components/harness/AgentKnowledgePage.tsx:104
 msgid "Knowledge action failed"
 msgstr "Knowledge action failed"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:83
+#: src/components/harness/AgentKnowledgePage.tsx:115
 #: src/components/harness/AgentSettingsPage.tsx:36
 #: src/components/harness/shell/HarnessHeader.tsx:79
-#: src/components/harness/shell/HarnessSidebar.tsx:192
+#: src/components/harness/shell/HarnessSidebar.tsx:195
 msgid "Knowledge"
 msgstr "Knowledge"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:99
+#: src/components/harness/AgentKnowledgePage.tsx:131
 msgid "Loading knowledge"
 msgstr "Loading knowledge"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:109
+#: src/components/harness/AgentKnowledgePage.tsx:141
 msgid "Enable knowledge in settings to register searchable sources and save memories."
 msgstr "Enable knowledge in settings to register searchable sources and save memories."
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:112
+#: src/components/harness/AgentKnowledgePage.tsx:144
 msgid "The agent owner can enable knowledge in settings."
 msgstr "The agent owner can enable knowledge in settings."
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:162
+#: src/components/harness/AgentKnowledgePage.tsx:194
 msgid "Search failed"
 msgstr "Search failed"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:176
+#: src/components/harness/AgentKnowledgePage.tsx:208
 msgid "Find notes, decisions, or preferences…"
 msgstr "Find notes, decisions, or preferences…"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:206
+#: src/components/harness/AgentKnowledgePage.tsx:238
 msgid "Searching…"
 msgstr "Searching…"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:206
+#: src/components/harness/AgentKnowledgePage.tsx:238
 msgid "Search"
 msgstr "Search"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:262
+#: src/components/harness/AgentKnowledgePage.tsx:294
 msgid "Source document"
 msgstr "Source document"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:266
+#: src/components/harness/AgentKnowledgePage.tsx:298
 msgid "Loading source"
 msgstr "Loading source"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:298
+#: src/components/harness/AgentKnowledgePage.tsx:325
 msgid "Saved memories"
 msgstr "Saved memories"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:381
+#: src/components/harness/AgentKnowledgePage.tsx:408
 msgid "Forget “{title}”?"
 msgstr "Forget “{title}”?"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:382
+#: src/components/harness/AgentKnowledgePage.tsx:409
 msgid "This removes the saved memory for everyone using this agent. Source documents and conversations are kept."
 msgstr "This removes the saved memory for everyone using this agent. Source documents and conversations are kept."
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:385
+#: src/components/harness/AgentKnowledgePage.tsx:412
 msgid "Forget memory"
 msgstr "Forget memory"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:399
+#: src/components/harness/AgentKnowledgePage.tsx:426
 msgid "Knowledge sources"
 msgstr "Knowledge sources"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:479
-msgid "Markdown documents"
-msgstr "Markdown documents"
-
-#. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:529
+#: src/components/harness/AgentKnowledgePage.tsx:609
 msgid "Edit memory"
 msgstr "Edit memory"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:529
+#: src/components/harness/AgentKnowledgePage.tsx:609
 msgid "New memory"
 msgstr "New memory"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:630
+#: src/components/harness/AgentKnowledgePage.tsx:710
 msgid "docs or /mounted-vault"
 msgstr "docs or /mounted-vault"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:642
+#: src/components/harness/AgentKnowledgePage.tsx:722
 msgid "What is this collection useful for?"
 msgstr "What is this collection useful for?"
 
@@ -3648,6 +3669,7 @@ msgstr "Image"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatMessages.tsx:376
+#: src/components/PiChat.tsx:391
 msgid "New context"
 msgstr "New context"
 
@@ -4016,12 +4038,12 @@ msgid "{0} / Tasks"
 msgstr "{0} / Tasks"
 
 #. placeholder {0}: data.status.needsEmbedding
-#: src/components/harness/AgentKnowledgePage.tsx:129
+#: src/components/harness/AgentKnowledgePage.tsx:161
 msgid "{0} awaiting embeddings"
 msgstr "{0} awaiting embeddings"
 
 #. placeholder {0}: data.status.documents
-#: src/components/harness/AgentKnowledgePage.tsx:125
+#: src/components/harness/AgentKnowledgePage.tsx:157
 msgid "{0} documents"
 msgstr "{0} documents"
 
@@ -4085,8 +4107,8 @@ msgid "Add secret"
 msgstr "Add secret"
 
 #: src/components/harness/AgentKnowledgePage.tsx:442
-#: src/components/harness/AgentKnowledgePage.tsx:600
-#: src/components/harness/AgentKnowledgePage.tsx:649
+#: src/components/harness/AgentKnowledgePage.tsx:674
+#: src/components/harness/AgentKnowledgePage.tsx:731
 msgid "Add source"
 msgstr "Add source"
 
@@ -4115,7 +4137,7 @@ msgstr "Allow proactive messages, including scheduled task alerts"
 msgid "Allowed tools"
 msgstr "Allowed tools"
 
-#: src/components/PiChat.tsx:233
+#: src/components/PiChat.tsx:241
 msgid "An IM delivery needs attention. Check Integrations for its status before resending."
 msgstr "An IM delivery needs attention. Check Integrations for its status before resending."
 
@@ -4140,7 +4162,7 @@ msgstr "Archive"
 msgid "Arguments"
 msgstr "Arguments"
 
-#: src/components/harness/AgentKnowledgePage.tsx:343
+#: src/components/harness/AgentKnowledgePage.tsx:370
 msgid "Ask the agent to remember a fact or decision, or add one here."
 msgstr "Ask the agent to remember a fact or decision, or add one here."
 
@@ -4156,7 +4178,7 @@ msgstr "Available to this session’s shell. The submitted value is stored separ
 msgid "Back"
 msgstr "Back"
 
-#: src/components/PiChat.tsx:291
+#: src/components/PiChat.tsx:289
 msgid "Back to issue"
 msgstr "Back to issue"
 
@@ -4205,18 +4227,18 @@ msgstr "Browser address"
 msgid "Browser connection"
 msgstr "Browser connection"
 
-#: src/components/harness/AgentKnowledgePage.tsx:423
+#: src/components/harness/AgentKnowledgePage.tsx:472
 msgid "Build embeddings"
 msgstr "Build embeddings"
 
 #: src/components/chat/MessageEditDialog.tsx:119
 #: src/components/harness/ActionDialogs.tsx:62
 #: src/components/harness/ActionDialogs.tsx:102
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:344
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:341
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:370
 #: src/components/harness/agent-settings/AgentSecretsSettings.tsx:225
-#: src/components/harness/AgentKnowledgePage.tsx:570
-#: src/components/harness/AgentKnowledgePage.tsx:652
+#: src/components/harness/AgentKnowledgePage.tsx:650
+#: src/components/harness/AgentKnowledgePage.tsx:728
 #: src/components/harness/schedules/TaskForm.tsx:234
 #: src/components/harness/settings/ApiKeySettings.tsx:179
 #: src/components/harness/settings/UserSettings.tsx:119
@@ -4254,7 +4276,7 @@ msgstr "Clipboard access is blocked. Select this text and copy it using your dev
 msgid "Close"
 msgstr "Close"
 
-#: src/components/harness/AgentKnowledgePage.tsx:279
+#: src/components/harness/AgentKnowledgePage.tsx:306
 msgid "Close source"
 msgstr "Close source"
 
@@ -4356,7 +4378,7 @@ msgstr "Dark"
 msgid "Decline"
 msgstr "Decline"
 
-#: src/components/harness/AgentKnowledgePage.tsx:198
+#: src/components/harness/AgentKnowledgePage.tsx:230
 msgid "Deep"
 msgstr "Deep"
 
@@ -4391,7 +4413,7 @@ msgid "Delete task"
 msgstr "Delete task"
 
 #: src/components/harness/agent-settings/AgentGeneralSettings.tsx:80
-#: src/components/harness/AgentKnowledgePage.tsx:635
+#: src/components/harness/AgentKnowledgePage.tsx:715
 msgid "Description"
 msgstr "Description"
 
@@ -4400,7 +4422,7 @@ msgstr "Description"
 msgid "Details"
 msgstr "Details"
 
-#: src/components/harness/AgentKnowledgePage.tsx:622
+#: src/components/harness/AgentKnowledgePage.tsx:702
 msgid "Directory"
 msgstr "Directory"
 
@@ -4416,7 +4438,7 @@ msgstr "Discard changes"
 msgid "Disconnect"
 msgstr "Disconnect"
 
-#: src/components/harness/AgentKnowledgePage.tsx:492
+#: src/components/harness/AgentKnowledgePage.tsx:550
 msgid "Disconnect source"
 msgstr "Disconnect source"
 
@@ -4460,7 +4482,7 @@ msgstr "Edit"
 msgid "Edit brief"
 msgstr "Edit brief"
 
-#: src/components/harness/AgentKnowledgePage.tsx:372
+#: src/components/harness/AgentKnowledgePage.tsx:399
 msgid "Edit memory"
 msgstr "Edit memory"
 
@@ -4503,7 +4525,7 @@ msgstr "Expose all tools"
 msgid "Extra runner mounts"
 msgstr "Extra runner mounts"
 
-#: src/components/harness/AgentKnowledgePage.tsx:192
+#: src/components/harness/AgentKnowledgePage.tsx:224
 msgid "Fast"
 msgstr "Fast"
 
@@ -4524,7 +4546,7 @@ msgstr "Files unavailable: {error}"
 msgid "Finish connecting {0}: open the bot and send the command below from your private account."
 msgstr "Finish connecting {0}: open the bot and send the command below from your private account."
 
-#: src/components/harness/AgentKnowledgePage.tsx:391
+#: src/components/harness/AgentKnowledgePage.tsx:418
 msgid "Forget memory"
 msgstr "Forget memory"
 
@@ -4576,7 +4598,7 @@ msgstr "Import Open WebUI JSON exports into the selected agent."
 msgid "Import Sessions"
 msgstr "Import Sessions"
 
-#: src/components/harness/AgentKnowledgePage.tsx:149
+#: src/components/harness/AgentKnowledgePage.tsx:181
 msgid "Index needs attention"
 msgstr "Index needs attention"
 
@@ -4584,11 +4606,11 @@ msgstr "Index needs attention"
 msgid "Interrupted"
 msgstr "Interrupted"
 
-#: src/components/PiChat.tsx:287
+#: src/components/PiChat.tsx:285
 msgid "Issue conversation · Read-only history"
 msgstr "Issue conversation · Read-only history"
 
-#: src/components/harness/AgentKnowledgePage.tsx:531
+#: src/components/harness/AgentKnowledgePage.tsx:611
 msgid "Keep facts specific and identify whose preferences or decisions they describe."
 msgstr "Keep facts specific and identify whose preferences or decisions they describe."
 
@@ -4600,11 +4622,11 @@ msgstr "Keyboard"
 msgid "Knowledge and memory"
 msgstr "Knowledge and memory"
 
-#: src/components/harness/AgentKnowledgePage.tsx:105
+#: src/components/harness/AgentKnowledgePage.tsx:137
 msgid "Knowledge is off"
 msgstr "Knowledge is off"
 
-#: src/components/harness/AgentKnowledgePage.tsx:90
+#: src/components/harness/AgentKnowledgePage.tsx:122
 msgid "Knowledge settings"
 msgstr "Knowledge settings"
 
@@ -4637,7 +4659,7 @@ msgstr "Loading agent settings..."
 msgid "Loading Carmel Agent"
 msgstr "Loading Carmel Agent"
 
-#: src/components/PiChat.tsx:401
+#: src/components/PiChat.tsx:422
 msgid "Loading chat..."
 msgstr "Loading chat..."
 
@@ -4671,11 +4693,7 @@ msgstr "Login"
 msgid "Manual server folder"
 msgstr "Manual server folder"
 
-#: src/components/harness/AgentKnowledgePage.tsx:449
-msgid "Markdown directories from this agent's workspace or mounts. Embeddings use the configured model; missing models can download when the agent has network access."
-msgstr "Markdown directories from this agent's workspace or mounts. Embeddings use the configured model; missing models can download when the agent has network access."
-
-#: src/components/harness/AgentKnowledgePage.tsx:552
+#: src/components/harness/AgentKnowledgePage.tsx:632
 msgid "Memory"
 msgstr "Memory"
 
@@ -4708,7 +4726,7 @@ msgstr "Move to sessions"
 #: src/components/harness/ActionDialogs.tsx:88
 #: src/components/harness/agent-settings/AgentGeneralSettings.tsx:68
 #: src/components/harness/agent-settings/AgentSecretsSettings.tsx:197
-#: src/components/harness/AgentKnowledgePage.tsx:610
+#: src/components/harness/AgentKnowledgePage.tsx:690
 #: src/components/harness/files/FileManagerView.tsx:299
 #: src/components/harness/schedules/TaskForm.tsx:82
 #: src/components/harness/settings/ApiKeySettings.tsx:158
@@ -4729,11 +4747,11 @@ msgid "New agent"
 msgstr "New agent"
 
 #: src/components/chat/ChatMessages.tsx:381
-#: src/components/PiChat.tsx:279
+#: src/components/PiChat.tsx:277
 msgid "New context"
 msgstr "New context"
 
-#: src/components/harness/AgentKnowledgePage.tsx:310
+#: src/components/harness/AgentKnowledgePage.tsx:337
 msgid "New memory"
 msgstr "New memory"
 
@@ -4763,7 +4781,7 @@ msgstr "New session"
 msgid "New task"
 msgstr "New task"
 
-#: src/components/harness/AgentKnowledgePage.tsx:292
+#: src/components/harness/AgentKnowledgePage.tsx:319
 msgid "Next lines"
 msgstr "Next lines"
 
@@ -4783,7 +4801,7 @@ msgstr "No archived sessions."
 msgid "No configured models found."
 msgstr "No configured models found."
 
-#: src/components/harness/AgentKnowledgePage.tsx:223
+#: src/components/harness/AgentKnowledgePage.tsx:255
 msgid "No matches"
 msgstr "No matches"
 
@@ -4799,7 +4817,7 @@ msgstr "No models found."
 msgid "No runs yet."
 msgstr "No runs yet."
 
-#: src/components/harness/AgentKnowledgePage.tsx:340
+#: src/components/harness/AgentKnowledgePage.tsx:367
 msgid "No saved memories"
 msgstr "No saved memories"
 
@@ -4811,7 +4829,7 @@ msgstr "No schedules"
 msgid "No secrets yet."
 msgstr "No secrets yet."
 
-#: src/components/harness/AgentCommandPalette.tsx:130
+#: src/components/harness/AgentCommandPalette.tsx:162
 msgid "No slash commands are available for this agent."
 msgstr "No slash commands are available for this agent."
 
@@ -4921,7 +4939,7 @@ msgstr "Paste here"
 msgid "People who can run this shared agent can use this credential."
 msgstr "People who can run this shared agent can use this credential."
 
-#: src/components/harness/AgentKnowledgePage.tsx:434
+#: src/components/harness/AgentKnowledgePage.tsx:486
 msgid "Prepare deep search"
 msgstr "Prepare deep search"
 
@@ -4962,7 +4980,7 @@ msgstr "Queue work"
 msgid "Queued"
 msgstr "Queued"
 
-#: src/components/harness/AgentKnowledgePage.tsx:248
+#: src/components/harness/AgentKnowledgePage.tsx:280
 msgid "Read source"
 msgstr "Read source"
 
@@ -4979,7 +4997,7 @@ msgstr "Reconnect"
 msgid "Reconnecting preserves the agent’s browser and saved sign-ins."
 msgstr "Reconnecting preserves the agent’s browser and saved sign-ins."
 
-#: src/components/harness/AgentKnowledgePage.tsx:412
+#: src/components/harness/AgentKnowledgePage.tsx:463
 msgid "Refresh index"
 msgstr "Refresh index"
 
@@ -5040,7 +5058,7 @@ msgstr "Restore"
 msgid "Result"
 msgstr "Result"
 
-#: src/components/PiChat.tsx:317
+#: src/components/PiChat.tsx:315
 #: src/components/tasks/TaskSubtasks.tsx:72
 msgid "Resume"
 msgstr "Resume"
@@ -5049,7 +5067,7 @@ msgstr "Resume"
 msgid "Resume agent"
 msgstr "Resume agent"
 
-#: src/components/PiChat.tsx:259
+#: src/components/PiChat.tsx:267
 msgid "Resume updates"
 msgstr "Resume updates"
 
@@ -5104,7 +5122,7 @@ msgstr "Save as note"
 msgid "Save changes"
 msgstr "Save changes"
 
-#: src/components/harness/AgentKnowledgePage.tsx:567
+#: src/components/harness/AgentKnowledgePage.tsx:647
 msgid "Save memory"
 msgstr "Save memory"
 
@@ -5118,11 +5136,11 @@ msgstr "Save your changes?"
 
 #. placeholder {0}: users.find((u) => u.id === memory.contributorId)?.name ?? "an agent user"
 #. placeholder {1}: new Date(memory.updatedAt).toLocaleString(i18n.locale)
-#: src/components/harness/AgentKnowledgePage.tsx:353
+#: src/components/harness/AgentKnowledgePage.tsx:380
 msgid "Saved by {0} · {1}"
 msgstr "Saved by {0} · {1}"
 
-#: src/components/harness/AgentKnowledgePage.tsx:301
+#: src/components/harness/AgentKnowledgePage.tsx:328
 msgid "Saved memories"
 msgstr "Saved memories"
 
@@ -5134,15 +5152,15 @@ msgstr "Scan QR code"
 msgid "Scan with the Feishu or Lark mobile app and approve creation of your bot."
 msgstr "Scan with the Feishu or Lark mobile app and approve creation of your bot."
 
-#: src/components/harness/AgentKnowledgePage.tsx:170
+#: src/components/harness/AgentKnowledgePage.tsx:202
 msgid "Search knowledge"
 msgstr "Search knowledge"
 
-#: src/components/harness/AgentKnowledgePage.tsx:183
+#: src/components/harness/AgentKnowledgePage.tsx:215
 msgid "Search mode"
 msgstr "Search mode"
 
-#: src/components/harness/AgentKnowledgePage.tsx:214
+#: src/components/harness/AgentKnowledgePage.tsx:246
 msgid "Search notice"
 msgstr "Search notice"
 
@@ -5169,7 +5187,7 @@ msgstr "Select an agent to browse files."
 msgid "Selected: {0} · {1}"
 msgstr "Selected: {0} · {1}"
 
-#: src/components/harness/AgentKnowledgePage.tsx:195
+#: src/components/harness/AgentKnowledgePage.tsx:227
 msgid "Semantic"
 msgstr "Semantic"
 
@@ -5236,15 +5254,15 @@ msgstr "Sort by {0}{1}"
 msgid "Source"
 msgstr "Source"
 
-#: src/components/harness/AgentKnowledgePage.tsx:402
+#: src/components/harness/AgentKnowledgePage.tsx:435
 msgid "Sources"
 msgstr "Sources"
 
-#: src/components/PiChat.tsx:320
+#: src/components/PiChat.tsx:318
 msgid "Stop"
 msgstr "Stop"
 
-#: src/components/PiChat.tsx:264
+#: src/components/PiChat.tsx:272
 msgid "Stop Home"
 msgstr "Stop Home"
 
@@ -5302,10 +5320,6 @@ msgstr "Templates appear in this agent's chat command palette."
 msgid "The list was cut off; there are more changes than it shows. An untracked dependency folder usually belongs in .gitignore."
 msgstr "The list was cut off; there are more changes than it shows. An untracked dependency folder usually belongs in .gitignore."
 
-#: src/components/harness/AgentKnowledgePage.tsx:603
-msgid "The original files stay in their existing location."
-msgstr "The original files stay in their existing location."
-
 #: src/components/harness/settings/AppearanceSettings.tsx:31
 msgid "Theme"
 msgstr "Theme"
@@ -5322,7 +5336,7 @@ msgstr "This agent is shared. Anyone who can run it runs commands with these sec
 msgid "This agent's working directory is not a git repository."
 msgstr "This agent's working directory is not a git repository."
 
-#: src/components/PiChat.tsx:311
+#: src/components/PiChat.tsx:309
 msgid "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 msgstr "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 
@@ -5330,12 +5344,12 @@ msgstr "This conversation has unfinished work. Resume or stop it before retrying
 msgid "Time zone"
 msgstr "Time zone"
 
-#: src/components/harness/AgentKnowledgePage.tsx:540
+#: src/components/harness/AgentKnowledgePage.tsx:620
 #: src/components/harness/tasks/TaskBriefForm.tsx:68
 msgid "Title"
 msgstr "Title"
 
-#: src/components/harness/AgentKnowledgePage.tsx:226
+#: src/components/harness/AgentKnowledgePage.tsx:258
 msgid "Try another phrase or refresh the source index."
 msgstr "Try another phrase or refresh the source index."
 
@@ -5361,7 +5375,7 @@ msgstr "Up to 32 letters, numbers, underscores, or hyphens."
 
 #. placeholder {0}: formatRelativeTime(issue.updatedAt)
 #. placeholder {0}: new Date(data.status.lastUpdatedAt).toLocaleString(i18n.locale)
-#: src/components/harness/AgentKnowledgePage.tsx:140
+#: src/components/harness/AgentKnowledgePage.tsx:172
 #: src/components/harness/tasks/TaskView.tsx:279
 msgid "Updated {0}"
 msgstr "Updated {0}"
