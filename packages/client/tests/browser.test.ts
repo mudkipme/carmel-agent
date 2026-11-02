@@ -1121,7 +1121,9 @@ test("saved issue drafts clear only after the server accepts them", () => {
 test("issue replies survive leaving the conversation and clear after saving", () => {
   open(agentPath(`tasks/${fixture.reviewIssueId}`));
   click("tab", "Conversation");
-  browser("find", "label", "Message", "fill", "Please verify the setup commands");
+  browser("focus", "#issue-reply");
+  browser("press", "Control+a");
+  browser("keyboard", "type", "Please verify the setup commands");
   click("tab", "Result");
   click("tab", "Conversation");
   assert.equal(value("#issue-reply"), "Please verify the setup commands");
