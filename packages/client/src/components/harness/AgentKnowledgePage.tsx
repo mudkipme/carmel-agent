@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BookOpenIcon, PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
 import type { AgentConfig, KnowledgeSearchResult, SavedMemory } from "@carmel-agent/shared";
+import { MarkdownContent } from "@/components/chat/MarkdownContent";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -240,7 +241,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                             </CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <p className="whitespace-pre-wrap break-words text-sm">{hit.excerpt}</p>
+                            <MarkdownContent content={hit.excerpt} preserveLineBreaks={false} />
                           </CardContent>
                           <CardFooter>
                             <Button variant="outline" size="sm" asChild>
@@ -267,12 +268,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                   {doc.loading ? <ResourceLoading label={i18n._("Loading source")} /> : null}
                   {doc.error ? <ResourceError error={doc.error} onRetry={doc.refresh} /> : null}
                   {doc.data ? (
-                    <pre className="whitespace-pre-wrap break-words font-mono text-sm">
-                      {doc.data.content
-                        .split("\n")
-                        .map((line, i) => `${doc.data!.fromLine + i}  ${line}`)
-                        .join("\n")}
-                    </pre>
+                    <MarkdownContent content={doc.data.content} preserveLineBreaks={false} />
                   ) : null}
                 </CardContent>
                 <CardFooter className="gap-2">
@@ -360,7 +356,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p className="whitespace-pre-wrap break-words text-sm">{memory.content}</p>
+                      <MarkdownContent content={memory.content} preserveLineBreaks={false} />
                     </CardContent>
                     {agent.permissions.edit ? (
                       <CardFooter className="gap-2">
