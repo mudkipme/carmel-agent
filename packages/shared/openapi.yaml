@@ -1090,6 +1090,29 @@ paths:
               },
           },
       }
+  /api/sessions/search:
+    get:
+      operationId: searchSessions
+      tags: [Sessions]
+      description: >-
+        Search the caller's session titles and user/assistant message text across visible agents,
+        including archived sessions. Thinking, tool calls, and tool results are excluded.
+        Matches literal substrings and returns title matches first, then message matches,
+        ordered by session activity. An empty or whitespace-only query returns an empty array.
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 500, default: "" }
+      responses:
+        "200":
+          description: Matching session titles and message excerpts
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 50
+                items: { $ref: "#/components/schemas/SessionSearchResult" }
+        "400": { $ref: "#/components/responses/Error" }
   /api/agents/{agentId}/archived-sessions:
     parameters: [{ $ref: "#/components/parameters/AgentID" }]
     get:
@@ -3808,6 +3831,17 @@ components:
             home: { type: boolean },
           },
       }
+    SessionSearchResult:
+      type: object
+      required: [sessionId, agentId, title, excerpt, link]
+      additionalProperties: false
+      properties:
+        sessionId: { type: string }
+        agentId: { type: string }
+        title: { type: string }
+        entryId: { type: string, description: Present for message matches. }
+        excerpt: { type: string, description: Message snippet; empty for title matches. }
+        link: { type: string, description: Session path with an entry anchor for message matches. }
     Session:
       {
         allOf:

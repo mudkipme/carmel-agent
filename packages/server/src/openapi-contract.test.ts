@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { Ajv } from "ajv/dist/ajv.js";
 import { parse } from "yaml";
+import type { SessionSearchResult } from "@carmel-agent/shared";
 import { createApiRoutes } from "./routes/index.ts";
 
 type OpenAPIDocument = {
@@ -179,6 +180,14 @@ test("representative response fixtures satisfy every response component", async 
     },
     AgentConfig: agent,
     SessionMetadata: metadata,
+    SessionSearchResult: {
+      sessionId: "s1",
+      agentId: "a1",
+      title: "Chat",
+      entryId: "durable:1",
+      excerpt: "A matching message",
+      link: "/agents/a1/sessions/s1?entry=durable%3A1",
+    } satisfies SessionSearchResult,
     Session: session,
     SessionConnection: { session, activeRun: null, pendingWork: true },
     FileEntry: file,
