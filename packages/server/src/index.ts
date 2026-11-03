@@ -1,3 +1,8 @@
+import {
+  startCollaborationDispatcher,
+  drainCollaborationResults,
+  stopCollaborationDispatcher,
+} from "./services/collaborations.ts";
 import { startHelperHosts, pauseHelperHosts, shutdownHelperHosts } from "./runtime/helper-hosts.ts";
 import {
   startHomeDispatcher,
@@ -92,6 +97,7 @@ startTaskScheduler();
 startImManager();
 startKnowledgeScheduler();
 startIssueQueue();
+startCollaborationDispatcher();
 
 const app = createApp();
 const port = Number(process.env.PORT ?? 8797);
@@ -113,6 +119,7 @@ async function shutdown(signal: string) {
   pauseHelperHosts();
   stopHomeDispatcher();
   stopIssueQueue();
+  stopCollaborationDispatcher();
   stopImManager();
   console.log(`Received ${signal}, draining active runs...`);
   try {
@@ -121,6 +128,7 @@ async function shutdown(signal: string) {
     await drainHomeEvents();
     await drainImManager();
     await drainIssueResults();
+    await drainCollaborationResults();
   } catch (error) {
     console.warn("Failed to drain active runs:", errorMessage(error));
   }

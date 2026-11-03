@@ -5,6 +5,9 @@ import { publishStateChange } from "../state-changes.ts";
 const tables: Record<string, StateTopic[]> = {
   users: ["workspace"],
   agents: ["workspace"],
+  collaboration_connections: ["workspace"],
+  collaborations: ["issues", "sessions"],
+  collaboration_messages: ["sessions"],
   model_refs: ["workspace"],
   provider_configs: ["workspace"],
   provider_keys: ["workspace"],

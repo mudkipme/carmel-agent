@@ -5504,3 +5504,53 @@ msgstr "正在搜索…"
 #: src/components/harness/NewSessionView.tsx:131
 msgid "New session in {name}"
 msgstr "在 {name} 中开始新会话"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:39
+msgid "Collaboration"
+msgstr "智能体协作"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:25
+msgid "Waiting for agent"
+msgstr "等待智能体"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:11
+msgid "Consultations"
+msgstr "咨询"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:12
+msgid "Create tasks"
+msgstr "创建任务"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:13
+msgid "Run tasks with this agent's permissions"
+msgstr "使用此智能体的权限执行任务"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
+msgid "Both agents must allow a connection. Consultations have read-only tools. Delegated tasks use the receiving agent's configured permissions and credentials."
+msgstr "双方智能体都必须允许连接。咨询仅提供只读工具。委派任务使用接收方智能体配置的权限和凭据。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:79
+msgid "Contact this agent"
+msgstr "联系此智能体"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:80
+msgid "Allow requests from this agent"
+msgstr "允许此智能体发起请求"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:57
+msgid "Open"
+msgstr "打开"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:68
+msgid "Unable to stop collaboration"
+msgstr "无法停止协作"

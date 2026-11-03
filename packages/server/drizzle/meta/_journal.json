@@ -22,6 +22,13 @@
       "when": 1793028355192,
       "tag": "0002_agent_appearance",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793711347324,
+      "tag": "0003_agent_collaboration",
+      "breakpoints": true
     }
   ]
 }

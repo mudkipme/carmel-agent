@@ -1,3 +1,7 @@
+import { receiverCollaboration, assertReceiverAccess } from "../services/collaborations.ts";
+import { db } from "../db/index.ts";
+import { sessions } from "../db/schema.ts";
+import { eq } from "drizzle-orm";
 import type { ToolRegistration, Context } from "../effectors/pi-durable/index.ts";
 import { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
@@ -24,6 +28,18 @@ export function createServerExecution(
   userId?: string,
   sessionId?: string,
 ) {
+  const session = sessionId
+    ? db.select().from(sessions).where(eq(sessions.id, sessionId)).get()
+    : undefined;
+  const collaboration = sessionId ? receiverCollaboration(sessionId, session?.issueId) : undefined;
+  const consultation = collaboration?.kind === "consult";
+  if (consultation)
+    agent = {
+      ...agent,
+      codemodeEnabled: false,
+      mcpServers: [],
+      permissions: { ...agent.permissions, write: false, edit: false, bash: false, network: false },
+    };
   const browserRevision = {
     revision: agent.permissions.bash ? browserControl(agent.id).state.revision : 0,
   };
@@ -43,11 +59,27 @@ export function createServerExecution(
     /** Compose session overrides before exposing the same tool set to codemode. */
     resolveTools(sessionTools: readonly ToolRegistration[] = []) {
       const overrides = new Set(sessionTools.map((tool) => tool.name));
+      const permitted = new Set([
+        "read",
+        "grep",
+        "find",
+        "ls",
+        "knowledge_search",
+        "knowledge_read",
+        "read_collaboration",
+        "send_agent_message",
+      ]);
       const available = [
         ...tools.filter((tool) => !overrides.has(tool.name)),
         ...sessionTools,
-      ].filter((tool) => tool.name !== "codemode" && tool.name !== "load_builtin_skill");
-      if (availableBuiltinSkillNames(agent).length) available.push(builtinSkillTool(agent, userId));
+      ].filter(
+        (tool) =>
+          tool.name !== "codemode" &&
+          tool.name !== "load_builtin_skill" &&
+          (!consultation || permitted.has(tool.name)),
+      );
+      if (!consultation && availableBuiltinSkillNames(agent).length)
+        available.push(builtinSkillTool(agent, userId));
       const composed = codemode ? [...available, ...codemode.tools!] : available;
       // Gate the entire codemode batch so its deadline starts after human control ends.
       const resolved = agent.permissions.bash
@@ -56,9 +88,22 @@ export function createServerExecution(
             browserHelpTool(agent, sessionId),
           ]
         : composed;
-      return sessionId
-        ? resolved.map((tool) => guardUserRequests(tool, sessionId, agent.id))
+      const checked = collaboration
+        ? resolved.map((tool) => ({
+            ...tool,
+            async execute(
+              args: unknown,
+              api: Parameters<typeof tool.execute>[1],
+              context: Parameters<typeof tool.execute>[2],
+            ) {
+              assertReceiverAccess(sessionId!, session?.issueId);
+              return tool.execute(args, api, context);
+            },
+          }))
         : resolved;
+      return sessionId
+        ? checked.map((tool) => guardUserRequests(tool, sessionId, agent.id))
+        : checked;
     },
     async cleanup(context: Context) {
       try {

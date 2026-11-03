@@ -5504,3 +5504,53 @@ msgstr "Searching…"
 #: src/components/harness/NewSessionView.tsx:131
 msgid "New session in {name}"
 msgstr "New session in {name}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:39
+msgid "Collaboration"
+msgstr "Collaboration"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:25
+msgid "Waiting for agent"
+msgstr "Waiting for agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:11
+msgid "Consultations"
+msgstr "Consultations"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:12
+msgid "Create tasks"
+msgstr "Create tasks"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:13
+msgid "Run tasks with this agent's permissions"
+msgstr "Run tasks with this agent's permissions"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
+msgid "Both agents must allow a connection. Consultations have read-only tools. Delegated tasks use the receiving agent's configured permissions and credentials."
+msgstr "Both agents must allow a connection. Consultations have read-only tools. Delegated tasks use the receiving agent's configured permissions and credentials."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:79
+msgid "Contact this agent"
+msgstr "Contact this agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:80
+msgid "Allow requests from this agent"
+msgstr "Allow requests from this agent"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:57
+msgid "Open"
+msgstr "Open"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:68
+msgid "Unable to stop collaboration"
+msgstr "Unable to stop collaboration"

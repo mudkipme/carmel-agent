@@ -1,0 +1,31 @@
+# Agent collaboration
+
+An agent can ask another agent a question or delegate a task to it. Requests run for the same user. Each agent keeps its own workspace, tools, credentials, and sandbox; only the explicit request, messages, and reported result cross the connection.
+
+## Enable a connection
+
+Open **Agent Settings → Collaboration** on each agent. On the requesting agent, enable the desired capabilities under **Contact this agent**. On the receiving agent, enable matching capabilities under **Allow requests from this agent**. Both sides must permit an operation, and the user must be able to use both agents.
+
+- **Consultations** allow bounded questions with read-only file and knowledge tools. Shell, browser, MCP, private conversation search, and write tools are excluded.
+- **Create tasks** allows creating a backlog task assigned to the other agent.
+- **Run tasks with this agent's permissions** also allows queueing work and sending execution updates. Enable Create tasks as well. The task uses the receiver's configured file, shell, network, and MCP capabilities, including its credentials.
+
+Connections save immediately. Owners configure their own agent's side of the connection. Sharing an agent alone does not enable collaboration.
+
+## Ask or delegate
+
+Ask your agent to consult a permitted peer, or have it create and queue a task for that peer. Agents use `list_collaborators`, `ask_agent`, and `delegate_task`. A receiving agent can send questions and replies through `send_agent_message`; it cannot delegate further.
+
+Consultations receive only the explicit question and the collaboration exchange. Private conversation history is excluded from both consultations and delegated task tools. For substantial work, delegation uses the receiver's existing Tasks queue, discussion, evidence, and review controls. Agents can inspect their collaboration's exported results but cannot list the receiver's other tasks through collaboration tools.
+
+A waiting source task reports `waiting`, releases its queue slot, and continues in its existing conversation when a reply arrives. A result arriving before the source finishes is retained. Waiting in an ordinary session resumes that conversation; results without a registered wait are saved as notices in Home. Home remains available while background work runs.
+
+Reported task results remain **In review** until you accept them. A requesting agent can use a reported result without accepting the receiving task. Both tasks retain their own acceptance step.
+
+Conversations show collaboration status, requests, results, and links to the receiving conversation or task. Use **Stop** to cancel outstanding linked work. Stopping a source task cancels its outstanding delegations; stopping Home leaves already delegated tasks running. Cancellation retains evidence and does not undo changes already made.
+
+## Current boundaries
+
+The first version exchanges text. Copy relevant context into the request; file transfer through shared artifact snapshots is a later addition. Up to four outstanding collaborations can originate from one session, and delegation has one level.
+
+Isolation remains per agent. Its sessions share that agent's workspace and browser profile, and configured overlapping mounts remain shared. Deliberately passing information to another agent allows it to use that information through its permitted capabilities. Credentials and histories are never automatically copied between agents.

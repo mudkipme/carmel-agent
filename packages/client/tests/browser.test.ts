@@ -2220,3 +2220,26 @@ test("language selection updates settings in place and persists across reload an
   browser("wait", "--text", "Save appearance");
   assert.equal(evaluate("document.documentElement.lang"), "en");
 });
+
+test("collaboration settings persist directional consultation and task grants", () => {
+  browser("open", `${fixture.url}${agentPath("settings/collaboration")}`);
+  browser("wait", "--text", "Contact this agent");
+  assert.match(snapshot(), /Consultations/);
+  evaluate(`document.querySelector('button[role="switch"]').click()`);
+  browser(
+    "wait",
+    "--fn",
+    `document.querySelector('button[role="switch"]').getAttribute('aria-checked') === 'true'`,
+  );
+  browser("reload");
+  browser(
+    "wait",
+    "--fn",
+    `document.querySelector('button[role="switch"]')?.getAttribute('aria-checked') === 'true'`,
+  );
+  const saved = evaluate<{ direction: string; capabilities: { consult: boolean } }[]>(
+    `fetch('/api/agents/${fixture.agentId}/collaboration-connections').then(response => response.json())`,
+  );
+  assert.ok(saved.some((row) => row.direction === "outgoing" && row.capabilities.consult));
+  assert.ok(!saved.some((row) => row.direction === "incoming" && row.capabilities.consult));
+});

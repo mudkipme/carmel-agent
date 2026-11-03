@@ -23,6 +23,7 @@ export type SessionMetadata = {
   taskId?: string;
   /** Set on an issue's session, which the issue list shows instead of the session list. */
   issueId?: string;
+  collaborationId?: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -54,13 +55,14 @@ export type SessionImportResult = {
  */
 export type SessionMetadataSource = Omit<
   SessionMetadata,
-  "forkedFrom" | "pinnedAt" | "archivedAt" | "taskId" | "issueId"
+  "forkedFrom" | "pinnedAt" | "archivedAt" | "taskId" | "issueId" | "collaborationId"
 > & {
   forkedFrom?: SessionFork | null;
   pinnedAt?: number | null;
   archivedAt?: number | null;
   taskId?: string | null;
   issueId?: string | null;
+  collaborationId?: string | null;
 };
 
 /**
@@ -82,6 +84,7 @@ export function toSessionMetadata(session: SessionMetadataSource): SessionMetada
     archivedAt: session.archivedAt ?? undefined,
     taskId: session.taskId ?? undefined,
     issueId: session.issueId ?? undefined,
+    collaborationId: session.collaborationId ?? undefined,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
   };
@@ -97,5 +100,6 @@ export function toSessionRow(session: SessionMetadataSource) {
     archivedAt: session.archivedAt ?? null,
     taskId: session.taskId ?? null,
     issueId: session.issueId ?? null,
+    collaborationId: session.collaborationId ?? null,
   };
 }

@@ -192,6 +192,25 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
 }
 
 export const api = {
+  getCollaborations: (agentId: string, signal?: AbortSignal) =>
+    request<import("@carmel-agent/shared").CollaborationSummary[]>(
+      `/api/agents/${agentId}/collaborations`,
+      { signal },
+    ),
+  cancelCollaboration: (agentId: string, id: string) =>
+    request(`/api/agents/${agentId}/collaborations/${id}/cancel`, { method: "POST" }),
+  getCollaborationConnections: (agentId: string) =>
+    request<import("@carmel-agent/shared").CollaborationConnection[]>(
+      `/api/agents/${agentId}/collaboration-connections`,
+    ),
+  saveCollaborationConnection: (
+    agentId: string,
+    input: import("@carmel-agent/shared").CollaborationConnection,
+  ) =>
+    request<import("@carmel-agent/shared").CollaborationConnection[]>(
+      `/api/agents/${agentId}/collaboration-connections`,
+      { method: "PUT", body: JSON.stringify(input) },
+    ),
   answerQuestion: (sessionId: string, requestId: string, answer: QuestionAnswer) =>
     request<UserRequest>(`/api/sessions/${sessionId}/requests/${requestId}/answer`, {
       method: "POST",

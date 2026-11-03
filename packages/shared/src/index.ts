@@ -14,6 +14,7 @@ import type { AgentIcon, AgentColor } from "./agent-appearance.ts";
 import type { HomeIssueUpdate } from "./home-issues.ts";
 export * from "./agent-appearance.ts";
 export * from "./home-issues.ts";
+export * from "./collaborations.ts";
 export * from "./references.ts";
 export * from "./user-requests.ts";
 export * from "./updates.ts";
@@ -317,12 +318,13 @@ export type IssueStatus =
   | "todo"
   | "queued"
   | "in_progress"
+  | "waiting"
   | "needs_input"
   | "blocked"
   | "in_review"
   | "done"
   | "cancelled";
-export type IssueVerdict = "done" | "needs_input" | "blocked";
+export type IssueVerdict = "done" | "needs_input" | "blocked" | "waiting";
 export type IssuePriority = "low" | "normal" | "high" | "urgent";
 export type Issue = {
   notifyPlatform?: import("./im.ts").ImPlatform;

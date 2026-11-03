@@ -22,6 +22,7 @@ const states: Record<IssueStatus, [string, LucideIcon, IssueState["attention"]]>
   todo: [/*i18n*/ "Backlog", CircleDotIcon, "none"],
   queued: [/*i18n*/ "Queued", CircleDotIcon, "none"],
   in_progress: [/*i18n*/ "Working", LoaderCircleIcon, "none"],
+  waiting: [/*i18n*/ "Waiting for agent", CircleDashedIcon, "none"],
   needs_input: [/*i18n*/ "Needs input", MessageCircleQuestionMarkIcon, "blocking"],
   blocked: [/*i18n*/ "Blocked", OctagonAlertIcon, "blocking"],
   in_review: [/*i18n*/ "In review", ClipboardCheckIcon, "review"],
@@ -69,7 +70,7 @@ export function sortIssues(a: Issue, b: Issue) {
   return b.updatedAt - a.updatedAt;
 }
 export function issueGroup(issue: Issue): "Working" | "Queued" | "Needs you" | "Backlog" | "Done" {
-  if (issue.running) return "Working";
+  if (issue.running || issue.status === "waiting") return "Working";
   if (isClosedIssue(issue)) return "Done";
   if (issue.status === "queued") return "Queued";
   return describeIssue(issue).attention !== "none" ? "Needs you" : "Backlog";

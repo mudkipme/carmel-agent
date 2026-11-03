@@ -1,3 +1,4 @@
+import { collaborations } from "../db/schema.ts";
 import { HomeError, sessionHome } from "../services/agent-homes.ts";
 import { admitHomeInput, dispatchHome, stopHome } from "../services/home-events.ts";
 import {
@@ -78,6 +79,10 @@ export function createAgentRunRoutes() {
     const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!session || session.userId !== userId) return c.json({ error: "Session not found" }, 404);
     if (session.issueId) return c.json({ error: "Stop the attempt from the issue." }, 409);
+    db.update(collaborations)
+      .set({ waiting: false })
+      .where(eq(collaborations.sourceSessionId, sessionId))
+      .run();
     const home = sessionHome(sessionId);
     if (home) {
       await stopHome(userId, home.agentId);

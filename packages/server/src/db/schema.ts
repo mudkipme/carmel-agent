@@ -420,6 +420,7 @@ export const sessions = sqliteTable(
     taskId: text("task_id"),
     /** The issue this session works. Issue sessions are listed as issues, not as sessions. */
     issueId: text("issue_id"),
+    collaborationId: text("collaboration_id"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
@@ -455,6 +456,7 @@ export const issues = sqliteTable(
       .default("normal"),
     lastRunOutcome: text("last_run_outcome").$type<AgentRunOutcome>(),
     lastRunDetail: text("last_run_detail"),
+    collaborationId: text("collaboration_id"),
     verdict: text("verdict").$type<IssueVerdict>(),
     verdictSummary: text("verdict_summary"),
     queuePosition: integer("queue_position"),
@@ -586,4 +588,63 @@ export const sessionSearchState = sqliteTable("session_search_state", {
     .primaryKey()
     .references(() => sessions.id, { onDelete: "cascade" }),
   revision: integer("revision").notNull(),
+});
+
+export const collaborationConnections = sqliteTable(
+  "collaboration_connections",
+  {
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    peerAgentId: text("peer_agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    direction: text("direction").$type<"incoming" | "outgoing">().notNull(),
+    capabilities: text("capabilities", { mode: "json" })
+      .$type<import("@carmel-agent/shared").CollaborationGrant>()
+      .notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.agentId, table.peerAgentId, table.direction] })],
+);
+
+export const collaborations = sqliteTable("collaborations", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  sourceAgentId: text("source_agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  targetAgentId: text("target_agent_id")
+    .notNull()
+    .references(() => agents.id, { onDelete: "cascade" }),
+  sourceSessionId: text("source_session_id")
+    .notNull()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  sourceIssueId: text("source_issue_id").references(() => issues.id, { onDelete: "cascade" }),
+  targetSessionId: text("target_session_id").references(() => sessions.id, {
+    onDelete: "set null",
+  }),
+  targetIssueId: text("target_issue_id").references(() => issues.id, { onDelete: "set null" }),
+  kind: text("kind").$type<"consult" | "task">().notNull(),
+  status: text("status")
+    .$type<"queued" | "working" | "answered" | "failed" | "cancelled">()
+    .notNull(),
+  request: text("request").notNull(),
+  answer: text("answer"),
+  sourceKey: text("source_key").notNull().unique(),
+  waiting: integer("waiting", { mode: "boolean" }).notNull().default(false),
+  deliveredKey: text("delivered_key"),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const collaborationMessages = sqliteTable("collaboration_messages", {
+  id: text("id").primaryKey(),
+  collaborationId: text("collaboration_id")
+    .notNull()
+    .references(() => collaborations.id, { onDelete: "cascade" }),
+  delivered: integer("delivered", { mode: "boolean" }).notNull().default(false),
+  agentId: text("agent_id").notNull(),
+  text: text("text").notNull(),
+  createdAt: integer("created_at").notNull(),
 });

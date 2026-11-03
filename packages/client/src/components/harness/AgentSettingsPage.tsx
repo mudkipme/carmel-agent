@@ -16,6 +16,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AgentArchivedSessionsSettings } from "@/components/harness/agent-settings/AgentArchivedSessionsSettings";
 import { AgentGeneralSettings } from "@/components/harness/agent-settings/AgentGeneralSettings";
 import { AgentKnowledgeSettings } from "@/components/harness/agent-settings/AgentKnowledgeSettings";
+import { AgentCollaborationSettings } from "./agent-settings/AgentCollaborationSettings";
 import { AgentPermissionsSettings } from "@/components/harness/agent-settings/AgentPermissionsSettings";
 import { AgentSecretsSettings } from "@/components/harness/agent-settings/AgentSecretsSettings";
 import { AgentIntegrationsSettings } from "@/components/harness/agent-settings/AgentIntegrationsSettings";
@@ -35,6 +36,7 @@ const agentSettingsSections = [
   { id: "general", label: /*i18n*/ "General", icon: SlidersHorizontalIcon },
   { id: "knowledge", label: /*i18n*/ "Knowledge", icon: BookOpenIcon },
   { id: "templates", label: /*i18n*/ "Templates", icon: FileTextIcon },
+  { id: "collaboration", label: /*i18n*/ "Collaboration", icon: PlugIcon },
   { id: "permissions", label: /*i18n*/ "Permissions", icon: ShieldIcon },
   { id: "codemode", label: /*i18n*/ "Codemode", icon: CodeIcon },
   { id: "secrets", label: /*i18n*/ "Secrets", icon: KeyRoundIcon },
@@ -195,7 +197,11 @@ export function AgentSettingsPage() {
         to: `/agents/${agent.id}/settings/${item.id}`,
       }))}
       footer={
-        draft && !callerSection && activeSection !== "secrets" && activeSection !== "knowledge" ? (
+        draft &&
+        !callerSection &&
+        activeSection !== "secrets" &&
+        activeSection !== "knowledge" &&
+        activeSection !== "collaboration" ? (
           <footer className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t bg-muted/30 px-4 py-3 pb-[calc(0.75rem+var(--safe-bottom))] sm:px-8">
             {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
             {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
@@ -247,6 +253,9 @@ export function AgentSettingsPage() {
               templates={draft.promptTemplates}
               onChange={(promptTemplates) => updateDraft({ promptTemplates })}
             />
+          ) : null}
+          {activeSection === "collaboration" ? (
+            <AgentCollaborationSettings key={agent.id} agentId={agent.id} />
           ) : null}
           {activeSection === "permissions" ? (
             <AgentPermissionsSettings

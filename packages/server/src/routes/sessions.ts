@@ -268,6 +268,7 @@ export function createSessionRoutes() {
       // list even when it comes from a task run.
       taskId: undefined,
       issueId: undefined,
+      collaborationId: source.collaborationId ?? undefined,
       revision: 0,
       createdAt: timestamp,
       updatedAt: timestamp,

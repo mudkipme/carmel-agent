@@ -21,6 +21,75 @@ tags:
   - { name: Issues }
   - { name: Knowledge }
 paths:
+  /api/agents/{agentId}/collaboration-connections:
+    parameters:
+      - { name: agentId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getCollaborationConnections
+      tags: [Agents]
+      responses:
+        "200":
+          description: Owner-managed directional collaboration grants.
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+        "403": { $ref: "#/components/responses/Error" }
+    put:
+      operationId: saveCollaborationConnection
+      tags: [Agents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [peerAgentId, direction, capabilities]
+              additionalProperties: false
+              properties:
+                peerAgentId: { type: string, minLength: 1 }
+                direction: { type: string, enum: [incoming, outgoing] }
+                capabilities:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    consult: { type: boolean, default: false }
+                    createTask: { type: boolean, default: false }
+                    queueTask: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Saved connections.
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+        "403": { $ref: "#/components/responses/Error" }
+  /api/agents/{agentId}/collaborations:
+    parameters:
+      - { name: agentId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getCollaborations
+      tags: [Agents]
+      responses:
+        "200":
+          description: This user's explicit collaborations involving this agent.
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/agents/{agentId}/collaborations/{id}/cancel:
+    parameters:
+      - { name: agentId, in: path, required: true, schema: { type: string } }
+      - { $ref: "#/components/parameters/ID" }
+    post:
+      operationId: cancelCollaboration
+      tags: [Agents]
+      responses:
+        "200":
+          description: Outstanding delegated work stopped; existing changes are retained.
+          content:
+            application/json:
+              schema: { type: object, properties: { cancelled: { type: boolean } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
   /api/sessions/{id}/requests/{requestId}/answer:
     parameters:
       - { $ref: "#/components/parameters/ID" }
@@ -4275,6 +4344,7 @@ components:
                     "todo",
                     "queued",
                     "in_progress",
+                    "waiting",
                     "needs_input",
                     "blocked",
                     "in_review",
@@ -4285,7 +4355,7 @@ components:
             "running": { "type": "boolean" },
             "lastRunOutcome":
               { "type": "string", "enum": ["succeeded", "failed", "cancelled", "interrupted"] },
-            "verdict": { "type": "string", "enum": ["done", "needs_input", "blocked"] },
+            "verdict": { "type": "string", "enum": ["done", "needs_input", "blocked", "waiting"] },
             "closedAt": { "type": "number" },
             "createdAt": { "type": "number" },
             "updatedAt": { "type": "number" },
@@ -4455,6 +4525,7 @@ components:
                     "todo",
                     "queued",
                     "in_progress",
+                    "waiting",
                     "needs_input",
                     "blocked",
                     "in_review",
@@ -4465,7 +4536,7 @@ components:
             "running": { "type": "boolean" },
             "lastRunOutcome":
               { "type": "string", "enum": ["succeeded", "failed", "cancelled", "interrupted"] },
-            "verdict": { "type": "string", "enum": ["done", "needs_input", "blocked"] },
+            "verdict": { "type": "string", "enum": ["done", "needs_input", "blocked", "waiting"] },
             "closedAt": { "type": "number" },
             "createdAt": { "type": "number" },
             "updatedAt": { "type": "number" },

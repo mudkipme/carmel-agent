@@ -1,3 +1,4 @@
+import { CollaborationActivity } from "@/components/chat/CollaborationActivity";
 import { priorityLabel } from "@/lib/labels";
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
@@ -519,6 +520,11 @@ function TaskWorkspace({
                         i18n._("This task will start when the agent is available.")}
                     </AlertDescription>
                   </Alert>
+                </div>
+              ) : null}
+              {issue.sessionId ? (
+                <div className="mx-auto w-full max-w-[var(--line-width)] px-4">
+                  <CollaborationActivity agentId={agent.id} sessionId={issue.sessionId} />
                 </div>
               ) : null}
               <div className="flex min-h-0 flex-1 flex-col">

@@ -457,6 +457,9 @@ async function fakeProvider(root: string) {
         ],
       });
       send({}, "tool_calls");
+    } else if (last.startsWith("Request from agent")) {
+      send({ role: "assistant", content: "Consultation evidence from the target." });
+      send({}, "stop");
     } else if (reported || `${context} ${last}`.includes("No report")) {
       send({
         role: "assistant",
@@ -528,3 +531,108 @@ async function waitFor(predicate: () => boolean) {
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
 }
+
+test("delegated results resume a waiting source task without accepting the receiving task", async () => {
+  const f = await fixture();
+  const { createSession } = await import("../test-support.ts");
+  const { sessions } = await import("../db/schema.ts");
+  const { saveConnection, createCollaboration, waitForCollaboration, dispatchCollaborations } =
+    await import("./collaborations.ts");
+  const source = createSession({ userId: f.userId });
+  const target = db.select().from(agents).where(eq(agents.id, f.agentId)).get()!;
+  db.update(agents)
+    .set({ defaultModelRefId: target.defaultModelRefId, workingDir: f.root })
+    .where(eq(agents.id, source.agentId))
+    .run();
+  db.update(sessions)
+    .set({ modelRefId: target.defaultModelRefId })
+    .where(eq(sessions.id, source.sessionId))
+    .run();
+  const capabilities = { consult: true, createTask: true, queueTask: true };
+  saveConnection(f.userId, source.agentId, {
+    peerAgentId: f.agentId,
+    direction: "outgoing",
+    capabilities,
+  });
+  saveConnection(f.userId, f.agentId, {
+    peerAgentId: source.agentId,
+    direction: "incoming",
+    capabilities,
+  });
+  const parent = createIssue(f.userId, source.agentId, {
+    title: "Parent",
+    description: "Collect delegated findings",
+  });
+  db.update(sessions).set({ issueId: parent.id }).where(eq(sessions.id, source.sessionId)).run();
+  db.update(issues)
+    .set({ sessionId: source.sessionId, status: "waiting" })
+    .where(eq(issues.id, parent.id))
+    .run();
+  const owner = { userId: f.userId, agentId: source.agentId, sessionId: source.sessionId };
+  try {
+    const collaboration = createCollaboration(owner, f.agentId, "delegate", "Find facts", {
+      title: "Delegated findings",
+      description: "Find facts",
+      queue: true,
+    });
+    waitForCollaboration(owner, collaboration.id);
+    await waitFor(() => f.detail(collaboration.targetIssueId!).status === "in_review");
+    await dispatchCollaborations();
+    await waitFor(() => readIssueView(f.userId, source.agentId, parent.id).status === "in_review");
+    assert.equal(f.detail(collaboration.targetIssueId!).status, "in_review");
+    assert.equal(readIssueView(f.userId, source.agentId, parent.id).attempts.length, 1);
+    await dispatchCollaborations();
+    assert.equal(readIssueView(f.userId, source.agentId, parent.id).attempts.length, 1);
+  } finally {
+    await f.close();
+    db.delete(issues).where(eq(issues.id, parent.id)).run();
+  }
+});
+
+test("consultations execute in a target session and retain explicit follow-up exchanges", async () => {
+  const f = await fixture();
+  const { createSession } = await import("../test-support.ts");
+  const {
+    saveConnection,
+    createCollaboration,
+    sendCollaborationMessage,
+    readCollaboration,
+    dispatchCollaborations,
+    drainCollaborationResults,
+  } = await import("./collaborations.ts");
+  const source = createSession({ userId: f.userId });
+  const capabilities = { consult: true, createTask: false, queueTask: false };
+  saveConnection(f.userId, source.agentId, {
+    peerAgentId: f.agentId,
+    direction: "outgoing",
+    capabilities,
+  });
+  saveConnection(f.userId, f.agentId, {
+    peerAgentId: source.agentId,
+    direction: "incoming",
+    capabilities,
+  });
+  const owner = { userId: f.userId, agentId: source.agentId, sessionId: source.sessionId };
+  try {
+    const collaboration = createCollaboration(owner, f.agentId, "ask", "Find a fact");
+    await dispatchCollaborations();
+    await waitFor(() => readCollaboration(owner, collaboration.id).status === "answered");
+    const first = readCollaboration(owner, collaboration.id);
+    assert.match(first.answer!, /Consultation evidence/);
+    assert.equal((await loadSession(first.targetSessionId!))?.agentId, f.agentId);
+    await sendCollaborationMessage(owner, first.id, "Explain the evidence");
+    await dispatchCollaborations();
+    await waitFor(() => readCollaboration(owner, first.id).status === "answered");
+    const followup = readCollaboration(owner, first.id);
+    assert.notEqual(followup.targetSessionId, first.targetSessionId);
+    assert.ok(
+      f.provider.requests.some(
+        (body) =>
+          lastUser(body).includes("Find a fact") && lastUser(body).includes("Explain the evidence"),
+      ),
+    );
+  } finally {
+    await f.close();
+    await drainCollaborationResults();
+  }
+});

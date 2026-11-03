@@ -1,3 +1,4 @@
+import { createCollaborationRoutes } from "./collaborations.ts";
 import { createHelperRoutes } from "./helpers.ts";
 import { createHomeRoutes } from "./agent-homes.ts";
 import { Hono } from "hono";
@@ -34,6 +35,7 @@ export function createApiRoutes() {
   api.route("/", createKnowledgeRoutes());
   api.route("/", createAgentTaskRoutes());
   api.route("/", createIssueRoutes());
+  api.route("/", createCollaborationRoutes());
   api.route("/", createAgentRunRoutes());
   api.route("/", createSessionRoutes());
   api.route("/", createHomeRoutes());

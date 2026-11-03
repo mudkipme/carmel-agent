@@ -1,3 +1,5 @@
+import { assertReceiverAccess, cancelSourceCollaborations } from "./collaborations.ts";
+import { collaborations } from "../db/schema.ts";
 import { imOutbox, imIntegrations } from "../db/im-schema.ts";
 import { gte } from "drizzle-orm";
 import { publishHomeEvent } from "./home-events.ts";
@@ -259,6 +261,12 @@ export async function pumpIssueQueue(agentId: string) {
     addEvent(issueId, command.fresh ? "Started work in a fresh conversation." : "Started work.");
   });
   try {
+    assertReceiverAccess("", issueId);
+    if (current.collaborationId)
+      db.update(collaborations)
+        .set({ status: "working", answer: null })
+        .where(eq(collaborations.id, current.collaborationId))
+        .run();
     const agent = assertAgentVisible(userId, agentId);
     const previous =
       !command.fresh && current.sessionId
@@ -294,6 +302,11 @@ export async function pumpIssueQueue(agentId: string) {
       .where(eq(issueAttempts.id, attemptId))
       .run();
     db.update(issues).set({ sessionId: session.id }).where(eq(issues.id, issueId)).run();
+    if (current.collaborationId)
+      db.update(sessions)
+        .set({ collaborationId: current.collaborationId })
+        .where(eq(sessions.id, session.id))
+        .run();
     const run = startDetachedAgentRun({
       agent: currentAgent,
       session,
@@ -434,7 +447,7 @@ export function issueRunAddons(
   brief?: string,
 ): SessionRunAddons {
   return {
-    instructions: `Durable task attempt: follow the brief and acceptance criteria in this agent's workspace. Inspect existing work first; reuse this conversation unless the user requests a fresh start. Use start_subtask for bounded read-only research with isolated context; independent questions can run in parallel. Before reporting done, wait_subtask for every background subtask and incorporate its evidence. Keep subtask details here; Home gets the parent result. Finish with report_task: done (ready for human review), needs_input (specific questions), or blocked (obstacle). Include concrete verification evidence and distinguish checked results from assumptions. Only the user accepts and closes completed work.${brief ? `\n\n## Task brief\n\n${brief}` : ""}`,
+    instructions: `Durable task attempt: follow the brief and acceptance criteria in this agent's workspace. Inspect existing work first; reuse this conversation unless the user requests a fresh start. Use start_subtask for bounded read-only research with isolated context; independent questions can run in parallel. Before reporting done, wait_subtask for every background subtask and incorporate its evidence. Keep subtask details here; Home gets the parent result. Finish with report_task: done (ready for human review), needs_input (specific questions), or blocked (obstacle). Include concrete verification evidence and distinguish checked results from assumptions. When waiting on another agent, call wait_for_collaboration then report_task(state=waiting) and end the turn to release the queue slot. Only the user accepts and closes completed work.${brief ? `\n\n## Task brief\n\n${brief}` : ""}`,
     onQueueUpdate(entryIds) {
       for (const note of db
         .select()
@@ -482,7 +495,7 @@ export function issueRunAddons(
         parameters: {
           type: "object",
           properties: {
-            state: { type: "string", enum: ["done", "needs_input", "blocked"] },
+            state: { type: "string", enum: ["done", "needs_input", "blocked", "waiting"] },
             summary: { type: "string" },
             evidence: {
               type: "string",
@@ -500,7 +513,7 @@ export function issueRunAddons(
             evidence?: string;
           };
           if (
-            !["done", "needs_input", "blocked"].includes(args.state ?? "") ||
+            !["done", "needs_input", "blocked", "waiting"].includes(args.state ?? "") ||
             typeof args.summary !== "string" ||
             !args.summary.trim() ||
             typeof args.evidence !== "string"
@@ -530,6 +543,17 @@ export function issueRunAddons(
                 "Subtasks are still running. Use wait_subtask to collect their results before reporting this task complete.",
               );
           }
+          if (
+            args.state === "waiting" &&
+            !db
+              .select()
+              .from(collaborations)
+              .where(
+                and(eq(collaborations.sourceIssueId, issueId), eq(collaborations.waiting, true)),
+              )
+              .get()
+          )
+            throw new IssueError("Register wait_for_collaboration before reporting waiting.", 400);
           db.transaction(() => {
             db.update(issueAttempts)
               .set({
@@ -583,13 +607,15 @@ export function finishIssueAttempt(attemptId: string, result: AgentRunResult) {
       ? issue.status
       : result.outcome !== "succeeded"
         ? "backlog"
-        : issue.verdict === "needs_input"
-          ? "needs_input"
-          : issue.verdict === "blocked"
-            ? "blocked"
-            : issue.verdict === "done"
-              ? "in_review"
-              : "needs_input";
+        : issue.verdict === "waiting"
+          ? "waiting"
+          : issue.verdict === "needs_input"
+            ? "needs_input"
+            : issue.verdict === "blocked"
+              ? "blocked"
+              : issue.verdict === "done"
+                ? "in_review"
+                : "needs_input";
     db.update(issues)
       .set({
         status,
@@ -641,7 +667,7 @@ export function finishIssueAttempt(attemptId: string, result: AgentRunResult) {
         lastRunOutcome: result.outcome,
       },
       notifyPlatform: alreadyNotified ? undefined : (issue.notifyPlatform ?? undefined),
-      text: `[${issue.title.replaceAll("[", "").replaceAll("]", "")}](/agents/${issue.agentId}/tasks/${issue.id}?from=home) — ${result.outcome === "succeeded" ? (issue.verdict === "done" ? "Ready for review" : issue.verdict === "blocked" ? "Blocked" : "Needs input") : result.outcome}\n\n${(result.detail ?? attempt.summary ?? "The attempt ended without a result report.").slice(0, 4000)}`,
+      text: `[${issue.title.replaceAll("[", "").replaceAll("]", "")}](/agents/${issue.agentId}/tasks/${issue.id}?from=home) — ${result.outcome === "succeeded" ? (issue.verdict === "done" ? "Ready for review" : issue.verdict === "blocked" ? "Blocked" : issue.verdict === "waiting" ? "Waiting for agent" : "Needs input") : result.outcome}\n\n${(result.detail ?? attempt.summary ?? "The attempt ended without a result report.").slice(0, 4000)}`,
     });
   }
   wakeQueue(issue.agentId);
@@ -698,6 +724,15 @@ export function reopenIssue(userId: string, agentId: string, issueId: string): I
 }
 export function interruptIssue(userId: string, agentId: string, issueId: string): IssueDetail {
   const issue = readIssue(userId, agentId, issueId);
+  if (issue.sessionId) {
+    cancelSourceCollaborations(issue.sessionId);
+    db.update(collaborations)
+      .set({ waiting: false })
+      .where(eq(collaborations.sourceSessionId, issue.sessionId))
+      .run();
+  }
+  if (issue.status === "waiting")
+    db.update(issues).set({ status: "backlog" }).where(eq(issues.id, issueId)).run();
   if (issue.status === "queued") return removeIssueFromQueue(userId, agentId, issueId);
   const attempt = activeAttempt(issueId);
   const run = attempt?.sessionId ? getActiveAgentRunForSessionId(attempt.sessionId) : undefined;
