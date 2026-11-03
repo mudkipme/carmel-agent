@@ -90,12 +90,8 @@ test("a threshold compaction is not mistaken for overflow recovery", () => {
   const emitted: AgentRunEvent[] = [];
   const reporter = new ContextReporter(undefined, (event) => emitted.push(event));
   reporter.observe({
-    type: "compaction_end",
-    reason: "threshold",
-    status: "completed",
-    entryId: "e1",
-    runId: "run_1",
-    endedAt: 1,
+    type: "message_end",
+    entry: { kind: "pi.compaction", data: { reason: "threshold" } },
   } as never);
   assert.deepEqual(emitted, []);
 });
@@ -118,13 +114,21 @@ test("an overflow Pi declined to compact says there was nothing to summarize", (
   assert.match((emitted[0] as { message: string }).message, /no older history to summarize/);
 });
 
-test("native compaction failure snapshots warn once across repeated snapshots and end events", () => {
+test("native compaction failures warn once across repeated conversation views", () => {
   const emitted: AgentRunEvent[] = [];
   const reporter = new ContextReporter(undefined, (event) => emitted.push(event));
-  const failure = { taskId: 42 as never, reason: "overflow" as const, error: "failed summary" };
-  reporter.observe({ type: "snapshot", compactionFailure: failure } as never);
-  reporter.observe({ type: "snapshot", compactionFailure: failure } as never);
-  reporter.observe({ type: "compaction_end", ...failure });
+  const failure = { taskId: 42 as never, trigger: "overflow" as const, error: "failed summary" };
+  reporter.observe({
+    type: "state",
+    value: { docs: { "pi.live": { compactionFailure: failure } } },
+    ops: [],
+  } as never);
+  reporter.observe({
+    type: "state",
+    value: { docs: { "pi.live": { compactionFailure: failure } } },
+    ops: [],
+  } as never);
+
   assert.equal(emitted.length, 1);
   assert.ok(emitted[0]?.type === "context_pressure");
   assert.doesNotMatch(emitted[0].message, /near its context limit/);
@@ -133,7 +137,7 @@ test("native compaction failure snapshots warn once across repeated snapshots an
 test("an overflow compaction with no summary entry does not claim recovery", () => {
   const emitted: AgentRunEvent[] = [];
   const reporter = new ContextReporter(undefined, (event) => emitted.push(event));
-  reporter.observe({ type: "compaction_end", taskId: 42 as never, reason: "overflow" });
+  reporter.observe({ type: "state", value: { docs: { "pi.live": {} } }, ops: [] } as never);
   assert.deepEqual(emitted, []);
 });
 

@@ -161,10 +161,12 @@ async function openNative(id: string): Promise<PiSession> {
     session.conversation = saved?.id
       ? (await native.conversation(saved.id as ConversationId, ctx))!
       : root;
-    const unsubscribe = native.subscribeCommits((publication) => {
-      if (publication.changes.length) publishStateChange("subtasks");
+    native.observeCommits({
+      advance(publication) {
+        if (publication.changes.length) publishStateChange("subtasks");
+      },
+      end() {},
     });
-    native.subscribeClose(unsubscribe);
     return session;
   } catch (error) {
     await native.close(ctx);

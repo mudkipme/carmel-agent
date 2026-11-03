@@ -1,6 +1,6 @@
 # Pi Durable storage
 
-Carmel uses Pi 1.4.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
+Carmel uses Pi 1.5.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
 
 [Questions and session credentials](user-requests.md) use native run termination and idempotent submissions, with request lifecycle and encrypted credential storage owned by Carmel.
 
@@ -28,7 +28,7 @@ Durable's input `entry` stores a `carmel.referenced-input` with display text and
 
 ## Recovery and observation
 
-Pi owns generation checkpoints, tool intent, results, retry policy, compaction, steering submissions, and live progress. Reconnect reads capture history and committed progress on the same native transaction line. The wire adapter handles batched deltas, final unflushed content, and snapshot replacement when a slow observer exhausts the native event backlog. Snapshot recovery scans only missing entry IDs and restores live tool starts and native nested-tool slots without duplicating starts across successive snapshots.
+Pi owns generation checkpoints, tool intent, results, retry policy, compaction, steering submissions, and live progress. Carmel watches the native conversation view and forwards `pi.live` operations through the shared protocol. Chord's immutable delta application restores streamed messages and tool progress without custom text, thinking, or nested-tool reducers. `ConversationTranscript` fills missing pages when a slow observer falls behind the native transcript window; committed entry IDs prevent duplicate messages and tool-budget counts.
 
 After an unexpected process exit, requesting a run without new input resumes the selected conversation's checkpoint after installing current credentials and permitted tools. It does not rewind and resubmit the user message. A new prompt first settles pending work and then submits its new input. Read-only requests never start scheduling. A deliberate stop uses Durable's abort protocol and settles pending work rather than leaving it resumable.
 
@@ -48,7 +48,7 @@ Tools default to `replay: "unsafe"`. Pi records intent before executing them; af
 - Native threshold, background, and overflow compaction. Small model windows get scaled reserve/tail settings: Durable's `enabled` flag controls overflow recovery too, so the old threshold-only disable workaround is removed.
 - Pi's `azure` provider identifier.
 
-Pi 1.4.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel's generic tool/result compatibility layers are gone.
+Pi 1.5.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel's generic tool/result compatibility layers are gone.
 
 Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are still not public exports (`parseCommandArgs` and `substituteArgs` live only in the package's internal `dist/core/prompt-templates` module), so their positional/default/slice semantics remain in the adapter, including the 1.3.0 rule that `""` and `''` are real arguments. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
 
@@ -60,7 +60,7 @@ Subtasks are native child conversations in the parent's Pi database, with native
 
 Foreground subtasks return their answer to the calling tool. Background subtasks use native background ownership and persisted sleep/report tasks. The parent task must collect every background result before reporting completion. Stopping a parent task aborts its native background descendants. Subtasks appear inside the task detail view; legacy helper links redirect there. Ordinary working conversations can also use subtasks; stopping their foreground reply preserves already-started background work.
 
-The server retains the Pi lease and execution resources while background work remains. After a clean shutdown or crash, it reopens registered hosts with current credentials, visible-agent access, and permitted read tools before resuming native tasks. An unfinished parent turn keeps recovery paused until the user resumes or stops it. The subtasks section shows host failures and offers Resume, including native tasks parked by the restart limit.
+The server retains the Pi lease and execution resources while background work remains. After a clean shutdown or crash, it reopens registered hosts with current credentials, visible-agent access, and permitted read tools before resuming native tasks. An unfinished parent turn keeps recovery paused until the user resumes or stops it. The subtasks section shows host failures and offers Resume for recoverable work. Tasks that exceed Pi's restart limit now end with a visible failure; they are no longer parked or retried through a host adapter.
 
 A subtask stores its result in native state and its own transcript, rather than pasting a second report into the parent conversation. For task-owned subtasks, only the consolidated parent result reaches Home. Standalone session subtasks publish one concise, deduplicated notice with a link, without triggering another agent summary. Existing native task/document names and helper HTTP endpoints remain compatible with saved work; the user-facing feature is Tasks. Schedules remain separate from task review.
 
@@ -70,7 +70,7 @@ Carmel registers Pi's native Codemode implementation and prompt section. Carmel 
 
 The default limits remain 60 seconds, 64 MiB of VM memory, and 250 nested calls per script. Limits are memoized in the native tool task and admitted calls use native nested-call documents; reattaching an existing nested task does not consume run admission again. The deadline includes time spent interrupted. Native `store()` and `load()` keep JSON values per conversation, commit changes only on successful scripts, and fork as of the selected entry.
 
-Native output includes elapsed time, text markers, console grouping, and spill/image paths. The server forwards native nested start/update/end events and `pi.live.nestedTools` snapshots through the shared protocol into the chat. Saved Codemode results render Pi's native `details.calls`. The old tool/result adapters, MCP script envelopes, `codemodeCalls` schema, custom admission document, and parent-slot progress copies are removed. Aborted parents may have no saved call details; cancellation is observed through native events and snapshots. Nested tool control hints do not terminate the model run; direct model calls retain native termination behavior. Snapshot replacement restores nested progress without emitting duplicate top-level tool starts or counting nested completions twice.
+Native output includes elapsed time, text markers, console grouping, and spill/image paths. The chat renders native `pi.live.nestedTools` slots, including arguments, bounded output, diagnostics, and completion summaries. Saved Codemode results render Pi's native `details.calls`. Aborted parents may have no saved call details; cancellation is visible in live state. Nested tool control hints do not terminate the model run; direct model calls retain native termination behavior.
 
 ```javascript
 const result = await tools.bash({ command: "npm test" });
@@ -82,11 +82,11 @@ store("lastTestExit", result.exitCode);
 
 The previous `AgentHarness`/`AgentLane` facade, generic prompt-dispatch port, filtered event bus, old message-event reconstruction, fake queue watch, and HTTP delta batching timer are retired. Runs call native `Conversation.configure`, `submit`, `abort`, and `waitForIdle`. Steering and issue delivery read native `Submission.status()` and `InboxDoc`; stopping queued input uses `abortSubmission`.
 
-Native batched `message_update.changes` now cross the shared protocol into the client. Pi owns progress batching, and HTTP supplies authentication, sequence numbers, replay bounds, and a terminal application result. Server and client must be deployed together because the old `message_delta`/`message_part` protocol is removed. Recorded stream fixtures use the new format.
+Native `live_update.ops` now cross the shared protocol into the client. Pi owns progress batching, and HTTP supplies authentication, sequence numbers, replay bounds, and a terminal application result. Deploy server and client together: this replaces the previous message-update and tool-lifecycle event protocol. Connection snapshots include the native live-state base needed to replay subsequent deltas.
 
-`PiRun` handles the application-specific boundary between committed input settlement and delivered HTTP observations. It waits for event delivery before finalization and recovers missing committed entries when Durable replaces an observer backlog with a snapshot. It does not expose a second harness or lane API. The small `SessionLog` port remains for Carmel's public branch IDs and retry restoration; its implementation calls native storage operations directly.
+`PiRun` handles the application-specific boundary between committed input settlement and delivered HTTP observations. It waits for the idle conversation view before finalization and uses native transcript paging to recover missing committed entries. The small `SessionLog` port remains for Carmel's public branch IDs and retry restoration; its implementation calls native storage operations directly.
 
-Compaction errors come directly from native end events and retained snapshot failures, with one warning per failed task. Recovery is announced when a native compaction summary entry is placed, so a declined compaction cannot claim success. The settings forwarding proxy and unused session-wide entry-search facade are gone. Native settings select only the current run's extensions, preventing a previously enabled extension from leaking into a later run.
+Compaction errors come from native `pi.live.compactionFailure`, with one warning per failed task. Recovery is announced when a native compaction summary entry is placed, so a declined compaction cannot claim success. Native settings select only the current run's extensions.
 
 The remaining bridges protect application behavior: guarded workspace/resource reads, container execution, per-user credentials and personalized catalog caches, resolved model overrides, stable saved entry/image links, and issue/cron policy. Pi 1.4.0 accepts a `Models` getter, so the session installs fresh per-run credentials on a shared lease without a forwarding proxy. Prompt argument helpers are still not public exports, and grep/find/ls have no Durable equivalents.
 
@@ -108,7 +108,17 @@ Carmel does not inject a clock into system instructions or user messages, matchi
 
 Named sections reduce redundant storage writes. They preserve the request prefix when the selected model supports mid-conversation system changes; otherwise Pi collapses section updates into the leading system prompt. Keeping a changing clock out of the prompt protects conversation-history caching in both cases. MCP tools are sorted by name within each configured server, keeping native declarations and Codemode's embedded catalog stable when a reconnect returns the same tools in another order.
 
-Pi Durable is experimental. Versions are pinned to 1.4.0, including `@earendil-works/chord`, which Pi Durable depends on at that exact version. The storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. Storage errors now fail and close the native session; pending waits reject instead of retrying operations on it. Existing live version-1 tool tasks migrate to Pi's version-2 tagged model/nested-call format. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/v1.4.0/packages/durable).
+Pi Durable is experimental. Versions are pinned to 1.5.0, including `@earendil-works/chord`, which Pi Durable depends on at that exact version. The storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. Storage errors now fail and close the native session; pending waits reject instead of retrying operations on it. Existing task and live-document versions migrate through Pi's native definitions. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/v1.5.0/packages/durable).
+
+## Pi 1.5.0
+
+Tool schemas use `@earendil-works/pi-schema`. Subtask tools use its typed builders; Zod-based and MCP tools pass JSON Schema directly without TypeBox casts. Validation and argument coercion come from Pi, including for plain JSON Schema tools.
+
+Live progress is visible immediately through conversation watches, while Pi batches its storage writes for up to one second by default. A crash may lose that last second of partial text or running tool output; settled messages and results remain durable. Commit observers are reserved for persisted changes.
+
+Back up the session directory before deployment. Pi 1.5 writes newer `pi.live`, generation, and tool-task versions that Pi 1.4 cannot drive. Interrupted model requests now count against native retry policy, and restart-limited tasks settle with explicit errors. Carmel uses the renamed filesystem watch change types and tagged commit-observer changes.
+
+Native turn limits count tool rounds; Carmel's existing guard counts individual tool calls, including nested Codemode calls, so its budget remains application policy. Guarded resource loading, script limits, and cron/review policy also retain their application adapters. See the [Durable 1.5.0 changelog](https://github.com/earendil-works/pi/blob/v1.5.0/packages/durable/CHANGELOG.md).
 
 ## Pi 1.4.0
 

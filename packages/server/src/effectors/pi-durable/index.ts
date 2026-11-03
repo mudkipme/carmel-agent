@@ -19,7 +19,7 @@ export type {
   PromptTemplateDiagnostic,
 } from "./resources.ts";
 export { PiRun } from "./run.ts";
-export type { PiRunOptions } from "./run.ts";
+export type { PiRunOptions, RunChange } from "./run.ts";
 export type {
   PiSession as Session,
   DisplayEntry as Entry,
@@ -31,7 +31,6 @@ export type {
   ToolExecutionResult,
   NestedToolSlot,
   Extension,
-  AgentEvent,
   Conversation,
 } from "@earendil-works/pi-durable";
 export { createReadTool, createWriteTool, createEditTool, createBashTool } from "./tools.ts";

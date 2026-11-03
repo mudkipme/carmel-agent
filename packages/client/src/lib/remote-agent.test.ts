@@ -272,7 +272,7 @@ test("a broken observer stream reconnects after the last received sequence witho
     const url = String(input);
     requests.push({ url, method: init?.method ?? "GET" });
     if (url.endsWith("?after=1")) {
-      return failingEventResponse(envelope(2, { type: "message_start", message: streamed }));
+      return failingEventResponse(envelope(2, liveMessage(streamed)));
     }
     if (url.endsWith("?after=2")) {
       return eventResponse([
@@ -428,11 +428,16 @@ test("a stop before the run id is known still aborts that run", async () => {
     if (method === "POST" && url.endsWith("/abort")) return Response.json({ ok: true });
     if (url.startsWith("test:run:")) {
       return eventResponse([
-        envelope(1, { type: "message_start", message: assistantMessage("") }),
+        envelope(1, liveMessage(assistantMessage(""))),
         envelope(2, {
-          type: "message_update",
-          usage: emptyUsage(),
-          changes: [{ type: "thinking_delta", contentIndex: 0, delta: "kept going" }],
+          type: "live_update",
+          ops: [
+            [
+              "s",
+              ["generation", "message", "content", 0],
+              { type: "thinking", thinking: "kept going" },
+            ],
+          ],
         }),
         envelope(3, { type: "message_end", message: aborted }),
         envelope(4, runFinished({ outcome: "cancelled" })),
@@ -500,11 +505,12 @@ test("stopping while thinking is on screen aborts the run and still applies serv
     await Promise.resolve();
     assert.ok(streamController);
     for (const event of [
-      envelope(1, { type: "message_start", message: assistantMessage("") }),
+      envelope(1, liveMessage(assistantMessage(""))),
       envelope(2, {
-        type: "message_update",
-        usage: emptyUsage(),
-        changes: [{ type: "thinking_delta", contentIndex: 0, delta: "first" }],
+        type: "live_update",
+        ops: [
+          ["s", ["generation", "message", "content", 0], { type: "thinking", thinking: "first" }],
+        ],
       }),
     ])
       streamController.enqueue(JSON.parse(JSON.stringify(event)));
@@ -515,9 +521,8 @@ test("stopping while thinking is on screen aborts the run and still applies serv
     await agent.abort();
     for (const event of [
       envelope(3, {
-        type: "message_update",
-        usage: emptyUsage(),
-        changes: [{ type: "thinking_delta", contentIndex: 0, delta: " and more" }],
+        type: "live_update",
+        ops: [["a", ["generation", "message", "content", 0, "thinking"], " and more"]],
       }),
     ])
       streamController.enqueue(JSON.parse(JSON.stringify(event)));
@@ -652,31 +657,33 @@ test("the streaming message is rebuilt from deltas and tool-call parts", async (
     const url = String(input);
     if (url.startsWith("test:run:")) {
       return eventResponse([
-        envelope(1, { type: "message_start", message: assistantMessage("") }),
+        envelope(1, liveMessage(assistantMessage(""))),
         envelope(2, {
-          type: "message_update",
-          usage: (answer as import("@earendil-works/pi-ai").AssistantMessage).usage,
-          changes: [{ type: "thinking_delta", contentIndex: 0, delta: "let me think" }],
+          type: "live_update",
+          ops: [
+            [
+              "s",
+              ["generation", "message", "content", 0],
+              { type: "thinking", thinking: "let me think" },
+            ],
+          ],
         }),
         envelope(3, {
-          type: "message_update",
-          usage: (answer as import("@earendil-works/pi-ai").AssistantMessage).usage,
-          changes: [{ type: "text_delta", contentIndex: 1, delta: "Hello, " }],
+          type: "live_update",
+          ops: [["s", ["generation", "message", "content", 1], { type: "text", text: "Hello, " }]],
         }),
         envelope(4, {
-          type: "message_update",
-          usage: (answer as import("@earendil-works/pi-ai").AssistantMessage).usage,
-          changes: [{ type: "text_delta", contentIndex: 1, delta: "world" }],
+          type: "live_update",
+          ops: [["a", ["generation", "message", "content", 1, "text"], "world"]],
         }),
         envelope(5, {
-          type: "message_update",
-          usage: (answer as import("@earendil-works/pi-ai").AssistantMessage).usage,
-          changes: [
-            {
-              type: "block",
-              contentIndex: 2,
-              block: { type: "toolCall", id: "call_1", name: "read", arguments: { path: "a.ts" } },
-            },
+          type: "live_update",
+          ops: [
+            [
+              "s",
+              ["generation", "message", "content", 2],
+              { type: "toolCall", id: "call_1", name: "read", arguments: { path: "a.ts" } },
+            ],
           ],
         }),
         envelope(6, { type: "message_end", message: answer }),
@@ -690,7 +697,7 @@ test("the streaming message is rebuilt from deltas and tool-call parts", async (
     agent.subscribeStore(() => snapshots.push(agent.getSnapshot().streamingMessage));
     await agent.attachToRun("run_delta", [question], 0);
 
-    // `message_start` seeds an empty message; each delta extends it in place.
+    // Native operations create fresh immutable snapshots while extending the message.
     const streamed = snapshots.filter((message) => message !== undefined);
     assert.deepEqual((streamed.at(-1) as AssistantMessage).content, [
       { type: "thinking", thinking: "let me think" },
@@ -990,13 +997,11 @@ test("native nested progress stays outside messages and is cleared when observat
   globalThis.fetch = async () =>
     eventResponse([
       envelope(1, {
-        type: "tool_execution_start",
-        args: {},
-        toolCallId: "parent",
-        toolName: "codemode",
+        type: "live_update",
+        ops: [["r", { tools: [{ callId: "parent", name: "codemode", status: "running" }] }]],
       }),
-      envelope(2, { type: "nested_tools", tools: slots }),
-      envelope(3, { type: "tool_execution_end", toolCallId: "parent", toolName: "codemode" }),
+      envelope(2, { type: "live_update", ops: [["s", ["nestedTools"], slots as never]] }),
+      envelope(3, { type: "live_update", ops: [["s", ["tools", 0, "status"], "done"]] }),
       envelope(4, runFinished()),
     ]);
   try {
@@ -1029,26 +1034,46 @@ test("native nested lifecycle updates bounded output without creating transcript
   globalThis.fetch = async () =>
     eventResponse([
       envelope(1, {
-        type: "tool_execution_start",
-        toolCallId: "parent",
-        toolName: "codemode",
-        args: {},
+        type: "live_update",
+        ops: [["r", { tools: [{ callId: "parent", name: "codemode", status: "running" }] }]],
       }),
-      envelope(2, { type: "tool_execution_start", ...nested, args: { path: "file" } }),
-      envelope(3, { type: "tool_execution_update", ...nested, output: { set: "old" } }),
+      envelope(2, {
+        type: "live_update",
+        ops: [
+          [
+            "s",
+            ["nestedTools"],
+            [
+              {
+                callId: nested.toolCallId,
+                name: nested.toolName,
+                taskId: nested.taskId,
+                parentCallId: nested.parentToolCallId,
+                parentTaskId: nested.parentTaskId,
+                arguments: { path: "file" },
+                status: "running",
+              },
+            ],
+          ],
+        ],
+      }),
+      envelope(3, { type: "live_update", ops: [["s", ["nestedTools", 0, "output"], "old"]] }),
       envelope(4, {
-        type: "tool_execution_update",
-        ...nested,
-        output: { trimStart: 1, append: "!" },
-        details: { progress: 1 },
-        diagnostics: [],
+        type: "live_update",
+        ops: [
+          ["t", ["nestedTools", 0, "output"], 1],
+          ["a", ["nestedTools", 0, "output"], "!"],
+          ["s", ["nestedTools", 0, "details"], { progress: 1 }],
+        ],
       }),
       envelope(5, {
-        type: "tool_execution_end",
-        ...nested,
-        result: { taskId: 2 as never, isError: false, diagnostics: [], durationMs: 12 },
+        type: "live_update",
+        ops: [
+          ["s", ["nestedTools", 0, "status"], "done"],
+          ["s", ["nestedTools", 0, "summary"], { isError: false, durationMs: 12 }],
+        ],
       }),
-      envelope(6, { type: "tool_execution_end", toolCallId: "parent", toolName: "codemode" }),
+      envelope(6, { type: "live_update", ops: [["s", ["tools", 0, "status"], "done"]] }),
       envelope(7, runFinished()),
     ]);
   try {
@@ -1150,11 +1175,10 @@ test("snapshot progress seeds a resumed stream without replaying or duplicating 
     cursor = String(input);
     return eventResponse([
       envelope(1501, {
-        type: "message_update",
-        usage: partial.usage,
-        changes: [{ type: "text_delta", contentIndex: 0, delta: " suffix" }],
+        type: "live_update",
+        ops: [["a", ["generation", "message", "content", 0, "text"], " suffix"]],
       }),
-      envelope(1502, { type: "tool_execution_end", toolCallId: "pending", toolName: "read" }),
+      envelope(1502, { type: "live_update", ops: [["s", ["tools", 0, "status"], "done"]] }),
       envelope(1503, { type: "message_end", message: final }),
       envelope(1504, runFinished()),
     ]);
@@ -1162,9 +1186,10 @@ test("snapshot progress seeds a resumed stream without replaying or duplicating 
   try {
     const agent = createAgent([question]);
     const observation = agent.attachToRun("snapshot_run", [question], 1500, {
-      streamingMessage: partial,
-      pendingToolCalls: ["pending"],
-      nestedTools: [],
+      live: {
+        generation: { attempt: 1, message: partial as never },
+        tools: [{ callId: "pending", name: "read", status: "running" }],
+      },
     });
     assert.deepEqual(agent.getSnapshot().streamingMessage, partial);
     assert.deepEqual([...agent.getSnapshot().pendingToolCalls], ["pending"]);
@@ -1209,17 +1234,6 @@ function connection(
       updatedAt: 1,
     },
     activeRun,
-  };
-}
-
-function emptyUsage() {
-  return {
-    input: 0,
-    output: 0,
-    cacheRead: 0,
-    cacheWrite: 0,
-    totalTokens: 0,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
   };
 }
 
@@ -1311,5 +1325,12 @@ function assistantMessage(
     stopReason,
     errorMessage,
     timestamp: Date.now(),
+  };
+}
+
+function liveMessage(message: AgentMessage): AgentRunEvent {
+  return {
+    type: "live_update",
+    ops: [["r", { generation: { attempt: 1, message: message as never } }]],
   };
 }

@@ -16,8 +16,7 @@ import { HarnessAbortGate } from "./agent-runtime.ts";
 initialize();
 
 test("a model that never stops calling tools is stopped at the ceiling", async () => {
-  // Pi's agent loop has no iteration cap, so without the guard this prompt does
-  // not return. The faux model asks for the same tool every turn.
+  // Carmel's budget counts calls, including multiple calls in one tool round.
   const { sessionId } = createSession();
   const faux = fauxProvider({
     provider: `faux-guard-${crypto.randomUUID()}`,
@@ -57,7 +56,7 @@ test("a model that never stops calling tools is stopped at the ceiling", async (
   abort.attach(lane);
   const unsubscribe = pi.observe((event) => {
     const stop =
-      event.type === "tool_execution_end"
+      event.type === "message_end" && event.entry.model?.[0]?.role === "toolResult"
         ? guard.recordToolCall()
         : (guard.recordActivity(), undefined);
     if (stop) abort.request();

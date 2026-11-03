@@ -28,7 +28,7 @@ import { AgentMcpTools } from "./mcp-tools.ts";
 import { createCarmelCodemode, type CodemodeHooks } from "./codemode-tool.ts";
 import { executeNativeCodemode } from "../effectors/testing/codemode.ts";
 import { createServerExecution } from "./tools.ts";
-import { projectRunEvent } from "./run-events.ts";
+import type { LiveState } from "@earendil-works/pi-durable";
 
 initialize();
 type Tool = ToolRegistration;
@@ -51,7 +51,7 @@ function execute(
     hooks?: CodemodeHooks;
     signal?: AbortSignal;
     env?: ExecutionEnv;
-    onEvent?: (event: import("../effectors/pi-durable/index.ts").AgentEvent) => void;
+    onEvent?: (event: import("../effectors/pi-durable/index.ts").RunChange) => void;
   } = {},
 ) {
   return executeNativeCodemode(tools instanceof AgentMcpTools ? tools.tools : tools, code, options);
@@ -159,9 +159,11 @@ test("AgentHarness persists one codemode result with nested call history and str
     });
     const updates: unknown[] = [];
     pi.observe((event) => {
-      const projected = projectRunEvent(event);
-      if (projected?.type === "tool_execution_start" && projected.parentToolCallId)
-        updates.push(projected);
+      if (event.type === "state") {
+        const nested = (event.value.docs["pi.live"] as LiveState | undefined)?.nestedTools;
+        if (nested?.length)
+          updates.push(nested.map(({ callId, name, status }) => ({ callId, name, status })));
+      }
     });
     try {
       await pi.lane.prompt("Combine the MCP results", undefined, pi.context);
@@ -450,7 +452,10 @@ test("abort and unawaited calls cancel MCP requests and retain the nested histor
       const pending = execute(mcp, code, {
         signal: controller.signal,
         onEvent(event) {
-          if (event.type === "tool_execution_end" && event.parentToolCallId) nestedEnds.push(event);
+          if (event.type === "state")
+            for (const slot of (event.value.docs["pi.live"] as LiveState | undefined)
+              ?.nestedTools ?? [])
+              if (slot.status === "done") nestedEnds.push(slot);
         },
       });
       if (!unawaited) {

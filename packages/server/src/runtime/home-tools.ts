@@ -33,7 +33,7 @@ export function createHomeTools(userId: string, agentId: string): ToolRegistrati
   ): ToolRegistration => ({
     name,
     description,
-    parameters: z.toJSONSchema(schema) as never,
+    parameters: z.toJSONSchema(schema),
     executionMode: "sequential",
     replay: read ? "safe" : "unsafe",
     async execute(args) {

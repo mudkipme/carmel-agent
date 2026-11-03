@@ -112,7 +112,11 @@ test("an armed retry branch is abandoned until its replacement user message land
     entry: { model: [{ role: "assistant", content: [] }] },
   } as never);
   assert.equal(retry.isAbandoned, true);
-  retry.observe({ type: "message_start", message: { role: "user", content: "x" } } as never);
+  retry.observe({
+    type: "state",
+    value: { docs: { "pi.inbox": { items: [{ id: 1, content: "x" }] } } },
+    ops: [],
+  } as never);
   assert.equal(retry.isAbandoned, true);
 
   retry.observe({

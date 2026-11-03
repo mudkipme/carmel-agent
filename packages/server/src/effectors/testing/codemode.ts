@@ -12,7 +12,7 @@ export async function executeNativeCodemode(
     hooks?: CodemodeHooks;
     signal?: AbortSignal;
     env?: import("@earendil-works/pi-durable/env").ExecutionEnv;
-    onEvent?: (event: import("../pi-durable/index.ts").AgentEvent) => void;
+    onEvent?: (event: import("../pi-durable/index.ts").RunChange) => void;
   } = {},
 ): Promise<import("@earendil-works/pi-ai").ToolResultMessage> {
   const { sessionId } = createSession();

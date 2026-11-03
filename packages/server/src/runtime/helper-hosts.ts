@@ -138,7 +138,7 @@ async function releaseHost(sessionId: string) {
   await Promise.allSettled(host.cleanups.map((cleanup) => cleanup()));
 }
 
-export async function resumeHelperHost(sessionId: string, retry = false) {
+export async function resumeHelperHost(sessionId: string) {
   if (stopped || preparing.has(sessionId) || getActiveAgentRunForSessionId(sessionId)) return;
   preparing.add(sessionId);
   try {
@@ -176,12 +176,6 @@ export async function resumeHelperHost(sessionId: string, retry = false) {
     if (!agent) throw new Error("This agent is no longer available. Stop its subtasks.");
     if (host.agentRevision !== undefined && host.agentRevision !== agent.updatedAt)
       await configureHost(host);
-    if (retry) {
-      const inspection = await host.session.native.inspect(BACKGROUND_CONTEXT);
-      for (const task of inspection.tasks)
-        if (task.state.kind === "blocked" && task.state.reason === "restart_limit")
-          await host.session.native.retryTask(task.record.id, BACKGROUND_CONTEXT);
-    }
     host.session.native.resume();
     const inspection = await host.session.native.inspect(BACKGROUND_CONTEXT);
     if (inspection.tasks.some((task) => task.state.kind === "blocked"))

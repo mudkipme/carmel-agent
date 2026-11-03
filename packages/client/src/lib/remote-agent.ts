@@ -456,9 +456,7 @@ export class RemoteAgent {
     const controller = new AbortController();
     this.abortController = controller;
     this.isStreaming = true;
-    this.streamingMessage = progress?.streamingMessage;
-    this.pendingToolCalls = new Set(progress?.pendingToolCalls);
-    this.nestedTools = progress?.nestedTools ?? [];
+    this.applyLive(progress?.live);
     this.errorMessage = progress?.errorMessage;
     // Re-derived by every run: the new one may be on a different model, which is
     // the usual way this condition gets fixed.
@@ -615,9 +613,7 @@ export class RemoteAgent {
     this.hasPendingWork = connection.pendingWork ?? false;
     this.userRequests = connection.userRequests ?? [];
     this.thinkingLevel = connection.session.thinkingLevel;
-    this.streamingMessage = connection.runProgress?.streamingMessage;
-    this.pendingToolCalls = new Set(connection.runProgress?.pendingToolCalls);
-    this.nestedTools = connection.runProgress?.nestedTools ?? [];
+    this.applyLive(connection.runProgress?.live);
     if (connection.runProgress) {
       this.errorMessage = connection.runProgress.errorMessage;
       this.contextPressure = connection.runProgress.contextPressure;
@@ -721,23 +717,30 @@ export class RemoteAgent {
     this.notify();
   }
 
+  private live: RunProgress["live"];
+
+  private applyLive(live: RunProgress["live"]) {
+    this.live = live;
+    this.streamingMessage = live?.generation?.message as AgentMessage | undefined;
+    this.pendingToolCalls = new Set(
+      live?.tools?.filter((call) => call.status !== "done").map((call) => call.callId),
+    );
+    this.nestedTools = live?.nestedTools ?? [];
+  }
+
   private processEvent(event: AgentRunEvent) {
     const progress = applyRunProgress(
       {
-        streamingMessage: this.streamingMessage,
-        pendingToolCalls: [...this.pendingToolCalls],
-        nestedTools: this.nestedTools,
+        live: this.live,
         errorMessage: this.errorMessage,
         contextPressure: this.contextPressure,
       },
       event,
     );
-    this.streamingMessage = progress.streamingMessage;
-    this.pendingToolCalls = new Set(progress.pendingToolCalls);
-    this.nestedTools = progress.nestedTools;
+    if (event.type === "live_update" || event.type === "run_finished")
+      this.applyLive(progress.live);
     switch (event.type) {
-      case "message_start":
-      case "message_update":
+      case "live_update":
         break;
       case "message_end":
         this.streamingMessage = undefined;
@@ -748,11 +751,6 @@ export class RemoteAgent {
         } else {
           this.messages = [...this.messages, event.message];
         }
-        break;
-      case "tool_execution_start":
-      case "tool_execution_update":
-      case "tool_execution_end":
-      case "nested_tools":
         break;
       case "turn_end":
         if (event.errorMessage) this.errorMessage = event.errorMessage;

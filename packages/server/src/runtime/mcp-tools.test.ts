@@ -244,14 +244,21 @@ test("MCP progress, structured content, and tool failure flags survive the adapt
       undefined,
       BACKGROUND_CONTEXT,
       (event) => {
-        if (event.type === "tool_execution_update") updates.push(event);
+        if (event.type === "state") {
+          const tools = (
+            event.value.docs["pi.live"] as
+              | import("@earendil-works/pi-durable").LiveState
+              | undefined
+          )?.tools;
+          for (const tool of tools ?? []) if (tool.output) updates.push(tool.output);
+        }
       },
     );
     assert.equal(result.isError, true);
     assert.deepEqual((result.details as { structuredContent: unknown }).structuredContent, {
       token: "[redacted:TOKEN]",
     });
-    assert.equal(updates.length, 1);
+    assert.ok(updates.length >= 1);
     assert.equal(JSON.stringify([result, updates]).includes(secret), false);
   } finally {
     await mcp.close();

@@ -264,7 +264,7 @@ export class AgentExecutionEnv implements ExecutionEnv {
   }
   async watch(
     targets: readonly import("@earendil-works/pi-durable/env").WatchTarget[],
-    onChange: (change: import("@earendil-works/pi-durable/env").WatchChange) => void,
+    onChange: (change: import("@earendil-works/pi-durable/env").FileChange) => void,
     context: Context,
   ): Promise<Result<import("@earendil-works/pi-durable/env").FileWatcher, FileError>> {
     try {
@@ -276,10 +276,10 @@ export class AgentExecutionEnv implements ExecutionEnv {
           })),
           (change) =>
             onChange(
-              "paths" in change
-                ? { paths: change.paths.map((path) => this.toContainerPath(path)) }
-                : "error" in change
-                  ? { error: this.toAgentError(change.error) }
+              change.kind === "paths"
+                ? { kind: "paths", paths: change.paths.map((path) => this.toContainerPath(path)) }
+                : change.kind === "failed"
+                  ? { kind: "failed", error: this.toAgentError(change.error) }
                   : change,
             ),
           context,

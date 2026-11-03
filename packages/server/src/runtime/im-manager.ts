@@ -7,7 +7,7 @@ import {
 } from "../services/home-events.ts";
 import { homeEvents, issues } from "../db/schema.ts";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { applyStreamingEvent } from "@carmel-agent/shared";
+import { applyRunProgress, type RunProgress } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
@@ -657,6 +657,7 @@ export class ImManager {
   ) {
     const reader = observeRunEvents(run).getReader();
     let message: AgentMessage | undefined;
+    let progress: RunProgress = {};
     let text = "";
     let previewId: string | undefined;
     let previewDisabled = false;
@@ -666,8 +667,9 @@ export class ImManager {
         const part = await reader.read();
         if (part.done) break;
         const { event } = part.value;
-        if (event.type === "message_start" || event.type === "message_update")
-          message = applyStreamingEvent(message, event);
+        progress = applyRunProgress(progress, event);
+        if (event.type === "live_update")
+          message = progress.live?.generation?.message as AgentMessage | undefined;
         else if (event.type === "message_end") message = event.message;
         if (message?.role !== "assistant") continue;
         const currentText = message.content

@@ -51,7 +51,7 @@ export function createActiveAgentRun(input: {
     nextSequence: 1,
     finished: false,
     started: false,
-    progress: { pendingToolCalls: [], nestedTools: [] },
+    progress: {},
   };
   activeAgentRuns.set(run.runId, run);
   activeSessionRuns.set(run.sessionId, run.runId);
@@ -225,13 +225,7 @@ function subscribeRunEvents(run: ActiveAgentRun, afterSequence: number, subscrib
 export function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
   advanceSessionRun(run.sessionId);
   run.progress = applyRunProgress(run.progress, event);
-  if (
-    event.type === "tool_execution_start" ||
-    event.type === "tool_execution_end" ||
-    event.type === "tool_execution_update" ||
-    event.type === "nested_tools"
-  )
-    publishStateChange("subtasks");
+  if (event.type === "live_update") publishStateChange("subtasks");
   const envelope: AgentRunEventEnvelope = { sequence: run.nextSequence++, event };
 
   run.events.push(envelope);

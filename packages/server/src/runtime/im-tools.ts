@@ -38,7 +38,7 @@ export function createSendUserMessageTool(context: {
     name: "send_user_message",
     description:
       "Send a proactive private IM message to the current user through their paired integration for this agent. Works in scheduled tasks without an active IM conversation. Use for requested notifications and relevant task results, including conditional alerts. A queued result is not confirmed delivery; do not claim it was received. Never include secrets or internal thinking.",
-    parameters: z.toJSONSchema(sendSchema) as never,
+    parameters: z.toJSONSchema(sendSchema),
     executionMode: "sequential",
     replay: "safe",
     async execute(args, api, executionContext) {

@@ -2,11 +2,12 @@ import {
   PiRun,
   BACKGROUND_CONTEXT,
   type PiRunOptions,
+  type RunChange,
   type Context,
   type Skill,
   type PromptTemplate,
 } from "../pi-durable/index.ts";
-import type { AgentEvent, AgentChange, HarnessSettings } from "@earendil-works/pi-durable";
+import type { AgentChange, HarnessSettings } from "@earendil-works/pi-durable";
 import type { Api, Model, ImageContent } from "@earendil-works/pi-ai";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxProvider } from "@earendil-works/pi-ai/providers/faux";
@@ -65,7 +66,7 @@ export async function attachTestHarness(session: PiSession, options: Options) {
     resources,
     prompt,
     branch: () => readPiSessionBranch(session),
-    observe: (listener: (event: AgentEvent) => void | Promise<void>) => harness.observe(listener),
+    observe: (listener: (event: RunChange) => void | Promise<void>) => harness.observe(listener),
     lane: {
       prompt: (text: string, images: ImageContent[] | undefined, ctx: Context) =>
         harness.prompt(text, images, ctx),

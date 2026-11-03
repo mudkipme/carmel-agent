@@ -12,7 +12,7 @@ import { openTestHarness } from "../effectors/testing/pi-harness.ts";
 import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
 import { createCarmelCodemode } from "./codemode-tool.ts";
 import { projectRunEvent } from "./run-events.ts";
-import type { AgentRunEvent } from "@carmel-agent/shared";
+import { applyRunProgress, type RunProgress, type AgentRunEvent } from "@carmel-agent/shared";
 import type { LiveState } from "@earendil-works/pi-durable";
 
 initialize();
@@ -168,7 +168,7 @@ test("SQLite restart can replay a tool explicitly declared safe", async () => {
 });
 
 test(
-  "a slow observer recovers a complete transcript when Durable replaces its backlog with a snapshot",
+  "a slow observer recovers a complete transcript after the native window drops earlier entries",
   { timeout: 10_000 },
   async () => {
     const { sessionId } = createSession();
@@ -179,7 +179,7 @@ test(
     const models = createModels();
     models.setProvider(faux.provider);
     faux.setResponses([
-      ...Array.from({ length: 40 }, () =>
+      ...Array.from({ length: 80 }, () =>
         fauxAssistantMessage([fauxToolCall("lookup", {})], { stopReason: "toolUse" }),
       ),
       fauxAssistantMessage("All lookups complete."),
@@ -206,7 +206,7 @@ test(
     });
     const wire: AgentRunEvent[] = [];
     pi.observe(async (event) => {
-      if (event.type === "message_start" && event.message.role === "user") {
+      if (event.type === "message_end" && event.entry.model?.[0]?.role === "user") {
         blocked();
         await gate;
       }
@@ -214,7 +214,7 @@ test(
       if (projected) wire.push(projected);
     });
     try {
-      const prompt = pi.lane.prompt("Look up forty items", undefined, pi.context);
+      const prompt = pi.lane.prompt("Look up eighty items", undefined, pi.context);
       await waiting;
       await pi.session.conversation.waitForIdle(pi.context);
       release();
@@ -227,11 +227,11 @@ test(
       );
       assert.deepEqual(received, expected);
       assert.equal(
-        wire.filter((event) => event.type === "tool_execution_end" && !event.parentToolCallId)
+        wire.filter((event) => event.type === "message_end" && event.message.role === "toolResult")
           .length,
-        40,
+        80,
       );
-      assert.equal(wire.at(-1)?.type, "agent_end");
+      assert.equal(wire.at(-1)?.type, "live_update");
     } finally {
       release();
       await pi.close();
@@ -240,7 +240,7 @@ test(
 );
 
 test(
-  "repeated backlog snapshots restore live codemode progress without duplicate tool starts",
+  "folded native state restores codemode progress without duplicating transcript messages",
   { timeout: 15_000 },
   async () => {
     function deferred() {
@@ -286,22 +286,33 @@ test(
       tools: [wait, ...codemode.tools!],
       extensions: [codemode],
     });
-    const unsubscribe = pi.session.native.subscribeCommits((publication) => {
-      for (const change of publication.changes) {
-        if (change.type !== "document" || change.record.kind !== "pi.live" || !change.value)
-          continue;
-        const live = change.value as LiveState;
-        if (live.nestedTools?.length === 1) committed.resolve();
-      }
+    const unsubscribe = pi.session.native.observeCommits({
+      advance(publication) {
+        for (const change of publication.changes) {
+          if (
+            change.type !== "document" ||
+            change.record.kind !== "pi.live" ||
+            change.kind !== "change"
+          )
+            continue;
+          const live = change.value as LiveState;
+          if (live.nestedTools?.length === 1) committed.resolve();
+        }
+      },
+      end() {},
     });
     const wire: AgentRunEvent[] = [];
     let progressCount = 0;
+    let progress: RunProgress = {};
     pi.observe(async (event) => {
-      if (event.type === "message_start" && event.message.role === "user")
+      if (event.type === "message_end" && event.entry.model?.[0]?.role === "user")
         await observerGate.promise;
       const projected = projectRunEvent(event);
-      if (projected) wire.push(projected);
-      if (event.type === "snapshot" && event.nestedTools.length === 1) {
+      if (projected) {
+        wire.push(projected);
+        progress = applyRunProgress(progress, projected);
+      }
+      if (event.type === "state" && progress.live?.nestedTools?.length === 1) {
         if (++progressCount === 1) {
           restored.resolve();
           await progressGate.promise;
@@ -318,33 +329,27 @@ test(
       await overflow();
       observerGate.resolve();
       await restored.promise;
-      assert.equal(
-        wire.filter((event) => event.type === "tool_execution_start" && !event.parentToolCallId)
-          .length,
-        1,
-      );
-      assert.equal(wire.filter((event) => event.type === "nested_tools").length, 1);
+      assert.deepEqual(progress.live?.tools?.filter((call) => call.status !== "done").length, 1);
+      assert.equal(progress.live?.nestedTools?.length, 1);
+      assert.equal(progress.live?.nestedTools?.[0]?.status, "running");
       await overflow();
       progressGate.resolve();
       await restoredAgain.promise;
-      assert.equal(
-        wire.filter((event) => event.type === "tool_execution_start" && !event.parentToolCallId)
-          .length,
-        1,
-      );
+      assert.deepEqual(progress.live?.tools?.filter((call) => call.status !== "done").length, 1);
+      assert.equal(progress.live?.nestedTools?.length, 1);
       toolGate.resolve();
       await prompt;
       assert.equal(
-        wire.filter((event) => event.type === "tool_execution_end" && !event.parentToolCallId)
+        wire.filter((event) => event.type === "message_end" && event.message.role === "toolResult")
           .length,
         1,
       );
-      assert.equal(wire.at(-1)?.type, "agent_end");
+      assert.equal(wire.at(-1)?.type, "live_update");
     } finally {
       observerGate.resolve();
       progressGate.resolve();
       toolGate.resolve();
-      unsubscribe();
+      unsubscribe.detach();
       await pi.close();
     }
   },

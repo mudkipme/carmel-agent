@@ -51,7 +51,7 @@ export function createScheduleTaskTool(context: SchedulingContext): ToolRegistra
     name: "schedule_task",
     description:
       "Create an active reminder or scheduled task when the user asks to be reminded or to run something later/repeatedly. Use once for a single reminder, cron for calendar recurrence, interval for elapsed-time recurrence. Ask about missing or ambiguous timing before calling. Runs use this agent and the current model; results appear in Tasks history. Set notifyPlatform to save an available IM destination and describe alert conditions in the prompt. Only confirm scheduling after this tool succeeds.",
-    parameters: z.toJSONSchema(scheduleTaskSchema) as never,
+    parameters: z.toJSONSchema(scheduleTaskSchema),
     executionMode: "sequential",
     // A crash after the database write must not replay the creation.
     replay: "unsafe",

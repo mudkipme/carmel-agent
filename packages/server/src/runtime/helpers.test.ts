@@ -1,10 +1,11 @@
+import { obj } from "@earendil-works/pi-schema";
 import test from "node:test";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { createHelperRoutes } from "../routes/helpers.ts";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
-import { fauxAssistantMessage, fauxToolCall, Type } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
 import { db, initialize } from "../db/index.ts";
 import { agents, homeEvents, users, issues, issueAttempts, sessions } from "../db/schema.ts";
 import { createIssue, issueRunAddons } from "../services/issues.ts";
@@ -174,7 +175,7 @@ test("foreground helpers return their result, inherit only read tools, and canno
   const write: ToolRegistration = {
     name: "write",
     description: "must not reach a helper",
-    parameters: Type.Object({}),
+    parameters: obj({}),
     execute: async () => ({ output: [{ type: "text", text: "write" }] }),
   };
   models.faux.setResponses([
@@ -290,7 +291,7 @@ test("helper read permission is rechecked at execution", async () => {
   const read: ToolRegistration = {
     name: "read",
     description: "read evidence",
-    parameters: Type.Object({}),
+    parameters: obj({}),
     replay: "safe",
     execute: async () => {
       reads++;

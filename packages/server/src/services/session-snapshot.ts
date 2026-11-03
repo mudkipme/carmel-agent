@@ -34,7 +34,7 @@ export async function readSessionConnection(
     if (version !== sessionRunVersion(sessionId)) continue;
     const run = sessionRunSnapshot(userId, sessionId);
     if (run.activeRun) {
-      const streaming = run.runProgress?.streamingMessage;
+      const streaming = run.runProgress?.live?.generation?.message;
       const committed = session.messageEntryIds.flatMap((id, index) => {
         const message = session.messages[index]!;
         return id.startsWith(PENDING_ENTRY_ID_PREFIX) ||

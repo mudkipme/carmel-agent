@@ -13,7 +13,7 @@ export async function executeNativeTool(
   args: unknown,
   env?: ExecutionEnv,
   context: Context = BACKGROUND_CONTEXT,
-  onEvent?: (event: import("../pi-durable/index.ts").AgentEvent) => void,
+  onEvent?: (event: import("../pi-durable/index.ts").RunChange) => void,
 ): Promise<ToolExecutionResult> {
   initialize();
   const { sessionId } = createSession();

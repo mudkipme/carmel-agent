@@ -86,7 +86,7 @@ export function createHelperRoutes() {
     if (!readVisibleAgent(row.userId, row.agentId))
       return c.json({ error: "Agent not found." }, 404);
     db.update(helperHosts).set({ error: null }).where(eq(helperHosts.sessionId, row.id)).run();
-    await resumeHelperHost(row.id, true);
+    await resumeHelperHost(row.id);
     return c.json({ ok: true });
   });
   route.post("/sessions/:id/helpers/stop", async (c) => {

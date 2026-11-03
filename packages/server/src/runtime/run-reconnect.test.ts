@@ -9,8 +9,8 @@ import {
   fauxThinking,
 } from "@earendil-works/pi-ai/providers/faux";
 import {
-  applyStreamingEvent,
-  isStreamingEvent,
+  applyRunProgress,
+  type RunProgress,
   type AgentRunEvent,
   type SessionConnection,
 } from "@carmel-agent/shared";
@@ -31,6 +31,7 @@ initialize();
 // What a client holds on screen: the same folding `RemoteAgent.processEvent` does.
 class ClientView {
   messages: AgentMessage[];
+  progress: RunProgress = {};
   streamingMessage?: AgentMessage;
 
   constructor(snapshotMessages: AgentMessage[]) {
@@ -38,10 +39,9 @@ class ClientView {
   }
 
   apply(event: AgentRunEvent) {
-    if (isStreamingEvent(event)) {
-      this.streamingMessage = applyStreamingEvent(this.streamingMessage, event);
-      return;
-    }
+    this.progress = applyRunProgress(this.progress, event);
+    if (event.type === "live_update")
+      this.streamingMessage = this.progress.live?.generation?.message as AgentMessage | undefined;
     if (event.type === "message_end") {
       this.streamingMessage = undefined;
       this.messages = [...this.messages, event.message];
@@ -92,7 +92,11 @@ async function streamTurnRecordingReconnects() {
     const wireEvent = projectRunEvent(event);
     if (!wireEvent) return;
     emitRunEvent(run, wireEvent);
-    if (event.type === "message_update" && connectionSnapshots.length < 3) {
+    if (
+      event.type === "state" &&
+      run.progress.live?.generation?.message &&
+      connectionSnapshots.length < 3
+    ) {
       const connection = await readSessionConnection(userId, sessionId);
       if (connection) connectionSnapshots.push(connection);
     }
@@ -149,12 +153,17 @@ test("every message_end is persisted before it reaches a subscriber", async () =
 
 test("real connection snapshots resume a partial message at their cursor without duplicating it", async () => {
   const { run, connectionSnapshots, final } = await streamTurnRecordingReconnects();
-  assert.ok(connectionSnapshots.some((snapshot) => snapshot.runProgress?.streamingMessage));
+  assert.ok(
+    connectionSnapshots.some((snapshot) => snapshot.runProgress?.live?.generation?.message),
+  );
   for (const snapshot of connectionSnapshots) {
     assert.ok(snapshot.activeRun);
     assert.ok(snapshot.session.messageEntryIds.every((id) => !id.startsWith("pending:")));
     const reopened = new ClientView(snapshot.session.messages);
-    reopened.streamingMessage = snapshot.runProgress?.streamingMessage;
+    reopened.progress = snapshot.runProgress ?? {};
+    reopened.streamingMessage = snapshot.runProgress?.live?.generation?.message as
+      | AgentMessage
+      | undefined;
     for (const envelope of run.events) {
       if (envelope.sequence > snapshot.activeRun.eventCursor) reopened.apply(envelope.event);
     }

@@ -4,14 +4,20 @@ import { createHomeTools, buildHomeInstructions, configureHomeCompaction } from 
 import { carmelLinkInstructions } from "./carmel-links.ts";
 import { createSessionSearchTools } from "./session-search-tools.ts";
 import { sessionHome } from "../services/agent-homes.ts";
-import { CompactionEntry, GenerationTask, hook } from "@earendil-works/pi-durable";
+import {
+  CompactionEntry,
+  GenerationTask,
+  hook,
+  type LiveState,
+  type InboxState,
+} from "@earendil-works/pi-durable";
 import {
   PiRun,
   BACKGROUND_CONTEXT,
   formatSkillsForSystemPrompt,
   type Conversation,
   type Context as PiContext,
-  type AgentEvent,
+  type RunChange,
   type AgentMessage,
 } from "../effectors/pi-durable/index.ts";
 import { and, eq } from "drizzle-orm";
@@ -281,10 +287,10 @@ async function startAgentRun(context: AgentRun) {
     runningConversations.set(session.id, conversation);
     harness = opened.harness;
     abort.attach(conversation);
-    unsubscribe = harness.observe((event: AgentEvent) => {
-      if (!abort.requested && (event.type === "inbox_update" || event.type === "snapshot"))
+    unsubscribe = harness.observe((event: RunChange) => {
+      if (!abort.requested && event.type === "state")
         context.sessionAddons?.onQueueUpdate?.(
-          (event.type === "inbox_update" ? event.items : event.inbox).map(
+          ((event.value.docs["pi.inbox"] as InboxState | undefined)?.items ?? []).map(
             (item) => `submission:${item.id}`,
           ),
         );
@@ -302,14 +308,21 @@ async function startAgentRun(context: AgentRun) {
       // the ceiling. Aborting through the same gate the HTTP path uses means a
       // guard stop tears down exactly like a user stop.
       const stop =
-        event.type === "tool_execution_end" && !event.parentToolCallId
+        event.type === "message_end" && event.entry.model?.[0]?.role === "toolResult"
           ? guard.recordToolCall()
           : (guard.recordActivity(), undefined);
       if (stop) abort.request("guard");
-      const projected = projectRunEvent(event, contextReporter.lastTurnFailure);
+      const projected = projectRunEvent(event);
       if (projected) emitRunEvent(run, projected);
+      if (event.type === "message_end" && event.entry.model?.[0]?.role === "assistant")
+        emitRunEvent(run, {
+          type: "turn_end",
+          ...(contextReporter.lastTurnFailure
+            ? { errorMessage: formatTurnFailure(contextReporter.lastTurnFailure) }
+            : {}),
+        });
     });
-    contextReporter.observe(harness.snapshot);
+    contextReporter.observe({ type: "state", value: harness.snapshot, ops: [] });
     // Catches what events cannot: a provider connection that opened and went
     // quiet, or a bash command the model launched without a timeout.
     guardTimer = setInterval(() => {
@@ -457,7 +470,7 @@ export class RetryBranch {
     this.#originalLeafId = leafId;
   }
 
-  observe(event: AgentEvent) {
+  observe(event: RunChange) {
     if (
       this.#originalLeafId &&
       event.type === "message_end" &&
@@ -808,13 +821,13 @@ export class ContextReporter {
     this.#emit = emit;
   }
 
-  observe(event: AgentEvent) {
+  observe(event: RunChange) {
     if (event.type === "message_end" && event.entry.model?.[0]?.role === "assistant") {
       this.#lastTurnFailure = classifyAssistantFailure(event.entry.model[0], this.#contextWindow);
       return;
     }
     if (
-      (event.type === "message_end" || event.type === "entry_appended") &&
+      event.type === "message_end" &&
       event.entry.kind === CompactionEntry.kind &&
       (event.entry.data as { reason?: string } | undefined)?.reason === "overflow"
     ) {
@@ -823,14 +836,12 @@ export class ContextReporter {
       return;
     }
     const failure =
-      event.type === "snapshot"
-        ? event.compactionFailure
-        : event.type === "compaction_end" && event.error
-          ? event
-          : undefined;
+      event.type === "state"
+        ? (event.value.docs["pi.live"] as LiveState | undefined)?.compactionFailure
+        : undefined;
     if (!failure || failure.taskId === this.#reportedCompactionFailure) return;
     this.#reportedCompactionFailure = failure.taskId;
-    if (failure.reason === "overflow") this.#overflowCompaction = "failed";
+    if (failure.trigger === "overflow") this.#overflowCompaction = "failed";
     const notice = describeCompactionFailure(failure.error!);
     this.#emit({ type: "context_pressure", level: notice.level, message: notice.message });
   }

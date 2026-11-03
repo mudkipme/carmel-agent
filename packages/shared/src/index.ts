@@ -1,4 +1,4 @@
-import type { AgentEvent, NestedToolSlot } from "@earendil-works/pi-durable";
+import type { Op } from "@earendil-works/chord/delta";
 export type { NestedToolSlot } from "@earendil-works/pi-durable";
 export type { CodemodeToolDetails, CodemodeNestedCall } from "@earendil-works/pi-durable/codemode";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
@@ -133,26 +133,10 @@ export type AgentRunFinishedEvent = {
   result: AgentRunResult;
 };
 
-/**
- * Wire protocol for the run event stream, deliberately narrower than Pi's
- * `AgentEvent`.
- *
- * Pi emits the whole message-so-far on every token -- twice over, as
- * `message_update.message` and again as `assistantMessageEvent.partial` -- which
- * makes a streamed reply cost O(n^2) bytes. Streamed text and thinking travel
- * here as deltas instead, so a reply costs O(n), and every field the client does
- * not render is dropped rather than forwarded. The server projects Pi's events
- * into this shape; see `runtime/run-events.ts`.
- */
+/** Native live-state deltas plus committed messages and application notices. */
 export type AgentRunEvent =
-  | { type: "message_start"; message: AgentMessage }
-  | Extract<AgentEvent, { type: "message_update" }>
+  | { type: "live_update"; ops: readonly Op[] }
   | { type: "message_end"; message: AgentMessage }
-  | Extract<
-      AgentEvent,
-      { type: "tool_execution_start" | "tool_execution_update" | "tool_execution_end" }
-    >
-  | { type: "nested_tools"; tools: readonly NestedToolSlot[] }
   | { type: "turn_end"; errorMessage?: string }
   /**
    * Automatic compaction could not keep the session inside its context budget.

@@ -26,10 +26,8 @@ test("run events are sequenced and reconnect replays only events after the curso
   try {
     emitRunEvent(run, { type: "turn_end" });
     emitRunEvent(run, {
-      type: "tool_execution_start",
-      args: {},
-      toolCallId: "call_1",
-      toolName: "read",
+      type: "live_update",
+      ops: [["r", { tools: [{ callId: "call_1", name: "read", status: "running" }] }]],
     });
     assert.equal(getActiveAgentRunForSession(run.userId, run.sessionId)?.eventCursor, 2);
 
@@ -86,21 +84,29 @@ test("native batches are sequenced immediately and retain part ordering", () => 
     abort: () => {},
   });
   try {
-    emitRunEvent(run, { type: "message_start", message: assistantMessage() });
+    emitRunEvent(run, {
+      type: "live_update",
+      ops: [["r", { generation: { attempt: 1, message: assistantMessage() as never } }]],
+    });
     const update = {
-      type: "message_update" as const,
-      usage: (assistantMessage() as import("@earendil-works/pi-ai").AssistantMessage).usage,
-      changes: [
-        { type: "thinking_delta" as const, contentIndex: 0, delta: "hmm" },
-        { type: "text_delta" as const, contentIndex: 1, delta: "answer" },
-      ],
+      type: "live_update" as const,
+      ops: [
+        [
+          "s",
+          ["generation", "message", "content"],
+          [
+            { type: "thinking", thinking: "hmm" },
+            { type: "text", text: "answer" },
+          ],
+        ],
+      ] as import("@earendil-works/chord/delta").Op[],
     };
     emitRunEvent(run, update);
     assert.equal(run.nextSequence, 3);
     emitRunEvent(run, { type: "message_end", message: assistantMessage("answer") });
     assert.deepEqual(
       run.events.map((entry) => entry.event.type),
-      ["message_start", "message_update", "message_end"],
+      ["live_update", "live_update", "message_end"],
     );
     assert.deepEqual(run.events[1]!.event, update);
   } finally {
@@ -119,47 +125,57 @@ test("a run snapshot restores partial text and tools after their opening events 
     const message = assistantMessage();
     assert.equal(message.role, "assistant");
     if (message.role !== "assistant") throw new Error("Expected assistant");
-    emitRunEvent(run, { type: "message_start", message });
     emitRunEvent(run, {
-      type: "tool_execution_start",
-      toolCallId: "pending",
-      toolName: "read",
-      args: {},
-    });
-    emitRunEvent(run, {
-      type: "tool_execution_start",
-      toolCallId: "nested",
-      toolName: "bash",
-      args: {},
-      parentToolCallId: "pending",
-      taskId: 3 as never,
-      parentTaskId: 2 as never,
-    });
-    emitRunEvent(run, {
-      type: "tool_execution_update",
-      toolCallId: "nested",
-      toolName: "bash",
-      parentToolCallId: "pending",
-      output: { append: "progress" },
+      type: "live_update",
+      ops: [
+        [
+          "r",
+          {
+            generation: {
+              attempt: 1,
+              message: { ...message, content: [{ type: "text", text: "" }] } as never,
+            },
+            tools: [{ callId: "pending", name: "read", status: "running" }],
+            nestedTools: [
+              {
+                callId: "pending/c1",
+                name: "bash",
+                parentCallId: "pending",
+                parentTaskId: 2,
+                taskId: 3,
+                arguments: {},
+                status: "running",
+                output: "progress",
+              },
+            ],
+          },
+        ],
+      ],
     });
     for (let i = 0; i < 1001; i++)
       emitRunEvent(run, {
-        type: "message_update",
-        usage: message.usage,
-        changes: [{ type: "text_delta", contentIndex: 0, delta: "x" }],
+        type: "live_update",
+        ops: [["a", ["generation", "message", "content", 0, "text"], "x"]],
       });
-    assert.ok(run.events.every((event) => event.event.type === "message_update"));
+    assert.ok(run.events.every((event) => event.event.type === "live_update"));
     const snapshot = sessionRunSnapshot(run.userId, run.sessionId);
     assert.equal(snapshot.activeRun?.eventCursor, run.nextSequence - 1);
-    const streaming = snapshot.runProgress?.streamingMessage;
+    const streaming = snapshot.runProgress?.live?.generation?.message;
     assert.ok(streaming?.role === "assistant");
     assert.deepEqual(streaming.content, [{ type: "text", text: "x".repeat(1001) }]);
-    assert.deepEqual(snapshot.runProgress?.pendingToolCalls, ["pending"]);
-    assert.equal(snapshot.runProgress?.nestedTools[0]?.output, "progress");
-    assert.equal(sessionRunSnapshot("another_user", run.sessionId).activeRun, null);
-    emitRunEvent(run, { type: "tool_execution_end", toolCallId: "pending", toolName: "read" });
     assert.deepEqual(
-      sessionRunSnapshot(run.userId, run.sessionId).runProgress?.pendingToolCalls,
+      snapshot.runProgress?.live?.tools
+        ?.filter((call) => call.status !== "done")
+        .map((call) => call.callId),
+      ["pending"],
+    );
+    assert.equal(snapshot.runProgress?.live?.nestedTools?.[0]?.output, "progress");
+    assert.equal(sessionRunSnapshot("another_user", run.sessionId).activeRun, null);
+    emitRunEvent(run, { type: "live_update", ops: [["s", ["tools", 0, "status"], "done"]] });
+    assert.deepEqual(
+      sessionRunSnapshot(run.userId, run.sessionId)
+        .runProgress?.live?.tools?.filter((call) => call.status !== "done")
+        .map((call) => call.callId),
       [],
     );
   } finally {

@@ -1,5 +1,5 @@
 import { readVisibleAgent } from "../services/agent-access.ts";
-import { Type } from "@earendil-works/pi-ai";
+import { obj, str, num, bool, opt } from "@earendil-works/pi-schema";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   configure,
@@ -235,11 +235,11 @@ export function createHelperExtension(owner: {
         name: "start_subtask",
         description:
           "Create a read-only subtask within the current task. Delegate a bounded research or analysis question to this same agent with isolated context. Pass a self-contained task and relevant constraints. Subtasks cannot edit files, browse, send messages, create tasks, or delegate. Up to four may work at once; each has five minutes. Foreground returns its answer. Use background=true to run independent subtasks in parallel, then wait_subtask to collect each result before reporting the parent task complete. Results and evidence stay on the parent task. wakeAt is optional UTC epoch milliseconds for a background subtask to wake later.",
-        parameters: Type.Object({
-          name: Type.String({ minLength: 1, maxLength: 100 }),
-          task: Type.String({ minLength: 1, maxLength: 16000 }),
-          background: Type.Optional(Type.Boolean()),
-          wakeAt: Type.Optional(Type.Number()),
+        parameters: obj({
+          name: str({ minLength: 1, maxLength: 100 }),
+          task: str({ minLength: 1, maxLength: 16000 }),
+          background: opt(bool()),
+          wakeAt: opt(num()),
         }),
         replay: "safe",
         executionMode: "sequential",
@@ -381,7 +381,7 @@ export function createHelperExtension(owner: {
         name: "wait_subtask",
         description:
           "Wait for a selected background subtask and return its answer. Join every background subtask before reporting the parent task complete; do not poll in a loop.",
-        parameters: Type.Object({ subtaskId: Type.Number() }),
+        parameters: obj({ subtaskId: num() }),
         replay: "safe",
         async execute(args, api, context) {
           let helper = (await api.snapshot(Helpers, context))?.items[String(args.subtaskId)];
@@ -406,7 +406,7 @@ export function createHelperExtension(owner: {
       defineTool({
         name: "list_subtasks",
         description: "List this task's subtasks and their answers or progress.",
-        parameters: Type.Object({}),
+        parameters: obj({}),
         replay: "safe",
         execute: async (_args, api, context) => ({
           output: [
@@ -424,7 +424,7 @@ export function createHelperExtension(owner: {
       defineTool({
         name: "stop_subtask",
         description: "Stop a selected subtask, including a subtask waiting to wake later.",
-        parameters: Type.Object({ subtaskId: Type.Number() }),
+        parameters: obj({ subtaskId: num() }),
         replay: "unsafe",
         execute: async (args, api, context) => {
           const helper = (await api.snapshot(Helpers, context))?.items[String(args.subtaskId)];
@@ -437,9 +437,9 @@ export function createHelperExtension(owner: {
       defineTool({
         name: "send_subtask_update",
         description: "Send a steering update to a selected active subtask.",
-        parameters: Type.Object({
-          subtaskId: Type.Number(),
-          text: Type.String({ minLength: 1, maxLength: 16000 }),
+        parameters: obj({
+          subtaskId: num(),
+          text: str({ minLength: 1, maxLength: 16000 }),
         }),
         replay: "unsafe",
         execute: async (args, api, context) => {

@@ -53,10 +53,17 @@ test("native configuration is atomic, preserves tool order, and makes identical 
   });
   const nativeTools = pi.session.registry.snapshot().extension("carmel")!.tools!;
   const updates: AgentState[] = [];
-  const unsubscribe = pi.session.native.subscribeCommits((publication) => {
-    for (const change of publication.changes)
-      if (change.type === "document" && change.record.kind === "pi.agent" && change.value)
-        updates.push(structuredClone(change.value) as AgentState);
+  const unsubscribe = pi.session.native.observeCommits({
+    advance(publication) {
+      for (const change of publication.changes)
+        if (
+          change.type === "document" &&
+          change.record.kind === "pi.agent" &&
+          change.kind === "change"
+        )
+          updates.push(structuredClone(change.value) as AgentState);
+    },
+    end() {},
   });
   const configuration = {
     model: { provider: piModel.provider, modelId: piModel.id },
@@ -81,7 +88,7 @@ test("native configuration is atomic, preserves tool order, and makes identical 
       updates[1],
     );
   } finally {
-    unsubscribe();
+    unsubscribe.detach();
     await pi.close();
   }
 });

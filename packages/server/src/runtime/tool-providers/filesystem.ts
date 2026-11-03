@@ -24,7 +24,7 @@ import type {
 type ServerToolDefinition = ToolRegistration;
 
 /** Only grep/find/ls still come from Pi's Agent-loop package. */
-function asDurableTool(tool: AgentTool): ServerToolDefinition {
+function asDurableTool<T extends object>(tool: AgentTool<T>): ToolRegistration<T> {
   return {
     name: tool.name,
     description: tool.description,

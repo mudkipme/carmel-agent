@@ -44,7 +44,7 @@ export function createUserRequestTools(context: {
     parameters: z.toJSONSchema(questionInputSchema, {
       unrepresentable: "any",
       io: "input",
-    }) as never,
+    }),
     async execute(args, api, ctx) {
       ctx.abortSignal?.throwIfAborted();
       if (!(await isAlone(api, ctx))) return aloneError;
@@ -77,7 +77,7 @@ export function createUserRequestTools(context: {
       parameters: z.toJSONSchema(secretRequestInputSchema, {
         unrepresentable: "any",
         io: "input",
-      }) as never,
+      }),
       async execute(args, api, ctx) {
         ctx.abortSignal?.throwIfAborted();
         const input = secretRequestInputSchema.parse(args);
