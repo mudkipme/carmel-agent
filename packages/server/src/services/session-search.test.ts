@@ -60,14 +60,16 @@ test("global search finds titles and user/assistant text across agents, includin
   const own = createSession();
   const otherAgent = createSession({ userId: own.userId });
   db.update(sessions)
-    .set({ title: "Release planning", archivedAt: Date.now() })
+    .set({ title: "Release planning", archivedAt: Date.now(), updatedAt: Date.now() + 1000 })
     .where(eq(sessions.id, own.sessionId))
     .run();
   await replacePiSessionMessages(own.sessionId, [
     userMessage("We should ship the release next week."),
+    userMessage("We should ship the release next week."),
   ]);
   await replacePiSessionMessages(otherAgent.sessionId, [
     fauxAssistantMessage("The RELEASE checklist is ready."),
+    userMessage("We should ship the release next week."),
     userMessage("讨论全局搜索功能"),
     userMessage("Literal tokens: 100%_done and C++"),
   ]);
@@ -77,6 +79,10 @@ test("global search finds titles and user/assistant text across agents, includin
   assert.equal(title.sessionId, own.sessionId);
   assert.equal(title.link, `/agents/${own.agentId}/sessions/${own.sessionId}`);
   const messages = matches.filter((match) => match.entryId);
+  assert.equal(
+    messages.find((match) => match.excerpt === "We should ship the release next week.")!.sessionId,
+    own.sessionId,
+  );
   assert.deepEqual(
     new Set(messages.map((match) => match.agentId)),
     new Set([own.agentId, otherAgent.agentId]),
@@ -168,7 +174,10 @@ test("global search excludes other users and agents that are no longer visible, 
 test("global search API validates queries and searches as the signed-in user", async () => {
   const own = createSession();
   const foreign = createSession();
-  await replacePiSessionMessages(own.sessionId, [userMessage("route match: C++")]);
+  await replacePiSessionMessages(own.sessionId, [
+    ...Array.from({ length: 55 }, () => userMessage("route match: C++")),
+    userMessage("Another route match: C++"),
+  ]);
   await replacePiSessionMessages(foreign.sessionId, [userMessage("route match: C++ private")]);
   const user = db.select().from(users).where(eq(users.id, own.userId)).get()!;
   const app = new Hono<{ Variables: AuthVariables }>();
@@ -182,7 +191,7 @@ test("global search API validates queries and searches as the signed-in user", a
   const matches = (await response.json()) as Array<{ sessionId: string }>;
   assert.deepEqual(
     matches.map((match) => match.sessionId),
-    [own.sessionId],
+    [own.sessionId, own.sessionId],
   );
   assert.deepEqual(await (await app.request("/sessions/search")).json(), []);
   const tooLong = await app.request(`/sessions/search?q=${"a".repeat(501)}`);

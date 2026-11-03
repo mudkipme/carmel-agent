@@ -1098,7 +1098,9 @@ paths:
         Search the caller's session titles and user/assistant message text across visible agents,
         including archived sessions. Thinking, tool calls, and tool results are excluded.
         Matches literal substrings and returns title matches first, then message matches,
-        ordered by session activity. An empty or whitespace-only query returns an empty array.
+        ordered by session activity. Identical full message text appears once, linked to the
+        most recently active matching session, before applying the result limit.
+        An empty or whitespace-only query returns an empty array.
       parameters:
         - name: q
           in: query

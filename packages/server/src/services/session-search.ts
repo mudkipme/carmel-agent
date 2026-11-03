@@ -81,22 +81,29 @@ export async function searchGlobalSessions(
     .map((row) => row.session);
   await indexSessions(owned);
   const matches = sqlite
-    .prepare(`SELECT s.id AS sessionId, s.agent_id AS agentId, s.title,
+    .prepare(`WITH message_matches AS (
+        SELECT s.id AS sessionId, s.agent_id AS agentId, s.title,
+          f.entry_id AS entryId,
+          substr(f.text, max(1, instr(lower(f.text), lower(?)) - 80), 280) AS excerpt,
+          s.updated_at AS updatedAt,
+          row_number() OVER (
+            PARTITION BY f.text ORDER BY s.updated_at DESC, s.id, f.entry_id
+          ) AS duplicateIndex
+        FROM session_search f JOIN sessions s ON s.id = f.session_id
+          JOIN agents a ON a.id = s.agent_id
+        WHERE s.user_id = ? AND (a.owner_user_id = ? OR a.shared = 1)
+          AND instr(lower(f.text), lower(?)) > 0
+      )
+      SELECT s.id AS sessionId, s.agent_id AS agentId, s.title,
         NULL AS entryId, '' AS excerpt, s.updated_at AS updatedAt, 0 AS kind
       FROM sessions s JOIN agents a ON a.id = s.agent_id
       WHERE s.user_id = ? AND (a.owner_user_id = ? OR a.shared = 1)
         AND instr(lower(s.title), lower(?)) > 0
       UNION ALL
-      SELECT s.id AS sessionId, s.agent_id AS agentId, s.title,
-        f.entry_id AS entryId,
-        substr(f.text, max(1, instr(lower(f.text), lower(?)) - 80), 280) AS excerpt,
-        s.updated_at AS updatedAt, 1 AS kind
-      FROM session_search f JOIN sessions s ON s.id = f.session_id
-        JOIN agents a ON a.id = s.agent_id
-      WHERE s.user_id = ? AND (a.owner_user_id = ? OR a.shared = 1)
-        AND instr(lower(f.text), lower(?)) > 0
+      SELECT sessionId, agentId, title, entryId, excerpt, updatedAt, 1 AS kind
+      FROM message_matches WHERE duplicateIndex = 1
       ORDER BY kind, updatedAt DESC, sessionId, entryId LIMIT 50`)
-    .all(userId, userId, text, text, userId, userId, text) as Array<{
+    .all(text, userId, userId, text, userId, userId, text) as Array<{
     sessionId: string;
     agentId: string;
     title: string;
