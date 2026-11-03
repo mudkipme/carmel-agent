@@ -5473,3 +5473,29 @@ msgstr "你有未保存的更改。离开前请保存、放弃，或取消以继
 #: src/components/chat/UserRequestCards.tsx:316
 msgid "Your answer"
 msgstr "你的回答"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:87
+#: src/components/harness/shell/GlobalSearch.tsx:88
+#: src/components/harness/shell/GlobalSearch.tsx:110
+msgid "Search titles and messages"
+msgstr "搜索标题和消息"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:104
+msgid "Unable to search"
+msgstr "无法搜索"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:110
+msgid "No sessions found."
+msgstr "未找到会话。"
+
+#: src/components/harness/shell/GlobalSearch.tsx:51
+#: src/components/harness/shell/HarnessSidebar.tsx:133
+msgid "Search"
+msgstr "搜索"
+
+#: src/components/harness/shell/GlobalSearch.tsx:97
+msgid "Searching…"
+msgstr "正在搜索…"

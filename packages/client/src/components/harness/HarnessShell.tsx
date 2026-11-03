@@ -48,6 +48,7 @@ const TerminalPanel = lazy(() =>
 const BrowserPanel = lazy(() =>
   import("./BrowserPanel").then((module) => ({ default: module.BrowserPanel })),
 );
+import { GlobalSearch } from "@/components/harness/shell/GlobalSearch";
 import { HarnessSidebar } from "@/components/harness/shell/HarnessSidebar";
 import { HarnessHeader } from "@/components/harness/shell/HarnessHeader";
 import { ImportSessionsDialog } from "@/components/harness/shell/ImportSessionsDialog";
@@ -145,6 +146,7 @@ export function HarnessShell({
   const rememberAgent = useHarnessStore((state) => state.rememberAgent);
   const loadUnlistedSession = useHarnessStore((state) => state.loadUnlistedSession);
   const loadIssues = useHarnessStore((state) => state.loadIssues);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [taskHeaderTarget, setTaskHeaderTarget] = useState<HTMLDivElement | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
@@ -456,6 +458,13 @@ export function HarnessShell({
         )}
         onClick={() => setSidebarOpen(false)}
       />
+      <GlobalSearch
+        key={userId}
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        agents={visibleAgents}
+        onNavigate={closeSidebarOnMobile}
+      />
       <HarnessSidebar
         activeUser={activeUser}
         activeAgent={activeAgent}
@@ -473,6 +482,7 @@ export function HarnessShell({
           setSidebarWidth(width);
           window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
         }}
+        onOpenSearch={() => setSearchOpen(true)}
         onOpenSettings={() => navigate("/settings/models")}
       />
 

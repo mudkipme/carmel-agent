@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import type { SessionSearchResult } from "@carmel-agent/shared";
+import { and, eq, or } from "drizzle-orm";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Cursor } from "@earendil-works/pi-durable";
 import { db, sqlite } from "../db/index.ts";
-import { sessions } from "../db/schema.ts";
+import { agents, sessions } from "../db/schema.ts";
 import { readVisibleAgent } from "./agent-access.ts";
 import { displayEntries, withPiSession, resolveEntryId } from "./pi-session-storage.ts";
 
@@ -29,25 +30,7 @@ function textOf(entry: ReturnType<typeof displayEntries>[number]) {
         .join("\n");
 }
 
-export async function searchSessions(
-  userId: string,
-  agentId: string,
-  query: string,
-  includeArchived = false,
-) {
-  if (!readVisibleAgent(userId, agentId)) throw new Error("Agent not found.");
-  const terms = query
-    .match(/[\p{L}\p{N}_-]+/gu)
-    ?.slice(0, 8)
-    .map((term) => `"${term}"`)
-    .join(" AND ");
-  if (!terms) return [];
-  const owned = db
-    .select()
-    .from(sessions)
-    .where(and(eq(sessions.userId, userId), eq(sessions.agentId, agentId)))
-    .all()
-    .filter((session) => includeArchived || !session.archivedAt);
+async function indexSessions(owned: (typeof sessions.$inferSelect)[]) {
   for (const session of owned) {
     const indexed = sqlite
       .prepare("SELECT revision FROM session_search_state WHERE session_id = ?")
@@ -79,6 +62,77 @@ export async function searchSessions(
       .prepare("INSERT OR REPLACE INTO session_search_state(session_id, revision) VALUES (?, ?)")
       .run(session.id, session.revision);
   }
+}
+
+export async function searchGlobalSessions(
+  userId: string,
+  query: string,
+): Promise<SessionSearchResult[]> {
+  const text = query.trim();
+  if (!text) return [];
+  const owned = db
+    .select({ session: sessions })
+    .from(sessions)
+    .innerJoin(agents, eq(agents.id, sessions.agentId))
+    .where(
+      and(eq(sessions.userId, userId), or(eq(agents.ownerUserId, userId), eq(agents.shared, true))),
+    )
+    .all()
+    .map((row) => row.session);
+  await indexSessions(owned);
+  const matches = sqlite
+    .prepare(`SELECT s.id AS sessionId, s.agent_id AS agentId, s.title,
+        NULL AS entryId, '' AS excerpt, s.updated_at AS updatedAt, 0 AS kind
+      FROM sessions s JOIN agents a ON a.id = s.agent_id
+      WHERE s.user_id = ? AND (a.owner_user_id = ? OR a.shared = 1)
+        AND instr(lower(s.title), lower(?)) > 0
+      UNION ALL
+      SELECT s.id AS sessionId, s.agent_id AS agentId, s.title,
+        f.entry_id AS entryId,
+        substr(f.text, max(1, instr(lower(f.text), lower(?)) - 80), 280) AS excerpt,
+        s.updated_at AS updatedAt, 1 AS kind
+      FROM session_search f JOIN sessions s ON s.id = f.session_id
+        JOIN agents a ON a.id = s.agent_id
+      WHERE s.user_id = ? AND (a.owner_user_id = ? OR a.shared = 1)
+        AND instr(lower(f.text), lower(?)) > 0
+      ORDER BY kind, updatedAt DESC, sessionId, entryId LIMIT 50`)
+    .all(userId, userId, text, text, userId, userId, text) as Array<{
+    sessionId: string;
+    agentId: string;
+    title: string;
+    entryId: string | null;
+    excerpt: string;
+  }>;
+  return matches.map(({ sessionId, agentId, title, entryId, excerpt }) => ({
+    sessionId,
+    agentId,
+    title,
+    ...(entryId ? { entryId } : {}),
+    excerpt,
+    link: `/agents/${agentId}/sessions/${sessionId}${entryId ? `?entry=${encodeURIComponent(entryId)}` : ""}`,
+  }));
+}
+
+export async function searchSessions(
+  userId: string,
+  agentId: string,
+  query: string,
+  includeArchived = false,
+) {
+  if (!readVisibleAgent(userId, agentId)) throw new Error("Agent not found.");
+  const terms = query
+    .match(/[\p{L}\p{N}_-]+/gu)
+    ?.slice(0, 8)
+    .map((term) => `"${term}"`)
+    .join(" AND ");
+  if (!terms) return [];
+  const owned = db
+    .select()
+    .from(sessions)
+    .where(and(eq(sessions.userId, userId), eq(sessions.agentId, agentId)))
+    .all()
+    .filter((session) => includeArchived || !session.archivedAt);
+  await indexSessions(owned);
   const matches = sqlite
     .prepare(`SELECT f.session_id AS sessionId, f.entry_id AS entryId, s.title, snippet(session_search, 2, '', '', '…', 40) AS excerpt
     FROM session_search f JOIN sessions s ON s.id = f.session_id

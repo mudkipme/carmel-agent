@@ -1,3 +1,4 @@
+import { searchGlobalSessions } from "../services/session-search.ts";
 import { sessionHome } from "../services/agent-homes.ts";
 import { readSessionSnapshot } from "../services/session-snapshot.ts";
 import {
@@ -59,6 +60,12 @@ import { blockingUserRequest } from "../services/user-requests.ts";
 
 export function createSessionRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
+
+  route.get("/sessions/search", async (c) => {
+    const query = c.req.query("q") ?? "";
+    if (query.length > 500) return c.json({ error: "Search query is too long." }, 400);
+    return c.json(await searchGlobalSessions(c.get("user").id, query));
+  });
 
   // Archived sessions are left out of bootstrap, so agent settings reads them here.
   route.get("/agents/:agentId/archived-sessions", (c) => {

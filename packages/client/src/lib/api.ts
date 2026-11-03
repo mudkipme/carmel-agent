@@ -57,6 +57,7 @@ import type {
   SessionPatch,
   SessionImportResult,
   SessionMetadata,
+  SessionSearchResult,
   SetupStatus,
   User,
   UserUpdateRequest,
@@ -263,6 +264,11 @@ export const api = {
       `/api/agents/${encodeURIComponent(agentId)}/browser`,
       { signal },
     ),
+  searchSessions: (query: string, signal?: AbortSignal) =>
+    request<SessionSearchResult[]>(`/api/sessions/search?${new URLSearchParams({ q: query })}`, {
+      signal,
+      cache: "no-store",
+    }),
   bootstrap: () => request<BootstrapPayload>("/api/bootstrap"),
   login: (username: string, password: string) =>
     request<BootstrapPayload>("/api/auth/login", {

@@ -5473,3 +5473,29 @@ msgstr "You have unsaved changes. Save them before leaving, discard them, or can
 #: src/components/chat/UserRequestCards.tsx:316
 msgid "Your answer"
 msgstr "Your answer"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:87
+#: src/components/harness/shell/GlobalSearch.tsx:88
+#: src/components/harness/shell/GlobalSearch.tsx:110
+msgid "Search titles and messages"
+msgstr "Search titles and messages"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:104
+msgid "Unable to search"
+msgstr "Unable to search"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:110
+msgid "No sessions found."
+msgstr "No sessions found."
+
+#: src/components/harness/shell/GlobalSearch.tsx:51
+#: src/components/harness/shell/HarnessSidebar.tsx:133
+msgid "Search"
+msgstr "Search"
+
+#: src/components/harness/shell/GlobalSearch.tsx:97
+msgid "Searching…"
+msgstr "Searching…"

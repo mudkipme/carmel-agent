@@ -34,6 +34,15 @@ export type Session = SessionMetadata & {
   observedAt?: number;
 };
 
+export type SessionSearchResult = {
+  sessionId: string;
+  agentId: string;
+  title: string;
+  entryId?: string;
+  excerpt: string;
+  link: string;
+};
+
 export type SessionImportResult = {
   sessions: Session[];
   skipped: number;

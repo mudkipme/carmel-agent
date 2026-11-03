@@ -10,6 +10,7 @@ import {
   HomeIcon,
   MessagesSquareIcon,
   PlusIcon,
+  SearchIcon,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
@@ -39,6 +40,7 @@ export function HarnessSidebar({
   onResetWidth,
   onResizeWidth,
   onOpenSettings,
+  onOpenSearch,
 }: {
   activeUser?: User;
   activeAgent?: AgentConfig;
@@ -54,6 +56,7 @@ export function HarnessSidebar({
   onResetWidth: () => void;
   onResizeWidth: (width: number) => void;
   onOpenSettings: () => void;
+  onOpenSearch: () => void;
 }) {
   const { i18n } = useLingui();
   const navigate = useNavigate();
@@ -120,6 +123,15 @@ export function HarnessSidebar({
           </Button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
+          <Button
+            variant="ghost"
+            className="shrink-0 justify-start"
+            aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
+            onClick={onOpenSearch}
+          >
+            <SearchIcon data-icon="inline-start" />
+            <Trans>Search</Trans>
+          </Button>
           <nav
             aria-label={i18n._("Agents")}
             className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto"
