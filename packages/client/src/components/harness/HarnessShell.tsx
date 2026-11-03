@@ -567,6 +567,8 @@ export function HarnessShell({
               <AgentSessionsPage
                 key={activeAgent.id}
                 agent={activeAgent}
+                modelRefs={modelRefs}
+                providerConfigs={providerConfigs}
                 sessions={visibleSessions}
                 runningSessionIds={serverRunningSessionIds}
                 runOverrides={runOverrides}

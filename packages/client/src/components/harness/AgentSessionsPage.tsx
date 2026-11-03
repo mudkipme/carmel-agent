@@ -1,13 +1,14 @@
 import { useLingui } from "@lingui/react";
-import { Trans } from "@lingui/react/macro";
-import { MessageSquarePlusIcon, UploadIcon } from "lucide-react";
-import { Link } from "react-router-dom";
+import { UploadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SessionList } from "./shell/SessionList";
-import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
+import { NewSessionView } from "./NewSessionView";
+import type { AgentConfig, ModelRef, ProviderConfig, SessionMetadata } from "@carmel-agent/shared";
 
 export function AgentSessionsPage({
   agent,
+  modelRefs,
+  providerConfigs,
   sessions,
   runningSessionIds,
   runOverrides,
@@ -15,6 +16,8 @@ export function AgentSessionsPage({
   onOpenImport,
 }: {
   agent: AgentConfig;
+  modelRefs: ModelRef[];
+  providerConfigs: ProviderConfig[];
   sessions: SessionMetadata[];
   runningSessionIds: Set<string>;
   runOverrides: Record<string, boolean>;
@@ -34,18 +37,21 @@ export function AgentSessionsPage({
           >
             <UploadIcon />
           </Button>
-          <Button asChild>
-            <Link to={`/agents/${agent.id}/sessions/new`}>
-              <MessageSquarePlusIcon data-icon="inline-start" />
-              <Trans>New session</Trans>
-            </Link>
-          </Button>
+        </div>
+        <div className="shrink-0">
+          <NewSessionView
+            agent={agent}
+            modelRefs={modelRefs}
+            providerConfigs={providerConfigs}
+            inline
+          />
         </div>
         <SessionList
           sessions={sessions}
           runningSessionIds={runningSessionIds}
           runOverrides={runOverrides}
           onSelectSession={onSelectSession}
+          searchable={false}
         />
       </div>
     </div>

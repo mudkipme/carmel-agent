@@ -14,6 +14,7 @@ import { setPendingPrompt } from "@/lib/pending-prompts";
 import type { PromptOutcome } from "@/lib/remote-agent";
 import { useHarnessStore } from "@/store/harness-store";
 import { draftStorageKey } from "@/lib/session-draft";
+import { cn } from "@/lib/utils";
 import {
   resolveModelRef,
   type AgentConfig,
@@ -28,6 +29,7 @@ type NewSessionViewProps = {
   providerConfigs: ProviderConfig[];
   onOpenSession?: (sessionId: string) => void;
   browserRequest?: ReactNode;
+  inline?: boolean;
 };
 
 /* An agent's landing page. Nothing exists on the server until the first message
@@ -39,6 +41,7 @@ export function NewSessionView({
   providerConfigs,
   onOpenSession,
   browserRequest,
+  inline = false,
 }: NewSessionViewProps) {
   const { i18n } = useLingui();
   const navigate = useNavigate();
@@ -62,7 +65,12 @@ export function NewSessionView({
 
   if (!modelRef || !model) {
     return (
-      <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+      <div
+        className={cn(
+          "p-8 text-sm text-muted-foreground",
+          !inline && "flex h-full items-center justify-center",
+        )}
+      >
         <Trans>Add a model in Settings to start chatting.</Trans>
       </div>
     );
@@ -95,11 +103,22 @@ export function NewSessionView({
 
   return (
     <>
-      <div className="agent-chat-host flex h-full min-h-0 flex-col overflow-y-auto bg-background px-3 pb-[calc(0.75rem+var(--safe-bottom))] text-foreground">
+      <div
+        className={cn(
+          "agent-chat-host",
+          !inline &&
+            "flex h-full min-h-0 flex-col overflow-y-auto bg-background px-3 pb-[calc(0.75rem+var(--safe-bottom))] text-foreground",
+        )}
+      >
         {/* Margins rather than justify-center, so a composer taller than the
             viewport scrolls instead of being clipped at the top. */}
-        <div className="mx-auto my-auto flex w-full max-w-[var(--line-width)] min-w-0 flex-col gap-5 px-1 py-6 sm:px-5">
-          <ChatWelcome agent={agent} />
+        <div
+          className={cn(
+            "flex min-w-0 flex-col gap-5",
+            !inline && "mx-auto my-auto w-full max-w-[var(--line-width)] px-1 py-6 sm:px-5",
+          )}
+        >
+          {!inline ? <ChatWelcome agent={agent} /> : null}
           {browserRequest ? <AgentRequestArea>{browserRequest}</AgentRequestArea> : null}
           <ChatInput
             draftKey={draftKey}
@@ -107,8 +126,9 @@ export function NewSessionView({
             canReadFiles={agent.permissions.read}
             canWriteFiles={agent.permissions.write}
             ref={chatInputRef}
-            autoFocus
-            textareaClassName="min-h-20"
+            autoFocus={!inline}
+            textareaClassName={inline ? undefined : "min-h-20"}
+            placeholder={inline ? i18n._("New session in {name}", { name: agent.name }) : undefined}
             leadingActions={
               <AgentCommandPalette
                 agent={agent}

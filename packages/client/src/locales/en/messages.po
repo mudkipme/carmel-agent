@@ -5499,3 +5499,8 @@ msgstr "Search"
 #: src/components/harness/shell/GlobalSearch.tsx:97
 msgid "Searching…"
 msgstr "Searching…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/NewSessionView.tsx:131
+msgid "New session in {name}"
+msgstr "New session in {name}"

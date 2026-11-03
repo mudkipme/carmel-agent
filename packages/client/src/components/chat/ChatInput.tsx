@@ -76,6 +76,7 @@ type ChatInputProps = {
   /** Focuses the composer on mount, except where that would pop a touch keyboard. */
   autoFocus?: boolean;
   textareaClassName?: string;
+  placeholder?: string;
   currentModel: Model<Api>;
   thinkingLevel: ThinkingLevel;
   isStreaming: boolean;
@@ -111,6 +112,7 @@ export function ChatInput({
   leadingActions,
   autoFocus,
   textareaClassName,
+  placeholder,
   currentModel,
   thinkingLevel,
   isStreaming,
@@ -410,7 +412,7 @@ export function ChatInput({
         rows={2}
         autoFocus={autoFocus && !isTouchPrimaryInput()}
         enterKeyHint="enter"
-        placeholder={i18n._("Type a message...")}
+        placeholder={placeholder ?? i18n._("Type a message...")}
         aria-label={i18n._("Message")}
         className={cn(
           "max-h-60 min-h-16 px-3 pt-3 pb-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0",

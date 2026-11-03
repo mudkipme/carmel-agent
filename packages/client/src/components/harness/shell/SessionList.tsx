@@ -40,38 +40,43 @@ export function SessionList({
   runOverrides,
   activeSessionId,
   onSelectSession,
+  searchable = true,
 }: {
   sessions: SessionMetadata[];
   runningSessionIds: Set<string>;
   runOverrides: Record<string, boolean>;
   activeSessionId?: string;
   onSelectSession: (session: SessionMetadata) => void;
+  searchable?: boolean;
 }) {
   const { i18n } = useLingui();
   const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE_SIZE);
   const { groups, hidden } = useMemo(() => {
-    const matching = query.trim()
-      ? sessions.filter((session) => matchesSessionQuery(session, query))
-      : sessions;
+    const matching =
+      searchable && query.trim()
+        ? sessions.filter((session) => matchesSessionQuery(session, query))
+        : sessions;
     return limitGroups(groupSessions(matching, undefined, i18n.locale), limit);
-  }, [limit, query, sessions, i18n.locale]);
+  }, [limit, query, searchable, sessions, i18n.locale]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-4 shrink-0">
-        <Input
-          type="search"
-          aria-label={i18n._("Search sessions")}
-          placeholder={i18n._("Search sessions")}
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setLimit(PAGE_SIZE);
-          }}
-        />
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      {searchable ? (
+        <div className="mb-4 shrink-0">
+          <Input
+            type="search"
+            aria-label={i18n._("Search sessions")}
+            placeholder={i18n._("Search sessions")}
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setLimit(PAGE_SIZE);
+            }}
+          />
+        </div>
+      ) : null}
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
         {groups.map((group) => (
           <section key={group.label} aria-label={group.label} className="flex flex-col">
@@ -120,7 +125,7 @@ export function SessionList({
           <Empty>
             <EmptyHeader>
               <EmptyTitle>
-                {query.trim()
+                {searchable && query.trim()
                   ? i18n._("No sessions match “{value}”.", { value: query.trim() })
                   : i18n._("No sessions yet")}
               </EmptyTitle>

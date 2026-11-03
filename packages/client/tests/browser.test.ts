@@ -215,7 +215,7 @@ test("Home and the Sessions page preserve separate drafts without starting a run
     };
   })()`);
   click("link", "Sessions");
-  browser("wait", 'input[aria-label="Search sessions"]');
+  browser("wait", 'textarea[placeholder="New session in Browser test agent"]');
   click("button", "Open session Make the deployment guide easier to follow");
   browser("wait", "--url", `**/sessions/${fixture.chatSessionId}`);
   browser("wait", "--fn", 'typeof window.releaseSessionResponse === "function"');
@@ -252,18 +252,18 @@ test("Home and the Sessions page preserve separate drafts without starting a run
   );
   browser("fill", 'textarea[aria-label="Message"]', "");
   click("link", "Sessions");
-  browser("wait", 'input[aria-label="Search sessions"]');
+  browser("wait", 'textarea[placeholder="New session in Browser test agent"]');
   click("button", "Open session Make the deployment guide easier to follow");
   browser("wait", "--url", `**/sessions/${fixture.chatSessionId}`);
   waitForValue('textarea[aria-label="Message"]', "Independent session draft");
   browser("fill", 'textarea[aria-label="Message"]', "");
 });
 
-test("Sessions searches ordinary conversations and agent navigation works on desktop and mobile", () => {
+test("Sessions starts new conversations above the list and agent navigation works on desktop and mobile", () => {
   for (const width of [1280, 390]) {
     browser("set", "viewport", String(width), "900");
     open(agentPath("sessions"));
-    browser("wait", 'input[aria-label="Search sessions"]');
+    browser("wait", 'textarea[placeholder="New session in Browser test agent"]');
     const list = () =>
       evaluate<string>('document.querySelector("#workspace-conversation").textContent');
     assert.match(list(), /Make the deployment guide easier to follow/);
@@ -271,17 +271,43 @@ test("Sessions searches ordinary conversations and agent navigation works on des
       list(),
       /Previous issue conversation|Review the deployment guide|Open session Home/,
     );
-    browser("fill", 'input[aria-label="Search sessions"]', "deployment");
-    assert.doesNotMatch(list(), /Choose a branch/);
+    assert.equal(evaluate(`document.querySelector('input[aria-label="Search sessions"]')`), null);
+    assert.equal(
+      evaluate(`(() => {
+      const composer = document.querySelector('.chat-composer').getBoundingClientRect();
+      const firstSession = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Open session')).getBoundingClientRect();
+      return composer.bottom <= firstSession.top && composer.left >= 0 && composer.right <= innerWidth;
+    })()`),
+      true,
+    );
     click("button", "Open session Make the deployment guide easier to follow");
     browser("wait", 'textarea[aria-label="Message"]');
     click("link", "Back to sessions");
-    browser("wait", 'input[aria-label="Search sessions"]');
-    browser("fill", 'input[aria-label="Search sessions"]', "no-such-conversation");
-    browser("wait", "--text", "No sessions match");
-    click("link", "New session");
-    browser("wait", "--url", `**/agents/${fixture.agentId}/sessions/new`);
-    browser("wait", 'textarea[aria-label="Message"]');
+    browser("wait", 'textarea[placeholder="New session in Browser test agent"]');
+    evaluate(`(() => {
+      const originalFetch = window.fetch;
+      window.fetch = (input, init) => {
+        if (String(input).endsWith('/run')) {
+          window.sessionsPageSubmission = JSON.parse(init.body);
+          window.fetch = originalFetch;
+          return Promise.resolve(Response.json({ error: 'Session composer test rejection' }, { status: 400 }));
+        }
+        return originalFetch(input, init);
+      };
+    })()`);
+    const prompt = `Start from Sessions at ${width}`;
+    browser("fill", 'textarea[aria-label="Message"]', prompt);
+    click("button", "Send");
+    browser(
+      "wait",
+      "--fn",
+      `location.pathname.startsWith('/agents/${fixture.agentId}/sessions/') && !location.pathname.endsWith('/new') && Boolean(window.sessionsPageSubmission)`,
+    );
+    assert.equal(evaluate("window.sessionsPageSubmission.promptInput.text"), prompt);
+    waitForValue('textarea[aria-label="Message"]', prompt);
+    click("link", "Back to sessions");
+    browser("wait", 'textarea[placeholder="New session in Browser test agent"]');
+    waitForValue('textarea[aria-label="Message"]', "");
     if (width < 1024) click("button", "Show sidebar");
     clickSelector(`nav[aria-label="Agents"] a[href="/agents/${fixture.secondAgentId}/home"]`);
     browser("wait", "--url", `**/agents/${fixture.secondAgentId}/home`);
@@ -691,7 +717,7 @@ test("new chat drafts retain text, references, and images across navigation and 
   const text = value('textarea[aria-label="Message"]');
   click("link", "Schedules");
   click("link", "Sessions");
-  click("link", "New session");
+  browser("wait", 'textarea[placeholder="New session in Browser test agent"]');
   assert.equal(value('textarea[aria-label="Message"]'), text);
   assert.match(snapshot(), /Remove draft.png/);
   browser("reload");
@@ -1872,7 +1898,11 @@ test("failed task loading can be retried and successful edits are not reported a
 
 test("chat controls fit narrow touch screens with reasoning and long model names", () => {
   assert.equal(evaluate<boolean>('matchMedia("(pointer: coarse)").matches'), true);
-  for (const path of [agentPath("sessions/new"), agentPath(`sessions/${fixture.taskSessionId}`)]) {
+  for (const path of [
+    agentPath("sessions"),
+    agentPath("sessions/new"),
+    agentPath(`sessions/${fixture.taskSessionId}`),
+  ]) {
     open(path);
     browser("wait", ".agent-chat-host textarea");
     for (const [width, height] of [
@@ -1942,7 +1972,7 @@ test("chat controls fit narrow touch screens with reasoning and long model names
     browser("wait", '[role="dialog"]');
     assert.match(browser<{ snapshot: string }>("snapshot").snapshot, /Select Model/);
     browser("press", "Escape");
-    browser("find", "placeholder", "Type a message...", "fill", "A mobile draft");
+    browser("fill", 'textarea[aria-label="Message"]', "A mobile draft");
     assert.equal(
       browser<{ enabled: boolean }>("is", "enabled", 'button[aria-label="Send"]').enabled,
       true,

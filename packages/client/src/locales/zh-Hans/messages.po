@@ -5499,3 +5499,8 @@ msgstr "搜索"
 #: src/components/harness/shell/GlobalSearch.tsx:97
 msgid "Searching…"
 msgstr "正在搜索…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/NewSessionView.tsx:131
+msgid "New session in {name}"
+msgstr "在 {name} 中开始新会话"
