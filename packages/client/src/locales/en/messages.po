@@ -5554,3 +5554,24 @@ msgstr "Open"
 #: src/components/chat/CollaborationActivity.tsx:68
 msgid "Unable to stop collaboration"
 msgstr "Unable to stop collaboration"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:48
+#: src/components/chat/CollaborationReplyCard.tsx:26
+msgid "Agent"
+msgstr "Agent"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:45
+msgid "Open task"
+msgstr "Open task"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:69
+msgid "Show less"
+msgstr "Show less"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:69
+msgid "Show more"
+msgstr "Show more"

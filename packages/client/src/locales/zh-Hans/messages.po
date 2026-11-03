@@ -5554,3 +5554,24 @@ msgstr "打开"
 #: src/components/chat/CollaborationActivity.tsx:68
 msgid "Unable to stop collaboration"
 msgstr "无法停止协作"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:48
+#: src/components/chat/CollaborationReplyCard.tsx:26
+msgid "Agent"
+msgstr "智能体"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:45
+msgid "Open task"
+msgstr "打开任务"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:69
+msgid "Show less"
+msgstr "收起"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:69
+msgid "Show more"
+msgstr "展开"

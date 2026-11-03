@@ -3,7 +3,8 @@ import { i18n } from "@lingui/core";
 import { Trans } from "@lingui/react/macro";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { NestedToolSlot } from "@carmel-agent/shared";
-import { getUserRequestReceipt, homeIssueUpdate } from "@carmel-agent/shared";
+import { getUserRequestReceipt, homeIssueUpdate, collaborationReply } from "@carmel-agent/shared";
+import { CollaborationReplyCard } from "./CollaborationReplyCard";
 import { HomeTaskCard } from "./HomeTaskCard";
 import { Link, useLocation } from "react-router-dom";
 import { subtaskLinkTarget } from "@/lib/subtask-navigation";
@@ -367,6 +368,8 @@ const MessageItem = memo(function MessageItem({
   onForkMessage?: (message: AgentMessage) => void;
 }) {
   if (message.role === "homeNotice") {
+    const reply = collaborationReply(message);
+    if (reply) return <CollaborationReplyCard reply={reply} />;
     const issue = homeIssueUpdate(message);
     if (issue) return <HomeTaskCard issue={issue} />;
     if (message.text === "New context")

@@ -51,6 +51,7 @@ export function publishHomeEvent(
     kind: "issue" | "notification" | "notice";
     text: string;
     issue?: HomeIssueUpdate;
+    collaboration?: import("@carmel-agent/shared").CollaborationReply;
     notifyPlatform?: import("@carmel-agent/shared").ImPlatform;
   },
 ) {
@@ -78,7 +79,11 @@ export function publishHomeEvent(
       kind: input.kind,
       origin: "background",
       integrationId,
-      prompt: { text: input.text.slice(0, 16000), ...(input.issue ? { issue: input.issue } : {}) },
+      prompt: {
+        text: input.text.slice(0, 16000),
+        ...(input.issue ? { issue: input.issue } : {}),
+        ...(input.collaboration ? { collaboration: input.collaboration } : {}),
+      },
       status: "queued",
       createdAt: now(),
     })
@@ -103,6 +108,7 @@ async function publishNotice(event: HomeEvent) {
           timestamp: event.createdAt,
           homeEventId: event.id,
           ...(event.prompt.issue ? { issue: event.prompt.issue } : {}),
+          ...(event.prompt.collaboration ? { collaboration: event.prompt.collaboration } : {}),
         },
       });
       published[event.id] = entry.id;

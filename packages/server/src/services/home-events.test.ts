@@ -248,3 +248,27 @@ test("native request IDs reconcile a completed reply after a missed host settlem
     await pi.close();
   }
 });
+
+test("collaboration reply metadata survives passive Home publication and session reload", async () => {
+  const fixture = createSession();
+  const home = ensureHome(fixture.userId, fixture.agentId);
+  await stopHome(fixture.userId, fixture.agentId);
+  const collaboration = {
+    id: "collaboration_reply",
+    agentId: fixture.agentId,
+    agentName: "Researcher",
+    answer: "Verified the deployment.",
+    sessionId: fixture.sessionId,
+  };
+  publishHomeEvent(fixture.userId, fixture.agentId, {
+    sourceKey: "collaboration:reply",
+    kind: "notice",
+    text: "Researcher replied:\nVerified the deployment.",
+    collaboration,
+  });
+  await dispatchHome(home.sessionId);
+  const snapshot = (await readSessionSnapshot(fixture.userId, home.sessionId))!;
+  const notice = snapshot.messages.find((message) => message.role === "homeNotice");
+  assert.equal(notice?.role, "homeNotice");
+  if (notice?.role === "homeNotice") assert.deepEqual(notice.collaboration, collaboration);
+});

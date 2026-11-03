@@ -240,14 +240,14 @@ export function createCollaboration(
         owner.userId,
         target,
         targetIssue.id,
-        `Requested by agent ${owner.agentId}: /agents/${owner.agentId}/${source.issueId ? `tasks/${source.issueId}` : `sessions/${source.id}`}`,
+        `Requested by [${readVisibleAgent(owner.userId, owner.agentId)!.name}](/agents/${owner.agentId}/${source.issueId ? `tasks/${source.issueId}` : `sessions/${source.id}`})`,
       );
       if (source.issueId)
         addIssueNote(
           owner.userId,
           owner.agentId,
           source.issueId,
-          `Delegated to agent ${target}: /agents/${target}/tasks/${targetIssue.id}`,
+          `Delegated to [${readVisibleAgent(owner.userId, target)!.name}](/agents/${target}/tasks/${targetIssue.id})`,
         );
     }
     if (targetIssue && task?.queue)
@@ -566,7 +566,8 @@ async function deliver(row: Collaboration, answer: string, key: string, final = 
     row.targetAgentId,
     row.kind === "consult" ? "consult" : "createTask",
   );
-  const text = `Agent ${row.targetAgentId} replied to collaboration ${row.id}:\n${answer.slice(0, 16000)}${row.targetIssueId ? `\nTask: /agents/${row.targetAgentId}/tasks/${row.targetIssueId}. Reported results still require human acceptance.` : ""}`;
+  const targetName = readVisibleAgent(row.userId, row.targetAgentId)!.name;
+  const text = `${targetName} replied:\n${answer.slice(0, 16000)}${row.targetIssueId ? `\nTask: /agents/${row.targetAgentId}/tasks/${row.targetIssueId}. Reported results still require human acceptance.` : ""}`;
   if (row.sourceIssueId) {
     const parent = db.select().from(issues).where(eq(issues.id, row.sourceIssueId)).get();
     if (parent && !["done", "cancelled"].includes(parent.status)) {
@@ -603,6 +604,14 @@ async function deliver(row: Collaboration, answer: string, key: string, final = 
       sourceKey: `collaboration:${key}`,
       kind: "notice",
       text,
+      collaboration: {
+        id: row.id,
+        agentId: row.targetAgentId,
+        agentName: targetName,
+        answer: answer.slice(0, 16000),
+        ...(row.targetIssueId ? { taskId: row.targetIssueId } : {}),
+        ...(row.targetSessionId ? { sessionId: row.targetSessionId } : {}),
+      },
     });
   }
   db.update(collaborations)

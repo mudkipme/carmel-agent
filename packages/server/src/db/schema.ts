@@ -550,7 +550,12 @@ export const homeEvents = sqliteTable(
       onDelete: "set null",
     }),
     prompt: text("prompt", { mode: "json" })
-      .$type<import("@carmel-agent/shared").PromptInput & { issue?: HomeIssueUpdate }>()
+      .$type<
+        import("@carmel-agent/shared").PromptInput & {
+          issue?: HomeIssueUpdate;
+          collaboration?: import("@carmel-agent/shared").CollaborationReply;
+        }
+      >()
       .notNull(),
     status: text("status")
       .$type<"preparing" | "queued" | "running" | "done" | "failed" | "cancelled" | "interrupted">()

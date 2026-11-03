@@ -422,6 +422,26 @@ await replacePiSessionMessages(issueHome.sessionId, [
     },
     timestamp: timestamp + 2,
   },
+  {
+    role: "homeNotice",
+    text: "Browser test agent replied.",
+    collaboration: {
+      id: "collaboration_browser_reply",
+      agentId: fixture.agentId,
+      agentName: "Old agent name",
+      sessionId: fixture.sessionId,
+      answer:
+        "## Deployment findings\n\n" +
+        "Verified the local checkout and documented deployment configuration. ".repeat(12) +
+        "\n\n- Review runtime health separately.\n- Credentials remain with the receiving agent.",
+    },
+    timestamp: timestamp + 3,
+  },
+  {
+    role: "homeNotice",
+    text: `Agent ${fixture.agentId} replied to collaboration collaboration_legacy_reply:\nSaved collaboration findings.`,
+    timestamp: timestamp + 4,
+  },
 ]);
 const { openPiSession, closePiSession, messageDraft } =
   await import("../src/services/pi-session-storage.ts");

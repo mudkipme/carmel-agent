@@ -45,7 +45,7 @@ export function CollaborationActivity({
         return (
           <details key={row.id} className="rounded-lg border p-3">
             <summary className="cursor-pointer text-sm">
-              {agents.find((agent) => agent.id === peer)?.name ?? peer} ·{" "}
+              {agents.find((agent) => agent.id === peer)?.name ?? i18n._("Agent")} ·{" "}
               {i18n._(statuses[row.status])}
             </summary>
             <div className="flex flex-col gap-3 pt-3">

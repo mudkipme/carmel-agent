@@ -281,6 +281,7 @@ export function displayEntries(
           timestamp?: number;
           text?: string;
           issue?: HomeIssueUpdate;
+          collaboration?: import("@carmel-agent/shared").CollaborationReply;
           carmelDisplayText?: string;
           carmelReferences?: MessageReference[];
           carmelUserRequestReceipt?: UserRequestReceipt;
@@ -342,6 +343,7 @@ export function displayEntries(
             role: "homeNotice" as const,
             text: data?.text ?? "",
             ...(data?.issue ? { issue: data.issue } : {}),
+            ...(data?.collaboration ? { collaboration: data.collaboration } : {}),
             timestamp: data?.timestamp ?? 0,
           }
         : undefined) ??

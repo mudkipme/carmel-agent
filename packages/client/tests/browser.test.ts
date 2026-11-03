@@ -2244,3 +2244,39 @@ test("collaboration settings persist directional consultation and task grants", 
   assert.ok(saved.some((row) => row.direction === "outgoing" && row.capabilities.consult));
   assert.ok(!saved.some((row) => row.direction === "incoming" && row.capabilities.consult));
 });
+
+test("Home collaboration replies show agent names and expandable cards for new and saved notices", (t) => {
+  t.after(() => browser("set", "viewport", "1280", "900"));
+  for (const width of [1280, 320]) {
+    browser("set", "viewport", String(width), "900");
+    open(`/agents/${fixture.secondAgentId}/home`);
+    const card = '[data-collaboration-reply="collaboration_browser_reply"]';
+    browser("wait", card);
+    browser("wait", '[data-collaboration-reply="collaboration_legacy_reply"]');
+    const text = evaluate<string>(`document.querySelector('${card}').textContent`);
+    assert.match(text, /Browser test agent/);
+    assert.doesNotMatch(text, /agent_|collaboration_|Old agent name/);
+    assert.match(
+      evaluate<string>(
+        `document.querySelector('[data-collaboration-reply="collaboration_legacy_reply"]').textContent`,
+      ),
+      /Browser test agent/,
+    );
+    assert.equal(
+      evaluate(
+        `document.querySelector('${card} [data-reply-content]').classList.contains('line-clamp-3')`,
+      ),
+      true,
+    );
+    clickSelector(`${card} button[aria-expanded="false"]`);
+    browser("wait", `${card} button[aria-expanded="true"]`);
+    assert.equal(
+      evaluate(
+        `document.querySelector('${card} [data-reply-content]').classList.contains('line-clamp-3')`,
+      ),
+      false,
+    );
+    assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+    clickSelector(`${card} button[aria-expanded="true"]`);
+  }
+});

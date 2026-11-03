@@ -11,6 +11,7 @@ import type {
 } from "./schemas.ts";
 import type { Session } from "./sessions.ts";
 import type { AgentIcon, AgentColor } from "./agent-appearance.ts";
+import type { CollaborationReply } from "./collaborations.ts";
 import type { HomeIssueUpdate } from "./home-issues.ts";
 export * from "./agent-appearance.ts";
 export * from "./home-issues.ts";
@@ -51,7 +52,13 @@ export type ArtifactMessage = {
 declare module "@earendil-works/pi-agent-core" {
   interface CustomAgentMessages {
     artifact: ArtifactMessage;
-    homeNotice: { role: "homeNotice"; text: string; timestamp: number; issue?: HomeIssueUpdate };
+    homeNotice: {
+      role: "homeNotice";
+      text: string;
+      timestamp: number;
+      issue?: HomeIssueUpdate;
+      collaboration?: CollaborationReply;
+    };
   }
 }
 

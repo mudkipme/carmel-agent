@@ -14,7 +14,7 @@ Connections save immediately. Owners configure their own agent's side of the con
 
 ## Ask or delegate
 
-Ask your agent to consult a permitted peer, or have it create and queue a task for that peer. Agents use `list_collaborators`, `ask_agent`, and `delegate_task`. A receiving agent can send questions and replies through `send_agent_message`; it cannot delegate further.
+Ask your agent to consult a permitted peer, or have it create and queue a task for that peer. Permitted agents appear in the system prompt with their names, descriptions, IDs, and allowed operations, so the agent can recognize useful collaborators and call `ask_agent` or `delegate_task` directly. The catalog refreshes at the start of each run; `list_collaborators` can refresh it during a run. A receiving agent can send questions and replies through `send_agent_message`; it cannot delegate further.
 
 Consultations receive only the explicit question and the collaboration exchange. Private conversation history is excluded from both consultations and delegated task tools. For substantial work, delegation uses the receiver's existing Tasks queue, discussion, evidence, and review controls. Agents can inspect their collaboration's exported results but cannot list the receiver's other tasks through collaboration tools.
 

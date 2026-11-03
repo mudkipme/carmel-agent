@@ -32,3 +32,32 @@ export type CollaborationSummary = {
   answer: string | null;
   createdAt: number;
 };
+
+export type CollaborationReply = {
+  id: string;
+  agentId: string;
+  agentName?: string;
+  answer: string;
+  taskId?: string;
+  sessionId?: string;
+};
+
+export function collaborationReply(message: {
+  text: string;
+  collaboration?: CollaborationReply;
+}): CollaborationReply | undefined {
+  if (message.collaboration) return message.collaboration;
+  const match = message.text.match(
+    /^Agent (agent_[^\s]+) replied to collaboration (collaboration_[^\s:]+):\n([\s\S]*)$/,
+  );
+  if (!match) return;
+  const task = match[3]!.match(
+    /\nTask: \/agents\/[^/\s]+\/tasks\/([^\s.]+)\. Reported results still require human acceptance\.$/,
+  );
+  return {
+    id: match[2]!,
+    agentId: match[1]!,
+    answer: task ? match[3]!.slice(0, task.index) : match[3]!,
+    ...(task ? { taskId: task[1] } : {}),
+  };
+}

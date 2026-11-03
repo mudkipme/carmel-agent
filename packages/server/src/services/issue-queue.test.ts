@@ -541,6 +541,13 @@ test("delegated results resume a waiting source task without accepting the recei
   const source = createSession({ userId: f.userId });
   const target = db.select().from(agents).where(eq(agents.id, f.agentId)).get()!;
   db.update(agents)
+    .set({
+      name: "Research specialist",
+      description: "Investigates API behavior and gathers evidence",
+    })
+    .where(eq(agents.id, f.agentId))
+    .run();
+  db.update(agents)
     .set({ defaultModelRefId: target.defaultModelRefId, workingDir: f.root })
     .where(eq(agents.id, source.agentId))
     .run();
@@ -580,6 +587,19 @@ test("delegated results resume a waiting source task without accepting the recei
     await dispatchCollaborations();
     await waitFor(() => readIssueView(f.userId, source.agentId, parent.id).status === "in_review");
     assert.equal(f.detail(collaboration.targetIssueId!).status, "in_review");
+    const sourcePrompt = f.provider.requests
+      .flatMap((body) => body.messages)
+      .filter((message) => message.role === "system")
+      .map((message) => contentText(message.content))
+      .find((text) => text.includes("<available_collaborators>"));
+    assert.ok(
+      sourcePrompt,
+      "the source receives its collaborator catalog without a discovery call",
+    );
+    assert.ok(sourcePrompt.includes(f.agentId));
+    assert.match(sourcePrompt, /Research specialist/);
+    assert.match(sourcePrompt, /Investigates API behavior and gathers evidence/);
+    assert.match(sourcePrompt, /"consult":true,"createTask":true,"queueTask":true/);
     assert.equal(readIssueView(f.userId, source.agentId, parent.id).attempts.length, 1);
     await dispatchCollaborations();
     assert.equal(readIssueView(f.userId, source.agentId, parent.id).attempts.length, 1);
