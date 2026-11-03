@@ -47,7 +47,7 @@ paths:
               additionalProperties: false
               properties:
                 peerAgentId: { type: string, minLength: 1 }
-                direction: { type: string, enum: [incoming, outgoing] }
+                direction: { type: string, enum: [outgoing] }
                 capabilities:
                   type: object
                   additionalProperties: false

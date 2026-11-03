@@ -53,8 +53,17 @@ const { serve } = await import("@hono/node-server");
 const { eq } = await import("drizzle-orm");
 const { createApp } = await import("../src/app.ts");
 const { db, initialize } = await import("../src/db/index.ts");
-const { agents, agentTasks, agentTaskRuns, issues, issueAttempts, modelRefs, sessions, users } =
-  await import("../src/db/schema.ts");
+const {
+  agents,
+  agentTasks,
+  agentTaskRuns,
+  issues,
+  issueAttempts,
+  modelRefs,
+  sessions,
+  users,
+  collaborations,
+} = await import("../src/db/schema.ts");
 const { createAgent, createSession } = await import("../src/test-support.ts");
 const { hashPassword } = await import("../src/auth.ts");
 const { attachBrowserSocket } = await import("../src/browser-socket.ts");
@@ -396,6 +405,38 @@ db.insert(issueAttempts)
     finishedAt: timestamp + 1000,
   })
   .run();
+const collaborationSessionId = "browser-collaboration-timeline";
+db.insert(sessions)
+  .values({
+    ...db.select().from(sessions).where(eq(sessions.id, fixture.sessionId)).get()!,
+    id: collaborationSessionId,
+    title: "Collaboration timeline",
+    issueId: null,
+    taskId: null,
+  })
+  .run();
+await replacePiSessionMessages(collaborationSessionId, [
+  { role: "user", content: "Start collaboration", timestamp: timestamp + 10 },
+  { ...fauxAssistantMessage("Asking the other agent."), timestamp: timestamp + 15 },
+  { ...fauxAssistantMessage("Original collaboration result"), timestamp: timestamp + 30 },
+  { role: "user", content: "Later follow-up message", timestamp: timestamp + 40 },
+  { ...fauxAssistantMessage("Latest unrelated answer"), timestamp: timestamp + 50 },
+]);
+db.insert(collaborations)
+  .values({
+    id: "collaboration_timeline",
+    userId: fixture.userId,
+    sourceAgentId: fixture.agentId,
+    targetAgentId: secondAgentId,
+    sourceSessionId: collaborationSessionId,
+    kind: "consult",
+    status: "answered",
+    request: "Review the deployment.",
+    answer: "Reviewed.",
+    sourceKey: "browser:collaboration-timeline",
+    createdAt: timestamp + 20,
+  })
+  .run();
 const issueHome = ensureHome(fixture.userId, secondAgentId);
 await replacePiSessionMessages(issueHome.sessionId, [
   { role: "user", content: "Check the cluster and review its configuration.", timestamp },
@@ -671,6 +712,7 @@ const server = serve(
         taskSessionId,
         taskName,
         chatSessionId,
+        collaborationSessionId,
         questionSessionId,
         multipleQuestionSessionId,
         secretSessionId,

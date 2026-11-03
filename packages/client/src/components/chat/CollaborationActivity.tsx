@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react";
 import { Link } from "react-router-dom";
-import { useRemoteResource } from "@/hooks/use-remote-resource";
+import type { CollaborationSummary } from "@carmel-agent/shared";
 import { useHarnessStore } from "@/store/harness-store";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
@@ -16,22 +16,15 @@ const statuses = {
 };
 export function CollaborationActivity({
   agentId,
-  sessionId,
+  items,
+  onRefresh,
 }: {
   agentId: string;
-  sessionId: string;
+  items: readonly CollaborationSummary[];
+  onRefresh: () => Promise<unknown>;
 }) {
   const { i18n } = useLingui();
   const agents = useHarnessStore((state) => state.agents);
-  const resource = useRemoteResource({
-    key: `collaborations:${agentId}:${sessionId}`,
-    load: (signal) => api.getCollaborations(agentId, signal),
-    topics: ["sessions", "issues"],
-  });
-  const items =
-    resource.data?.filter(
-      (row) => row.sourceSessionId === sessionId || row.targetSessionId === sessionId,
-    ) ?? [];
   if (!items.length) return null;
   return (
     <div className="flex flex-col gap-3 py-3">
@@ -43,7 +36,11 @@ export function CollaborationActivity({
             ? `/agents/${row.targetAgentId}/sessions/${row.targetSessionId}`
             : undefined;
         return (
-          <details key={row.id} className="rounded-lg border p-3">
+          <details
+            key={row.id}
+            data-collaboration-activity={row.id}
+            className="rounded-lg border p-3"
+          >
             <summary className="cursor-pointer text-sm">
               {agents.find((agent) => agent.id === peer)?.name ?? i18n._("Agent")} ·{" "}
               {i18n._(statuses[row.status])}
@@ -64,7 +61,7 @@ export function CollaborationActivity({
                     onClick={() =>
                       void api
                         .cancelCollaboration(agentId, row.id)
-                        .then(() => resource.refresh())
+                        .then(() => onRefresh())
                         .catch((error) => showError(i18n._("Unable to stop collaboration"), error))
                     }
                   >

@@ -35,11 +35,6 @@ function fixture() {
       direction: "outgoing",
       capabilities: grant,
     });
-    saveConnection(userId, target, {
-      peerAgentId: source.agentId,
-      direction: "incoming",
-      capabilities: grant,
-    });
   };
   return { userId, source, target, owner, grant, connect };
 }
@@ -50,7 +45,7 @@ const brief = {
   priority: "normal" as const,
   queue: false,
 };
-test("contact requires bilateral grants, ownership and user visibility", () => {
+test("outgoing grants authorize one direction while preserving ownership and user visibility", () => {
   const f = fixture();
   assert.throws(() => authorizeCollaboration(f.userId, f.source.agentId, f.target, "consult"));
   saveConnection(f.userId, f.source.agentId, {
@@ -58,18 +53,41 @@ test("contact requires bilateral grants, ownership and user visibility", () => {
     direction: "outgoing",
     capabilities: f.grant,
   });
-  assert.deepEqual(listCollaborators(f.owner), []);
-  f.connect();
   assert.equal(listCollaborators(f.owner)[0]?.agentId, f.target);
+  assert.throws(() => authorizeCollaboration(f.userId, f.target, f.source.agentId, "consult"));
+  saveConnection(f.userId, f.target, {
+    peerAgentId: f.source.agentId,
+    direction: "outgoing",
+    capabilities: f.grant,
+  });
+  assert.doesNotThrow(() =>
+    authorizeCollaboration(f.userId, f.target, f.source.agentId, "consult"),
+  );
   assert.throws(() => authorizeCollaboration(createUser(), f.source.agentId, f.target, "consult"));
   assert.throws(() =>
     saveConnection(createUser(), f.target, {
       peerAgentId: f.source.agentId,
-      direction: "incoming",
+      direction: "outgoing",
       capabilities: f.grant,
     }),
   );
   assert.throws(() => authorizeCollaboration(f.userId, f.source.agentId, f.target, "queueTask"));
+  db.update(agents)
+    .set({ ownerUserId: createUser(), shared: true })
+    .where(eq(agents.id, f.target))
+    .run();
+  assert.doesNotThrow(() =>
+    authorizeCollaboration(f.userId, f.source.agentId, f.target, "consult"),
+  );
+  assert.throws(() =>
+    saveConnection(f.userId, f.target, {
+      peerAgentId: f.source.agentId,
+      direction: "outgoing",
+      capabilities: f.grant,
+    }),
+  );
+  db.update(agents).set({ shared: false }).where(eq(agents.id, f.target)).run();
+  assert.throws(() => authorizeCollaboration(f.userId, f.source.agentId, f.target, "consult"));
 });
 test("delegation is idempotent, user-owned and backlog-only without queue permission", () => {
   const f = fixture();
@@ -155,9 +173,9 @@ test("consultation tools and environment exclude mutation, shell, MCP, history a
         "Nested",
       ),
     );
-    saveConnection(f.userId, f.target, {
-      peerAgentId: f.source.agentId,
-      direction: "incoming",
+    saveConnection(f.userId, f.source.agentId, {
+      peerAgentId: f.target,
+      direction: "outgoing",
       capabilities: { ...f.grant, consult: false },
     });
     assert.throws(() => assertReceiverAccess(targetSession));

@@ -32,16 +32,16 @@ export function AgentCollaborationSettings({ agentId }: { agentId: string }) {
       active = false;
     };
   }, [agentId]);
-  async function save(
-    peerAgentId: string,
-    direction: CollaborationConnection["direction"],
-    capabilities: CollaborationGrant,
-  ) {
+  async function save(peerAgentId: string, capabilities: CollaborationGrant) {
     setSaving(true);
     setError(undefined);
     try {
       setConnections(
-        await api.saveCollaborationConnection(agentId, { peerAgentId, direction, capabilities }),
+        await api.saveCollaborationConnection(agentId, {
+          peerAgentId,
+          direction: "outgoing",
+          capabilities,
+        }),
       );
     } catch (error) {
       setError(errorMessage(error));
@@ -53,7 +53,7 @@ export function AgentCollaborationSettings({ agentId }: { agentId: string }) {
     <FieldGroup>
       <p className="text-sm text-muted-foreground">
         {i18n._(
-          "Both agents must allow a connection. Consultations have read-only tools. Delegated tasks use the receiving agent's configured permissions and credentials.",
+          "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials.",
         )}
       </p>
       {error ? (
@@ -68,38 +68,22 @@ export function AgentCollaborationSettings({ agentId }: { agentId: string }) {
             .map((agent) => (
               <FieldSet key={agent.id} disabled={saving}>
                 <FieldLegend>{agent.name}</FieldLegend>
-                {(["outgoing", "incoming"] as const).map((direction) => {
-                  const grant = connections.find(
-                    (item) => item.peerAgentId === agent.id && item.direction === direction,
-                  )?.capabilities ?? { consult: false, createTask: false, queueTask: false };
-                  return (
-                    <FieldSet key={direction}>
-                      <FieldLegend variant="label">
-                        {direction === "outgoing"
-                          ? i18n._("Contact this agent")
-                          : i18n._("Allow requests from this agent")}
-                      </FieldLegend>
-                      <FieldGroup>
-                        {(Object.keys(labels) as Array<keyof CollaborationGrant>).map(
-                          (capability) => (
-                            <ToggleRow
-                              key={capability}
-                              label={i18n._(labels[capability])}
-                              checked={grant[capability]}
-                              onCheckedChange={(checked) => {
-                                if (!saving)
-                                  void save(agent.id, direction, {
-                                    ...grant,
-                                    [capability]: checked,
-                                  });
-                              }}
-                            />
-                          ),
-                        )}
-                      </FieldGroup>
-                    </FieldSet>
-                  );
-                })}
+                <FieldGroup>
+                  {(Object.keys(labels) as Array<keyof CollaborationGrant>).map((capability) => {
+                    const grant = connections.find((item) => item.peerAgentId === agent.id)
+                      ?.capabilities ?? { consult: false, createTask: false, queueTask: false };
+                    return (
+                      <ToggleRow
+                        key={capability}
+                        label={i18n._(labels[capability])}
+                        checked={grant[capability]}
+                        onCheckedChange={(checked) => {
+                          if (!saving) void save(agent.id, { ...grant, [capability]: checked });
+                        }}
+                      />
+                    );
+                  })}
+                </FieldGroup>
               </FieldSet>
             ))
         : null}

@@ -47,6 +47,8 @@ export function TaskConversation({
   if (!modelRef)
     return (
       <TaskTranscript
+        agentId={agent.id}
+        sessionId={sessionId}
         messages={withNotes(session.messages, notes)}
         pendingToolCalls={new Set()}
         isStreaming={false}
@@ -83,6 +85,8 @@ function ConnectedConversation({
         <ContextPressureNotice pressure={snapshot.contextPressure} />
       ) : null}
       <TaskTranscript
+        agentId={config.id}
+        sessionId={session.id}
         messages={withNotes(snapshot.messages, notes)}
         streamingMessage={snapshot.streamingMessage}
         pendingToolCalls={snapshot.pendingToolCalls}

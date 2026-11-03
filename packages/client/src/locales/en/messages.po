@@ -5575,3 +5575,8 @@ msgstr "Show less"
 #: src/components/chat/CollaborationReplyCard.tsx:69
 msgid "Show more"
 msgstr "Show more"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
+msgid "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials."
+msgstr "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials."

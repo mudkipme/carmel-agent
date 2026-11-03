@@ -11,7 +11,7 @@ export const collaborationGrantSchema = z
 export const collaborationConnectionSchema = z
   .object({
     peerAgentId: z.string().min(1),
-    direction: z.enum(["incoming", "outgoing"]),
+    direction: z.literal("outgoing"),
     capabilities: collaborationGrantSchema,
   })
   .strict();

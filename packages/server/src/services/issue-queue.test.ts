@@ -561,11 +561,6 @@ test("delegated results resume a waiting source task without accepting the recei
     direction: "outgoing",
     capabilities,
   });
-  saveConnection(f.userId, f.agentId, {
-    peerAgentId: source.agentId,
-    direction: "incoming",
-    capabilities,
-  });
   const parent = createIssue(f.userId, source.agentId, {
     title: "Parent",
     description: "Collect delegated findings",
@@ -625,11 +620,6 @@ test("consultations execute in a target session and retain explicit follow-up ex
   saveConnection(f.userId, source.agentId, {
     peerAgentId: f.agentId,
     direction: "outgoing",
-    capabilities,
-  });
-  saveConnection(f.userId, f.agentId, {
-    peerAgentId: source.agentId,
-    direction: "incoming",
     capabilities,
   });
   const owner = { userId: f.userId, agentId: source.agentId, sessionId: source.sessionId };

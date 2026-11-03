@@ -2,6 +2,10 @@ import { useLingui } from "@lingui/react";
 import { i18n } from "@lingui/core";
 import { Trans } from "@lingui/react/macro";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import { useRemoteResource } from "@/hooks/use-remote-resource";
+import { api } from "@/lib/api";
+import { CollaborationActivity } from "./CollaborationActivity";
+import type { CollaborationSummary } from "@carmel-agent/shared";
 import type { NestedToolSlot } from "@carmel-agent/shared";
 import { getUserRequestReceipt, homeIssueUpdate, collaborationReply } from "@carmel-agent/shared";
 import { CollaborationReplyCard } from "./CollaborationReplyCard";
@@ -19,7 +23,7 @@ import type {
   ToolResultMessage,
 } from "@earendil-works/pi-ai";
 import { AlertCircleIcon, BrainIcon, ChevronRightIcon, Loader2Icon } from "lucide-react";
-import { memo, useId, useMemo, useState, type ReactNode } from "react";
+import { Fragment, memo, useId, useMemo, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { MessageActions } from "./MessageActions";
 import { MarkdownContent } from "./MarkdownContent";
@@ -36,6 +40,8 @@ import {
 } from "./chat-utils";
 
 type ChatMessagesProps = {
+  agentId?: string;
+  sessionId?: string;
   messages: AgentMessage[];
   streamingMessage?: AgentMessage;
   pendingToolCalls: ReadonlySet<string>;
@@ -72,6 +78,8 @@ type MessagePresentation = { hideAnswer?: boolean; hideRunEnding?: boolean };
 // and streaming deltas, which only touch the streaming message — don't re-render
 // and re-parse the entire history. Handler props must stay referentially stable.
 export const ChatMessages = memo(function ChatMessages({
+  agentId,
+  sessionId,
   messages,
   streamingMessage,
   pendingToolCalls,
@@ -83,6 +91,12 @@ export const ChatMessages = memo(function ChatMessages({
   onRetryMessage,
   onForkMessage,
 }: ChatMessagesProps) {
+  const collaborations = useRemoteResource({
+    key: `collaborations:${agentId}:${sessionId}`,
+    enabled: Boolean(agentId && sessionId),
+    load: (signal) => api.getCollaborations(agentId!, signal),
+    topics: ["sessions", "issues"],
+  });
   const toolResultsById = useMemo(() => buildToolResultsById(messages), [messages]);
   const renderMessages =
     streamingMessage && streamingMessage.role !== "toolResult"
@@ -115,29 +129,47 @@ export const ChatMessages = memo(function ChatMessages({
     );
   };
 
-  if (!collapseRunDetails) {
-    return (
-      <div className="flex min-w-0 flex-col gap-5">
-        {renderMessages.map((message, index) => renderMessage(message, index))}
-      </div>
-    );
+  const segments: MessageSegment[] = collapseRunDetails
+    ? segmentByRun(renderMessages)
+    : renderMessages.map((message, index) => ({ kind: "message", message, index }));
+  const activity = new Map<number, CollaborationSummary[]>();
+  for (const row of collaborations.data ?? []) {
+    if (row.sourceSessionId !== sessionId && row.targetSessionId !== sessionId) continue;
+    let anchor = -1;
+    segments.forEach((segment, index) => {
+      const first = segment.kind === "message" ? segment.message : segment.messages[0]!.message;
+      if (typeof first.timestamp === "number" && first.timestamp <= row.createdAt) anchor = index;
+    });
+    if (anchor < 0) continue;
+    activity.set(anchor, [...(activity.get(anchor) ?? []), row]);
   }
-
-  const segments = segmentByRun(renderMessages);
+  const renderActivity = (index: number) =>
+    agentId && activity.has(index) ? (
+      <CollaborationActivity
+        agentId={agentId}
+        items={activity.get(index)!}
+        onRefresh={collaborations.refresh}
+      />
+    ) : null;
   return (
     <div className="flex min-w-0 flex-col gap-5">
       {segments.map((segment, segmentIndex) =>
         segment.kind === "message" ? (
-          renderMessage(segment.message, segment.index)
+          <Fragment key={`message:${segment.index}`}>
+            {renderMessage(segment.message, segment.index)}
+            {renderActivity(segmentIndex)}
+          </Fragment>
         ) : (
-          <CollapsedRun
-            key={`run:${segment.messages[0]!.index}`}
-            messages={segment.messages}
-            active={isStreaming && segmentIndex === segments.length - 1}
-            renderMessage={renderMessage}
-            onEditMessage={onEditMessage}
-            onForkMessage={onForkMessage}
-          />
+          <Fragment key={`run:${segment.messages[0]!.index}`}>
+            {renderActivity(segmentIndex)}
+            <CollapsedRun
+              messages={segment.messages}
+              active={isStreaming && segmentIndex === segments.length - 1}
+              renderMessage={renderMessage}
+              onEditMessage={onEditMessage}
+              onForkMessage={onForkMessage}
+            />
+          </Fragment>
         ),
       )}
     </div>

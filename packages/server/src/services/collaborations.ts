@@ -37,7 +37,11 @@ const denied = () => new CollaborationError("Collaboration is unavailable or not
 
 export function readConnections(userId: string, agentId: string) {
   if (readVisibleAgent(userId, agentId)?.ownerUserId !== userId) throw denied();
-  return db.select().from(connections).where(eq(connections.agentId, agentId)).all();
+  return db
+    .select()
+    .from(connections)
+    .where(and(eq(connections.agentId, agentId), eq(connections.direction, "outgoing")))
+    .all();
 }
 export function saveConnection(userId: string, agentId: string, input: CollaborationConnection) {
   if (
@@ -74,18 +78,7 @@ export function authorizeCollaboration(
       ),
     )
     .get();
-  const incoming = db
-    .select()
-    .from(connections)
-    .where(
-      and(
-        eq(connections.agentId, target),
-        eq(connections.peerAgentId, source),
-        eq(connections.direction, "incoming"),
-      ),
-    )
-    .get();
-  if (!outgoing?.capabilities[capability] || !incoming?.capabilities[capability]) throw denied();
+  if (!outgoing?.capabilities[capability]) throw denied();
 }
 function requireSource(owner: CollaborationOwner) {
   const session = db.select().from(sessions).where(eq(sessions.id, owner.sessionId)).get();

@@ -4,13 +4,13 @@ An agent can ask another agent a question or delegate a task to it. Requests run
 
 ## Enable a connection
 
-Open **Agent Settings → Collaboration** on each agent. On the requesting agent, enable the desired capabilities under **Contact this agent**. On the receiving agent, enable matching capabilities under **Allow requests from this agent**. Both sides must permit an operation, and the user must be able to use both agents.
+To let A call B, open **Agent Settings → Collaboration** on A and enable the desired capabilities for B. That is the only configuration required for A → B. To also let B call A, configure A on B separately. The user must be able to use both agents.
 
 - **Consultations** allow bounded questions with read-only file and knowledge tools. Shell, browser, MCP, private conversation search, and write tools are excluded.
 - **Create tasks** allows creating a backlog task assigned to the other agent.
 - **Run tasks with this agent's permissions** also allows queueing work and sending execution updates. Enable Create tasks as well. The task uses the receiver's configured file, shell, network, and MCP capabilities, including its credentials.
 
-Connections save immediately. Owners configure their own agent's side of the connection. Sharing an agent alone does not enable collaboration.
+Connections save immediately. Owners configure their agent's outgoing connections. Sharing an agent alone does not enable collaboration. Previous incoming consent settings are no longer used; outgoing settings decide each direction.
 
 ## Ask or delegate
 

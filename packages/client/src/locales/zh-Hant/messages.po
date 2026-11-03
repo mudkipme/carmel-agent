@@ -5575,3 +5575,8 @@ msgstr "收合"
 #: src/components/chat/CollaborationReplyCard.tsx:69
 msgid "Show more"
 msgstr "展開"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
+msgid "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials."
+msgstr "允許此智慧體聯絡下方的智慧體。如需對方回呼，請在對方智慧體中設定。諮詢為唯讀；任務使用接收方智慧體的權限和憑證。"

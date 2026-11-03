@@ -1,4 +1,3 @@
-import { CollaborationActivity } from "./CollaborationActivity";
 import { Trans } from "@lingui/react/macro";
 import { useHarnessStore } from "@/store/harness-store";
 import { cn } from "@/lib/utils";
@@ -209,6 +208,8 @@ export function ChatPanel({
           ) : null}
           {emptyState}
           <ChatMessages
+            agentId={agentId}
+            sessionId={sessionId}
             messages={messages}
             streamingMessage={streamingMessage}
             pendingToolCalls={pendingToolCalls}
@@ -220,7 +221,6 @@ export function ChatPanel({
             onRetryMessage={readOnly ? undefined : onRetryMessage}
             onForkMessage={readOnly ? undefined : onForkMessage}
           />
-          <CollaborationActivity agentId={agentId} sessionId={sessionId} />
           {pendingSecretCards ? <div className="py-3">{pendingSecretCards}</div> : null}
         </div>
       </div>

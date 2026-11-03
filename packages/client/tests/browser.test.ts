@@ -20,6 +20,7 @@ type Fixture = {
   taskSessionId: string;
   taskName: string;
   chatSessionId: string;
+  collaborationSessionId: string;
   questionSessionId: string;
   multipleQuestionSessionId: string;
   secretSessionId: string;
@@ -2222,9 +2223,9 @@ test("language selection updates settings in place and persists across reload an
   assert.equal(evaluate("document.documentElement.lang"), "en");
 });
 
-test("collaboration settings persist directional consultation and task grants", () => {
+test("collaboration settings enable outgoing calls without configuring the receiving agent", () => {
   browser("open", `${fixture.url}${agentPath("settings/collaboration")}`);
-  browser("wait", "--text", "Contact this agent");
+  browser("wait", "--text", "Consultations");
   assert.match(snapshot(), /Consultations/);
   evaluate(`document.querySelector('button[role="switch"]').click()`);
   browser(
@@ -2243,6 +2244,13 @@ test("collaboration settings persist directional consultation and task grants", 
   );
   assert.ok(saved.some((row) => row.direction === "outgoing" && row.capabilities.consult));
   assert.ok(!saved.some((row) => row.direction === "incoming" && row.capabilities.consult));
+  assert.doesNotMatch(snapshot(), /Allow requests from this agent/);
+  const reverse = evaluate<{ peerAgentId: string; capabilities: { consult: boolean } }[]>(
+    `fetch('/api/agents/${fixture.secondAgentId}/collaboration-connections').then(response => response.json())`,
+  );
+  assert.ok(
+    !reverse.some((row) => row.peerAgentId === fixture.agentId && row.capabilities.consult),
+  );
 });
 
 test("Home collaboration replies show agent names and expandable cards for new and saved notices", (t) => {
@@ -2278,5 +2286,23 @@ test("Home collaboration replies show agent names and expandable cards for new a
     );
     assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
     clickSelector(`${card} button[aria-expanded="true"]`);
+  }
+});
+
+test("completed collaborations stay with their original turn across later messages and reload", () => {
+  open(agentPath(`sessions/${fixture.collaborationSessionId}`));
+  const card = '[data-collaboration-activity="collaboration_timeline"]';
+  for (let visit = 0; visit < 2; visit++) {
+    browser("wait", card);
+    browser("wait", "--text", "Latest unrelated answer");
+    const text = evaluate<string>('document.querySelector("[data-chat-history]").innerText');
+    assert.ok(text.indexOf("Start collaboration") < text.indexOf("Answered"));
+    assert.ok(text.indexOf("Answered") < text.indexOf("Original collaboration result"));
+    assert.ok(
+      text.indexOf("Original collaboration result") < text.indexOf("Later follow-up message"),
+    );
+    assert.ok(text.indexOf("Later follow-up message") < text.indexOf("Latest unrelated answer"));
+    assert.equal(evaluate(`document.querySelectorAll('${card}').length`), 1);
+    if (visit === 0) browser("reload");
   }
 });
