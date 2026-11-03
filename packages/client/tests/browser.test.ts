@@ -127,6 +127,12 @@ function waitForValue(selector: string, expected: string) {
     `document.querySelector(${JSON.stringify(selector)})?.value === ${JSON.stringify(expected)}`,
   );
 }
+function replaceText(selector: string, text: string) {
+  browser("focus", selector);
+  browser("press", "Control+a");
+  browser("keyboard", "type", text);
+  waitForValue(selector, text);
+}
 function evaluate<T>(script: string) {
   return browser<{ result: T }>("eval", script).result;
 }
@@ -666,7 +672,7 @@ test(
     return document.activeElement === input && input.value === ${JSON.stringify(text)} && input.selectionStart === ${cursor} && input.selectionEnd === ${cursor};
   })()`,
       );
-    browser("fill", 'textarea[aria-label="Message"]', "Compare  with the current version.");
+    replaceText('textarea[aria-label="Message"]', "Compare  with the current version.");
     evaluate('document.querySelector("textarea[aria-label=Message]").setSelectionRange(8, 8)');
     browser("keyboard", "type", "@");
     browser("wait", "[cmdk-input]");
@@ -683,7 +689,7 @@ test(
       "Compare @docs/guide.md alongside notes with the current version.",
     );
 
-    browser("fill", 'textarea[aria-label="Message"]', "Inspect placeholder before making changes.");
+    replaceText('textarea[aria-label="Message"]', "Inspect placeholder before making changes.");
     evaluate('document.querySelector("textarea[aria-label=Message]").setSelectionRange(8, 19)');
     click("button", "Mention a reference");
     browser("fill", "[cmdk-input]", "docs/");
@@ -695,7 +701,7 @@ test(
       "Inspect @docs/ carefully before making changes.",
     );
 
-    browser("fill", 'textarea[aria-label="Message"]', "Compare  tomorrow.");
+    replaceText('textarea[aria-label="Message"]', "Compare  tomorrow.");
     evaluate('document.querySelector("textarea[aria-label=Message]").setSelectionRange(8, 8)');
     browser("keyboard", "type", "@");
     browser("wait", "[cmdk-input]");
@@ -1371,7 +1377,7 @@ test("workspace layout keeps chat and editor drafts mounted while resizing, expa
   open(agentPath(`sessions/${fixture.chatSessionId}`));
   // The shell is ready before the asynchronous session connection mounts the composer.
   browser("wait", ".agent-chat-host textarea");
-  browser("fill", ".agent-chat-host textarea", "Keep this conversation draft");
+  replaceText(".agent-chat-host textarea", "Keep this conversation draft");
   evaluate(
     'void (window.workspaceChatInput = document.querySelector(".agent-chat-host textarea"))',
   );
