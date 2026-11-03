@@ -126,8 +126,8 @@ function SearchResults({ agents, onSelect }: { agents: AgentConfig[]; onSelect: 
                       <div className="flex min-w-0 flex-col gap-1 py-1">
                         <span className="truncate">{result.title}</span>
                         {result.excerpt ? (
-                          <span className="line-clamp-2 whitespace-pre-wrap break-words text-xs text-muted-foreground">
-                            {result.excerpt}
+                          <span className="whitespace-normal break-words text-xs text-muted-foreground">
+                            <SearchExcerpt text={result.excerpt} query={debouncedQuery} />
                           </span>
                         ) : null}
                       </div>
@@ -140,5 +140,18 @@ function SearchResults({ agents, onSelect }: { agents: AgentConfig[]; onSelect: 
         )}
       </CommandList>
     </Command>
+  );
+}
+
+function SearchExcerpt({ text, query }: { text: string; query: string }) {
+  const start = text.toLowerCase().indexOf(query.toLowerCase());
+  if (start < 0) return text;
+  const end = start + query.length;
+  return (
+    <>
+      {text.slice(0, start)}
+      <mark className="bg-transparent font-semibold text-inherit">{text.slice(start, end)}</mark>
+      {text.slice(end)}
+    </>
   );
 }

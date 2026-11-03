@@ -59,6 +59,7 @@ test("private retrieval verifies the active branch, excludes other users/agents,
 test("global search finds titles and user/assistant text across agents, including archives", async () => {
   const own = createSession();
   const otherAgent = createSession({ userId: own.userId });
+  const longQuery = "keyword".repeat(60);
   db.update(sessions)
     .set({ title: "Release planning", archivedAt: Date.now(), updatedAt: Date.now() + 1000 })
     .where(eq(sessions.id, own.sessionId))
@@ -72,6 +73,7 @@ test("global search finds titles and user/assistant text across agents, includin
     userMessage("We should ship the release next week."),
     userMessage("讨论全局搜索功能"),
     userMessage("Literal tokens: 100%_done and C++"),
+    userMessage(`${"Earlier context ".repeat(25)}${longQuery} following text`),
   ]);
   const matches = await searchGlobalSessions(own.userId, "release");
   assert.equal(matches.length, 3);
@@ -102,6 +104,9 @@ test("global search finds titles and user/assistant text across agents, includin
   assert.equal((await searchGlobalSessions(own.userId, "100%_done")).length, 1);
   assert.deepEqual(await searchGlobalSessions(own.userId, "100Xdone"), []);
   assert.equal((await searchGlobalSessions(own.userId, "C++")).length, 1);
+  const longMatches = await searchGlobalSessions(own.userId, longQuery);
+  assert.equal(longMatches.length, 1);
+  assert.ok(longMatches[0]!.excerpt.includes(longQuery));
   assert.deepEqual(await searchGlobalSessions(own.userId, "  "), []);
 });
 

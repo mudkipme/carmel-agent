@@ -190,6 +190,45 @@ after(async () => {
   }
 });
 
+test("global search keeps the matched keyword visible in multiline excerpts", () => {
+  for (const width of [1280, 390]) {
+    browser("set", "viewport", String(width), "900");
+    open(agentPath("sessions"));
+    evaluate(`(() => {
+      const originalFetch = window.fetch;
+      window.fetch = (input, init) => {
+        if (String(input).includes('/api/sessions/search?')) {
+          return Promise.resolve(Response.json([{
+            sessionId: '${fixture.chatSessionId}',
+            agentId: '${fixture.agentId}',
+            title: 'Search preview',
+            entryId: 'preview-entry',
+            excerpt: ('Context' + String.fromCharCode(10)).repeat(10) + 'The SEARCHNEEDLE is here.',
+            link: '${agentPath(`sessions/${fixture.chatSessionId}`)}?entry=preview-entry',
+          }]));
+        }
+        return originalFetch(input, init);
+      };
+    })()`);
+    if (width < 1024) click("button", "Show sidebar");
+    click("button", "Search");
+    browser("fill", '[aria-label="Search titles and messages"]', "searchneedle");
+    browser("wait", '[role="dialog"] mark');
+    assert.equal(
+      evaluate(`(() => {
+      const match = document.querySelector('[role="dialog"] mark');
+      const bounds = match.getBoundingClientRect();
+      const row = match.closest('[data-slot="command-item"]').getBoundingClientRect();
+      const dialog = match.closest('[role="dialog"]').getBoundingClientRect();
+      return match.textContent === 'SEARCHNEEDLE' && bounds.top >= row.top && bounds.bottom <= row.bottom && bounds.left >= dialog.left && bounds.right <= dialog.right;
+    })()`),
+      true,
+    );
+    browser("press", "Escape");
+  }
+  browser("set", "viewport", "1280", "900");
+});
+
 test("Home and the Sessions page preserve separate drafts without starting a run", () => {
   browser("set", "viewport", "1280", "900");
   open("/");

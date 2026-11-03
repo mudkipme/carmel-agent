@@ -84,7 +84,7 @@ export async function searchGlobalSessions(
     .prepare(`WITH message_matches AS (
         SELECT s.id AS sessionId, s.agent_id AS agentId, s.title,
           f.entry_id AS entryId,
-          substr(f.text, max(1, instr(lower(f.text), lower(?)) - 80), 280) AS excerpt,
+          substr(f.text, max(1, instr(lower(f.text), lower(?)) - 80), max(280, length(?) + 80)) AS excerpt,
           s.updated_at AS updatedAt,
           row_number() OVER (
             PARTITION BY f.text ORDER BY s.updated_at DESC, s.id, f.entry_id
@@ -103,7 +103,7 @@ export async function searchGlobalSessions(
       SELECT sessionId, agentId, title, entryId, excerpt, updatedAt, 1 AS kind
       FROM message_matches WHERE duplicateIndex = 1
       ORDER BY kind, updatedAt DESC, sessionId, entryId LIMIT 50`)
-    .all(text, userId, userId, text, userId, userId, text) as Array<{
+    .all(text, text, userId, userId, text, userId, userId, text) as Array<{
     sessionId: string;
     agentId: string;
     title: string;
