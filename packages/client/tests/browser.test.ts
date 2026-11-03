@@ -974,7 +974,8 @@ test("mobile settings keep the selected section visible and permission labels to
         if (!active) return false;
         const rect = active.getBoundingClientRect();
         const nav = active.closest('nav').getBoundingClientRect();
-        return rect.width > 0 && rect.left >= Math.max(0, nav.left) && rect.right <= Math.min(innerWidth, nav.right);
+        const roundingTolerance = 1;
+        return rect.width > 0 && rect.left >= Math.max(0, nav.left) - roundingTolerance && rect.right <= Math.min(innerWidth, nav.right) + roundingTolerance;
       })()`,
     );
   };
