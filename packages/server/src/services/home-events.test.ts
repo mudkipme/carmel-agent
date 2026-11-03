@@ -272,3 +272,22 @@ test("collaboration reply metadata survives passive Home publication and session
   assert.equal(notice?.role, "homeNotice");
   if (notice?.role === "homeNotice") assert.deepEqual(notice.collaboration, collaboration);
 });
+
+test("stopped Home retains a pushed collaboration reply without restarting the model", async () => {
+  const fixture = createSession();
+  const home = ensureHome(fixture.userId, fixture.agentId);
+  await stopHome(fixture.userId, fixture.agentId);
+  const event = publishHomeEvent(fixture.userId, fixture.agentId, {
+    sourceKey: "collaboration:paused",
+    kind: "collaboration",
+    text: "Researcher replied with evidence.",
+    collaboration: { id: "collaboration_paused", agentId: fixture.agentId, answer: "Evidence" },
+  })!;
+  await dispatchHome(home.sessionId);
+  await dispatchHome(home.sessionId);
+  const saved = db.select().from(homeEvents).where(eq(homeEvents.id, event.id)).get()!;
+  assert.equal(saved.status, "queued");
+  assert.equal(saved.runId, null);
+  const snapshot = (await readSessionSnapshot(fixture.userId, home.sessionId))!;
+  assert.equal(snapshot.messages.filter((message) => message.role === "homeNotice").length, 1);
+});

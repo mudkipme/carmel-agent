@@ -401,6 +401,7 @@ async function fakeProvider(root: string) {
   let concurrent = 0;
   let maxRequests = 0;
   let serial = 0;
+  let peerAgentId: string | undefined;
   const server = createServer(async (request, response) => {
     if (!request.url?.endsWith("/chat/completions")) {
       response.writeHead(404).end();
@@ -457,6 +458,29 @@ async function fakeProvider(root: string) {
         ],
       });
       send({}, "tool_calls");
+    } else if (
+      peerAgentId &&
+      (last === "Ask the peer" ||
+        (currentTitle === "Yield to peer" && last === "Work on this task."))
+    ) {
+      send({
+        role: "assistant",
+        tool_calls: [
+          {
+            index: 0,
+            id: "ask_peer",
+            type: "function",
+            function: {
+              name: "ask_agent",
+              arguments: JSON.stringify({ agentId: peerAgentId, question: "Find a fact" }),
+            },
+          },
+        ],
+      });
+      send({}, "tool_calls");
+    } else if (last.startsWith("The collaborator reply you were waiting for")) {
+      send({ role: "assistant", content: "Combined peer evidence for the original request." });
+      send({}, "stop");
     } else if (last.startsWith("Request from agent")) {
       send({ role: "assistant", content: "Consultation evidence from the target." });
       send({}, "stop");
@@ -496,6 +520,9 @@ async function fakeProvider(root: string) {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
     requests,
     starts,
+    askPeer(agentId: string) {
+      peerAgentId = agentId;
+    },
     get maxRequests() {
       return maxRequests;
     },
@@ -644,5 +671,122 @@ test("consultations execute in a target session and retain explicit follow-up ex
   } finally {
     await f.close();
     await drainCollaborationResults();
+  }
+});
+
+test("a task yields on ask_agent, releases its slot, and resumes only after the peer reply is pushed", async () => {
+  const f = await fixture();
+  const { collaborations } = await import("../db/schema.ts");
+  const { saveConnection, dispatchCollaborations, drainCollaborationResults } =
+    await import("./collaborations.ts");
+  const target = createAgent({
+    ownerUserId: f.userId,
+    defaultModelRefId: db.select().from(agents).where(eq(agents.id, f.agentId)).get()!
+      .defaultModelRefId,
+  });
+  db.update(agents).set({ workingDir: f.root }).where(eq(agents.id, target)).run();
+  saveConnection(f.userId, f.agentId, {
+    peerAgentId: target,
+    direction: "outgoing",
+    capabilities: { consult: true, createTask: false, queueTask: false },
+  });
+  f.provider.askPeer(target);
+  try {
+    const parent = f.issue("Yield to peer");
+    await runIssue(f.userId, f.agentId, parent.id, {});
+    await waitFor(() => f.detail(parent.id).status === "waiting");
+    assert.equal(f.provider.requests.length, 1, "no provider or shell polling while waiting");
+    assert.equal(f.detail(parent.id).running, false);
+    await dispatchCollaborations();
+    await waitFor(
+      () =>
+        db.select().from(collaborations).where(eq(collaborations.sourceIssueId, parent.id)).get()
+          ?.status === "answered",
+    );
+    await dispatchCollaborations();
+    await waitFor(() => f.detail(parent.id).status === "in_review");
+    assert.equal(f.detail(parent.id).attempts.length, 2);
+  } finally {
+    await f.close();
+    await drainCollaborationResults();
+  }
+});
+
+test("Home resumes automatically from a pushed collaboration reply after yielding", async () => {
+  const f = await fixture();
+  const { collaborations, homeEvents } = await import("../db/schema.ts");
+  const { saveConnection, dispatchCollaborations, drainCollaborationResults } =
+    await import("./collaborations.ts");
+  const { admitHomeInput, dispatchHome, drainHomeEvents } = await import("./home-events.ts");
+  const target = createAgent({
+    ownerUserId: f.userId,
+    defaultModelRefId: db.select().from(agents).where(eq(agents.id, f.agentId)).get()!
+      .defaultModelRefId,
+  });
+  db.update(agents).set({ workingDir: f.root }).where(eq(agents.id, target)).run();
+  saveConnection(f.userId, f.agentId, {
+    peerAgentId: target,
+    direction: "outgoing",
+    capabilities: { consult: true, createTask: false, queueTask: false },
+  });
+  f.provider.askPeer(target);
+  try {
+    const event = admitHomeInput(f.userId, f.agentId, {
+      sourceKey: "ask-peer",
+      prompt: { text: "Ask the peer" },
+      origin: "web",
+    });
+    await dispatchHome(event.sessionId);
+    await waitFor(
+      () =>
+        db.select().from(homeEvents).where(eq(homeEvents.id, event.id)).get()?.status === "done",
+    );
+    assert.equal(f.provider.requests.length, 1);
+    await dispatchCollaborations();
+    await waitFor(
+      () =>
+        db
+          .select()
+          .from(collaborations)
+          .where(eq(collaborations.sourceSessionId, event.sessionId))
+          .get()?.status === "answered",
+    );
+    await dispatchCollaborations();
+    const pushed = db
+      .select()
+      .from(homeEvents)
+      .where(eq(homeEvents.kind, "collaboration"))
+      .all()
+      .find((row) => row.sessionId === event.sessionId)!;
+    assert.ok(
+      pushed,
+      "waiting Home receives an active continuation instead of only a passive notice",
+    );
+    await dispatchHome(event.sessionId);
+    await waitFor(
+      () =>
+        db.select().from(homeEvents).where(eq(homeEvents.id, pushed.id)).get()?.status === "done",
+    );
+    assert.match(
+      (await loadSession(event.sessionId))!.messages
+        .filter((message) => message.role === "assistant")
+        .map((message) => JSON.stringify(message))
+        .join(""),
+      /Combined peer evidence/,
+    );
+    await dispatchCollaborations();
+    assert.equal(
+      db
+        .select()
+        .from(homeEvents)
+        .where(eq(homeEvents.kind, "collaboration"))
+        .all()
+        .filter((row) => row.sessionId === event.sessionId).length,
+      1,
+    );
+  } finally {
+    await f.close();
+    await drainCollaborationResults();
+    await drainHomeEvents();
   }
 });

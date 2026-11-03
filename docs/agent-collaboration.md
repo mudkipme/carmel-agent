@@ -18,7 +18,9 @@ Ask your agent to consult a permitted peer, or have it create and queue a task f
 
 Consultations receive only the explicit question and the collaboration exchange. Private conversation history is excluded from both consultations and delegated task tools. For substantial work, delegation uses the receiver's existing Tasks queue, discussion, evidence, and review controls. Agents can inspect their collaboration's exported results but cannot list the receiver's other tasks through collaboration tools.
 
-A waiting source task reports `waiting`, releases its queue slot, and continues in its existing conversation when a reply arrives. A result arriving before the source finishes is retained. Waiting in an ordinary session resumes that conversation; results without a registered wait are saved as notices in Home. Home remains available while background work runs.
+A normal `ask_agent` call yields the current run and resumes the same conversation when the reply is pushed, including Home. Queueing a delegated task and sending a requester follow-up also yield by default. Task queue slots are released automatically; no separate `report_task(waiting)` call is needed. These handoff tools must be called directly, outside Codemode, with a yielding call alone in its turn.
+
+Use `background=true` to launch parallel collaborations or do independent work, then call `wait_for_collaboration` to yield. Never poll status or use shell sleep loops to wait. A result arriving before the source finishes is retained. Replies without a registered wait are saved as notices in Home. Stopped Home retains replies without waking the model.
 
 Reported task results remain **In review** until you accept them. A requesting agent can use a reported result without accepting the receiving task. Both tasks retain their own acceptance step.
 

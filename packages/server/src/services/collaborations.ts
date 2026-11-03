@@ -280,6 +280,10 @@ export async function sendCollaborationMessage(
         await sendIssueUpdate(row.userId, row.targetAgentId, issue.id, text);
       else if (issue && !["done", "cancelled"].includes(issue.status)) {
         authorizeCollaboration(row.userId, row.sourceAgentId, row.targetAgentId, "queueTask");
+        db.update(collaborations)
+          .set({ status: "queued", answer: null })
+          .where(eq(collaborations.id, row.id))
+          .run();
         if (issue.status === "queued") addIssueNote(row.userId, row.targetAgentId, issue.id, text);
         else await runIssue(row.userId, row.targetAgentId, issue.id, { instructions: text });
       }
@@ -309,13 +313,38 @@ export function cancelCollaboration(owner: CollaborationOwner, collaborationId: 
 export function waitForCollaboration(owner: CollaborationOwner, collaborationId: string) {
   const row = readCollaboration(owner, collaborationId);
   if (row.sourceAgentId !== owner.agentId) throw denied();
-  if (["answered", "failed", "cancelled"].includes(row.status))
-    return collaborationView(owner, row.id);
-  db.update(collaborations).set({ waiting: true }).where(eq(collaborations.id, row.id)).run();
+  if (["answered", "failed", "cancelled"].includes(row.status)) {
+    db.update(collaborations).set({ waiting: false }).where(eq(collaborations.id, row.id)).run();
+    return { ...collaborationView(owner, row.id), waiting: false as const };
+  }
+  db.transaction(() => {
+    db.update(collaborations).set({ waiting: true }).where(eq(collaborations.id, row.id)).run();
+    if (row.sourceIssueId) {
+      const summary = `Waiting for ${readVisibleAgent(row.userId, row.targetAgentId)!.name}.`;
+      db.update(issues)
+        .set({ verdict: "waiting", verdictSummary: summary })
+        .where(and(eq(issues.id, row.sourceIssueId), eq(issues.status, "in_progress")))
+        .run();
+      db.update(issueAttempts)
+        .set({
+          summary,
+          evidence: "The collaboration reply will continue this task automatically.",
+        })
+        .where(
+          and(
+            eq(issueAttempts.issueId, row.sourceIssueId),
+            eq(issueAttempts.sessionId, owner.sessionId),
+            eq(issueAttempts.outcome, "running"),
+          ),
+        )
+        .run();
+    }
+  });
   return {
-    waiting: true,
+    id: row.id,
+    waiting: true as const,
     instruction:
-      "End this turn. The result will be delivered asynchronously. For a task, call report_task with state=waiting before ending.",
+      "This run has yielded. The reply will be pushed and resume this conversation automatically. Do not poll or sleep.",
   };
 }
 export function cancelSourceCollaborations(sessionId: string) {
@@ -595,7 +624,7 @@ async function deliver(row: Collaboration, answer: string, key: string, final = 
   } else {
     publishHomeEvent(row.userId, row.sourceAgentId, {
       sourceKey: `collaboration:${key}`,
-      kind: "notice",
+      kind: row.waiting ? "collaboration" : "notice",
       text,
       collaboration: {
         id: row.id,

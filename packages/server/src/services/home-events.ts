@@ -48,7 +48,7 @@ export function publishHomeEvent(
   agentId: string,
   input: {
     sourceKey: string;
-    kind: "issue" | "notification" | "notice";
+    kind: "issue" | "notification" | "notice" | "collaboration";
     text: string;
     issue?: HomeIssueUpdate;
     collaboration?: import("@carmel-agent/shared").CollaborationReply;
@@ -308,7 +308,7 @@ export async function dispatchHome(sessionId: string) {
   try {
     if (event.kind !== "input") {
       await publishNotice(event);
-      if (event.kind !== "issue") {
+      if (event.kind !== "issue" && event.kind !== "collaboration") {
         db.update(homeEvents)
           .set({ status: "done", reply: event.prompt.text, finishedAt: now() })
           .where(eq(homeEvents.id, event.id))
@@ -330,7 +330,7 @@ export async function dispatchHome(sessionId: string) {
           .all();
         for (const notice of pending) {
           await publishNotice(notice);
-          if (notice.kind !== "issue")
+          if (notice.kind !== "issue" && notice.kind !== "collaboration")
             db.update(homeEvents)
               .set({ status: "done", reply: notice.prompt.text, finishedAt: now() })
               .where(eq(homeEvents.id, notice.id))
@@ -381,9 +381,13 @@ export async function dispatchHome(sessionId: string) {
       promptInput:
         event.kind === "input"
           ? event.prompt
-          : {
-              text: `A background job reported the following source material. ${homeIssueUpdate(event.prompt) ? "A linked issue status card is already visible in Home; do not repeat its heading or status. " : ""}Briefly tell the user the outcome or the specific reply needed, with its link when useful. Keep checks, artifacts, logs, detailed evidence, and uncertainty on the task page; use read_task only if more context is needed to answer. Do not accept the result, repeat completed work, or start another job unless the user asked.\n\n${event.prompt.text}`,
-            },
+          : event.kind === "collaboration"
+            ? {
+                text: `The collaborator reply you were waiting for has arrived. Its reply card is already visible; continue the original user request using this evidence. Do not repeat the card heading, poll, or restart the completed collaboration.\n\n${event.prompt.text}`,
+              }
+            : {
+                text: `A background job reported the following source material. ${homeIssueUpdate(event.prompt) ? "A linked issue status card is already visible in Home; do not repeat its heading or status. " : ""}Briefly tell the user the outcome or the specific reply needed, with its link when useful. Keep checks, artifacts, logs, detailed evidence, and uncertainty on the task page; use read_task only if more context is needed to answer. Do not accept the result, repeat completed work, or start another job unless the user asked.\n\n${event.prompt.text}`,
+              },
       timezone: event.timezone ?? undefined,
       promptDelivery: {
         requestId: `home:${event.id}`,
