@@ -417,7 +417,29 @@ db.insert(sessions)
   .run();
 await replacePiSessionMessages(collaborationSessionId, [
   { role: "user", content: "Start collaboration", timestamp: timestamp + 10 },
-  { ...fauxAssistantMessage("Asking the other agent."), timestamp: timestamp + 15 },
+  {
+    ...fauxAssistantMessage(
+      [
+        fauxToolCall(
+          "ask_agent",
+          { agentId: secondAgentId, question: "Review the deployment." },
+          { id: "timeline-ask" },
+        ),
+      ],
+      { stopReason: "toolUse" },
+    ),
+    timestamp: timestamp + 15,
+  },
+  {
+    role: "toolResult",
+    toolCallId: "timeline-ask",
+    toolName: "ask_agent",
+    content: [
+      { type: "text", text: JSON.stringify({ id: "collaboration_timeline", waiting: true }) },
+    ],
+    isError: false,
+    timestamp: timestamp + 20,
+  },
   { ...fauxAssistantMessage("Original collaboration result"), timestamp: timestamp + 30 },
   { role: "user", content: "Later follow-up message", timestamp: timestamp + 40 },
   { ...fauxAssistantMessage("Latest unrelated answer"), timestamp: timestamp + 50 },

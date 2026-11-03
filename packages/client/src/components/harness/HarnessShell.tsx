@@ -533,6 +533,7 @@ export function HarnessShell({
           browserNeedsHelp={browserNeedsHelp}
           onToggleBrowser={() => showContentView(browserOpen ? "chat" : "browser")}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
+          onOpenSearch={() => setSearchOpen(true)}
           onContentViewChange={showContentView}
           onOpenAgentSettings={() => {
             if (!activeAgent) return;

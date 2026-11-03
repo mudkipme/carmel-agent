@@ -232,6 +232,11 @@ test("global search keeps the matched keyword visible in multiline excerpts", ()
       true,
     );
     browser("press", "Escape");
+    click("button", "Collapse sidebar");
+    click("button", "Search");
+    browser("wait", '[aria-label="Search titles and messages"]');
+    browser("press", "Escape");
+    if (width >= 1024) click("button", "Show sidebar");
   }
   browser("set", "viewport", "1280", "900");
 });
@@ -2305,4 +2310,26 @@ test("completed collaborations stay with their original turn across later messag
     assert.equal(evaluate(`document.querySelectorAll('${card}').length`), 1);
     if (visit === 0) browser("reload");
   }
+});
+
+test("retrying a message removes collaboration activity from the discarded branch", () => {
+  open(agentPath(`sessions/${fixture.collaborationSessionId}`));
+  const card = '[data-collaboration-activity="collaboration_timeline"]';
+  browser("wait", card);
+  evaluate(`(() => {
+    const original = window.fetch;
+    window.fetch = (input, init) => String(input).endsWith('/api/agents/${fixture.agentId}/run')
+      ? Promise.resolve(Response.json({error: 'Fixture retry paused after truncation'}, {status: 400}))
+      : original(input, init);
+  })()`);
+  clickSelector('button[aria-label="Retry from this message"]');
+  browser("wait", "--text", "Fixture retry paused after truncation");
+  assert.equal(evaluate(`document.querySelector('${card}') === null`), true);
+  browser("reload");
+  browser("wait", "--text", "Start collaboration");
+  assert.equal(evaluate(`document.querySelector('${card}') === null`), true);
+  const retained = evaluate<{ id: string }[]>(
+    `fetch('/api/agents/${fixture.agentId}/collaborations').then(response => response.json())`,
+  );
+  assert.ok(retained.some((row) => row.id === "collaboration_timeline"));
 });

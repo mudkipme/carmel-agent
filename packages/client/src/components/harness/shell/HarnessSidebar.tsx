@@ -112,26 +112,28 @@ export function HarnessSidebar({
             className="size-7 rounded-lg"
             draggable={false}
           />
-          <Button
-            className="ml-auto"
-            size="icon-sm"
-            variant="ghost"
-            title={i18n._("Collapse sidebar")}
-            onClick={onClose}
-          >
-            <PanelLeftCloseIcon />
-          </Button>
+          <div className="ml-auto flex items-center gap-1">
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              title={i18n._("Collapse sidebar")}
+              onClick={onClose}
+            >
+              <PanelLeftCloseIcon />
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              title={i18n._("Search")}
+              aria-label={i18n._("Search")}
+              aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
+              onClick={onOpenSearch}
+            >
+              <SearchIcon />
+            </Button>
+          </div>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
-          <Button
-            variant="ghost"
-            className="shrink-0 justify-start"
-            aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
-            onClick={onOpenSearch}
-          >
-            <SearchIcon data-icon="inline-start" />
-            <Trans>Search</Trans>
-          </Button>
           <nav
             aria-label={i18n._("Agents")}
             className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto"

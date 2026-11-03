@@ -5,12 +5,14 @@ import {
   GitCompareIcon,
   GlobeIcon,
   PanelLeftIcon,
+  SearchIcon,
   SettingsIcon,
   SquareTerminalIcon,
   ArrowLeftIcon,
 } from "lucide-react";
 import type { ReactNode, Ref } from "react";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { AgentConfig, SessionMetadata } from "@carmel-agent/shared";
@@ -31,6 +33,7 @@ export function HarnessHeader({
   browserNeedsHelp,
   onToggleBrowser,
   onToggleSidebar,
+  onOpenSearch,
   onContentViewChange,
   onOpenAgentSettings,
 }: {
@@ -49,22 +52,43 @@ export function HarnessHeader({
   browserNeedsHelp: boolean;
   onToggleBrowser: () => void;
   onToggleSidebar: () => void;
+  onOpenSearch: () => void;
   onContentViewChange: (view: ContentView) => void;
   onOpenAgentSettings: () => void;
 }) {
   const { i18n } = useLingui();
+  const navigationButtons = (
+    <div
+      className={cn(
+        "flex shrink-0 items-center gap-1",
+        taskHeaderRef && "mt-3",
+        sidebarOpen && "hidden",
+      )}
+    >
+      <Button
+        size="icon-sm"
+        variant="ghost"
+        title={i18n._("Show sidebar")}
+        onClick={onToggleSidebar}
+      >
+        <PanelLeftIcon />
+      </Button>
+      <Button
+        size="icon-sm"
+        variant="ghost"
+        title={i18n._("Search")}
+        aria-label={i18n._("Search")}
+        aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
+        onClick={onOpenSearch}
+      >
+        <SearchIcon />
+      </Button>
+    </div>
+  );
   if (taskHeaderRef)
     return (
       <header className="flex shrink-0 items-start gap-2 border-b bg-background px-2 pt-[var(--safe-top)] sm:px-5">
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          title={i18n._("Show sidebar")}
-          className={sidebarOpen ? "mt-3 lg:hidden" : "mt-3"}
-          onClick={onToggleSidebar}
-        >
-          <PanelLeftIcon />
-        </Button>
+        {navigationButtons}
         <div ref={taskHeaderRef} className="min-w-0 flex-1" />
       </header>
     );
@@ -102,19 +126,9 @@ export function HarnessHeader({
       : "";
 
   return (
-    <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-2 border-b bg-background px-2 pt-[var(--safe-top)] sm:gap-3 sm:px-5">
+    <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-2 border-b bg-background px-2 pt-[var(--safe-top)] max-[360px]:h-auto max-[360px]:min-h-[calc(var(--header-height)+var(--safe-top))] max-[360px]:flex-wrap max-[360px]:pt-[calc(0.25rem+var(--safe-top))] max-[360px]:pb-1 sm:gap-3 sm:px-5">
       <div className="flex min-w-0 items-center gap-2">
-        {/* An open sidebar carries its own collapse button; on desktop it sits
-            beside this header, so the toggle here would be a duplicate. */}
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          title={i18n._("Show sidebar")}
-          className={sidebarOpen ? "lg:hidden" : undefined}
-          onClick={onToggleSidebar}
-        >
-          <PanelLeftIcon />
-        </Button>
+        {navigationButtons}
         {conversationSwitcher}
         <div className="min-w-0">
           <h2 className="truncate text-sm font-medium">{title}</h2>
@@ -140,7 +154,7 @@ export function HarnessHeader({
           )}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-0 sm:gap-2">
+      <div className="flex shrink-0 items-center gap-0 max-[360px]:ml-auto sm:gap-2">
         {/* Pressing the active tool returns to the companion conversation. */}
         {activeAgent ? (
           <Button

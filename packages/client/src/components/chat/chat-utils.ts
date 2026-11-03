@@ -226,3 +226,32 @@ function readFileAsDataUrl(file: File) {
     reader.readAsDataURL(file);
   });
 }
+
+export function collaborationOriginIndex(
+  messages: readonly AgentMessage[],
+  collaborationId: string,
+): number {
+  const calls = new Map<string, number>();
+  for (const [index, message] of messages.entries()) {
+    if (message.role === "assistant") {
+      for (const part of message.content) {
+        if (part.type !== "toolCall") continue;
+        if (
+          part.name === "ask_agent" ||
+          part.name === "delegate_task" ||
+          (part.name === "codemode" &&
+            /\b(ask_agent|delegate_task)\b/.test(JSON.stringify(part.arguments)))
+        ) {
+          calls.set(part.id, index);
+        }
+      }
+    } else if (
+      message.role === "toolResult" &&
+      calls.has(message.toolCallId) &&
+      JSON.stringify(message.content).includes(collaborationId)
+    ) {
+      return calls.get(message.toolCallId)!;
+    }
+  }
+  return -1;
+}

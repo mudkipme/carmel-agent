@@ -32,6 +32,7 @@ import { ZoomableImage } from "./ZoomableImage";
 import { MessageReferences } from "./MessageReferences";
 import {
   buildToolResultsById,
+  collaborationOriginIndex,
   formatUsage,
   getMessageImages,
   getMessageText,
@@ -135,11 +136,13 @@ export const ChatMessages = memo(function ChatMessages({
   const activity = new Map<number, CollaborationSummary[]>();
   for (const row of collaborations.data ?? []) {
     if (row.sourceSessionId !== sessionId && row.targetSessionId !== sessionId) continue;
-    let anchor = -1;
-    segments.forEach((segment, index) => {
-      const first = segment.kind === "message" ? segment.message : segment.messages[0]!.message;
-      if (typeof first.timestamp === "number" && first.timestamp <= row.createdAt) anchor = index;
-    });
+    const originIndex = collaborationOriginIndex(renderMessages, row.id);
+    if (originIndex < 0) continue;
+    const anchor = segments.findIndex((segment) =>
+      segment.kind === "message"
+        ? segment.index === originIndex
+        : segment.messages.some((entry) => entry.index === originIndex),
+    );
     if (anchor < 0) continue;
     activity.set(anchor, [...(activity.get(anchor) ?? []), row]);
   }
