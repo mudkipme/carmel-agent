@@ -8,7 +8,7 @@ import type {
 } from "@carmel-agent/shared";
 import { homeIssueUpdate } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { agentHomes, homeEvents, sessions } from "../db/schema.ts";
+import { agentHomes, collaborations, homeEvents, sessions } from "../db/schema.ts";
 import { imInbox, imIntegrations } from "../db/im-schema.ts";
 import { id, now } from "../db/seed.ts";
 import { ensureHome, HomeError, readHome } from "./agent-homes.ts";
@@ -374,6 +374,19 @@ export async function dispatchHome(sessionId: string) {
       getActiveAgentRunForSession(home.userId, sessionId)
     )
       return;
+    const collaboration =
+      event.kind === "collaboration" && event.prompt.collaboration
+        ? db
+            .select({ request: collaborations.request })
+            .from(collaborations)
+            .where(
+              and(
+                eq(collaborations.id, event.prompt.collaboration.id),
+                eq(collaborations.sourceSessionId, sessionId),
+              ),
+            )
+            .get()
+        : undefined;
     const run = startDetachedAgentRun({
       agent,
       session,
@@ -383,7 +396,13 @@ export async function dispatchHome(sessionId: string) {
           ? event.prompt
           : event.kind === "collaboration"
             ? {
-                text: `The collaborator reply you were waiting for has arrived. Its reply card is already visible; continue the original user request using this evidence. Do not repeat the card heading, poll, or restart the completed collaboration.\n\n${event.prompt.text}`,
+                text: [
+                  "The collaborator reply you were waiting for has arrived. Continue the specific collaboration request below using the reply as evidence. Earlier summaries may describe older work; this event does not reopen those goals. The reply card is already visible; do not repeat its heading, poll, or restart the collaboration.",
+                  ...(collaboration
+                    ? [`Request sent to this collaborator:\n${collaboration.request}`]
+                    : []),
+                  event.prompt.text,
+                ].join("\n\n"),
               }
             : {
                 text: `A background job reported the following source material. ${homeIssueUpdate(event.prompt) ? "A linked issue status card is already visible in Home; do not repeat its heading or status. " : ""}Briefly tell the user the outcome or the specific reply needed, with its link when useful. Keep checks, artifacts, logs, detailed evidence, and uncertainty on the task page; use read_task only if more context is needed to answer. Do not accept the result, repeat completed work, or start another job unless the user asked.\n\n${event.prompt.text}`,

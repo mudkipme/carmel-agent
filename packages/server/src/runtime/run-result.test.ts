@@ -2,8 +2,13 @@ import { readHelpers } from "./helpers.ts";
 import { resumeHelperHost, shutdownHelperHosts, startHelperHosts } from "./helper-hosts.ts";
 import type { TaskId } from "@earendil-works/pi-durable";
 import { helperHosts, homeEvents } from "../db/schema.ts";
-import { readHome } from "../services/agent-homes.ts";
-import { drainHomeEvents } from "../services/home-events.ts";
+import { ensureHome, readHome } from "../services/agent-homes.ts";
+import { dispatchHome, drainHomeEvents } from "../services/home-events.ts";
+import {
+  createCollaboration,
+  dispatchCollaborations,
+  saveConnection,
+} from "../services/collaborations.ts";
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -12,11 +17,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
-import type { AgentRunResult } from "@carmel-agent/shared";
+import type { AgentRunResult, ReferenceMessage } from "@carmel-agent/shared";
 import { db, initialize, sqlite } from "../db/index.ts";
 import {
   agents,
   agentTasks,
+  collaborations,
   knowledgeConfigs,
   knowledgeSources,
   modelRefs,
@@ -30,9 +36,14 @@ import { runTaskNow } from "./task-scheduler.ts";
 import { ImManager, receiveImMessage } from "./im-manager.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { loadSession } from "../services/session-store.ts";
-import { closePiSession, openPiSession } from "../services/pi-session-storage.ts";
+import {
+  closePiSession,
+  openPiSession,
+  replacePiSessionMessages,
+} from "../services/pi-session-storage.ts";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { createAgent, createUser } from "../test-support.ts";
+import { createAgent, createUser, userMessage } from "../test-support.ts";
+import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
 import { answerQuestion, readUserRequests } from "../services/user-requests.ts";
 import { readSessionConnection } from "../services/session-snapshot.ts";
 import {
@@ -72,6 +83,62 @@ after(() => provider.close());
 test("a run that gets its reply succeeds", async () => {
   const run = await startRun("reply");
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
+});
+
+test("a pushed Home collaboration reply restates its own request alongside the preserved user message", async () => {
+  const initial = await startRun("reply");
+  assert.deepEqual(await finished(initial), { outcome: "succeeded" });
+  const source = (await loadSession(initial.sessionId))!;
+  const home = ensureHome(initial.userId, source.agentId);
+  const target = createAgent({
+    ownerUserId: initial.userId,
+    defaultModelRefId: source.modelRefId!,
+  });
+  saveConnection(initial.userId, source.agentId, {
+    peerAgentId: target,
+    direction: "outgoing",
+    capabilities: { consult: true, createTask: false, queueTask: false },
+  });
+  const question = "@KizunaShelf 有哪些metadata provider";
+  const mention: ReferenceMessage = {
+    role: "user",
+    content: question,
+    timestamp: Date.now(),
+    references: [{ kind: "agent", agentId: target, label: "KizunaShelf" }],
+  };
+  await replacePiSessionMessages(home.sessionId, [
+    userMessage("Disable the periodic ticket check."),
+    fauxAssistantMessage("The ticket check is paused."),
+    mention,
+  ]);
+  const request = "List KizunaShelf's supported metadata providers.";
+  const collaboration = createCollaboration(
+    { userId: initial.userId, agentId: source.agentId, sessionId: home.sessionId },
+    target,
+    "providers",
+    request,
+  );
+  db.update(collaborations)
+    .set({ status: "answered", waiting: true, answer: "Verified 18 built-in providers." })
+    .where(eq(collaborations.id, collaboration.id))
+    .run();
+  await dispatchCollaborations();
+  const resumed = await dispatchHome(home.sessionId);
+  assert.ok(resumed);
+  assert.deepEqual(await finished(resumed), { outcome: "succeeded" });
+  await drainHomeEvents();
+  const messages = provider.requests.at(-1)!.messages;
+  const continuation = messages.findLast((message) => message.role === "user")!.content;
+  assert.ok(continuation.includes(request));
+  assert.match(continuation, /Verified 18 built-in providers/);
+  assert.doesNotMatch(continuation, /Disable the periodic ticket check/);
+  assert.ok(JSON.stringify(messages).includes(question));
+  const saved = (await loadSession(home.sessionId))!.messages;
+  assert.equal(
+    saved.filter((message) => message.role === "user" && JSON.stringify(message).includes(question))
+      .length,
+    1,
+  );
 });
 
 test("a background helper survives parent finalization and server host reopen with one Home report", async () => {
