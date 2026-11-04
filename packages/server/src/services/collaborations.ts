@@ -93,6 +93,10 @@ function requireSource(owner: CollaborationOwner) {
 }
 export function listCollaborators(owner: CollaborationOwner) {
   requireSource(owner);
+  return readCollaborators(owner.userId, owner.agentId);
+}
+export function readCollaborators(userId: string, agentId: string) {
+  if (!readVisibleAgent(userId, agentId)) throw denied();
   return db
     .select()
     .from(agents)
@@ -101,7 +105,7 @@ export function listCollaborators(owner: CollaborationOwner) {
       const capabilities = { consult: false, createTask: false, queueTask: false };
       for (const capability of Object.keys(capabilities) as Array<keyof CollaborationGrant>) {
         try {
-          authorizeCollaboration(owner.userId, owner.agentId, agent.id, capability);
+          authorizeCollaboration(userId, agentId, agent.id, capability);
           capabilities[capability] = true;
         } catch {
           /* Hidden connections are omitted. */

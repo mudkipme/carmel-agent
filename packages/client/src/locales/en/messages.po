@@ -5580,3 +5580,18 @@ msgstr "Show more"
 #: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
 msgid "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials."
 msgstr "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:84
+msgid "Choose an agent to collaborate with, or a file, folder, or conversation to reference."
+msgstr "Choose an agent to collaborate with, or a file, folder, or conversation to reference."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:91
+msgid "Search agents, conversations, or type a file path…"
+msgstr "Search agents, conversations, or type a file path…"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:109
+msgid "Agents unavailable: {error}"
+msgstr "Agents unavailable: {error}"

@@ -5580,3 +5580,18 @@ msgstr "展开"
 #: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
 msgid "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials."
 msgstr "允许此智能体联系下方的智能体。如需对方回调，请在对方智能体中配置。咨询为只读；任务使用接收方智能体的权限和凭据。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:84
+msgid "Choose an agent to collaborate with, or a file, folder, or conversation to reference."
+msgstr "选择要协作的智能体，或要引用的文件、文件夹或对话。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:91
+msgid "Search agents, conversations, or type a file path…"
+msgstr "搜索智能体、对话，或输入文件路径…"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:109
+msgid "Agents unavailable: {error}"
+msgstr "智能体不可用：{error}"

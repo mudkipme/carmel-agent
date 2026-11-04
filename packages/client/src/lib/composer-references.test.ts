@@ -59,3 +59,12 @@ test("reference removal distinguishes exact mentions from longer paths and keeps
   assert.equal(hasInlineReference("Review docs/guide.md", reference), false);
   assert.equal(hasInlineReference("@docs/file.md", { kind: "folder", path: "docs" }), false);
 });
+
+test("agent mentions insert their names inline and retain identity until removed", () => {
+  const reference = { kind: "agent" as const, agentId: "researcher", label: "Research agent" };
+  const inserted = insertInlineReference("Ask @ about this.", { start: 4, end: 5 }, reference);
+  assert.equal(inserted.text, 'Ask @"Research agent" about this.');
+  assert.equal(hasInlineReference(inserted.text, reference), true);
+  assert.equal(hasInlineReference('Ask @"Research agent two" about this.', reference), false);
+  assert.equal(hasInlineReference("Ask about this.", reference), false);
+});

@@ -1,11 +1,15 @@
 import type { MessageReference } from "@carmel-agent/shared";
 
-type PathReference = Exclude<MessageReference, { kind: "session" }>;
+type InlineReference = Exclude<MessageReference, { kind: "session" }>;
 export type ComposerSelection = { start: number; end: number };
 
-export function inlineReferenceToken(reference: PathReference) {
+export function inlineReferenceToken(reference: InlineReference) {
   const path =
-    reference.kind === "folder" ? reference.path.replace(/\/+$/, "") + "/" : reference.path;
+    reference.kind === "agent"
+      ? reference.label
+      : reference.kind === "folder"
+        ? reference.path.replace(/\/+$/, "") + "/"
+        : reference.path;
   // Quoting keeps paths with spaces, quotes, or punctuation unambiguous.
   return "@" + (/^[\p{L}\p{N}_./~-]+$/u.test(path) ? path : JSON.stringify(path));
 }
@@ -28,7 +32,7 @@ export function hasInlineReference(text: string, reference: MessageReference) {
 export function insertInlineReference(
   text: string,
   selection: ComposerSelection,
-  reference: PathReference,
+  reference: InlineReference,
 ) {
   const before = text.slice(0, selection.start);
   const after = text.slice(selection.end);

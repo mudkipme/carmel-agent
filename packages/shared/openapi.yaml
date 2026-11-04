@@ -62,6 +62,33 @@ paths:
             application/json:
               schema: { type: array, items: { type: object } }
         "403": { $ref: "#/components/responses/Error" }
+  /api/agents/{agentId}/collaborators:
+    parameters:
+      - { name: agentId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getCollaborators
+      tags: [Agents]
+      responses:
+        "200":
+          description: Agents this user and source agent may contact, with their capabilities.
+          content:
+            application/json:
+              schema:
+                {
+                  type: array,
+                  items:
+                    {
+                      type: object,
+                      properties:
+                        {
+                          agentId: { type: string },
+                          name: { type: string },
+                          description: { type: string },
+                          capabilities: { type: object, additionalProperties: { type: boolean } },
+                        },
+                    },
+                }
+        "403": { $ref: "#/components/responses/Error" }
   /api/agents/{agentId}/collaborations:
     parameters:
       - { name: agentId, in: path, required: true, schema: { type: string } }
@@ -3793,6 +3820,17 @@ components:
                           {
                             oneOf:
                               [
+                                {
+                                  type: object,
+                                  additionalProperties: false,
+                                  required: [kind, agentId, label],
+                                  properties:
+                                    {
+                                      kind: { type: string, enum: [agent] },
+                                      agentId: { type: string, minLength: 1, maxLength: 256 },
+                                      label: { type: string, minLength: 1, maxLength: 500 },
+                                    },
+                                },
                                 {
                                   type: object,
                                   additionalProperties: false,

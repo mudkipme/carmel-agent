@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/command";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
+import { AgentAvatar } from "@/components/harness/shell/AgentAvatar";
+import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { useHarnessStore } from "@/store/harness-store";
 
 export function ReferencePicker({
@@ -32,6 +34,13 @@ export function ReferencePicker({
 }) {
   const { i18n } = useLingui();
   const sessions = useHarnessStore((state) => state.sessions);
+  const agents = useHarnessStore((state) => state.agents);
+  const collaborators = useRemoteResource({
+    key: `mention-agents:${agentId}`,
+    enabled: open,
+    load: (signal) => api.getCollaborators(agentId, signal),
+    topics: ["workspace"],
+  });
   const [query, setQuery] = useState("");
   const [files, setFiles] = useState<AgentFileEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,12 +81,14 @@ export function ReferencePicker({
       open={open}
       onOpenChange={onOpenChange}
       title={i18n._("Mention a reference")}
-      description={i18n._("Choose a file, folder, or conversation to include with your message.")}
+      description={i18n._(
+        "Choose an agent to collaborate with, or a file, folder, or conversation to reference.",
+      )}
     >
       <CommandInput
         value={query}
         onValueChange={setQuery}
-        placeholder={i18n._("Search conversations or type a file path…")}
+        placeholder={i18n._("Search agents, conversations, or type a file path…")}
       />
       <CommandList aria-label={i18n._("References")}>
         {loading ? (
@@ -93,6 +104,32 @@ export function ReferencePicker({
         <CommandEmpty>
           <Trans>No matching references.</Trans>
         </CommandEmpty>
+        {collaborators.error ? (
+          <div role="status" className="px-3 py-2 text-sm text-muted-foreground">
+            {i18n._("Agents unavailable: {error}", { error: collaborators.error })}
+          </div>
+        ) : null}
+        {collaborators.data?.some(
+          (peer) => peer.capabilities.consult || peer.capabilities.createTask,
+        ) ? (
+          <CommandGroup heading={i18n._("Agents")}>
+            {collaborators.data
+              .filter((peer) => peer.capabilities.consult || peer.capabilities.createTask)
+              .map((peer) => (
+                <CommandItem
+                  key={peer.agentId}
+                  value={`agent:${peer.agentId}:${peer.name}`}
+                  keywords={[peer.description]}
+                  onSelect={() =>
+                    onSelect({ kind: "agent", agentId: peer.agentId, label: peer.name })
+                  }
+                >
+                  <AgentAvatar agent={agents.find((agent) => agent.id === peer.agentId)} />
+                  <span className="min-w-0 truncate">{peer.name}</span>
+                </CommandItem>
+              ))}
+          </CommandGroup>
+        ) : null}
         {canReadFiles ? (
           <CommandGroup heading={directory || i18n._("Workspace files and folders")}>
             {directory && query.endsWith("/") ? (

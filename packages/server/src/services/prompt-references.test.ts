@@ -204,3 +204,50 @@ test("native referenced inputs keep display metadata separate from model context
     await retry.close();
   }
 });
+
+test("agent references resolve only permitted collaborators with canonical names and capabilities", async () => {
+  const current = createSession();
+  const peer = createSession({ userId: current.userId });
+  const { saveConnection } = await import("./collaborations.ts");
+  const reference = { kind: "agent" as const, agentId: peer.agentId, label: "Untrusted name" };
+  await assert.rejects(
+    resolvePromptReferences(current.userId, readAgent(current.agentId), current.sessionId, [
+      reference,
+    ]),
+    /collaborator.*unavailable/,
+  );
+  saveConnection(current.userId, current.agentId, {
+    peerAgentId: peer.agentId,
+    direction: "outgoing",
+    capabilities: { consult: true, createTask: false, queueTask: false },
+  });
+  db.update(agents)
+    .set({ name: "Researcher", description: "Investigates documentation" })
+    .where(eq(agents.id, peer.agentId))
+    .run();
+  db.update(agents)
+    .set({ permissions: { read: false, write: false, edit: false, bash: false, network: false } })
+    .where(eq(agents.id, current.agentId))
+    .run();
+  const result = await resolvePromptReferences(
+    current.userId,
+    readAgent(current.agentId),
+    current.sessionId,
+    [reference, reference],
+  );
+  assert.deepEqual(result.references, [{ ...reference, label: "Researcher" }]);
+  assert.match(result.context, /Investigates documentation/);
+  assert.match(result.context, /"consult":true/);
+  assert.doesNotMatch(result.context, /Untrusted name/);
+  saveConnection(current.userId, current.agentId, {
+    peerAgentId: peer.agentId,
+    direction: "outgoing",
+    capabilities: { consult: false, createTask: false, queueTask: false },
+  });
+  await assert.rejects(
+    resolvePromptReferences(current.userId, readAgent(current.agentId), current.sessionId, [
+      reference,
+    ]),
+    /collaborator.*unavailable/,
+  );
+});

@@ -9,6 +9,7 @@ import { readVisibleAgent } from "../services/agent-access.ts";
 import {
   CollaborationError,
   readConnections,
+  readCollaborators,
   saveConnection,
   cancelCollaboration,
 } from "../services/collaborations.ts";
@@ -19,6 +20,9 @@ export function createCollaborationRoutes() {
     if (error instanceof CollaborationError) return c.json({ error: error.message }, 403);
     throw error;
   });
+  route.get("/agents/:agentId/collaborators", (c) =>
+    c.json(readCollaborators(c.get("user").id, c.req.param("agentId"))),
+  );
   route.get("/agents/:agentId/collaboration-connections", (c) =>
     c.json(readConnections(c.get("user").id, c.req.param("agentId"))),
   );

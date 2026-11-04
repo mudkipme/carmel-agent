@@ -61,3 +61,10 @@ export function collaborationReply(message: {
     ...(task ? { taskId: task[1] } : {}),
   };
 }
+
+export type Collaborator = {
+  agentId: string;
+  name: string;
+  description: string;
+  capabilities: CollaborationGrant;
+};

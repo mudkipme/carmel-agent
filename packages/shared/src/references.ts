@@ -12,11 +12,15 @@ export function getMessageReferences(message: AgentMessage): MessageReference[] 
 }
 
 export function referenceKey(reference: MessageReference) {
-  return reference.kind === "session"
-    ? `session:${reference.sessionId}`
-    : `${reference.kind}:${reference.path}`;
+  return reference.kind === "agent"
+    ? `agent:${reference.agentId}`
+    : reference.kind === "session"
+      ? `session:${reference.sessionId}`
+      : `${reference.kind}:${reference.path}`;
 }
 
 export function referenceLabel(reference: MessageReference) {
-  return reference.kind === "session" ? reference.label : reference.path;
+  return reference.kind === "session" || reference.kind === "agent"
+    ? reference.label
+    : reference.path;
 }

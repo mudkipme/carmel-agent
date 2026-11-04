@@ -21,14 +21,16 @@ export function MessageReferences({ message }: { message: AgentMessage }) {
       {references.map((reference) => {
         const label = referenceLabel(reference);
         const href =
-          reference.kind === "session"
-            ? `/agents/${encodeURIComponent(reference.agentId)}/sessions/${encodeURIComponent(reference.sessionId)}`
-            : agentId
-              ? workspaceChatPath(
-                  agentFilesPath(agentId, reference.path === "." ? "" : reference.path),
-                  sessionId ?? params.get("chat") ?? undefined,
-                )
-              : undefined;
+          reference.kind === "agent"
+            ? `/agents/${encodeURIComponent(reference.agentId)}/home`
+            : reference.kind === "session"
+              ? `/agents/${encodeURIComponent(reference.agentId)}/sessions/${encodeURIComponent(reference.sessionId)}`
+              : agentId
+                ? workspaceChatPath(
+                    agentFilesPath(agentId, reference.path === "." ? "" : reference.path),
+                    sessionId ?? params.get("chat") ?? undefined,
+                  )
+                : undefined;
         return (
           <Badge
             key={referenceKey(reference)}

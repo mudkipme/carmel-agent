@@ -421,9 +421,14 @@ export function ChatInput({
         onChange={(event) => {
           const next = event.target.value;
           const cursor = event.target.selectionStart;
+          const input = event.nativeEvent as InputEvent;
+          const inserted = input.inputType
+            ? input.inputType.startsWith("insert")
+            : next.length > valueRef.current.length;
           updateValue(next);
           if (
             agentId &&
+            inserted &&
             next[cursor - 1] === "@" &&
             (cursor === 1 || /\s/.test(next[cursor - 2]!)) &&
             !(event.nativeEvent as InputEvent).isComposing

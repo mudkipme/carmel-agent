@@ -2333,3 +2333,36 @@ test("retrying a message removes collaboration activity from the discarded branc
   );
   assert.ok(retained.some((row) => row.id === "collaboration_timeline"));
 });
+
+test("agent mentions select permitted collaborators and backspacing to an at sign does not open the picker", () => {
+  open(agentPath(`sessions/${fixture.collaborationSessionId}`));
+  browser("wait", 'textarea[aria-label="Message"]');
+  const saved = evaluate<{ ok: boolean }>(
+    `fetch('/api/agents/${fixture.agentId}/collaboration-connections', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({peerAgentId:'${fixture.secondAgentId}',direction:'outgoing',capabilities:{consult:true,createTask:false,queueTask:false}})}).then(response=>({ok:response.ok}))`,
+  );
+  assert.equal(saved.ok, true);
+  browser("fill", 'textarea[aria-label="Message"]', "@aaa");
+  browser("press", "Backspace");
+  browser("press", "Backspace");
+  browser("press", "Backspace");
+  assert.equal(value('textarea[aria-label="Message"]'), "@");
+  assert.equal(evaluate('document.querySelector("[role=dialog] [cmdk-input]") === null'), true);
+  browser("fill", 'textarea[aria-label="Message"]', "Ask ");
+  browser("keyboard", "type", "@");
+  browser("wait", '[role="dialog"] [cmdk-input]');
+  const option = `[cmdk-item][data-value="agent:${fixture.secondAgentId}:Second agent"]`;
+  browser("wait", option);
+  browser("fill", "[cmdk-input]", "Second agent");
+  clickSelector(option);
+  waitForValue('textarea[aria-label="Message"]', 'Ask @"Second agent" ');
+  browser("reload");
+  waitForValue('textarea[aria-label="Message"]', 'Ask @"Second agent" ');
+  evaluate(
+    `(() => { const original=window.fetch; window.fetch=(input,init)=> { if(String(input).endsWith('/run')) { window.agentMentionSubmission=JSON.parse(init.body); return Promise.resolve(Response.json({error:'Agent mention fixture rejection'},{status:400})); } return original(input,init); }; })()`,
+  );
+  click("button", "Send");
+  browser("wait", "--text", "Agent mention fixture rejection");
+  assert.deepEqual(evaluate("window.agentMentionSubmission.promptInput.references"), [
+    { kind: "agent", agentId: fixture.secondAgentId, label: "Second agent" },
+  ]);
+});

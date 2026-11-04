@@ -192,6 +192,10 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
 }
 
 export const api = {
+  getCollaborators: (agentId: string, signal?: AbortSignal) =>
+    request<import("@carmel-agent/shared").Collaborator[]>(`/api/agents/${agentId}/collaborators`, {
+      signal,
+    }),
   getCollaborations: (agentId: string, signal?: AbortSignal) =>
     request<import("@carmel-agent/shared").CollaborationSummary[]>(
       `/api/agents/${agentId}/collaborations`,
