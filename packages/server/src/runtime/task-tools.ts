@@ -4,7 +4,13 @@ import { timezoneSchema, type AgentThinkingLevel } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { users } from "../db/schema.ts";
 import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
-import { createAgentTask } from "../services/agent-tasks.ts";
+import {
+  createAgentTask,
+  deleteAgentTask,
+  readAgentTask,
+  readAgentTasks,
+  updateAgentTask,
+} from "../services/agent-tasks.ts";
 import { imPlatformSchema } from "@carmel-agent/shared";
 
 const scheduleTaskSchema = z
@@ -44,6 +50,83 @@ type SchedulingContext = {
   thinkingLevel: AgentThinkingLevel;
   timezone?: string;
 };
+
+const scheduledTaskIdSchema = z.object({ taskId: z.string().min(1) }).strict();
+const scheduledTaskPatchSchema = scheduleTaskSchema.partial().extend({
+  notifyPlatform: imPlatformSchema.nullable().optional(),
+  status: z.enum(["active", "paused"]).optional(),
+});
+const updateScheduledTaskSchema = scheduledTaskIdSchema.extend({
+  patch: scheduledTaskPatchSchema.refine((patch) => Object.keys(patch).length > 0, {
+    message: "Provide at least one field to update.",
+  }),
+});
+
+export function createSchedulingTools(context: SchedulingContext): ToolRegistration[] {
+  const user = { id: context.userId, role: "user" as const };
+  const tool = <T extends z.ZodType>(
+    name: string,
+    description: string,
+    schema: T,
+    execute: (input: z.output<T>) => unknown,
+    read = false,
+  ): ToolRegistration => ({
+    name,
+    description,
+    parameters: z.toJSONSchema(schema),
+    executionMode: "sequential",
+    replay: read ? "safe" : "unsafe",
+    async execute(args, _api, executionContext) {
+      executionContext.abortSignal?.throwIfAborted();
+      const result = await execute(schema.parse(args));
+      return { output: [{ type: "text", text: JSON.stringify(result) }] };
+    },
+  });
+  return [
+    createScheduleTaskTool(context),
+    tool(
+      "list_scheduled_tasks",
+      "List this user's schedules and reminders for this agent, including IDs, instructions, timing, and active/paused status. Use to identify a schedule before changing or deleting it.",
+      z.object({}).strict(),
+      () => readAgentTasks(user, context.agentId),
+      true,
+    ),
+    tool(
+      "update_scheduled_task",
+      "Edit a selected schedule or reminder. Set patch.status to paused to stop future runs, or active to resume. Only provided fields change. Pausing preserves history and does not interrupt a run already in progress. Confirm changes only after success.",
+      updateScheduledTaskSchema,
+      ({ taskId, patch }) => {
+        const current = readAgentTask(user, context.agentId, taskId);
+        if (
+          patch.scheduleKind !== undefined ||
+          patch.scheduleValue !== undefined ||
+          patch.timezone !== undefined
+        ) {
+          const schedule = { ...current, ...patch };
+          patch.timezone = schedule.timezone ?? context.timezone;
+          if (schedule.scheduleKind === "once") {
+            z.iso.datetime({ offset: true }).parse(schedule.scheduleValue);
+          }
+          if (schedule.scheduleKind === "cron" && !patch.timezone) {
+            throw new Error(
+              "Ask the user for their time zone before changing a calendar schedule.",
+            );
+          }
+        }
+        return updateAgentTask(user, context.agentId, taskId, patch);
+      },
+    ),
+    tool(
+      "delete_scheduled_task",
+      "Permanently delete a selected schedule or reminder and its run history. Prefer pausing when the user only asks to stop future runs. Deletion fails while a run is in progress. Confirm deletion only after success.",
+      scheduledTaskIdSchema,
+      async ({ taskId }) => {
+        await deleteAgentTask(user, context.agentId, taskId);
+        return { taskId, deleted: true };
+      },
+    ),
+  ];
+}
 
 /** Identity and model settings come from the run, never from model arguments. */
 export function createScheduleTaskTool(context: SchedulingContext): ToolRegistration {
@@ -93,7 +176,8 @@ export function buildSchedulingInstructions(timezone?: string, platforms: string
       ? `User's browser time zone: ${timezoneSchema.parse(timezone)}; use for local times unless overridden.`
       : "User time zone unknown: ask before interpreting local clock times; do not assume the server's zone.",
     "For reminders at a time, after a delay, or recurring work, use schedule_task; do not substitute promises, memory saves, or waiting/sleeping. For relative dates, check the current time with bash if available; otherwise ask the user. Clarify missing or ambiguous reminder content or times.",
-    "Future runs start fresh without this chat: give a self-contained prompt. A reminder must deliver when run, not reschedule itself. Confirm only after schedule_task succeeds, using its returned time, time zone, and destination. Edit, pause, or delete schedules in Schedules.",
+    "Future runs start fresh without this chat: give a self-contained prompt. A reminder must deliver when run, not reschedule itself. Confirm only after schedule_task succeeds, using its returned time, time zone, and destination.",
+    "Manage schedules in chat with list_scheduled_tasks, update_scheduled_task, and delete_scheduled_task. List schedules to find the correct taskId; ask when the target is ambiguous. To stop future reminders, set patch.status to paused; use active to resume. Edit timing, instructions, or notification destination with update_scheduled_task. Delete only when requested; deletion also removes run history and fails during an active run. Pausing does not interrupt a run already in progress. Confirm changes only after the tool succeeds.",
     platforms.length
       ? `IM destinations: ${platforms.join(", ")}. For requested reminders/alerts, save notifyPlatform and put notification conditions in the prompt. Use the chosen platform, or ask when several are available. Future runs use send_user_message; delivery may fail independently of execution.`
       : "No proactive IM integration: results are saved in Schedules history; do not promise push/email notifications.",

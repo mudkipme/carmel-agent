@@ -54,11 +54,11 @@ Sessions belong to individual users. Users can fork a session from an earlier me
 
 ## Scheduled Tasks From Chat
 
-Users can ask an agent to schedule work in chat, for example “remind me tomorrow at 9 AM to submit the report” or “summarize my notes every weekday at 6 PM.” The `schedule_task` tool creates an active task in the existing Tasks view, owned by the user chatting, using the current agent, model, and thinking level. It is available independently of workspace permissions, including through Codemode. Scheduled runs do not receive this tool, preventing reminders from scheduling themselves again.
+Users can ask an agent to schedule work in chat, for example “remind me tomorrow at 9 AM to submit the report” or “summarize my notes every weekday at 6 PM.” The `schedule_task` tool creates an active schedule in Schedules, owned by the user chatting, using the current agent, model, and thinking level. It is available independently of workspace permissions, including through Codemode. Scheduled runs do not receive this tool, preventing reminders from scheduling themselves again.
 
 Chat supplies the browser's time zone and the server supplies the current time. The agent is instructed to clarify missing or ambiguous times, use an explicit UTC offset for one-time reminders, and confirm only after creation succeeds. Clients that omit a time zone must provide one in conversation for local clock times. Schedule validation and agent/model access checks apply at creation, and access is checked again when the task fires.
 
-Tasks run in fresh sessions with self-contained instructions. Results appear in **Tasks → run history**; scheduling does not automatically send a push or email notification or post back into the originating chat. The server must be running, and its scheduler polls every 30 seconds. Manage, pause, or delete tasks from the existing Tasks view.
+Tasks run in fresh sessions with self-contained instructions. Results appear in **Schedules → run history**; scheduling does not automatically send a push or email notification or post back into the originating chat. The server must be running, and its scheduler polls every 30 seconds. Agents can list this user's schedules with `list_scheduled_tasks`, edit or pause/resume them with `update_scheduled_task`, and remove them with `delete_scheduled_task`, including through IM and Codemode. Pausing prevents future runs while preserving history; it does not interrupt a run already in progress. Deletion removes run history and is unavailable while a run is in progress. These controls are also available in Schedules on the web. Scheduled runs and collaboration receivers do not receive scheduling tools.
 
 ## Agent Skills
 

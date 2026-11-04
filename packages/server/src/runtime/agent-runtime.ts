@@ -82,7 +82,7 @@ import { getMessageReferences } from "@carmel-agent/shared";
 import { browserInstructions } from "./browser-tools.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 import { buildKnowledgeInstructions } from "./knowledge/prompt.ts";
-import { createScheduleTaskTool, buildSchedulingInstructions } from "./task-tools.ts";
+import { createSchedulingTools, buildSchedulingInstructions } from "./task-tools.ts";
 import { createUserRequestTools, userRequestInstructions } from "./user-request-tools.ts";
 import {
   blockingUserRequest,
@@ -521,15 +521,13 @@ async function openRunHarness(
   const schedulingTools =
     context.session.taskId || collaboration
       ? []
-      : [
-          createScheduleTaskTool({
-            userId: context.session.userId,
-            agentId: agent.id,
-            modelRefId: context.modelRef.id,
-            thinkingLevel,
-            timezone: context.timezone,
-          }),
-        ];
+      : createSchedulingTools({
+          userId: context.session.userId,
+          agentId: agent.id,
+          modelRefId: context.modelRef.id,
+          thinkingLevel,
+          timezone: context.timezone,
+        });
   const messagingTools =
     messagingPlatforms.length && !collaboration
       ? [
