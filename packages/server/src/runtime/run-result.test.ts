@@ -3,7 +3,10 @@ import { resumeHelperHost, shutdownHelperHosts, startHelperHosts } from "./helpe
 import type { TaskId } from "@earendil-works/pi-durable";
 import { helperHosts, homeEvents } from "../db/schema.ts";
 import { ensureHome, readHome } from "../services/agent-homes.ts";
-import { dispatchHome, drainHomeEvents } from "../services/home-events.ts";
+import { dispatchHome, drainHomeEvents, stopHome } from "../services/home-events.ts";
+import { Hono } from "hono";
+import type { AuthVariables } from "../auth.ts";
+import { createAgentRunRoutes } from "../routes/agent-runs.ts";
 import {
   createCollaboration,
   dispatchCollaborations,
@@ -22,11 +25,13 @@ import { db, initialize, sqlite } from "../db/index.ts";
 import {
   agents,
   agentTasks,
+  agentHomes,
   collaborations,
   knowledgeConfigs,
   knowledgeSources,
   modelRefs,
   sessions,
+  users,
 } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { imBindings, imCredentials, imIntegrations, imOutbox } from "../db/im-schema.ts";
@@ -52,7 +57,7 @@ import {
   startDetachedAgentRun,
   whenRunFinished,
 } from "./agent-runtime.ts";
-import { shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
+import { agentRunSubscription, shutdownActiveRuns, type ActiveAgentRun } from "./run-stream.ts";
 
 /**
  * How a real run ends, end to end: the runtime, Pi, and an OpenAI-compatible
@@ -85,11 +90,12 @@ test("a run that gets its reply succeeds", async () => {
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
 });
 
-test("a pushed Home collaboration reply restates its own request alongside the preserved user message", async () => {
+test("retrying a stopped Home re-enables pushed collaboration replies and preserves the user request", async () => {
   const initial = await startRun("reply");
   assert.deepEqual(await finished(initial), { outcome: "succeeded" });
   const source = (await loadSession(initial.sessionId))!;
   const home = ensureHome(initial.userId, source.agentId);
+  await stopHome(initial.userId, source.agentId);
   const target = createAgent({
     ownerUserId: initial.userId,
     defaultModelRefId: source.modelRefId!,
@@ -111,6 +117,40 @@ test("a pushed Home collaboration reply restates its own request alongside the p
     fauxAssistantMessage("The ticket check is paused."),
     mention,
   ]);
+  const user = db.select().from(users).where(eq(users.id, initial.userId)).get()!;
+  const app = new Hono<{ Variables: AuthVariables }>();
+  app.use("*", async (c, next) => {
+    c.set("user", user);
+    await next();
+  });
+  app.route("/", createAgentRunRoutes());
+  const retry = (modelRefId?: string) =>
+    app.request(`/agents/${source.agentId}/run`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId: home.sessionId, modelRefId }),
+    });
+  const paused = () =>
+    db.select().from(agentHomes).where(eq(agentHomes.sessionId, home.sessionId)).get()!.paused;
+  assert.equal((await retry("missing-model")).status, 404);
+  assert.equal(paused(), true, "a rejected retry must preserve the stopped state");
+  const admitted = await retry();
+  assert.equal(admitted.status, 200);
+  assert.equal(paused(), false);
+  const { runId } = (await admitted.json()) as { runId: string };
+  const subscription = agentRunSubscription(initial.userId, runId, 0);
+  const subscribe = subscription.subscribe;
+  assert.ok(subscribe);
+  const result = await new Promise<AgentRunResult>((resolve) => {
+    subscribe({
+      enqueue: ({ event }) => {
+        if (event.type === "run_finished") resolve(event.result);
+        return true;
+      },
+      close() {},
+    });
+  });
+  assert.deepEqual(result, { outcome: "succeeded" });
   const request = "List KizunaShelf's supported metadata providers.";
   const collaboration = createCollaboration(
     { userId: initial.userId, agentId: source.agentId, sessionId: home.sessionId },
@@ -127,6 +167,7 @@ test("a pushed Home collaboration reply restates its own request alongside the p
   assert.ok(resumed);
   assert.deepEqual(await finished(resumed), { outcome: "succeeded" });
   await drainHomeEvents();
+  assert.equal(paused(), false);
   const messages = provider.requests.at(-1)!.messages;
   const continuation = messages.findLast((message) => message.role === "user")!.content;
   assert.ok(continuation.includes(request));

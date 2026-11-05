@@ -10,7 +10,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
-import { sessions } from "../db/schema.ts";
+import { agentHomes, sessions } from "../db/schema.ts";
 import {
   abortAgentRun,
   admitAgentRun,
@@ -210,6 +210,11 @@ export function createAgentRunRoutes() {
       resolvedReferences,
       timezone: body.timezone,
     });
+    if (sessionHome(currentSession.id))
+      db.update(agentHomes)
+        .set({ paused: false })
+        .where(eq(agentHomes.sessionId, currentSession.id))
+        .run();
     c.header("x-agent-run-id", run.runId);
     return c.json({ runId: run.runId });
   });
