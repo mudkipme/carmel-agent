@@ -6,7 +6,8 @@ export const HOME_MEMORY_TOPIC_INDEX_MAX_TOPICS = 40;
 export const HOME_MEMORY_TOPIC_INDEX_MAX_CHARS = 2_000;
 export const HOME_MEMORY_RECALL_MAX_CHARS = 6_000;
 
-type Note = Pick<HomeMemory, "id" | "revision" | "scope" | "content">;
+type Note = Pick<HomeMemory, "id" | "revision" | "scope" | "content"> &
+  Partial<Pick<HomeMemory, "title">>;
 
 function memoryJson(value: unknown) {
   return JSON.stringify(value).replace(
@@ -17,7 +18,7 @@ function memoryJson(value: unknown) {
 
 export function renderHomeMemoryNotes(notes: readonly Note[]) {
   if (!notes.length) return "";
-  return `[\n${notes.map(({ id, revision, scope, content }) => memoryJson({ id, revision, scope, content })).join(",\n")}\n]`;
+  return `[\n${notes.map(({ id, revision, scope, content, title }) => memoryJson({ id, revision, scope, content, ...(title ? { title } : {}) })).join(",\n")}\n]`;
 }
 
 export function homeMemoryNotebookSize(notes: readonly Note[]) {
@@ -34,8 +35,9 @@ export function homeMemoryTopicGroups(notes: readonly HomeMemory[]) {
   const groups = new Map<string, { scope: string; aliases: string[]; notes: HomeMemory[] }>();
   for (const note of notes) {
     if (note.pinned || note.placement === "core") continue;
-    const key = note.scope.normalize("NFKC").toLowerCase().trim();
-    const group = groups.get(key) ?? { scope: note.scope, aliases: [], notes: [] };
+    const topic = note.scope || note.title;
+    const key = topic.normalize("NFKC").toLowerCase().trim();
+    const group = groups.get(key) ?? { scope: topic, aliases: [], notes: [] };
     group.notes.push(note);
     group.aliases = [...new Set([...group.aliases, ...note.aliases])].slice(0, 12);
     groups.set(key, group);

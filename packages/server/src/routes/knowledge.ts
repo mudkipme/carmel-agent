@@ -5,7 +5,6 @@ import {
   knowledgeSearchSchema,
   knowledgeSettingsSchema,
   knowledgeSourceInputSchema,
-  memoryInputSchema,
 } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
 import { jsonValidator } from "../validation.ts";
@@ -19,8 +18,6 @@ import {
   searchKnowledge,
   readKnowledge,
   refreshKnowledge,
-  saveMemory,
-  forgetMemory,
 } from "../services/knowledge.ts";
 
 export function createKnowledgeRoutes() {
@@ -82,35 +79,6 @@ export function createKnowledgeRoutes() {
       const { embed, allowDownloads, deep } = c.req.valid("json");
       await refreshKnowledge(c.get("user").id, c.req.param("agentId"), embed, allowDownloads, deep);
       return c.json({ ok: true }, 202);
-    },
-  );
-  route.post("/agents/:agentId/knowledge/memories", jsonValidator(memoryInputSchema), async (c) =>
-    c.json(await saveMemory(c.get("user").id, c.req.param("agentId"), c.req.valid("json")), 201),
-  );
-  route.put(
-    "/agents/:agentId/knowledge/memories/:memoryId",
-    jsonValidator(memoryInputSchema),
-    async (c) =>
-      c.json(
-        await saveMemory(
-          c.get("user").id,
-          c.req.param("agentId"),
-          c.req.valid("json"),
-          c.req.param("memoryId"),
-        ),
-      ),
-  );
-  route.delete(
-    "/agents/:agentId/knowledge/memories/:memoryId",
-    jsonValidator(z.object({ expectedRevision: z.string().min(1) })),
-    async (c) => {
-      await forgetMemory(
-        c.get("user").id,
-        c.req.param("agentId"),
-        c.req.param("memoryId"),
-        c.req.valid("json").expectedRevision,
-      );
-      return c.json({ ok: true });
     },
   );
   return route;

@@ -11,7 +11,6 @@ const requestSchemas = {
   KnowledgeSourceRequest: K.knowledgeSourceInputSchema,
   KnowledgeSearchRequest: K.knowledgeSearchSchema,
   KnowledgeReadRequest: K.knowledgeReadSchema,
-  MemoryRequest: K.memoryInputSchema,
   LoginRequest: S.loginRequestSchema,
   AccountRequest: S.accountUpdateRequestSchema,
   SetupRequest: S.setupRequestSchema,

@@ -12,7 +12,7 @@ import {
   SearchIcon,
   UnplugIcon,
 } from "lucide-react";
-import type { AgentConfig, KnowledgeSearchResult, SavedMemory } from "@carmel-agent/shared";
+import type { AgentConfig, KnowledgeSearchResult } from "@carmel-agent/shared";
 import { MarkdownContent } from "@/components/chat/MarkdownContent";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,7 +61,6 @@ import {
 } from "@/components/ui/empty";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
-import { confirmAction } from "@/lib/action-dialogs";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { useHarnessStore } from "@/store/harness-store";
 import { PageHeader } from "./form-primitives";
@@ -70,7 +69,6 @@ import { ResourceError, ResourceLoading } from "./ResourceFeedback";
 export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
   const { i18n } = useLingui();
   const userId = useHarnessStore((s) => s.activeUserId);
-  const users = useHarnessStore((s) => s.users);
   const owner = agent.ownerUserId === userId;
   const overview = useRemoteResource({
     key: `knowledge:${agent.id}`,
@@ -93,7 +91,6 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
   const [results, setResults] = useState<KnowledgeSearchResult>();
   const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [editor, setEditor] = useState<SavedMemory | "new">();
   const [addSource, setAddSource] = useState(false);
   const act = async (operation: () => Promise<unknown>) => {
     setBusy(true);
@@ -139,7 +136,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                 <AlertDescription>
                   {owner
                     ? i18n._(
-                        "Enable knowledge in settings to register searchable sources and save memories.",
+                        "Enable knowledge in settings to register searchable document sources.",
                       )
                     : i18n._("The agent owner can enable knowledge in settings.")}
                 </AlertDescription>
@@ -205,7 +202,7 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                       id="knowledge-query"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder={i18n._("Find notes, decisions, or preferences…")}
+                      placeholder={i18n._("Search reference documents…")}
                       required
                       maxLength={2000}
                     />
@@ -322,107 +319,6 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                 </CardFooter>
               </Card>
             ) : null}
-            <section className="flex flex-col gap-3" aria-label={i18n._("Saved memories")}>
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold">
-                  <Trans>Saved memories</Trans>
-                </h2>
-                {agent.permissions.write && data.settings.enabled ? (
-                  <Button
-                    variant="outline"
-                    disabled={busy || Boolean(editor)}
-                    onClick={() => setEditor("new")}
-                  >
-                    <PlusIcon data-icon="inline-start" />
-                    <Trans>New memory</Trans>
-                  </Button>
-                ) : null}
-              </div>
-              {editor ? (
-                <MemoryForm
-                  key={editor === "new" ? "new" : editor.id}
-                  memory={editor === "new" ? undefined : editor}
-                  busy={busy}
-                  onCancel={() => setEditor(undefined)}
-                  onSave={(title, content) =>
-                    void act(async () => {
-                      await api.saveMemory(
-                        agent.id,
-                        {
-                          title,
-                          content,
-                          expectedRevision: editor === "new" ? undefined : editor.revision,
-                        },
-                        editor === "new" ? undefined : editor.id,
-                      );
-                      setEditor(undefined);
-                    })
-                  }
-                />
-              ) : null}
-              {!data.memories.length ? (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyTitle>
-                      <Trans>No saved memories</Trans>
-                    </EmptyTitle>
-                    <EmptyDescription>
-                      <Trans>Ask the agent to remember a fact or decision, or add one here.</Trans>
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                data.memories.map((memory) => (
-                  <Card key={memory.id}>
-                    <CardHeader>
-                      <CardTitle>{memory.title}</CardTitle>
-                      <CardDescription>
-                        <Trans>
-                          Saved by{" "}
-                          {users.find((u) => u.id === memory.contributorId)?.name ??
-                            "an agent user"}{" "}
-                          · {new Date(memory.updatedAt).toLocaleString(i18n.locale)}
-                        </Trans>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <MarkdownContent content={memory.content} preserveLineBreaks={false} />
-                    </CardContent>
-                    {agent.permissions.edit ? (
-                      <CardFooter className="gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={busy || Boolean(editor) || !data.settings.enabled}
-                          onClick={() => setEditor(memory)}
-                        >
-                          <Trans>Edit memory</Trans>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={busy}
-                          onClick={async () => {
-                            if (
-                              await confirmAction({
-                                title: i18n._("Forget “{title}”?", { title: memory.title }),
-                                description: i18n._(
-                                  "This removes the saved memory for everyone using this agent. Source documents and conversations are kept.",
-                                ),
-                                actionLabel: i18n._("Forget memory"),
-                              })
-                            )
-                              void act(() => api.forgetMemory(agent.id, memory));
-                          }}
-                        >
-                          <Trans>Forget memory</Trans>
-                        </Button>
-                      </CardFooter>
-                    ) : null}
-                  </Card>
-                ))
-              )}
-            </section>
             <section className="flex flex-col gap-3" aria-label={i18n._("Knowledge sources")}>
               <Dialog
                 open={addSource}
@@ -583,77 +479,6 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
   );
 }
 
-function MemoryForm({
-  memory,
-  busy,
-  onCancel,
-  onSave,
-}: {
-  memory?: SavedMemory;
-  busy: boolean;
-  onCancel: () => void;
-  onSave: (title: string, content: string) => void;
-}) {
-  const { i18n } = useLingui();
-  const [title, setTitle] = useState(memory?.title ?? ""),
-    [content, setContent] = useState(memory?.content ?? "");
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSave(title, content);
-      }}
-    >
-      <Card>
-        <CardHeader>
-          <CardTitle>{memory ? i18n._("Edit memory") : i18n._("New memory")}</CardTitle>
-          <CardDescription>
-            <Trans>
-              Keep facts specific and identify whose preferences or decisions they describe.
-            </Trans>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="memory-title">
-                <Trans>Title</Trans>
-              </FieldLabel>
-              <Input
-                id="memory-title"
-                required
-                maxLength={200}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="memory-content">
-                <Trans>Memory</Trans>
-              </FieldLabel>
-              <Textarea
-                id="memory-content"
-                required
-                maxLength={20000}
-                rows={5}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-              />
-            </Field>
-          </FieldGroup>
-        </CardContent>
-        <CardFooter className="gap-2">
-          <Button type="submit" disabled={busy}>
-            <Trans>Save memory</Trans>
-          </Button>
-          <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
-            <Trans>Cancel</Trans>
-          </Button>
-        </CardFooter>
-      </Card>
-    </form>
-  );
-}
 function SourceForm({
   busy,
   onCancel,

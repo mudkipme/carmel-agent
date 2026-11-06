@@ -152,6 +152,7 @@ test("representative response fixtures satisfy every response component", async 
     HomeMemory: {
       id: "memory1",
       content: "Prefer minimal labels",
+      title: "",
       scope: "Carmel UI",
       kind: "preference",
       revision: 1,
@@ -159,6 +160,8 @@ test("representative response fixtures satisfy every response component", async 
       placement: "topic",
       aliases: [],
       origin: "manual",
+      contributorId: "u1",
+      legacyRevision: null,
       expiresAt: null,
       sourceEventId: null,
       sourceEntryId: null,
@@ -169,6 +172,7 @@ test("representative response fixtures satisfy every response component", async 
     HomeMemoryRevision: {
       revision: 1,
       content: "Prefer minimal labels",
+      title: "",
       scope: "Carmel UI",
       kind: "preference",
       expiresAt: null,
@@ -176,6 +180,17 @@ test("representative response fixtures satisfy every response component", async 
     },
     HomeMemoryOverview: {
       mode: "manual",
+      retrieval: { enabled: false, acceleration: "auto" },
+      indexStatus: {
+        state: "disabled",
+        lastUpdatedAt: null,
+        documents: 0,
+        needsEmbedding: 0,
+        error: null,
+        backend: null,
+        devices: [],
+      },
+      embeddingModel: "model",
       memories: [],
       total: 0,
       coreIds: [],

@@ -20,6 +20,7 @@ import { resolveSandboxIdentity, type SandboxIdentity } from "../sandbox/runtime
 
 export type KnowledgeWorkerPlan = {
   agentId: string;
+  scopeKey?: string;
   stateDir: string;
   settings: KnowledgeSettings;
   embeddingModel: string;
@@ -66,7 +67,11 @@ export function knowledgeContainerSpec(plan: KnowledgeWorkerPlan, identity: Sand
     Entrypoint: [],
     Cmd: ["sleep", "infinity"],
     WorkingDir: "/state",
-    Labels: { [label]: "1", "carmel.knowledge.agent": plan.agentId },
+    Labels: {
+      [label]: "1",
+      "carmel.knowledge.agent": plan.agentId,
+      "carmel.retrieval.scope": plan.scopeKey ?? plan.agentId,
+    },
     Env: [
       "HOME=/state/home",
       "XDG_CACHE_HOME=/state/cache",
@@ -135,9 +140,9 @@ async function callWorker(
     throw new Error("Knowledge runner unavailable. Configure a Podman or Docker socket.");
   signal?.throwIfAborted();
   const signature = createHash("sha256").update(JSON.stringify(plan)).digest("hex");
-  let entry = workers.get(plan.agentId);
+  let entry = workers.get(plan.scopeKey ?? plan.agentId);
   if (entry && (entry.signature !== signature || entry.client.closed)) {
-    await stopKnowledgeWorker(plan.agentId);
+    await stopKnowledgeWorker(plan.scopeKey ?? plan.agentId);
     entry = undefined;
   }
   if (!entry) {
@@ -161,7 +166,7 @@ async function callWorker(
       ).finally(() => clearTimeout(attachTimer));
       const client = new WorkerClient(containerId, socket);
       entry = { signature, client, lastUsed: Date.now() };
-      workers.set(plan.agentId, entry);
+      workers.set(plan.scopeKey ?? plan.agentId, entry);
       const collections = Object.fromEntries(
         plan.sources.map((s) => [
           s.id,
@@ -207,7 +212,8 @@ async function callWorker(
     } catch (error) {
       entry?.client.close();
       if (await removeContainer(containerId)) {
-        if (workers.get(plan.agentId) === entry) workers.delete(plan.agentId);
+        if (workers.get(plan.scopeKey ?? plan.agentId) === entry)
+          workers.delete(plan.scopeKey ?? plan.agentId);
       }
       throw error;
     }
@@ -221,7 +227,7 @@ async function callWorker(
       signal,
     );
   } catch (error) {
-    if (entry.client.closed) await stopKnowledgeWorker(plan.agentId);
+    if (entry.client.closed) await stopKnowledgeWorker(plan.scopeKey ?? plan.agentId);
     throw error;
   } finally {
     entry.lastUsed = Date.now();

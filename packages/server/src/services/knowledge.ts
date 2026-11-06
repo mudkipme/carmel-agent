@@ -1,15 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, open, realpath, rm, stat } from "node:fs/promises";
 import { constants } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import {
   knowledgeSettingsSchema,
   knowledgeSearchSchema,
   knowledgeReadSchema,
-  memoryInputSchema,
-  memoryEditSchema,
   knowledgeSourceInputSchema,
   type KnowledgeStatus,
   type KnowledgeSettings,
@@ -19,9 +17,6 @@ import {
   type KnowledgeReadInput,
   type KnowledgeDocument,
   type KnowledgeSearchResult,
-  type SavedMemory,
-  type MemoryInput,
-  type MemoryEditInput,
 } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { agents, knowledgeConfigs, knowledgeMemories, knowledgeSources } from "../db/schema.ts";
@@ -34,7 +29,6 @@ import {
   type KnowledgeWorkerPlan,
 } from "../runtime/knowledge/worker-client.ts";
 import { knowledgeLock } from "../runtime/knowledge/queue.ts";
-import { applyTextEdits } from "./text-edits.ts";
 
 import { knowledgeEmbeddingModel, knowledgeModelPlan } from "../runtime/knowledge/models.ts";
 
@@ -115,13 +109,6 @@ function requireAgent(userId: string, agentId: string, owner = false) {
     throw new KnowledgeError("Knowledge requires the agent's read permission.", 403);
   return agent;
 }
-function requireWrite(agent: AgentRecord, editing = false) {
-  if (!(editing ? agent.permissions.edit : agent.permissions.write))
-    throw new KnowledgeError(
-      `Memory requires the agent's ${editing ? "edit" : "write"} permission.`,
-      403,
-    );
-}
 function sources(agentId: string) {
   return db.select().from(knowledgeSources).where(eq(knowledgeSources.agentId, agentId)).all();
 }
@@ -175,15 +162,7 @@ async function plan(agent: AgentRecord, network = false): Promise<KnowledgeWorke
     ...(await knowledgeModelPlan()),
     settings,
     network: network && agent.permissions.network,
-    sources: [
-      ...registered,
-      {
-        id: "memories",
-        hostPath: resolve(stateDir, "notes"),
-        description:
-          "Saved memories shared by this agent's users. Statements retain their contributor and subject.",
-      },
-    ],
+    sources: registered,
   };
   return result;
 }
@@ -232,7 +211,6 @@ export async function knowledgeOverview(
     embeddingModel: knowledgeEmbeddingModel(),
     sources: sources(agentId),
     status: current?.settings.enabled ? current.status : { ...initialStatus, state: "disabled" },
-    memories: await listMemories(agentId),
   };
 }
 /** Read navigation settings without loading memory files or starting a worker. */
@@ -250,7 +228,7 @@ export async function saveKnowledgeSettings(
     const settings = knowledgeSettingsSchema.parse(input);
     await stopKnowledgeWorker(agentId);
     db.insert(knowledgeConfigs)
-      .values({ agentId, settings, status: initialStatus, dirty: true })
+      .values({ agentId, settings, status: initialStatus, dirty: true, memoriesMigrated: true })
       .onConflictDoUpdate({
         target: knowledgeConfigs.agentId,
         set: { settings, status: initialStatus, dirty: true },
@@ -304,27 +282,9 @@ async function readCanonical(agent: AgentRecord, sourceId: string, path: string)
     !path.endsWith(".md")
   )
     throw new KnowledgeError("Invalid document reference.", 400);
-  let root: string;
-  if (sourceId === "memories") {
-    const memory = db
-      .select()
-      .from(knowledgeMemories)
-      .where(
-        and(
-          eq(knowledgeMemories.id, path.slice(0, -3)),
-          eq(knowledgeMemories.agentId, agent.id),
-          isNull(knowledgeMemories.deletedAt),
-        ),
-      )
-      .get();
-    if (!memory || memory.pendingContent !== null)
-      throw new KnowledgeError("Memory not found.", 404);
-    root = resolve(knowledgeDir(agent.id), "notes");
-  } else {
-    const source = sources(agent.id).find((s) => s.id === sourceId);
-    if (!source) throw new KnowledgeError("Source not found.", 404);
-    root = await sourceRoot(agent, source.path);
-  }
+  const source = sources(agent.id).find((s) => s.id === sourceId);
+  if (!source) throw new KnowledgeError("Source not found.", 404);
+  const root = await sourceRoot(agent, source.path);
   const pathName = resolve(root, path);
   const actual = await realpath(pathName).catch(() => {
     throw new KnowledgeError("Document not found.", 404);
@@ -466,10 +426,7 @@ export async function searchKnowledge(
           ...rest,
           excerpt: content.slice(0, 1800),
           score: hit.score,
-          sourceName:
-            hit.sourceId === "memories"
-              ? "Saved memories"
-              : (sources(agentId).find((s) => s.id === hit.sourceId)?.name ?? "Source"),
+          sourceName: sources(agentId).find((s) => s.id === hit.sourceId)?.name ?? "Source",
         });
         if (hits.length >= args.limit) break;
       } catch {
@@ -495,7 +452,6 @@ export async function refreshKnowledge(
     const agent = requireAgent(userId, agentId, true);
     try {
       setStatus(agentId, { state: "updating", error: null });
-      await recoverMemories(agentId);
       const workerPlan = await plan(agent, allowDownloads);
       const updated = workerStatusSchema.parse(
         await callKnowledgeWorker(workerPlan, { op: "update" }, maintenance.signal),
@@ -567,225 +523,4 @@ export async function stopKnowledgeScheduler() {
 }
 export async function waitKnowledgeJob(agentId: string) {
   await jobs.get(agentId);
-}
-
-async function recoverMemories(agentId: string) {
-  await mkdir(resolve(knowledgeDir(agentId), "notes"), { recursive: true });
-  const rows = db
-    .select()
-    .from(knowledgeMemories)
-    .where(eq(knowledgeMemories.agentId, agentId))
-    .all();
-  for (const row of rows) {
-    const path = resolve(knowledgeDir(agentId), "notes", `${row.id}.md`);
-    if (row.deletedAt) {
-      await rm(path, { force: true });
-      continue;
-    }
-    if (row.pendingContent === null) continue;
-    const temp = `${path}.${randomUUID()}.tmp`;
-    try {
-      await writeFile(temp, row.pendingContent, { flag: "wx", mode: 0o600 });
-      await rename(temp, path);
-    } finally {
-      await rm(temp, { force: true });
-    }
-    db.update(knowledgeMemories)
-      .set({ pendingContent: null })
-      .where(eq(knowledgeMemories.id, row.id))
-      .run();
-  }
-}
-async function listMemories(agentId: string): Promise<SavedMemory[]> {
-  const rows = db
-    .select()
-    .from(knowledgeMemories)
-    .where(and(eq(knowledgeMemories.agentId, agentId), isNull(knowledgeMemories.deletedAt)))
-    .all();
-  return Promise.all(
-    rows
-      .filter((r) => r.pendingContent === null)
-      .map(async (row) => ({
-        id: row.id,
-        agentId,
-        title: row.title,
-        content: (
-          await readFile(resolve(knowledgeDir(agentId), "notes", `${row.id}.md`), "utf8")
-        ).replace(/^# [^\n]*\n\n/, ""),
-        revision: row.revision,
-        contributorId: row.contributorId,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-      })),
-  );
-}
-export async function saveMemory(
-  userId: string,
-  agentId: string,
-  input: MemoryInput,
-  memoryId?: string,
-): Promise<SavedMemory> {
-  return knowledgeLock(agentId, async () => {
-    const agent = requireAgent(userId, agentId);
-    requireWrite(agent, Boolean(memoryId));
-    if (!knowledgeEnabled(agentId))
-      throw new KnowledgeError("Enable knowledge before saving memories.", 409);
-    const data = memoryInputSchema.parse(input);
-    await recoverMemories(agentId);
-    const previous = memoryId
-      ? db
-          .select()
-          .from(knowledgeMemories)
-          .where(
-            and(
-              eq(knowledgeMemories.id, memoryId),
-              eq(knowledgeMemories.agentId, agentId),
-              isNull(knowledgeMemories.deletedAt),
-            ),
-          )
-          .get()
-      : undefined;
-    if (memoryId && !previous) throw new KnowledgeError("Memory not found.", 404);
-    if (previous && data.expectedRevision !== previous.revision)
-      throw new KnowledgeError("Memory changed. Reload before editing.", 409);
-    const content = `# ${data.title.replaceAll("\n", " ")}\n\n${data.content}\n`;
-    const at = Date.now();
-    const id = previous?.id ?? `m${randomUUID().replaceAll("-", "")}`;
-    return storeMemory(agentId, {
-      id,
-      title: data.title,
-      content,
-      contributorId: userId,
-      createdAt: previous?.createdAt ?? at,
-    });
-  });
-}
-export async function editMemory(
-  userId: string,
-  agentId: string,
-  memoryId: string,
-  input: MemoryEditInput,
-): Promise<SavedMemory> {
-  return knowledgeLock(agentId, async () => {
-    const agent = requireAgent(userId, agentId);
-    requireWrite(agent, true);
-    if (!knowledgeEnabled(agentId))
-      throw new KnowledgeError("Enable knowledge before saving memories.", 409);
-    const data = memoryEditSchema.parse(input);
-    await recoverMemories(agentId);
-    const previous = db
-      .select()
-      .from(knowledgeMemories)
-      .where(
-        and(
-          eq(knowledgeMemories.id, memoryId),
-          eq(knowledgeMemories.agentId, agentId),
-          isNull(knowledgeMemories.deletedAt),
-        ),
-      )
-      .get();
-    if (!previous) throw new KnowledgeError("Memory not found.", 404);
-    if (previous.revision !== data.expectedRevision)
-      throw new KnowledgeError("Memory changed. Reload before editing.", 409);
-    const path = resolve(knowledgeDir(agentId), "notes", `${previous.id}.md`);
-    const current = await readFile(path, "utf8").catch(() => {
-      throw new KnowledgeError("Memory not found.", 404);
-    });
-    if (hash(current) !== previous.revision)
-      throw new KnowledgeError("Memory changed. Reload before editing.", 409);
-    const label = `${previous.id}.md`;
-    let next: string;
-    try {
-      next = applyTextEdits(current, data.edits, label);
-    } catch (error) {
-      throw new KnowledgeError(
-        error instanceof Error ? error.message : "Could not edit that memory.",
-        400,
-      );
-    }
-    const title = memoryTitle(next);
-    return storeMemory(agentId, {
-      id: previous.id,
-      title,
-      content: next,
-      contributorId: userId,
-      createdAt: previous.createdAt,
-    });
-  });
-}
-function memoryTitle(text: string) {
-  const match = /^# ([^\n]*)\n\n([\s\S]*)$/.exec(text);
-  if (!match)
-    throw new KnowledgeError(
-      "Memory edits must keep the leading # title, a blank line, and the note body. Use memory_save to replace the whole note.",
-      400,
-    );
-  const title = match[1].trim();
-  const body = match[2].trim();
-  if (!title || title.length > 200)
-    throw new KnowledgeError("Memory title must be 1 to 200 characters.", 400);
-  if (!body) throw new KnowledgeError("Edited memory has no content.", 400);
-  if (body.length > 20_000)
-    throw new KnowledgeError("Edited memory is longer than 20,000 characters.", 400);
-  return title;
-}
-async function storeMemory(
-  agentId: string,
-  row: {
-    id: string;
-    title: string;
-    content: string;
-    contributorId: string;
-    createdAt: number;
-  },
-) {
-  const stored = {
-    id: row.id,
-    agentId,
-    title: row.title,
-    revision: hash(row.content),
-    contributorId: row.contributorId,
-    pendingContent: row.content,
-    createdAt: row.createdAt,
-    updatedAt: Date.now(),
-  };
-  // Persist intent first. A crash during the filesystem write is replayed before indexing.
-  db.insert(knowledgeMemories)
-    .values(stored)
-    .onConflictDoUpdate({ target: knowledgeMemories.id, set: stored })
-    .run();
-  dirty(agentId);
-  await recoverMemories(agentId);
-  return (await listMemories(agentId)).find((memory) => memory.id === row.id)!;
-}
-export async function forgetMemory(
-  userId: string,
-  agentId: string,
-  memoryId: string,
-  expectedRevision: string,
-) {
-  return knowledgeLock(agentId, async () => {
-    const agent = requireAgent(userId, agentId);
-    requireWrite(agent, true);
-    const previous = db
-      .select()
-      .from(knowledgeMemories)
-      .where(
-        and(
-          eq(knowledgeMemories.id, memoryId),
-          eq(knowledgeMemories.agentId, agentId),
-          isNull(knowledgeMemories.deletedAt),
-        ),
-      )
-      .get();
-    if (!previous) throw new KnowledgeError("Memory not found.", 404);
-    if (previous.revision !== expectedRevision)
-      throw new KnowledgeError("Memory changed. Reload before forgetting it.", 409);
-    db.update(knowledgeMemories)
-      .set({ deletedAt: Date.now(), pendingContent: null })
-      .where(eq(knowledgeMemories.id, memoryId))
-      .run();
-    await purgeIndexes(agentId);
-    await recoverMemories(agentId);
-  });
 }

@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  knowledgeSettingsSchema,
+  type KnowledgeSettings,
+  type KnowledgeStatus,
+} from "./knowledge.ts";
 
 export const homeMemoryModeSchema = z.enum(["off", "manual", "automatic"]);
 export const homeMemoryKindSchema = z.enum(["preference", "fact", "decision"]);
@@ -6,7 +11,8 @@ export const homeMemoryPlacementSchema = z.enum(["core", "topic"]);
 export const homeMemoryAliasesSchema = z.array(z.string().trim().min(1).max(40)).max(12);
 export const homeMemoryInputSchema = z
   .object({
-    content: z.string().trim().min(1).max(2000),
+    content: z.string().trim().min(1).max(20_000),
+    title: z.string().trim().max(200).default(""),
     scope: z.string().trim().max(120).default(""),
     kind: homeMemoryKindSchema.default("fact"),
     placement: homeMemoryPlacementSchema.default("topic"),
@@ -16,7 +22,8 @@ export const homeMemoryInputSchema = z
   .strict();
 export const homeMemoryPatchSchema = z
   .object({
-    content: z.string().trim().min(1).max(2000).optional(),
+    content: z.string().trim().min(1).max(20_000).optional(),
+    title: z.string().trim().max(200).optional(),
     scope: z.string().trim().max(120).optional(),
     kind: homeMemoryKindSchema.optional(),
     placement: homeMemoryPlacementSchema.optional(),
@@ -28,9 +35,23 @@ export const homeMemoryPatchSchema = z
   .strict();
 export const homeMemorySettingsSchema = z
   .object({
-    mode: homeMemoryModeSchema,
+    mode: homeMemoryModeSchema.optional(),
+    retrieval: knowledgeSettingsSchema.optional(),
   })
   .strict();
+export const homeMemorySearchSchema = z
+  .object({
+    query: z.string().trim().max(2000).default(""),
+    mode: z.enum(["fast", "semantic", "deep"]).default("fast"),
+  })
+  .strict();
+export type HomeMemorySearchInput = z.input<typeof homeMemorySearchSchema>;
+export type HomeMemorySearchResult = {
+  memories: HomeMemory[];
+  mode: "fast" | "semantic" | "deep";
+  warning?: string;
+};
+
 export type HomeMemoryInput = z.input<typeof homeMemoryInputSchema>;
 export type HomeMemoryPatch = z.input<typeof homeMemoryPatchSchema>;
 export type HomeMemoryMode = z.infer<typeof homeMemoryModeSchema>;
@@ -39,6 +60,8 @@ export type HomeMemory = z.output<typeof homeMemoryInputSchema> & {
   revision: number;
   pinned: boolean;
   origin: "manual" | "explicit" | "automatic";
+  contributorId: string | null;
+  legacyRevision: string | null;
   sourceEventId: string | null;
   sourceEntryId: string | null;
   sourceQuote: string | null;
@@ -48,6 +71,7 @@ export type HomeMemory = z.output<typeof homeMemoryInputSchema> & {
 export type HomeMemoryRevision = {
   revision: number;
   content: string;
+  title?: string;
   scope: string;
   kind: HomeMemory["kind"];
   placement?: HomeMemory["placement"];
@@ -76,6 +100,9 @@ export type HomeMemoryCaptureReport = {
 };
 export type HomeMemoryOverview = {
   mode: HomeMemoryMode;
+  retrieval: KnowledgeSettings;
+  indexStatus: KnowledgeStatus;
+  embeddingModel: string;
   memories: HomeMemory[];
   total: number;
   coreIds: string[];

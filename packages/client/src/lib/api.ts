@@ -7,6 +7,8 @@ import type {
   HomeMemoryMode,
   HomeMemoryOverview,
   HomeMemoryRevision,
+  HomeMemorySearchInput,
+  HomeMemorySearchResult,
   KnowledgeOverview,
   KnowledgeSettings,
   KnowledgeSourceInput,
@@ -15,8 +17,6 @@ import type {
   KnowledgeSearchResult,
   KnowledgeReadInput,
   KnowledgeDocument,
-  MemoryInput,
-  SavedMemory,
   BrowserControlState,
   AgentCommandPayload,
   GitChangeArea,
@@ -467,16 +467,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ embed, allowDownloads, deep }),
     }),
-  saveMemory: (agentId: string, input: MemoryInput, memoryId?: string) =>
-    request<SavedMemory>(
-      `/api/agents/${agentId}/knowledge/memories${memoryId ? `/${memoryId}` : ""}`,
-      { method: memoryId ? "PUT" : "POST", body: JSON.stringify(input) },
-    ),
-  forgetMemory: (agentId: string, memory: SavedMemory) =>
-    request(`/api/agents/${agentId}/knowledge/memories/${memory.id}`, {
-      method: "DELETE",
-      body: JSON.stringify({ expectedRevision: memory.revision }),
-    }),
   createAgentTask: (agentId: string, input: AgentTaskCreateCommand) =>
     request<AgentTask>(`/api/agents/${agentId}/tasks`, {
       method: "POST",
@@ -625,6 +615,21 @@ export const api = {
       `/api/agents/${encodeURIComponent(agentId)}/home/memory/settings`,
       { method: "PATCH", body: JSON.stringify({ mode }) },
     ),
+  setHomeMemoryRetrieval: (agentId: string, retrieval: KnowledgeSettings) =>
+    request(`/api/agents/${encodeURIComponent(agentId)}/home/memory/settings`, {
+      method: "PATCH",
+      body: JSON.stringify({ retrieval }),
+    }),
+  searchHomeMemory: (agentId: string, input: HomeMemorySearchInput, signal?: AbortSignal) =>
+    request<HomeMemorySearchResult>(
+      `/api/agents/${encodeURIComponent(agentId)}/home/memory/search`,
+      { method: "POST", body: JSON.stringify(input), signal },
+    ),
+  refreshHomeMemory: (agentId: string, embed = false, allowDownloads = false, deep = false) =>
+    request(`/api/agents/${encodeURIComponent(agentId)}/home/memory/refresh`, {
+      method: "POST",
+      body: JSON.stringify({ embed, allowDownloads, deep }),
+    }),
   saveHomeMemory: (agentId: string, input: HomeMemoryInput) =>
     request<HomeMemory>(`/api/agents/${encodeURIComponent(agentId)}/home/memory`, {
       method: "POST",

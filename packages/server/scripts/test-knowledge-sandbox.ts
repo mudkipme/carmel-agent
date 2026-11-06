@@ -12,7 +12,7 @@ process.env.CARMEL_HOST_DATA_DIR = "";
 process.env.CARMEL_CONTAINERIZED = "0";
 process.env.CARMEL_KNOWLEDGE_EMBED_MODEL = process.env.CARMEL_TEST_EMBED_MODEL ?? "";
 process.env.CARMEL_KNOWLEDGE_GPU = process.env.CARMEL_TEST_GPU ?? "";
-const { callKnowledgeWorker, stopKnowledgeWorker } =
+const { callKnowledgeWorker, stopKnowledgeWorker, shutdownKnowledgeWorkers } =
   await import("../src/runtime/knowledge/worker-client.ts");
 const { knowledgeModelPlan } = await import("../src/runtime/knowledge/models.ts");
 const agentId = `test-${randomUUID()}`;
@@ -158,10 +158,10 @@ try {
       name: "Family",
       path: sourceDir,
     });
-    const memory = await service.saveMemory(member, fixture.agentId, {
-      title: "Shared decision",
-      content: "We have a vacation budget.",
-    });
+    await writeFile(
+      join(sourceDir, "decision.md"),
+      "# Shared decision\n\nWe have a vacation budget.\n",
+    );
     await service.refreshKnowledge(fixture.userId, fixture.agentId, false);
     await service.waitKnowledgeJob(fixture.agentId);
     const matches = await service.searchKnowledge(member, fixture.agentId, {
@@ -176,7 +176,7 @@ try {
       query: "budget",
     });
     assert.equal(stale.hits.length, 1);
-    assert.equal(stale.hits[0]?.sourceId, "memories");
+    assert.notEqual(stale.hits[0]?.sourceId, "memories");
     assert.match(stale.warning ?? "", /changed/);
     // Offline semantic fallback must not wait for a download that cannot succeed.
     const fallback = await service.searchKnowledge(member, fixture.agentId, {
@@ -185,7 +185,9 @@ try {
     });
     assert.equal(fallback.mode, "fast");
     assert.match(fallback.warning ?? "", /not cached/);
-    await service.forgetMemory(fixture.userId, fixture.agentId, memory.id, memory.revision);
+    await rm(join(sourceDir, "decision.md"));
+    await service.refreshKnowledge(fixture.userId, fixture.agentId, false);
+    await service.waitKnowledgeJob(fixture.agentId);
     assert.equal(
       (
         await service.searchKnowledge(member, fixture.agentId, {
@@ -195,12 +197,48 @@ try {
       0,
     );
     console.log(
-      "Shared retrieval, citations, stale-hit rejection, offline fallback, and forgetting passed.",
+      "Shared retrieval, citations, stale-hit rejection, offline fallback, and source deletion passed.",
+    );
+    const memory = await import("../src/services/home-memory.ts");
+    const homeSearch = await import("../src/services/home-memory-search.ts");
+    const privateNote = memory.saveHomeMemory(fixture.userId, fixture.agentId, {
+      title: "Private preference",
+      content: "I prefer saffron risotto.",
+    });
+    memory.setHomeMemorySettings(fixture.userId, fixture.agentId, {
+      retrieval: { enabled: true, acceleration: "cpu" },
+    });
+    await homeSearch.refreshHomeMemoryIndex(fixture.userId, fixture.agentId);
+    await homeSearch.waitHomeMemoryIndexJob(fixture.userId, fixture.agentId);
+    const privatePlan = await homeSearch.homeMemoryWorkerPlan(fixture.userId, fixture.agentId);
+    const privateResult = await homeSearch.searchHomeMemory(
+      fixture.userId,
+      fixture.agentId,
+      { query: "saffron", mode: "semantic" },
+      undefined,
+      (workerPlan, request, signal) =>
+        callKnowledgeWorker(workerPlan, { ...request, mode: "fast" }, signal),
+    );
+    assert.equal(privateResult.memories[0]?.id, privateNote.id);
+    assert.equal(
+      (await homeSearch.searchHomeMemory(member, fixture.agentId, { query: "saffron" })).memories
+        .length,
+      0,
+    );
+    await memory.forgetHomeMemory(
+      fixture.userId,
+      fixture.agentId,
+      privateNote.id,
+      privateNote.revision,
+    );
+    await stopKnowledgeWorker(privatePlan.scopeKey!);
+    console.log(
+      "Private Home indexing, current-note verification, isolation, and forgetting passed.",
     );
   } finally {
     await service.deleteAgentKnowledge(fixture.agentId);
   }
 } finally {
-  await stopKnowledgeWorker(agentId);
+  await shutdownKnowledgeWorkers();
   await rm(root, { recursive: true, force: true });
 }

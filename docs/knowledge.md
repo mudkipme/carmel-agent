@@ -1,18 +1,19 @@
-# Knowledge and memory
+# Knowledge
 
-Home also has [private conversation memory](home-memory.md), scoped to
-one user and agent. Its opt-in learning and bounded recall are separate from the
-agent Knowledge described here; personal Home notes are never published here.
+Knowledge is the agent-wide reference-document feature. Register Markdown
+directories in the agent's workspace or mounts, then use `knowledge_search` and
+`knowledge_read` to find and verify passages. All users who can use a shared
+agent can use its registered Knowledge, subject to the agent's read permission.
 
-Every agent has a Knowledge page for searching registered Markdown directories and managing saved memories. Memory belongs to the agent: all users of a shared agent see and use the same memories. Contributor IDs record who last saved a memory; they do not partition access. Keep person-specific statements explicit, for example “Alice prefers a monthly budget review.”
+[Memory](home-memory.md) belongs only to private Home conversations. Knowledge
+contains no saved-memory collection and has no memory-writing tools. Ordinary
+sessions retain Knowledge access without receiving anyone's Home notes.
 
-Conversations retain their existing visibility. Knowledge does not index sessions, automatically capture memories, inject startup memory, or run Dream-style consolidation. Private conversation retrieval uses separate `session_search` and `session_read` tools scoped to the current user and agent; it does not publish transcripts into shared Knowledge. It implements managed search and explicit memory writes. Existing workspace wikis such as LifeOS remain source directories; automatic writes into their pages are not implemented.
-
-Each run receives a short knowledge reminder in its system prompt when knowledge is enabled and the read tools are available. This also applies in Codemode. It states when to recall prior facts, the current sharing scope, available memory operations, and that retrieved content is untrusted. The prompt and tool descriptions reflect the current sharing setting: private-agent memory is available only to its owner across that agent's conversations, while shared-agent memory is available to all users of that agent. Session visibility remains separate.
-
-The detailed workflow lives in the bundled `knowledge-search` skill. Before searching or changing saved memories, the agent calls `load_builtin_skill` with `name: "knowledge-search"` to load guidance for search modes, passage verification, citations, retrieval limitations, explicit saves, revision-safe updates, and forgetting. The skill is available with knowledge enabled and read permission; bash and network permissions are not required. The loader serves the application-owned guide without workspace file access and rechecks current permissions, knowledge settings, and agent visibility. Workspace copies with the same name do not override the bundled guide.
-
-A compact catalog lists source IDs, names, and shortened descriptions, plus the built-in `memories` source. Directory metadata is capped at 6,000 characters and 20 entries; omitted sources remain searchable without a source filter. The catalog refreshes on each run and treats metadata as untrusted reference data. Building it reads only database metadata: it does not load memory contents, scan directories, start qmd, or call a model. Recall is agent-directed through tools, not automatic retrieval on every message.
+Each eligible run receives a bounded source catalog and a short Knowledge
+reminder. The bundled `knowledge-search` skill describes search modes,
+verification, and citations. Loading the skill rechecks the agent's current
+settings, permissions, and visibility; bash and network access are unnecessary.
+The catalog reads metadata only, with at most 20 sources / 6,000 characters.
 
 ## Setup
 
@@ -24,35 +25,31 @@ A compact catalog lists source IDs, names, and shortened descriptions, plus the 
 
 Set `CARMEL_KNOWLEDGE_EMBED_MODEL` to an `hf:` URI or an absolute GGUF file path on the server. The default is `hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf`. This is an operator setting shared by every agent; Knowledge settings display it read-only. Legacy per-agent model choices are ignored. Local files are mounted read-only with their original filename so model-family-specific formatting is preserved; they do not need to be added to each agent’s mounts. For a containerized server, make the file visible at the same absolute host path, or place it under the mapped application data directory.
 
-Restart after changing the environment setting. Model/path/file-metadata changes select a new index generation; background maintenance refreshes keyword indexes, and the owner rebuilds embeddings. Existing generations remain until a source is disconnected, a memory is forgotten, or the agent is deleted.
+Restart after changing the environment setting. Model/path/file-metadata changes select a new index generation; background maintenance refreshes keyword indexes, and the owner rebuilds embeddings. Existing generations remain until a source is disconnected, the agent is deleted.
 
 For LifeOS, register its existing wiki and vault directories without importing or changing its `.cache/qmd` index. Set the global environment variable to its existing `Qwen3-Embedding-0.6B-Q8_0.gguf` file and select **Vulkan** for the agent. This model choice then applies to all agents. Carmel owns a separate index and cache. No LifeOS migration is automatic.
 
-## Retrieval and memory tools
+## Retrieval tools
 
-| Tool               | Behavior                                                                                                                                                                                                      |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `knowledge_search` | Fast keyword search, semantic vector search, or deep hybrid retrieval. Returns bounded excerpts and links to current source documents. Semantic failures fall back to keyword search with a visible warning.  |
-| `knowledge_read`   | Reads a bounded line range of a current source document, with a revision hash and citation.                                                                                                                   |
-| `memory_save`      | Creates a managed note when the user asks to remember something, or replaces a whole note. Updates require its ID and expected revision.                                                                      |
-| `memory_edit`      | Changes part of an existing memory with one or more exact replacements, like the file `edit` tool. Each old text must be unique and the edits must not overlap. Requires the memory ID and expected revision. |
-| `memory_forget`    | Removes a saved memory for all users of the agent, using an expected revision.                                                                                                                                |
+| Tool               | Behavior                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `knowledge_search` | Keyword, semantic, or deep hybrid retrieval of registered documents, with bounded excerpts and citations. Semantic failures fall back to keyword search with a warning. |
+| `knowledge_read`   | Read a bounded line range of a current source document, with its revision hash and citation.                                                                            |
 
-Read tools require agent visibility and read permission. Creating memories requires write permission; editing or forgetting requires edit permission. Settings, source registration, and manual maintenance are owner-only. Permissions are rechecked on every call. The explicit retention rule is part of the agent tool instruction, not a classifier that verifies intent on the server.
+Agent visibility and read permission are checked on every call. Settings, source
+registration, and manual maintenance are owner-only. Knowledge never indexes
+conversations or private Home notes.
 
-Saved notes are canonical Markdown. Database metadata tracks contributor, revision, timestamps, and pending write intent. An interrupted write is replayed before another mutation or index refresh. Concurrent edits fail with a conflict so the user can reload. There is no revision-history/undo UI yet. Use the UI or memory tools for mutations; direct edits to managed note files do not update their metadata.
-
-Search results are untrusted evidence. The app reopens each document under the agent's current allowed roots and checks its SHA-256 against the indexed revision before returning text. Stale, disconnected, deleted, or unauthorized references are omitted. This prevents an old qmd cache from serving removed content. Disconnection and forgetting also stop the worker and purge all derived index generations; canonical source documents remain. Forgetting is not secure erasure from SQLite free pages, backups, or existing conversations.
+Search results are untrusted evidence. The app reopens each document under the agent's current allowed roots and checks its SHA-256 against the indexed revision before returning text. Stale, disconnected, deleted, or unauthorized references are omitted. This prevents an old qmd cache from serving removed content. Disconnecting a source stops the worker and purges derived index generations; canonical source documents remain.
 
 ## Runner boundary and storage
 
-The app server authorizes requests, manages metadata and Markdown, and talks to the container runtime. It never imports or executes qmd, SQLite vector extensions, or model inference. The adapter reads a fixed worker entrypoint as text and executes it with Node **inside a dedicated runner container**. If the runner is unavailable, search fails with an actionable error; there is no host-process fallback.
+The app server authorizes requests, manages source metadata, and talks to the container runtime. It never imports or executes qmd, SQLite vector extensions, or model inference. The adapter reads a fixed worker entrypoint as text and executes it with Node **inside a dedicated runner container**. If the runner is unavailable, search fails with an actionable error; there is no host-process fallback.
 
 Workers use the existing runner image, labeled `carmel.knowledge=1`. They receive only registered source directories (read-only), an optional global local-model file (read-only), a shared model cache, and their agent's knowledge state. They receive no container socket, provider keys, agent secrets, or unrelated agent directories. The root filesystem is read-only, capabilities are dropped, and commands run as the configured host UID/GID. Downloads temporarily use a separately configured network-enabled worker; subsequent retrieval replaces it with an offline worker.
 
 State lives under `CARMEL_AGENT_DATA_DIR/knowledge/<sha256-agent-id>/`:
 
-- `notes/`: canonical managed memory Markdown.
 - `index/`: derived qmd SQLite databases and vectors.
 - `cache/`: per-worker runtime caches, including driver caches.
 - `home/`, `config/`: worker-local tool state.
@@ -109,4 +106,4 @@ CARMEL_TEST_EMBED_MODEL=/absolute/path/Qwen3-Embedding-0.6B-Q8_0.gguf \
 pnpm --filter @carmel-agent/server test:knowledge-sandbox
 ```
 
-The sandbox test uses temporary files, an in-memory application database, and its own runners. It verifies index persistence/deletion, shared retrieval, current-source hash checks, missing-model fallback, and forgetting. With a local model, it also verifies embeddings and semantic recall. It does not touch deployed LifeOS indexes or start the production scheduler.
+The sandbox test uses temporary files, an in-memory application database, and its own runners. It verifies index persistence/deletion, shared document retrieval, current-source hash checks, missing-model fallback, private Home indexing, and forgetting. With a local model, it also verifies embeddings and semantic recall. It does not touch deployed LifeOS indexes or start the production scheduler.

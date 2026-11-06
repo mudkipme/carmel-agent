@@ -19,8 +19,11 @@ import {
   agentSecrets,
 } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
-import { readHome, HomeError } from "./agent-homes.ts";
+import { HomeError } from "./agent-homes.ts";
 import { revealSecret } from "../security.ts";
+import { readVisibleAgent } from "./agent-access.ts";
+import { knowledgeEmbeddingModel } from "../runtime/knowledge/models.ts";
+import { emptyMemoryIndexStatus, purgeHomeMemoryIndex } from "./home-memory-index.ts";
 
 import {
   HOME_MEMORY_MAX_LINES,
@@ -52,7 +55,7 @@ export const memoryTokens = (
   );
 
 export function readHomeMemorySettings(userId: string, agentId: string) {
-  if (!readHome(userId, agentId)) throw new HomeError("Home not found.", 404);
+  if (!readVisibleAgent(userId, agentId)) throw new HomeError("Agent not found.", 404);
   db.insert(homeMemorySettings).values({ userId, agentId }).onConflictDoNothing().run();
   return db.select().from(homeMemorySettings).where(settingsOwner(userId, agentId)).get()!;
 }
@@ -65,16 +68,25 @@ export function invalidateHomeCapture(userId: string, agentId: string) {
 }
 
 export function setHomeMemorySettings(userId: string, agentId: string, input: unknown) {
-  const { mode } = homeMemorySettingsSchema.parse(input);
+  const value = homeMemorySettingsSchema.parse(input);
   const previous = readHomeMemorySettings(userId, agentId);
-  if (previous.mode === mode) return previous;
-  return db.transaction(() => {
-    db.update(homeMemorySettings)
-      .set({ mode, learnAfter: now(), generation: previous.generation + 1, error: null })
-      .where(settingsOwner(userId, agentId))
-      .run();
-    return readHomeMemorySettings(userId, agentId);
-  });
+  const mode = value.mode ?? previous.mode;
+  const retrieval = value.retrieval ?? previous.retrieval;
+  const modeChanged = previous.mode !== mode;
+  const retrievalChanged = JSON.stringify(retrieval) !== JSON.stringify(previous.retrieval);
+  if (!modeChanged && !retrievalChanged) return previous;
+  db.update(homeMemorySettings)
+    .set({
+      mode,
+      retrieval,
+      ...(modeChanged
+        ? { learnAfter: now(), generation: previous.generation + 1, error: null }
+        : {}),
+      ...(retrievalChanged ? { indexStatus: null, indexDirty: true } : {}),
+    })
+    .where(settingsOwner(userId, agentId))
+    .run();
+  return readHomeMemorySettings(userId, agentId);
 }
 
 export function rejectHomeMemorySecrets(agentId: string, text: string) {
@@ -96,7 +108,7 @@ export function rejectHomeMemorySecrets(agentId: string, text: string) {
   }
 }
 
-function serialize(row: typeof homeMemories.$inferSelect): HomeMemory {
+export function serializeHomeMemory(row: typeof homeMemories.$inferSelect): HomeMemory {
   const { userId: _user, agentId: _agent, slot: _slot, ...memory } = row;
   return memory;
 }
@@ -110,6 +122,10 @@ function requireMemory(userId: string, agentId: string, memoryId: string) {
     .get();
   if (!row) throw new HomeError("Memory not found.", 404);
   return row;
+}
+
+export function readHomeMemory(userId: string, agentId: string, memoryId: string) {
+  return serializeHomeMemory(requireMemory(userId, agentId, memoryId));
 }
 
 export function activeHomeMemories(userId: string, agentId: string) {
@@ -219,10 +235,10 @@ export function searchHomeMemories(
       Math.min(20, Math.max(1, limit)),
     ) as Array<{ id: string }>;
   return ids
-    .map(({ id: memoryId }) => serialize(requireMemory(userId, agentId, memoryId)))
+    .map(({ id: memoryId }) => serializeHomeMemory(requireMemory(userId, agentId, memoryId)))
     .filter((note) => {
       const words = new Set(
-        `${note.scope} ${note.content} ${note.aliases.join(" ")}`
+        `${note.title} ${note.scope} ${note.content} ${note.aliases.join(" ")}`
           .toLowerCase()
           .match(/[\p{L}\p{N}_-]{2,}/gu),
       );
@@ -252,13 +268,18 @@ export function readHomeMemoryOverview(
   );
   const core = coreHomeMemories(userId, agentId);
   const matches = rows.filter((row) =>
-    memoryIdentity(`${row.scope} ${row.content} ${row.aliases.join(" ")}`).includes(
+    memoryIdentity(`${row.title} ${row.scope} ${row.content} ${row.aliases.join(" ")}`).includes(
       memoryIdentity(query),
     ),
   );
   return {
     mode: settings.mode,
-    memories: matches.slice(offset, offset + 50).map(serialize),
+    retrieval: settings.retrieval,
+    indexStatus: settings.retrieval.enabled
+      ? (settings.indexStatus ?? emptyMemoryIndexStatus)
+      : { ...emptyMemoryIndexStatus, state: "disabled" },
+    embeddingModel: knowledgeEmbeddingModel(),
+    memories: matches.slice(offset, offset + 50).map(serializeHomeMemory),
     total: matches.length,
     coreIds: core.map((note) => note.id),
     coreLines: homeMemoryNotebookSize(core).lines,
@@ -275,6 +296,7 @@ function saveRevision(row: typeof homeMemories.$inferSelect) {
   const snapshot: HomeMemoryRevision = {
     revision: row.revision,
     content: row.content,
+    title: row.title,
     scope: row.scope,
     kind: row.kind,
     placement: row.placement,
@@ -311,7 +333,7 @@ export function saveHomeMemory(
   readHomeMemorySettings(userId, agentId);
   rejectHomeMemorySecrets(
     agentId,
-    `${value.scope}\n${value.content}\n${value.aliases.join(" ")}\n${source?.quote ?? ""}`,
+    `${value.title}\n${value.scope}\n${value.content}\n${value.aliases.join(" ")}\n${source?.quote ?? ""}`,
   );
   const existing = activeHomeMemories(userId, agentId).find(
     (row) =>
@@ -327,13 +349,14 @@ export function saveHomeMemory(
       return editHomeMemory(userId, agentId, existing.id, {
         expectedRevision: existing.revision,
         content: value.content,
+        title: input.title ?? existing.title,
         scope: value.scope,
         kind: value.kind,
         placement: input.placement ?? existing.placement,
         aliases: input.aliases ?? existing.aliases,
         expiresAt: value.expiresAt,
       });
-    return serialize(existing);
+    return serializeHomeMemory(existing);
   }
   return db.transaction(() => {
     const stamp = now();
@@ -353,6 +376,7 @@ export function saveHomeMemory(
         ...value,
         placement,
         origin: source?.origin ?? "manual",
+        contributorId: userId,
         slot: source?.slot ?? "",
         sourceEventId: source?.eventId ?? null,
         sourceEntryId: source?.entryId ?? null,
@@ -366,7 +390,7 @@ export function saveHomeMemory(
     // An explicit save needs no invalidation: a pending batch that learns the same
     // fact later already loses on slot dedupe, so discarding the queue would only
     // throw away learning that has nothing to do with this note.
-    return serialize(row);
+    return serializeHomeMemory(row);
   });
 }
 
@@ -381,7 +405,10 @@ export function editHomeMemory(
   if (expectedRevision !== row.revision)
     throw new HomeError("This memory changed. Reload it before saving.", 409);
   const value = { ...row, ...patch };
-  rejectHomeMemorySecrets(agentId, `${value.scope}\n${value.content}\n${value.aliases.join(" ")}`);
+  rejectHomeMemorySecrets(
+    agentId,
+    `${value.title}\n${value.scope}\n${value.content}\n${value.aliases.join(" ")}`,
+  );
   if (value.pinned && (value.expiresAt === null || value.expiresAt > now())) {
     const pinned = activeHomeMemories(userId, agentId).filter(
       (note) => note.pinned && note.id !== memoryId,
@@ -396,7 +423,10 @@ export function editHomeMemory(
     availablePlacement(userId, agentId, { ...value, revision: row.revision + 1 }, false);
   return db.transaction(() => {
     const contentChanged =
-      patch.content !== undefined || patch.scope !== undefined || patch.kind !== undefined;
+      patch.content !== undefined ||
+      patch.title !== undefined ||
+      patch.scope !== undefined ||
+      patch.kind !== undefined;
     const updated = db
       .update(homeMemories)
       .set({
@@ -424,17 +454,17 @@ export function editHomeMemory(
     saveRevision(updated);
     if (updated.pinned) reservePinnedContext(userId, agentId);
     invalidateHomeCapture(userId, agentId);
-    return serialize(updated);
+    return serializeHomeMemory(updated);
   });
 }
 
-export function forgetHomeMemory(
+export async function forgetHomeMemory(
   userId: string,
   agentId: string,
   memoryId?: string,
   expectedRevision?: number,
 ) {
-  readHomeMemorySettings(userId, agentId);
+  const settings = readHomeMemorySettings(userId, agentId);
   if (memoryId) {
     const note = requireMemory(userId, agentId, memoryId);
     if (expectedRevision !== undefined && note.revision !== expectedRevision)
@@ -446,6 +476,8 @@ export function forgetHomeMemory(
       .run();
     invalidateHomeCapture(userId, agentId);
   });
+  if (settings.retrieval.enabled || settings.indexStatus)
+    await purgeHomeMemoryIndex(userId, agentId);
 }
 
 export function homeMemoryHistory(userId: string, agentId: string, memoryId: string) {
@@ -474,6 +506,7 @@ export function restoreHomeMemory(
   return editHomeMemory(userId, agentId, memoryId, {
     expectedRevision,
     content: previous.content,
+    title: previous.title ?? "",
     scope: previous.scope,
     kind: previous.kind,
     placement: previous.placement ?? "topic",
@@ -546,7 +579,7 @@ export function updateAutomaticHomeMemory(
     .returning()
     .get()!;
   saveRevision(updated);
-  return serialize(updated);
+  return serializeHomeMemory(updated);
 }
 
 export function placeAutomaticHomeMemory(
@@ -584,5 +617,5 @@ export function placeAutomaticHomeMemory(
     .returning()
     .get()!;
   saveRevision(updated);
-  return serialize(updated);
+  return serializeHomeMemory(updated);
 }

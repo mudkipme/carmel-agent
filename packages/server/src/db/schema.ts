@@ -230,6 +230,7 @@ export const agents = sqliteTable(
 );
 
 export const knowledgeConfigs = sqliteTable("knowledge_configs", {
+  memoriesMigrated: integer("memories_migrated", { mode: "boolean" }).notNull().default(false),
   agentId: text("agent_id")
     .primaryKey()
     .references(() => agents.id, { onDelete: "cascade" }),
@@ -588,6 +589,12 @@ export const homeMemorySettings = sqliteTable(
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
     mode: text("mode").$type<HomeMemoryMode>().notNull().default("manual"),
+    retrieval: text("retrieval", { mode: "json" })
+      .$type<KnowledgeSettings>()
+      .notNull()
+      .default({ enabled: false, acceleration: "auto" }),
+    indexStatus: text("index_status", { mode: "json" }).$type<KnowledgeStatus>(),
+    indexDirty: integer("index_dirty", { mode: "boolean" }).notNull().default(true),
     generation: integer("generation").notNull().default(0),
     learnAfter: integer("learn_after").notNull().default(0),
     lastCaptureAt: integer("last_capture_at"),
@@ -614,6 +621,9 @@ export const homeMemories = sqliteTable(
     kind: text("kind").$type<"preference" | "fact" | "decision">().notNull(),
     placement: text("placement").$type<"core" | "topic">().notNull().default("topic"),
     aliases: text("aliases", { mode: "json" }).$type<string[]>().notNull().default([]),
+    title: text("title").notNull().default(""),
+    contributorId: text("contributor_id"),
+    legacyRevision: text("legacy_revision"),
     slot: text("slot").notNull().default(""),
     pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
     origin: text("origin").$type<"manual" | "explicit" | "automatic">().notNull(),

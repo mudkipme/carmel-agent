@@ -24,7 +24,24 @@ A compact topic index (up to 40 topics / 2,000 characters) is supplied alongside
 core, so Home knows which subjects it remembers. Relevant passages from up to
 four topics load automatically before the reply, within 6,000 characters, with
 up to 600 characters of content per topic. Home can search for the full notes
-when it needs more detail. Alias and word matching can still miss paraphrases.
+when it needs more detail. Topic notes support a title and up to 20,000 characters.
+
+Home exposes one tool set: `memory_search`, `memory_read`, `memory_save`,
+`memory_edit`, and `memory_forget`. Search returns bounded excerpts; read supports
+line ranges, and edit supports exact replacements with a revision check. No
+memory tools are exposed to plain sessions or task runs.
+
+Open **Search and indexing** to enable a private index, select acceleration, and
+refresh keyword indexes, build embeddings, or prepare deep hybrid search. The
+model and runner configuration is shared with [Knowledge](knowledge.md), while
+index files and source mounts are separated by user and agent. Knowledge can
+remain disabled. Model downloads require the agent's network permission.
+
+Automatic topic recall uses semantic matches when available and falls back to
+keyword and alias matching. Core notes always load independently of indexing.
+Automatic retrieval has a short deadline so an unavailable embedding model does
+not hold up Home replies. Background maintenance refreshes enabled indexes and
+updates embeddings after the initial build; it runs offline.
 
 The panel shows **Default context**, its line and byte usage, and **Topics**.
 Use **Use as core**, **Move to topics**, or the editor to control placement and
@@ -66,5 +83,15 @@ restoring earlier revisions. **Forget** removes a note and its revision history
 from memory and search; it does not delete the original conversation. Expired
 notes remain inspectable but are excluded from recall.
 
-This is separate from the agent's [Knowledge](knowledge.md) page, whose saved notes may be
-shared with everyone using the agent.
+On upgrade, existing agent memories move to the agent owner's Home as manual
+topic notes. Titles, full content, timestamps, contributor attribution, and the
+legacy revision are preserved. Pending writes are recovered; deleted notes are
+not resurrected. Import verifies the new copy before retiring the old row, then
+removes the old files and shared index generations. Repeating migration does not
+create duplicates or overwrite a migrated note. Registered Knowledge documents
+remain registered and shared according to agent access.
+
+The Home database is canonical. Derived Markdown and qmd indexes live under
+`CARMEL_AGENT_DATA_DIR/home-memory/<hashed-user-agent>/`. Forgetting a memory
+purges that Home's derived index generations; rebuilding does not affect another
+user's index or the shared model cache.

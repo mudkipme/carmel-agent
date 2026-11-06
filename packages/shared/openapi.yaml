@@ -104,9 +104,9 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required:
-                - mode
               properties:
+                retrieval:
+                  $ref: "#/components/schemas/KnowledgeSettings"
                 mode:
                   type: string
                   enum:
@@ -122,7 +122,10 @@ paths:
                 type: object
                 required:
                   - mode
+                  - retrieval
                 properties:
+                  retrieval:
+                    $ref: "#/components/schemas/KnowledgeSettings"
                   mode:
                     type: string
                     enum:
@@ -132,6 +135,55 @@ paths:
         "400": *a1
         "404": *a1
         "409": *a1
+  /api/agents/{agentId}/home/memory/search:
+    parameters: *a2
+    post:
+      operationId: searchHomeMemory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query: { type: string, maxLength: 2000 }
+                mode: { type: string, enum: [fast, semantic, deep] }
+              additionalProperties: false
+      responses:
+        "200":
+          description: Private Home search results
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [memories, mode]
+                properties:
+                  memories:
+                    type: array
+                    items: { $ref: "#/components/schemas/HomeMemory" }
+                  mode: { type: string, enum: [fast, semantic, deep] }
+                  warning: { type: string }
+  /api/agents/{agentId}/home/memory/refresh:
+    parameters: *a2
+    post:
+      operationId: refreshHomeMemoryIndex
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                embed: { type: boolean }
+                allowDownloads: { type: boolean }
+                deep: { type: boolean }
+              additionalProperties: false
+      responses:
+        "202":
+          description: Private Home index refresh started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OK" }
   /api/agents/{agentId}/home/memory/{id}:
     parameters: &a4
       - *a3
@@ -496,7 +548,7 @@ paths:
       summary: Read the agent's knowledge settings
       description:
         Available to users who can access the agent when its read permission is enabled. Returns settings
-        without loading memories or starting a knowledge worker.
+        without scanning documents or starting a knowledge worker.
       responses:
         "200":
           description: Current knowledge settings, including defaults when not configured.
@@ -670,97 +722,6 @@ paths:
       responses:
         "202":
           description: refreshKnowledge
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OK"
-        "400":
-          $ref: "#/components/responses/Error"
-        "403":
-          $ref: "#/components/responses/Error"
-        "404":
-          $ref: "#/components/responses/Error"
-        "409":
-          $ref: "#/components/responses/Error"
-        "503":
-          $ref: "#/components/responses/Error"
-  /api/agents/{agentId}/knowledge/memories:
-    parameters:
-      - $ref: "#/components/parameters/AgentID"
-    post:
-      operationId: saveMemory
-      tags:
-        - Knowledge
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MemoryRequest"
-      responses:
-        "201":
-          description: saveMemory
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SavedMemory"
-        "400":
-          $ref: "#/components/responses/Error"
-        "403":
-          $ref: "#/components/responses/Error"
-        "404":
-          $ref: "#/components/responses/Error"
-        "409":
-          $ref: "#/components/responses/Error"
-        "503":
-          $ref: "#/components/responses/Error"
-  /api/agents/{agentId}/knowledge/memories/{memoryId}:
-    parameters:
-      - $ref: "#/components/parameters/AgentID"
-      - name: memoryId
-        in: path
-        required: true
-        schema: *a1
-    put:
-      operationId: editMemory
-      tags:
-        - Knowledge
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MemoryRequest"
-      responses:
-        "200":
-          description: editMemory
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SavedMemory"
-        "400":
-          $ref: "#/components/responses/Error"
-        "403":
-          $ref: "#/components/responses/Error"
-        "404":
-          $ref: "#/components/responses/Error"
-        "409":
-          $ref: "#/components/responses/Error"
-        "503":
-          $ref: "#/components/responses/Error"
-    delete:
-      operationId: forgetMemory
-      tags:
-        - Knowledge
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MemoryForgetRequest"
-      responses:
-        "200":
-          description: forgetMemory
           content:
             application/json:
               schema:
@@ -3398,7 +3359,10 @@ components:
         content: &a1
           type: string
           minLength: 1
-          maxLength: 2000
+          maxLength: 20000
+        title: &homeMemoryTitle
+          type: string
+          maxLength: 200
         scope: &a2
           type: string
           maxLength: 120
@@ -3431,6 +3395,7 @@ components:
         - expectedRevision
       properties:
         content: *a1
+        title: *homeMemoryTitle
         scope: *a2
         kind: *a3
         placement: *homeMemoryPlacement
@@ -3447,6 +3412,9 @@ components:
       required:
         - id
         - content
+        - title
+        - contributorId
+        - legacyRevision
         - scope
         - kind
         - placement
@@ -3462,6 +3430,7 @@ components:
         - updatedAt
       properties:
         content: *a1
+        title: *homeMemoryTitle
         scope: *a2
         kind: *a3
         placement: *homeMemoryPlacement
@@ -3478,6 +3447,12 @@ components:
             - manual
             - explicit
             - automatic
+        contributorId:
+          type: string
+          nullable: true
+        legacyRevision:
+          type: string
+          nullable: true
         sourceEventId:
           type: string
           nullable: true
@@ -3502,6 +3477,7 @@ components:
         - createdAt
       properties:
         content: *a1
+        title: *homeMemoryTitle
         scope: *a2
         kind: *a3
         placement: *homeMemoryPlacement
@@ -3514,6 +3490,9 @@ components:
       type: object
       required:
         - mode
+        - retrieval
+        - indexStatus
+        - embeddingModel
         - memories
         - total
         - coreIds
@@ -3530,6 +3509,12 @@ components:
             - off
             - manual
             - automatic
+        retrieval:
+          $ref: "#/components/schemas/KnowledgeSettings"
+        indexStatus:
+          $ref: "#/components/schemas/KnowledgeStatus"
+        embeddingModel:
+          type: string
         memories:
           type: array
           items:
@@ -3649,24 +3634,6 @@ components:
         - fromLine
         - maxLines
       additionalProperties: false
-    MemoryRequest:
-      type: object
-      properties:
-        title:
-          type: string
-          minLength: 1
-          maxLength: 200
-        content:
-          type: string
-          minLength: 1
-          maxLength: 20000
-        expectedRevision:
-          type: string
-          maxLength: 100
-      required:
-        - title
-        - content
-      additionalProperties: false
     KnowledgeRefreshRequest:
       type: object
       properties:
@@ -3683,15 +3650,6 @@ components:
         - embed
         - allowDownloads
         - deep
-      additionalProperties: false
-    MemoryForgetRequest:
-      type: object
-      properties:
-        expectedRevision:
-          type: string
-          minLength: 1
-      required:
-        - expectedRevision
       additionalProperties: false
     KnowledgeSource:
       type: object
@@ -3711,26 +3669,6 @@ components:
         description: *a1
         createdAt: &a2
           type: integer
-    SavedMemory:
-      type: object
-      required:
-        - id
-        - agentId
-        - title
-        - content
-        - revision
-        - contributorId
-        - createdAt
-        - updatedAt
-      properties:
-        id: *a1
-        agentId: *a1
-        title: *a1
-        content: *a1
-        revision: *a1
-        contributorId: *a1
-        createdAt: *a2
-        updatedAt: *a2
     KnowledgeDocument:
       type: object
       required:
@@ -3832,7 +3770,6 @@ components:
         - settings
         - sources
         - status
-        - memories
       properties:
         embeddingModel:
           type: string
@@ -3844,10 +3781,6 @@ components:
             $ref: "#/components/schemas/KnowledgeSource"
         status:
           $ref: "#/components/schemas/KnowledgeStatus"
-        memories:
-          type: array
-          items:
-            $ref: "#/components/schemas/SavedMemory"
     Error: { type: object, required: [error], properties: { error: { type: string } } }
     OK: { type: object, required: [ok], properties: { ok: { type: boolean } } }
     SetupStatus:

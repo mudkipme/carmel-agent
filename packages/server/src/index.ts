@@ -10,6 +10,8 @@ import {
   drainHomeEvents,
   recoverHomeEvents,
 } from "./services/home-events.ts";
+import { migrateAgentMemories } from "./services/home-memory-migration.ts";
+import { startHomeMemoryIndexes, stopHomeMemoryIndexes } from "./services/home-memory-search.ts";
 import { ensureHome } from "./services/agent-homes.ts";
 import { startHomeMemoryCapture, stopHomeMemoryCapture } from "./services/home-memory-capture.ts";
 import { imBindings, imIntegrations } from "./db/im-schema.ts";
@@ -70,6 +72,7 @@ pruneExpiredAuthSessions();
 // Finish removing old profile owners before accepting new sandbox requests.
 await reapManagedContainers();
 await reapKnowledgeWorkers();
+await migrateAgentMemories();
 void refreshConfiguredModelCatalogs()
   .then((errors) => {
     for (const [provider, error] of errors) {
@@ -95,6 +98,7 @@ await recoverHomeEvents();
 startHelperHosts();
 startHomeDispatcher();
 startHomeMemoryCapture();
+startHomeMemoryIndexes();
 startTaskScheduler();
 startImManager();
 startKnowledgeScheduler();
@@ -145,6 +149,7 @@ async function shutdown(signal: string) {
   }
   try {
     await stopKnowledgeScheduler();
+    await stopHomeMemoryIndexes();
     await shutdownKnowledgeWorkers();
     await shutdownContainerManager();
   } catch (error) {

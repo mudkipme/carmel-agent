@@ -87,6 +87,7 @@ import {
   buildHomeMemorySections,
   humanHomeMemoryEvent,
 } from "./home-memory-tools.ts";
+import { recallHomeMemories } from "../services/home-memory-search.ts";
 import { createSchedulingTools, buildSchedulingInstructions } from "./task-tools.ts";
 import { createUserRequestTools, userRequestInstructions } from "./user-request-tools.ts";
 import {
@@ -589,6 +590,11 @@ async function openRunHarness(
           agent.id,
           context.promptInput?.text ?? "",
           model.contextWindow,
+          await recallHomeMemories(
+            context.session.userId,
+            agent.id,
+            context.promptInput?.text ?? "",
+          ),
         )
       : {
           home_memory: undefined,

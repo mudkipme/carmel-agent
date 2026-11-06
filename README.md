@@ -89,7 +89,7 @@ For HTTPS, backups, reverse proxies, release pinning, and building custom images
 
 New agents start with file read, write, and edit enabled; bash and network are off until you turn them on. Turning on bash requires the runner image and a reachable container socket.
 
-Each agent also has a **Knowledge** page for searchable Markdown sources and saved memories shared by everyone who can use that agent. Enable it in Knowledge settings. qmd runs in a dedicated runner, with optional GPU acceleration; conversations remain separate. See [Knowledge and memory](docs/knowledge.md) for setup and current scope.
+Each agent has a **Knowledge** page for searchable reference documents shared according to agent access. Private **Memory** lives only in Home, with automatic core context and optional semantic topic retrieval. Both reuse the qmd runner and model cache while keeping indexes separate. See [Knowledge](docs/knowledge.md) and [Home memory](docs/home-memory.md).
 
 ## Users And Sharing
 

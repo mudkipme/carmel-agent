@@ -4,7 +4,6 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { eq } from "drizzle-orm";
-import type { ToolExecutionApi } from "@earendil-works/pi-durable";
 
 const root = await mkdtemp(join(tmpdir(), "carmel-knowledge-unit-"));
 process.env.CARMEL_AGENT_DATA_DIR = root;
@@ -12,7 +11,7 @@ process.env.DATABASE_URL = ":memory:";
 process.env.CARMEL_KNOWLEDGE_EMBED_MODEL = "";
 process.env.CARMEL_PODMAN_SOCKET = join(root, "unavailable.sock");
 const { db, initialize } = await import("../db/index.ts");
-const { agents, knowledgeMemories, knowledgeConfigs } = await import("../db/schema.ts");
+const { agents, knowledgeConfigs } = await import("../db/schema.ts");
 const { createSession, createUser } = await import("../test-support.ts");
 const { createKnowledgeTools } = await import("../runtime/knowledge/tools.ts");
 const { buildKnowledgeInstructions } = await import("../runtime/knowledge/prompt.ts");
@@ -130,85 +129,29 @@ async function fixture() {
   return { ...row, workspace };
 }
 
-test("knowledge prompts refresh shared metadata and honor visibility, tools, and permissions", async () => {
+test("Knowledge exposes only reference document tools and its catalog follows visibility", async () => {
   const a = await fixture(),
     bob = createUser();
-  const names = [
-    "knowledge_search",
-    "knowledge_read",
-    "memory_save",
-    "memory_edit",
-    "memory_forget",
-  ];
-  const prompt = () => buildKnowledgeInstructions(bob, a.agentId, names);
-  assert.match(prompt(), /No document directories are registered/);
-  assert.match(prompt(), /shared across all of its users/);
-  assert.match(prompt(), /load_builtin_skill with name="knowledge-search"/);
-  for (const tool of createKnowledgeTools(bob, a.agentId)) {
-    assert.match(tool.description!, /shared with all of its users/);
-  }
+  const names = ["knowledge_search", "knowledge_read"];
+  assert.deepEqual(
+    createKnowledgeTools(bob, a.agentId).map((tool) => tool.name),
+    names,
+  );
   const source = await knowledge.addKnowledgeSource(a.userId, a.agentId, {
     name: "Obsidian vault",
     path: a.workspace,
-    description: "Family budgets and plans",
+    description: "Reference documents",
   });
-  const memory = await knowledge.saveMemory(a.userId, a.agentId, {
-    title: "Not startup context",
-    content: "This full memory must only be retrieved explicitly.",
-  });
-  // Catalog generation must work without note files or the unavailable runner.
-  await rm(join(knowledge.knowledgeDir(a.agentId), "notes", `${memory.id}.md`));
-  assert.match(prompt(), /Obsidian vault/);
-  assert.match(prompt(), /Family budgets and plans/);
-  assert.ok(!prompt().includes(a.workspace));
-  assert.ok(!prompt().includes(memory.content));
-  assert.match(prompt(), /create with memory_save/);
-  assert.match(prompt(), /replace a whole memory with memory_save/);
-  assert.match(prompt(), /patch lines with memory_edit/);
-  assert.match(prompt(), /forget with memory_forget/);
-  assert.equal(buildKnowledgeInstructions(bob, a.agentId, ["codemode"]), "");
-
-  for (const [write, edit] of [
-    [false, false],
-    [true, false],
-    [false, true],
-  ]) {
-    db.update(agents)
-      .set({ permissions: { read: true, write, edit, bash: false, network: false } })
-      .where(eq(agents.id, a.agentId))
-      .run();
-    const text = prompt();
-    assert.equal(text.includes("create with memory_save"), write);
-    assert.equal(text.includes("replace a whole memory with memory_save"), edit);
-    assert.equal(text.includes("patch lines with memory_edit"), edit);
-    assert.equal(text.includes("forget with memory_forget"), edit);
-    assert.equal(text.includes("Memory is read-only"), !write && !edit);
-  }
+  const prompt = buildKnowledgeInstructions(bob, a.agentId, names);
+  assert.match(prompt, /Obsidian vault/);
+  assert.match(prompt, /Reference documents/);
+  assert.doesNotMatch(prompt, /memory_save|home_memory_|sourceId="memories"/);
+  assert.equal("memories" in (await knowledge.knowledgeOverview(a.userId, a.agentId)), false);
   await knowledge.deleteKnowledgeSource(a.userId, a.agentId, source.id);
-  assert.ok(!prompt().includes("Obsidian vault"));
+  assert.doesNotMatch(buildKnowledgeInstructions(bob, a.agentId, names), /Obsidian vault/);
   db.update(agents).set({ shared: false }).where(eq(agents.id, a.agentId)).run();
-  assert.equal(prompt(), "");
-  const privatePrompt = buildKnowledgeInstructions(a.userId, a.agentId, names);
-  assert.match(privatePrompt, /private agent and are available only to its owner/);
-  assert.doesNotMatch(privatePrompt, /shared|every user|all of its users/);
-  for (const tool of createKnowledgeTools(a.userId, a.agentId)) {
-    assert.match(tool.description!, /private agent and are available only to its owner/);
-    assert.doesNotMatch(tool.description!, /shared|every user|all of its users/);
-  }
-  db.update(agents)
-    .set({ permissions: { read: false, write: true, edit: true, bash: false, network: false } })
-    .where(eq(agents.id, a.agentId))
-    .run();
-  assert.equal(buildKnowledgeInstructions(a.userId, a.agentId, names), "");
-  db.update(agents)
-    .set({ permissions: { read: true, write: true, edit: true, bash: false, network: false } })
-    .where(eq(agents.id, a.agentId))
-    .run();
-  await knowledge.saveKnowledgeSettings(a.userId, a.agentId, {
-    enabled: false,
-    acceleration: "cpu",
-  });
-  assert.equal(buildKnowledgeInstructions(a.userId, a.agentId, names), "");
+  assert.equal(buildKnowledgeInstructions(bob, a.agentId, names), "");
+  assert.equal(buildKnowledgeInstructions(a.userId, a.agentId, ["codemode"]), "");
 });
 
 test("the knowledge skill loads without bash or network and rechecks settings, read permission, and visibility", async () => {
@@ -309,188 +252,6 @@ test("source catalogs are bounded and keep source-controlled text inside JSON re
   assert.match(prompt, /Search without sourceId to include them/);
 });
 
-test("agent memory is shared across users, with conflict checks and immediate forgetting", async () => {
-  const a = await fixture(),
-    bob = createUser();
-  const saved = await knowledge.saveMemory(a.userId, a.agentId, {
-    title: "Budget meeting",
-    content: "Alice and Bob meet on Sunday.",
-  });
-  assert.equal(
-    (await knowledge.knowledgeOverview(bob, a.agentId)).memories[0]?.contributorId,
-    a.userId,
-  );
-  const updated = await knowledge.saveMemory(
-    bob,
-    a.agentId,
-    {
-      title: saved.title,
-      content: "The family meets on Monday.",
-      expectedRevision: saved.revision,
-    },
-    saved.id,
-  );
-  assert.equal(updated.contributorId, bob);
-  await assert.rejects(
-    knowledge.saveMemory(
-      a.userId,
-      a.agentId,
-      {
-        title: saved.title,
-        content: "Stale edit",
-        expectedRevision: saved.revision,
-      },
-      saved.id,
-    ),
-    { status: 409 },
-  );
-  const doc = await knowledge.readKnowledge(a.userId, a.agentId, {
-    sourceId: "memories",
-    path: `${saved.id}.md`,
-  });
-  assert.match(doc.content, /Monday/);
-  assert.equal(doc.revision, updated.revision);
-  // A previous index generation must not retain forgotten content.
-  const index = join(knowledge.knowledgeDir(a.agentId), "index");
-  await mkdir(index);
-  await writeFile(join(index, "old.sqlite"), "derived memory");
-  await knowledge.forgetMemory(a.userId, a.agentId, saved.id, updated.revision);
-  await assert.rejects(
-    knowledge.readKnowledge(bob, a.agentId, {
-      sourceId: "memories",
-      path: `${saved.id}.md`,
-    }),
-    { status: 404 },
-  );
-  await assert.rejects(readFile(join(index, "old.sqlite")), { code: "ENOENT" });
-  assert.equal((await knowledge.knowledgeOverview(bob, a.agentId)).memories.length, 0);
-});
-
-test("memory edits replace unique lines and leave the rest of the note unchanged", async () => {
-  const a = await fixture(),
-    bob = createUser();
-  const saved = await knowledge.saveMemory(a.userId, a.agentId, {
-    title: "Budget meeting",
-    content: "Alice and Bob meet on Sunday.\nThey review the household budget.\nCarol is away.",
-  });
-  const path = join(knowledge.knowledgeDir(a.agentId), "notes", `${saved.id}.md`);
-  const original = await readFile(path, "utf8");
-  const updated = await knowledge.editMemory(bob, a.agentId, saved.id, {
-    expectedRevision: saved.revision,
-    edits: [
-      { oldText: "Sunday", newText: "Monday" },
-      { oldText: "Carol is away.", newText: "Carol joins by phone." },
-    ],
-  });
-  assert.equal(updated.contributorId, bob);
-  assert.equal(updated.title, saved.title);
-  assert.notEqual(updated.revision, saved.revision);
-  assert.match(updated.content, /meet on Monday/);
-  assert.match(updated.content, /They review the household budget/);
-  assert.match(updated.content, /Carol joins by phone/);
-  assert.doesNotMatch(updated.content, /Sunday|Carol is away/);
-  const stored = await readFile(path, "utf8");
-  assert.match(stored, /^# Budget meeting\n\n/);
-  assert.equal(
-    (
-      await knowledge.readKnowledge(a.userId, a.agentId, {
-        sourceId: "memories",
-        path: `${saved.id}.md`,
-      })
-    ).revision,
-    updated.revision,
-  );
-
-  const renamed = await knowledge.editMemory(a.userId, a.agentId, saved.id, {
-    expectedRevision: updated.revision,
-    edits: [{ oldText: "# Budget meeting", newText: "# Monday meeting" }],
-  });
-  assert.equal(renamed.title, "Monday meeting");
-  assert.match(renamed.content, /They review the household budget/);
-
-  const unchanged = await readFile(path, "utf8");
-  for (const edits of [
-    [{ oldText: "Saturday", newText: "Monday" }],
-    [{ oldText: "Monday", newText: "Monday" }],
-    [{ oldText: "e", newText: "our" }],
-    [
-      { oldText: "Alice and Bob", newText: "The family" },
-      { oldText: "Bob meet", newText: "family meets" },
-    ],
-    [{ oldText: "Carol joins by phone.", newText: "x".repeat(20_000) }],
-    [{ oldText: "# Monday meeting\n\n", newText: "No heading\n" }],
-  ]) {
-    await assert.rejects(
-      knowledge.editMemory(a.userId, a.agentId, saved.id, {
-        expectedRevision: renamed.revision,
-        edits,
-      }),
-      { status: 400 },
-    );
-    assert.equal(await readFile(path, "utf8"), unchanged);
-  }
-  await assert.rejects(
-    knowledge.editMemory(a.userId, a.agentId, saved.id, {
-      expectedRevision: saved.revision,
-      edits: [{ oldText: "Monday", newText: "Tuesday" }],
-    }),
-    { status: 409 },
-  );
-  await writeFile(path, original);
-  await assert.rejects(
-    knowledge.editMemory(a.userId, a.agentId, saved.id, {
-      expectedRevision: renamed.revision,
-      edits: [{ oldText: "Monday", newText: "Tuesday" }],
-    }),
-    { status: 409 },
-  );
-  await writeFile(path, unchanged);
-
-  db.update(agents)
-    .set({
-      permissions: { read: true, write: true, edit: false, bash: false, network: false },
-    })
-    .where(eq(agents.id, a.agentId))
-    .run();
-  await assert.rejects(
-    knowledge.editMemory(a.userId, a.agentId, saved.id, {
-      expectedRevision: renamed.revision,
-      edits: [{ oldText: "Monday", newText: "Tuesday" }],
-    }),
-    { status: 403 },
-  );
-  assert.equal(
-    createKnowledgeTools(a.userId, a.agentId).some((tool) => tool.name === "memory_edit"),
-    false,
-  );
-
-  db.update(agents)
-    .set({
-      permissions: { read: true, write: true, edit: true, bash: false, network: false },
-    })
-    .where(eq(agents.id, a.agentId))
-    .run();
-  const tool = createKnowledgeTools(a.userId, a.agentId).find(
-    (item) => item.name === "memory_edit",
-  );
-  assert.ok(tool);
-  const { TEST_CONTEXT } = await import("../effectors/testing/pi-harness.ts");
-  const repaired = await tool.execute(
-    {
-      memoryId: saved.id,
-      expectedRevision: renamed.revision,
-      edits: JSON.stringify([{ oldText: "joins by phone", newText: "calls in" }]),
-      oldText: "household",
-      newText: "family",
-    },
-    {} as ToolExecutionApi,
-    TEST_CONTEXT,
-  );
-  assert.match(JSON.stringify(repaired.details), /calls in/);
-  assert.match(JSON.stringify(repaired.details), /family budget/);
-  assert.doesNotMatch(JSON.stringify(repaired.details), /household|joins by phone/);
-});
-
 test("knowledge rechecks agent sharing and permissions; configuration remains owner-only", async () => {
   const a = await fixture(),
     bob = createUser();
@@ -504,7 +265,7 @@ test("knowledge rechecks agent sharing and permissions; configuration remains ow
   );
   assert.deepEqual(
     createKnowledgeTools(bob, a.agentId).map((t) => t.name),
-    ["knowledge_search", "knowledge_read", "memory_save", "memory_edit", "memory_forget"],
+    ["knowledge_search", "knowledge_read"],
   );
   db.update(agents).set({ shared: false }).where(eq(agents.id, a.agentId)).run();
   assert.throws(() => knowledge.readKnowledgeSettings(bob, a.agentId), { status: 404 });
@@ -524,13 +285,6 @@ test("knowledge rechecks agent sharing and permissions; configuration remains ow
     })
     .where(eq(agents.id, a.agentId))
     .run();
-  await assert.rejects(
-    knowledge.saveMemory(a.userId, a.agentId, {
-      title: "Denied",
-      content: "No write permission",
-    }),
-    { status: 403 },
-  );
   assert.deepEqual(
     createKnowledgeTools(a.userId, a.agentId).map((t) => t.name),
     ["knowledge_search", "knowledge_read"],
@@ -586,32 +340,6 @@ test("source reads reject traversal, escaping symlinks and disconnected referenc
   await assert.rejects(knowledge.readKnowledge(a.userId, a.agentId, ref), {
     status: 404,
   });
-});
-
-test("pending memory writes recover before subsequent mutations without indexing partial files", async () => {
-  const a = await fixture();
-  const saved = await knowledge.saveMemory(a.userId, a.agentId, {
-    title: "Original",
-    content: "One",
-  });
-  const path = join(knowledge.knowledgeDir(a.agentId), "notes", `${saved.id}.md`);
-  await rm(path);
-  db.update(knowledgeMemories)
-    .set({ pendingContent: "# Original\n\nRecovered\n" })
-    .where(eq(knowledgeMemories.id, saved.id))
-    .run();
-  await assert.rejects(
-    knowledge.readKnowledge(a.userId, a.agentId, {
-      sourceId: "memories",
-      path: `${saved.id}.md`,
-    }),
-    { status: 404 },
-  );
-  await knowledge.saveMemory(a.userId, a.agentId, {
-    title: "Next",
-    content: "Two",
-  });
-  assert.match(await readFile(path, "utf8"), /Recovered/);
 });
 
 test("an unavailable runner produces an actionable error without a host qmd fallback", async () => {

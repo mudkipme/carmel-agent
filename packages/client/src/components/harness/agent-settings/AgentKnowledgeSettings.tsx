@@ -86,7 +86,7 @@ function KnowledgeSettingsForm({
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="knowledge-enabled">
-            <Trans>Knowledge and memory</Trans>
+            <Trans>Knowledge</Trans>
           </FieldLabel>
           <Select
             value={enabled ? "on" : "off"}
@@ -106,12 +106,6 @@ function KnowledgeSettingsForm({
               </SelectGroup>
             </SelectContent>
           </Select>
-          <FieldDescription>
-            <Trans>
-              Agents save memories only when asked. Existing memories are retained when switched
-              off.
-            </Trans>
-          </FieldDescription>
         </Field>
         <Field>
           <FieldLabel htmlFor="knowledge-acceleration">

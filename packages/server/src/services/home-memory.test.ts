@@ -345,7 +345,7 @@ test("manual mode is default; human Home provenance alone enables tools; Off rem
   );
   assert.equal(
     createHomeMemoryTools(value.userId, value.agentId, value.sessionId, human.id).length,
-    4,
+    5,
   );
   assert.deepEqual(
     createHomeMemoryTools(value.userId, value.agentId, value.sessionId, background.id),
@@ -481,7 +481,7 @@ test("topics are indexed by scope and aliases and recalled before the model need
   });
   assert.deepEqual(searchHomeMemories(value.userId, value.agentId, "dinner"), []);
   assert.equal(searchHomeMemories(value.userId, value.agentId, "supper")[0]?.id, note.id);
-  forgetHomeMemory(value.userId, value.agentId, note.id, updated.revision);
+  await forgetHomeMemory(value.userId, value.agentId, note.id, updated.revision);
   assert.equal(
     buildHomeMemorySections(value.userId, value.agentId, "Any supper ideas?", 100000)
       .home_memory_recall,
@@ -571,7 +571,7 @@ test("dated capture expires automatically and rejects uncertain or already expir
   assert.equal(expired.home_memory_recall, undefined);
 });
 
-test("revision-safe edits and forgetting purge search and all revision text", () => {
+test("revision-safe edits and forgetting purge search and all revision text", async () => {
   const value = fixture();
   const note = saveHomeMemory(value.userId, value.agentId, { content: "Saffron uses PostgreSQL" });
   const edited = editHomeMemory(value.userId, value.agentId, note.id, {
@@ -587,10 +587,10 @@ test("revision-safe edits and forgetting purge search and all revision text", ()
       }),
     /changed/,
   );
-  assert.throws(() => forgetHomeMemory(value.userId, value.agentId, note.id, 1), /changed/);
+  await assert.rejects(forgetHomeMemory(value.userId, value.agentId, note.id, 1), /changed/);
   const restored = restoreHomeMemory(value.userId, value.agentId, note.id, 1, edited.revision);
   assert.equal(restored.content, note.content);
-  forgetHomeMemory(value.userId, value.agentId, note.id, restored.revision);
+  await forgetHomeMemory(value.userId, value.agentId, note.id, restored.revision);
   assert.deepEqual(searchHomeMemories(value.userId, value.agentId, "Saffron"), []);
   assert.deepEqual(readHomeMemoryOverview(value.userId, value.agentId).coreIds, []);
   assert.equal(
@@ -673,7 +673,7 @@ test("native Home input admission binds capture to an exact message and reset pr
   );
 });
 
-test("capture rejects forged evidence, questions, background notices and results pending before forget", () => {
+test("capture rejects forged evidence, questions, background notices and results pending before forget", async () => {
   const value = fixture();
   const settings = setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
   const event = source(value, "For Carmel, I prefer minimal UI labels.");
@@ -708,7 +708,7 @@ test("capture rejects forged evidence, questions, background notices and results
   );
   const pending = source(value, event.prompt.text);
   recordHomeMemoryInput(pending, "durable:4");
-  forgetHomeMemory(value.userId, value.agentId);
+  await forgetHomeMemory(value.userId, value.agentId);
   assert.deepEqual(
     commitHomeCapture(
       value.userId,
@@ -1170,7 +1170,7 @@ test("Home memory tool results stay bounded when many long notes match", async (
     });
   const models = fauxHarnessModels();
   models.faux.setResponses([
-    fauxAssistantMessage([fauxToolCall("home_memory_search", { query: "Saffron" })], {
+    fauxAssistantMessage([fauxToolCall("memory_search", { query: "Saffron" })], {
       stopReason: "toolUse",
     }),
     fauxAssistantMessage("Here are the relevant choices."),
@@ -1189,6 +1189,7 @@ test("Home memory tool results stay bounded when many long notes match", async (
       .filter((part) => part.type === "text")
       .map((part) => part.text)
       .join("");
+    assert.ok(text.startsWith("{"), text);
     const output = JSON.parse(text);
     assert.equal(output.truncated, true);
     assert.ok(output.memories.length > 0 && output.memories.length <= 8);

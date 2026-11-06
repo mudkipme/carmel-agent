@@ -215,12 +215,24 @@ test(
         "Remember when asked",
       );
       click("button", "Add");
+      browser("fill", "#home-memory-title", "Carmel UI preference");
       browser("fill", "#home-memory-content", "Prefer minimal UI labels for Carmel.");
       browser("fill", "#home-memory-scope", "Carmel UI");
       browser("fill", "#home-memory-aliases", "layout, labels");
       click("button", "Save memory");
       browser("wait", "--text", "Prefer minimal UI labels for Carmel.");
       browser("wait", '[aria-label="Topics"]');
+      click("combobox", "Search mode");
+      click("option", "Semantic");
+      browser("fill", '[aria-label="Search memory"]', "Carmel");
+      browser("wait", "--text", "Embeddings are not ready; using keyword search.");
+      browser("wait", "--text", "Prefer minimal UI labels for Carmel.");
+      browser("fill", '[aria-label="Search memory"]', "");
+      click("combobox", "Search mode");
+      click("option", "Fast");
+      clickSelector("details > summary");
+      clickSelector("#memory-indexing");
+      browser("wait", '#memory-indexing[data-state="checked"]');
       click("button", "Use as core");
       browser("wait", '[aria-label="Default context"]');
       browser("wait", "--text", "/ 200 lines");
@@ -243,7 +255,12 @@ test(
       click("button", "New context");
       click("button", "Memory");
       browser("wait", "--text", "Prefer minimal UI labels for Carmel.");
+      assert.equal(
+        evaluate('document.querySelector("#memory-indexing").getAttribute("data-state")'),
+        "checked",
+      );
       click("button", "Edit");
+      assert.equal(value("#home-memory-title"), "Carmel UI preference");
       assert.equal(value("#home-memory-scope"), "Carmel UI");
       assert.equal(value("#home-memory-aliases"), "layout, labels");
       browser("fill", "#home-memory-content", "Prefer descriptive UI labels for Carmel.");
@@ -257,6 +274,9 @@ test(
       );
       click("button", "Forget");
       browser("wait", "--text", "No memories");
+      clickSelector("details > summary");
+      clickSelector("#memory-indexing");
+      browser("wait", '#memory-indexing[data-state="unchecked"]');
       assert.equal(
         evaluate("document.querySelector('[aria-label=\"Memory history\"]') === null"),
         true,
@@ -2131,69 +2151,51 @@ test(
   },
 );
 
-test(
-  "knowledge settings and shared memories remain editable after reloading",
-  { timeout: 90_000 },
-  () => {
-    browser("set", "viewport", "1280", "900");
-    open(agentPath("knowledge"));
-    browser("wait", "--text", "Knowledge is off");
-    assert.doesNotMatch(snapshot(), /link "Knowledge"/);
-    click("link", "Knowledge settings");
-    browser("wait", "--url", `**${agentPath("settings/knowledge")}`);
-    browser("wait", "#knowledge-model");
-    assert.equal(evaluate<string>('document.querySelector("h1").textContent'), "Agent Settings");
-    assert.equal(evaluate<number>('document.querySelectorAll("footer button").length'), 0);
-    assert.equal(evaluate<boolean>('document.querySelector("#knowledge-model").readOnly'), true);
-    clickSelector("#knowledge-enabled");
-    click("option", "On");
-    click("button", "Save settings");
-    browser("wait", "--text", "Knowledge settings saved.");
-    browser("open", `${fixture.url}${agentPath("settings/knowledge")}`);
-    browser("wait", "#knowledge-enabled");
-    assert.match(snapshot(), /combobox "Knowledge and memory".*On/);
-    click("link", "General");
-    click("link", "Knowledge");
-    browser("wait", "#knowledge-enabled");
-    click("link", "Open knowledge");
-    browser("wait", `nav[aria-label="Agent work"] a[href="${agentPath("knowledge")}"]`);
-    open(`/agents/${fixture.secondAgentId}/knowledge`);
-    browser("wait", "--text", "Knowledge is off");
-    assert.doesNotMatch(snapshot(), /link "Knowledge"/);
-    open(agentPath("knowledge"));
-    browser("wait", `nav[aria-label="Agent work"] a[href="${agentPath("knowledge")}"]`);
-    click("button", "New memory");
-    browser("find", "label", "Title", "fill", "Family budget meeting");
-    browser("find", "label", "Memory", "fill", "Alice and Bob review their budget on Sunday.");
-    click("button", "Save memory");
-    browser("wait", "--text", "Alice and Bob review their budget on Sunday.");
-    open(agentPath("knowledge"));
-    click("button", "Edit memory");
-    assert.equal(value("#memory-content").trim(), "Alice and Bob review their budget on Sunday.");
-    browser("fill", "#memory-content", "Alice and Bob review their budget on Monday.");
-    click("button", "Save memory");
-    browser("wait", "--text", "Alice and Bob review their budget on Monday.");
-    browser("set", "viewport", "375", "812");
-    assert.equal(
-      evaluate<boolean>("document.documentElement.scrollWidth <= window.innerWidth"),
-      true,
-    );
-    click("button", "Forget memory");
-    browser("wait", '[role="alertdialog"]');
-    clickSelector('[role="alertdialog"] button[data-variant="destructive"]');
-    browser("wait", "--text", "No saved memories");
-    browser("set", "viewport", "1280", "900");
-    click("link", "Knowledge settings");
-    browser("wait", "#knowledge-enabled");
-    clickSelector("#knowledge-enabled");
-    click("option", "Off");
-    click("button", "Save settings");
-    browser("wait", "--text", "Knowledge settings saved.");
-    click("link", "Open knowledge");
-    browser("wait", "--text", "Knowledge is off");
-    assert.doesNotMatch(snapshot(), /link "Knowledge"/);
-  },
-);
+test("Knowledge settings persist and Knowledge has no memory editor", { timeout: 90_000 }, () => {
+  browser("set", "viewport", "1280", "900");
+  open(agentPath("knowledge"));
+  browser("wait", "--text", "Knowledge is off");
+  assert.doesNotMatch(snapshot(), /link "Knowledge"/);
+  click("link", "Knowledge settings");
+  browser("wait", "--url", `**${agentPath("settings/knowledge")}`);
+  browser("wait", "#knowledge-model");
+  assert.equal(evaluate<string>('document.querySelector("h1").textContent'), "Agent Settings");
+  assert.equal(evaluate<number>('document.querySelectorAll("footer button").length'), 0);
+  assert.equal(evaluate<boolean>('document.querySelector("#knowledge-model").readOnly'), true);
+  clickSelector("#knowledge-enabled");
+  click("option", "On");
+  click("button", "Save settings");
+  browser("wait", "--text", "Knowledge settings saved.");
+  browser("open", `${fixture.url}${agentPath("settings/knowledge")}`);
+  browser("wait", "#knowledge-enabled");
+  assert.match(snapshot(), /combobox "Knowledge".*On/);
+  click("link", "General");
+  click("link", "Knowledge");
+  browser("wait", "#knowledge-enabled");
+  click("link", "Open knowledge");
+  browser("wait", `nav[aria-label="Agent work"] a[href="${agentPath("knowledge")}"]`);
+  open(`/agents/${fixture.secondAgentId}/knowledge`);
+  browser("wait", "--text", "Knowledge is off");
+  assert.doesNotMatch(snapshot(), /link "Knowledge"/);
+  open(agentPath("knowledge"));
+  browser("wait", `nav[aria-label="Agent work"] a[href="${agentPath("knowledge")}"]`);
+  assert.doesNotMatch(snapshot(), /New memory|Saved memories|Edit memory/);
+  browser("set", "viewport", "375", "812");
+  assert.equal(
+    evaluate<boolean>("document.documentElement.scrollWidth <= window.innerWidth"),
+    true,
+  );
+  browser("set", "viewport", "1280", "900");
+  click("link", "Knowledge settings");
+  browser("wait", "#knowledge-enabled");
+  clickSelector("#knowledge-enabled");
+  click("option", "Off");
+  click("button", "Save settings");
+  browser("wait", "--text", "Knowledge settings saved.");
+  click("link", "Open knowledge");
+  browser("wait", "--text", "Knowledge is off");
+  assert.doesNotMatch(snapshot(), /link "Knowledge"/);
+});
 
 test("Home shows compact issue cards and opens evidence in the same app while preserving drafts", () => {
   const homePath = `/agents/${fixture.secondAgentId}/home`;

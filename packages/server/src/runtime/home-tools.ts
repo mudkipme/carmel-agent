@@ -133,7 +133,7 @@ export function buildHomeInstructions(agentId: string, availableToolNames: reado
     `Report outcomes or questions briefly and conversationally; link /agents/${agentId}/tasks/:taskId when useful. Keep checks, artifacts, logs, evidence, and uncertainty on the task page. Only the user accepts completed work.`,
     "Proactively use session_search and focused session_read excerpts for relevant earlier conversations, decisions, preferences, people, and ongoing work unless verified in this exchange. Search before asking the user to repeat context. After compaction/reset or revisiting old topics, treat summaries as pointers and retrieve supporting detail. Reuse current evidence; avoid unrelated searches and reloading unchanged history.",
     tools.has("knowledge_search") && tools.has("knowledge_read")
-      ? "Agent Knowledge is separate from private Home memory and may be shared. Use knowledge_search for registered documents and explicitly shared notes, then verify with knowledge_read. Use Home memory tools for private saved details, and session history for remaining private context."
+      ? "Agent Knowledge is separate from private Home memory and may be shared. Use knowledge_search for registered documents, then verify with knowledge_read. Use memory tools for private saved details, and session history for remaining private context."
       : undefined,
   ]
     .filter(Boolean)

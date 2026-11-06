@@ -4,6 +4,7 @@ import {
   homeMemoryInputSchema,
   homeMemoryPatchSchema,
   homeMemorySettingsSchema,
+  homeMemorySearchSchema,
 } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
 import { jsonValidator } from "../validation.ts";
@@ -17,6 +18,8 @@ import {
   homeMemoryHistory,
   restoreHomeMemory,
 } from "../services/home-memory.ts";
+
+import { refreshHomeMemoryIndex, searchHomeMemory } from "../services/home-memory-search.ts";
 
 export function createHomeMemoryRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
@@ -41,8 +44,34 @@ export function createHomeMemoryRoutes() {
       c.req.param("agentId"),
       c.req.valid("json"),
     );
-    return c.json({ mode: settings.mode });
+    return c.json({ mode: settings.mode, retrieval: settings.retrieval });
   });
+  route.post(`${path}/search`, jsonValidator(homeMemorySearchSchema), async (c) =>
+    c.json(
+      await searchHomeMemory(
+        c.get("user").id,
+        c.req.param("agentId"),
+        c.req.valid("json"),
+        c.req.raw.signal,
+      ),
+    ),
+  );
+  route.post(
+    `${path}/refresh`,
+    jsonValidator(
+      z
+        .object({
+          embed: z.boolean().default(false),
+          allowDownloads: z.boolean().default(false),
+          deep: z.boolean().default(false),
+        })
+        .strict(),
+    ),
+    async (c) => {
+      await refreshHomeMemoryIndex(c.get("user").id, c.req.param("agentId"), c.req.valid("json"));
+      return c.json({ ok: true }, 202);
+    },
+  );
   route.post(path, jsonValidator(homeMemoryInputSchema), (c) =>
     c.json(saveHomeMemory(c.get("user").id, c.req.param("agentId"), c.req.valid("json")), 201),
   );
@@ -82,15 +111,15 @@ export function createHomeMemoryRoutes() {
       );
     },
   );
-  route.delete(`${path}/:id`, (c) => {
+  route.delete(`${path}/:id`, async (c) => {
     const revision = Number(c.req.query("revision"));
     if (!Number.isSafeInteger(revision) || revision < 1)
       return c.json({ error: "A memory revision is required." }, 400);
-    forgetHomeMemory(c.get("user").id, c.req.param("agentId"), c.req.param("id"), revision);
+    await forgetHomeMemory(c.get("user").id, c.req.param("agentId"), c.req.param("id"), revision);
     return c.json({ ok: true });
   });
-  route.delete(path, (c) => {
-    forgetHomeMemory(c.get("user").id, c.req.param("agentId"));
+  route.delete(path, async (c) => {
+    await forgetHomeMemory(c.get("user").id, c.req.param("agentId"));
     return c.json({ ok: true });
   });
   return route;

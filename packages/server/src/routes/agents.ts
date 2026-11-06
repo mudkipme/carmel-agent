@@ -30,6 +30,8 @@ import { readActiveRunLeaseForAgent } from "../services/active-run-lease.ts";
 import { jsonValidator } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import { deleteAgentSecretsForAgent } from "../services/agent-secrets.ts";
+import { homeMemorySettings } from "../db/schema.ts";
+import { purgeHomeMemoryIndex } from "../services/home-memory-index.ts";
 import { deleteAgentKnowledge } from "../services/knowledge.ts";
 import { deleteAgentTasksForAgent } from "../services/agent-tasks.ts";
 import { deleteIssuesForAgent } from "../services/issues.ts";
@@ -135,6 +137,12 @@ export function createAgentRoutes() {
     deleteIssuesForAgent(agentId);
     deleteAgentSecretsForAgent(agentId);
     await deleteAgentKnowledge(agentId);
+    for (const home of db
+      .select()
+      .from(homeMemorySettings)
+      .where(eq(homeMemorySettings.agentId, agentId))
+      .all())
+      await purgeHomeMemoryIndex(home.userId, agentId);
     const deletedSessions = db.select().from(sessions).where(eq(sessions.agentId, agentId)).all();
     await deletePiSessions(deletedSessions);
     db.delete(agentHomes).where(eq(agentHomes.agentId, agentId)).run();

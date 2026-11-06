@@ -4,7 +4,22 @@ import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
 import { BrainIcon, PinIcon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import type { HomeMemory, HomeMemoryMode, HomeMemoryRevision } from "@carmel-agent/shared";
+import type {
+  HomeMemory,
+  HomeMemoryMode,
+  HomeMemoryRevision,
+  KnowledgeSettings,
+} from "@carmel-agent/shared";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+} from "@/components/ui/select";
+import { statusLabel } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,6 +53,8 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
   const [busy, setBusy] = useState(false);
   const [editor, setEditor] = useState<HomeMemory | "new">();
   const [content, setContent] = useState("");
+  const [title, setTitle] = useState("");
+  const [searchMode, setSearchMode] = useState<"fast" | "semantic" | "deep">("fast");
   const [scope, setScope] = useState("");
   const [aliases, setAliases] = useState("");
   const [kind, setKind] = useState<HomeMemory["kind"]>("fact");
@@ -57,11 +74,17 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
     topics: ["homes"],
     load: (signal) => api.homeMemory(agentId, query, offset, signal),
   });
+  const search = useRemoteResource({
+    key: `home-memory-search:${userId}:${agentId}:${query}:${searchMode}`,
+    enabled: open && Boolean(query.trim()) && searchMode !== "fast",
+    topics: ["homes"],
+    load: (signal) => api.searchHomeMemory(agentId, { query, mode: searchMode }, signal),
+  });
   const act = async (operation: () => Promise<unknown>) => {
     setBusy(true);
     try {
       await operation();
-      await Promise.all([overview.refresh(), refreshNotices()]);
+      await Promise.all([overview.refresh(), refreshNotices(), search.refresh()]);
     } catch (error) {
       showError(i18n._("Memory action failed"), error);
     } finally {
@@ -111,6 +134,7 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
     setEditor(note);
     setHistory(undefined);
     setContent(note === "new" ? "" : note.content);
+    setTitle(note === "new" ? "" : note.title);
     setScope(note === "new" ? "" : note.scope);
     setAliases(note === "new" ? "" : note.aliases.join(", "));
     setKind(note === "new" ? "fact" : note.kind);
@@ -123,6 +147,8 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
     );
   };
   const data = overview.data;
+  const memories =
+    searchMode !== "fast" && query.trim() ? (search.data?.memories ?? []) : (data?.memories ?? []);
   useEffect(() => {
     if (data && history && !data.memories.some((note) => note.id === history.note.id))
       setHistory(undefined);
@@ -215,6 +241,7 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                     void act(async () => {
                       const input = {
                         content,
+                        title,
                         scope,
                         aliases: aliases
                           .split(/[,，]/u)
@@ -236,6 +263,17 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                 >
                   <FieldGroup>
                     <Field>
+                      <FieldLabel htmlFor="home-memory-title">
+                        <Trans>Title</Trans>
+                      </FieldLabel>
+                      <Input
+                        id="home-memory-title"
+                        value={title}
+                        onChange={(event) => setTitle(event.target.value)}
+                        maxLength={200}
+                      />
+                    </Field>
+                    <Field>
                       <FieldLabel htmlFor="home-memory-content">
                         <Trans>Memory</Trans>
                       </FieldLabel>
@@ -243,7 +281,7 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                         id="home-memory-content"
                         value={content}
                         onChange={(event) => setContent(event.target.value)}
-                        maxLength={2000}
+                        maxLength={20000}
                         required
                       />
                     </Field>
@@ -341,8 +379,9 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                 </form>
               ) : (
                 <>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Input
+                      className="min-w-36 flex-1"
                       aria-label={i18n._("Search memory")}
                       placeholder={i18n._("Search memory")}
                       value={query}
@@ -351,6 +390,30 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                         setOffset(0);
                       }}
                     />
+                    <Select
+                      value={searchMode}
+                      onValueChange={(value) => {
+                        setSearchMode(value as typeof searchMode);
+                        setOffset(0);
+                      }}
+                    >
+                      <SelectTrigger className="w-32" aria-label={i18n._("Search mode")}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="fast">
+                            <Trans>Fast</Trans>
+                          </SelectItem>
+                          <SelectItem value="semantic">
+                            <Trans>Semantic</Trans>
+                          </SelectItem>
+                          <SelectItem value="deep">
+                            <Trans>Deep</Trans>
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
                     <Button variant="outline" onClick={() => edit("new")}>
                       <PlusIcon data-icon="inline-start" />
                       <Trans>Add</Trans>
@@ -367,7 +430,124 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                       },
                     )}
                   </p>
-                  {!data.memories.length ? (
+                  {search.error ? (
+                    <ResourceError error={search.error} onRetry={search.refresh} />
+                  ) : null}
+                  {search.data?.warning && query.trim() && searchMode !== "fast" ? (
+                    <Alert>
+                      <AlertDescription>{search.data.warning}</AlertDescription>
+                    </Alert>
+                  ) : null}
+                  <details>
+                    <summary className="cursor-pointer text-sm">
+                      <Trans>Search and indexing</Trans>
+                    </summary>
+                    <div className="mt-3 flex flex-col gap-3">
+                      <FieldGroup>
+                        <Field orientation="horizontal">
+                          <FieldLabel htmlFor="memory-indexing">
+                            <Trans>Memory indexing</Trans>
+                          </FieldLabel>
+                          <Switch
+                            id="memory-indexing"
+                            checked={data.retrieval.enabled}
+                            disabled={busy}
+                            onCheckedChange={(enabled) =>
+                              void act(() =>
+                                api.setHomeMemoryRetrieval(agentId, { ...data.retrieval, enabled }),
+                              )
+                            }
+                          />
+                        </Field>
+                        {data.retrieval.enabled ? (
+                          <Field>
+                            <FieldLabel>
+                              <Trans>Acceleration</Trans>
+                            </FieldLabel>
+                            <Select
+                              value={data.retrieval.acceleration}
+                              onValueChange={(acceleration) =>
+                                void act(() =>
+                                  api.setHomeMemoryRetrieval(agentId, {
+                                    ...data.retrieval,
+                                    acceleration: acceleration as KnowledgeSettings["acceleration"],
+                                  }),
+                                )
+                              }
+                              disabled={busy}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  {["auto", "cpu", "vulkan", "cuda"].map((value) => (
+                                    <SelectItem key={value} value={value}>
+                                      {value}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        ) : null}
+                      </FieldGroup>
+                      {data.retrieval.enabled ? (
+                        <>
+                          <p className="text-sm text-muted-foreground" role="status">
+                            {statusLabel(data.indexStatus.state)} ·{" "}
+                            <Trans>{data.indexStatus.documents} documents</Trans>
+                          </p>
+                          <p className="break-all text-xs text-muted-foreground">
+                            {data.embeddingModel}
+                          </p>
+                          {data.indexStatus.error ? (
+                            <Alert>
+                              <AlertDescription>{data.indexStatus.error}</AlertDescription>
+                            </Alert>
+                          ) : null}
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                busy || ["updating", "embedding"].includes(data.indexStatus.state)
+                              }
+                              onClick={() => void act(() => api.refreshHomeMemory(agentId))}
+                            >
+                              <Trans>Refresh index</Trans>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                busy || ["updating", "embedding"].includes(data.indexStatus.state)
+                              }
+                              onClick={() =>
+                                void act(() => api.refreshHomeMemory(agentId, true, true))
+                              }
+                            >
+                              <Trans>Build embeddings</Trans>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                busy || ["updating", "embedding"].includes(data.indexStatus.state)
+                              }
+                              onClick={() =>
+                                void act(() => api.refreshHomeMemory(agentId, true, true, true))
+                              }
+                            >
+                              <Trans>Prepare deep search</Trans>
+                            </Button>
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  </details>
+                  {search.loading ? <ResourceLoading label={i18n._("Searching…")} /> : null}
+                  {!memories.length && !search.loading ? (
                     <Empty>
                       <EmptyHeader>
                         <EmptyTitle>
@@ -379,11 +559,11 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                   {[
                     {
                       label: i18n._("Default context"),
-                      notes: data.memories.filter((note) => data.coreIds.includes(note.id)),
+                      notes: memories.filter((note) => data.coreIds.includes(note.id)),
                     },
                     {
                       label: i18n._("Topics"),
-                      notes: data.memories.filter((note) => !data.coreIds.includes(note.id)),
+                      notes: memories.filter((note) => !data.coreIds.includes(note.id)),
                     },
                   ]
                     .filter((group) => group.notes.length)
@@ -398,7 +578,7 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                           <Card key={note.id}>
                             <CardHeader>
                               <CardTitle className="flex items-center gap-2">
-                                {note.scope || i18n._("General")}
+                                {note.title || note.scope || i18n._("General")}
                                 {note.pinned ? (
                                   <PinIcon aria-label={i18n._("Pinned")} className="size-4" />
                                 ) : null}
@@ -418,11 +598,16 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                                   })}
                                 </p>
                               ) : null}
-                              {note.sourceQuote ? (
+                              {note.sourceQuote || note.legacyRevision ? (
                                 <details>
                                   <summary className="cursor-pointer text-sm text-muted-foreground">
                                     <Trans>Source</Trans>
                                   </summary>
+                                  {note.legacyRevision ? (
+                                    <p className="mt-2 text-sm">
+                                      <Trans>Imported agent memory</Trans> · {note.contributorId}
+                                    </p>
+                                  ) : null}
                                   <blockquote className="mt-2 border-l-2 pl-3 text-sm">
                                     {note.sourceQuote}
                                   </blockquote>
@@ -518,14 +703,14 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                   <div className="flex justify-between gap-2">
                     <Button
                       variant="ghost"
-                      disabled={offset === 0}
+                      disabled={offset === 0 || searchMode !== "fast"}
                       onClick={() => setOffset(Math.max(0, offset - 50))}
                     >
                       <Trans>Previous</Trans>
                     </Button>
                     <Button
                       variant="ghost"
-                      disabled={offset + 50 >= data.total}
+                      disabled={offset + 50 >= data.total || searchMode !== "fast"}
                       onClick={() => setOffset(offset + 50)}
                     >
                       <Trans>Next</Trans>

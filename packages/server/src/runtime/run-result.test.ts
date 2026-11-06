@@ -587,12 +587,12 @@ test("ordinary and Codemode runs send current knowledge context and load the gui
       .slice(firstRequest)
       .find((text) => text.includes("Current working directory:"))!;
     assert.ok(prompt);
-    assert.match(prompt, /## Knowledge and memory/);
+    assert.match(prompt, /## Knowledge/);
     assert.match(prompt, /Family vault/);
     assert.match(prompt, /Household budgets/);
-    assert.match(prompt, /use knowledge_search/);
+    assert.match(prompt, /Use knowledge_search/);
     assert.match(prompt, /load_builtin_skill with name="knowledge-search"/);
-    assert.match(prompt, /Memory is read-only/);
+    assert.doesNotMatch(prompt, /Available memory operations|memory_save|home_memory_search/);
     const { loadBuiltinSkills } = await import("./builtin-skills.ts");
     const session = db.select().from(sessions).where(eq(sessions.id, run.sessionId)).get()!;
     const skill = (
@@ -612,11 +612,11 @@ test("ordinary and Codemode runs send current knowledge context and load the gui
       "the guide must reach the model through a tool result, including nested Codemode calls",
     );
     if (shared) {
-      assert.match(prompt, /shared across all of its users/);
-      assert.doesNotMatch(prompt, /private agent and are available only to its owner/);
+      assert.match(prompt, /Knowledge is shared/);
+      assert.doesNotMatch(prompt, /Knowledge belongs to this private agent/);
     } else {
-      assert.match(prompt, /private agent and are available only to its owner/);
-      assert.doesNotMatch(prompt, /shared across all of its users/);
+      assert.match(prompt, /Knowledge belongs to this private agent/);
+      assert.doesNotMatch(prompt, /Knowledge is shared/);
     }
     assert.ok(!prompt.includes("/unavailable-vault"));
     assert.ok(
