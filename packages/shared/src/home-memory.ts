@@ -59,6 +59,8 @@ export type HomeMemoryRevision = {
 export type HomeMemoryCaptureReport = {
   at: number;
   model: string | null;
+  /** How the answer arrived: a tool call, reply text, or nothing usable. */
+  route: "tool" | "text" | "none";
   stopReason: string;
   candidates: number;
   curated: number;

@@ -41,7 +41,9 @@ import {
   recordHomeMemoryInput,
   commitHomeCapture,
   parseHomeCaptureResult,
+  parseHomeCapturePayload,
   captureHomeMemories,
+  HOME_CAPTURE_TOOL,
   type HomeMemoryCandidate,
 } from "./home-memory-capture.ts";
 import {
@@ -772,7 +774,7 @@ test("automatic corrections replace one scoped fact and source edits retire only
   );
 });
 
-test("idle capture uses a tool-free model call once and stores evidence without changing Home execution", async () => {
+test("idle capture uses one isolated model call and stores evidence without changing Home execution", async () => {
   const value = fixture();
   setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
   const event = source(value, "For Carmel, I prefer minimal UI labels.");
@@ -911,6 +913,54 @@ test("idle capture saves the usable candidate and records what the model returne
       ?.status,
     "done",
   );
+});
+
+test("capture reads the tool call instead of parsing reply text", async () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const event = source(value, "For Homelab I run Proxmox on a single fanless PC.");
+  recordHomeMemoryInput(event, "durable:62");
+  const models = fauxHarnessModels();
+  models.faux.setResponses([
+    fauxAssistantMessage(
+      [
+        fauxToolCall(HOME_CAPTURE_TOOL, {
+          candidates: [
+            candidate(event, { slot: "homelab/host" }),
+            { content: "made up", kind: "fact" },
+          ],
+        }),
+      ],
+      { stopReason: "toolUse" },
+    ),
+  ]);
+  const resolve = async () => ({
+    ok: true as const,
+    value: {
+      model: models.model,
+      modelRuntime: models.models,
+      modelRef: db.select().from(modelRefs).where(eq(modelRefs.id, value.modelRefId)).get()!,
+    },
+  });
+  await captureHomeMemories(Date.now() + 180000, resolve);
+  assert.equal(readHomeMemoryOverview(value.userId, value.agentId).total, 1);
+  const settings = readHomeMemorySettings(value.userId, value.agentId);
+  assert.equal(settings.lastCapture?.route, "tool");
+  assert.equal(settings.lastCapture?.stopReason, "toolUse");
+  assert.equal(settings.lastCapture?.candidates, 1);
+  assert.equal(settings.lastCapture?.saved, 1);
+  assert.equal(settings.lastCapture?.rejected.length, 1);
+  assert.equal(settings.error, null);
+});
+
+test("tool arguments handed back as JSON text are still read", () => {
+  const value = fixture();
+  const event = source(value, "For Homelab I run Proxmox.");
+  const result = parseHomeCapturePayload(
+    JSON.stringify({ candidates: [candidate(event, { slot: "homelab/host" })] }),
+  );
+  assert.equal(result.candidates.length, 1);
+  assert.equal(result.candidates[0]!.slot, "homelab/host");
 });
 
 test("a truncated answer retries and an unusable one names the rejected field", async () => {
