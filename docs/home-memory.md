@@ -42,6 +42,12 @@ candidates per batch and keeps the existing daily limit on background calls.
 Ordinary sessions, task runs, background notices, and other users do not receive
 these notes or the topic index. Starting **New context** keeps Home memory.
 
+Learning salvages every usable candidate from a batch and only fails when the
+model returns nothing usable; a malformed entry no longer discards its
+siblings. Failures name the rejected field in the panel, and the last call's
+model, stop reason, token usage, and rejected candidates are kept in
+`home_memory_settings.last_capture` for troubleshooting.
+
 Automatic notes show their supporting quote and message link. Review new notes
 from the quiet **Remembered** notice, or undo the change. Edit history supports
 restoring earlier revisions. **Forget** removes a note and its revision history

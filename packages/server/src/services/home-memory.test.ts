@@ -834,6 +834,123 @@ test("a failed capture gets one delayed retry and never creates a Home message o
   assert.equal(readHomeMemorySettings(value.userId, value.agentId).calls.length, 2);
 });
 
+test("loosely shaped model output keeps every usable candidate and drops the rest", () => {
+  const value = fixture();
+  const event = source(value, "My homelab runs on Proxmox. I prefer concise replies.");
+  const text = [
+    "Here is the JSON:",
+    "```JSON",
+    JSON.stringify({
+      candidates: [
+        {
+          ...candidate(event, { slot: "homelab/host" }),
+          until: null,
+          replacesId: null,
+          expectedRevision: null,
+          reason: "a key the prompt never asked for",
+        },
+        { ...candidate(event, { slot: "style/replies" }), confidence: "0.8", until: "" },
+        { content: "made up", kind: "fact" },
+      ],
+      curation: [
+        { id: "memory_1", expectedRevision: 1, placement: "core", reason: "短" },
+        { id: "memory_2" },
+      ],
+      notes: "extra top-level keys are ignored",
+    }),
+    "```",
+    "Let me know if you need more.",
+  ].join("\n");
+  const result = parseHomeCaptureResult(text);
+  assert.equal(result.candidates.length, 2);
+  assert.equal(result.candidates[0]!.until, undefined);
+  assert.equal(result.candidates[0]!.replacesId, undefined);
+  assert.equal(result.candidates[1]!.confidence, 0.8);
+  assert.equal(result.candidates[1]!.until, undefined);
+  assert.equal(result.rejected.length, 1);
+  assert.match(result.rejected[0]!, /kind|placement|confidence/);
+  assert.equal(result.curation.length, 1);
+  assert.equal(result.curation[0]!.reason, "短");
+});
+
+test("idle capture saves the usable candidate and records what the model returned", async () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const event = source(value, "For Homelab I run Proxmox on a single PC.");
+  recordHomeMemoryInput(event, "durable:60");
+  const models = fauxHarnessModels();
+  models.faux.setResponses([
+    fauxAssistantMessage(
+      `\`\`\`json\n${JSON.stringify({
+        candidates: [candidate(event, { slot: "homelab/proxmox" }), { content: "broken" }],
+      })}\n\`\`\``,
+    ),
+  ]);
+  const resolve = async () => ({
+    ok: true as const,
+    value: {
+      model: models.model,
+      modelRuntime: models.models,
+      modelRef: db.select().from(modelRefs).where(eq(modelRefs.id, value.modelRefId)).get()!,
+    },
+  });
+  await captureHomeMemories(Date.now() + 180000, resolve);
+  assert.equal(readHomeMemoryOverview(value.userId, value.agentId).total, 1);
+  const settings = readHomeMemorySettings(value.userId, value.agentId);
+  assert.equal(settings.error, null);
+  assert.equal(settings.lastCapture?.stopReason, "stop");
+  assert.equal(settings.lastCapture?.candidates, 1);
+  assert.equal(settings.lastCapture?.saved, 1);
+  assert.equal(settings.lastCapture?.rejected.length, 1);
+  assert.equal(
+    settings.lastCapture?.model,
+    db.select().from(modelRefs).where(eq(modelRefs.id, value.modelRefId)).get()!.modelId,
+  );
+  assert.equal(
+    db.select().from(homeMemoryCaptures).where(eq(homeMemoryCaptures.eventId, event.id)).get()
+      ?.status,
+    "done",
+  );
+});
+
+test("a truncated answer retries and an unusable one names the rejected field", async () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const event = source(value, "For this project, I prefer SQLite for metadata.");
+  recordHomeMemoryInput(event, "durable:61");
+  const models = fauxHarnessModels();
+  models.faux.setResponses([
+    fauxAssistantMessage('{"candidates":[{"content":"partial', { stopReason: "length" }),
+    fauxAssistantMessage(JSON.stringify({ candidates: [{ content: "made up", kind: "fact" }] })),
+  ]);
+  const resolve = async () => ({
+    ok: true as const,
+    value: {
+      model: models.model,
+      modelRuntime: models.models,
+      modelRef: db.select().from(modelRefs).where(eq(modelRefs.id, value.modelRefId)).get()!,
+    },
+  });
+  const at = Date.now() + 180000;
+  await captureHomeMemories(at, resolve);
+  assert.match(readHomeMemoryOverview(value.userId, value.agentId).error!, /cut off/);
+  assert.equal(
+    db.select().from(homeMemoryCaptures).where(eq(homeMemoryCaptures.eventId, event.id)).get()
+      ?.status,
+    "pending",
+  );
+  await captureHomeMemories(at + 60001, resolve);
+  const error = readHomeMemoryOverview(value.userId, value.agentId).error!;
+  assert.match(error, /Nothing was saved/);
+  assert.match(error, /kind|placement|confidence|slot/, error);
+  assert.equal(
+    db.select().from(homeMemoryCaptures).where(eq(homeMemoryCaptures.eventId, event.id)).get()
+      ?.status,
+    "error",
+  );
+  assert.equal(readHomeMemoryOverview(value.userId, value.agentId).total, 0);
+});
+
 test("Home memory tool results stay bounded when many long notes match", async () => {
   const value = fixture();
   const event = source(value, "What do you remember about Saffron?");

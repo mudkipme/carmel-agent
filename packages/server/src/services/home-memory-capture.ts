@@ -5,8 +5,10 @@ import {
   homeMemoryKindSchema,
   homeMemoryPlacementSchema,
   homeMemoryAliasesSchema,
+  type HomeMemoryCaptureReport,
 } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
+import { errorMessage } from "../errors.ts";
 import {
   agentHomes,
   homeEvents,
@@ -29,42 +31,64 @@ import {
 } from "./home-memory.ts";
 import { getActiveAgentRunForSessionId } from "../runtime/run-stream.ts";
 
-const candidateSchema = z
-  .object({
-    content: z.string().trim().min(1).max(300),
-    scope: z.string().trim().max(120),
-    kind: homeMemoryKindSchema,
-    placement: homeMemoryPlacementSchema,
-    aliases: homeMemoryAliasesSchema.default([]),
-    confidence: z.number().min(0).max(1),
-    until: z.iso.date().optional(),
-    slot: z.string().trim().min(1).max(120),
-    eventId: z.string().min(1),
-    evidence: z.string().trim().min(3).max(2000),
-    futureUse: z.string().trim().min(10).max(400),
-    replacesId: z.string().optional(),
-    expectedRevision: z.number().int().positive().optional(),
-  })
-  .strict();
-const curationSchema = z
-  .object({
-    id: z.string().min(1),
-    expectedRevision: z.number().int().positive(),
-    placement: homeMemoryPlacementSchema,
-    scope: z.string().trim().max(120).optional(),
-    aliases: homeMemoryAliasesSchema.optional(),
-    reason: z.string().trim().min(10).max(200),
-  })
-  .strict();
-const captureResultSchema = z
-  .object({
-    candidates: z.array(candidateSchema).max(8),
-    curation: z.array(curationSchema).max(3).default([]),
-  })
-  .strict();
+/** Models send null or "" for fields the prompt asks them to omit. Treat both as absent. */
+const omitted = (value: unknown) => (value === null || value === "" ? undefined : value);
+const list = (value: unknown) => (value === null ? [] : value);
+const number = (value: unknown) =>
+  typeof value === "string" && value.trim() ? Number(value) : value === null ? undefined : value;
+
+// Model output is data, not an API request: unknown keys are stripped and only the
+// fields that change what is stored are required. Optional hints never fail a batch.
+const candidateSchema = z.object({
+  content: z.string().trim().min(1).max(300),
+  scope: z.preprocess(omitted, z.string().trim().max(120).default("")),
+  kind: homeMemoryKindSchema,
+  placement: homeMemoryPlacementSchema,
+  aliases: z.preprocess(list, homeMemoryAliasesSchema.default([])),
+  confidence: z.preprocess(number, z.number().min(0).max(1)),
+  until: z.preprocess(omitted, z.iso.date().optional()),
+  slot: z.string().trim().min(1).max(120),
+  eventId: z.string().min(1),
+  evidence: z.string().trim().min(3).max(2000),
+  futureUse: z.preprocess(omitted, z.string().trim().max(400).optional()),
+  replacesId: z.preprocess(omitted, z.string().min(1).optional()),
+  expectedRevision: z.preprocess(omitted, z.number().int().positive().optional()),
+});
+const curationSchema = z.object({
+  id: z.string().min(1),
+  expectedRevision: z.number().int().positive(),
+  placement: homeMemoryPlacementSchema,
+  scope: z.preprocess(omitted, z.string().trim().max(120).optional()),
+  aliases: z.preprocess(omitted, homeMemoryAliasesSchema.optional()),
+  reason: z.preprocess(omitted, z.string().trim().max(200).optional()),
+});
 export type HomeMemoryCandidate = z.infer<typeof candidateSchema>;
 export type HomeMemoryCuration = z.infer<typeof curationSchema>;
 type Event = typeof homeEvents.$inferSelect;
+
+/** The model answered, but not with a usable shape. Retrying rarely helps; say so instead. */
+export class HomeCaptureFormatError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "HomeCaptureFormatError";
+  }
+}
+
+/** The model was cut off mid-answer, which is worth one retry. */
+export class HomeCaptureTruncatedError extends Error {
+  constructor() {
+    super("The Home model stopped before finishing its memory candidates.");
+    this.name = "HomeCaptureTruncatedError";
+  }
+}
+
+export function isMalformedCaptureError(error: unknown) {
+  return (
+    error instanceof SyntaxError ||
+    error instanceof z.ZodError ||
+    error instanceof HomeCaptureFormatError
+  );
+}
 
 export function recordHomeMemoryInput(event: Event, entryId?: string) {
   if (!entryId || event.kind !== "input" || event.origin === "background") return;
@@ -91,7 +115,7 @@ export function buildHomeCapturePrompt(
     "Classify each accepted fact: core is who the person is, their company or role, lasting preferences and constraints, diet and allergies, timezone, reply style, and standing decisions useful across conversations even without shared keywords. Topic is detail about a particular person, project, trip, place, or domain of preferences (favorite foods, travel). Reuse existing scopes as topic names. Give topic notes two to five aliases: other words someone might use to ask about the subject (food: dinner, restaurants, cuisine). Core is supplied automatically within 200 lines / 24,000 UTF-8 bytes, with a compact topic index beside it. Keep it curated, never a daily log.",
     `Today is ${new Date().toISOString()}. A confirmed fact with an explicit end date (an appointment, exams this weekend, a booked trip) is useful: set until to its inclusive UTC date YYYY-MM-DD, computed from the source date. Omit until for lasting facts and recurring birthdays. Reject tentative plans and already expired facts. Give confidence from 0 to 1; candidates below 0.6 are discarded.`,
     "You may also curate up to three EXISTING automatic, unpinned notes by ID and expectedRevision: move overly specific details from core to topic, or place an already supported stable fact in core. Preserve text and evidence. You may set scope and aliases to organize subject details under an existing or short new topic. Leave correctly classified notes alone. Never demote a useful core fact just to make room for a newer one; never reclassify a manual or pinned note.",
-    'Return ONLY JSON: {"candidates":[{"content":"one short sentence","scope":"project or domain","kind":"preference|fact|decision","placement":"core|topic","aliases":["other words for this topic"],"confidence":0.9,"until":"YYYY-MM-DD only for a dated fact","slot":"subject/fact","eventId":"source id","evidence":"exact quote","futureUse":"a concrete different future use","replacesId":"only for a correction","expectedRevision":1}],"curation":[{"id":"existing automatic note id","expectedRevision":1,"placement":"core|topic","scope":"optional topic name","aliases":["optional alternate names"],"reason":"why its current placement is unsuitable"}]}. Omit until for lasting facts and correction fields for new notes. At most eight candidates and three curation changes. Empty arrays are a normal successful answer.',
+    'Return ONLY JSON: {"candidates":[{"content":"one short sentence","scope":"project or domain","kind":"preference|fact|decision","placement":"core|topic","aliases":["other words for this topic"],"confidence":0.9,"until":"YYYY-MM-DD only for a dated fact","slot":"subject/fact","eventId":"source id","evidence":"exact quote","futureUse":"a concrete different future use","replacesId":"only for a correction","expectedRevision":1}],"curation":[{"id":"existing automatic note id","expectedRevision":1,"placement":"core|topic","scope":"optional topic name","aliases":["optional alternate names"],"reason":"why its current placement is unsuitable"}]}. Omit until for lasting facts and correction fields for new notes. At most eight candidates and three curation changes. Empty arrays are a normal successful answer. Never send null or an empty string for an optional field; omit it. Never wrap the object in code fences and never add commentary.',
     JSON.stringify({
       sources: events.map((event) => ({
         eventId: event.id,
@@ -114,10 +138,62 @@ export function buildHomeCapturePrompt(
   ].join("\n\n");
 }
 
+/** Chatty models wrap JSON in fences or prose. Recover the object instead of failing. */
+export function normalizeCaptureJson(text: string) {
+  let value = text.trim();
+  if (value.startsWith("```")) {
+    const newline = value.indexOf("\n");
+    value = newline < 0 ? value.slice(3) : value.slice(newline + 1);
+  }
+  if (value.endsWith("```")) value = value.slice(0, -3);
+  const start = value.indexOf("{");
+  const end = value.lastIndexOf("}");
+  if (start >= 0 && end > start) value = value.slice(start, end + 1);
+  return value.trim();
+}
+
+function describeIssues(error: z.ZodError) {
+  return error.issues
+    .slice(0, 3)
+    .map((issue) => `${issue.path.join(".") || "value"}: ${issue.message}`)
+    .join("; ");
+}
+
+/**
+ * Validate each candidate on its own so one malformed entry cannot discard the
+ * rest of the batch. A payload where every candidate fails is still an error.
+ */
 export function parseHomeCaptureResult(text: string) {
-  return captureResultSchema.parse(
-    JSON.parse(text.replace(/^\s*```(?:json)?\s*/u, "").replace(/\s*```\s*$/u, "")),
-  );
+  let payload: unknown;
+  try {
+    payload = JSON.parse(normalizeCaptureJson(text));
+  } catch (error) {
+    throw new HomeCaptureFormatError(
+      `The model did not return JSON (${error instanceof Error ? error.message : String(error)}).`,
+      { cause: error },
+    );
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload))
+    throw new HomeCaptureFormatError("The model did not return a JSON object.");
+  const record = payload as Record<string, unknown>;
+  if (!Array.isArray(record.candidates))
+    throw new HomeCaptureFormatError("The model returned no candidates array.");
+  const candidates: HomeMemoryCandidate[] = [];
+  const rejected: string[] = [];
+  for (const entry of record.candidates.slice(0, 8)) {
+    const parsed = candidateSchema.safeParse(entry);
+    if (parsed.success) candidates.push(parsed.data);
+    else rejected.push(describeIssues(parsed.error));
+  }
+  if (!candidates.length && rejected.length)
+    throw new HomeCaptureFormatError(`Every candidate was rejected (${rejected[0]}).`);
+  const curation: HomeMemoryCuration[] = [];
+  if (Array.isArray(record.curation))
+    for (const entry of record.curation.slice(0, 3)) {
+      const parsed = curationSchema.safeParse(entry);
+      if (parsed.success) curation.push(parsed.data);
+    }
+  return { candidates, curation, rejected };
 }
 
 function supportedEvidence(text: string, evidence: string) {
@@ -368,11 +444,23 @@ export async function captureHomeMemories(at = Date.now(), resolveModel = resolv
         ),
       )
       .run();
+    const report: HomeMemoryCaptureReport = {
+      at,
+      model: null,
+      stopReason: "not-called",
+      candidates: 0,
+      curated: 0,
+      saved: 0,
+      rejected: [],
+      usage: null,
+      error: null,
+    };
     try {
       const session = db.select().from(sessions).where(eq(sessions.id, home.sessionId)).get()!;
       const resolved = await resolveModel(home.userId, session.modelRefId);
       if (!resolved.ok) throw new Error("Configure an available Home model to resume learning.");
       const { model, modelRuntime } = resolved.value;
+      report.model = resolved.value.modelRef.modelId;
       const thinking = getSupportedThinkingLevels(model).includes("off")
         ? "off"
         : clampThinkingLevel(model, "low");
@@ -418,15 +506,32 @@ export async function captureHomeMemories(at = Date.now(), resolveModel = resolv
           reasoning: thinking === "off" ? undefined : thinking,
         },
       );
+      report.stopReason = response.stopReason;
+      report.usage = response.usage
+        ? {
+            input: response.usage.input,
+            output: response.usage.output,
+            totalTokens: response.usage.totalTokens,
+            cost: response.usage.cost.total,
+          }
+        : null;
       if (response.stopReason === "error")
-        throw new Error("The Home model could not complete memory learning.");
+        throw new Error(
+          response.errorMessage
+            ? `The Home model could not complete memory learning: ${response.errorMessage}`
+            : "The Home model could not complete memory learning.",
+        );
+      if (response.stopReason === "length") throw new HomeCaptureTruncatedError();
       const result = parseHomeCaptureResult(
         response.content
           .filter((part) => part.type === "text")
           .map((part) => part.text)
           .join(""),
       );
-      commitHomeCapture(
+      report.candidates = result.candidates.length;
+      report.curated = result.curation.length;
+      report.rejected = result.rejected;
+      report.saved = commitHomeCapture(
         home.userId,
         home.agentId,
         settings.generation,
@@ -434,20 +539,24 @@ export async function captureHomeMemories(at = Date.now(), resolveModel = resolv
         result.candidates,
         at,
         result.curation,
-      );
+      ).length;
     } catch (error) {
-      const malformed = error instanceof SyntaxError || error instanceof z.ZodError;
+      const malformed = isMalformedCaptureError(error);
+      const reason = errorMessage(error).slice(0, 400);
       const retry = !malformed && usable.every((item) => item.home_memory_captures.attempts === 0);
+      const message =
+        error instanceof HomeCaptureTruncatedError
+          ? "Memory learning was cut off before the answer finished. It will retry."
+          : malformed
+            ? `The model returned unusable memory candidates. Nothing was saved. ${reason}`
+            : "Memory learning could not finish. Check the Home model and provider settings.";
+      report.error = message.slice(0, 500);
       db.update(homeMemoryCaptures)
         .set({ status: retry ? "pending" : "error", retryAt: at + 60000 })
         .where(inArray(homeMemoryCaptures.eventId, ids))
         .run();
       db.update(homeMemorySettings)
-        .set({
-          error: malformed
-            ? "The model returned invalid memory candidates. Nothing was saved."
-            : "Memory learning could not finish. Check the Home model and provider settings.",
-        })
+        .set({ error: report.error })
         .where(
           and(
             eq(homeMemorySettings.userId, home.userId),
@@ -456,6 +565,15 @@ export async function captureHomeMemories(at = Date.now(), resolveModel = resolv
         )
         .run();
     }
+    db.update(homeMemorySettings)
+      .set({ lastCapture: report })
+      .where(
+        and(
+          eq(homeMemorySettings.userId, home.userId),
+          eq(homeMemorySettings.agentId, home.agentId),
+        ),
+      )
+      .run();
   }
 }
 

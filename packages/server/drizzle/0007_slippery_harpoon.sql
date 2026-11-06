@@ -1,0 +1,1 @@
+ALTER TABLE `home_memory_settings` ADD `last_capture` text;

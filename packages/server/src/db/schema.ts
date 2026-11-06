@@ -9,6 +9,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { desc, sql } from "drizzle-orm";
 import type {
+  HomeMemoryCaptureReport,
   HomeMemoryMode,
   HomeMemoryRevision,
   KnowledgeSettings,
@@ -590,6 +591,8 @@ export const homeMemorySettings = sqliteTable(
     generation: integer("generation").notNull().default(0),
     learnAfter: integer("learn_after").notNull().default(0),
     lastCaptureAt: integer("last_capture_at"),
+    /** Diagnostics for the most recent learning call, including failures. */
+    lastCapture: text("last_capture", { mode: "json" }).$type<HomeMemoryCaptureReport>(),
     calls: text("calls", { mode: "json" }).$type<number[]>().notNull().default([]),
     error: text("error"),
   },

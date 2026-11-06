@@ -55,6 +55,23 @@ export type HomeMemoryRevision = {
   expiresAt: number | null;
   createdAt: number;
 };
+/** Internal diagnostics for the last background learning call, stored per Home. */
+export type HomeMemoryCaptureReport = {
+  at: number;
+  model: string | null;
+  stopReason: string;
+  candidates: number;
+  curated: number;
+  saved: number;
+  rejected: string[];
+  usage: {
+    input: number;
+    output: number;
+    totalTokens: number;
+    cost: number;
+  } | null;
+  error: string | null;
+};
 export type HomeMemoryOverview = {
   mode: HomeMemoryMode;
   memories: HomeMemory[];
