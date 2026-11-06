@@ -8,76 +8,14 @@ msgstr ""
 "Language: zh-Hant\n"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:44
-#: src/components/harness/HomeMemoryPanel.tsx:64
-msgid "Memory action failed"
-msgstr "記憶操作失敗"
+#: src/components/harness/HomeMemoryPanel.tsx:244
+msgid "dinner, restaurants, cuisine"
+msgstr "晚餐，餐廳，菜系"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:54
-msgid "Remembered {count, plural, one {# detail} other {# details}}"
-msgstr "已記住 {count} 項資訊"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:56
-msgid "Review"
-msgstr "檢視"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:86
-msgid "Loading memory"
-msgstr "正在載入記憶"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:88
-msgid "Memory mode"
-msgstr "記憶模式"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:112
-#: src/components/harness/HomeMemoryPanel.tsx:112
-msgid "Search memory"
-msgstr "搜尋記憶"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:113
-msgid "Pinned context: {used} / {budget} tokens"
-msgstr "固定記憶：{used} / {budget} token"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:118
-msgid "Expires {date}"
-msgstr "到期時間：{date}"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:129
-msgid "Memory history"
-msgstr "記憶歷史"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:131
-msgid "Forget all Home memory?"
-msgstr "忘記主頁的所有記憶？"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:131
-msgid "Notes and their revision history will be deleted. Your Home conversation stays."
-msgstr "將刪除筆記及其修訂歷史。主頁對話將保留。"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:131
-msgid "Forget all"
-msgstr "全部忘記"
-
-#. js-lingui-explicit-id
-#: src/components/chat/CollaborationActivity.tsx:68
-msgid "Stop"
-msgstr "停止"
-
-#. js-lingui-explicit-id
-#: src/components/chat/CollaborationReplyCard.tsx:45
-msgid "Open conversation"
-msgstr "開啟對話"
+#: src/components/harness/HomeMemoryPanel.tsx:335
+msgid "Default context: {lines} / {maxLines} lines · {bytes} / {maxBytes} bytes"
+msgstr "預設上下文：{lines} / {maxLines} 行 · {bytes} / {maxBytes} 位元組"
 
 #. js-lingui-explicit-id
 #: src/App.tsx:100
@@ -225,23 +163,23 @@ msgid "Rose"
 msgstr "玫瑰色"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:110
+#: src/lib/api.ts:115
 msgid "Request failed: {status}"
 msgstr "請求失敗：{status}"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:153
-#: src/lib/api.ts:185
+#: src/lib/api.ts:158
+#: src/lib/api.ts:190
 msgid "Upload cancelled"
 msgstr "上傳已取消"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:177
+#: src/lib/api.ts:182
 msgid "Upload failed: {status}"
 msgstr "上傳失敗：{status}"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:183
+#: src/lib/api.ts:188
 msgid "Unable to upload {path}"
 msgstr "無法上傳 {path}"
 
@@ -532,7 +470,7 @@ msgid "Previous 30 days"
 msgstr "過去 30 天"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:116
+#: src/components/harness/HomeMemoryPanel.tsx:378
 #: src/lib/session-groups.ts:53
 msgid "Pinned"
 msgstr "已置頂"
@@ -1417,7 +1355,7 @@ msgstr "匯入 Open WebUI 匯出檔案"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentSettingsPage.tsx:36
-#: src/components/harness/HomeMemoryPanel.tsx:116
+#: src/components/harness/HomeMemoryPanel.tsx:376
 msgid "General"
 msgstr "常規"
 
@@ -1681,10 +1619,82 @@ msgid "Loading session..."
 msgstr "正在載入工作階段…"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:57
+#: src/components/harness/HomeMemoryPanel.tsx:65
+#: src/components/harness/HomeMemoryPanel.tsx:103
+msgid "Memory action failed"
+msgstr "記憶操作失敗"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:80
+msgid "Remembered {count, plural, one {# detail} other {# details}}"
+msgstr "已記住 {count} 項資訊"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:85
+msgid "Review"
+msgstr "檢視"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:87
 #: src/components/harness/shell/SessionList.tsx:184
 msgid "Undo"
 msgstr "撤銷"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:148
+msgid "Loading memory"
+msgstr "正在載入記憶"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:157
+msgid "Memory mode"
+msgstr "記憶模式"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:279
+msgid "Memory context"
+msgstr "記憶上下文"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:321
+#: src/components/harness/HomeMemoryPanel.tsx:322
+msgid "Search memory"
+msgstr "搜尋記憶"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:356
+msgid "Default context"
+msgstr "預設上下文"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:360
+msgid "Topics"
+msgstr "主題"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:391
+msgid "Expires {date}"
+msgstr "到期時間：{date}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:510
+msgid "Memory history"
+msgstr "記憶歷史"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:545
+msgid "Forget all Home memory?"
+msgstr "忘記主頁的所有記憶？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:546
+msgid "Notes and their revision history will be deleted. Your Home conversation stays."
+msgstr "將刪除筆記及其修訂歷史。主頁對話將保留。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:549
+msgid "Forget all"
+msgstr "全部忘記"
 
 #. js-lingui-explicit-id
 #: src/components/harness/LoginScreen.tsx:43
@@ -3871,9 +3881,19 @@ msgid "Unable to stop collaboration"
 msgstr "無法停止協作"
 
 #. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:68
+msgid "Stop"
+msgstr "停止"
+
+#. js-lingui-explicit-id
 #: src/components/chat/CollaborationReplyCard.tsx:45
 msgid "Open task"
 msgstr "開啟任務"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:45
+msgid "Open conversation"
+msgstr "開啟對話"
 
 #. js-lingui-explicit-id
 #: src/components/chat/CollaborationReplyCard.tsx:69
@@ -4170,36 +4190,6 @@ msgstr "{value}\n"
 msgid "Failed to read file."
 msgstr "讀取檔案失敗。"
 
-#. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:488
-#~ msgid "Agent event stream failed with {status}"
-#~ msgstr "智能體事件流失敗，狀態碼為 {status}"
-
-#. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:75
-#~ msgid "Choose a file, folder, or conversation to include with your message."
-#~ msgstr "選擇要隨訊息一起傳送的檔案、資料夾或對話。"
-
-#. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:80
-#~ msgid "Search conversations or type a file path…"
-#~ msgstr "搜尋對話或輸入檔案路徑…"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
-#~ msgid "Both agents must allow a connection. Consultations have read-only tools. Delegated tasks use the receiving agent's configured permissions and credentials."
-#~ msgstr "雙方智慧體都必須允許連線。諮詢僅提供唯讀工具。委派任務使用接收方智慧體設定的權限和憑證。"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:79
-#~ msgid "Contact this agent"
-#~ msgstr "聯絡此智慧體"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:80
-#~ msgid "Allow requests from this agent"
-#~ msgstr "允許此智慧體發起請求"
-
 #: src/components/harness/tasks/TaskBriefForm.tsx:84
 msgid "(optional)"
 msgstr "（可選）"
@@ -4284,7 +4274,7 @@ msgstr "驗收條件和優先級"
 msgid "Activity"
 msgstr "活動"
 
-#: src/components/harness/HomeMemoryPanel.tsx:112
+#: src/components/harness/HomeMemoryPanel.tsx:331
 msgid "Add"
 msgstr "新增"
 
@@ -4323,6 +4313,10 @@ msgstr "管理員"
 #: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:110
 msgid "Agents save memories only when asked. Existing memories are retained when switched off."
 msgstr "智能體僅在被要求時儲存記憶。關閉後已有記憶將保留。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:238
+msgid "Aliases"
+msgstr "別名"
 
 #: src/components/harness/changes/ChangesView.tsx:202
 msgid "All changes"
@@ -4438,7 +4432,7 @@ msgstr "構建嵌入向量"
 #: src/components/harness/agent-settings/AgentSecretsSettings.tsx:225
 #: src/components/harness/AgentKnowledgePage.tsx:650
 #: src/components/harness/AgentKnowledgePage.tsx:728
-#: src/components/harness/HomeMemoryPanel.tsx:110
+#: src/components/harness/HomeMemoryPanel.tsx:310
 #: src/components/harness/schedules/TaskForm.tsx:234
 #: src/components/harness/settings/ApiKeySettings.tsx:179
 #: src/components/harness/settings/UserSettings.tsx:119
@@ -4508,6 +4502,10 @@ msgstr "連線歸你所有，共用智能體也是如此。請為每個連線使
 msgid "Container path"
 msgstr "容器路徑"
 
+#: src/components/harness/HomeMemoryPanel.tsx:273
+msgid "Context"
+msgstr "上下文"
+
 #: src/components/harness/settings/ProviderSettings.tsx:256
 msgid "Continue"
 msgstr "繼續"
@@ -4537,6 +4535,14 @@ msgstr "複製所選內容"
 #: src/components/harness/settings/ApiKeySettings.tsx:95
 msgid "Copy your new key now — it will not be shown again."
 msgstr "請立即複製新金鑰，之後將不再顯示。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:285
+msgid "Core"
+msgstr "核心"
+
+#: src/components/harness/HomeMemoryPanel.tsx:292
+msgid "Core loads on every Home turn. Topics load when relevant."
+msgstr "每輪 Home 對話都會載入核心記憶。主題記憶會在相關時載入。"
 
 #: src/components/harness/AgentSchedulesPage.tsx:135
 msgid "Create a task to run this agent on a schedule, even while the app is closed."
@@ -4574,7 +4580,7 @@ msgstr "剪下"
 msgid "Dark"
 msgstr "深色"
 
-#: src/components/harness/HomeMemoryPanel.tsx:107
+#: src/components/harness/HomeMemoryPanel.tsx:266
 msgid "Decision"
 msgstr "決策"
 
@@ -4678,7 +4684,7 @@ msgstr "更早的訊息"
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:176
 #: src/components/harness/AgentSchedulesPage.tsx:227
 #: src/components/harness/files/FileEditorView.tsx:136
-#: src/components/harness/HomeMemoryPanel.tsx:123
+#: src/components/harness/HomeMemoryPanel.tsx:438
 msgid "Edit"
 msgstr "編輯"
 
@@ -4717,7 +4723,7 @@ msgstr "已啟用"
 msgid "Every N minutes"
 msgstr "每 N 分鐘"
 
-#: src/components/harness/HomeMemoryPanel.tsx:108
+#: src/components/harness/HomeMemoryPanel.tsx:298
 msgid "Expires"
 msgstr "到期時間"
 
@@ -4734,7 +4740,7 @@ msgstr "開放所有工具"
 msgid "Extra runner mounts"
 msgstr "額外的執行器掛載"
 
-#: src/components/harness/HomeMemoryPanel.tsx:107
+#: src/components/harness/HomeMemoryPanel.tsx:260
 msgid "Fact"
 msgstr "事實"
 
@@ -4759,11 +4765,11 @@ msgstr "檔案不可用：{error}"
 msgid "Finish connecting {0}: open the bot and send the command below from your private account."
 msgstr "完成連線{0}：開啟機器人，從你的個人帳號傳送以下命令。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:125
+#: src/components/harness/HomeMemoryPanel.tsx:486
 msgid "Forget"
 msgstr "忘記"
 
-#: src/components/harness/HomeMemoryPanel.tsx:132
+#: src/components/harness/HomeMemoryPanel.tsx:555
 msgid "Forget all memory"
 msgstr "忘記所有記憶"
 
@@ -4784,8 +4790,8 @@ msgid "Go"
 msgstr "前往"
 
 #: src/components/harness/AgentSchedulesPage.tsx:201
-#: src/components/harness/HomeMemoryPanel.tsx:124
-#: src/components/harness/HomeMemoryPanel.tsx:129
+#: src/components/harness/HomeMemoryPanel.tsx:474
+#: src/components/harness/HomeMemoryPanel.tsx:512
 msgid "History"
 msgstr "歷史"
 
@@ -4793,7 +4799,7 @@ msgstr "歷史"
 msgid "Home"
 msgstr "主頁"
 
-#: src/components/harness/HomeMemoryPanel.tsx:82
+#: src/components/harness/HomeMemoryPanel.tsx:139
 msgid "Home memory"
 msgstr "主頁記憶"
 
@@ -4845,7 +4851,7 @@ msgstr "請記錄具體事實，並注明這些偏好或決策屬於誰。"
 msgid "Keyboard"
 msgstr "鍵盤"
 
-#: src/components/harness/HomeMemoryPanel.tsx:107
+#: src/components/harness/HomeMemoryPanel.tsx:249
 msgid "Kind"
 msgstr "類型"
 
@@ -4874,15 +4880,15 @@ msgstr "最新訊息"
 msgid "Latest result"
 msgstr "最新結果"
 
-#: src/components/harness/HomeMemoryPanel.tsx:91
+#: src/components/harness/HomeMemoryPanel.tsx:169
 msgid "Learn from Home"
 msgstr "從主頁學習"
 
-#: src/components/harness/HomeMemoryPanel.tsx:93
+#: src/components/harness/HomeMemoryPanel.tsx:174
 msgid "Learn useful details from future Home messages using your Home model. Background model usage may incur charges."
 msgstr "使用主頁模型從今後的主頁訊息中學習有用的資訊。背景模型呼叫可能產生費用。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:116
+#: src/components/harness/HomeMemoryPanel.tsx:382
 msgid "Learned"
 msgstr "已學習"
 
@@ -4937,8 +4943,8 @@ msgid "Manual server folder"
 msgstr "手動指定伺服器資料夾"
 
 #: src/components/harness/AgentKnowledgePage.tsx:632
-#: src/components/harness/HomeMemoryPanel.tsx:78
-#: src/components/harness/HomeMemoryPanel.tsx:105
+#: src/components/harness/HomeMemoryPanel.tsx:133
+#: src/components/harness/HomeMemoryPanel.tsx:215
 msgid "Memory"
 msgstr "記憶"
 
@@ -4967,6 +4973,10 @@ msgstr "掛載 {0}"
 #: src/components/harness/shell/TaskRunBanner.tsx:54
 msgid "Move to sessions"
 msgstr "移至工作階段列表"
+
+#: src/components/harness/HomeMemoryPanel.tsx:455
+msgid "Move to topics"
+msgstr "移至主題"
 
 #: src/components/harness/ActionDialogs.tsx:88
 #: src/components/harness/agent-settings/AgentGeneralSettings.tsx:68
@@ -5025,7 +5035,7 @@ msgstr "新增工作階段"
 msgid "New task"
 msgstr "新增任務"
 
-#: src/components/harness/HomeMemoryPanel.tsx:128
+#: src/components/harness/HomeMemoryPanel.tsx:506
 msgid "Next"
 msgstr "下一頁"
 
@@ -5057,7 +5067,7 @@ msgstr "沒有相符結果"
 msgid "No matching references."
 msgstr "沒有相符的引用。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:114
+#: src/components/harness/HomeMemoryPanel.tsx:349
 msgid "No memories"
 msgstr "尚無記憶"
 
@@ -5106,7 +5116,7 @@ msgid "OAuth login completed."
 msgstr "OAuth 登入已完成。"
 
 #: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:101
-#: src/components/harness/HomeMemoryPanel.tsx:89
+#: src/components/harness/HomeMemoryPanel.tsx:163
 msgid "Off"
 msgstr "關閉"
 
@@ -5156,7 +5166,7 @@ msgstr "開啟知識庫"
 msgid "Open login page"
 msgstr "開啟登入頁面"
 
-#: src/components/harness/HomeMemoryPanel.tsx:119
+#: src/components/harness/HomeMemoryPanel.tsx:410
 msgid "Open message"
 msgstr "開啟訊息"
 
@@ -5200,11 +5210,11 @@ msgstr "貼上到此處"
 msgid "People who can run this shared agent can use this credential."
 msgstr "有權執行此共用智能體的人都可以使用此憑證。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:122
+#: src/components/harness/HomeMemoryPanel.tsx:430
 msgid "Pin"
 msgstr "固定"
 
-#: src/components/harness/HomeMemoryPanel.tsx:107
+#: src/components/harness/HomeMemoryPanel.tsx:263
 msgid "Preference"
 msgstr "偏好"
 
@@ -5216,7 +5226,7 @@ msgstr "準備深入搜尋"
 msgid "Preview"
 msgstr "預覽"
 
-#: src/components/harness/HomeMemoryPanel.tsx:128
+#: src/components/harness/HomeMemoryPanel.tsx:499
 msgid "Previous"
 msgstr "上一頁"
 
@@ -5229,7 +5239,7 @@ msgstr "優先級"
 msgid "Priority · {0}"
 msgstr "優先級 · {0}"
 
-#: src/components/harness/HomeMemoryPanel.tsx:83
+#: src/components/harness/HomeMemoryPanel.tsx:142
 msgid "Private to you and this agent. New context keeps these notes."
 msgstr "僅供你與此智慧體使用。建立新上下文時會保留這些筆記。"
 
@@ -5278,7 +5288,7 @@ msgstr "重新連線會保留智能體的瀏覽器及已儲存的登入狀態。
 msgid "Refresh index"
 msgstr "重新整理索引"
 
-#: src/components/harness/HomeMemoryPanel.tsx:90
+#: src/components/harness/HomeMemoryPanel.tsx:166
 msgid "Remember when asked"
 msgstr "僅按要求記憶"
 
@@ -5332,7 +5342,7 @@ msgid "Restart"
 msgstr "重新啓動"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
-#: src/components/harness/HomeMemoryPanel.tsx:129
+#: src/components/harness/HomeMemoryPanel.tsx:533
 msgid "Restore"
 msgstr "恢復"
 
@@ -5405,7 +5415,7 @@ msgid "Save changes"
 msgstr "儲存更改"
 
 #: src/components/harness/AgentKnowledgePage.tsx:647
-#: src/components/harness/HomeMemoryPanel.tsx:110
+#: src/components/harness/HomeMemoryPanel.tsx:313
 msgid "Save memory"
 msgstr "儲存記憶"
 
@@ -5435,7 +5445,7 @@ msgstr "掃描QR 碼"
 msgid "Scan with the Feishu or Lark mobile app and approve creation of your bot."
 msgstr "使用飛書或 Lark 行動應用程式掃碼，並批准建立機器人。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:106
+#: src/components/harness/HomeMemoryPanel.tsx:227
 msgid "Scope"
 msgstr "適用範圍"
 
@@ -5546,7 +5556,7 @@ msgid "Sort by {0}{1}"
 msgstr "按{0}排序{1}"
 
 #: src/components/chat/MermaidBlock.tsx:50
-#: src/components/harness/HomeMemoryPanel.tsx:119
+#: src/components/harness/HomeMemoryPanel.tsx:399
 msgid "Source"
 msgstr "源碼"
 
@@ -5645,6 +5655,10 @@ msgstr "時區"
 msgid "Title"
 msgstr "標題"
 
+#: src/components/harness/HomeMemoryPanel.tsx:288
+msgid "Topic"
+msgstr "主題"
+
 #: src/components/harness/AgentKnowledgePage.tsx:258
 msgid "Try another phrase or refresh the source index."
 msgstr "請嘗試其他短語，或重新整理來源索引。"
@@ -5665,7 +5679,7 @@ msgstr "無法儲存。你的更改仍在，請重試，或取消以繼續編輯
 msgid "Unable to update integration"
 msgstr "無法更新整合"
 
-#: src/components/harness/HomeMemoryPanel.tsx:122
+#: src/components/harness/HomeMemoryPanel.tsx:430
 msgid "Unpin"
 msgstr "取消固定"
 
@@ -5691,6 +5705,10 @@ msgstr "上傳檔案"
 #: src/components/harness/files/FileManagerView.tsx:160
 msgid "Upload folder"
 msgstr "上傳資料夾"
+
+#: src/components/harness/HomeMemoryPanel.tsx:457
+msgid "Use as core"
+msgstr "設為核心"
 
 #: src/components/harness/settings/ModelSettings.tsx:70
 msgid "Use current session model"

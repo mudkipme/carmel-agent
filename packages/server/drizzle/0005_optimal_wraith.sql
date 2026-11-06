@@ -1,0 +1,1 @@
+ALTER TABLE `home_memories` ADD `placement` text DEFAULT 'topic' NOT NULL;

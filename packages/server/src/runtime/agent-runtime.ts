@@ -84,7 +84,7 @@ import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-sk
 import { buildKnowledgeInstructions } from "./knowledge/prompt.ts";
 import {
   createHomeMemoryTools,
-  buildHomeMemoryContext,
+  buildHomeMemorySections,
   humanHomeMemoryEvent,
 } from "./home-memory-tools.ts";
 import { createSchedulingTools, buildSchedulingInstructions } from "./task-tools.ts";
@@ -574,6 +574,28 @@ async function openRunHarness(
     ...(sessionAddons?.tools ?? []),
   ]);
   const activeToolNames = tools.map((tool) => tool.name);
+  const memorySections =
+    home &&
+    humanHomeMemoryEvent(
+      context.session.userId,
+      agent.id,
+      context.session.id,
+      typeof context.promptDelivery?.source.homeEventId === "string"
+        ? context.promptDelivery.source.homeEventId
+        : undefined,
+    )
+      ? buildHomeMemorySections(
+          context.session.userId,
+          agent.id,
+          context.promptInput?.text ?? "",
+          model.contextWindow,
+        )
+      : {
+          home_memory: undefined,
+          home_memory_core: undefined,
+          home_memory_topics: undefined,
+          home_memory_recall: undefined,
+        };
   // Install this run's credentials, resources, and permitted tools before native scheduling.
   const harness = await PiRun.open(
     piSession,
@@ -608,23 +630,7 @@ async function openRunHarness(
             }),
         links: carmelLinkInstructions(agent.id),
         home: home ? buildHomeInstructions(agent.id, activeToolNames) : undefined,
-        home_memory:
-          home &&
-          humanHomeMemoryEvent(
-            context.session.userId,
-            agent.id,
-            context.session.id,
-            typeof context.promptDelivery?.source.homeEventId === "string"
-              ? context.promptDelivery.source.homeEventId
-              : undefined,
-          )
-            ? buildHomeMemoryContext(
-                context.session.userId,
-                agent.id,
-                context.promptInput?.text ?? "",
-                model.contextWindow,
-              )
-            : undefined,
+        ...memorySections,
         issue: sessionAddons?.instructions,
         browser: agent.permissions.bash ? browserInstructions : undefined,
         knowledge:

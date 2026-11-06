@@ -30,9 +30,10 @@ import {
   homeMemoryHistory,
   restoreHomeMemory,
   invalidateHomeMemorySources,
+  placeAutomaticHomeMemory,
 } from "./home-memory.ts";
 import {
-  buildHomeMemoryContext,
+  buildHomeMemorySections,
   createHomeMemoryTools,
   humanHomeMemoryEvent,
 } from "../runtime/home-memory-tools.ts";
@@ -43,6 +44,11 @@ import {
   captureHomeMemories,
   type HomeMemoryCandidate,
 } from "./home-memory-capture.ts";
+import {
+  homeMemoryNotebookFits,
+  homeMemoryNotebookSize,
+  renderHomeMemoryNotes,
+} from "./home-memory-notebook.ts";
 
 initialize();
 
@@ -80,6 +86,9 @@ function candidate(
   return {
     content: "The user prefers minimal labels in Carmel interfaces.",
     kind: "preference",
+    placement: "topic",
+    aliases: [],
+    confidence: 0.9,
     scope: "Carmel UI",
     slot: "carmel/ui/labels",
     eventId: event.id,
@@ -98,6 +107,197 @@ function appFor(userId: string) {
   return app;
 }
 
+test("learned core reaches the model before answering unrelated requests without a tool call", async () => {
+  const value = fixture();
+  const settings = setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const event = source(value, "I am vegetarian and always avoid meat and fish.");
+  recordHomeMemoryInput(event, "durable:1");
+  const [note] = commitHomeCapture(
+    value.userId,
+    value.agentId,
+    settings.generation,
+    [event],
+    [
+      candidate(event, {
+        content: "The user is vegetarian and avoids meat & fish.",
+        scope: "Food",
+        placement: "core",
+        slot: "diet/vegetarian",
+      }),
+    ],
+  );
+  assert.equal(note?.placement, "core");
+  assert.equal(note?.pinned, false);
+  const sections = buildHomeMemorySections(
+    value.userId,
+    value.agentId,
+    "What should I make tonight?",
+    100000,
+  );
+  assert.equal(JSON.parse(sections.home_memory_core!)[0].content, note!.content);
+  assert.equal(sections.home_memory_recall, undefined);
+  saveHomeMemory(value.userId, value.agentId, { content: "Saffron uses SQLite" });
+  const other = buildHomeMemorySections(value.userId, value.agentId, "Saffron deployment", 100000);
+  assert.equal(other.home_memory_core, sections.home_memory_core);
+  assert.match(other.home_memory_recall!, /SQLite/);
+  const models = fauxHarnessModels();
+  models.faux.setResponses([
+    (context) => {
+      assert.match(JSON.stringify(context), /vegetarian/);
+      assert.doesNotMatch(JSON.stringify(context), /Saffron uses SQLite/);
+      return fauxAssistantMessage("Try a lentil curry.");
+    },
+  ]);
+  const harness = await openTestHarness(value.sessionId, { ...models, promptSections: sections });
+  try {
+    await harness.prompt("What should I make tonight?");
+    assert.equal(
+      (await harness.branch()).filter(
+        (entry) => entry.type === "message" && entry.message.role === "toolResult",
+      ).length,
+      0,
+    );
+  } finally {
+    await harness.close();
+  }
+  await resetHome(value.userId, value.agentId);
+  assert.equal(
+    buildHomeMemorySections(value.userId, value.agentId, "Unrelated", 100000).home_memory_core,
+    sections.home_memory_core,
+  );
+});
+
+test("core uses a 200-line / 24,000-byte notebook with pins taking priority", () => {
+  const value = fixture();
+  const provenance = {
+    origin: "automatic" as const,
+    eventId: source(value, "A lasting preference.").id,
+    entryId: null,
+    quote: "A lasting preference.",
+  };
+  const notes = Array.from({ length: 25 }, (_, index) =>
+    saveHomeMemory(
+      value.userId,
+      value.agentId,
+      { content: `${index}: ${"lasting preference ".repeat(90)}`, placement: "core" },
+      provenance,
+    ),
+  );
+  const before = readHomeMemoryOverview(value.userId, value.agentId);
+  assert.ok(before.coreIds.length > 5);
+  assert.ok(before.coreBytes <= 24000 && before.coreLines <= 200);
+  assert.equal(notes[0]!.placement, "core");
+  const overflow = notes.find((note) => note.placement === "topic")!;
+  assert.ok(overflow);
+  assert.throws(
+    () =>
+      editHomeMemory(value.userId, value.agentId, overflow.id, {
+        expectedRevision: 1,
+        placement: "core",
+      }),
+    /200 lines/,
+  );
+  editHomeMemory(value.userId, value.agentId, overflow.id, { expectedRevision: 1, pinned: true });
+  const overview = readHomeMemoryOverview(value.userId, value.agentId);
+  assert.ok(
+    overview.coreBytes <= overview.coreMaxBytes && overview.coreLines <= overview.coreMaxLines,
+  );
+  assert.ok(overview.coreIds.includes(overflow.id));
+  assert.equal(overview.total, notes.length);
+  const demoted = overview.memories.find(
+    (note) => before.coreIds.includes(note.id) && note.placement === "topic",
+  )!;
+  assert.ok(demoted);
+  assert.equal(homeMemoryHistory(value.userId, value.agentId, demoted.id)[0]?.placement, "topic");
+});
+
+test("capture curates existing automatic notes while preserving evidence and user choices", () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const provenance = {
+    origin: "automatic" as const,
+    eventId: source(value, "I always prefer concise replies.").id,
+    entryId: "durable:1",
+    quote: "I always prefer concise replies.",
+  };
+  const stable = saveHomeMemory(
+    value.userId,
+    value.agentId,
+    { content: "Prefer concise replies." },
+    provenance,
+  );
+  const project = saveHomeMemory(
+    value.userId,
+    value.agentId,
+    { content: "Saffron uses SQLite.", placement: "core" },
+    provenance,
+  );
+  const manual = saveHomeMemory(value.userId, value.agentId, { content: "A user-managed note." });
+  const event = source(value, "Thanks, that helps.");
+  recordHomeMemoryInput(event, "durable:2");
+  const generation = readHomeMemorySettings(value.userId, value.agentId).generation;
+  const saved = commitHomeCapture(
+    value.userId,
+    value.agentId,
+    generation,
+    [event],
+    [],
+    Date.now(),
+    [
+      {
+        id: stable.id,
+        expectedRevision: 1,
+        placement: "core",
+        reason: "Lasting reply style applies across topics.",
+      },
+      {
+        id: project.id,
+        expectedRevision: 1,
+        placement: "topic",
+        scope: "Saffron",
+        aliases: ["deployment"],
+        reason: "This is a specific project decision.",
+      },
+      {
+        id: manual.id,
+        expectedRevision: 1,
+        placement: "core",
+        reason: "A user choice must remain protected.",
+      },
+    ],
+  );
+  assert.equal(saved.length, 2);
+  assert.deepEqual(readHomeMemoryOverview(value.userId, value.agentId).coreIds, [stable.id]);
+  assert.equal(searchHomeMemories(value.userId, value.agentId, "deployment")[0]?.id, project.id);
+  const promoted = saved.find((note) => note.id === stable.id)!;
+  assert.equal(promoted.sourceQuote, provenance.quote);
+  assert.equal(promoted.sourceEntryId, provenance.entryId);
+  assert.equal(
+    placeAutomaticHomeMemory(value.userId, value.agentId, stable.id, 1, "topic"),
+    undefined,
+  );
+  assert.equal(
+    placeAutomaticHomeMemory(value.userId, value.agentId, stable.id, 2, "core"),
+    undefined,
+  );
+  editHomeMemory(value.userId, value.agentId, stable.id, {
+    expectedRevision: 2,
+    placement: "topic",
+  });
+  assert.equal(
+    placeAutomaticHomeMemory(value.userId, value.agentId, stable.id, 3, "core"),
+    undefined,
+  );
+  assert.deepEqual(readHomeMemoryOverview(value.userId, value.agentId).coreIds, []);
+  const legacy = homeMemoryHistory(value.userId, value.agentId, manual.id)[0]!;
+  const { placement: _placement, ...snapshot } = legacy;
+  db.update(homeMemoryRevisions)
+    .set({ snapshot })
+    .where(eq(homeMemoryRevisions.memoryId, manual.id))
+    .run();
+  assert.equal(restoreHomeMemory(value.userId, value.agentId, manual.id, 1, 1).placement, "topic");
+});
+
 test("Home memory remains private between users of the same shared agent, including API and search", async () => {
   const value = fixture();
   db.update(agents).set({ shared: true }).where(eq(agents.id, value.agentId)).run();
@@ -105,6 +305,7 @@ test("Home memory remains private between users of the same shared agent, includ
   ensureHome(other, value.agentId);
   const note = saveHomeMemory(value.userId, value.agentId, {
     content: "Private Saffron deployment choice",
+    placement: "core",
   });
   assert.equal(readHomeMemoryOverview(other, value.agentId).total, 0);
   assert.deepEqual(searchHomeMemories(other, value.agentId, "Saffron"), []);
@@ -161,11 +362,19 @@ test("manual mode is default; human Home provenance alone enables tools; Off rem
     createHomeMemoryTools(value.userId, value.agentId, value.sessionId, human.id),
     [],
   );
-  assert.equal(buildHomeMemoryContext(value.userId, value.agentId, "Saffron", 100000), "");
+  assert.deepEqual(
+    buildHomeMemorySections(value.userId, value.agentId, "Saffron deployment", 100000),
+    {
+      home_memory: undefined,
+      home_memory_core: undefined,
+      home_memory_topics: undefined,
+      home_memory_recall: undefined,
+    },
+  );
   assert.equal(readHomeMemoryOverview(value.userId, value.agentId).total, 1);
 });
 
-test("pinning preserves note fields, enforces the token budget, and topical recall stays bounded", () => {
+test("pinning preserves note fields and topical recall stays bounded", () => {
   const value = fixture();
   const note = saveHomeMemory(value.userId, value.agentId, {
     content: "Use minimal labels.",
@@ -184,26 +393,180 @@ test("pinning preserves note fields, enforces the token budget, and topical reca
     saveHomeMemory(value.userId, value.agentId, {
       content: `Saffron deployment detail ${index}: ${"unique information ".repeat(50)}`,
     });
-  const context = buildHomeMemoryContext(value.userId, value.agentId, "Saffron", 100000);
-  const recalled = JSON.parse(context.split("\n").at(-1)!);
+  const context = buildHomeMemorySections(
+    value.userId,
+    value.agentId,
+    "Saffron deployment",
+    100000,
+  );
+  const recalled = [
+    ...JSON.parse(context.home_memory_core ?? "[]"),
+    ...JSON.parse(context.home_memory_recall ?? "[]"),
+  ];
   assert.ok(recalled.length <= 5);
   assert.ok(estimateTextTokens(JSON.stringify(recalled)) < 1500);
   assert.equal(
     JSON.parse(
-      buildHomeMemoryContext(value.userId, value.agentId, "unrelated penguins", 100000)
-        .split("\n")
-        .at(-1)!,
+      buildHomeMemorySections(value.userId, value.agentId, "unrelated penguins", 100000)
+        .home_memory_core!,
     ).length,
     1,
   );
   const large = saveHomeMemory(value.userId, value.agentId, {
     content: "long information ".repeat(110),
   });
-  assert.throws(
-    () =>
-      editHomeMemory(value.userId, value.agentId, large.id, { expectedRevision: 1, pinned: true }),
-    /500 tokens/,
+  assert.equal(
+    editHomeMemory(value.userId, value.agentId, large.id, { expectedRevision: 1, pinned: true })
+      .pinned,
+    true,
   );
+});
+
+test("notebook limits count rendered lines and UTF-8 bytes, including non-Latin notes", () => {
+  const short = { id: "n", revision: 1, scope: "", content: "A fact." };
+  assert.equal(homeMemoryNotebookSize(Array(198).fill(short)).lines, 200);
+  assert.equal(homeMemoryNotebookFits(Array(198).fill(short)), true);
+  assert.equal(homeMemoryNotebookFits(Array(199).fill(short)), false);
+  const unicode = Array(8).fill({ ...short, content: "日常偏好".repeat(300) });
+  assert.ok(renderHomeMemoryNotes(unicode).length < 24000);
+  assert.ok(homeMemoryNotebookSize(unicode).bytes > 24000);
+  assert.equal(homeMemoryNotebookFits(unicode), false);
+});
+
+test("topics are indexed by scope and aliases and recalled before the model needs to search", async () => {
+  const value = fixture();
+  const note = saveHomeMemory(value.userId, value.agentId, {
+    scope: "Food",
+    content: "The user likes mushrooms and tofu.",
+    aliases: ["dinner", "restaurants", "cuisine"],
+  });
+  const unrelated = buildHomeMemorySections(
+    value.userId,
+    value.agentId,
+    "What is the weather?",
+    100000,
+  );
+  assert.match(unrelated.home_memory_topics!, /Food/);
+  assert.match(unrelated.home_memory_topics!, /dinner/);
+  assert.equal(unrelated.home_memory_recall, undefined);
+  assert.doesNotMatch(unrelated.home_memory_topics!, /mushrooms/);
+  const recalled = buildHomeMemorySections(
+    value.userId,
+    value.agentId,
+    "Any dinner ideas?",
+    100000,
+  );
+  assert.match(recalled.home_memory_recall!, /mushrooms and tofu/);
+  assert.equal(searchHomeMemories(value.userId, value.agentId, "dinner")[0]?.id, note.id);
+  const plural = buildHomeMemorySections(
+    value.userId,
+    value.agentId,
+    "Which restaurant would you pick?",
+    100000,
+  );
+  assert.match(plural.home_memory_recall!, /mushrooms/);
+  const other = createUser();
+  db.update(agents).set({ shared: true }).where(eq(agents.id, value.agentId)).run();
+  ensureHome(other, value.agentId);
+  assert.equal(
+    buildHomeMemorySections(other, value.agentId, "Any dinner ideas?", 100000).home_memory_topics,
+    undefined,
+  );
+  assert.deepEqual(searchHomeMemories(other, value.agentId, "dinner"), []);
+  const updated = editHomeMemory(value.userId, value.agentId, note.id, {
+    expectedRevision: 1,
+    aliases: ["supper"],
+  });
+  assert.deepEqual(searchHomeMemories(value.userId, value.agentId, "dinner"), []);
+  assert.equal(searchHomeMemories(value.userId, value.agentId, "supper")[0]?.id, note.id);
+  forgetHomeMemory(value.userId, value.agentId, note.id, updated.revision);
+  assert.equal(
+    buildHomeMemorySections(value.userId, value.agentId, "Any supper ideas?", 100000)
+      .home_memory_recall,
+    undefined,
+  );
+});
+
+test("the topic index and automatic passages have their own limits beside the core notebook", () => {
+  const value = fixture();
+  for (let i = 0; i < 45; i++)
+    saveHomeMemory(value.userId, value.agentId, {
+      scope: `Subject ${String(i).padStart(2, "0")}`,
+      aliases: ["shared-topic", `<${i}>`],
+      content: `${i}: ${"topic detail ".repeat(150)}`,
+    });
+  const sections = buildHomeMemorySections(
+    value.userId,
+    value.agentId,
+    "Tell me about shared-topic",
+    100000,
+  );
+  assert.ok(sections.home_memory_topics!.length <= 2000);
+  const index = sections.home_memory_topics!.split("\n").map((line) => JSON.parse(line));
+  assert.ok(index.filter((topic) => topic.scope !== undefined).length <= 40);
+  assert.ok(index.at(-1).omittedTopics > 0);
+  assert.ok(sections.home_memory_recall!.length <= 6000);
+  const notes = JSON.parse(sections.home_memory_recall!);
+  assert.equal(new Set(notes.map((note: { scope: string }) => note.scope)).size, 4);
+  assert.ok(notes.every((note: { content: string }) => note.content.length <= 600));
+});
+
+test("dated capture expires automatically and rejects uncertain or already expired facts", () => {
+  const value = fixture();
+  const settings = setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const event = source(value, "My exams are confirmed for next week.");
+  recordHomeMemoryInput(event, "durable:1");
+  const until = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const [note] = commitHomeCapture(
+    value.userId,
+    value.agentId,
+    settings.generation,
+    [event],
+    [
+      candidate(event, {
+        content: "The user has exams next week.",
+        scope: "Exams",
+        aliases: ["revision", "study"],
+        until,
+      }),
+    ],
+  );
+  assert.equal(note?.expiresAt, Date.parse(`${until}T00:00:00Z`) + 86400000);
+  assert.match(
+    buildHomeMemorySections(value.userId, value.agentId, "Help me with study", 100000)
+      .home_memory_recall!,
+    /exams/,
+  );
+  const next = source(value, "I might prefer concise replies.");
+  recordHomeMemoryInput(next, "durable:2");
+  assert.deepEqual(
+    commitHomeCapture(
+      value.userId,
+      value.agentId,
+      settings.generation,
+      [next],
+      [candidate(next, { confidence: 0.5 }), candidate(next, { until: "2020-01-01" })],
+    ),
+    [],
+  );
+  assert.throws(() =>
+    parseHomeCaptureResult(
+      JSON.stringify({ candidates: [candidate(next, { until: "2026-02-30" })] }),
+    ),
+  );
+  const expiredNote = editHomeMemory(value.userId, value.agentId, note!.id, {
+    expectedRevision: 1,
+    expiresAt: Date.now() - 1,
+  });
+  assert.equal(expiredNote.origin, "manual");
+  const expired = buildHomeMemorySections(
+    value.userId,
+    value.agentId,
+    "Help me with study",
+    100000,
+  );
+  assert.equal(expired.home_memory_topics, undefined);
+  assert.equal(expired.home_memory_recall, undefined);
 });
 
 test("revision-safe edits and forgetting purge search and all revision text", () => {
@@ -227,6 +590,7 @@ test("revision-safe edits and forgetting purge search and all revision text", ()
   assert.equal(restored.content, note.content);
   forgetHomeMemory(value.userId, value.agentId, note.id, restored.revision);
   assert.deepEqual(searchHomeMemories(value.userId, value.agentId, "Saffron"), []);
+  assert.deepEqual(readHomeMemoryOverview(value.userId, value.agentId).coreIds, []);
   assert.equal(
     db.select().from(homeMemoryRevisions).where(eq(homeMemoryRevisions.memoryId, note.id)).all()
       .length,
@@ -246,10 +610,12 @@ test("expired notes are inspectable but never recalled; secrets are not stored",
   const value = fixture();
   saveHomeMemory(value.userId, value.agentId, {
     content: "Saffron old deadline",
+    placement: "core",
     expiresAt: Date.now() - 1,
   });
   assert.equal(readHomeMemoryOverview(value.userId, value.agentId).total, 1);
   assert.deepEqual(searchHomeMemories(value.userId, value.agentId, "Saffron"), []);
+  assert.deepEqual(readHomeMemoryOverview(value.userId, value.agentId).coreIds, []);
   assert.throws(
     () => saveHomeMemory(value.userId, value.agentId, { content: "password: super-secret" }),
     /Secrets/,
@@ -300,7 +666,7 @@ test("native Home input admission binds capture to an exact message and reset pr
   }
   await resetHome(value.userId, value.agentId);
   assert.match(
-    buildHomeMemoryContext(value.userId, value.agentId, "Carmel", 100000),
+    buildHomeMemorySections(value.userId, value.agentId, "Carmel UI", 100000).home_memory_recall!,
     /minimal labels/,
   );
 });
@@ -365,7 +731,7 @@ test("automatic corrections replace one scoped fact and source edits retire only
     value.agentId,
     settings.generation,
     [first],
-    [candidate(first)],
+    [candidate(first, { placement: "core" })],
   );
   assert.ok(note);
   const next = source(value, "For Carmel, I now prefer descriptive labels.");
@@ -378,12 +744,21 @@ test("automatic corrections replace one scoped fact and source edits retire only
     [
       candidate(next, {
         content: "The user prefers descriptive labels for Carmel.",
+        placement: "core",
         replacesId: note.id,
         expectedRevision: note.revision,
       }),
     ],
   );
   assert.equal(updated[0]?.revision, 2);
+  const context = buildHomeMemorySections(
+    value.userId,
+    value.agentId,
+    "unrelated",
+    100000,
+  ).home_memory_core!;
+  assert.match(context, /descriptive labels/);
+  assert.doesNotMatch(context, /minimal labels/);
   assert.equal(activeHomeMemories(value.userId, value.agentId).length, 1);
   const manual = saveHomeMemory(value.userId, value.agentId, {
     content: "An explicit independent fact",

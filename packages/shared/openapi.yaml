@@ -3408,6 +3408,18 @@ components:
             - preference
             - fact
             - decision
+        placement: &homeMemoryPlacement
+          type: string
+          enum:
+            - core
+            - topic
+        aliases: &homeMemoryAliases
+          type: array
+          maxItems: 12
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
         expiresAt: &a4
           type: integer
           minimum: 1
@@ -3421,6 +3433,8 @@ components:
         content: *a1
         scope: *a2
         kind: *a3
+        placement: *homeMemoryPlacement
+        aliases: *homeMemoryAliases
         expiresAt: *a4
         expectedRevision: &a5
           type: integer
@@ -3435,6 +3449,8 @@ components:
         - content
         - scope
         - kind
+        - placement
+        - aliases
         - expiresAt
         - revision
         - pinned
@@ -3448,6 +3464,8 @@ components:
         content: *a1
         scope: *a2
         kind: *a3
+        placement: *homeMemoryPlacement
+        aliases: *homeMemoryAliases
         expiresAt: *a4
         id:
           type: string
@@ -3486,6 +3504,8 @@ components:
         content: *a1
         scope: *a2
         kind: *a3
+        placement: *homeMemoryPlacement
+        aliases: *homeMemoryAliases
         expiresAt: *a4
         revision: *a5
         createdAt:
@@ -3496,8 +3516,11 @@ components:
         - mode
         - memories
         - total
-        - pinnedTokens
-        - pinBudget
+        - coreIds
+        - coreLines
+        - coreBytes
+        - coreMaxLines
+        - coreMaxBytes
         - lastCaptureAt
         - error
       properties:
@@ -3514,10 +3537,19 @@ components:
         total:
           type: integer
           minimum: 0
-        pinnedTokens:
+        coreIds:
+          type: array
+          items:
+            type: string
+        coreLines:
           type: integer
           minimum: 0
-        pinBudget:
+        coreBytes:
+          type: integer
+          minimum: 0
+        coreMaxLines:
+          type: integer
+        coreMaxBytes:
           type: integer
         lastCaptureAt:
           type: integer

@@ -217,8 +217,21 @@ test(
       click("button", "Add");
       browser("fill", "#home-memory-content", "Prefer minimal UI labels for Carmel.");
       browser("fill", "#home-memory-scope", "Carmel UI");
+      browser("fill", "#home-memory-aliases", "layout, labels");
       click("button", "Save memory");
       browser("wait", "--text", "Prefer minimal UI labels for Carmel.");
+      browser("wait", '[aria-label="Topics"]');
+      click("button", "Use as core");
+      browser("wait", '[aria-label="Default context"]');
+      browser("wait", "--text", "/ 200 lines");
+      assert.match(
+        evaluate<string>(`document.querySelector('[aria-label="Default context"]').textContent`),
+        /Prefer minimal UI labels/,
+      );
+      click("button", "Move to topics");
+      browser("wait", '[aria-label="Topics"]');
+      click("button", "Use as core");
+      browser("wait", '[aria-label="Default context"]');
       click("button", "Pin");
       browser(
         "wait",
@@ -232,6 +245,7 @@ test(
       browser("wait", "--text", "Prefer minimal UI labels for Carmel.");
       click("button", "Edit");
       assert.equal(value("#home-memory-scope"), "Carmel UI");
+      assert.equal(value("#home-memory-aliases"), "layout, labels");
       browser("fill", "#home-memory-content", "Prefer descriptive UI labels for Carmel.");
       click("button", "Save memory");
       browser("wait", "--text", "Prefer descriptive UI labels for Carmel.");

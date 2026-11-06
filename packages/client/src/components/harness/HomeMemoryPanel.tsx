@@ -38,7 +38,9 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
   const [editor, setEditor] = useState<HomeMemory | "new">();
   const [content, setContent] = useState("");
   const [scope, setScope] = useState("");
+  const [aliases, setAliases] = useState("");
   const [kind, setKind] = useState<HomeMemory["kind"]>("fact");
+  const [placement, setPlacement] = useState<HomeMemory["placement"]>("topic");
   const [expiry, setExpiry] = useState("");
   const [history, setHistory] = useState<{ note: HomeMemory; rows: HomeMemoryRevision[] }>();
   const [mountedAt] = useState(() => Date.now());
@@ -109,7 +111,9 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
     setHistory(undefined);
     setContent(note === "new" ? "" : note.content);
     setScope(note === "new" ? "" : note.scope);
+    setAliases(note === "new" ? "" : note.aliases.join(", "));
     setKind(note === "new" ? "fact" : note.kind);
+    setPlacement(note === "new" ? "topic" : note.placement);
     const date = note === "new" || !note.expiresAt ? null : new Date(note.expiresAt);
     setExpiry(
       date
@@ -187,7 +191,12 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                       const input = {
                         content,
                         scope,
+                        aliases: aliases
+                          .split(/[,，]/u)
+                          .map((alias) => alias.trim())
+                          .filter(Boolean),
                         kind,
+                        placement,
                         expiresAt: expiry ? new Date(expiry).getTime() : null,
                       };
                       if (editor === "new") await api.saveHomeMemory(agentId, input);
@@ -225,6 +234,17 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                       />
                     </Field>
                     <Field>
+                      <FieldLabel htmlFor="home-memory-aliases">
+                        <Trans>Aliases</Trans>
+                      </FieldLabel>
+                      <Input
+                        id="home-memory-aliases"
+                        value={aliases}
+                        onChange={(event) => setAliases(event.target.value)}
+                        placeholder={i18n._("dinner, restaurants, cuisine")}
+                      />
+                    </Field>
+                    <Field>
                       <FieldLabel>
                         <Trans>Kind</Trans>
                       </FieldLabel>
@@ -247,6 +267,32 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                         </ToggleGroupItem>
                       </ToggleGroup>
                     </Field>
+                    {editor === "new" || !editor.pinned ? (
+                      <Field>
+                        <FieldLabel>
+                          <Trans>Context</Trans>
+                        </FieldLabel>
+                        <ToggleGroup
+                          type="single"
+                          variant="outline"
+                          value={placement}
+                          aria-label={i18n._("Memory context")}
+                          onValueChange={(value) => {
+                            if (value) setPlacement(value as HomeMemory["placement"]);
+                          }}
+                        >
+                          <ToggleGroupItem value="core">
+                            <Trans>Core</Trans>
+                          </ToggleGroupItem>
+                          <ToggleGroupItem value="topic">
+                            <Trans>Topic</Trans>
+                          </ToggleGroupItem>
+                        </ToggleGroup>
+                        <p className="text-sm text-muted-foreground">
+                          <Trans>Core loads on every Home turn. Topics load when relevant.</Trans>
+                        </p>
+                      </Field>
+                    ) : null}
                     <Field>
                       <FieldLabel htmlFor="home-memory-expiry">
                         <Trans>Expires</Trans>
@@ -286,10 +332,15 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                     </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {i18n._("Pinned context: {used} / {budget} tokens", {
-                      used: data.pinnedTokens,
-                      budget: data.pinBudget,
-                    })}
+                    {i18n._(
+                      "Default context: {lines} / {maxLines} lines · {bytes} / {maxBytes} bytes",
+                      {
+                        lines: data.coreLines,
+                        maxLines: data.coreMaxLines,
+                        bytes: data.coreBytes.toLocaleString(i18n.locale),
+                        maxBytes: data.coreMaxBytes.toLocaleString(i18n.locale),
+                      },
+                    )}
                   </p>
                   {!data.memories.length ? (
                     <Empty>
@@ -300,102 +351,145 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                       </EmptyHeader>
                     </Empty>
                   ) : null}
-                  {data.memories.map((note) => (
-                    <Card key={note.id}>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          {note.scope || i18n._("General")}
-                          {note.pinned ? (
-                            <PinIcon aria-label={i18n._("Pinned")} className="size-4" />
-                          ) : null}
-                          {note.origin === "automatic" ? (
-                            <Badge variant="secondary">
-                              <Trans>Learned</Trans>
-                            </Badge>
-                          ) : null}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="flex flex-col gap-2">
-                        <p className="whitespace-pre-wrap">{note.content}</p>
-                        {note.expiresAt ? (
-                          <p className="text-sm text-muted-foreground">
-                            {i18n._("Expires {date}", {
-                              date: new Date(note.expiresAt).toLocaleString(i18n.locale),
-                            })}
-                          </p>
-                        ) : null}
-                        {note.sourceQuote ? (
-                          <details>
-                            <summary className="cursor-pointer text-sm text-muted-foreground">
-                              <Trans>Source</Trans>
-                            </summary>
-                            <blockquote className="mt-2 border-l-2 pl-3 text-sm">
-                              {note.sourceQuote}
-                            </blockquote>
-                            {note.sourceEntryId ? (
-                              <Link
-                                className="text-sm underline"
-                                to={`/agents/${agentId}/home?entry=${encodeURIComponent(note.sourceEntryId)}`}
-                                onClick={() => setOpen(false)}
+                  {[
+                    {
+                      label: i18n._("Default context"),
+                      notes: data.memories.filter((note) => data.coreIds.includes(note.id)),
+                    },
+                    {
+                      label: i18n._("Topics"),
+                      notes: data.memories.filter((note) => !data.coreIds.includes(note.id)),
+                    },
+                  ]
+                    .filter((group) => group.notes.length)
+                    .map((group) => (
+                      <section
+                        key={group.label}
+                        aria-label={group.label}
+                        className="flex flex-col gap-3"
+                      >
+                        <h3 className="font-medium">{group.label}</h3>
+                        {group.notes.map((note) => (
+                          <Card key={note.id}>
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2">
+                                {note.scope || i18n._("General")}
+                                {note.pinned ? (
+                                  <PinIcon aria-label={i18n._("Pinned")} className="size-4" />
+                                ) : null}
+                                {note.origin === "automatic" ? (
+                                  <Badge variant="secondary">
+                                    <Trans>Learned</Trans>
+                                  </Badge>
+                                ) : null}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col gap-2">
+                              <p className="whitespace-pre-wrap">{note.content}</p>
+                              {note.expiresAt ? (
+                                <p className="text-sm text-muted-foreground">
+                                  {i18n._("Expires {date}", {
+                                    date: new Date(note.expiresAt).toLocaleString(i18n.locale),
+                                  })}
+                                </p>
+                              ) : null}
+                              {note.sourceQuote ? (
+                                <details>
+                                  <summary className="cursor-pointer text-sm text-muted-foreground">
+                                    <Trans>Source</Trans>
+                                  </summary>
+                                  <blockquote className="mt-2 border-l-2 pl-3 text-sm">
+                                    {note.sourceQuote}
+                                  </blockquote>
+                                  {note.sourceEntryId ? (
+                                    <Link
+                                      className="text-sm underline"
+                                      to={`/agents/${agentId}/home?entry=${encodeURIComponent(note.sourceEntryId)}`}
+                                      onClick={() => setOpen(false)}
+                                    >
+                                      <Trans>Open message</Trans>
+                                    </Link>
+                                  ) : null}
+                                </details>
+                              ) : null}
+                            </CardContent>
+                            <CardFooter className="flex flex-wrap gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={busy}
+                                onClick={() =>
+                                  void act(() =>
+                                    api.editHomeMemory(agentId, note.id, {
+                                      expectedRevision: note.revision,
+                                      pinned: !note.pinned,
+                                    }),
+                                  )
+                                }
                               >
-                                <Trans>Open message</Trans>
-                              </Link>
-                            ) : null}
-                          </details>
-                        ) : null}
-                      </CardContent>
-                      <CardFooter className="flex flex-wrap gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busy}
-                          onClick={() =>
-                            void act(() =>
-                              api.editHomeMemory(agentId, note.id, {
-                                expectedRevision: note.revision,
-                                pinned: !note.pinned,
-                              }),
-                            )
-                          }
-                        >
-                          {note.pinned ? <Trans>Unpin</Trans> : <Trans>Pin</Trans>}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busy}
-                          onClick={() => edit(note)}
-                        >
-                          <Trans>Edit</Trans>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busy}
-                          onClick={() =>
-                            void act(async () => {
-                              setHistory({
-                                note,
-                                rows: await api.homeMemoryHistory(agentId, note.id),
-                              });
-                            })
-                          }
-                        >
-                          <Trans>History</Trans>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busy}
-                          onClick={() =>
-                            void act(() => api.forgetHomeMemory(agentId, note.id, note.revision))
-                          }
-                        >
-                          <Trans>Forget</Trans>
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
+                                {note.pinned ? <Trans>Unpin</Trans> : <Trans>Pin</Trans>}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={busy}
+                                onClick={() => edit(note)}
+                              >
+                                <Trans>Edit</Trans>
+                              </Button>
+                              {!note.pinned ? (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    void act(() =>
+                                      api.editHomeMemory(agentId, note.id, {
+                                        expectedRevision: note.revision,
+                                        placement: note.placement === "core" ? "topic" : "core",
+                                      }),
+                                    )
+                                  }
+                                >
+                                  {note.placement === "core" ? (
+                                    <Trans>Move to topics</Trans>
+                                  ) : (
+                                    <Trans>Use as core</Trans>
+                                  )}
+                                </Button>
+                              ) : null}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={busy}
+                                onClick={() =>
+                                  void act(async () => {
+                                    setHistory({
+                                      note,
+                                      rows: await api.homeMemoryHistory(agentId, note.id),
+                                    });
+                                  })
+                                }
+                              >
+                                <Trans>History</Trans>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={busy}
+                                onClick={() =>
+                                  void act(() =>
+                                    api.forgetHomeMemory(agentId, note.id, note.revision),
+                                  )
+                                }
+                              >
+                                <Trans>Forget</Trans>
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                        ))}
+                      </section>
+                    ))}
                   <div className="flex justify-between gap-2">
                     <Button
                       variant="ghost"

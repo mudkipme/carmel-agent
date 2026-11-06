@@ -609,6 +609,8 @@ export const homeMemories = sqliteTable(
     content: text("content").notNull(),
     scope: text("scope").notNull(),
     kind: text("kind").$type<"preference" | "fact" | "decision">().notNull(),
+    placement: text("placement").$type<"core" | "topic">().notNull().default("topic"),
+    aliases: text("aliases", { mode: "json" }).$type<string[]>().notNull().default([]),
     slot: text("slot").notNull().default(""),
     pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
     origin: text("origin").$type<"manual" | "explicit" | "automatic">().notNull(),

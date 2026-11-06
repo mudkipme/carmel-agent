@@ -9,11 +9,38 @@ from future human messages after a short idle period or a batch of exchanges.
 These background model calls may incur provider usage. Task reports, scheduled
 notices, attachments, and collaboration results are not automatic sources.
 
-Only notes you pin load on every human Home turn, within a 500-token budget.
-Other notes are recalled when their words match the current topic, with at most
-four notes and an additional 800 tokens. Lexical retrieval can miss paraphrases;
-ask Home to search for a specific topic when needed. Ordinary sessions and task
-runs do not receive this private memory. Starting **New context** keeps it.
+Home memory uses [OpenMausBot](https://github.com/milind-soni/OpenMausBot)'s
+core-notebook and topic-note structure, scoped to your private Home conversation.
+
+**Core** notes load before every human Home reply, without a tool call, within
+**200 lines / 24,000 UTF-8 bytes** of rendered notes. They hold who you are, your
+lasting preferences and constraints, and standing decisions. Pinned notes take
+priority within the same notebook. When it fills, new automatic notes go to
+topics; saved notes are not deleted. Smaller model context windows can show less.
+
+**Topics** group details about a project, person, trip, place, or domain under a
+scope. Each can have aliases, such as **food → dinner, restaurants, cuisine**.
+A compact topic index (up to 40 topics / 2,000 characters) is supplied alongside
+core, so Home knows which subjects it remembers. Relevant passages from up to
+four topics load automatically before the reply, within 6,000 characters, with
+up to 600 characters of content per topic. Home can search for the full notes
+when it needs more detail. Alias and word matching can still miss paraphrases.
+
+The panel shows **Default context**, its line and byte usage, and **Topics**.
+Use **Use as core**, **Move to topics**, or the editor to control placement and
+aliases. Automatic learning can organize its own notes by subject, but protects
+your edits and placement choices. Existing unpinned notes start as topics;
+learning can reclassify supported lasting facts during a later capture. Turning
+on learning does not scan old conversations.
+
+Learning requires evidence from your own words and rejects uncertain facts,
+one-task instructions, greetings, daily chatter, and inferred traits. Confirmed
+dated facts can be saved with expiry; a learned end date is inclusive through
+that UTC date. Lasting facts have no expiry. Capture accepts at most eight new
+candidates per batch and keeps the existing daily limit on background calls.
+
+Ordinary sessions, task runs, background notices, and other users do not receive
+these notes or the topic index. Starting **New context** keeps Home memory.
 
 Automatic notes show their supporting quote and message link. Review new notes
 from the quiet **Remembered** notice, or undo the change. Edit history supports

@@ -8,76 +8,14 @@ msgstr ""
 "Language: en\n"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:44
-#: src/components/harness/HomeMemoryPanel.tsx:64
-msgid "Memory action failed"
-msgstr "Memory action failed"
+#: src/components/harness/HomeMemoryPanel.tsx:244
+msgid "dinner, restaurants, cuisine"
+msgstr "dinner, restaurants, cuisine"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:54
-msgid "Remembered {count, plural, one {# detail} other {# details}}"
-msgstr "Remembered {count, plural, one {# detail} other {# details}}"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:56
-msgid "Review"
-msgstr "Review"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:86
-msgid "Loading memory"
-msgstr "Loading memory"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:88
-msgid "Memory mode"
-msgstr "Memory mode"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:112
-#: src/components/harness/HomeMemoryPanel.tsx:112
-msgid "Search memory"
-msgstr "Search memory"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:113
-msgid "Pinned context: {used} / {budget} tokens"
-msgstr "Pinned context: {used} / {budget} tokens"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:118
-msgid "Expires {date}"
-msgstr "Expires {date}"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:129
-msgid "Memory history"
-msgstr "Memory history"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:131
-msgid "Forget all Home memory?"
-msgstr "Forget all Home memory?"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:131
-msgid "Notes and their revision history will be deleted. Your Home conversation stays."
-msgstr "Notes and their revision history will be deleted. Your Home conversation stays."
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:131
-msgid "Forget all"
-msgstr "Forget all"
-
-#. js-lingui-explicit-id
-#: src/components/chat/CollaborationActivity.tsx:68
-msgid "Stop"
-msgstr "Stop"
-
-#. js-lingui-explicit-id
-#: src/components/chat/CollaborationReplyCard.tsx:45
-msgid "Open conversation"
-msgstr "Open conversation"
+#: src/components/harness/HomeMemoryPanel.tsx:335
+msgid "Default context: {lines} / {maxLines} lines · {bytes} / {maxBytes} bytes"
+msgstr "Default context: {lines} / {maxLines} lines · {bytes} / {maxBytes} bytes"
 
 #. js-lingui-explicit-id
 #: src/App.tsx:100
@@ -225,23 +163,23 @@ msgid "Rose"
 msgstr "Rose"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:110
+#: src/lib/api.ts:115
 msgid "Request failed: {status}"
 msgstr "Request failed: {status}"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:153
-#: src/lib/api.ts:185
+#: src/lib/api.ts:158
+#: src/lib/api.ts:190
 msgid "Upload cancelled"
 msgstr "Upload cancelled"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:177
+#: src/lib/api.ts:182
 msgid "Upload failed: {status}"
 msgstr "Upload failed: {status}"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:183
+#: src/lib/api.ts:188
 msgid "Unable to upload {path}"
 msgstr "Unable to upload {path}"
 
@@ -532,7 +470,7 @@ msgid "Previous 30 days"
 msgstr "Previous 30 days"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:116
+#: src/components/harness/HomeMemoryPanel.tsx:378
 #: src/lib/session-groups.ts:53
 msgid "Pinned"
 msgstr "Pinned"
@@ -1417,7 +1355,7 @@ msgstr "Import Open WebUI export"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentSettingsPage.tsx:36
-#: src/components/harness/HomeMemoryPanel.tsx:116
+#: src/components/harness/HomeMemoryPanel.tsx:376
 msgid "General"
 msgstr "General"
 
@@ -1681,10 +1619,82 @@ msgid "Loading session..."
 msgstr "Loading session..."
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:57
+#: src/components/harness/HomeMemoryPanel.tsx:65
+#: src/components/harness/HomeMemoryPanel.tsx:103
+msgid "Memory action failed"
+msgstr "Memory action failed"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:80
+msgid "Remembered {count, plural, one {# detail} other {# details}}"
+msgstr "Remembered {count, plural, one {# detail} other {# details}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:85
+msgid "Review"
+msgstr "Review"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:87
 #: src/components/harness/shell/SessionList.tsx:184
 msgid "Undo"
 msgstr "Undo"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:148
+msgid "Loading memory"
+msgstr "Loading memory"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:157
+msgid "Memory mode"
+msgstr "Memory mode"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:279
+msgid "Memory context"
+msgstr "Memory context"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:321
+#: src/components/harness/HomeMemoryPanel.tsx:322
+msgid "Search memory"
+msgstr "Search memory"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:356
+msgid "Default context"
+msgstr "Default context"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:360
+msgid "Topics"
+msgstr "Topics"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:391
+msgid "Expires {date}"
+msgstr "Expires {date}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:510
+msgid "Memory history"
+msgstr "Memory history"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:545
+msgid "Forget all Home memory?"
+msgstr "Forget all Home memory?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:546
+msgid "Notes and their revision history will be deleted. Your Home conversation stays."
+msgstr "Notes and their revision history will be deleted. Your Home conversation stays."
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:549
+msgid "Forget all"
+msgstr "Forget all"
 
 #. js-lingui-explicit-id
 #: src/components/harness/LoginScreen.tsx:43
@@ -3871,9 +3881,19 @@ msgid "Unable to stop collaboration"
 msgstr "Unable to stop collaboration"
 
 #. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:68
+msgid "Stop"
+msgstr "Stop"
+
+#. js-lingui-explicit-id
 #: src/components/chat/CollaborationReplyCard.tsx:45
 msgid "Open task"
 msgstr "Open task"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:45
+msgid "Open conversation"
+msgstr "Open conversation"
 
 #. js-lingui-explicit-id
 #: src/components/chat/CollaborationReplyCard.tsx:69
@@ -4170,36 +4190,6 @@ msgstr "{value}\n"
 msgid "Failed to read file."
 msgstr "Failed to read file."
 
-#. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:488
-#~ msgid "Agent event stream failed with {status}"
-#~ msgstr "Agent event stream failed with {status}"
-
-#. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:75
-#~ msgid "Choose a file, folder, or conversation to include with your message."
-#~ msgstr "Choose a file, folder, or conversation to include with your message."
-
-#. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:80
-#~ msgid "Search conversations or type a file path…"
-#~ msgstr "Search conversations or type a file path…"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
-#~ msgid "Both agents must allow a connection. Consultations have read-only tools. Delegated tasks use the receiving agent's configured permissions and credentials."
-#~ msgstr "Both agents must allow a connection. Consultations have read-only tools. Delegated tasks use the receiving agent's configured permissions and credentials."
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:79
-#~ msgid "Contact this agent"
-#~ msgstr "Contact this agent"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:80
-#~ msgid "Allow requests from this agent"
-#~ msgstr "Allow requests from this agent"
-
 #: src/components/harness/tasks/TaskBriefForm.tsx:84
 msgid "(optional)"
 msgstr "(optional)"
@@ -4284,7 +4274,7 @@ msgstr "Acceptance criteria & priority"
 msgid "Activity"
 msgstr "Activity"
 
-#: src/components/harness/HomeMemoryPanel.tsx:112
+#: src/components/harness/HomeMemoryPanel.tsx:331
 msgid "Add"
 msgstr "Add"
 
@@ -4323,6 +4313,10 @@ msgstr "Admin"
 #: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:110
 msgid "Agents save memories only when asked. Existing memories are retained when switched off."
 msgstr "Agents save memories only when asked. Existing memories are retained when switched off."
+
+#: src/components/harness/HomeMemoryPanel.tsx:238
+msgid "Aliases"
+msgstr "Aliases"
 
 #: src/components/harness/changes/ChangesView.tsx:202
 msgid "All changes"
@@ -4438,7 +4432,7 @@ msgstr "Build embeddings"
 #: src/components/harness/agent-settings/AgentSecretsSettings.tsx:225
 #: src/components/harness/AgentKnowledgePage.tsx:650
 #: src/components/harness/AgentKnowledgePage.tsx:728
-#: src/components/harness/HomeMemoryPanel.tsx:110
+#: src/components/harness/HomeMemoryPanel.tsx:310
 #: src/components/harness/schedules/TaskForm.tsx:234
 #: src/components/harness/settings/ApiKeySettings.tsx:179
 #: src/components/harness/settings/UserSettings.tsx:119
@@ -4508,6 +4502,10 @@ msgstr "Connections belong to you, including on shared agents. Use a dedicated b
 msgid "Container path"
 msgstr "Container path"
 
+#: src/components/harness/HomeMemoryPanel.tsx:273
+msgid "Context"
+msgstr "Context"
+
 #: src/components/harness/settings/ProviderSettings.tsx:256
 msgid "Continue"
 msgstr "Continue"
@@ -4537,6 +4535,14 @@ msgstr "Copy selection"
 #: src/components/harness/settings/ApiKeySettings.tsx:95
 msgid "Copy your new key now — it will not be shown again."
 msgstr "Copy your new key now — it will not be shown again."
+
+#: src/components/harness/HomeMemoryPanel.tsx:285
+msgid "Core"
+msgstr "Core"
+
+#: src/components/harness/HomeMemoryPanel.tsx:292
+msgid "Core loads on every Home turn. Topics load when relevant."
+msgstr "Core loads on every Home turn. Topics load when relevant."
 
 #: src/components/harness/AgentSchedulesPage.tsx:135
 msgid "Create a task to run this agent on a schedule, even while the app is closed."
@@ -4574,7 +4580,7 @@ msgstr "Cut"
 msgid "Dark"
 msgstr "Dark"
 
-#: src/components/harness/HomeMemoryPanel.tsx:107
+#: src/components/harness/HomeMemoryPanel.tsx:266
 msgid "Decision"
 msgstr "Decision"
 
@@ -4678,7 +4684,7 @@ msgstr "Earlier messages"
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:176
 #: src/components/harness/AgentSchedulesPage.tsx:227
 #: src/components/harness/files/FileEditorView.tsx:136
-#: src/components/harness/HomeMemoryPanel.tsx:123
+#: src/components/harness/HomeMemoryPanel.tsx:438
 msgid "Edit"
 msgstr "Edit"
 
@@ -4717,7 +4723,7 @@ msgstr "Enabled"
 msgid "Every N minutes"
 msgstr "Every N minutes"
 
-#: src/components/harness/HomeMemoryPanel.tsx:108
+#: src/components/harness/HomeMemoryPanel.tsx:298
 msgid "Expires"
 msgstr "Expires"
 
@@ -4734,7 +4740,7 @@ msgstr "Expose all tools"
 msgid "Extra runner mounts"
 msgstr "Extra runner mounts"
 
-#: src/components/harness/HomeMemoryPanel.tsx:107
+#: src/components/harness/HomeMemoryPanel.tsx:260
 msgid "Fact"
 msgstr "Fact"
 
@@ -4759,11 +4765,11 @@ msgstr "Files unavailable: {error}"
 msgid "Finish connecting {0}: open the bot and send the command below from your private account."
 msgstr "Finish connecting {0}: open the bot and send the command below from your private account."
 
-#: src/components/harness/HomeMemoryPanel.tsx:125
+#: src/components/harness/HomeMemoryPanel.tsx:486
 msgid "Forget"
 msgstr "Forget"
 
-#: src/components/harness/HomeMemoryPanel.tsx:132
+#: src/components/harness/HomeMemoryPanel.tsx:555
 msgid "Forget all memory"
 msgstr "Forget all memory"
 
@@ -4784,8 +4790,8 @@ msgid "Go"
 msgstr "Go"
 
 #: src/components/harness/AgentSchedulesPage.tsx:201
-#: src/components/harness/HomeMemoryPanel.tsx:124
-#: src/components/harness/HomeMemoryPanel.tsx:129
+#: src/components/harness/HomeMemoryPanel.tsx:474
+#: src/components/harness/HomeMemoryPanel.tsx:512
 msgid "History"
 msgstr "History"
 
@@ -4793,7 +4799,7 @@ msgstr "History"
 msgid "Home"
 msgstr "Home"
 
-#: src/components/harness/HomeMemoryPanel.tsx:82
+#: src/components/harness/HomeMemoryPanel.tsx:139
 msgid "Home memory"
 msgstr "Home memory"
 
@@ -4845,7 +4851,7 @@ msgstr "Keep facts specific and identify whose preferences or decisions they des
 msgid "Keyboard"
 msgstr "Keyboard"
 
-#: src/components/harness/HomeMemoryPanel.tsx:107
+#: src/components/harness/HomeMemoryPanel.tsx:249
 msgid "Kind"
 msgstr "Kind"
 
@@ -4874,15 +4880,15 @@ msgstr "Latest messages"
 msgid "Latest result"
 msgstr "Latest result"
 
-#: src/components/harness/HomeMemoryPanel.tsx:91
+#: src/components/harness/HomeMemoryPanel.tsx:169
 msgid "Learn from Home"
 msgstr "Learn from Home"
 
-#: src/components/harness/HomeMemoryPanel.tsx:93
+#: src/components/harness/HomeMemoryPanel.tsx:174
 msgid "Learn useful details from future Home messages using your Home model. Background model usage may incur charges."
 msgstr "Learn useful details from future Home messages using your Home model. Background model usage may incur charges."
 
-#: src/components/harness/HomeMemoryPanel.tsx:116
+#: src/components/harness/HomeMemoryPanel.tsx:382
 msgid "Learned"
 msgstr "Learned"
 
@@ -4937,8 +4943,8 @@ msgid "Manual server folder"
 msgstr "Manual server folder"
 
 #: src/components/harness/AgentKnowledgePage.tsx:632
-#: src/components/harness/HomeMemoryPanel.tsx:78
-#: src/components/harness/HomeMemoryPanel.tsx:105
+#: src/components/harness/HomeMemoryPanel.tsx:133
+#: src/components/harness/HomeMemoryPanel.tsx:215
 msgid "Memory"
 msgstr "Memory"
 
@@ -4967,6 +4973,10 @@ msgstr "Mount {0}"
 #: src/components/harness/shell/TaskRunBanner.tsx:54
 msgid "Move to sessions"
 msgstr "Move to sessions"
+
+#: src/components/harness/HomeMemoryPanel.tsx:455
+msgid "Move to topics"
+msgstr "Move to topics"
 
 #: src/components/harness/ActionDialogs.tsx:88
 #: src/components/harness/agent-settings/AgentGeneralSettings.tsx:68
@@ -5025,7 +5035,7 @@ msgstr "New session"
 msgid "New task"
 msgstr "New task"
 
-#: src/components/harness/HomeMemoryPanel.tsx:128
+#: src/components/harness/HomeMemoryPanel.tsx:506
 msgid "Next"
 msgstr "Next"
 
@@ -5057,7 +5067,7 @@ msgstr "No matches"
 msgid "No matching references."
 msgstr "No matching references."
 
-#: src/components/harness/HomeMemoryPanel.tsx:114
+#: src/components/harness/HomeMemoryPanel.tsx:349
 msgid "No memories"
 msgstr "No memories"
 
@@ -5106,7 +5116,7 @@ msgid "OAuth login completed."
 msgstr "OAuth login completed."
 
 #: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:101
-#: src/components/harness/HomeMemoryPanel.tsx:89
+#: src/components/harness/HomeMemoryPanel.tsx:163
 msgid "Off"
 msgstr "Off"
 
@@ -5156,7 +5166,7 @@ msgstr "Open knowledge"
 msgid "Open login page"
 msgstr "Open login page"
 
-#: src/components/harness/HomeMemoryPanel.tsx:119
+#: src/components/harness/HomeMemoryPanel.tsx:410
 msgid "Open message"
 msgstr "Open message"
 
@@ -5200,11 +5210,11 @@ msgstr "Paste here"
 msgid "People who can run this shared agent can use this credential."
 msgstr "People who can run this shared agent can use this credential."
 
-#: src/components/harness/HomeMemoryPanel.tsx:122
+#: src/components/harness/HomeMemoryPanel.tsx:430
 msgid "Pin"
 msgstr "Pin"
 
-#: src/components/harness/HomeMemoryPanel.tsx:107
+#: src/components/harness/HomeMemoryPanel.tsx:263
 msgid "Preference"
 msgstr "Preference"
 
@@ -5216,7 +5226,7 @@ msgstr "Prepare deep search"
 msgid "Preview"
 msgstr "Preview"
 
-#: src/components/harness/HomeMemoryPanel.tsx:128
+#: src/components/harness/HomeMemoryPanel.tsx:499
 msgid "Previous"
 msgstr "Previous"
 
@@ -5229,7 +5239,7 @@ msgstr "Priority"
 msgid "Priority · {0}"
 msgstr "Priority · {0}"
 
-#: src/components/harness/HomeMemoryPanel.tsx:83
+#: src/components/harness/HomeMemoryPanel.tsx:142
 msgid "Private to you and this agent. New context keeps these notes."
 msgstr "Private to you and this agent. New context keeps these notes."
 
@@ -5278,7 +5288,7 @@ msgstr "Reconnecting preserves the agent’s browser and saved sign-ins."
 msgid "Refresh index"
 msgstr "Refresh index"
 
-#: src/components/harness/HomeMemoryPanel.tsx:90
+#: src/components/harness/HomeMemoryPanel.tsx:166
 msgid "Remember when asked"
 msgstr "Remember when asked"
 
@@ -5332,7 +5342,7 @@ msgid "Restart"
 msgstr "Restart"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
-#: src/components/harness/HomeMemoryPanel.tsx:129
+#: src/components/harness/HomeMemoryPanel.tsx:533
 msgid "Restore"
 msgstr "Restore"
 
@@ -5405,7 +5415,7 @@ msgid "Save changes"
 msgstr "Save changes"
 
 #: src/components/harness/AgentKnowledgePage.tsx:647
-#: src/components/harness/HomeMemoryPanel.tsx:110
+#: src/components/harness/HomeMemoryPanel.tsx:313
 msgid "Save memory"
 msgstr "Save memory"
 
@@ -5435,7 +5445,7 @@ msgstr "Scan QR code"
 msgid "Scan with the Feishu or Lark mobile app and approve creation of your bot."
 msgstr "Scan with the Feishu or Lark mobile app and approve creation of your bot."
 
-#: src/components/harness/HomeMemoryPanel.tsx:106
+#: src/components/harness/HomeMemoryPanel.tsx:227
 msgid "Scope"
 msgstr "Scope"
 
@@ -5546,7 +5556,7 @@ msgid "Sort by {0}{1}"
 msgstr "Sort by {0}{1}"
 
 #: src/components/chat/MermaidBlock.tsx:50
-#: src/components/harness/HomeMemoryPanel.tsx:119
+#: src/components/harness/HomeMemoryPanel.tsx:399
 msgid "Source"
 msgstr "Source"
 
@@ -5645,6 +5655,10 @@ msgstr "Time zone"
 msgid "Title"
 msgstr "Title"
 
+#: src/components/harness/HomeMemoryPanel.tsx:288
+msgid "Topic"
+msgstr "Topic"
+
 #: src/components/harness/AgentKnowledgePage.tsx:258
 msgid "Try another phrase or refresh the source index."
 msgstr "Try another phrase or refresh the source index."
@@ -5665,7 +5679,7 @@ msgstr "Unable to save. Your changes are still here. Try again or cancel to keep
 msgid "Unable to update integration"
 msgstr "Unable to update integration"
 
-#: src/components/harness/HomeMemoryPanel.tsx:122
+#: src/components/harness/HomeMemoryPanel.tsx:430
 msgid "Unpin"
 msgstr "Unpin"
 
@@ -5691,6 +5705,10 @@ msgstr "Upload files"
 #: src/components/harness/files/FileManagerView.tsx:160
 msgid "Upload folder"
 msgstr "Upload folder"
+
+#: src/components/harness/HomeMemoryPanel.tsx:457
+msgid "Use as core"
+msgstr "Use as core"
 
 #: src/components/harness/settings/ModelSettings.tsx:70
 msgid "Use current session model"
