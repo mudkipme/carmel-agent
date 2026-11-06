@@ -170,7 +170,7 @@ test("stopping a task cancels its native background subtasks", async () => {
   }
 });
 
-test("foreground helpers return their result, inherit only read tools, and cannot delegate", async () => {
+test("foreground helpers return their result, inherit only read-only tools, and cannot delegate", async () => {
   const { fixture, models, options } = setup();
   const write: ToolRegistration = {
     name: "write",
@@ -322,6 +322,54 @@ test("helper read permission is rechecked at execution", async () => {
     assert.equal(reads, 0);
     const helper = (await readHelpers(pi.session))[0]!;
     assert.equal(helper.answer, "Read was unavailable");
+  } finally {
+    await pi.close();
+  }
+});
+
+test("helper network permission is rechecked at execution", async () => {
+  const { fixture, models, options } = setup();
+  let searches = 0;
+  const search: ToolRegistration = {
+    name: "exa_search",
+    description: "search the web",
+    parameters: obj({}),
+    replay: "safe",
+    execute: async () => {
+      searches++;
+      return { output: [{ type: "text", text: "results" }] };
+    },
+  };
+  const row = db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!;
+  db.update(agents)
+    .set({ permissions: { ...row.permissions, network: true } })
+    .where(eq(agents.id, row.id))
+    .run();
+  models.faux.setResponses([
+    call({ name: "guarded", task: "Search evidence", background: true, wakeAt: Date.now() + 250 }),
+    fauxAssistantMessage("Working later"),
+    fauxAssistantMessage([fauxToolCall("exa_search", {})], { stopReason: "toolUse" }),
+    fauxAssistantMessage("Search was unavailable"),
+  ]);
+  const pi = await openTestHarness(fixture.sessionId, {
+    ...options,
+    tools: [...options.tools, search],
+  });
+  try {
+    await pi.prompt("Start permission check");
+    const helper = (await readHelpers(pi.session))[0]!;
+    const child = (await pi.session.native.conversation(
+      helper.id as ConversationId,
+      TEST_CONTEXT,
+    ))!;
+    assert.ok((await child.agent(TEST_CONTEXT)).tools.some((tool) => tool.name === "exa_search"));
+    db.update(agents)
+      .set({ permissions: { ...row.permissions, network: false } })
+      .where(eq(agents.id, row.id))
+      .run();
+    await pi.session.native.waitForTask(helper.reporterId as TaskId, TEST_CONTEXT);
+    assert.equal(searches, 0);
+    assert.equal((await readHelpers(pi.session))[0]?.answer, "Search was unavailable");
   } finally {
     await pi.close();
   }

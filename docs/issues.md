@@ -48,7 +48,7 @@ External result notifications require a requested `notifyPlatform` on the task. 
 
 ## Subtasks
 
-Tasks can delegate bounded read-only research with `start_subtask`. Use `background=true` for independent questions that can run in parallel, then `wait_subtask` to collect each result before `report_task` reports completion. Subtasks have separate native Pi Durable context and keep their evidence in the parent task. Inspect them inline in the task detail page; stopping the parent task also stops its subtasks. Home receives the parent result rather than a separate report for every subtask.
+Tasks can delegate bounded read-only analysis or web research with `start_subtask`. Subtasks share the task's readable workspace, knowledge, and session history, and can search or fetch the web when the agent has network permission; they cannot edit files, run commands, drive the browser, message, create tasks, or delegate. Use `background=true` for independent questions that can run in parallel, then `wait_subtask` to collect each result before `report_task` reports completion. Subtasks have separate native Pi Durable context and keep their evidence in the parent task. Inspect them inline in the task detail page; stopping the parent task also stops its subtasks. Home receives the parent result rather than a separate report for every subtask.
 
 Home should create a task before multi-step investigation, implementation, or broad verification. Its smaller context budget is a maintenance threshold that can summarize earlier context during one long run. Task runs use the ordinary model-window compaction policy.
 

@@ -53,6 +53,8 @@ export const helperReadTools = new Set([
   "session_search",
   "session_read",
   "load_builtin_skill",
+  "exa_search",
+  "fetch_url",
 ]);
 
 const Anchor = defineTask<null, { phase: "done" }, null>({
@@ -217,6 +219,8 @@ export const helperTasks: Extension = defineExtension({
           !agent.permissions.read
         )
           return { block: "Read permission is disabled for this agent." };
+        if (["exa_search", "fetch_url"].includes(call.name) && !agent.permissions.network)
+          return { block: "Network permission is disabled for this agent." };
         return undefined;
       },
     }),
@@ -234,7 +238,7 @@ export function createHelperExtension(owner: {
       defineTool({
         name: "start_subtask",
         description:
-          "Create a read-only subtask within the current task. Delegate a bounded research or analysis question to this same agent with isolated context. Pass a self-contained task and relevant constraints. Subtasks cannot edit files, browse, send messages, create tasks, or delegate. Up to four may work at once; each has five minutes. Foreground returns its answer. Use background=true to run independent subtasks in parallel, then wait_subtask to collect each result before reporting the parent task complete. Results and evidence stay on the parent task. wakeAt is optional UTC epoch milliseconds for a background subtask to wake later.",
+          "Create a read-only subtask within the current task. Delegate a bounded analysis or web research question to this same agent with isolated context. Pass a self-contained task and relevant constraints. The subtask shares this agent's readable files and can search or fetch the web when network permission is enabled. It cannot edit files, run commands, drive the interactive browser, send messages, create tasks, or delegate. Up to four may work at once; each has five minutes. Foreground returns its answer. Use background=true to run independent subtasks in parallel, then wait_subtask to collect each result before reporting the parent task complete. Results and evidence stay on the parent task. wakeAt is optional UTC epoch milliseconds for a background subtask to wake later.",
         parameters: obj({
           name: str({ minLength: 1, maxLength: 100 }),
           task: str({ minLength: 1, maxLength: 16000 }),
@@ -285,7 +289,7 @@ export function createHelperExtension(owner: {
               tools: enabled,
               modelTools: enabled,
               extensions: { remove: [HelpersExtensionPlaceholder] },
-              instructions: `You are executing the read-only subtask ${args.name}. Complete only the supplied task. Return a concise answer with evidence and uncertainties. You share this agent's readable files; you have no private filesystem copy. Do not ask the user questions or delegate.`,
+              instructions: `You are executing the read-only subtask ${args.name}. Complete only the supplied task. Return a concise answer with evidence and uncertainties. You share this agent's readable files and, when enabled, its web search and fetch tools; you have no private filesystem copy. Do not ask the user questions or delegate.`,
             });
             const record: HelperRecord = {
               userId: owner.userId,
