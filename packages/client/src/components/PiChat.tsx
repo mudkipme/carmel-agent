@@ -19,6 +19,7 @@ import { ContextPressureNotice } from "@/components/chat/ContextPressureNotice";
 import { WorkspaceFileLinkAgentContext } from "@/components/chat/workspace-file-links";
 import { MessageEditDialog } from "@/components/chat/MessageEditDialog";
 import { ModelCommandDialog } from "@/components/chat/ModelCommandDialog";
+import { HomeMemoryPanel } from "@/components/harness/HomeMemoryPanel";
 import { useMessageMutations } from "@/hooks/use-message-mutations";
 import { useModelSelection } from "@/hooks/use-model-selection";
 import { useSessionAgent } from "@/hooks/use-session-agent";
@@ -256,8 +257,9 @@ export function PiChat({
             onDismiss={() => setDismissedHomeErrors((current) => [...current, homeError.id])}
           />
         ) : null}
-        {session.home && (!emptyHome || homeStatus.data?.home?.paused) ? (
+        {session.home ? (
           <div className="flex justify-end border-b px-4 py-1">
+            <HomeMemoryPanel key={`${activeUserId}:${agentConfig.id}`} agentId={agentConfig.id} />
             {homeStatus.data?.home?.paused ? (
               <Button
                 size="sm"

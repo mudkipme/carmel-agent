@@ -29,6 +29,13 @@
       "when": 1793711347324,
       "tag": "0003_agent_collaboration",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793933521495,
+      "tag": "0004_home_memory",
+      "breakpoints": true
     }
   ]
 }

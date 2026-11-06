@@ -17,6 +17,8 @@ const tables: Record<string, StateTopic[]> = {
   user_requests: ["sessions", "homes"],
   agent_homes: ["homes"],
   home_events: ["homes"],
+  home_memory_settings: ["homes"],
+  home_memories: ["homes"],
   agent_tasks: ["tasks"],
   agent_task_runs: ["tasks"],
   issues: ["issues", "homes"],

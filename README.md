@@ -113,6 +113,7 @@ Select the agent you want the chats to land in, open the import dialog from the 
 - [Configuration](docs/configuration.md) — environment variables, secrets, provider setup, data paths, and sandbox settings.
 - [Runtime And Security](docs/runtime-and-security.md) — how agents, tools, file access, sandboxing, roles, and sharing actually work.
 - [MCP tools](docs/mcp.md) — configure remote and sandboxed servers, tool access, and authentication.
+- [Home memory](docs/home-memory.md) — private notes, opt-in learning, recall, and forgetting.
 - [Open WebUI Import](docs/open-webui-import.md) — supported import format and behavior.
 
 ## Development

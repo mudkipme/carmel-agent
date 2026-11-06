@@ -1,5 +1,9 @@
 # Knowledge and memory
 
+Home also has [private conversation memory](home-memory.md), scoped to
+one user and agent. Its opt-in learning and bounded recall are separate from the
+agent Knowledge described here; personal Home notes are never published here.
+
 Every agent has a Knowledge page for searching registered Markdown directories and managing saved memories. Memory belongs to the agent: all users of a shared agent see and use the same memories. Contributor IDs record who last saved a memory; they do not partition access. Keep person-specific statements explicit, for example “Alice prefers a monthly budget review.”
 
 Conversations retain their existing visibility. Knowledge does not index sessions, automatically capture memories, inject startup memory, or run Dream-style consolidation. Private conversation retrieval uses separate `session_search` and `session_read` tools scoped to the current user and agent; it does not publish transcripts into shared Knowledge. It implements managed search and explicit memory writes. Existing workspace wikis such as LifeOS remain source directories; automatic writes into their pages are not implemented.

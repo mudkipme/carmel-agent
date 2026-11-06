@@ -1,5 +1,6 @@
 import { searchGlobalSessions } from "../services/session-search.ts";
 import { sessionHome } from "../services/agent-homes.ts";
+import { invalidateHomeMemorySources } from "../services/home-memory.ts";
 import { readSessionSnapshot } from "../services/session-snapshot.ts";
 import {
   forkSessionRequestSchema,
@@ -299,6 +300,10 @@ export function createSessionRoutes() {
       }
 
       await movePiSessionToEntry(current.id, body.entryId);
+      invalidateHomeMemorySources(
+        current.id,
+        current.messageEntryIds.slice(current.messageEntryIds.indexOf(body.entryId) + 1),
+      );
       return c.json(
         await commitSessionChange(current.id, {
           thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
@@ -338,6 +343,11 @@ export function createSessionRoutes() {
         editedMessage,
         editableUser && Boolean(body.truncate),
       );
+      if (editableUser)
+        invalidateHomeMemorySources(
+          current.id,
+          body.truncate ? current.messageEntryIds.slice(messageIndex) : [entryId],
+        );
       return c.json(
         await commitSessionChange(current.id, {
           thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,

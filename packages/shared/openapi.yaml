@@ -21,6 +21,213 @@ tags:
   - { name: Issues }
   - { name: Knowledge }
 paths:
+  /api/agents/{agentId}/home/memory:
+    parameters: &a2
+      - &a3
+        name: agentId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getHomeMemory
+      tags:
+        - Agents
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeMemoryOverview"
+        "400": &a1
+          $ref: "#/components/responses/Error"
+        "404": *a1
+        "409": *a1
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+    post:
+      operationId: createHomeMemory
+      tags:
+        - Agents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HomeMemoryInput"
+      responses:
+        "201":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeMemory"
+        "400": *a1
+        "404": *a1
+        "409": *a1
+    delete:
+      operationId: clearHomeMemory
+      tags:
+        - Agents
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OK"
+        "400": *a1
+        "404": *a1
+        "409": *a1
+  /api/agents/{agentId}/home/memory/settings:
+    parameters: *a2
+    patch:
+      operationId: setHomeMemorySettings
+      tags:
+        - Agents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - mode
+              properties:
+                mode:
+                  type: string
+                  enum:
+                    - off
+                    - manual
+                    - automatic
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - mode
+                properties:
+                  mode:
+                    type: string
+                    enum:
+                      - off
+                      - manual
+                      - automatic
+        "400": *a1
+        "404": *a1
+        "409": *a1
+  /api/agents/{agentId}/home/memory/{id}:
+    parameters: &a4
+      - *a3
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: editHomeMemory
+      tags:
+        - Agents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HomeMemoryPatch"
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeMemory"
+        "400": *a1
+        "404": *a1
+        "409": *a1
+    delete:
+      operationId: forgetHomeMemory
+      tags:
+        - Agents
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OK"
+        "400": *a1
+        "404": *a1
+        "409": *a1
+      parameters:
+        - name: revision
+          in: query
+          required: true
+          schema: &a5
+            type: integer
+            minimum: 1
+  /api/agents/{agentId}/home/memory/{id}/history:
+    parameters: *a4
+    get:
+      operationId: getHomeMemoryHistory
+      tags:
+        - Agents
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HomeMemoryRevision"
+        "400": *a1
+        "404": *a1
+        "409": *a1
+  /api/agents/{agentId}/home/memory/{id}/restore:
+    parameters: *a4
+    post:
+      operationId: restoreHomeMemory
+      tags:
+        - Agents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - revision
+                - expectedRevision
+              properties:
+                revision: *a5
+                expectedRevision: *a5
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeMemory"
+        "400": *a1
+        "404": *a1
+        "409": *a1
   /api/agents/{agentId}/collaboration-connections:
     parameters:
       - { name: agentId, in: path, required: true, schema: { type: string } }
@@ -3182,6 +3389,142 @@ components:
           { application/json: { schema: { $ref: "#/components/schemas/IssuePatchRequest" } } },
       }
   schemas:
+    HomeMemoryInput:
+      type: object
+      additionalProperties: false
+      required:
+        - content
+      properties:
+        content: &a1
+          type: string
+          minLength: 1
+          maxLength: 2000
+        scope: &a2
+          type: string
+          maxLength: 120
+        kind: &a3
+          type: string
+          enum:
+            - preference
+            - fact
+            - decision
+        expiresAt: &a4
+          type: integer
+          minimum: 1
+          nullable: true
+    HomeMemoryPatch:
+      type: object
+      additionalProperties: false
+      required:
+        - expectedRevision
+      properties:
+        content: *a1
+        scope: *a2
+        kind: *a3
+        expiresAt: *a4
+        expectedRevision: &a5
+          type: integer
+          minimum: 1
+        pinned:
+          type: boolean
+    HomeMemory:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - content
+        - scope
+        - kind
+        - expiresAt
+        - revision
+        - pinned
+        - origin
+        - sourceEventId
+        - sourceEntryId
+        - sourceQuote
+        - createdAt
+        - updatedAt
+      properties:
+        content: *a1
+        scope: *a2
+        kind: *a3
+        expiresAt: *a4
+        id:
+          type: string
+        revision: *a5
+        pinned:
+          type: boolean
+        origin:
+          type: string
+          enum:
+            - manual
+            - explicit
+            - automatic
+        sourceEventId:
+          type: string
+          nullable: true
+        sourceEntryId:
+          type: string
+          nullable: true
+        sourceQuote:
+          type: string
+          nullable: true
+        createdAt:
+          type: integer
+        updatedAt:
+          type: integer
+    HomeMemoryRevision:
+      type: object
+      required:
+        - revision
+        - content
+        - scope
+        - kind
+        - expiresAt
+        - createdAt
+      properties:
+        content: *a1
+        scope: *a2
+        kind: *a3
+        expiresAt: *a4
+        revision: *a5
+        createdAt:
+          type: integer
+    HomeMemoryOverview:
+      type: object
+      required:
+        - mode
+        - memories
+        - total
+        - pinnedTokens
+        - pinBudget
+        - lastCaptureAt
+        - error
+      properties:
+        mode:
+          type: string
+          enum:
+            - off
+            - manual
+            - automatic
+        memories:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeMemory"
+        total:
+          type: integer
+          minimum: 0
+        pinnedTokens:
+          type: integer
+          minimum: 0
+        pinBudget:
+          type: integer
+        lastCaptureAt:
+          type: integer
+          nullable: true
+        error:
+          type: string
+          nullable: true
     KnowledgeSettings:
       type: object
       properties:

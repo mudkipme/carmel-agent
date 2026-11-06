@@ -11,6 +11,7 @@ import {
   recoverHomeEvents,
 } from "./services/home-events.ts";
 import { ensureHome } from "./services/agent-homes.ts";
+import { startHomeMemoryCapture, stopHomeMemoryCapture } from "./services/home-memory-capture.ts";
 import { imBindings, imIntegrations } from "./db/im-schema.ts";
 import { db } from "./db/index.ts";
 import { eq } from "drizzle-orm";
@@ -93,6 +94,7 @@ for (const { integration } of db
 await recoverHomeEvents();
 startHelperHosts();
 startHomeDispatcher();
+startHomeMemoryCapture();
 startTaskScheduler();
 startImManager();
 startKnowledgeScheduler();
@@ -118,6 +120,7 @@ async function shutdown(signal: string) {
   shuttingDown = true;
   pauseHelperHosts();
   stopHomeDispatcher();
+  await stopHomeMemoryCapture();
   stopIssueQueue();
   stopCollaborationDispatcher();
   stopImManager();

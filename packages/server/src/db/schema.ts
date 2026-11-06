@@ -8,7 +8,12 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { desc, sql } from "drizzle-orm";
-import type { KnowledgeSettings, KnowledgeStatus } from "@carmel-agent/shared";
+import type {
+  HomeMemoryMode,
+  HomeMemoryRevision,
+  KnowledgeSettings,
+  KnowledgeStatus,
+} from "@carmel-agent/shared";
 import type { Credential, ThinkingLevelMap } from "@earendil-works/pi-ai";
 import type {
   AgentMount,
@@ -571,6 +576,81 @@ export const homeEvents = sqliteTable(
   },
   (table) => [index("home_events_queue").on(table.sessionId, table.status, table.createdAt)],
 );
+
+export const homeMemorySettings = sqliteTable(
+  "home_memory_settings",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    mode: text("mode").$type<HomeMemoryMode>().notNull().default("manual"),
+    generation: integer("generation").notNull().default(0),
+    learnAfter: integer("learn_after").notNull().default(0),
+    lastCaptureAt: integer("last_capture_at"),
+    calls: text("calls", { mode: "json" }).$type<number[]>().notNull().default([]),
+    error: text("error"),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.agentId] })],
+);
+
+export const homeMemories = sqliteTable(
+  "home_memories",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    scope: text("scope").notNull(),
+    kind: text("kind").$type<"preference" | "fact" | "decision">().notNull(),
+    slot: text("slot").notNull().default(""),
+    pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
+    origin: text("origin").$type<"manual" | "explicit" | "automatic">().notNull(),
+    sourceEventId: text("source_event_id").references(() => homeEvents.id, {
+      onDelete: "set null",
+    }),
+    sourceEntryId: text("source_entry_id"),
+    sourceQuote: text("source_quote"),
+    expiresAt: integer("expires_at"),
+    revision: integer("revision").notNull().default(1),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [index("home_memories_owner").on(table.userId, table.agentId)],
+);
+
+export const homeMemoryRevisions = sqliteTable(
+  "home_memory_revisions",
+  {
+    memoryId: text("memory_id")
+      .notNull()
+      .references(() => homeMemories.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    snapshot: text("snapshot", { mode: "json" }).$type<HomeMemoryRevision>().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.memoryId, table.revision] })],
+);
+
+export const homeMemoryCaptures = sqliteTable("home_memory_captures", {
+  eventId: text("event_id")
+    .primaryKey()
+    .references(() => homeEvents.id, { onDelete: "cascade" }),
+  entryId: text("entry_id").notNull(),
+  generation: integer("generation").notNull(),
+  status: text("status")
+    .$type<"pending" | "done" | "skipped" | "error">()
+    .notNull()
+    .default("pending"),
+  attempts: integer("attempts").notNull().default(0),
+  retryAt: integer("retry_at").notNull().default(0),
+  attemptedAt: integer("attempted_at"),
+});
 
 export const helperHosts = sqliteTable("helper_hosts", {
   sessionId: text("session_id")

@@ -197,6 +197,62 @@ after(async () => {
   }
 });
 
+test(
+  "Home memory can be pinned, edited, retained across context reset, and forgotten",
+  { timeout: 120000 },
+  () => {
+    const path = `/agents/${fixture.secondAgentId}/home`;
+    for (const width of [1280, 390]) {
+      browser("set", "viewport", String(width), "900");
+      open(path);
+      click("button", "Memory");
+      browser("wait", "--text", "Home memory");
+      browser("wait", '[aria-label="Memory mode"]');
+      assert.equal(
+        evaluate(
+          'document.querySelector(\'[aria-label="Memory mode"] [data-state="on"]\')?.textContent',
+        ),
+        "Remember when asked",
+      );
+      click("button", "Add");
+      browser("fill", "#home-memory-content", "Prefer minimal UI labels for Carmel.");
+      browser("fill", "#home-memory-scope", "Carmel UI");
+      click("button", "Save memory");
+      browser("wait", "--text", "Prefer minimal UI labels for Carmel.");
+      click("button", "Pin");
+      browser(
+        "wait",
+        "--fn",
+        'Array.from(document.querySelectorAll("button")).some(button => button.textContent.trim() === "Unpin")',
+      );
+      assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+      click("button", "Close");
+      click("button", "New context");
+      click("button", "Memory");
+      browser("wait", "--text", "Prefer minimal UI labels for Carmel.");
+      click("button", "Edit");
+      assert.equal(value("#home-memory-scope"), "Carmel UI");
+      browser("fill", "#home-memory-content", "Prefer descriptive UI labels for Carmel.");
+      click("button", "Save memory");
+      browser("wait", "--text", "Prefer descriptive UI labels for Carmel.");
+      click("button", "History");
+      browser("wait", '[aria-label="Memory history"]');
+      assert.match(
+        evaluate<string>("document.querySelector('[aria-label=\"Memory history\"]').textContent"),
+        /Prefer minimal UI labels for Carmel/,
+      );
+      click("button", "Forget");
+      browser("wait", "--text", "No memories");
+      assert.equal(
+        evaluate("document.querySelector('[aria-label=\"Memory history\"]') === null"),
+        true,
+      );
+      click("button", "Close");
+    }
+    browser("set", "viewport", "1280", "900");
+  },
+);
+
 test("global search keeps the matched keyword visible in multiline excerpts", () => {
   for (const width of [1280, 390]) {
     browser("set", "viewport", String(width), "900");

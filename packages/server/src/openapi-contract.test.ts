@@ -149,6 +149,38 @@ test("representative response fixtures satisfy every response component", async 
   };
   const note = { id: "n1", issueId: "i1", kind: "note", body: "Context", createdAt: 1 };
   const fixtures: Record<string, unknown> = {
+    HomeMemory: {
+      id: "memory1",
+      content: "Prefer minimal labels",
+      scope: "Carmel UI",
+      kind: "preference",
+      revision: 1,
+      pinned: false,
+      origin: "manual",
+      expiresAt: null,
+      sourceEventId: null,
+      sourceEntryId: null,
+      sourceQuote: null,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    HomeMemoryRevision: {
+      revision: 1,
+      content: "Prefer minimal labels",
+      scope: "Carmel UI",
+      kind: "preference",
+      expiresAt: null,
+      createdAt: 1,
+    },
+    HomeMemoryOverview: {
+      mode: "manual",
+      memories: [],
+      total: 0,
+      pinnedTokens: 0,
+      pinBudget: 500,
+      lastCaptureAt: null,
+      error: null,
+    },
     SessionSecret: { id: "secret1", name: "GITHUB_TOKEN", scope: "session", updatedAt: 1 },
     UserRequest: {
       id: "request1",

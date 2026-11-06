@@ -1,6 +1,12 @@
 import { i18n } from "@lingui/core";
 import { updateConnection } from "./update-connection.ts";
 import type {
+  HomeMemory,
+  HomeMemoryInput,
+  HomeMemoryPatch,
+  HomeMemoryMode,
+  HomeMemoryOverview,
+  HomeMemoryRevision,
   KnowledgeOverview,
   KnowledgeSettings,
   KnowledgeSourceInput,
@@ -609,6 +615,44 @@ export const api = {
     request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/reset`, {
       method: "POST",
     }),
+  homeMemory: (agentId: string, query = "", offset = 0, signal?: AbortSignal) =>
+    request<HomeMemoryOverview>(
+      `/api/agents/${encodeURIComponent(agentId)}/home/memory?q=${encodeURIComponent(query)}&offset=${offset}`,
+      { signal },
+    ),
+  setHomeMemoryMode: (agentId: string, mode: HomeMemoryMode) =>
+    request<{ mode: HomeMemoryMode }>(
+      `/api/agents/${encodeURIComponent(agentId)}/home/memory/settings`,
+      { method: "PATCH", body: JSON.stringify({ mode }) },
+    ),
+  saveHomeMemory: (agentId: string, input: HomeMemoryInput) =>
+    request<HomeMemory>(`/api/agents/${encodeURIComponent(agentId)}/home/memory`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  editHomeMemory: (agentId: string, id: string, input: HomeMemoryPatch) =>
+    request<HomeMemory>(
+      `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: JSON.stringify(input) },
+    ),
+  forgetHomeMemory: (agentId: string, id: string, revision: number) =>
+    request<{ ok: true }>(
+      `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}?revision=${revision}`,
+      { method: "DELETE" },
+    ),
+  clearHomeMemory: (agentId: string) =>
+    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/memory`, {
+      method: "DELETE",
+    }),
+  homeMemoryHistory: (agentId: string, id: string) =>
+    request<HomeMemoryRevision[]>(
+      `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}/history`,
+    ),
+  restoreHomeMemory: (agentId: string, id: string, revision: number, expectedRevision: number) =>
+    request<HomeMemory>(
+      `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}/restore`,
+      { method: "POST", body: JSON.stringify({ revision, expectedRevision }) },
+    ),
   getSessionHistory: (sessionId: string, before: string, around?: string) =>
     request<Session>(
       `/api/sessions/${encodeURIComponent(sessionId)}/history?before=${encodeURIComponent(before)}${around ? `&around=${encodeURIComponent(around)}` : ""}`,

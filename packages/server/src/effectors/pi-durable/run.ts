@@ -162,7 +162,7 @@ export class PiRun {
     delivery?: {
       requestId: string;
       receipt?: UserRequestReceipt;
-      onSubmitted?: () => void;
+      onSubmitted?: (entryId?: string) => void;
       source?: Record<string, JsonValue>;
     },
   ) {
@@ -215,7 +215,9 @@ export class PiRun {
     );
     // Same requestId repairs a crash between native admission and the host receipt.
     const admitted = delivery ? await submission.status(context) : undefined;
-    delivery?.onSubmitted?.();
+    delivery?.onSubmitted?.(
+      admitted?.status === "placed" ? `durable:${admitted.entry}` : undefined,
+    );
     const settled = await submission.wait(context);
     if (!admitted || admitted.status === "queued" || admitted.status === "placed") await delivered;
     if (settled.status === "unanswered" && !["aborted", "model_error"].includes(settled.reason))

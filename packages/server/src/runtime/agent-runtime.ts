@@ -82,6 +82,11 @@ import { getMessageReferences } from "@carmel-agent/shared";
 import { browserInstructions } from "./browser-tools.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 import { buildKnowledgeInstructions } from "./knowledge/prompt.ts";
+import {
+  createHomeMemoryTools,
+  buildHomeMemoryContext,
+  humanHomeMemoryEvent,
+} from "./home-memory-tools.ts";
 import { createSchedulingTools, buildSchedulingInstructions } from "./task-tools.ts";
 import { createUserRequestTools, userRequestInstructions } from "./user-request-tools.ts";
 import {
@@ -146,6 +151,7 @@ export type AgentRunInput = {
   promptInput?: PromptInput;
   promptDelivery?: {
     requestId: string;
+    onSubmitted?: (entryId?: string) => void;
     source: Record<string, import("@earendil-works/chord").JsonValue>;
   };
   resolvedReferences?: ResolvedReferences;
@@ -553,6 +559,16 @@ async function openRunHarness(
       Boolean(collaboration),
     ),
     ...(home ? createHomeTools(context.session.userId, agent.id) : []),
+    ...(home
+      ? createHomeMemoryTools(
+          context.session.userId,
+          agent.id,
+          context.session.id,
+          typeof context.promptDelivery?.source.homeEventId === "string"
+            ? context.promptDelivery.source.homeEventId
+            : undefined,
+        )
+      : []),
     ...schedulingTools,
     ...messagingTools,
     ...(sessionAddons?.tools ?? []),
@@ -592,6 +608,23 @@ async function openRunHarness(
             }),
         links: carmelLinkInstructions(agent.id),
         home: home ? buildHomeInstructions(agent.id, activeToolNames) : undefined,
+        home_memory:
+          home &&
+          humanHomeMemoryEvent(
+            context.session.userId,
+            agent.id,
+            context.session.id,
+            typeof context.promptDelivery?.source.homeEventId === "string"
+              ? context.promptDelivery.source.homeEventId
+              : undefined,
+          )
+            ? buildHomeMemoryContext(
+                context.session.userId,
+                agent.id,
+                context.promptInput?.text ?? "",
+                model.contextWindow,
+              )
+            : undefined,
         issue: sessionAddons?.instructions,
         browser: agent.permissions.bash ? browserInstructions : undefined,
         knowledge:

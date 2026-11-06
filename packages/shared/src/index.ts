@@ -15,6 +15,7 @@ import type { CollaborationReply } from "./collaborations.ts";
 import type { HomeIssueUpdate } from "./home-issues.ts";
 export * from "./agent-appearance.ts";
 export * from "./home-issues.ts";
+export * from "./home-memory.ts";
 export * from "./collaborations.ts";
 export * from "./references.ts";
 export * from "./user-requests.ts";

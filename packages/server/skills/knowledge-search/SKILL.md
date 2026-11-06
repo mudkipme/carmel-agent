@@ -5,6 +5,10 @@ description: Search Carmel's registered documents and saved agent memories for p
 
 # Knowledge and memory in Carmel
 
+When Home provides `home_memory_*` tools, use those for private personal notes
+and ordinary requests to remember something. This Knowledge store is separate
+and agent-scoped; save here only when the user requests that destination.
+
 Use `knowledge_search` and `knowledge_read` for managed sources and memories.
 These tools work without bash or network access. The current system instructions
 provide this agent's sharing scope, available memory operations, and source

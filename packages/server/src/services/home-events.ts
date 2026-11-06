@@ -21,6 +21,7 @@ import { enqueueImMessage } from "./im-integrations.ts";
 import { resolveNotificationIntegration } from "./im-integrations.ts";
 import { defineDoc } from "@earendil-works/pi-durable";
 import { startDetachedAgentRun } from "../runtime/agent-runtime.ts";
+import { recordHomeMemoryInput } from "./home-memory-capture.ts";
 import {
   abortAgentRun,
   getActiveAgentRunForSession,
@@ -410,6 +411,13 @@ export async function dispatchHome(sessionId: string) {
       timezone: event.timezone ?? undefined,
       promptDelivery: {
         requestId: `home:${event.id}`,
+        onSubmitted: (entryId) => {
+          try {
+            recordHomeMemoryInput(event, entryId);
+          } catch {
+            console.warn("Unable to record Home memory source.");
+          }
+        },
         source: {
           homeEventId: event.id,
           origin: event.origin,

@@ -8,47 +8,84 @@ msgstr ""
 "Language: zh-Hans\n"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:451
-#: src/components/harness/AgentKnowledgePage.tsx:452
-msgid "Index actions"
-msgstr "索引操作"
+#: src/components/harness/HomeMemoryPanel.tsx:44
+#: src/components/harness/HomeMemoryPanel.tsx:64
+msgid "Memory action failed"
+msgstr "记忆操作失败"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentKnowledgePage.tsx:534
-msgid "Source actions for {name}"
-msgstr "{name} 的来源操作"
-
-#: src/components/harness/AgentKnowledgePage.tsx:570
-#: src/components/harness/AgentKnowledgePage.tsx:677
-msgid "Add a Markdown directory from this agent's workspace or mounts."
-msgstr "从此智能体的工作区或挂载目录添加 Markdown 目录。"
-
-#: src/components/harness/AgentKnowledgePage.tsx:566
-msgid "No sources yet"
-msgstr "尚无来源"
+#: src/components/harness/HomeMemoryPanel.tsx:54
+msgid "Remembered {count, plural, one {# detail} other {# details}}"
+msgstr "已记住 {count} 条信息"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:398
-msgid "Stop Home"
-msgstr "停止主页"
+#: src/components/harness/HomeMemoryPanel.tsx:56
+msgid "Review"
+msgstr "查看"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentCommandPalette.tsx:119
-msgid "Search commands..."
-msgstr "搜索命令…"
+#: src/components/harness/HomeMemoryPanel.tsx:86
+msgid "Loading memory"
+msgstr "正在加载记忆"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentCommandPalette.tsx:125
-msgid "System Commands"
-msgstr "系统命令"
+#: src/components/harness/HomeMemoryPanel.tsx:88
+msgid "Memory mode"
+msgstr "记忆模式"
 
 #. js-lingui-explicit-id
-#: src/App.tsx:98
+#: src/components/harness/HomeMemoryPanel.tsx:112
+#: src/components/harness/HomeMemoryPanel.tsx:112
+msgid "Search memory"
+msgstr "搜索记忆"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:113
+msgid "Pinned context: {used} / {budget} tokens"
+msgstr "固定记忆：{used} / {budget} token"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:118
+msgid "Expires {date}"
+msgstr "到期时间：{date}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:129
+msgid "Memory history"
+msgstr "记忆历史"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:131
+msgid "Forget all Home memory?"
+msgstr "忘记主页的所有记忆？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:131
+msgid "Notes and their revision history will be deleted. Your Home conversation stays."
+msgstr "将删除笔记及其修订历史。主页对话将保留。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:131
+msgid "Forget all"
+msgstr "全部忘记"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:68
+msgid "Stop"
+msgstr "停止"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:45
+msgid "Open conversation"
+msgstr "打开对话"
+
+#. js-lingui-explicit-id
+#: src/App.tsx:100
 msgid "Can't reach Carmel Agent"
 msgstr "无法连接 Carmel Agent"
 
 #. js-lingui-explicit-id
-#: src/App.tsx:101
+#: src/App.tsx:103
 msgid "We couldn't connect to the server. Check that it's running, then reload this page."
 msgstr "无法连接到服务器。请检查服务器是否正在运行，然后重新加载页面。"
 
@@ -90,9 +127,9 @@ msgstr "继续"
 
 #. js-lingui-explicit-id
 #: src/components/harness/ActionDialogs.tsx:105
-#: src/components/harness/AgentSettingsPage.tsx:203
-#: src/components/harness/files/FileEditorView.tsx:169
-#: src/components/harness/files/FileEditorView.tsx:175
+#: src/components/harness/AgentSettingsPage.tsx:209
+#: src/components/harness/files/FileEditorView.tsx:170
+#: src/components/harness/files/FileEditorView.tsx:176
 #: src/lib/action-dialogs.ts:47
 msgid "Save"
 msgstr "保存"
@@ -188,23 +225,23 @@ msgid "Rose"
 msgstr "玫瑰色"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:107
+#: src/lib/api.ts:110
 msgid "Request failed: {status}"
 msgstr "请求失败：{status}"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:146
-#: src/lib/api.ts:178
+#: src/lib/api.ts:153
+#: src/lib/api.ts:185
 msgid "Upload cancelled"
 msgstr "上传已取消"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:170
+#: src/lib/api.ts:177
 msgid "Upload failed: {status}"
 msgstr "上传失败：{status}"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:176
+#: src/lib/api.ts:183
 msgid "Unable to upload {path}"
 msgstr "无法上传 {path}"
 
@@ -262,7 +299,7 @@ msgid "Upload filenames must not contain a path."
 msgstr "上传文件的名称不能包含路径。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:272
+#: src/components/chat/ChatInput.tsx:274
 #: src/lib/chat-attachments.ts:15
 msgid "{name} exceeds the 20MB file limit."
 msgstr "{name} 超过了 20MB 的文件大小限制。"
@@ -361,6 +398,7 @@ msgid "Sent"
 msgstr "已发送"
 
 #. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:14
 #: src/components/tasks/TaskSubtasks.tsx:105
 #: src/lib/labels.ts:34
 #: src/lib/task-schedule.ts:131
@@ -368,8 +406,9 @@ msgid "Failed"
 msgstr "失败"
 
 #. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:15
 #: src/components/chat/ToolCallView.tsx:259
-#: src/components/harness/tasks/issue-state.ts:29
+#: src/components/harness/tasks/issue-state.ts:30
 #: src/lib/labels.ts:35
 #: src/lib/task-schedule.ts:132
 msgid "Cancelled"
@@ -401,14 +440,15 @@ msgid "Ready"
 msgstr "就绪"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:439
+#: src/components/chat/ChatMessages.tsx:477
+#: src/components/chat/CollaborationActivity.tsx:13
 #: src/components/chat/UserRequestCards.tsx:125
 #: src/lib/labels.ts:41
 msgid "Answered"
 msgstr "已回答"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:443
+#: src/components/chat/ChatMessages.tsx:481
 #: src/lib/labels.ts:42
 msgid "Expired"
 msgstr "已过期"
@@ -420,58 +460,54 @@ msgid "Feishu"
 msgstr "飞书"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:247
-msgid "Unable to queue this message."
-msgstr "无法将此消息加入队列。"
-
-#. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:258
-#: src/lib/remote-agent.ts:353
+#: src/lib/remote-agent.ts:244
+#: src/lib/remote-agent.ts:307
+#: src/lib/remote-agent.ts:407
 msgid "Agent is already processing."
 msgstr "智能体正在处理中。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:301
+#: src/lib/remote-agent.ts:292
+msgid "Unable to queue this message."
+msgstr "无法将此消息加入队列。"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:350
 msgid "This conversation already has a run in progress; your message was not sent."
 msgstr "此对话已有任务正在运行，你的消息未发送。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:321
+#: src/lib/remote-agent.ts:370
 msgid "Agent request failed with {status}"
 msgstr "智能体请求失败，状态码为 {status}"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:331
+#: src/lib/remote-agent.ts:380
 msgid "Agent response did not identify its server run."
 msgstr "智能体响应中未包含服务器运行标识。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:374
+#: src/lib/remote-agent.ts:428
 msgid "Cannot continue from current message state."
 msgstr "无法从当前消息状态继续。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:484
+#: src/lib/remote-agent.ts:542
 msgid "Invalid agent event cursor."
 msgstr "无效的智能体事件游标。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:488
-msgid "Agent event stream failed with {status}"
-msgstr "智能体事件流失败，状态码为 {status}"
-
-#. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:633
+#: src/lib/remote-agent.ts:694
 msgid "Invalid agent event envelope."
 msgstr "无效的智能体事件封装。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:638
+#: src/lib/remote-agent.ts:699
 msgid "Agent event sequence gap: expected {value}, received {sequence}."
 msgstr "智能体事件序列不连续：预期 {value}，实际收到 {sequence}。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:774
+#: src/lib/remote-agent.ts:788
 msgid "This run did not finish successfully."
 msgstr "此次运行未成功完成。"
 
@@ -496,6 +532,7 @@ msgid "Previous 30 days"
 msgstr "过去 30 天"
 
 #. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:116
 #: src/lib/session-groups.ts:53
 msgid "Pinned"
 msgstr "已置顶"
@@ -960,17 +997,17 @@ msgid "Unable to delete provider config"
 msgstr "无法删除提供商配置"
 
 #. js-lingui-explicit-id
-#: src/hooks/use-remote-resource.ts:44
+#: src/hooks/use-remote-resource.ts:43
 msgid "Unable to load data"
 msgstr "无法加载数据"
 
 #. js-lingui-explicit-id
-#: src/hooks/use-session-agent.ts:155
+#: src/hooks/use-session-agent.ts:157
 msgid "Not connected to this conversation yet."
 msgstr "尚未连接到此对话。"
 
 #. js-lingui-explicit-id
-#: src/hooks/use-session-agent.ts:159
+#: src/hooks/use-session-agent.ts:161
 msgid "This conversation already has a run in progress."
 msgstr "此对话已有任务正在运行。"
 
@@ -1026,29 +1063,40 @@ msgid "Unable to create user."
 msgstr "无法创建用户。"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:116
+#: src/components/PiChat.tsx:117
 msgid "Unable to open the earlier message"
 msgstr "无法打开更早的消息"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:248
-msgid "{count, plural, one {# message queued} other {# messages queued}}"
-msgstr "{count, plural, other {# 条消息已排队}}"
-
-#. js-lingui-explicit-id
-#: src/components/PiChat.tsx:225
+#: src/components/PiChat.tsx:226
 msgid "Unable to start a new context"
 msgstr "无法开始新上下文"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:344
+#: src/components/PiChat.tsx:249
+msgid "{count, plural, one {# message queued} other {# messages queued}}"
+msgstr "{count, plural, other {# 条消息已排队}}"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:346
 msgid "Unable to load history"
 msgstr "无法加载历史记录"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:355
+#: src/components/PiChat.tsx:357
 msgid "Unable to load the latest messages"
 msgstr "无法加载最新消息"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:414
+#: src/components/PiChat.tsx:393
+msgid "New context"
+msgstr "新上下文"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:400
+msgid "Stop Home"
+msgstr "停止主页"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentCommandPalette.tsx:116
@@ -1087,7 +1135,7 @@ msgstr "即将完成"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ToolCallView.tsx:48
-#: src/components/harness/tasks/issue-state.ts:43
+#: src/components/harness/tasks/issue-state.ts:44
 #: src/components/tasks/TaskSubtasks.tsx:104
 msgid "Stopped"
 msgstr "已停止"
@@ -1120,6 +1168,12 @@ msgid "Commands"
 msgstr "命令"
 
 #. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:119
+msgid "Search commands..."
+msgstr "搜索命令…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:64
 #: src/components/harness/AgentCommandPalette.tsx:122
 msgid "Loading..."
 msgstr "加载中…"
@@ -1128,6 +1182,11 @@ msgstr "加载中…"
 #: src/components/harness/AgentCommandPalette.tsx:122
 msgid "No commands found."
 msgstr "未找到命令。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:125
+msgid "System Commands"
+msgstr "系统命令"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentCommandPalette.tsx:145
@@ -1146,9 +1205,9 @@ msgstr "知识操作失败"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentKnowledgePage.tsx:115
-#: src/components/harness/AgentSettingsPage.tsx:36
-#: src/components/harness/shell/HarnessHeader.tsx:79
-#: src/components/harness/shell/HarnessSidebar.tsx:195
+#: src/components/harness/AgentSettingsPage.tsx:37
+#: src/components/harness/shell/HarnessHeader.tsx:103
+#: src/components/harness/shell/HarnessSidebar.tsx:209
 msgid "Knowledge"
 msgstr "知识库"
 
@@ -1184,6 +1243,10 @@ msgstr "搜索中…"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentKnowledgePage.tsx:238
+#: src/components/harness/shell/HarnessHeader.tsx:79
+#: src/components/harness/shell/HarnessHeader.tsx:80
+#: src/components/harness/shell/HarnessSidebar.tsx:127
+#: src/components/harness/shell/HarnessSidebar.tsx:128
 msgid "Search"
 msgstr "搜索"
 
@@ -1223,6 +1286,17 @@ msgid "Knowledge sources"
 msgstr "知识来源"
 
 #. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:451
+#: src/components/harness/AgentKnowledgePage.tsx:452
+msgid "Index actions"
+msgstr "索引操作"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:534
+msgid "Source actions for {name}"
+msgstr "{name} 的来源操作"
+
+#. js-lingui-explicit-id
 #: src/components/harness/AgentKnowledgePage.tsx:609
 msgid "Edit memory"
 msgstr "编辑记忆"
@@ -1244,8 +1318,8 @@ msgstr "这个集合有什么用途？"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentSchedulesPage.tsx:79
-#: src/components/harness/shell/HarnessHeader.tsx:81
-#: src/components/harness/shell/HarnessSidebar.tsx:184
+#: src/components/harness/shell/HarnessHeader.tsx:105
+#: src/components/harness/shell/HarnessSidebar.tsx:201
 msgid "Schedules"
 msgstr "定时计划"
 
@@ -1337,96 +1411,102 @@ msgid "Unable to delete task"
 msgstr "无法删除任务"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSessionsPage.tsx:32
+#: src/components/harness/AgentSessionsPage.tsx:35
 msgid "Import Open WebUI export"
 msgstr "导入 Open WebUI 导出文件"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:35
+#: src/components/harness/AgentSettingsPage.tsx:36
+#: src/components/harness/HomeMemoryPanel.tsx:116
 msgid "General"
 msgstr "常规"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:37
+#: src/components/harness/AgentSettingsPage.tsx:38
 msgid "Templates"
 msgstr "模板"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:38
+#: src/components/harness/AgentSettingsPage.tsx:39
+msgid "Collaboration"
+msgstr "智能体协作"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:40
 msgid "Permissions"
 msgstr "权限"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:39
+#: src/components/harness/AgentSettingsPage.tsx:41
 msgid "Codemode"
 msgstr "代码模式"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:40
+#: src/components/harness/AgentSettingsPage.tsx:42
 msgid "Secrets"
 msgstr "密钥"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:42
+#: src/components/harness/AgentSettingsPage.tsx:44
 msgid "Integrations"
 msgstr "集成"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:89
-#: src/components/harness/AgentSettingsPage.tsx:43
+#: src/components/harness/AgentSettingsPage.tsx:45
 msgid "Archived"
 msgstr "已归档"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:119
+#: src/components/harness/AgentSettingsPage.tsx:121
 msgid "Unable to load agent settings"
 msgstr "无法加载智能体设置"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:157
+#: src/components/harness/AgentSettingsPage.tsx:159
 msgid "Agent saved."
 msgstr "智能体已保存。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:160
+#: src/components/harness/AgentSettingsPage.tsx:162
 msgid "Unable to save agent"
 msgstr "无法保存智能体"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentSecretsSettings.tsx:98
-#: src/components/harness/AgentSettingsPage.tsx:170
+#: src/components/harness/AgentSettingsPage.tsx:172
 msgid "Delete {name}?"
 msgstr "删除 {name}？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:171
+#: src/components/harness/AgentSettingsPage.tsx:173
 msgid "This permanently deletes the agent and all of its sessions."
 msgstr "这将永久删除智能体及其所有会话。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:172
+#: src/components/harness/AgentSettingsPage.tsx:174
 msgid "Delete agent"
 msgstr "删除智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:179
+#: src/components/harness/AgentSettingsPage.tsx:181
 msgid "Unable to delete agent"
 msgstr "无法删除智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:187
+#: src/components/harness/AgentSettingsPage.tsx:189
 msgid "Agent Settings"
 msgstr "智能体设置"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:189
+#: src/components/harness/AgentSettingsPage.tsx:191
 msgid "Back to agent"
 msgstr "返回智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:203
-#: src/components/harness/files/FileEditorView.tsx:169
-#: src/components/harness/files/FileEditorView.tsx:175
+#: src/components/harness/AgentSettingsPage.tsx:209
+#: src/components/harness/files/FileEditorView.tsx:170
+#: src/components/harness/files/FileEditorView.tsx:176
 msgid "Saving..."
 msgstr "保存中…"
 
@@ -1570,35 +1650,41 @@ msgid "Agent profile · Sign-ins retained"
 msgstr "智能体配置 · 保留登录状态"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:453
+#: src/components/harness/HarnessShell.tsx:451
 msgid "Close sidebar"
 msgstr "关闭侧边栏"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:488
+#: src/components/harness/HarnessShell.tsx:494
 msgid "New task"
 msgstr "新建任务"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:512
-#: src/components/harness/HarnessShell.tsx:540
+#: src/components/harness/HarnessShell.tsx:518
+#: src/components/harness/HarnessShell.tsx:547
 msgid "Unable to open Home"
 msgstr "无法打开主页"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:548
+#: src/components/harness/HarnessShell.tsx:555
 msgid "Unable to refresh session status"
 msgstr "无法刷新会话状态"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:626
+#: src/components/harness/HarnessShell.tsx:635
 msgid "Create an agent to start chatting."
 msgstr "创建智能体以开始聊天。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:627
+#: src/components/harness/HarnessShell.tsx:636
 msgid "Loading session..."
 msgstr "正在加载会话…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:57
+#: src/components/harness/shell/SessionList.tsx:184
+msgid "Undo"
+msgstr "撤销"
 
 #. js-lingui-explicit-id
 #: src/components/harness/LoginScreen.tsx:43
@@ -1621,14 +1707,19 @@ msgid "Sign in"
 msgstr "登录"
 
 #. js-lingui-explicit-id
-#: src/components/harness/NewSessionView.tsx:77
+#: src/components/harness/NewSessionView.tsx:85
 msgid "A session is already being created."
 msgstr "正在创建会话。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/NewSessionView.tsx:91
+#: src/components/harness/NewSessionView.tsx:99
 msgid "Unable to create session"
 msgstr "无法创建会话"
+
+#. js-lingui-explicit-id
+#: src/components/harness/NewSessionView.tsx:131
+msgid "New session in {name}"
+msgstr "在 {name} 中开始新会话"
 
 #. js-lingui-explicit-id
 #: src/components/harness/OidcLoginButton.tsx:10
@@ -1713,8 +1804,8 @@ msgstr "外观已保存。"
 
 #. js-lingui-explicit-id
 #: src/components/harness/SettingsPage.tsx:122
-#: src/components/harness/shell/HarnessSidebar.tsx:249
-#: src/components/harness/shell/HarnessSidebar.tsx:250
+#: src/components/harness/shell/HarnessSidebar.tsx:266
+#: src/components/harness/shell/HarnessSidebar.tsx:267
 msgid "Settings"
 msgstr "设置"
 
@@ -1764,7 +1855,7 @@ msgid "Starting shell…"
 msgstr "正在启动 Shell…"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:154
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:155
 #: src/components/harness/schedules/TaskForm.tsx:237
 #: src/components/harness/tasks/TaskBriefForm.tsx:152
 #: src/components/harness/UnsavedChangesDialog.tsx:102
@@ -1837,7 +1928,7 @@ msgid "Task reply"
 msgstr "任务回复"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:414
+#: src/components/chat/ChatInput.tsx:416
 #: src/components/harness/tasks/TaskComposer.tsx:52
 msgid "Message"
 msgstr "消息"
@@ -1863,27 +1954,27 @@ msgid "Connecting to conversation"
 msgstr "正在连接对话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TaskConversation.tsx:99
+#: src/components/harness/tasks/TaskConversation.tsx:80
 msgid "Unable to refresh conversation"
 msgstr "无法刷新对话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TaskConversation.tsx:141
+#: src/components/harness/tasks/TaskConversation.tsx:124
 msgid "Work on this task."
 msgstr "处理此任务。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TaskConversation.tsx:147
+#: src/components/harness/tasks/TaskConversation.tsx:130
 msgid "Update queued"
 msgstr "更新已加入队列"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TaskConversation.tsx:149
+#: src/components/harness/tasks/TaskConversation.tsx:132
 msgid "Update saved · Not delivered"
 msgstr "更新已保存 · 未送达"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TaskConversation.tsx:150
+#: src/components/harness/tasks/TaskConversation.tsx:133
 msgid "Saved note"
 msgstr "已保存的备注"
 
@@ -1934,16 +2025,16 @@ msgid "Delete the brief, discussion, saved results, and all conversations."
 msgstr "删除任务说明、讨论、已保存的结果和所有对话。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:74
-#: src/components/harness/shell/HarnessHeader.tsx:93
-#: src/components/harness/shell/HarnessSidebar.tsx:165
+#: src/components/harness/shell/HarnessHeader.tsx:98
+#: src/components/harness/shell/HarnessHeader.tsx:117
+#: src/components/harness/shell/HarnessSidebar.tsx:182
 #: src/components/harness/tasks/TaskView.tsx:256
 msgid "Home"
 msgstr "主页"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:91
-#: src/components/harness/shell/HarnessSidebar.tsx:178
+#: src/components/harness/shell/HarnessHeader.tsx:115
+#: src/components/harness/shell/HarnessSidebar.tsx:195
 #: src/components/harness/tasks/TasksOverview.tsx:148
 #: src/components/harness/tasks/TaskView.tsx:256
 msgid "Tasks"
@@ -2020,7 +2111,7 @@ msgid "Run stopped"
 msgstr "运行已停止"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/issue-state.ts:44
+#: src/components/harness/tasks/issue-state.ts:45
 #: src/components/harness/tasks/TaskView.tsx:493
 msgid "Run failed"
 msgstr "运行失败"
@@ -2143,7 +2234,7 @@ msgid "Backlog"
 msgstr "待办"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/issue-state.ts:28
+#: src/components/harness/tasks/issue-state.ts:29
 #: src/components/harness/tasks/TasksOverview.tsx:197
 msgid "Done"
 msgstr "完成"
@@ -2169,28 +2260,35 @@ msgid "Loading issues"
 msgstr "正在加载事项"
 
 #. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:11
 #: src/components/harness/tasks/issue-state.ts:23
 msgid "Queued"
 msgstr "排队中"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:245
+#: src/components/chat/ChatMessages.tsx:281
+#: src/components/chat/CollaborationActivity.tsx:12
 #: src/components/harness/tasks/issue-state.ts:24
 msgid "Working"
 msgstr "工作中"
 
 #. js-lingui-explicit-id
 #: src/components/harness/tasks/issue-state.ts:25
+msgid "Waiting for agent"
+msgstr "等待智能体"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:26
 msgid "Needs input"
 msgstr "需要输入"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/issue-state.ts:26
+#: src/components/harness/tasks/issue-state.ts:27
 msgid "Blocked"
 msgstr "受阻"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/issue-state.ts:27
+#: src/components/harness/tasks/issue-state.ts:28
 msgid "In review"
 msgstr "待审核"
 
@@ -2200,25 +2298,41 @@ msgid "Switch conversation"
 msgstr "切换对话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:62
-#: src/components/harness/shell/HarnessHeader.tsx:112
+#: src/components/harness/shell/GlobalSearch.tsx:87
+#: src/components/harness/shell/GlobalSearch.tsx:88
+#: src/components/harness/shell/GlobalSearch.tsx:110
+msgid "Search titles and messages"
+msgstr "搜索标题和消息"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:104
+msgid "Unable to search"
+msgstr "无法搜索"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:110
+msgid "No sessions found."
+msgstr "未找到会话。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:71
 msgid "Show sidebar"
 msgstr "显示侧边栏"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:75
-#: src/components/harness/shell/HarnessHeader.tsx:94
+#: src/components/harness/shell/HarnessHeader.tsx:99
+#: src/components/harness/shell/HarnessHeader.tsx:118
 msgid "New session"
 msgstr "新建会话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:77
-#: src/components/harness/shell/HarnessSidebar.tsx:171
+#: src/components/harness/shell/HarnessHeader.tsx:101
+#: src/components/harness/shell/HarnessSidebar.tsx:188
 msgid "Sessions"
 msgstr "会话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:83
+#: src/components/harness/shell/HarnessHeader.tsx:107
 #: src/components/harness/shell/WorkspaceLayout.tsx:21
 msgid "Files"
 msgstr "文件"
@@ -2226,121 +2340,122 @@ msgstr "文件"
 #. js-lingui-explicit-id
 #: src/components/harness/changes/ChangesView.tsx:36
 #: src/components/harness/changes/ChangesView.tsx:419
-#: src/components/harness/shell/HarnessHeader.tsx:85
+#: src/components/harness/shell/HarnessHeader.tsx:109
 #: src/components/harness/shell/WorkspaceLayout.tsx:22
 msgid "Changes"
 msgstr "更改"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:87
+#: src/components/harness/shell/HarnessHeader.tsx:111
 #: src/components/harness/shell/WorkspaceLayout.tsx:24
 msgid "Browser"
 msgstr "浏览器"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:89
+#: src/components/harness/shell/HarnessHeader.tsx:113
 #: src/components/harness/shell/WorkspaceLayout.tsx:23
 msgid "Terminal"
 msgstr "终端"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:124
+#: src/components/harness/shell/HarnessHeader.tsx:138
 msgid "Back to sessions"
 msgstr "返回会话列表"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:137
+#: src/components/harness/shell/HarnessHeader.tsx:151
 #: src/components/harness/shell/ImportSessionsDialog.tsx:104
 msgid "No agent"
 msgstr "没有智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:149
+#: src/components/harness/shell/HarnessHeader.tsx:163
 msgid "Close files"
 msgstr "关闭文件"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:149
+#: src/components/harness/shell/HarnessHeader.tsx:163
 msgid "Browse files"
 msgstr "浏览文件"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:161
+#: src/components/harness/shell/HarnessHeader.tsx:175
 msgid "Close changes"
 msgstr "关闭更改"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:161
+#: src/components/harness/shell/HarnessHeader.tsx:175
 msgid "Uncommitted changes"
 msgstr "未提交的更改"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:173
+#: src/components/harness/shell/HarnessHeader.tsx:187
 msgid "Close terminal"
 msgstr "关闭终端"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:173
+#: src/components/harness/shell/HarnessHeader.tsx:187
 msgid "Open terminal"
 msgstr "打开终端"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:185
-#: src/components/harness/shell/HarnessHeader.tsx:186
+#: src/components/harness/shell/HarnessHeader.tsx:199
+#: src/components/harness/shell/HarnessHeader.tsx:200
 msgid "Close browser"
 msgstr "关闭浏览器"
 
 #. js-lingui-explicit-id
 #: src/components/chat/BrowserRequestCard.tsx:11
-#: src/components/harness/shell/HarnessHeader.tsx:185
-#: src/components/harness/shell/HarnessHeader.tsx:186
+#: src/components/harness/shell/HarnessHeader.tsx:199
+#: src/components/harness/shell/HarnessHeader.tsx:200
 msgid "Open browser"
 msgstr "打开浏览器"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:202
-#: src/components/harness/shell/HarnessHeader.tsx:203
+#: src/components/harness/shell/HarnessHeader.tsx:216
+#: src/components/harness/shell/HarnessHeader.tsx:217
 msgid "Agent settings"
 msgstr "智能体设置"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:78
+#: src/components/harness/shell/HarnessSidebar.tsx:81
 msgid "Agent {number}"
 msgstr "智能体 {number}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:82
+#: src/components/harness/shell/HarnessSidebar.tsx:85
 msgid "Unable to create agent"
 msgstr "无法创建智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:113
+#: src/components/harness/shell/HarnessSidebar.tsx:119
 msgid "Collapse sidebar"
 msgstr "收起侧边栏"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:121
+#: src/components/chat/ReferencePicker.tsx:115
+#: src/components/harness/shell/HarnessSidebar.tsx:138
 msgid "Agents"
 msgstr "智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:139
-#: src/components/harness/shell/HarnessSidebar.tsx:140
+#: src/components/harness/shell/HarnessSidebar.tsx:156
+#: src/components/harness/shell/HarnessSidebar.tsx:157
 msgid "Needs your attention"
 msgstr "需要你的处理"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:153
+#: src/components/harness/shell/HarnessSidebar.tsx:170
 msgid "Unread messages"
 msgstr "未读消息"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:160
+#: src/components/harness/shell/HarnessSidebar.tsx:177
 msgid "Agent work"
 msgstr "智能体工作"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:260
+#: src/components/harness/shell/HarnessSidebar.tsx:277
 msgid "Resize sidebar"
 msgstr "调整侧边栏宽度"
 
@@ -2365,104 +2480,99 @@ msgid "Import"
 msgstr "导入"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:66
-#: src/components/harness/shell/SessionList.tsx:67
+#: src/components/harness/shell/SessionList.tsx:70
+#: src/components/harness/shell/SessionList.tsx:71
 msgid "Search sessions"
 msgstr "搜索会话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:124
+#: src/components/harness/shell/SessionList.tsx:129
 msgid "No sessions match “{value}”."
 msgstr "没有与“{value}”匹配的会话。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:125
+#: src/components/harness/shell/SessionList.tsx:130
 msgid "No sessions yet"
 msgstr "暂无会话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:168
+#: src/components/harness/shell/SessionList.tsx:173
 msgid "Unable to archive session"
 msgstr "无法归档会话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:174
+#: src/components/harness/shell/SessionList.tsx:179
 msgid "Session archived"
 msgstr "会话已归档"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:175
+#: src/components/harness/shell/SessionList.tsx:180
 msgid "Archived sessions are listed in agent settings."
 msgstr "已归档的会话可在智能体设置中查看。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:179
-msgid "Undo"
-msgstr "撤销"
-
-#. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:98
-#: src/components/harness/shell/SessionList.tsx:185
+#: src/components/harness/shell/SessionList.tsx:190
 msgid "Unable to restore session"
 msgstr "无法恢复会话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:206
+#: src/components/harness/shell/SessionList.tsx:211
 msgid "Session actions"
 msgstr "会话操作"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:221
+#: src/components/harness/shell/SessionList.tsx:226
 msgid "Unable to unpin session"
 msgstr "无法取消置顶会话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:222
+#: src/components/harness/shell/SessionList.tsx:227
 msgid "Unable to pin session"
 msgstr "无法置顶会话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:229
+#: src/components/harness/shell/SessionList.tsx:234
 msgid "Unpin"
 msgstr "取消置顶"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:229
+#: src/components/harness/shell/SessionList.tsx:234
 msgid "Pin"
 msgstr "置顶"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:234
+#: src/components/harness/shell/SessionList.tsx:239
 msgid "Rename session"
 msgstr "重命名会话"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/SessionList.tsx:240
+#: src/components/harness/shell/SessionList.tsx:245
 msgid "Unable to rename session"
 msgstr "无法重命名会话"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:56
-#: src/components/harness/shell/SessionList.tsx:259
+#: src/components/harness/shell/SessionList.tsx:264
 msgid "Delete “{title}”?"
 msgstr "删除“{title}”？"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:57
-#: src/components/harness/shell/SessionList.tsx:260
+#: src/components/harness/shell/SessionList.tsx:265
 msgid "This session and its message history will be permanently deleted."
 msgstr "此会话及其消息历史将被永久删除。"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:58
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:107
-#: src/components/harness/shell/SessionList.tsx:263
+#: src/components/harness/shell/SessionList.tsx:268
 msgid "Delete session"
 msgstr "删除会话"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:60
-#: src/components/harness/shell/SessionList.tsx:267
+#: src/components/harness/shell/SessionList.tsx:272
 msgid "Unable to delete session"
 msgstr "无法删除会话"
 
@@ -2722,13 +2832,13 @@ msgid "API key"
 msgstr "API 密钥"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:153
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:150
 #: src/components/harness/settings/ProviderSettings.tsx:197
 msgid "Not connected"
 msgstr "未连接"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:123
+#: src/components/harness/files/FileEditorView.tsx:124
 #: src/components/harness/settings/ProviderSettings.tsx:277
 msgid "Saved"
 msgstr "已保存"
@@ -2814,53 +2924,53 @@ msgid "Loading run history"
 msgstr "正在加载运行历史"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:57
+#: src/components/harness/files/FileEditorView.tsx:58
 msgid "Unable to open file"
 msgstr "无法打开文件"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:80
+#: src/components/harness/files/FileEditorView.tsx:81
 msgid "Unable to save file"
 msgstr "无法保存文件"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:110
+#: src/components/harness/files/FileEditorView.tsx:111
 msgid "Back to files"
 msgstr "返回文件列表"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:120
+#: src/components/harness/files/FileEditorView.tsx:121
 msgid "Image preview"
 msgstr "图片预览"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:122
+#: src/components/harness/files/FileEditorView.tsx:123
 msgid "Unsaved changes"
 msgstr "未保存的更改"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:130
+#: src/components/harness/files/FileEditorView.tsx:131
 msgid "Markdown view"
 msgstr "Markdown 视图"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:142
 #: src/components/harness/files/FileEditorView.tsx:143
+#: src/components/harness/files/FileEditorView.tsx:144
 msgid "Download this file"
 msgstr "下载此文件"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:157
+#: src/components/harness/files/FileEditorView.tsx:158
 msgid "Discard"
 msgstr "放弃"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:158
+#: src/components/harness/files/FileEditorView.tsx:159
 msgid "Discard unsaved changes"
 msgstr "放弃未保存的更改"
 
 #. js-lingui-explicit-id
-#: src/components/harness/files/FileEditorView.tsx:170
+#: src/components/harness/files/FileEditorView.tsx:171
 msgid "Save file"
 msgstr "保存文件"
 
@@ -3146,6 +3256,26 @@ msgid "Archived {value} ago"
 msgstr "{value}前归档"
 
 #. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:11
+msgid "Consultations"
+msgstr "咨询"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:12
+msgid "Create tasks"
+msgstr "创建任务"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:13
+msgid "Run tasks with this agent's permissions"
+msgstr "使用此智能体的权限执行任务"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
+msgid "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials."
+msgstr "允许此智能体联系下方的智能体。如需对方回调，请在对方智能体中配置。咨询为只读；任务使用接收方智能体的权限和凭据。"
+
+#. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentGeneralSettings.tsx:125
 msgid "Manual server folder"
 msgstr "手动指定服务器文件夹"
@@ -3176,132 +3306,132 @@ msgid "Deleting an agent also deletes sessions that belong to it."
 msgstr "删除智能体也会删除其所属会话。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:55
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:52
 msgid "Unable to load integrations"
 msgstr "无法加载集成"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:60
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:57
 msgid "Loading integrations"
 msgstr "正在加载集成"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:108
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:105
 msgid "Unable to update integration"
 msgstr "无法更新集成"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:135
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:132
 msgid "Disconnect {value}?"
 msgstr "断开 {value}？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:136
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:133
 msgid "Removes this connection and its credentials. Your Carmel conversations are kept."
 msgstr "移除此连接及其凭证。你的 Carmel 对话将保留。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:139
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:136
 msgid "Disconnect"
 msgstr "断开连接"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:147
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:144
 msgid "{platform} integration"
 msgstr "{platform} 集成"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:246
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:243
 msgid "Create a dedicated bot with BotFather, then connect its token."
 msgstr "通过 BotFather 创建专用机器人，然后连接其令牌。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:247
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:244
 msgid "Scan a QR code to create and authorize a bot, or connect an existing app."
 msgstr "扫描二维码以创建并授权机器人，或连接现有应用。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:268
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:265
 msgid "Connect Telegram"
 msgstr "连接 Telegram"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:268
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:265
 msgid "Use existing app"
 msgstr "使用现有应用"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:331
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:328
 msgid "Connecting…"
 msgstr "连接中…"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:331
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:328
 msgid "Connect"
 msgstr "连接"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:383
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:380
 msgid "Scan to create your Feishu or Lark bot"
 msgstr "扫码创建你的飞书或 Lark 机器人"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:432
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:429
 msgid "Unable to copy command"
 msgstr "无法复制命令"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:444
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:441
 msgid "Setup expired"
 msgstr "设置已过期"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:446
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:443
 msgid "Authorization declined"
 msgstr "授权被拒绝"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:447
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:444
 msgid "Setup needs attention"
 msgstr "设置需要处理"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:450
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:447
 msgid "Start again when you are ready."
 msgstr "准备好后请重新开始。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:485
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:482
 msgid "Recent deliveries"
 msgstr "最近的投递"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:486
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:483
 msgid "Task execution and notification delivery are tracked separately. An uncertain delivery may already be in your chat; check before resending."
 msgstr "任务执行和通知投递分别记录。状态不确定的通知可能已出现在聊天中，请检查后再重新发送。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:35
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:36
 msgid "Knowledge settings saved."
 msgstr "知识库设置已保存。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:37
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:38
 msgid "Unable to save knowledge settings"
 msgstr "无法保存知识库设置"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:46
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:47
 msgid "Loading knowledge settings"
 msgstr "正在加载知识库设置"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:130
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:131
 msgid "Automatic"
 msgstr "自动"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:154
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:155
 msgid "Save settings"
 msgstr "保存设置"
 
@@ -3525,191 +3655,185 @@ msgid "Dismiss error"
 msgstr "关闭错误提示"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:211
+#: src/components/chat/ChatInput.tsx:213
 msgid "This model does not support images. Remove them or choose another model."
 msgstr "此模型不支持图片。请移除图片或选择其他模型。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:250
-#: src/components/chat/ChatInput.tsx:587
+#: src/components/chat/ChatInput.tsx:252
+#: src/components/chat/ChatInput.tsx:594
 msgid "Maximum {MAX_FILES} attachments and references allowed."
 msgstr "最多允许 {MAX_FILES} 个附件和引用。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:263
+#: src/components/chat/ChatInput.tsx:265
 msgid "Enable read and write permissions for this agent to upload workspace files."
 msgstr "请为此智能体启用读写权限，以便上传工作区文件。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:268
+#: src/components/chat/ChatInput.tsx:270
 msgid "This model does not support images."
 msgstr "此模型不支持图片。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:284
+#: src/components/chat/ChatInput.tsx:286
 msgid "{name} was uploaded, but the message already has {MAX_FILES} references."
 msgstr "{name} 已上传，但消息已有 {MAX_FILES} 个引用。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:301
+#: src/components/chat/ChatInput.tsx:303
 msgid "Unable to attach file"
 msgstr "无法添加附件"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:341
+#: src/components/chat/ChatInput.tsx:343
 msgid "Drop files here"
 msgstr "将文件拖放到此处"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:341
+#: src/components/chat/ChatInput.tsx:343
 msgid "Drop images here"
 msgstr "将图片拖放到此处"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:367
+#: src/components/chat/ChatInput.tsx:369
 msgid "Remove {fileName}"
 msgstr "移除 {fileName}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:379
+#: src/components/chat/ChatInput.tsx:381
 msgid "Selected references"
 msgstr "已选引用"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:392
+#: src/components/chat/ChatInput.tsx:394
 msgid "Remove reference {value}"
 msgstr "移除引用 {value}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:413
+#: src/components/chat/ChatInput.tsx:415
 msgid "Type a message..."
 msgstr "输入消息…"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:472
-#: src/components/chat/ReferencePicker.tsx:74
+#: src/components/chat/ChatInput.tsx:479
+#: src/components/chat/ReferencePicker.tsx:83
 msgid "Mention a reference"
 msgstr "添加引用"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:473
+#: src/components/chat/ChatInput.tsx:480
 msgid "Mention a file, folder, or conversation"
 msgstr "引用文件、文件夹或对话"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:495
-#: src/components/chat/ChatInput.tsx:498
+#: src/components/chat/ChatInput.tsx:502
+#: src/components/chat/ChatInput.tsx:505
 msgid "Attach files"
 msgstr "添加文件"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:500
+#: src/components/chat/ChatInput.tsx:507
 msgid "Attach images"
 msgstr "添加图片"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:501
+#: src/components/chat/ChatInput.tsx:508
 msgid "Enable read and write permissions to upload files"
 msgstr "启用读写权限以便上传文件"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:517
+#: src/components/chat/ChatInput.tsx:524
 msgid "Thinking level"
 msgstr "思考深度"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:539
+#: src/components/chat/ChatInput.tsx:546
 msgid "Choose model ({id})"
 msgstr "选择模型（{id}）"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:554
-#: src/components/chat/ChatInput.tsx:555
+#: src/components/chat/ChatInput.tsx:561
+#: src/components/chat/ChatInput.tsx:562
 msgid "Abort"
 msgstr "中止"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatInput.tsx:567
-#: src/components/chat/ChatInput.tsx:568
+#: src/components/chat/ChatInput.tsx:574
+#: src/components/chat/ChatInput.tsx:575
 msgid "Send"
 msgstr "发送"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:214
+#: src/components/chat/ChatMessages.tsx:250
 msgid "{count, plural, one {# tool call} other {# tool calls}}"
 msgstr "{count, plural, other {# 次工具调用}}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:216
+#: src/components/chat/ChatMessages.tsx:252
 msgid "thinking"
 msgstr "思考中"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:244
+#: src/components/chat/ChatMessages.tsx:280
 msgid "Working · {currentTool}"
 msgstr "工作中 · {currentTool}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:247
+#: src/components/chat/ChatMessages.tsx:283
 msgid "Hide work"
 msgstr "隐藏工作过程"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:248
+#: src/components/chat/ChatMessages.tsx:284
 msgid "Show work"
 msgstr "显示工作过程"
 
 #. js-lingui-explicit-id
 #: src/components/chat/chat-utils.ts:68
-#: src/components/chat/ChatMessages.tsx:312
-#: src/components/chat/ChatMessages.tsx:523
-#: src/components/chat/ChatMessages.tsx:600
+#: src/components/chat/ChatMessages.tsx:348
+#: src/components/chat/ChatMessages.tsx:561
+#: src/components/chat/ChatMessages.tsx:638
 msgid "Image"
 msgstr "图片"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:376
-#: src/components/PiChat.tsx:391
-msgid "New context"
-msgstr "新上下文"
-
-#. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:431
+#: src/components/chat/ChatMessages.tsx:469
 msgid "Answer sent"
 msgstr "回答已发送"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:433
+#: src/components/chat/ChatMessages.tsx:471
 msgid "Question response"
 msgstr "问题回复"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:438
+#: src/components/chat/ChatMessages.tsx:476
 msgid "Credential provided"
 msgstr "已提供凭证"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:441
+#: src/components/chat/ChatMessages.tsx:479
 msgid "Declined"
 msgstr "已拒绝"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:444
+#: src/components/chat/ChatMessages.tsx:482
 msgid "Unavailable"
 msgstr "不可用"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:451
+#: src/components/chat/ChatMessages.tsx:489
 msgid "Saved for reuse across this agent’s sessions."
 msgstr "已保存，可在此智能体的其他会话中重复使用。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:453
+#: src/components/chat/ChatMessages.tsx:491
 msgid "Provided for this session only."
 msgstr "仅供此会话使用。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:456
+#: src/components/chat/ChatMessages.tsx:494
 msgid "This request did not make a credential available to the agent."
 msgstr "此请求未向智能体提供凭证。"
 
@@ -3729,6 +3853,37 @@ msgstr "复制代码"
 #: src/components/chat/CodeBlock.tsx:49
 msgid "Copied!"
 msgstr "已复制！"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:45
+#: src/components/chat/CollaborationReplyCard.tsx:26
+msgid "Agent"
+msgstr "智能体"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:54
+msgid "Open"
+msgstr "打开"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:65
+msgid "Unable to stop collaboration"
+msgstr "无法停止协作"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:45
+msgid "Open task"
+msgstr "打开任务"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:69
+msgid "Show less"
+msgstr "收起"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:69
+msgid "Show more"
+msgstr "展开"
 
 #. js-lingui-explicit-id
 #: src/components/chat/HomeTaskCard.tsx:15
@@ -3810,27 +3965,32 @@ msgid "Search configured models..."
 msgstr "搜索已配置的模型…"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:75
-msgid "Choose a file, folder, or conversation to include with your message."
-msgstr "选择要随消息一起发送的文件、文件夹或对话。"
+#: src/components/chat/ReferencePicker.tsx:84
+msgid "Choose an agent to collaborate with, or a file, folder, or conversation to reference."
+msgstr "选择要协作的智能体，或要引用的文件、文件夹或对话。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:80
-msgid "Search conversations or type a file path…"
-msgstr "搜索对话或输入文件路径…"
+#: src/components/chat/ReferencePicker.tsx:91
+msgid "Search agents, conversations, or type a file path…"
+msgstr "搜索智能体、对话，或输入文件路径…"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:82
+#: src/components/chat/ReferencePicker.tsx:93
 msgid "References"
 msgstr "引用"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:97
+#: src/components/chat/ReferencePicker.tsx:109
+msgid "Agents unavailable: {error}"
+msgstr "智能体不可用：{error}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:134
 msgid "Workspace files and folders"
 msgstr "工作区文件和文件夹"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:145
+#: src/components/chat/ReferencePicker.tsx:182
 msgid "Conversations"
 msgstr "对话"
 
@@ -4010,6 +4170,36 @@ msgstr "{value}\n"
 msgid "Failed to read file."
 msgstr "读取文件失败。"
 
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:488
+#~ msgid "Agent event stream failed with {status}"
+#~ msgstr "智能体事件流失败，状态码为 {status}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:75
+#~ msgid "Choose a file, folder, or conversation to include with your message."
+#~ msgstr "选择要随消息一起发送的文件、文件夹或对话。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:80
+#~ msgid "Search conversations or type a file path…"
+#~ msgstr "搜索对话或输入文件路径…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
+#~ msgid "Both agents must allow a connection. Consultations have read-only tools. Delegated tasks use the receiving agent's configured permissions and credentials."
+#~ msgstr "双方智能体都必须允许连接。咨询仅提供只读工具。委派任务使用接收方智能体配置的权限和凭据。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:79
+#~ msgid "Contact this agent"
+#~ msgstr "联系此智能体"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:80
+#~ msgid "Allow requests from this agent"
+#~ msgstr "允许此智能体发起请求"
+
 #: src/components/harness/tasks/TaskBriefForm.tsx:84
 msgid "(optional)"
 msgstr "（可选）"
@@ -4023,7 +4213,7 @@ msgstr "{0} · {1} · {2} 个模型"
 
 #. placeholder {0}: integration.botName
 #. placeholder {1}: integration.senderId
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:159
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:156
 msgid "{0} · Paired account {1}"
 msgstr "{0} · 已配对账号 {1}"
 
@@ -4069,11 +4259,11 @@ msgstr "已选 {0} 项"
 msgid "{0}Open"
 msgstr "{0}打开"
 
-#: src/components/chat/ChatMessages.tsx:253
+#: src/components/chat/ChatMessages.tsx:289
 msgid "{failedTools} failed"
 msgstr "{failedTools} 次失败"
 
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:117
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:118
 msgid "Acceleration"
 msgstr "加速"
 
@@ -4094,7 +4284,16 @@ msgstr "验收条件和优先级"
 msgid "Activity"
 msgstr "活动"
 
-#: src/components/harness/NewSessionView.tsx:66
+#: src/components/harness/HomeMemoryPanel.tsx:112
+msgid "Add"
+msgstr "添加"
+
+#: src/components/harness/AgentKnowledgePage.tsx:570
+#: src/components/harness/AgentKnowledgePage.tsx:677
+msgid "Add a Markdown directory from this agent's workspace or mounts."
+msgstr "从此智能体的工作区或挂载目录添加 Markdown 目录。"
+
+#: src/components/harness/NewSessionView.tsx:74
 msgid "Add a model in Settings to start chatting."
 msgstr "在设置中添加模型以开始聊天。"
 
@@ -4121,7 +4320,7 @@ msgstr "添加模板"
 msgid "Admin"
 msgstr "管理员"
 
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:109
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:110
 msgid "Agents save memories only when asked. Existing memories are retained when switched off."
 msgstr "智能体仅在被要求时保存记忆。关闭后已有记忆将保留。"
 
@@ -4129,7 +4328,7 @@ msgstr "智能体仅在被要求时保存记忆。关闭后已有记忆将保留
 msgid "All changes"
 msgstr "所有更改"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:195
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:192
 msgid "Allow proactive messages, including scheduled task alerts"
 msgstr "允许主动发送消息，包括定时任务通知"
 
@@ -4137,7 +4336,7 @@ msgstr "允许主动发送消息，包括定时任务通知"
 msgid "Allowed tools"
 msgstr "允许的工具"
 
-#: src/components/PiChat.tsx:241
+#: src/components/PiChat.tsx:242
 msgid "An IM delivery needs attention. Check Integrations for its status before resending."
 msgstr "有一条即时消息投递需要处理。重新发送前请在“集成”中检查其状态。"
 
@@ -4146,15 +4345,15 @@ msgstr "有一条即时消息投递需要处理。重新发送前请在“集成
 msgid "API key"
 msgstr "API 密钥"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:298
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:295
 msgid "App ID"
 msgstr "App ID"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:309
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:306
 msgid "App Secret"
 msgstr "App Secret"
 
-#: src/components/harness/shell/SessionList.tsx:250
+#: src/components/harness/shell/SessionList.tsx:255
 msgid "Archive"
 msgstr "归档"
 
@@ -4174,11 +4373,11 @@ msgstr "身份验证"
 msgid "Available to this session’s shell. The submitted value is stored separately and is not sent as a chat message."
 msgstr "可用于此会话的 Shell。提交的值会单独保存，不会作为聊天消息发送。"
 
-#: src/components/chat/ReferencePicker.tsx:109
+#: src/components/chat/ReferencePicker.tsx:146
 msgid "Back"
 msgstr "返回"
 
-#: src/components/PiChat.tsx:289
+#: src/components/PiChat.tsx:291
 msgid "Back to issue"
 msgstr "返回事项"
 
@@ -4203,7 +4402,7 @@ msgstr "此智能体已禁用 Bash。请在智能体权限中启用它，以打�
 msgid "Binary content was not captured."
 msgstr "未记录二进制内容。"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:278
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:275
 msgid "Bot token"
 msgstr "机器人令牌"
 
@@ -4211,7 +4410,7 @@ msgstr "机器人令牌"
 msgid "Brief used for this run"
 msgstr "此次运行使用的任务说明"
 
-#: src/components/chat/ReferencePicker.tsx:138
+#: src/components/chat/ReferencePicker.tsx:175
 msgid "Browse"
 msgstr "浏览"
 
@@ -4239,6 +4438,7 @@ msgstr "构建嵌入向量"
 #: src/components/harness/agent-settings/AgentSecretsSettings.tsx:225
 #: src/components/harness/AgentKnowledgePage.tsx:650
 #: src/components/harness/AgentKnowledgePage.tsx:728
+#: src/components/harness/HomeMemoryPanel.tsx:110
 #: src/components/harness/schedules/TaskForm.tsx:234
 #: src/components/harness/settings/ApiKeySettings.tsx:179
 #: src/components/harness/settings/UserSettings.tsx:119
@@ -4248,7 +4448,7 @@ msgstr "构建嵌入向量"
 msgid "Cancel"
 msgstr "取消"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:465
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:462
 msgid "Cancel setup"
 msgstr "取消设置"
 
@@ -4256,7 +4456,7 @@ msgstr "取消设置"
 msgid "Cancel task"
 msgstr "取消任务"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:472
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:469
 msgid "Check bot configuration"
 msgstr "检查机器人配置"
 
@@ -4296,11 +4496,11 @@ msgstr "请先在此智能体的“集成”设置中连接机器人。在提示
 msgid "Connection"
 msgstr "连接"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:166
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:163
 msgid "Connection needs attention"
 msgstr "连接需要处理"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:48
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:45
 msgid "Connections belong to you, including on shared agents. Use a dedicated bot for each."
 msgstr "连接归你所有，共享智能体也是如此。请为每个连接使用专用机器人。"
 
@@ -4322,7 +4522,7 @@ msgstr "对话"
 msgid "Copy"
 msgstr "复制"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:436
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:433
 msgid "Copy command"
 msgstr "复制命令"
 
@@ -4374,6 +4574,10 @@ msgstr "剪切"
 msgid "Dark"
 msgstr "深色"
 
+#: src/components/harness/HomeMemoryPanel.tsx:107
+msgid "Decision"
+msgstr "决策"
+
 #: src/components/chat/UserRequestCards.tsx:169
 msgid "Decline"
 msgstr "拒绝"
@@ -4386,7 +4590,7 @@ msgstr "深入"
 msgid "Default model"
 msgstr "默认模型"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:208
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:205
 msgid "Default notification destination"
 msgstr "默认通知目标"
 
@@ -4400,7 +4604,7 @@ msgstr "默认思考深度"
 
 #: src/components/harness/files/FileManagerView.tsx:272
 #: src/components/harness/files/FileManagerView.tsx:433
-#: src/components/harness/shell/SessionList.tsx:273
+#: src/components/harness/shell/SessionList.tsx:278
 msgid "Delete"
 msgstr "删除"
 
@@ -4426,7 +4630,7 @@ msgstr "详情"
 msgid "Directory"
 msgstr "目录"
 
-#: src/components/harness/files/FileEditorView.tsx:163
+#: src/components/harness/files/FileEditorView.tsx:164
 msgid "Discard"
 msgstr "放弃"
 
@@ -4434,7 +4638,7 @@ msgstr "放弃"
 msgid "Discard changes"
 msgstr "放弃更改"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:232
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:229
 msgid "Disconnect"
 msgstr "断开连接"
 
@@ -4451,7 +4655,7 @@ msgstr "关闭提示"
 msgid "Done"
 msgstr "完成"
 
-#: src/components/harness/files/FileEditorView.tsx:148
+#: src/components/harness/files/FileEditorView.tsx:149
 #: src/components/harness/files/FileManagerView.tsx:245
 #: src/components/harness/files/FileManagerView.tsx:408
 msgid "Download"
@@ -4473,7 +4677,8 @@ msgstr "更早的消息"
 
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:176
 #: src/components/harness/AgentSchedulesPage.tsx:227
-#: src/components/harness/files/FileEditorView.tsx:135
+#: src/components/harness/files/FileEditorView.tsx:136
+#: src/components/harness/HomeMemoryPanel.tsx:123
 msgid "Edit"
 msgstr "编辑"
 
@@ -4492,7 +4697,7 @@ msgstr "编辑记忆"
 msgid "Email"
 msgstr "邮箱"
 
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:144
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:145
 msgid "Embedding model"
 msgstr "嵌入模型"
 
@@ -4500,7 +4705,7 @@ msgstr "嵌入模型"
 msgid "Enable codemode"
 msgstr "启用代码模式"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:320
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:317
 msgid "Enable the bot, publish the app, and subscribe to message events using a long connection."
 msgstr "启用机器人，发布应用，并使用长连接订阅消息事件。"
 
@@ -4512,8 +4717,12 @@ msgstr "已启用"
 msgid "Every N minutes"
 msgstr "每 N 分钟"
 
+#: src/components/harness/HomeMemoryPanel.tsx:108
+msgid "Expires"
+msgstr "到期时间"
+
 #. placeholder {0}: new Date(setup.expiresAt).toLocaleTimeString(i18n.locale)
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:457
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:454
 msgid "Expires {0}"
 msgstr "到期时间 {0}"
 
@@ -4524,6 +4733,10 @@ msgstr "开放所有工具"
 #: src/components/harness/agent-settings/AgentGeneralSettings.tsx:136
 msgid "Extra runner mounts"
 msgstr "额外的运行器挂载"
+
+#: src/components/harness/HomeMemoryPanel.tsx:107
+msgid "Fact"
+msgstr "事实"
 
 #: src/components/harness/AgentKnowledgePage.tsx:224
 msgid "Fast"
@@ -4537,14 +4750,22 @@ msgstr "飞书"
 msgid "Files"
 msgstr "文件"
 
-#: src/components/chat/ReferencePicker.tsx:90
+#: src/components/chat/ReferencePicker.tsx:101
 msgid "Files unavailable: {error}"
 msgstr "文件不可用：{error}"
 
 #. placeholder {0}: setup.botName
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:399
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:396
 msgid "Finish connecting {0}: open the bot and send the command below from your private account."
 msgstr "完成连接{0}：打开机器人，从你的个人账号发送以下命令。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:125
+msgid "Forget"
+msgstr "忘记"
+
+#: src/components/harness/HomeMemoryPanel.tsx:132
+msgid "Forget all memory"
+msgstr "忘记所有记忆"
 
 #: src/components/harness/AgentKnowledgePage.tsx:418
 msgid "Forget memory"
@@ -4554,7 +4775,7 @@ msgstr "忘记记忆"
 msgid "Fresh conversation"
 msgstr "全新对话"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:289
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:286
 msgid "Get this from @BotFather. Carmel stores it encrypted and never shows it again."
 msgstr "从 @BotFather 获取。Carmel 会加密保存，之后不再显示。"
 
@@ -4563,12 +4784,18 @@ msgid "Go"
 msgstr "前往"
 
 #: src/components/harness/AgentSchedulesPage.tsx:201
+#: src/components/harness/HomeMemoryPanel.tsx:124
+#: src/components/harness/HomeMemoryPanel.tsx:129
 msgid "History"
 msgstr "历史"
 
 #: src/components/harness/shell/ConversationSwitcher.tsx:51
 msgid "Home"
 msgstr "主页"
+
+#: src/components/harness/HomeMemoryPanel.tsx:82
+msgid "Home memory"
+msgstr "主页记忆"
 
 #: src/components/harness/agent-settings/AgentGeneralSettings.tsx:140
 msgid "Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the host."
@@ -4602,11 +4829,11 @@ msgstr "导入会话"
 msgid "Index needs attention"
 msgstr "索引需要处理"
 
-#: src/components/chat/ChatMessages.tsx:336
+#: src/components/chat/ChatMessages.tsx:372
 msgid "Interrupted"
 msgstr "已中断"
 
-#: src/components/PiChat.tsx:285
+#: src/components/PiChat.tsx:287
 msgid "Issue conversation · Read-only history"
 msgstr "事项对话 · 只读历史"
 
@@ -4618,7 +4845,11 @@ msgstr "请记录具体事实，并注明这些偏好或决策属于谁。"
 msgid "Keyboard"
 msgstr "键盘"
 
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:88
+#: src/components/harness/HomeMemoryPanel.tsx:107
+msgid "Kind"
+msgstr "类型"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:89
 msgid "Knowledge and memory"
 msgstr "知识与记忆"
 
@@ -4643,15 +4874,27 @@ msgstr "最新消息"
 msgid "Latest result"
 msgstr "最新结果"
 
+#: src/components/harness/HomeMemoryPanel.tsx:91
+msgid "Learn from Home"
+msgstr "从主页学习"
+
+#: src/components/harness/HomeMemoryPanel.tsx:93
+msgid "Learn useful details from future Home messages using your Home model. Background model usage may incur charges."
+msgstr "使用主页模型从今后的主页消息中学习有用的信息。后台模型调用可能产生费用。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:116
+msgid "Learned"
+msgstr "已学习"
+
 #: src/components/harness/settings/AppearanceSettings.tsx:43
 msgid "Light"
 msgstr "浅色"
 
-#: src/components/harness/HarnessShell.tsx:635
+#: src/components/harness/HarnessShell.tsx:644
 msgid "Loading {view}…"
 msgstr "正在加载{view}…"
 
-#: src/components/harness/AgentSettingsPage.tsx:227
+#: src/components/harness/AgentSettingsPage.tsx:233
 msgid "Loading agent settings..."
 msgstr "正在加载智能体设置…"
 
@@ -4659,7 +4902,7 @@ msgstr "正在加载智能体设置…"
 msgid "Loading Carmel Agent"
 msgstr "正在加载 Carmel Agent"
 
-#: src/components/PiChat.tsx:422
+#: src/components/PiChat.tsx:424
 msgid "Loading chat..."
 msgstr "正在加载聊天…"
 
@@ -4671,11 +4914,11 @@ msgstr "正在加载差异…"
 msgid "Loading files..."
 msgstr "正在加载文件…"
 
-#: src/components/chat/ReferencePicker.tsx:85
+#: src/components/chat/ReferencePicker.tsx:96
 msgid "Loading files…"
 msgstr "正在加载文件…"
 
-#: src/components/harness/files/FileEditorView.tsx:215
+#: src/components/harness/files/FileEditorView.tsx:216
 msgid "Loading Markdown…"
 msgstr "正在加载 Markdown…"
 
@@ -4694,11 +4937,13 @@ msgid "Manual server folder"
 msgstr "手动指定服务器文件夹"
 
 #: src/components/harness/AgentKnowledgePage.tsx:632
+#: src/components/harness/HomeMemoryPanel.tsx:78
+#: src/components/harness/HomeMemoryPanel.tsx:105
 msgid "Memory"
 msgstr "记忆"
 
 #. placeholder {0}: directory ? `${directory}/` : "workspace folder"
-#: src/components/chat/ReferencePicker.tsx:119
+#: src/components/chat/ReferencePicker.tsx:156
 msgid "Mention {0}"
 msgstr "引用 {0}"
 
@@ -4742,12 +4987,12 @@ msgstr "需要你处理"
 msgid "Nested tool calls ({0})"
 msgstr "嵌套工具调用（{0}）"
 
-#: src/components/harness/shell/HarnessSidebar.tsx:235
+#: src/components/harness/shell/HarnessSidebar.tsx:252
 msgid "New agent"
 msgstr "新建智能体"
 
-#: src/components/chat/ChatMessages.tsx:381
-#: src/components/PiChat.tsx:277
+#: src/components/chat/ChatMessages.tsx:419
+#: src/components/PiChat.tsx:279
 msgid "New context"
 msgstr "新上下文"
 
@@ -4771,7 +5016,6 @@ msgstr "新建提供商配置"
 msgid "New schedule"
 msgstr "新建定时计划"
 
-#: src/components/harness/AgentSessionsPage.tsx:40
 #: src/components/harness/shell/ConversationSwitcher.tsx:55
 msgid "New session"
 msgstr "新建会话"
@@ -4780,6 +5024,10 @@ msgstr "新建会话"
 #: src/components/harness/tasks/TasksOverview.tsx:155
 msgid "New task"
 msgstr "新建任务"
+
+#: src/components/harness/HomeMemoryPanel.tsx:128
+msgid "Next"
+msgstr "下一页"
 
 #: src/components/harness/AgentKnowledgePage.tsx:319
 msgid "Next lines"
@@ -4805,9 +5053,13 @@ msgstr "未找到已配置的模型。"
 msgid "No matches"
 msgstr "没有匹配结果"
 
-#: src/components/chat/ReferencePicker.tsx:94
+#: src/components/chat/ReferencePicker.tsx:105
 msgid "No matching references."
 msgstr "没有匹配的引用。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:114
+msgid "No memories"
+msgstr "暂无记忆"
 
 #: src/components/harness/settings/ModelSettings.tsx:267
 msgid "No models found."
@@ -4833,6 +5085,10 @@ msgstr "暂无密钥。"
 msgid "No slash commands are available for this agent."
 msgstr "此智能体没有可用的斜杠命令。"
 
+#: src/components/harness/AgentKnowledgePage.tsx:566
+msgid "No sources yet"
+msgstr "尚无来源"
+
 #: src/components/harness/changes/ChangesView.tsx:126
 msgid "No uncommitted changes."
 msgstr "没有未提交的更改。"
@@ -4849,11 +5105,12 @@ msgstr "OAuth 登录"
 msgid "OAuth login completed."
 msgstr "OAuth 登录已完成。"
 
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:100
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:101
+#: src/components/harness/HomeMemoryPanel.tsx:89
 msgid "Off"
 msgstr "关闭"
 
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:103
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:104
 msgid "On"
 msgstr "开启"
 
@@ -4873,15 +5130,15 @@ msgstr "每行一个参数。参数会直接传递，不经过 Shell 展开。"
 msgid "One original tool name per line. An empty list exposes no tools."
 msgstr "每行一个原始工具名称。空列表表示不开放任何工具。"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:390
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:387
 msgid "Open authorization link"
 msgstr "打开授权链接"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:421
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:418
 msgid "Open bot"
 msgstr "打开机器人"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:237
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:234
 #: src/components/harness/schedules/TaskRunHistory.tsx:107
 #: src/components/harness/tasks/TaskActivity.tsx:92
 msgid "Open conversation"
@@ -4891,7 +5148,7 @@ msgstr "打开对话"
 msgid "Open file"
 msgstr "打开文件"
 
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:158
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:159
 msgid "Open knowledge"
 msgstr "打开知识库"
 
@@ -4899,7 +5156,11 @@ msgstr "打开知识库"
 msgid "Open login page"
 msgstr "打开登录页面"
 
-#: src/components/harness/shell/SessionList.tsx:91
+#: src/components/harness/HomeMemoryPanel.tsx:119
+msgid "Open message"
+msgstr "打开消息"
+
+#: src/components/harness/shell/SessionList.tsx:96
 msgid "Open session"
 msgstr "打开会话"
 
@@ -4912,7 +5173,7 @@ msgstr "选项"
 msgid "or"
 msgstr "或"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:407
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:404
 msgid "Pairing command"
 msgstr "配对命令"
 
@@ -4939,13 +5200,25 @@ msgstr "粘贴到此处"
 msgid "People who can run this shared agent can use this credential."
 msgstr "有权运行此共享智能体的人都可以使用此凭证。"
 
+#: src/components/harness/HomeMemoryPanel.tsx:122
+msgid "Pin"
+msgstr "固定"
+
+#: src/components/harness/HomeMemoryPanel.tsx:107
+msgid "Preference"
+msgstr "偏好"
+
 #: src/components/harness/AgentKnowledgePage.tsx:486
 msgid "Prepare deep search"
 msgstr "准备深入搜索"
 
-#: src/components/harness/files/FileEditorView.tsx:132
+#: src/components/harness/files/FileEditorView.tsx:133
 msgid "Preview"
 msgstr "预览"
+
+#: src/components/harness/HomeMemoryPanel.tsx:128
+msgid "Previous"
+msgstr "上一页"
 
 #: src/components/harness/tasks/TaskBriefForm.tsx:117
 msgid "Priority"
@@ -4955,6 +5228,10 @@ msgstr "优先级"
 #: src/components/harness/tasks/TaskView.tsx:690
 msgid "Priority · {0}"
 msgstr "优先级 · {0}"
+
+#: src/components/harness/HomeMemoryPanel.tsx:83
+msgid "Private to you and this agent. New context keeps these notes."
+msgstr "仅供你与此智能体使用。新建上下文时会保留这些笔记。"
 
 #: src/components/harness/schedules/TaskForm.tsx:94
 msgid "Prompt"
@@ -4984,11 +5261,11 @@ msgstr "排队中"
 msgid "Read source"
 msgstr "读取来源"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:182
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:179
 msgid "Receive and send messages"
 msgstr "接收和发送消息"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:229
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:226
 #: src/components/harness/BrowserPanel.tsx:391
 msgid "Reconnect"
 msgstr "重新连接"
@@ -5000,6 +5277,10 @@ msgstr "重新连接会保留智能体的浏览器及已保存的登录状态。
 #: src/components/harness/AgentKnowledgePage.tsx:463
 msgid "Refresh index"
 msgstr "刷新索引"
+
+#: src/components/harness/HomeMemoryPanel.tsx:90
+msgid "Remember when asked"
+msgstr "仅按要求记忆"
 
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:247
 msgid "Remote HTTP"
@@ -5014,7 +5295,7 @@ msgid "Remove from queue"
 msgstr "从队列中移除"
 
 #: src/components/harness/files/FileManagerView.tsx:416
-#: src/components/harness/shell/SessionList.tsx:246
+#: src/components/harness/shell/SessionList.tsx:251
 msgid "Rename"
 msgstr "重命名"
 
@@ -5026,7 +5307,7 @@ msgstr "重新打开任务"
 msgid "Repeats"
 msgstr "重复方式"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:219
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:216
 msgid "Replace credentials"
 msgstr "替换凭证"
 
@@ -5034,7 +5315,7 @@ msgstr "替换凭证"
 msgid "Reply to agent"
 msgstr "回复智能体"
 
-#: src/components/chat/ChatMessages.tsx:635
+#: src/components/chat/ChatMessages.tsx:673
 msgid "Request aborted"
 msgstr "请求已中止"
 
@@ -5051,6 +5332,7 @@ msgid "Restart"
 msgstr "重新启动"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
+#: src/components/harness/HomeMemoryPanel.tsx:129
 msgid "Restore"
 msgstr "恢复"
 
@@ -5058,7 +5340,7 @@ msgstr "恢复"
 msgid "Result"
 msgstr "结果"
 
-#: src/components/PiChat.tsx:315
+#: src/components/PiChat.tsx:317
 #: src/components/tasks/TaskSubtasks.tsx:72
 msgid "Resume"
 msgstr "恢复"
@@ -5067,7 +5349,7 @@ msgstr "恢复"
 msgid "Resume agent"
 msgstr "恢复智能体"
 
-#: src/components/PiChat.tsx:267
+#: src/components/PiChat.tsx:269
 msgid "Resume updates"
 msgstr "恢复更新"
 
@@ -5098,7 +5380,7 @@ msgstr "运行历史"
 msgid "Run now"
 msgstr "立即运行"
 
-#: src/components/harness/shell/SessionList.tsx:105
+#: src/components/harness/shell/SessionList.tsx:110
 msgid "Running"
 msgstr "运行中"
 
@@ -5123,6 +5405,7 @@ msgid "Save changes"
 msgstr "保存更改"
 
 #: src/components/harness/AgentKnowledgePage.tsx:647
+#: src/components/harness/HomeMemoryPanel.tsx:110
 msgid "Save memory"
 msgstr "保存记忆"
 
@@ -5144,13 +5427,21 @@ msgstr "由 {0} 保存 · {1}"
 msgid "Saved memories"
 msgstr "已保存的记忆"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:259
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:256
 msgid "Scan QR code"
 msgstr "扫描二维码"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:378
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:375
 msgid "Scan with the Feishu or Lark mobile app and approve creation of your bot."
 msgstr "使用飞书或 Lark 移动应用扫码，并批准创建机器人。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:106
+msgid "Scope"
+msgstr "适用范围"
+
+#: src/components/harness/shell/GlobalSearch.tsx:51
+msgid "Search"
+msgstr "搜索"
 
 #: src/components/harness/AgentKnowledgePage.tsx:202
 msgid "Search knowledge"
@@ -5164,6 +5455,10 @@ msgstr "搜索模式"
 msgid "Search notice"
 msgstr "搜索提示"
 
+#: src/components/harness/shell/GlobalSearch.tsx:97
+msgid "Searching…"
+msgstr "正在搜索…"
+
 #: src/components/chat/UserRequestCards.tsx:238
 msgid "Secret value"
 msgstr "密钥值"
@@ -5172,11 +5467,11 @@ msgstr "密钥值"
 msgid "Secrets become environment variables in this agent's shell. Saved values can be replaced but cannot be viewed."
 msgstr "密钥会成为此智能体 Shell 中的环境变量。已保存的值可以替换，但无法查看。"
 
-#: src/components/harness/files/FileEditorView.tsx:101
+#: src/components/harness/files/FileEditorView.tsx:102
 msgid "Select a file from the sidebar."
 msgstr "请从侧边栏选择文件。"
 
-#: src/components/harness/files/FileEditorView.tsx:93
+#: src/components/harness/files/FileEditorView.tsx:94
 #: src/components/harness/files/FileManagerView.tsx:69
 msgid "Select an agent to browse files."
 msgstr "请选择智能体以浏览文件。"
@@ -5205,7 +5500,7 @@ msgstr "服务器 URL"
 
 #. placeholder {0}: activeAgent.name
 #. placeholder {1}: customWorkingDir ? ` · ${customWorkingDir}` : ""
-#: src/components/harness/shell/HarnessHeader.tsx:129
+#: src/components/harness/shell/HarnessHeader.tsx:143
 msgid "Sessions · {0}{1}"
 msgstr "会话 · {0}{1}"
 
@@ -5222,12 +5517,12 @@ msgstr "设置于 {0}"
 msgid "shared"
 msgstr "已共享"
 
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:148
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:149
 msgid "Shared by all agents. The server administrator configures this model."
 msgstr "所有智能体共用。此模型由服务器管理员配置。"
 
 #. placeholder {0}: Math.min(hidden, PAGE_SIZE)
-#: src/components/harness/shell/SessionList.tsx:137
+#: src/components/harness/shell/SessionList.tsx:142
 msgid "Show {0} more"
 msgstr "再显示 {0} 项"
 
@@ -5251,6 +5546,7 @@ msgid "Sort by {0}{1}"
 msgstr "按{0}排序{1}"
 
 #: src/components/chat/MermaidBlock.tsx:50
+#: src/components/harness/HomeMemoryPanel.tsx:119
 msgid "Source"
 msgstr "源码"
 
@@ -5258,11 +5554,11 @@ msgstr "源码"
 msgid "Sources"
 msgstr "来源"
 
-#: src/components/PiChat.tsx:318
+#: src/components/PiChat.tsx:320
 msgid "Stop"
 msgstr "停止"
 
-#: src/components/PiChat.tsx:272
+#: src/components/PiChat.tsx:274
 msgid "Stop Home"
 msgstr "停止主页"
 
@@ -5324,7 +5620,7 @@ msgstr "列表已截断，仍有更多更改未显示。未跟踪的依赖文件
 msgid "Theme"
 msgstr "主题"
 
-#: src/components/chat/ChatMessages.tsx:660
+#: src/components/chat/ChatMessages.tsx:698
 msgid "Thinking"
 msgstr "思考中"
 
@@ -5336,7 +5632,7 @@ msgstr "此智能体已共享。任何有权运行它的人，执行命令时都
 msgid "This agent's working directory is not a git repository."
 msgstr "此智能体的工作目录不是 Git 仓库。"
 
-#: src/components/PiChat.tsx:309
+#: src/components/PiChat.tsx:311
 msgid "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 msgstr "此对话中有未完成的工作。请先恢复或停止，再重试或编辑消息。"
 
@@ -5357,7 +5653,7 @@ msgstr "请尝试其他短语，或刷新来源索引。"
 msgid "Type into the focused browser field"
 msgstr "在已聚焦的浏览器输入框中输入"
 
-#: src/components/harness/files/FileEditorView.tsx:263
+#: src/components/harness/files/FileEditorView.tsx:264
 msgid "Unable to preview this image."
 msgstr "无法预览此图片。"
 
@@ -5365,9 +5661,13 @@ msgstr "无法预览此图片。"
 msgid "Unable to save. Your changes are still here. Try again or cancel to keep editing."
 msgstr "无法保存。你的更改仍在，请重试，或取消以继续编辑。"
 
-#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:352
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:349
 msgid "Unable to update integration"
 msgstr "无法更新集成"
+
+#: src/components/harness/HomeMemoryPanel.tsx:122
+msgid "Unpin"
+msgstr "取消固定"
 
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:227
 msgid "Up to 32 letters, numbers, underscores, or hyphens."
@@ -5415,7 +5715,7 @@ msgstr "用户"
 msgid "Username"
 msgstr "用户名"
 
-#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:137
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:138
 msgid "Uses GPUs exposed to the runner. Vulkan works with compatible NVIDIA and AMD drivers."
 msgstr "使用运行器可访问的 GPU。Vulkan 支持兼容的 NVIDIA 和 AMD 驱动程序。"
 
@@ -5424,7 +5724,7 @@ msgid "Uses this agent's permitted workspace, shell, network, MCP, and session t
 msgstr "使用此智能体获准访问的工作区、Shell、网络、MCP 和会话工具。现有权限和 MCP 工具允许列表仍然适用。"
 
 #. placeholder {0}: skill.name
-#: src/components/chat/ChatMessages.tsx:499
+#: src/components/chat/ChatMessages.tsx:537
 msgid "Using skill: {0}"
 msgstr "正在使用技能：{0}"
 
@@ -5445,7 +5745,7 @@ msgstr "查看对话"
 msgid "View result"
 msgstr "查看结果"
 
-#: src/components/chat/ChatMessages.tsx:692
+#: src/components/chat/ChatMessages.tsx:730
 msgid "View subtask result"
 msgstr "查看子任务结果"
 
@@ -5458,7 +5758,7 @@ msgstr "欢迎使用 Carmel Agent"
 msgid "What can {0} help with?"
 msgstr "{0} 可以帮你做什么？"
 
-#: src/components/harness/shell/HarnessSidebar.tsx:147
+#: src/components/harness/shell/HarnessSidebar.tsx:164
 msgid "Working"
 msgstr "工作中"
 
@@ -5473,125 +5773,3 @@ msgstr "你有未保存的更改。离开前请保存、放弃，或取消以继
 #: src/components/chat/UserRequestCards.tsx:316
 msgid "Your answer"
 msgstr "你的回答"
-
-#. js-lingui-explicit-id
-#: src/components/harness/shell/GlobalSearch.tsx:87
-#: src/components/harness/shell/GlobalSearch.tsx:88
-#: src/components/harness/shell/GlobalSearch.tsx:110
-msgid "Search titles and messages"
-msgstr "搜索标题和消息"
-
-#. js-lingui-explicit-id
-#: src/components/harness/shell/GlobalSearch.tsx:104
-msgid "Unable to search"
-msgstr "无法搜索"
-
-#. js-lingui-explicit-id
-#: src/components/harness/shell/GlobalSearch.tsx:110
-msgid "No sessions found."
-msgstr "未找到会话。"
-
-#: src/components/harness/shell/GlobalSearch.tsx:51
-#: src/components/harness/shell/HarnessSidebar.tsx:133
-msgid "Search"
-msgstr "搜索"
-
-#: src/components/harness/shell/GlobalSearch.tsx:97
-msgid "Searching…"
-msgstr "正在搜索…"
-
-#. js-lingui-explicit-id
-#: src/components/harness/NewSessionView.tsx:131
-msgid "New session in {name}"
-msgstr "在 {name} 中开始新会话"
-
-#. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:39
-msgid "Collaboration"
-msgstr "智能体协作"
-
-#. js-lingui-explicit-id
-#: src/components/harness/tasks/issue-state.ts:25
-msgid "Waiting for agent"
-msgstr "等待智能体"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:11
-msgid "Consultations"
-msgstr "咨询"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:12
-msgid "Create tasks"
-msgstr "创建任务"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:13
-msgid "Run tasks with this agent's permissions"
-msgstr "使用此智能体的权限执行任务"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
-msgid "Both agents must allow a connection. Consultations have read-only tools. Delegated tasks use the receiving agent's configured permissions and credentials."
-msgstr "双方智能体都必须允许连接。咨询仅提供只读工具。委派任务使用接收方智能体配置的权限和凭据。"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:79
-msgid "Contact this agent"
-msgstr "联系此智能体"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:80
-msgid "Allow requests from this agent"
-msgstr "允许此智能体发起请求"
-
-#. js-lingui-explicit-id
-#: src/components/chat/CollaborationActivity.tsx:57
-msgid "Open"
-msgstr "打开"
-
-#. js-lingui-explicit-id
-#: src/components/chat/CollaborationActivity.tsx:68
-msgid "Unable to stop collaboration"
-msgstr "无法停止协作"
-
-#. js-lingui-explicit-id
-#: src/components/chat/CollaborationActivity.tsx:48
-#: src/components/chat/CollaborationReplyCard.tsx:26
-msgid "Agent"
-msgstr "智能体"
-
-#. js-lingui-explicit-id
-#: src/components/chat/CollaborationReplyCard.tsx:45
-msgid "Open task"
-msgstr "打开任务"
-
-#. js-lingui-explicit-id
-#: src/components/chat/CollaborationReplyCard.tsx:69
-msgid "Show less"
-msgstr "收起"
-
-#. js-lingui-explicit-id
-#: src/components/chat/CollaborationReplyCard.tsx:69
-msgid "Show more"
-msgstr "展开"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
-msgid "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials."
-msgstr "允许此智能体联系下方的智能体。如需对方回调，请在对方智能体中配置。咨询为只读；任务使用接收方智能体的权限和凭据。"
-
-#. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:84
-msgid "Choose an agent to collaborate with, or a file, folder, or conversation to reference."
-msgstr "选择要协作的智能体，或要引用的文件、文件夹或对话。"
-
-#. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:91
-msgid "Search agents, conversations, or type a file path…"
-msgstr "搜索智能体、对话，或输入文件路径…"
-
-#. js-lingui-explicit-id
-#: src/components/chat/ReferencePicker.tsx:109
-msgid "Agents unavailable: {error}"
-msgstr "智能体不可用：{error}"
