@@ -43,12 +43,22 @@ Ordinary sessions, task runs, background notices, and other users do not receive
 these notes or the topic index. Starting **New context** keeps Home memory.
 
 Learning asks the model for one `home_memory_capture` tool call instead of
-free-form JSON, and falls back to reading the reply when a provider ignores
-tools. It salvages every usable candidate from a batch and only fails when the
-model returns nothing usable; a malformed entry no longer discards its
-siblings. Failures name the rejected field in the panel, and the last call's
-route, model, stop reason, token usage, and rejected candidates are kept in
-`home_memory_settings.last_capture` for troubleshooting.
+free-form JSON. A reply in text is asked again with the tool forced; only a
+provider that refuses that falls back to reading the reply. It salvages every
+usable candidate from a batch and only fails when the model returns nothing
+usable; a malformed entry no longer discards its siblings.
+
+Capture sees the compact topic index, and a single-message batch sees every
+note. That matters for corrections, which restate a fact in different words and
+never match the stored wording: without it the model cannot name the note to
+replace. Editing or truncating a message retires only that message's pending
+capture, so an edit no longer discards unrelated learning, and an explicit save
+leaves the queue armed.
+
+The panel shows a last-check line with the outcome and whether it came from a
+tool call or reply text. Failures name the rejected field there too, and the
+last call's route, model, stop reason, token usage, and rejected candidates are
+kept in `home_memory_settings.last_capture` for troubleshooting.
 
 Automatic notes show their supporting quote and message link. Review new notes
 from the quiet **Remembered** notice, or undo the change. Edit history supports

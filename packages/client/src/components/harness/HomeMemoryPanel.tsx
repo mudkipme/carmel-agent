@@ -24,6 +24,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { useHarnessStore } from "@/store/harness-store";
 import { api } from "@/lib/api";
+import { formatRelativeTime } from "@/lib/utils";
 import { showError } from "@/lib/errors";
 import { confirmAction } from "@/lib/action-dialogs";
 import { ResourceError, ResourceLoading } from "./ResourceFeedback";
@@ -181,6 +182,30 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                 <Alert>
                   <AlertDescription>{data.error}</AlertDescription>
                 </Alert>
+              ) : null}
+              {data.mode === "automatic" && data.lastCapture ? (
+                <p className="text-xs text-muted-foreground">
+                  <Trans>Last check</Trans> {formatRelativeTime(data.lastCapture.at)}
+                  {" · "}
+                  {data.lastCapture.saved > 0 ? (
+                    <Trans>saved {data.lastCapture.saved}</Trans>
+                  ) : data.lastCapture.candidates > 0 ? (
+                    <Trans>nothing saved</Trans>
+                  ) : (
+                    <Trans>nothing new</Trans>
+                  )}
+                  {data.lastCapture.route === "tool" ? (
+                    <>
+                      {" · "}
+                      <Trans>via tool call</Trans>
+                    </>
+                  ) : data.lastCapture.route === "text" ? (
+                    <>
+                      {" · "}
+                      <Trans>via reply text</Trans>
+                    </>
+                  ) : null}
+                </p>
               ) : null}
               {editor ? (
                 <form

@@ -84,5 +84,7 @@ export type HomeMemoryOverview = {
   coreMaxLines: number;
   coreMaxBytes: number;
   lastCaptureAt: number | null;
+  /** Diagnostics for the most recent learning call, including quiet, empty runs. */
+  lastCapture: HomeMemoryCaptureReport | null;
   error: string | null;
 };

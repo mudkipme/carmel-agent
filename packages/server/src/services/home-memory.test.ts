@@ -915,6 +915,166 @@ test("idle capture saves the usable candidate and records what the model returne
   );
 });
 
+function systemPromptOf(context: { messages: { role: string; content: unknown }[] }) {
+  const system = context.messages.find((message) => message.role === "system");
+  return typeof system?.content === "string"
+    ? system.content
+    : JSON.stringify(system?.content ?? "");
+}
+
+test("a short batch sees every note, so a reworded correction replaces it", async () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const original = source(value, "我的 homelab 主力机是 i7-12900 CPU，16GB 内存。");
+  recordHomeMemoryInput(original, "durable:70");
+  const [note] = commitHomeCapture(
+    value.userId,
+    value.agentId,
+    readHomeMemorySettings(value.userId, value.agentId).generation,
+    [original],
+    [
+      candidate(original, {
+        content: "Homelab 主力机：i7-12900 CPU，16GB 内存。",
+        scope: "homelab 硬件",
+        slot: "homelab/hardware-main-machine",
+        evidence: "我的 homelab 主力机是 i7-12900 CPU，16GB 内存。",
+      }),
+    ],
+  );
+  assert.ok(note);
+  // The correction shares no words with the stored note, so search would miss it.
+  const correction = source(value, "啊对，应该是i7-12700。");
+  recordHomeMemoryInput(correction, "durable:71");
+  const models = fauxHarnessModels();
+  let seen = "";
+  models.faux.setResponses([
+    (context) => {
+      seen = systemPromptOf(context);
+      return fauxAssistantMessage(
+        [
+          fauxToolCall(HOME_CAPTURE_TOOL, {
+            candidates: [
+              candidate(correction, {
+                content: "Homelab 主力机：i7-12700 CPU，16GB 内存。",
+                scope: "homelab 硬件",
+                slot: "homelab/hardware-main-machine",
+                evidence: "应该是i7-12700",
+                replacesId: note.id,
+                expectedRevision: note.revision,
+              }),
+            ],
+          }),
+        ],
+        { stopReason: "toolUse" },
+      );
+    },
+  ]);
+  const resolve = async () => ({
+    ok: true as const,
+    value: {
+      model: models.model,
+      modelRuntime: models.models,
+      modelRef: db.select().from(modelRefs).where(eq(modelRefs.id, value.modelRefId)).get()!,
+    },
+  });
+  await captureHomeMemories(Date.now() + 180000, resolve);
+  assert.match(seen, /i7-12900/, "the note under correction was not offered to the model");
+  assert.match(seen, /homelab 硬件/, "the topic index did not reach the model");
+  const updated = activeHomeMemories(value.userId, value.agentId).find(
+    (row) => row.id === note.id,
+  )!;
+  assert.equal(updated.revision, 2);
+  assert.match(updated.content, /i7-12700/);
+  assert.equal(activeHomeMemories(value.userId, value.agentId).length, 1);
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "manual" });
+});
+
+test("an answer in text is asked again as a forced tool call", async () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const event = source(value, "For this project, I prefer SQLite for metadata.");
+  recordHomeMemoryInput(event, "durable:72");
+  const models = fauxHarnessModels();
+  let calls = 0;
+  models.faux.setResponses([
+    () => {
+      calls++;
+      return fauxAssistantMessage(JSON.stringify({ candidates: [] }));
+    },
+    () => {
+      calls++;
+      return fauxAssistantMessage(
+        [
+          fauxToolCall(HOME_CAPTURE_TOOL, {
+            candidates: [candidate(event, { slot: "db/sqlite" })],
+          }),
+        ],
+        { stopReason: "toolUse" },
+      );
+    },
+  ]);
+  const resolve = async () => ({
+    ok: true as const,
+    value: {
+      model: models.model,
+      modelRuntime: models.models,
+      modelRef: db.select().from(modelRefs).where(eq(modelRefs.id, value.modelRefId)).get()!,
+    },
+  });
+  await captureHomeMemories(Date.now() + 180000, resolve);
+  assert.equal(calls, 2);
+  const overview = readHomeMemoryOverview(value.userId, value.agentId);
+  assert.equal(overview.lastCapture?.route, "tool");
+  assert.equal(overview.lastCapture?.saved, 1);
+  assert.equal(overview.total, 1);
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "manual" });
+});
+
+test("editing one message keeps the rest of the pending batch", () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const generation = readHomeMemorySettings(value.userId, value.agentId).generation;
+  const keep = source(value, "For this project, I prefer SQLite for metadata.");
+  const edited = source(value, "For Carmel, I prefer minimal UI labels.");
+  recordHomeMemoryInput(keep, "durable:80");
+  recordHomeMemoryInput(edited, "durable:81");
+  invalidateHomeMemorySources(value.sessionId, ["durable:81"]);
+  const rows = db.select().from(homeMemoryCaptures).all();
+  assert.equal(rows.find((row) => row.eventId === edited.id)?.status, "skipped");
+  assert.equal(rows.find((row) => row.eventId === keep.id)?.status, "pending");
+  assert.equal(readHomeMemorySettings(value.userId, value.agentId).generation, generation);
+  const saved = commitHomeCapture(
+    value.userId,
+    value.agentId,
+    generation,
+    [keep, edited],
+    [candidate(keep, { slot: "db/sqlite" }), candidate(edited, { slot: "carmel/labels" })],
+  );
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0]!.sourceEventId, keep.id);
+  const after = db.select().from(homeMemoryCaptures).all();
+  assert.equal(after.find((row) => row.eventId === keep.id)?.status, "done");
+  assert.equal(after.find((row) => row.eventId === edited.id)?.status, "skipped");
+  // Leave no pending batch behind: the capture loop walks every automatic Home.
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "manual" });
+});
+
+test("an explicit save leaves pending learning armed", () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const event = source(value, "For this project, I prefer SQLite for metadata.");
+  recordHomeMemoryInput(event, "durable:82");
+  const before = readHomeMemorySettings(value.userId, value.agentId).generation;
+  saveHomeMemory(value.userId, value.agentId, { content: "An explicit independent fact" });
+  assert.equal(readHomeMemorySettings(value.userId, value.agentId).generation, before);
+  assert.equal(
+    db.select().from(homeMemoryCaptures).where(eq(homeMemoryCaptures.eventId, event.id)).get()
+      ?.status,
+    "pending",
+  );
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "manual" });
+});
+
 test("capture reads the tool call instead of parsing reply text", async () => {
   const value = fixture();
   setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });

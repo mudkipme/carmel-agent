@@ -266,6 +266,7 @@ export function readHomeMemoryOverview(
     coreMaxLines: HOME_MEMORY_MAX_LINES,
     coreMaxBytes: HOME_MEMORY_MAX_BYTES,
     lastCaptureAt: settings.lastCaptureAt,
+    lastCapture: settings.lastCapture ?? null,
     error: settings.error,
   };
 }
@@ -362,7 +363,9 @@ export function saveHomeMemory(
       .returning()
       .get();
     saveRevision(row);
-    if (source?.origin !== "automatic") invalidateHomeCapture(userId, agentId);
+    // An explicit save needs no invalidation: a pending batch that learns the same
+    // fact later already loses on slot dedupe, so discarding the queue would only
+    // throw away learning that has nothing to do with this note.
     return serialize(row);
   });
 }
@@ -485,7 +488,7 @@ export function invalidateHomeMemorySources(sessionId: string, entryIds: string[
     .get(sessionId) as { userId: string; agentId: string } | undefined;
   if (!rows) return;
   db.transaction(() => {
-    if (entryIds.length)
+    if (entryIds.length) {
       db.delete(homeMemories)
         .where(
           and(
@@ -495,13 +498,13 @@ export function invalidateHomeMemorySources(sessionId: string, entryIds: string[
           ),
         )
         .run();
-    invalidateHomeCapture(rows.userId, rows.agentId);
-    db.update(homeMemoryCaptures)
-      .set({ status: "skipped" })
-      .where(
-        sql`${homeMemoryCaptures.eventId} IN (SELECT id FROM home_events WHERE session_id = ${sessionId})`,
-      )
-      .run();
+      // Only the edited messages lose their pending capture. Everything else keeps
+      // learning; the commit step checks each event on its own.
+      db.update(homeMemoryCaptures)
+        .set({ status: "skipped" })
+        .where(inArray(homeMemoryCaptures.entryId, entryIds))
+        .run();
+    }
   });
 }
 
