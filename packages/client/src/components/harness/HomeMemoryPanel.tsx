@@ -695,6 +695,18 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                               >
                                 <Trans>Forget</Trans>
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={busy}
+                                onClick={() =>
+                                  void act(() =>
+                                    api.forgetHomeMemory(agentId, note.id, note.revision, false),
+                                  )
+                                }
+                              >
+                                <Trans>Delete note</Trans>
+                              </Button>
                             </CardFooter>
                           </Card>
                         ))}
@@ -754,7 +766,7 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                         await confirmAction({
                           title: i18n._("Forget all Home memory?"),
                           description: i18n._(
-                            "Notes and their revision history will be deleted. Your Home conversation stays.",
+                            "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays.",
                           ),
                           actionLabel: i18n._("Forget all"),
                         })

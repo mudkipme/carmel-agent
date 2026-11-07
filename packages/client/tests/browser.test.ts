@@ -274,6 +274,12 @@ test(
       );
       click("button", "Forget");
       browser("wait", "--text", "No memories");
+      click("button", "Add");
+      browser("fill", "#home-memory-content", "A temporary saved note for Carmel.");
+      click("button", "Save memory");
+      browser("wait", "--text", "A temporary saved note for Carmel.");
+      click("button", "Delete note");
+      browser("wait", "--text", "No memories");
       clickSelector("details > summary");
       clickSelector("#memory-indexing");
       browser("wait", '#memory-indexing[data-state="unchecked"]');

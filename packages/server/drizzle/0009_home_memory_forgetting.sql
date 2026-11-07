@@ -1,0 +1,1 @@
+ALTER TABLE `home_memory_settings` ADD `forgotten` text DEFAULT '[]' NOT NULL;

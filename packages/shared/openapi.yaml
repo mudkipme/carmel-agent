@@ -81,6 +81,15 @@ paths:
       operationId: clearHomeMemory
       tags:
         - Agents
+      parameters:
+        - &homeMemoryPreventLearning
+          name: preventLearning
+          in: query
+          required: false
+          description: Prevent automatic relearning of removed facts. Explicitly saving a fact again clears its restriction.
+          schema:
+            type: boolean
+            default: true
       responses:
         "200":
           description: Successful operation
@@ -227,6 +236,7 @@ paths:
         "404": *a1
         "409": *a1
       parameters:
+        - *homeMemoryPreventLearning
         - name: revision
           in: query
           required: true

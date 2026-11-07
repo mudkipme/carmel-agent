@@ -640,9 +640,9 @@ export const api = {
       `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify(input) },
     ),
-  forgetHomeMemory: (agentId: string, id: string, revision: number) =>
+  forgetHomeMemory: (agentId: string, id: string, revision: number, preventLearning = true) =>
     request<{ ok: true }>(
-      `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}?revision=${revision}`,
+      `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}?revision=${revision}&preventLearning=${preventLearning}`,
       { method: "DELETE" },
     ),
   clearHomeMemory: (agentId: string) =>

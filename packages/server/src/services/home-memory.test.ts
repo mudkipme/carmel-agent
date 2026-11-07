@@ -31,6 +31,7 @@ import {
   restoreHomeMemory,
   invalidateHomeMemorySources,
   placeAutomaticHomeMemory,
+  isHomeMemoryForgotten,
 } from "./home-memory.ts";
 import {
   buildHomeMemorySections,
@@ -921,6 +922,267 @@ function systemPromptOf(context: { messages: { role: string; content: unknown }[
     ? system.content
     : JSON.stringify(system?.content ?? "");
 }
+
+test("forgetting blocks later automatic relearning and stores no forgotten note text", async () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const first = source(value, "For Carmel, I prefer minimal UI labels.");
+  recordHomeMemoryInput(first, "forget:first");
+  const [note] = commitHomeCapture(
+    value.userId,
+    value.agentId,
+    readHomeMemorySettings(value.userId, value.agentId).generation,
+    [first],
+    [candidate(first)],
+  );
+  await forgetHomeMemory(value.userId, value.agentId, note!.id, note!.revision);
+  const settings = readHomeMemorySettings(value.userId, value.agentId);
+  assert.equal(settings.forgotten.length, 1);
+  assert.equal(
+    isHomeMemoryForgotten(value.userId, value.agentId, {
+      content: "Use more descriptive labels.",
+      scope: "Carmel UI",
+      slot: "carmel/ui/labels",
+    }),
+    true,
+  );
+  assert.equal(
+    isHomeMemoryForgotten(value.userId, value.agentId, {
+      content: "The user prefers dark mode in Carmel.",
+      scope: "Carmel UI",
+      slot: "carmel/ui/theme",
+    }),
+    false,
+  );
+  assert.doesNotMatch(JSON.stringify(settings.forgotten), /minimal|labels|Carmel|carmel\/ui/);
+  assert.deepEqual(searchHomeMemories(value.userId, value.agentId, "minimal labels"), []);
+  for (const slot of ["carmel/ui/labels", "carmel/labels/style"]) {
+    const later = source(value, "My preference for Carmel interfaces is minimal labels.");
+    recordHomeMemoryInput(later, `forget:${slot}`);
+    assert.deepEqual(
+      commitHomeCapture(
+        value.userId,
+        value.agentId,
+        settings.generation,
+        [later],
+        [
+          candidate(later, {
+            content: "For Carmel interfaces, minimal labels are preferred.",
+            slot,
+          }),
+        ],
+      ),
+      [],
+    );
+  }
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "off" });
+  resetHome(value.userId, value.agentId);
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  assert.equal(
+    isHomeMemoryForgotten(value.userId, value.agentId, {
+      content: note!.content,
+      scope: note!.scope,
+    }),
+    true,
+  );
+  const other = createUser();
+  db.update(agents).set({ shared: true }).where(eq(agents.id, value.agentId)).run();
+  ensureHome(other, value.agentId);
+  assert.equal(
+    isHomeMemoryForgotten(other, value.agentId, {
+      content: note!.content,
+      scope: note!.scope,
+      slot: "carmel/ui/labels",
+    }),
+    false,
+  );
+});
+
+test("deleting a saved copy allows later learning and invalid forget requests preserve the note", async () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const note = saveHomeMemory(value.userId, value.agentId, {
+    content: "The user prefers minimal labels in Carmel interfaces.",
+    scope: "Carmel UI",
+  });
+  const app = appFor(value.userId);
+  const path = `/agents/${value.agentId}/home/memory/${note.id}`;
+  assert.equal(
+    (await app.request(`${path}?revision=1&preventLearning=invalid`, { method: "DELETE" })).status,
+    400,
+  );
+  assert.equal(
+    (await app.request(`${path}?revision=2&preventLearning=false`, { method: "DELETE" })).status,
+    409,
+  );
+  assert.equal(readHomeMemorySettings(value.userId, value.agentId).forgotten.length, 0);
+  assert.equal(
+    (await app.request(`${path}?revision=1&preventLearning=false`, { method: "DELETE" })).status,
+    200,
+  );
+  assert.equal(readHomeMemorySettings(value.userId, value.agentId).forgotten.length, 0);
+  const later = source(value, "For Carmel, I prefer minimal UI labels.");
+  recordHomeMemoryInput(later, "delete:later");
+  const saved = commitHomeCapture(
+    value.userId,
+    value.agentId,
+    readHomeMemorySettings(value.userId, value.agentId).generation,
+    [later],
+    [candidate(later)],
+  );
+  assert.equal(saved.length, 1);
+  const tools = createHomeMemoryTools(value.userId, value.agentId, value.sessionId, later.id);
+  await tools
+    .find((tool) => tool.name === "memory_forget")!
+    .execute(
+      { id: saved[0]!.id, expectedRevision: saved[0]!.revision, preventLearning: false },
+      undefined as never,
+      undefined as never,
+    );
+  assert.equal(readHomeMemorySettings(value.userId, value.agentId).forgotten.length, 0);
+  const again = saveHomeMemory(value.userId, value.agentId, {
+    content: note.content,
+    scope: note.scope,
+  });
+  assert.equal(
+    (
+      await app.request(`/agents/${value.agentId}/home/memory/${again.id}?revision=1`, {
+        method: "DELETE",
+      })
+    ).status,
+    200,
+  );
+  assert.equal(isHomeMemoryForgotten(value.userId, value.agentId, note), true);
+});
+
+test("an explicit request to remember again clears only matching learning restrictions", async () => {
+  const value = fixture();
+  const labels = saveHomeMemory(value.userId, value.agentId, {
+    content: "The user prefers minimal labels in Carmel interfaces.",
+    scope: "Carmel UI",
+  });
+  const food = saveHomeMemory(value.userId, value.agentId, {
+    content: "The user avoids shellfish at restaurants.",
+    scope: "Food",
+  });
+  await forgetHomeMemory(value.userId, value.agentId);
+  assert.equal(readHomeMemorySettings(value.userId, value.agentId).forgotten.length, 2);
+  saveHomeMemory(value.userId, value.agentId, {
+    content: "Use SQLite for project metadata.",
+    scope: "Carmel",
+  });
+  assert.equal(readHomeMemorySettings(value.userId, value.agentId).forgotten.length, 2);
+  assert.throws(() =>
+    saveHomeMemory(value.userId, value.agentId, { content: "x".repeat(20001), scope: "Carmel UI" }),
+  );
+  assert.equal(readHomeMemorySettings(value.userId, value.agentId).forgotten.length, 2);
+  const event = source(value, "Remember again: I prefer minimal labels for Carmel interfaces.");
+  saveHomeMemory(
+    value.userId,
+    value.agentId,
+    { content: "For Carmel interfaces, minimal labels are preferred.", scope: "Carmel UI" },
+    { origin: "explicit", eventId: event.id, entryId: null, quote: event.prompt.text },
+  );
+  assert.equal(isHomeMemoryForgotten(value.userId, value.agentId, labels), false);
+  assert.equal(isHomeMemoryForgotten(value.userId, value.agentId, food), true);
+  assert.equal(readHomeMemorySettings(value.userId, value.agentId).forgotten.length, 1);
+});
+
+test("correction context keeps the older fact visible among long notes and across message batches", async () => {
+  const value = fixture();
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "automatic" });
+  const first = source(value, "我的 homelab 主力机是 i7-12900 CPU，16GB 内存。");
+  recordHomeMemoryInput(first, "long-correction:first");
+  const [note] = commitHomeCapture(
+    value.userId,
+    value.agentId,
+    readHomeMemorySettings(value.userId, value.agentId).generation,
+    [first],
+    [
+      candidate(first, {
+        content: "Homelab 主力机：i7-12900 CPU，16GB 内存。",
+        scope: "homelab 硬件",
+        slot: "homelab/hardware-main-machine",
+      }),
+    ],
+  );
+  const protectedNotes = [];
+  for (let index = 0; index < 9; index++)
+    protectedNotes.push(
+      saveHomeMemory(value.userId, value.agentId, {
+        title: `Project reference ${index}`,
+        scope: `Project ${index}`,
+        placement: index < 2 ? "core" : "topic",
+        content: `${index}: ` + "A settled project reference. ".repeat(index < 2 ? 350 : 650),
+      }),
+    );
+  const correction = source(value, "啊对，应该是i7-12700。");
+  const other = source(value, "Thanks, that completes the task.");
+  recordHomeMemoryInput(correction, "long-correction:next");
+  recordHomeMemoryInput(other, "long-correction:other");
+  const models = fauxHarnessModels();
+  let seen = "";
+  models.faux.setResponses([
+    (context) => {
+      seen = systemPromptOf(context);
+      return fauxAssistantMessage(
+        [
+          fauxToolCall(HOME_CAPTURE_TOOL, {
+            candidates: [
+              candidate(correction, {
+                content: "Homelab 主力机：i7-12700 CPU，16GB 内存。",
+                scope: "homelab 硬件",
+                slot: "homelab/hardware-main-machine",
+                evidence: "应该是i7-12700",
+                replacesId: note!.id,
+                expectedRevision: note!.revision,
+              }),
+            ],
+          }),
+        ],
+        { stopReason: "toolUse" },
+      );
+    },
+  ]);
+  await captureHomeMemories(Date.now() + 180000, async () => ({
+    ok: true as const,
+    value: {
+      model: models.model,
+      modelRuntime: models.models,
+      modelRef: db.select().from(modelRefs).where(eq(modelRefs.id, value.modelRefId)).get()!,
+    },
+  }));
+  const context = JSON.parse(seen.slice(seen.lastIndexOf("\n\n") + 2));
+  assert.equal(context.inventory.length, 10);
+  assert.ok(context.inventory.some((item: { id: string }) => item.id === note!.id));
+  assert.ok(
+    context.existing.some(
+      (item: { id: string; content: string }) =>
+        item.id === note!.id && item.content.includes("i7-12900"),
+    ),
+  );
+  assert.ok(
+    JSON.stringify({
+      inventory: context.inventory,
+      existing: context.existing,
+      omitted: context.omitted,
+    }).length <= 24000,
+  );
+  assert.ok(context.existing.every((item: { content: string }) => item.content.length <= 1000));
+  const updated = activeHomeMemories(value.userId, value.agentId).find(
+    (item) => item.id === note!.id,
+  )!;
+  assert.equal(updated.revision, 2);
+  assert.match(updated.content, /i7-12700.*16GB/);
+  for (const original of protectedNotes)
+    assert.equal(
+      activeHomeMemories(value.userId, value.agentId).find((item) => item.id === original.id)
+        ?.content,
+      original.content,
+    );
+  assert.equal(activeHomeMemories(value.userId, value.agentId).length, 10);
+  setHomeMemorySettings(value.userId, value.agentId, { mode: "manual" });
+});
 
 test("a short batch sees every note, so a reworded correction replaces it", async () => {
   const value = fixture();

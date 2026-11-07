@@ -24,6 +24,7 @@ import { revealSecret } from "../security.ts";
 import { readVisibleAgent } from "./agent-access.ts";
 import { knowledgeEmbeddingModel } from "../runtime/knowledge/models.ts";
 import { emptyMemoryIndexStatus, purgeHomeMemoryIndex } from "./home-memory-index.ts";
+import { homeMemoryForgettingRule, matchesForgottenMemory } from "./home-memory-forgetting.ts";
 
 import {
   HOME_MEMORY_MAX_LINES,
@@ -58,6 +59,29 @@ export function readHomeMemorySettings(userId: string, agentId: string) {
   if (!readVisibleAgent(userId, agentId)) throw new HomeError("Agent not found.", 404);
   db.insert(homeMemorySettings).values({ userId, agentId }).onConflictDoNothing().run();
   return db.select().from(homeMemorySettings).where(settingsOwner(userId, agentId)).get()!;
+}
+
+export function isHomeMemoryForgotten(
+  userId: string,
+  agentId: string,
+  fact: { content: string; scope: string; slot?: string },
+) {
+  const fingerprint = homeMemoryForgettingRule(fact);
+  return readHomeMemorySettings(userId, agentId).forgotten.some((rule) =>
+    matchesForgottenMemory(rule, fingerprint),
+  );
+}
+
+function allowHomeMemoryAgain(
+  userId: string,
+  agentId: string,
+  fact: { content: string; scope: string; slot?: string },
+) {
+  const settings = readHomeMemorySettings(userId, agentId);
+  const fingerprint = homeMemoryForgettingRule(fact);
+  const forgotten = settings.forgotten.filter((rule) => !matchesForgottenMemory(rule, fingerprint));
+  if (forgotten.length !== settings.forgotten.length)
+    db.update(homeMemorySettings).set({ forgotten }).where(settingsOwner(userId, agentId)).run();
 }
 
 export function invalidateHomeCapture(userId: string, agentId: string) {
@@ -356,6 +380,7 @@ export function saveHomeMemory(
         aliases: input.aliases ?? existing.aliases,
         expiresAt: value.expiresAt,
       });
+    if (source?.origin !== "automatic") allowHomeMemoryAgain(userId, agentId, existing);
     return serializeHomeMemory(existing);
   }
   return db.transaction(() => {
@@ -387,6 +412,7 @@ export function saveHomeMemory(
       .returning()
       .get();
     saveRevision(row);
+    if (source?.origin !== "automatic") allowHomeMemoryAgain(userId, agentId, row);
     // An explicit save needs no invalidation: a pending batch that learns the same
     // fact later already loses on slot dedupe, so discarding the queue would only
     // throw away learning that has nothing to do with this note.
@@ -452,6 +478,7 @@ export function editHomeMemory(
       .returning()
       .get()!;
     saveRevision(updated);
+    if (patch.content !== undefined) allowHomeMemoryAgain(userId, agentId, updated);
     if (updated.pinned) reservePinnedContext(userId, agentId);
     invalidateHomeCapture(userId, agentId);
     return serializeHomeMemory(updated);
@@ -463,6 +490,7 @@ export async function forgetHomeMemory(
   agentId: string,
   memoryId?: string,
   expectedRevision?: number,
+  preventLearning = true,
 ) {
   const settings = readHomeMemorySettings(userId, agentId);
   if (memoryId) {
@@ -471,6 +499,22 @@ export async function forgetHomeMemory(
       throw new HomeError("This memory changed. Review it before forgetting.", 409);
   }
   db.transaction(() => {
+    if (preventLearning) {
+      const notes = db
+        .select()
+        .from(homeMemories)
+        .where(and(owner(userId, agentId), memoryId ? eq(homeMemories.id, memoryId) : undefined))
+        .all();
+      const rules = new Map(settings.forgotten.map((rule) => [rule.contentHash, rule]));
+      for (const note of notes) {
+        const rule = homeMemoryForgettingRule(note);
+        rules.set(rule.contentHash, rule);
+      }
+      db.update(homeMemorySettings)
+        .set({ forgotten: [...rules.values()] })
+        .where(settingsOwner(userId, agentId))
+        .run();
+    }
     db.delete(homeMemories)
       .where(and(owner(userId, agentId), memoryId ? eq(homeMemories.id, memoryId) : undefined))
       .run();

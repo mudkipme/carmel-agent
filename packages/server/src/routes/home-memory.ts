@@ -115,11 +115,35 @@ export function createHomeMemoryRoutes() {
     const revision = Number(c.req.query("revision"));
     if (!Number.isSafeInteger(revision) || revision < 1)
       return c.json({ error: "A memory revision is required." }, 400);
-    await forgetHomeMemory(c.get("user").id, c.req.param("agentId"), c.req.param("id"), revision);
+    const preventLearning = z
+      .enum(["true", "false"])
+      .default("true")
+      .safeParse(c.req.query("preventLearning"));
+    if (!preventLearning.success)
+      return c.json({ error: "preventLearning must be true or false." }, 400);
+    await forgetHomeMemory(
+      c.get("user").id,
+      c.req.param("agentId"),
+      c.req.param("id"),
+      revision,
+      preventLearning.data === "true",
+    );
     return c.json({ ok: true });
   });
   route.delete(path, async (c) => {
-    await forgetHomeMemory(c.get("user").id, c.req.param("agentId"));
+    const preventLearning = z
+      .enum(["true", "false"])
+      .default("true")
+      .safeParse(c.req.query("preventLearning"));
+    if (!preventLearning.success)
+      return c.json({ error: "preventLearning must be true or false." }, 400);
+    await forgetHomeMemory(
+      c.get("user").id,
+      c.req.param("agentId"),
+      undefined,
+      undefined,
+      preventLearning.data === "true",
+    );
     return c.json({ ok: true });
   });
   return route;

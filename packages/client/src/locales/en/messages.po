@@ -8,6 +8,11 @@ msgstr ""
 "Language: en\n"
 
 #. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:764
+msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
+msgstr "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
+
+#. js-lingui-explicit-id
 #: src/App.tsx:100
 msgid "Can't reach Carmel Agent"
 msgstr "Can't reach Carmel Agent"
@@ -1653,22 +1658,17 @@ msgid "Expires {date}"
 msgstr "Expires {date}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:720
+#: src/components/harness/HomeMemoryPanel.tsx:728
 msgid "Memory history"
 msgstr "Memory history"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:755
+#: src/components/harness/HomeMemoryPanel.tsx:763
 msgid "Forget all Home memory?"
 msgstr "Forget all Home memory?"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:756
-msgid "Notes and their revision history will be deleted. Your Home conversation stays."
-msgstr "Notes and their revision history will be deleted. Your Home conversation stays."
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:759
+#: src/components/harness/HomeMemoryPanel.tsx:767
 msgid "Forget all"
 msgstr "Forget all"
 
@@ -4590,6 +4590,10 @@ msgstr "Delete"
 msgid "Delete agent"
 msgstr "Delete agent"
 
+#: src/components/harness/HomeMemoryPanel.tsx:704
+msgid "Delete note"
+msgstr "Delete note"
+
 #: src/components/harness/tasks/TaskView.tsx:390
 msgid "Delete task"
 msgstr "Delete task"
@@ -4738,7 +4742,7 @@ msgstr "Finish connecting {0}: open the bot and send the command below from your
 msgid "Forget"
 msgstr "Forget"
 
-#: src/components/harness/HomeMemoryPanel.tsx:765
+#: src/components/harness/HomeMemoryPanel.tsx:773
 msgid "Forget all memory"
 msgstr "Forget all memory"
 
@@ -4756,7 +4760,7 @@ msgstr "Go"
 
 #: src/components/harness/AgentSchedulesPage.tsx:201
 #: src/components/harness/HomeMemoryPanel.tsx:684
-#: src/components/harness/HomeMemoryPanel.tsx:722
+#: src/components/harness/HomeMemoryPanel.tsx:730
 msgid "History"
 msgstr "History"
 
@@ -5003,7 +5007,7 @@ msgstr "New session"
 msgid "New task"
 msgstr "New task"
 
-#: src/components/harness/HomeMemoryPanel.tsx:716
+#: src/components/harness/HomeMemoryPanel.tsx:724
 msgid "Next"
 msgstr "Next"
 
@@ -5199,7 +5203,7 @@ msgstr "Prepare deep search"
 msgid "Preview"
 msgstr "Preview"
 
-#: src/components/harness/HomeMemoryPanel.tsx:709
+#: src/components/harness/HomeMemoryPanel.tsx:717
 msgid "Previous"
 msgstr "Previous"
 
@@ -5316,7 +5320,7 @@ msgid "Restart"
 msgstr "Restart"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
-#: src/components/harness/HomeMemoryPanel.tsx:743
+#: src/components/harness/HomeMemoryPanel.tsx:751
 msgid "Restore"
 msgstr "Restore"
 

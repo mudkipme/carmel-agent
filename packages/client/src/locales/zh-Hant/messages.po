@@ -8,6 +8,11 @@ msgstr ""
 "Language: zh-Hant\n"
 
 #. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:764
+msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
+msgstr "將刪除筆記及其修訂歷史，自動學習也會略過這些資訊。你可以明確要求重新記住它們。Home 對話會保留。"
+
+#. js-lingui-explicit-id
 #: src/App.tsx:100
 msgid "Can't reach Carmel Agent"
 msgstr "無法連線 Carmel Agent"
@@ -1653,22 +1658,17 @@ msgid "Expires {date}"
 msgstr "到期時間：{date}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:720
+#: src/components/harness/HomeMemoryPanel.tsx:728
 msgid "Memory history"
 msgstr "記憶歷史"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:755
+#: src/components/harness/HomeMemoryPanel.tsx:763
 msgid "Forget all Home memory?"
 msgstr "忘記主頁的所有記憶？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:756
-msgid "Notes and their revision history will be deleted. Your Home conversation stays."
-msgstr "將刪除筆記及其修訂歷史。主頁對話將保留。"
-
-#. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:759
+#: src/components/harness/HomeMemoryPanel.tsx:767
 msgid "Forget all"
 msgstr "全部忘記"
 
@@ -4590,6 +4590,10 @@ msgstr "刪除"
 msgid "Delete agent"
 msgstr "刪除智能體"
 
+#: src/components/harness/HomeMemoryPanel.tsx:704
+msgid "Delete note"
+msgstr "刪除筆記"
+
 #: src/components/harness/tasks/TaskView.tsx:390
 msgid "Delete task"
 msgstr "刪除任務"
@@ -4738,7 +4742,7 @@ msgstr "完成連線{0}：開啟機器人，從你的個人帳號傳送以下命
 msgid "Forget"
 msgstr "忘記"
 
-#: src/components/harness/HomeMemoryPanel.tsx:765
+#: src/components/harness/HomeMemoryPanel.tsx:773
 msgid "Forget all memory"
 msgstr "忘記所有記憶"
 
@@ -4756,7 +4760,7 @@ msgstr "前往"
 
 #: src/components/harness/AgentSchedulesPage.tsx:201
 #: src/components/harness/HomeMemoryPanel.tsx:684
-#: src/components/harness/HomeMemoryPanel.tsx:722
+#: src/components/harness/HomeMemoryPanel.tsx:730
 msgid "History"
 msgstr "歷史"
 
@@ -5003,7 +5007,7 @@ msgstr "新增工作階段"
 msgid "New task"
 msgstr "新增任務"
 
-#: src/components/harness/HomeMemoryPanel.tsx:716
+#: src/components/harness/HomeMemoryPanel.tsx:724
 msgid "Next"
 msgstr "下一頁"
 
@@ -5199,7 +5203,7 @@ msgstr "準備深入搜尋"
 msgid "Preview"
 msgstr "預覽"
 
-#: src/components/harness/HomeMemoryPanel.tsx:709
+#: src/components/harness/HomeMemoryPanel.tsx:717
 msgid "Previous"
 msgstr "上一頁"
 
@@ -5316,7 +5320,7 @@ msgid "Restart"
 msgstr "重新啓動"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
-#: src/components/harness/HomeMemoryPanel.tsx:743
+#: src/components/harness/HomeMemoryPanel.tsx:751
 msgid "Restore"
 msgstr "恢復"
 

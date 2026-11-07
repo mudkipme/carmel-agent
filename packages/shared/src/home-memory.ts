@@ -71,6 +71,12 @@ export type HomeMemory = z.output<typeof homeMemoryInputSchema> & {
 export type HomeMemorySearchHit = HomeMemory & {
   match?: { start: number; end: number };
 };
+export type HomeMemoryForgettingRule = {
+  contentHash: string;
+  slotHash: string | null;
+  scopeHash: string;
+  terms: string[];
+};
 export type HomeMemoryRevision = {
   revision: number;
   content: string;

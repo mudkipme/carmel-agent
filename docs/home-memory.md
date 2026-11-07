@@ -65,12 +65,14 @@ provider that refuses that falls back to reading the reply. It salvages every
 usable candidate from a batch and only fails when the model returns nothing
 usable; a malformed entry no longer discards its siblings.
 
-Capture sees the compact topic index, and a single-message batch sees every
-note. That matters for corrections, which restate a fact in different words and
-never match the stored wording: without it the model cannot name the note to
-replace. Editing or truncating a message retires only that message's pending
-capture, so an edit no longer discards unrelated learning, and an explicit save
-leaves the queue armed.
+Capture sees the topic index and a compact inventory of note IDs, revisions,
+fact slots, and summaries across message batches. Relevant passages use semantic
+retrieval when available and keyword matching otherwise. Long notes are excerpted
+within the learning context budget, so they cannot consume the whole budget and
+hide shorter facts. Corrections reuse the existing note and slot; automatic
+learning protects manual and pinned notes. Editing or truncating a message retires
+only that message's pending capture, so an edit no longer discards unrelated
+learning, and an explicit save leaves the queue armed.
 
 The panel shows a last-check line with the outcome and whether it came from a
 tool call or reply text. Failures name the rejected field there too, and the
@@ -80,7 +82,11 @@ kept in `home_memory_settings.last_capture` for troubleshooting.
 Automatic notes show their supporting quote and message link. Review new notes
 from the quiet **Remembered** notice, or undo the change. Edit history supports
 restoring earlier revisions. **Forget** removes a note and its revision history
-from memory and search; it does not delete the original conversation. Expired
+from memory and search and prevents automatic relearning through matching fact
+fingerprints and stable slots. The restriction retains no note text. An explicit
+request to remember the fact again, or adding it in the panel, clears its matching
+restriction. **Delete note** removes only the saved copy and allows future learning.
+Neither action deletes the original conversation. Expired
 notes remain inspectable but are excluded from recall.
 
 On upgrade, existing agent memories move to the agent owner's Home as manual

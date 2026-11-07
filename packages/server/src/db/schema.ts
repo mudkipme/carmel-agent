@@ -10,6 +10,7 @@ import {
 import { desc, sql } from "drizzle-orm";
 import type {
   HomeMemoryCaptureReport,
+  HomeMemoryForgettingRule,
   HomeMemoryMode,
   HomeMemoryRevision,
   KnowledgeSettings,
@@ -595,6 +596,10 @@ export const homeMemorySettings = sqliteTable(
       .default({ enabled: false, acceleration: "auto" }),
     indexStatus: text("index_status", { mode: "json" }).$type<KnowledgeStatus>(),
     indexDirty: integer("index_dirty", { mode: "boolean" }).notNull().default(true),
+    forgotten: text("forgotten", { mode: "json" })
+      .$type<HomeMemoryForgettingRule[]>()
+      .notNull()
+      .default([]),
     generation: integer("generation").notNull().default(0),
     learnAfter: integer("learn_after").notNull().default(0),
     lastCaptureAt: integer("last_capture_at"),
