@@ -6,12 +6,14 @@ import {
   homeMemoryPlacementSchema,
   homeMemorySearchSchema,
   type HomeMemory,
+  type HomeMemorySearchHit,
 } from "@carmel-agent/shared";
 import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
 import { db } from "../db/index.ts";
 import { homeEvents } from "../db/schema.ts";
 import { readHome } from "../services/agent-homes.ts";
 import { searchHomeMemory } from "../services/home-memory-search.ts";
+import { homeMemoryPassage } from "../services/home-memory-passages.ts";
 import { applyTextEdits } from "../services/text-edits.ts";
 import { estimateTextTokens } from "@earendil-works/pi-ai/utils/estimate";
 import {
@@ -90,24 +92,31 @@ export function createHomeMemoryTools(
   return [
     tool(
       "memory_search",
-      "Search this user's private memory for this Home. Use for relevant earlier preferences, facts, and decisions. Omit query only when asked to list remembered details. Use fast for exact terms, semantic for meaning, and deep for broader retrieval. Semantic failures fall back to keyword search. Results are bounded; use memory_read for the full note or refine the query if truncated. Ordinary sessions and other users cannot access these notes.",
+      "Search this user's private memory for this Home. Use for relevant earlier preferences, facts, and decisions. Omit query only when asked to list remembered details. Use fast for exact terms, semantic for meaning, and deep for broader retrieval. Semantic failures fall back to keyword search. Results contain matching passages with line ranges; use memory_read for surrounding lines or the full note, or refine the query if truncated. Ordinary sessions and other users cannot access these notes.",
       search,
       async (args) => {
-        const result = await searchHomeMemory(userId, agentId, search.parse(args));
+        const input = search.parse(args);
+        const result = await searchHomeMemory(userId, agentId, input);
         const matches = result.memories;
         const memories = [];
         let tokens = 0;
+        let truncated = false;
         for (const note of matches) {
-          const excerpt = { ...note, content: note.content.slice(0, 1200) };
+          const passage = homeMemoryPassage(note, input.query, 1200);
+          const excerpt = { ...note, content: passage.content };
           const size = memoryTokens(excerpt);
           if (memories.length === 8 || tokens + size > 2000) break;
           tokens += size;
+          truncated ||= passage.truncated;
           memories.push({
             id: note.id,
             revision: note.revision,
             scope: note.scope,
             title: note.title,
             content: excerpt.content,
+            fromLine: passage.fromLine,
+            toLine: passage.toLine,
+            totalLines: passage.totalLines,
             kind: note.kind,
             placement: note.placement,
             aliases: note.aliases,
@@ -118,8 +127,7 @@ export function createHomeMemoryTools(
           memories,
           mode: result.mode,
           ...(result.warning ? { warning: result.warning } : {}),
-          truncated:
-            memories.length < matches.length || matches.some((note) => note.content.length > 1200),
+          truncated: truncated || memories.length < matches.length,
         };
       },
       true,
@@ -227,7 +235,7 @@ export function buildHomeMemorySections(
   agentId: string,
   query: string,
   contextWindow: number,
-  recalled?: HomeMemory[],
+  recalled?: HomeMemorySearchHit[],
 ): {
   home_memory: string | undefined;
   home_memory_core: string | undefined;
@@ -293,11 +301,8 @@ export function buildHomeMemorySections(
       const notes = [...group.hits, ...group.notes.filter((note) => !hits.has(note.id))];
       for (const note of notes) {
         if (remaining <= 0) break;
-        const content =
-          note.content.length <= remaining
-            ? note.content
-            : `${note.content.slice(0, Math.max(0, remaining - 1))}…`;
-        const summary = { ...note, content };
+        const passage = homeMemoryPassage(note, recallQuery, remaining);
+        const summary = { ...note, ...passage };
         const rendered = renderHomeMemoryNotes([...recallNotes, summary]);
         if (
           rendered.length > HOME_MEMORY_RECALL_MAX_CHARS ||
@@ -305,7 +310,7 @@ export function buildHomeMemorySections(
         )
           continue;
         recallNotes.push(summary);
-        remaining -= content.length;
+        remaining -= passage.content.length;
       }
     }
   }

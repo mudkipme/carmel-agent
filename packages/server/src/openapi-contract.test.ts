@@ -301,6 +301,10 @@ test("representative response fixtures satisfy every response component", async 
     },
   };
 
+  fixtures.HomeMemorySearchHit = {
+    ...(fixtures.HomeMemory as object),
+    match: { start: 0, end: 21 },
+  };
   for (const [name, fixture] of Object.entries(fixtures)) {
     const validate = ajv.compile(schema(name));
     assert.equal(validate(fixture), true, `${name}: ${ajv.errorsText(validate.errors)}`);

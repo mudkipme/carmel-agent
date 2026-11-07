@@ -8,6 +8,7 @@ import {
   type HomeMemory,
   type HomeMemorySearchInput,
   type HomeMemorySearchResult,
+  type HomeMemorySearchHit,
   type KnowledgeStatus,
 } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
@@ -41,7 +42,15 @@ const statusSchema = z.object({
 const searchSchema = statusSchema.extend({
   hits: z
     .array(
-      z.object({ sourceId: z.string(), path: z.string(), hash: z.string(), score: z.number() }),
+      z.object({
+        sourceId: z.string(),
+        path: z.string(),
+        hash: z.string(),
+        score: z.number(),
+        match: z
+          .object({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative() })
+          .optional(),
+      }),
     )
     .max(40),
 });
@@ -51,8 +60,12 @@ const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 const fingerprint = (notes: readonly HomeMemory[]) =>
   hash(JSON.stringify(notes.map((note) => [note.id, note.revision]).sort()));
 
+function homeMemoryDocumentHeader(note: HomeMemory) {
+  return `# ${note.title || note.scope || "Memory"}\n\n`;
+}
+
 export function homeMemoryDocument(note: HomeMemory) {
-  return `# ${note.title || note.scope || "Memory"}\n\n${note.content}${note.aliases.length ? `\n\nAliases: ${note.aliases.join(", ")}` : ""}`;
+  return `${homeMemoryDocumentHeader(note)}${note.content}${note.aliases.length ? `\n\nAliases: ${note.aliases.join(", ")}` : ""}`;
 }
 
 function setStatus(
@@ -123,55 +136,73 @@ export async function searchHomeMemory(
       warning: "Embeddings are not ready; using keyword search.",
     };
   try {
-    return await knowledgeLock(homeMemoryIndexKey(userId, agentId), async () => {
-      signal?.throwIfAborted();
-      const plan = await homeMemoryWorkerPlan(userId, agentId);
-      const response = searchSchema.parse(
-        await knowledgeLock("$gpu", () =>
-          worker(
-            plan,
-            {
-              op: "search",
-              query: args.query,
-              mode: args.mode,
-              collections: ["memories"],
-              limit: 20,
-            },
+    return await knowledgeLock(
+      homeMemoryIndexKey(userId, agentId),
+      async () => {
+        signal?.throwIfAborted();
+        const plan = await homeMemoryWorkerPlan(userId, agentId);
+        const response = searchSchema.parse(
+          await knowledgeLock(
+            "$gpu",
+            () =>
+              worker(
+                plan,
+                {
+                  op: "search",
+                  query: args.query,
+                  mode: args.mode,
+                  collections: ["memories"],
+                  limit: 20,
+                },
+                signal,
+              ),
             signal,
           ),
-        ),
-      );
-      const current = readHomeMemorySettings(userId, agentId);
-      if (current.mode === "off" || !current.retrieval.enabled)
-        return { memories: [], mode: "fast" as const };
-      const notes = activeHomeMemories(userId, agentId);
-      const memories: HomeMemory[] = [];
-      let stale = false;
-      for (const hit of response.hits) {
-        const note = notes.find(
-          (item) => hit.sourceId === "memories" && hit.path === `${item.id}.md`,
         );
-        if (!note || hit.hash !== hash(homeMemoryDocument(note))) {
-          stale = true;
-          continue;
+        const current = readHomeMemorySettings(userId, agentId);
+        if (current.mode === "off" || !current.retrieval.enabled)
+          return { memories: [], mode: "fast" as const };
+        const notes = activeHomeMemories(userId, agentId);
+        const memories: HomeMemorySearchHit[] = [];
+        let stale = false;
+        for (const hit of response.hits) {
+          const note = notes.find(
+            (item) => hit.sourceId === "memories" && hit.path === `${item.id}.md`,
+          );
+          if (!note || hit.hash !== hash(homeMemoryDocument(note))) {
+            stale = true;
+            continue;
+          }
+          if (!memories.some((item) => item.id === note.id)) {
+            const headerLength = homeMemoryDocumentHeader(note).length;
+            const start = Math.max(0, (hit.match?.start ?? 0) - headerLength);
+            const end = Math.min(note.content.length, (hit.match?.end ?? 0) - headerLength);
+            memories.push({
+              ...serializeHomeMemory(note),
+              ...(hit.match && end > start ? { match: { start, end } } : {}),
+            });
+          }
         }
-        if (!memories.some((item) => item.id === note.id)) memories.push(serializeHomeMemory(note));
-      }
-      for (const note of keyword())
-        if (!memories.some((item) => item.id === note.id)) memories.push(note);
-      if (stale)
-        db.update(homeMemorySettings).set({ indexDirty: true }).where(owner(userId, agentId)).run();
-      return {
-        memories: memories.slice(0, 20),
-        mode: args.mode,
-        ...(stale || current.indexDirty
-          ? {
-              warning:
-                "Some memory changes are awaiting index refresh; current keyword matches are included.",
-            }
-          : {}),
-      };
-    });
+        for (const note of keyword())
+          if (!memories.some((item) => item.id === note.id)) memories.push(note);
+        if (stale)
+          db.update(homeMemorySettings)
+            .set({ indexDirty: true })
+            .where(owner(userId, agentId))
+            .run();
+        return {
+          memories: memories.slice(0, 20),
+          mode: args.mode,
+          ...(stale || current.indexDirty
+            ? {
+                warning:
+                  "Some memory changes are awaiting index refresh; current keyword matches are included.",
+              }
+            : {}),
+        };
+      },
+      signal,
+    );
   } catch (error) {
     signal?.throwIfAborted();
     if (readHomeMemorySettings(userId, agentId).mode === "off")

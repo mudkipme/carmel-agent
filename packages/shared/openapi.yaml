@@ -160,7 +160,7 @@ paths:
                 properties:
                   memories:
                     type: array
-                    items: { $ref: "#/components/schemas/HomeMemory" }
+                    items: { $ref: "#/components/schemas/HomeMemorySearchHit" }
                   mode: { type: string, enum: [fast, semantic, deep] }
                   warning: { type: string }
   /api/agents/{agentId}/home/memory/refresh:
@@ -3409,7 +3409,7 @@ components:
     HomeMemory:
       type: object
       additionalProperties: false
-      required:
+      required: &homeMemoryRequired
         - id
         - content
         - title
@@ -3428,7 +3428,7 @@ components:
         - sourceQuote
         - createdAt
         - updatedAt
-      properties:
+      properties: &homeMemoryProperties
         content: *a1
         title: *homeMemoryTitle
         scope: *a2
@@ -3466,6 +3466,19 @@ components:
           type: integer
         updatedAt:
           type: integer
+    HomeMemorySearchHit:
+      allOf:
+        - type: object
+          required: *homeMemoryRequired
+          properties: *homeMemoryProperties
+        - type: object
+          properties:
+            match:
+              type: object
+              required: [start, end]
+              properties:
+                start: { type: integer, minimum: 0 }
+                end: { type: integer, minimum: 0 }
     HomeMemoryRevision:
       type: object
       required:

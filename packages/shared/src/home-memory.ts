@@ -47,7 +47,7 @@ export const homeMemorySearchSchema = z
   .strict();
 export type HomeMemorySearchInput = z.input<typeof homeMemorySearchSchema>;
 export type HomeMemorySearchResult = {
-  memories: HomeMemory[];
+  memories: HomeMemorySearchHit[];
   mode: "fast" | "semantic" | "deep";
   warning?: string;
 };
@@ -67,6 +67,9 @@ export type HomeMemory = z.output<typeof homeMemoryInputSchema> & {
   sourceQuote: string | null;
   createdAt: number;
   updatedAt: number;
+};
+export type HomeMemorySearchHit = HomeMemory & {
+  match?: { start: number; end: number };
 };
 export type HomeMemoryRevision = {
   revision: number;

@@ -8,7 +8,9 @@ if (version !== "2.8.3")
   throw new Error(`Expected qmd 2.8.3, found ${version}. Update the runner image.`);
 console.log = (...args) => console.error(...args);
 const { createStore } = await import(`file://${packageRoot}/dist/index.js`);
-const { generateEmbeddings } = await import(`file://${packageRoot}/dist/store.js`);
+const { generateEmbeddings, CHUNK_SIZE_CHARS } = await import(
+  `file://${packageRoot}/dist/store.js`
+);
 const { setDefaultLlamaCpp } = await import(`file://${packageRoot}/dist/llm.js`);
 const { resolveModelFile } = await import(
   `file://${packageRoot}/node_modules/node-llama-cpp/dist/index.js`
@@ -142,11 +144,15 @@ async function handle(request) {
       if ("error" in doc) continue;
       const prefix = `qmd://${doc.collectionName}/`;
       if (!doc.filepath.startsWith(prefix)) continue;
+      const start = hit.bestChunkPos ?? hit.chunkPos;
       hits.push({
         sourceId: doc.collectionName,
         path: doc.filepath.slice(prefix.length),
         hash: doc.hash,
         score: hit.score,
+        ...(start === undefined
+          ? {}
+          : { match: { start, end: start + (hit.bestChunk?.length ?? CHUNK_SIZE_CHARS) } }),
       });
     }
     return { hits, ...(await status()) };

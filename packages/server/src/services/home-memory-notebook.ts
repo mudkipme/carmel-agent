@@ -7,7 +7,7 @@ export const HOME_MEMORY_TOPIC_INDEX_MAX_CHARS = 2_000;
 export const HOME_MEMORY_RECALL_MAX_CHARS = 6_000;
 
 type Note = Pick<HomeMemory, "id" | "revision" | "scope" | "content"> &
-  Partial<Pick<HomeMemory, "title">>;
+  Partial<Pick<HomeMemory, "title">> & { fromLine?: number; toLine?: number };
 
 function memoryJson(value: unknown) {
   return JSON.stringify(value).replace(
@@ -18,7 +18,7 @@ function memoryJson(value: unknown) {
 
 export function renderHomeMemoryNotes(notes: readonly Note[]) {
   if (!notes.length) return "";
-  return `[\n${notes.map(({ id, revision, scope, content, title }) => memoryJson({ id, revision, scope, content, ...(title ? { title } : {}) })).join(",\n")}\n]`;
+  return `[\n${notes.map(({ id, revision, scope, content, title, fromLine, toLine }) => memoryJson({ id, revision, scope, content, ...(title ? { title } : {}), ...(fromLine === undefined ? {} : { fromLine, toLine }) })).join(",\n")}\n]`;
 }
 
 export function homeMemoryNotebookSize(notes: readonly Note[]) {

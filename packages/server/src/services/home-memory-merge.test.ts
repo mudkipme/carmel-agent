@@ -30,7 +30,10 @@ const {
   waitHomeMemoryIndexJob,
   homeMemoryWorkerPlan,
   homeMemoryDocument,
+  recallHomeMemories,
 } = await import("./home-memory-search.ts");
+const { knowledgeLock } = await import("../runtime/knowledge/queue.ts");
+const { homeMemoryPassage } = await import("./home-memory-passages.ts");
 const { homeMemoryIndexDir, homeMemoryIndexKey, emptyMemoryIndexStatus } =
   await import("./home-memory-index.ts");
 const { knowledgeContainerSpec } = await import("../runtime/knowledge/worker-client.ts");
@@ -310,6 +313,201 @@ test("semantic results validate current private notes and fall back to keyword s
     ).memories,
     [],
   );
+});
+
+test("automatic recall falls back within its deadline while Home indexing holds the queue", async () => {
+  const value = fixture();
+  const note = memory.saveHomeMemory(value.userId, value.agentId, {
+    content: "Zephyrflux uses SQLite.",
+  });
+  enableIndex(value.userId, value.agentId);
+  let release!: () => void;
+  const indexing = knowledgeLock(
+    homeMemoryIndexKey(value.userId, value.agentId),
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  let result: Awaited<ReturnType<typeof recallHomeMemories>> | undefined;
+  const recall = recallHomeMemories(value.userId, value.agentId, "Zephyrflux database").then(
+    (notes) => {
+      result = notes;
+    },
+  );
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 5200));
+    assert.deepEqual(
+      result?.map((item) => item.id),
+      [note.id],
+    );
+  } finally {
+    release();
+    await Promise.all([recall, indexing]);
+  }
+});
+
+test("a Home search waiting for shared GPU work aborts without starting a worker later", async () => {
+  const value = fixture();
+  memory.saveHomeMemory(value.userId, value.agentId, { content: "Zephyrflux uses SQLite." });
+  enableIndex(value.userId, value.agentId);
+  let release!: () => void;
+  const embedding = knowledgeLock(
+    "$gpu",
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  const controller = new AbortController();
+  let workerCalled = false;
+  let error: unknown;
+  const search = searchHomeMemory(
+    value.userId,
+    value.agentId,
+    { query: "Zephyrflux", mode: "semantic" },
+    controller.signal,
+    async () => {
+      workerCalled = true;
+      return { ...indexed, hits: [] };
+    },
+  );
+  void search.catch((reason) => {
+    error = reason;
+  });
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    controller.abort(new Error("Recall deadline expired"));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(error, controller.signal.reason);
+    assert.equal(workerCalled, false);
+  } finally {
+    release();
+    await Promise.allSettled([embedding, search]);
+  }
+  await knowledgeLock("$gpu", async () => {});
+  assert.equal(workerCalled, false);
+});
+
+test("long-note keyword recall and memory_search return the matching passage with readable line ranges", async () => {
+  const value = fixture();
+  const home = ensureHome(value.userId, value.agentId);
+  const fact = "The zephyrflux migration target is February 23.";
+  const note = memory.saveHomeMemory(value.userId, value.agentId, {
+    title: "Migration decisions",
+    scope: "Project",
+    aliases: ["migration"],
+    content:
+      "General migration introduction.\n".repeat(200) + fact + "\nBackground detail.\n".repeat(80),
+  });
+  const query = "zephyrflux migration target";
+  const sections = buildHomeMemorySections(value.userId, value.agentId, query, 128000);
+  const [recalled] = JSON.parse(sections.home_memory_recall!);
+  assert.equal(recalled.id, note.id);
+  assert.ok(recalled.content.includes(fact));
+  assert.ok(recalled.content.length <= 600);
+  assert.ok(recalled.fromLine > 1);
+  assert.ok(recalled.fromLine <= 201 && recalled.toLine >= 201);
+  const event = db
+    .insert(homeEvents)
+    .values({
+      id: crypto.randomUUID(),
+      sessionId: home.sessionId,
+      sourceKey: crypto.randomUUID(),
+      kind: "input",
+      origin: "web",
+      prompt: { text: query },
+      status: "done",
+      createdAt: Date.now(),
+    })
+    .returning()
+    .get();
+  const tools = createHomeMemoryTools(value.userId, value.agentId, home.sessionId, event.id);
+  const output = await tools
+    .find((tool) => tool.name === "memory_search")!
+    .execute({ query }, undefined as never, undefined as never);
+  const response = JSON.parse((output.output![0] as { text: string }).text);
+  const [passage] = response.memories;
+  assert.ok(passage.content.includes(fact));
+  assert.ok(passage.content.length <= 1200);
+  assert.equal(response.truncated, true);
+  const read = await tools
+    .find((tool) => tool.name === "memory_read")!
+    .execute(
+      { id: note.id, fromLine: passage.fromLine, maxLines: passage.toLine - passage.fromLine + 1 },
+      undefined as never,
+      undefined as never,
+    );
+  assert.match(JSON.stringify(read), /February 23/);
+  assert.equal(memory.readHomeMemory(value.userId, value.agentId, note.id).content, note.content);
+  const paragraph = { ...note, content: "General background. ".repeat(300) + fact };
+  assert.ok(homeMemoryPassage(paragraph, query, 600).content.includes(fact));
+});
+
+test("semantic passage locations survive document headers and select facts without shared query words", async () => {
+  const value = fixture();
+  const fact = "Pack waterproof walking boots for the trail.";
+  const note = memory.saveHomeMemory(value.userId, value.agentId, {
+    title: "旅行 🥾",
+    scope: "Packing",
+    content: "General packing background.\n".repeat(220) + fact + "\nOther details.\n".repeat(50),
+  });
+  enableIndex(value.userId, value.agentId);
+  const document = homeMemoryDocument(note);
+  const start = document.indexOf(fact);
+  const result = await searchHomeMemory(
+    value.userId,
+    value.agentId,
+    { query: "rainy hike", mode: "semantic" },
+    undefined,
+    async () => ({
+      ...indexed,
+      hits: [
+        {
+          sourceId: "memories",
+          path: `${note.id}.md`,
+          hash: digest(document),
+          score: 0.9,
+          match: { start, end: start + fact.length },
+        },
+      ],
+    }),
+  );
+  assert.equal(result.memories[0]?.content, note.content);
+  assert.deepEqual(result.memories[0]?.match, {
+    start: note.content.indexOf(fact),
+    end: note.content.indexOf(fact) + fact.length,
+  });
+  const section = buildHomeMemorySections(
+    value.userId,
+    value.agentId,
+    "rainy hike",
+    128000,
+    result.memories,
+  ).home_memory_recall!;
+  assert.ok(section.includes(fact));
+  assert.equal(JSON.parse(section)[0].fromLine, 221);
+  const stale = await searchHomeMemory(
+    value.userId,
+    value.agentId,
+    { query: "rainy hike", mode: "deep" },
+    undefined,
+    async () => ({
+      ...indexed,
+      hits: [
+        {
+          sourceId: "memories",
+          path: `${note.id}.md`,
+          hash: "stale",
+          score: 0.9,
+          match: { start, end: start + fact.length },
+        },
+      ],
+    }),
+  );
+  assert.deepEqual(stale.memories, []);
 });
 
 test("index refresh mirrors current notes and preserves dirty state when capture changes a note", async () => {
