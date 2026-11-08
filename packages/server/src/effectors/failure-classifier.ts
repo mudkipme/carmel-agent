@@ -73,7 +73,7 @@ const PATTERNS: readonly { category: FailureCategory; pattern: RegExp }[] = [
   {
     category: "quota",
     pattern:
-      /insufficient_quota|exceeded your current quota|billing|payment required|\b402\b|out of budget|usage limit reached|credit balance/i,
+      /insufficient_quota|exceeded your current quota|billing|payment required|\b402\b|out of budget|usage limit reached|credit balance|balance is insufficient/i,
   },
   {
     category: "auth",

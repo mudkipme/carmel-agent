@@ -460,7 +460,9 @@ export class HarnessAbortGate {
     this.#requested = true;
     this.#reason ??= reason;
     this.#controller.abort();
-    void this.#lane?.abort(runContext);
+    void this.#lane?.abort(runContext).catch((error) => {
+      console.warn("Conversation abort failed:", errorMessage(error));
+    });
   }
 
   attach(lane: Pick<Conversation, "abort">) {
@@ -753,6 +755,7 @@ async function finalizeRun(
       .where(eq(collaborations.sourceSessionId, session.id))
       .run();
   const { piSession, harness, log, execution, unsubscribe } = state;
+  abort.release();
 
   let keepExecution = false;
   let finalMessages: AgentMessage[] = [];
@@ -797,7 +800,6 @@ async function finalizeRun(
   } catch (error) {
     console.warn("Execution environment cleanup failed:", errorMessage(error));
   } finally {
-    abort.release();
     // Sequenced terminal authority for observers: it follows every persistence
     // and title finalization attempt, and the execution cleanup.
     const result = outcome.result(abort.reason);

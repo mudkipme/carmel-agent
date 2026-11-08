@@ -4,7 +4,11 @@ import { parseSlashCommand, skillCommandName, slashCommandText } from "@carmel-a
 import { eq } from "drizzle-orm";
 import { db, initialize } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
-import { openPiSession, replacePiSessionMessages } from "../services/pi-session-storage.ts";
+import {
+  closePiSession,
+  openPiSession,
+  replacePiSessionMessages,
+} from "../services/pi-session-storage.ts";
 import { attachTestHarness, fauxHarnessModels } from "../effectors/testing/pi-harness.ts";
 import { loadSession } from "../services/session-store.ts";
 import { createSession, userMessage } from "../test-support.ts";
@@ -171,4 +175,22 @@ test("abort requested before the harness exists still aborts it once attached", 
   gate.release();
   gate.request();
   assert.equal(aborts, 1, "a released gate no longer reaches the finished harness");
+});
+
+test("aborting a closed session reports the failure without an unhandled rejection", async (t) => {
+  const { sessionId } = createSession();
+  const session = await openPiSession(sessionId);
+  const gate = new HarnessAbortGate();
+  gate.attach(session.conversation);
+  await closePiSession(session);
+  const warning = t.mock.method(console, "warn", () => {});
+
+  gate.request();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(gate.requested, true);
+  assert.deepEqual(
+    warning.mock.calls.map((call) => call.arguments),
+    [["Conversation abort failed:", "Session is closed"]],
+  );
 });

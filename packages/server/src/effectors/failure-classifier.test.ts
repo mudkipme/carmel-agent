@@ -20,12 +20,18 @@ const REAL_MESSAGES: readonly { category: FailureCategory; message: string }[] =
       '401 {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
   },
   { category: "auth", message: "OAuth token has expired. Please re-authenticate." },
+  { category: "auth", message: "403 Permission denied" },
   {
     category: "quota",
     message:
       "429 You exceeded your current quota, please check your plan and billing details. code: insufficient_quota",
   },
   { category: "quota", message: "Your credit balance is too low to access the Anthropic API." },
+  {
+    category: "quota",
+    message:
+      '403 {"error":{"type":"Aihubmix_api_error","message":"Your account balance is insufficient. Please recharge your account to continue using the API."},"type":"error"}',
+  },
   {
     category: "tool_history",
     message:
