@@ -296,6 +296,7 @@ export class RemoteAgent {
         const admission = (await response.json()) as { eventId: string };
         if (pendingMessage) pendingMessage.eventId = admission.eventId;
         for (const message of this.messages) this.confirmPendingMessage(message);
+        this.errorMessage = undefined;
         this.notify();
         void this.refreshHome();
         return { status: "accepted" };
@@ -605,6 +606,8 @@ export class RemoteAgent {
         },
       };
     } else this.loadedEarlier = false;
+    const conversationChanged =
+      connection.session.messageEntryIds.at(-1) !== this.messageEntryIds.at(-1);
     this.config.onConnection?.(connection);
     this.messages = [...connection.session.messages];
     for (const message of this.messages) this.confirmPendingMessage(message);
@@ -617,6 +620,10 @@ export class RemoteAgent {
     if (connection.runProgress) {
       this.errorMessage = connection.runProgress.errorMessage;
       this.contextPressure = connection.runProgress.contextPressure;
+    } else if (conversationChanged && !this.abortController) {
+      const last = this.messages.at(-1);
+      this.errorMessage =
+        last?.role === "assistant" && last.stopReason === "error" ? last.errorMessage : undefined;
     }
     this.notify();
   }

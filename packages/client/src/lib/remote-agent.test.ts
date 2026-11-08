@@ -981,6 +981,80 @@ test("dismissing an error clears it from the snapshot", async () => {
   }
 });
 
+for (const home of [true, false]) {
+  test(`${home ? "Home" : "session"} refresh clears an old failure when newer messages arrive`, async () => {
+    const originalFetch = globalThis.fetch;
+    const error = "MCP server 'Penpot': MCP HTTP request failed with status 503";
+    const failed = assistantMessage("", "error", error);
+    let latest = connection([userMessage("question"), failed], null);
+    globalThis.fetch = async () => Response.json(latest);
+    try {
+      const agent = new RemoteAgent({
+        openRunStream: mockRunStream,
+        agentId: "agent_1",
+        sessionId: "session_1",
+        modelRefId: "model_1",
+        model,
+        thinkingLevel: "off",
+        home,
+        messages: [],
+      });
+      const refresh = () => (home ? agent.refreshHome() : agent.refreshConnection());
+      await refresh();
+      assert.equal(agent.getSnapshot().errorMessage, error);
+      await refresh();
+      assert.equal(agent.getSnapshot().errorMessage, error);
+
+      latest = connection([...latest.session.messages, userMessage("try again")], null);
+      await refresh();
+      assert.equal(agent.getSnapshot().errorMessage, undefined);
+      latest = connection([...latest.session.messages, assistantMessage("Working again")], null);
+      await refresh();
+      assert.equal(agent.getSnapshot().errorMessage, undefined);
+      assert.deepEqual(agent.getSnapshot().messages[1], failed);
+
+      latest = connection(
+        [...latest.session.messages, assistantMessage("", "error", "New failure")],
+        null,
+      );
+      await refresh();
+      assert.equal(agent.getSnapshot().errorMessage, "New failure");
+      agent.dismissError();
+      await refresh();
+      assert.equal(agent.getSnapshot().errorMessage, undefined);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+}
+
+test("Home clears the previous run's error when a new message is admitted", async () => {
+  const originalFetch = globalThis.fetch;
+  const failed = assistantMessage("", "error", "MCP unavailable");
+  const latest = connection([failed], null);
+  globalThis.fetch = async (_input, init) =>
+    Response.json(init?.method === "POST" ? { eventId: "event_retry" } : latest);
+  try {
+    const agent = new RemoteAgent({
+      openRunStream: mockRunStream,
+      agentId: "agent_1",
+      sessionId: "session_1",
+      modelRefId: "model_1",
+      model,
+      thinkingLevel: "off",
+      home: true,
+      messages: [],
+    });
+    await agent.refreshHome();
+    assert.equal(agent.getSnapshot().errorMessage, "MCP unavailable");
+    assert.equal((await agent.prompt("try again")).status, "accepted");
+    await agent.refreshHome();
+    assert.equal(agent.getSnapshot().errorMessage, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("native nested progress stays outside messages and is cleared when observation finishes", async () => {
   const originalFetch = globalThis.fetch;
   const slots = [
