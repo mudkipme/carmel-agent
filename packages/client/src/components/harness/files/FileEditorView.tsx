@@ -23,18 +23,26 @@ type FileEditorViewProps = {
   onClose?: () => void;
 };
 
+type EditorStatus =
+  | { kind: "loading" }
+  | { kind: "ready" }
+  | { kind: "saving" }
+  | { kind: "load-error"; message: string };
+
 export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps) {
   const agentId = agent?.id;
   const { i18n } = useLingui();
   const themePreference = useThemePreference();
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
-  const [loading, setLoading] = useState(Boolean(agent && filePath));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [status, setStatus] = useState<EditorStatus>({ kind: "loading" });
+  const [saveError, setSaveError] = useState("");
   const [markdownMode, setMarkdownMode] = useState("preview");
   const isImage = isImageFile(filePath ?? "");
   const isDirty = content !== savedContent;
+  const loading = status.kind === "loading";
+  const saving = status.kind === "saving";
+  const loadError = status.kind === "load-error";
   const darkEditor = isDarkTheme(themePreference);
 
   const loadFile = useCallback(async () => {
@@ -42,22 +50,24 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
     if (isImageFile(filePath)) {
       setContent("");
       setSavedContent("");
-      setError("");
-      setLoading(false);
+      setSaveError("");
+      setStatus({ kind: "ready" });
       return;
     }
-    setLoading(true);
-    setError("");
+    setStatus({ kind: "loading" });
+    setSaveError("");
     try {
       const result = await api.readAgentFile(agentId, filePath);
       setContent(result.content);
       setSavedContent(result.content);
-    } catch (loadError) {
+      setStatus({ kind: "ready" });
+    } catch (cause) {
       setContent("");
       setSavedContent("");
-      setError(errorMessage(loadError, i18n._("Unable to open file")));
-    } finally {
-      setLoading(false);
+      setStatus({
+        kind: "load-error",
+        message: errorMessage(cause, i18n._("Unable to open file")),
+      });
     }
   }, [agentId, filePath, i18n]);
 
@@ -69,24 +79,36 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
   }, [loadFile]);
 
   const saveFile = async () => {
-    if (!agent || !filePath || saving) return false;
-    setSaving(true);
-    setError("");
+    if (!agent || !filePath || saving || loading || loadError) return false;
+    setStatus({ kind: "saving" });
+    setSaveError("");
     try {
       const result = await api.saveAgentFile(agent.id, filePath, content);
       setContent((current) => (current === content ? result.content : current));
       setSavedContent(result.content);
+      setStatus({ kind: "ready" });
       return true;
-    } catch (saveError) {
-      setError(errorMessage(saveError, i18n._("Unable to save file")));
+    } catch (cause) {
+      setSaveError(errorMessage(cause, i18n._("Unable to save file")));
+      setStatus({ kind: "ready" });
       return false;
-    } finally {
-      setSaving(false);
     }
   };
 
   const language = useMemo(() => inferLanguage(filePath ?? ""), [filePath]);
   const isMarkdown = language === "markdown";
+  const statusLabel = isImage
+    ? i18n._("Image preview")
+    : loading
+      ? i18n._("Loading...")
+      : status.kind === "load-error"
+        ? i18n._("Unable to open file")
+        : saving
+          ? i18n._("Saving...")
+          : isDirty
+            ? i18n._("Unsaved changes")
+            : i18n._("Saved");
+  const feedbackError = status.kind === "load-error" ? status.message : saveError;
 
   if (!agent) {
     return (
@@ -116,14 +138,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
           <h2 className="truncate text-[13px] font-medium" title={filePath}>
             {filePath}
           </h2>
-          <p className="truncate text-xs text-muted-foreground">
-            {isImage
-              ? i18n._("Image preview")
-              : isDirty
-                ? i18n._("Unsaved changes")
-                : i18n._("Saved")}
-            {loading ? " · Loading..." : ""}
-          </p>
+          <p className="truncate text-xs text-muted-foreground">{statusLabel}</p>
         </div>
       </div>
       <div className="flex max-w-full flex-wrap items-center gap-2">
@@ -132,7 +147,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
             <TabsTrigger value="preview">
               <Trans>Preview</Trans>
             </TabsTrigger>
-            <TabsTrigger value="edit" disabled={loading}>
+            <TabsTrigger value="edit" disabled={loading || loadError}>
               <Trans>Edit</Trans>
             </TabsTrigger>
           </TabsList>
@@ -154,7 +169,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
             <Button
               size="sm"
               variant="outline"
-              disabled={!isDirty || saving || loading}
+              disabled={!isDirty || saving || loading || loadError}
               aria-label={i18n._("Discard")}
               title={i18n._("Discard unsaved changes")}
               onClick={() => setContent(savedContent)}
@@ -166,7 +181,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
             </Button>
             <Button
               size="sm"
-              disabled={!isDirty || saving || loading}
+              disabled={!isDirty || saving || loading || loadError}
               aria-label={saving ? i18n._("Saving...") : i18n._("Save")}
               title={i18n._("Save file")}
               onClick={() => void saveFile()}
@@ -181,13 +196,18 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
       </div>
     </div>
   );
-  const feedback = error ? (
+  const feedback = feedbackError ? (
     <div role="alert" className="border-b px-4 py-2 text-xs text-destructive">
-      {error}
+      {feedbackError}
     </div>
   ) : null;
   const editor = (
     <CodeEditor language={language} dark={darkEditor} value={content} onChange={setContent} />
+  );
+  const loadFailure = (
+    <p className="p-4 text-sm text-muted-foreground">
+      <Trans>Unable to open file</Trans>
+    </p>
   );
   const rootClassName = "@container/file-editor flex h-full min-h-0 flex-col gap-0 bg-background";
   const navigationGuard = (
@@ -215,6 +235,8 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
             <p className="text-sm text-muted-foreground">
               <Trans>Loading Markdown…</Trans>
             </p>
+          ) : loadError ? (
+            loadFailure
           ) : (
             <div className="mx-auto max-w-[var(--line-width)]">
               <WorkspaceFileLinkAgentContext value={agent.id}>
@@ -226,7 +248,7 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
           )}
         </TabsContent>
         <TabsContent value="edit" forceMount className="min-h-0 data-[state=inactive]:hidden">
-          {loading ? null : editor}
+          {loading ? null : loadError ? loadFailure : editor}
         </TabsContent>
       </Tabs>
     );
@@ -238,7 +260,13 @@ export function FileEditorView({ agent, filePath, onClose }: FileEditorViewProps
       {header}
       {feedback}
       <div className="min-h-0 flex-1">
-        {isImage ? <ImagePreview agentId={agent.id} filePath={filePath} /> : editor}
+        {isImage ? (
+          <ImagePreview agentId={agent.id} filePath={filePath} />
+        ) : loadError ? (
+          loadFailure
+        ) : (
+          editor
+        )}
       </div>
     </div>
   );
