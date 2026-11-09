@@ -13,6 +13,7 @@ import { agentFilesPath, workspaceFileFromHref } from "@/lib/file-links";
 import { cn } from "@/lib/utils";
 import { preserveSoftLineBreaks } from "@/lib/markdown";
 import { api } from "@/lib/api";
+import { resolveCarmelLinks } from "@carmel-agent/shared";
 import { subtaskLinkTarget } from "@/lib/subtask-navigation";
 import { workspaceChatPath } from "@/lib/workspace-layout";
 import { CodeBlock } from "./CodeBlock";
@@ -57,7 +58,7 @@ export const MarkdownContent = memo(function MarkdownContent({
   preserveLineBreaks = true,
 }: MarkdownContentProps) {
   const source = useMemo(
-    () => (preserveLineBreaks ? preserveSoftLineBreaks(content) : content),
+    () => resolveCarmelLinks(preserveLineBreaks ? preserveSoftLineBreaks(content) : content, ""),
     [content, preserveLineBreaks],
   );
 

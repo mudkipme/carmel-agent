@@ -14,6 +14,7 @@ import type { AgentIcon, AgentColor } from "./agent-appearance.ts";
 import type { CollaborationReply } from "./collaborations.ts";
 import type { HomeIssueUpdate } from "./home-issues.ts";
 export * from "./agent-appearance.ts";
+export * from "./links.ts";
 export * from "./home-issues.ts";
 export * from "./home-memory.ts";
 export * from "./collaborations.ts";

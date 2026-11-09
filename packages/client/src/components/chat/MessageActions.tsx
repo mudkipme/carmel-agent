@@ -5,7 +5,11 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { copyText, getMessageText } from "./chat-utils";
-import { isEditableAssistantMessage, isUserMessage } from "@carmel-agent/shared";
+import {
+  isEditableAssistantMessage,
+  isUserMessage,
+  resolveCarmelLinks,
+} from "@carmel-agent/shared";
 
 type MessageActionsProps = {
   message: AgentMessage;
@@ -22,7 +26,7 @@ export function MessageActions({ message, onEdit, onRetry, onFork }: MessageActi
     const timeout = window.setTimeout(() => setCopied(false), 2000);
     return () => window.clearTimeout(timeout);
   }, [copied]);
-  const copyValue = getMessageText(message);
+  const copyValue = resolveCarmelLinks(getMessageText(message), "");
   const isUser = isUserMessage(message);
   const canEdit = isUser || isEditableAssistantMessage(message);
 

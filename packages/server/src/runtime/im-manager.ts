@@ -7,7 +7,7 @@ import {
 } from "../services/home-events.ts";
 import { homeEvents, issues } from "../db/schema.ts";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { applyRunProgress, type RunProgress } from "@carmel-agent/shared";
+import { applyRunProgress, resolveCarmelLinks, type RunProgress } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
@@ -35,6 +35,7 @@ import { readVisibleAgent } from "../services/agent-access.ts";
 import { resolveRunModel } from "../services/model-context.ts";
 import { hasPendingPiSessionWork } from "../services/pi-session-storage.ts";
 import { startDetachedAgentRun } from "./agent-runtime.ts";
+import { carmelPublicBaseUrl } from "./carmel-links.ts";
 import {
   abortAgentRun,
   observeRunEvents,
@@ -48,13 +49,8 @@ export function imSessionLink(agentId: string, sessionId?: string) {
   const path = sessionId
     ? `/agents/${encodeURIComponent(agentId)}/sessions/${encodeURIComponent(sessionId)}`
     : `/agents/${encodeURIComponent(agentId)}/home`;
-  try {
-    const base = new URL(process.env.CARMEL_PUBLIC_URL ?? "");
-    if (["http:", "https:"].includes(base.protocol)) return new URL(path, base).href;
-  } catch {
-    /* A relative path still identifies the session without a public URL. */
-  }
-  return path;
+  const base = carmelPublicBaseUrl();
+  return base ? `${base}${path}` : path;
 }
 function activeIntegration(integrationId: string) {
   const row = db.select().from(imIntegrations).where(eq(imIntegrations.id, integrationId)).get();
@@ -419,7 +415,7 @@ export class ImManager {
       }
       const transport = this.connections.get(`integration:${integrationId}`)?.transport;
       if (!transport || this.stopped) return;
-      const chunks = splitImText(delivery.text);
+      const chunks = splitImText(resolveCarmelLinks(delivery.text, carmelPublicBaseUrl()));
       const providerIds = [...delivery.providerIds];
       for (let index = delivery.nextChunk; index < chunks.length; index++) {
         const current = activeIntegration(integrationId);
@@ -672,9 +668,12 @@ export class ImManager {
           message = progress.live?.generation?.message as AgentMessage | undefined;
         else if (event.type === "message_end") message = event.message;
         if (message?.role !== "assistant") continue;
-        const currentText = message.content
-          .flatMap((block) => (block.type === "text" ? [block.text] : []))
-          .join("\n");
+        const currentText = resolveCarmelLinks(
+          message.content
+            .flatMap((block) => (block.type === "text" ? [block.text] : []))
+            .join("\n"),
+          carmelPublicBaseUrl(),
+        );
         if (currentText) text = currentText;
         if (
           !previewDisabled &&

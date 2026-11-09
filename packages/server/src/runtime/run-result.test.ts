@@ -268,10 +268,9 @@ test("IM messages share private Home context and reset context while preserving 
     await finished(initial);
     const source = db.select().from(sessions).where(eq(sessions.id, initial.sessionId)).get()!;
     assert.ok(
-      provider.systemPrompts
-        .at(-1)
-        ?.includes(`https://carmel.example.test/app/agents/${source.agentId}/home`),
+      provider.systemPrompts.at(-1)?.includes(`{{CARMEL_URL}}/agents/${source.agentId}/home`),
     );
+    assert.doesNotMatch(provider.systemPrompts.at(-1)!, /https:\/\/carmel\.example\.test/);
     const integrationId = id("im_conversation");
     db.insert(imIntegrations)
       .values({
@@ -311,16 +310,12 @@ test("IM messages share private Home context and reset context while preserving 
     assert.equal((await loadSession(firstSessionId))!.userId, source.userId);
     assert.ok(sent.includes("Hi there."));
     assert.ok(
-      provider.systemPrompts
-        .at(-1)
-        ?.includes(`https://carmel.example.test/app/agents/${source.agentId}/home`),
+      provider.systemPrompts.at(-1)?.includes(`{{CARMEL_URL}}/agents/${source.agentId}/home`),
     );
+    assert.doesNotMatch(provider.systemPrompts.at(-1)!, /https:\/\/carmel\.example\.test/);
     delete process.env.CARMEL_PUBLIC_URL;
     await send("Continue this conversation");
-    assert.match(
-      provider.systemPrompts.at(-1)!,
-      /CARMEL_PUBLIC_URL is unavailable; keep Carmel links app-relative/,
-    );
+    assert.match(provider.systemPrompts.at(-1)!, /\{\{CARMEL_URL\}\}/);
     assert.doesNotMatch(provider.systemPrompts.at(-1)!, /https:\/\/carmel\.example\.test/);
     assert.equal(binding().sessionId, firstSessionId);
     const first = await loadSession(firstSessionId);
