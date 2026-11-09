@@ -454,7 +454,19 @@ export async function dispatchCollaborations() {
             .where(eq(issueAttempts.issueId, row.targetIssueId))
             .all()
             .at(-1);
-          if (
+          // A cancelled task may never have had an attempt. The source is still waiting for
+          // an answer, so settle it here rather than leaving the collaboration queued forever.
+          if (issue?.status === "cancelled" && !attempt) {
+            const answer = "The delegated task was cancelled before it started.";
+            const key = `cancelled:${row.id}`;
+            if (row.deliveredKey !== key) {
+              db.update(collaborations)
+                .set({ answer, status: "failed" })
+                .where(eq(collaborations.id, row.id))
+                .run();
+              await deliver(row, answer, key);
+            }
+          } else if (
             issue &&
             attempt?.finishedAt &&
             ["in_review", "needs_input", "blocked", "done", "cancelled", "backlog"].includes(

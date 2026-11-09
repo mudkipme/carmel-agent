@@ -202,6 +202,19 @@ test("cancellation closes linked work and denies receiver execution", () => {
   assert.throws(() => assertReceiverAccess("", result.targetIssueId));
   assert.equal(readCollaboration(f.owner, result.id).status, "cancelled");
 });
+test("cancelling a delegated task before its first attempt settles the collaboration", async () => {
+  const f = fixture();
+  f.connect();
+  const result = createCollaboration(f.owner, f.target, "task", "Brief", brief);
+  const { cancelIssue } = await import("./issues.ts");
+  cancelIssue(f.userId, f.target, result.targetIssueId!);
+  await dispatchCollaborations();
+  const row = readCollaboration(f.owner, result.id);
+  assert.equal(row.status, "failed");
+  assert.equal(row.waiting, false);
+  assert.equal(row.answer, "The delegated task was cancelled before it started.");
+});
+
 test("early results keep a registered wait until the parent attempt settles", async () => {
   const f = fixture();
   f.connect();
