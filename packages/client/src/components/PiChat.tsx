@@ -299,7 +299,12 @@ export function PiChat({
             </Button>
           </div>
         ) : null}
-        {snapshot.errorMessage ? (
+        {snapshot.connection.status === "reconnecting" ? (
+          <ChatErrorNotice
+            message={`${i18n._("Connection lost.")} ${snapshot.connection.message}`}
+            reconnecting
+          />
+        ) : snapshot.errorMessage ? (
           <ChatErrorNotice
             message={snapshot.errorMessage}
             onDismiss={() => agent?.dismissError()}

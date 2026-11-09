@@ -1,7 +1,6 @@
 import { useLingui } from "@lingui/react";
 import { AlertCircleIcon, Loader2Icon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isReconnectingMessage } from "@/lib/remote-agent";
 
 /**
  * The run's request, transport and reconnection failures, which are the ones
@@ -16,12 +15,13 @@ import { isReconnectingMessage } from "@/lib/remote-agent";
 export function ChatErrorNotice({
   message,
   onDismiss,
+  reconnecting = false,
 }: {
   message: string;
-  onDismiss: () => void;
+  onDismiss?: () => void;
+  reconnecting?: boolean;
 }) {
   const { i18n } = useLingui();
-  const reconnecting = isReconnectingMessage(message);
   return (
     <div
       role="alert"
@@ -36,7 +36,7 @@ export function ChatErrorNotice({
         <AlertCircleIcon className="mt-0.5 size-4 shrink-0" />
       )}
       <span className="min-w-0 flex-1 break-words">{message}</span>
-      {reconnecting ? null : (
+      {reconnecting || !onDismiss ? null : (
         <Button
           type="button"
           variant="ghost"

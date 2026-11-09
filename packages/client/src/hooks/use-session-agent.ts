@@ -19,6 +19,7 @@ const EMPTY_SNAPSHOT: AgentSnapshot = {
   pendingToolCalls: new Set(),
   isStreaming: false,
   hasPendingWork: false,
+  connection: { status: "connected" },
   userRequests: [],
   model: undefined as unknown as Model<Api>,
   thinkingLevel: "off",

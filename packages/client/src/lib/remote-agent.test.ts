@@ -285,12 +285,16 @@ test("a broken observer stream reconnects after the last received sequence witho
   };
   try {
     agent = createAgent([question], async () => agent.setMessages(final));
+    const connections: string[] = [];
+    agent.subscribeStore(() => connections.push(agent.getSnapshot().connection.status));
     await agent.attachToRun("run_reconnect", [question], 1);
 
     assert.deepEqual(requests, [
       { url: "test:run:run_reconnect?after=1", method: "GET" },
       { url: "test:run:run_reconnect?after=2", method: "GET" },
     ]);
+    assert.ok(connections.includes("reconnecting"));
+    assert.equal(agent.getSnapshot().connection.status, "connected");
     assert.equal(
       requests.some((request) => request.url.includes("/abort")),
       false,

@@ -17,6 +17,8 @@ import { api, ApiError, apiError, apiFetch } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
 import { openRunEventStream, type RunEventStream } from "./update-connection.ts";
 
+export type AgentConnection = { status: "connected" } | { status: "reconnecting"; message: string };
+
 /**
  * Immutable view of the agent's observable state, and the only way to read it.
  * Its identity changes only when `notify()` runs, so React's useSyncExternalStore
@@ -33,6 +35,7 @@ export type AgentSnapshot = {
   nestedTools?: readonly NestedToolSlot[];
   isStreaming: boolean;
   hasPendingWork: boolean;
+  connection: AgentConnection;
   userRequests: UserRequest[];
   model: Model<Api>;
   thinkingLevel: ThinkingLevel;
@@ -74,6 +77,7 @@ export class RemoteAgent {
   private nestedTools = [] as readonly NestedToolSlot[];
   private isStreaming = false;
   private hasPendingWork = false;
+  private reconnectError?: string;
   private userRequests: UserRequest[] = [];
   private model: Model<Api>;
   private thinkingLevel: ThinkingLevel;
@@ -159,6 +163,10 @@ export class RemoteAgent {
       nestedTools: this.nestedTools,
       isStreaming: this.isStreaming,
       hasPendingWork: this.hasPendingWork,
+      connection:
+        this.reconnectError === undefined
+          ? { status: "connected" }
+          : { status: "reconnecting", message: this.reconnectError },
       userRequests: this.userRequests,
       model: this.model,
       thinkingLevel: this.thinkingLevel,
@@ -437,7 +445,7 @@ export class RemoteAgent {
     return this.prompt([]);
   }
 
-  /** Dismiss the visible error. Reconnection failures re-report themselves. */
+  /** Dismiss the visible run error. */
   dismissError() {
     if (this.errorMessage === undefined) return;
     this.errorMessage = undefined;
@@ -467,6 +475,7 @@ export class RemoteAgent {
     this.runFinished = false;
     this.detachRequested = false;
     this.stopRequested = false;
+    this.reconnectError = undefined;
     this.notify();
     return controller;
   }
@@ -484,6 +493,7 @@ export class RemoteAgent {
     this.detachRequested = false;
     this.replaceNextUserMessage = false;
     this.stopRequested = false;
+    this.reconnectError = undefined;
     this.notify();
     if (refresh) void this.refreshHome().catch((error) => this.fail(error));
   }
@@ -583,6 +593,7 @@ export class RemoteAgent {
   }
 
   applyConnectionSnapshot(connection: SessionConnection, preserveHistory = true) {
+    this.reconnectError = undefined;
     const recent = connection.session;
     const overlap =
       preserveHistory && this.loadedEarlier && !this.historyOnly
@@ -714,13 +725,13 @@ export class RemoteAgent {
   }
 
   private markReconnecting(error: unknown) {
-    this.errorMessage = `${RECONNECTING_PREFIX} ${errorMessage(error)}`;
+    this.reconnectError = errorMessage(error);
     this.notify();
   }
 
   private clearReconnectError() {
-    if (!this.errorMessage?.startsWith(RECONNECTING_PREFIX)) return;
-    this.errorMessage = undefined;
+    if (this.reconnectError === undefined) return;
+    this.reconnectError = undefined;
     this.notify();
   }
 
@@ -807,13 +818,6 @@ export class RemoteAgent {
       : 0;
     if (index >= 0) this.pendingMessages = this.pendingMessages.filter((_, item) => item !== index);
   }
-}
-
-const RECONNECTING_PREFIX = "Connection lost; reconnecting…";
-
-/** Whether a snapshot error is the transient reconnect state rather than a failure. */
-export function isReconnectingMessage(message: string) {
-  return message.startsWith(RECONNECTING_PREFIX);
 }
 
 function normalizePromptInput(
