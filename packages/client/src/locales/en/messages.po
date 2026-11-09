@@ -8,9 +8,9 @@ msgstr ""
 "Language: en\n"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:764
-msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
-msgstr "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
+#: src/components/PiChat.tsx:262
+msgid "Unable to dismiss the error"
+msgstr "Unable to dismiss the error"
 
 #. js-lingui-explicit-id
 #: src/App.tsx:100
@@ -394,8 +394,8 @@ msgstr "Feishu"
 
 #. js-lingui-explicit-id
 #: src/lib/remote-agent.ts:244
-#: src/lib/remote-agent.ts:307
-#: src/lib/remote-agent.ts:407
+#: src/lib/remote-agent.ts:308
+#: src/lib/remote-agent.ts:408
 msgid "Agent is already processing."
 msgstr "Agent is already processing."
 
@@ -405,42 +405,42 @@ msgid "Unable to queue this message."
 msgstr "Unable to queue this message."
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:350
+#: src/lib/remote-agent.ts:351
 msgid "This conversation already has a run in progress; your message was not sent."
 msgstr "This conversation already has a run in progress; your message was not sent."
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:370
+#: src/lib/remote-agent.ts:371
 msgid "Agent request failed with {status}"
 msgstr "Agent request failed with {status}"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:380
+#: src/lib/remote-agent.ts:381
 msgid "Agent response did not identify its server run."
 msgstr "Agent response did not identify its server run."
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:428
+#: src/lib/remote-agent.ts:429
 msgid "Cannot continue from current message state."
 msgstr "Cannot continue from current message state."
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:542
+#: src/lib/remote-agent.ts:543
 msgid "Invalid agent event cursor."
 msgstr "Invalid agent event cursor."
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:694
+#: src/lib/remote-agent.ts:701
 msgid "Invalid agent event envelope."
 msgstr "Invalid agent event envelope."
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:699
+#: src/lib/remote-agent.ts:706
 msgid "Agent event sequence gap: expected {value}, received {sequence}."
 msgstr "Agent event sequence gap: expected {value}, received {sequence}."
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:788
+#: src/lib/remote-agent.ts:795
 msgid "This run did not finish successfully."
 msgstr "This run did not finish successfully."
 
@@ -1011,23 +1011,23 @@ msgid "{count, plural, one {# message queued} other {# messages queued}}"
 msgstr "{count, plural, one {# message queued} other {# messages queued}}"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:346
+#: src/components/PiChat.tsx:352
 msgid "Unable to load history"
 msgstr "Unable to load history"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:357
+#: src/components/PiChat.tsx:363
 msgid "Unable to load the latest messages"
 msgstr "Unable to load the latest messages"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatMessages.tsx:414
-#: src/components/PiChat.tsx:393
+#: src/components/PiChat.tsx:399
 msgid "New context"
 msgstr "New context"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:400
+#: src/components/PiChat.tsx:406
 msgid "Stop Home"
 msgstr "Stop Home"
 
@@ -1658,17 +1658,22 @@ msgid "Expires {date}"
 msgstr "Expires {date}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:728
+#: src/components/harness/HomeMemoryPanel.tsx:732
 msgid "Memory history"
 msgstr "Memory history"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:763
+#: src/components/harness/HomeMemoryPanel.tsx:767
 msgid "Forget all Home memory?"
 msgstr "Forget all Home memory?"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:767
+#: src/components/harness/HomeMemoryPanel.tsx:768
+msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
+msgstr "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:771
 msgid "Forget all"
 msgstr "Forget all"
 
@@ -3125,8 +3130,8 @@ msgid "Renamed"
 msgstr "Renamed"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:36
-#: src/components/chat/MessageActions.tsx:37
+#: src/components/chat/MessageActions.tsx:40
+#: src/components/chat/MessageActions.tsx:41
 #: src/components/harness/changes/ChangesView.tsx:262
 msgid "Copied"
 msgstr "Copied"
@@ -3887,31 +3892,31 @@ msgid "Open task: {title}"
 msgstr "Open task: {title}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:36
-#: src/components/chat/MessageActions.tsx:37
+#: src/components/chat/MessageActions.tsx:40
+#: src/components/chat/MessageActions.tsx:41
 msgid "Copy message"
 msgstr "Copy message"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:41
+#: src/components/chat/MessageActions.tsx:45
 msgid "Unable to copy message"
 msgstr "Unable to copy message"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:52
-#: src/components/chat/MessageActions.tsx:53
+#: src/components/chat/MessageActions.tsx:56
+#: src/components/chat/MessageActions.tsx:57
 msgid "Fork from this message"
 msgstr "Fork from this message"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:64
-#: src/components/chat/MessageActions.tsx:65
+#: src/components/chat/MessageActions.tsx:68
+#: src/components/chat/MessageActions.tsx:69
 msgid "Edit message"
 msgstr "Edit message"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:76
-#: src/components/chat/MessageActions.tsx:77
+#: src/components/chat/MessageActions.tsx:80
+#: src/components/chat/MessageActions.tsx:81
 msgid "Retry from this message"
 msgstr "Retry from this message"
 
@@ -4342,7 +4347,7 @@ msgstr "Available to this session’s shell. The submitted value is stored separ
 msgid "Back"
 msgstr "Back"
 
-#: src/components/PiChat.tsx:291
+#: src/components/PiChat.tsx:297
 msgid "Back to issue"
 msgstr "Back to issue"
 
@@ -4590,7 +4595,7 @@ msgstr "Delete"
 msgid "Delete agent"
 msgstr "Delete agent"
 
-#: src/components/harness/HomeMemoryPanel.tsx:704
+#: src/components/harness/HomeMemoryPanel.tsx:708
 msgid "Delete note"
 msgstr "Delete note"
 
@@ -4742,7 +4747,7 @@ msgstr "Finish connecting {0}: open the bot and send the command below from your
 msgid "Forget"
 msgstr "Forget"
 
-#: src/components/harness/HomeMemoryPanel.tsx:773
+#: src/components/harness/HomeMemoryPanel.tsx:777
 msgid "Forget all memory"
 msgstr "Forget all memory"
 
@@ -4760,7 +4765,7 @@ msgstr "Go"
 
 #: src/components/harness/AgentSchedulesPage.tsx:201
 #: src/components/harness/HomeMemoryPanel.tsx:684
-#: src/components/harness/HomeMemoryPanel.tsx:730
+#: src/components/harness/HomeMemoryPanel.tsx:734
 msgid "History"
 msgstr "History"
 
@@ -4812,7 +4817,7 @@ msgstr "Index needs attention"
 msgid "Interrupted"
 msgstr "Interrupted"
 
-#: src/components/PiChat.tsx:287
+#: src/components/PiChat.tsx:293
 msgid "Issue conversation · Read-only history"
 msgstr "Issue conversation · Read-only history"
 
@@ -4881,7 +4886,7 @@ msgstr "Loading agent settings..."
 msgid "Loading Carmel Agent"
 msgstr "Loading Carmel Agent"
 
-#: src/components/PiChat.tsx:424
+#: src/components/PiChat.tsx:430
 msgid "Loading chat..."
 msgstr "Loading chat..."
 
@@ -4978,7 +4983,7 @@ msgid "New agent"
 msgstr "New agent"
 
 #: src/components/chat/ChatMessages.tsx:419
-#: src/components/PiChat.tsx:279
+#: src/components/PiChat.tsx:285
 msgid "New context"
 msgstr "New context"
 
@@ -5007,7 +5012,7 @@ msgstr "New session"
 msgid "New task"
 msgstr "New task"
 
-#: src/components/harness/HomeMemoryPanel.tsx:724
+#: src/components/harness/HomeMemoryPanel.tsx:728
 msgid "Next"
 msgstr "Next"
 
@@ -5203,7 +5208,7 @@ msgstr "Prepare deep search"
 msgid "Preview"
 msgstr "Preview"
 
-#: src/components/harness/HomeMemoryPanel.tsx:717
+#: src/components/harness/HomeMemoryPanel.tsx:721
 msgid "Previous"
 msgstr "Previous"
 
@@ -5320,7 +5325,7 @@ msgid "Restart"
 msgstr "Restart"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
-#: src/components/harness/HomeMemoryPanel.tsx:751
+#: src/components/harness/HomeMemoryPanel.tsx:755
 msgid "Restore"
 msgstr "Restore"
 
@@ -5328,7 +5333,7 @@ msgstr "Restore"
 msgid "Result"
 msgstr "Result"
 
-#: src/components/PiChat.tsx:317
+#: src/components/PiChat.tsx:323
 #: src/components/tasks/TaskSubtasks.tsx:72
 msgid "Resume"
 msgstr "Resume"
@@ -5337,7 +5342,7 @@ msgstr "Resume"
 msgid "Resume agent"
 msgstr "Resume agent"
 
-#: src/components/PiChat.tsx:269
+#: src/components/PiChat.tsx:275
 msgid "Resume updates"
 msgstr "Resume updates"
 
@@ -5541,11 +5546,11 @@ msgstr "Source"
 msgid "Sources"
 msgstr "Sources"
 
-#: src/components/PiChat.tsx:320
+#: src/components/PiChat.tsx:326
 msgid "Stop"
 msgstr "Stop"
 
-#: src/components/PiChat.tsx:274
+#: src/components/PiChat.tsx:280
 msgid "Stop Home"
 msgstr "Stop Home"
 
@@ -5619,7 +5624,7 @@ msgstr "This agent is shared. Anyone who can run it runs commands with these sec
 msgid "This agent's working directory is not a git repository."
 msgstr "This agent's working directory is not a git repository."
 
-#: src/components/PiChat.tsx:311
+#: src/components/PiChat.tsx:317
 msgid "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 msgstr "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 

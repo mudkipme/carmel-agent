@@ -592,6 +592,11 @@ export const api = {
         createdAt: number;
       }>;
     }>(`/api/agents/${encodeURIComponent(agentId)}/home`, { signal }),
+  dismissHomeError: (agentId: string, eventId: string) =>
+    request<{ ok: true }>(
+      `/api/agents/${encodeURIComponent(agentId)}/home/events/${encodeURIComponent(eventId)}/dismiss`,
+      { method: "POST" },
+    ),
   stopHome: (agentId: string) =>
     request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/stop`, {
       method: "POST",

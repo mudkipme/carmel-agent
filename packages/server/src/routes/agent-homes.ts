@@ -4,7 +4,8 @@ import { getActiveAgentRunForSession } from "../runtime/run-stream.ts";
 import { admitHomeInput, dispatchHome, stopHome } from "../services/home-events.ts";
 import { agentHomes, homeEvents, sessions, issues } from "../db/schema.ts";
 import { db } from "../db/index.ts";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { now } from "../db/seed.ts";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { agentRunRequestSchema } from "@carmel-agent/shared";
 import { z } from "zod";
 import { jsonValidator } from "../validation.ts";
@@ -77,6 +78,26 @@ export function createHomeRoutes() {
   });
   route.get("/agents/:agentId/home", async (c) => {
     const home = readHome(c.get("user").id, c.req.param("agentId"));
+    const latestSettled = home
+      ? db
+          .select({ id: homeEvents.id, status: homeEvents.status })
+          .from(homeEvents)
+          .where(
+            and(
+              eq(homeEvents.sessionId, home.sessionId),
+              inArray(homeEvents.kind, ["input", "issue", "collaboration"]),
+              inArray(homeEvents.status, ["done", "failed", "interrupted", "cancelled"]),
+            ),
+          )
+          .orderBy(
+            desc(sql`coalesce(${homeEvents.finishedAt}, ${homeEvents.createdAt})`),
+            desc(sql`rowid`),
+          )
+          .limit(1)
+          .get()
+      : undefined;
+    const latestFailed =
+      latestSettled?.status === "failed" || latestSettled?.status === "interrupted";
     const events = home
       ? db
           .select()
@@ -93,10 +114,17 @@ export function createHomeRoutes() {
               ]),
             ),
           )
-          .orderBy(desc(homeEvents.createdAt))
+          .orderBy(desc(homeEvents.createdAt), desc(sql`rowid`))
           .limit(30)
           .all()
-          .map(({ id, status, error, createdAt, kind }) => ({ id, status, error, createdAt, kind }))
+          .map(({ id, status, error, errorDismissedAt, createdAt, kind }) => ({
+            id,
+            status,
+            createdAt,
+            kind,
+            error:
+              latestFailed && id === latestSettled?.id && !errorDismissedAt ? error : undefined,
+          }))
       : [];
     const session = home
       ? db
@@ -127,6 +155,17 @@ export function createHomeRoutes() {
       events,
       deliveries,
     });
+  });
+  route.post("/agents/:agentId/home/events/:eventId/dismiss", (c) => {
+    const home = readHome(c.get("user").id, c.req.param("agentId"));
+    if (home)
+      db.update(homeEvents)
+        .set({ errorDismissedAt: now() })
+        .where(
+          and(eq(homeEvents.id, c.req.param("eventId")), eq(homeEvents.sessionId, home.sessionId)),
+        )
+        .run();
+    return c.json({ ok: true });
   });
   route.post("/agents/:agentId/home", async (c) => {
     const home = ensureHome(c.get("user").id, c.req.param("agentId"));

@@ -254,7 +254,13 @@ export function PiChat({
         {session.home && homeError ? (
           <ChatErrorNotice
             message={homeError.error!}
-            onDismiss={() => setDismissedHomeErrors((current) => [...current, homeError.id])}
+            onDismiss={() => {
+              setDismissedHomeErrors((current) => [...current, homeError.id]);
+              void api
+                .dismissHomeError(agentConfig.id, homeError.id)
+                .then(homeStatus.refresh)
+                .catch((error) => showError(i18n._("Unable to dismiss the error"), error));
+            }}
           />
         ) : null}
         {session.home ? (

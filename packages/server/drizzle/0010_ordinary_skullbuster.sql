@@ -1,0 +1,1 @@
+ALTER TABLE `home_events` ADD `error_dismissed_at` integer;

@@ -574,6 +574,7 @@ export const homeEvents = sqliteTable(
     runId: text("run_id"),
     reply: text("reply"),
     error: text("error"),
+    errorDismissedAt: integer("error_dismissed_at"),
     createdAt: integer("created_at").notNull(),
     finishedAt: integer("finished_at"),
   },

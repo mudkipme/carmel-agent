@@ -2604,6 +2604,37 @@ paths:
           $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
+  /api/agents/{agentId}/home/events/{eventId}/dismiss:
+    parameters:
+      - name: agentId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: dismissAgentHomeError
+      tags:
+        - Agents
+      summary: Dismiss a Home failure notice
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
   /api/agents/{agentId}/home/read:
     parameters:
       - name: agentId

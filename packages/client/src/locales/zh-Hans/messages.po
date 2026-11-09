@@ -8,9 +8,9 @@ msgstr ""
 "Language: zh-Hans\n"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:764
-msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
-msgstr "将删除笔记及其修订历史，自动学习也会跳过这些信息。你可以明确要求重新记住它们。Home 对话会保留。"
+#: src/components/PiChat.tsx:262
+msgid "Unable to dismiss the error"
+msgstr "无法关闭错误提示"
 
 #. js-lingui-explicit-id
 #: src/App.tsx:100
@@ -394,8 +394,8 @@ msgstr "飞书"
 
 #. js-lingui-explicit-id
 #: src/lib/remote-agent.ts:244
-#: src/lib/remote-agent.ts:307
-#: src/lib/remote-agent.ts:407
+#: src/lib/remote-agent.ts:308
+#: src/lib/remote-agent.ts:408
 msgid "Agent is already processing."
 msgstr "智能体正在处理中。"
 
@@ -405,42 +405,42 @@ msgid "Unable to queue this message."
 msgstr "无法将此消息加入队列。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:350
+#: src/lib/remote-agent.ts:351
 msgid "This conversation already has a run in progress; your message was not sent."
 msgstr "此对话已有任务正在运行，你的消息未发送。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:370
+#: src/lib/remote-agent.ts:371
 msgid "Agent request failed with {status}"
 msgstr "智能体请求失败，状态码为 {status}"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:380
+#: src/lib/remote-agent.ts:381
 msgid "Agent response did not identify its server run."
 msgstr "智能体响应中未包含服务器运行标识。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:428
+#: src/lib/remote-agent.ts:429
 msgid "Cannot continue from current message state."
 msgstr "无法从当前消息状态继续。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:542
+#: src/lib/remote-agent.ts:543
 msgid "Invalid agent event cursor."
 msgstr "无效的智能体事件游标。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:694
+#: src/lib/remote-agent.ts:701
 msgid "Invalid agent event envelope."
 msgstr "无效的智能体事件封装。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:699
+#: src/lib/remote-agent.ts:706
 msgid "Agent event sequence gap: expected {value}, received {sequence}."
 msgstr "智能体事件序列不连续：预期 {value}，实际收到 {sequence}。"
 
 #. js-lingui-explicit-id
-#: src/lib/remote-agent.ts:788
+#: src/lib/remote-agent.ts:795
 msgid "This run did not finish successfully."
 msgstr "此次运行未成功完成。"
 
@@ -1011,23 +1011,23 @@ msgid "{count, plural, one {# message queued} other {# messages queued}}"
 msgstr "{count, plural, other {# 条消息已排队}}"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:346
+#: src/components/PiChat.tsx:352
 msgid "Unable to load history"
 msgstr "无法加载历史记录"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:357
+#: src/components/PiChat.tsx:363
 msgid "Unable to load the latest messages"
 msgstr "无法加载最新消息"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatMessages.tsx:414
-#: src/components/PiChat.tsx:393
+#: src/components/PiChat.tsx:399
 msgid "New context"
 msgstr "新上下文"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:400
+#: src/components/PiChat.tsx:406
 msgid "Stop Home"
 msgstr "停止主页"
 
@@ -1658,17 +1658,22 @@ msgid "Expires {date}"
 msgstr "到期时间：{date}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:728
+#: src/components/harness/HomeMemoryPanel.tsx:732
 msgid "Memory history"
 msgstr "记忆历史"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:763
+#: src/components/harness/HomeMemoryPanel.tsx:767
 msgid "Forget all Home memory?"
 msgstr "忘记主页的所有记忆？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:767
+#: src/components/harness/HomeMemoryPanel.tsx:768
+msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
+msgstr "将删除笔记及其修订历史，自动学习也会跳过这些信息。你可以明确要求重新记住它们。Home 对话会保留。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:771
 msgid "Forget all"
 msgstr "全部忘记"
 
@@ -3125,8 +3130,8 @@ msgid "Renamed"
 msgstr "已重命名"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:36
-#: src/components/chat/MessageActions.tsx:37
+#: src/components/chat/MessageActions.tsx:40
+#: src/components/chat/MessageActions.tsx:41
 #: src/components/harness/changes/ChangesView.tsx:262
 msgid "Copied"
 msgstr "已复制"
@@ -3887,31 +3892,31 @@ msgid "Open task: {title}"
 msgstr "打开任务：{title}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:36
-#: src/components/chat/MessageActions.tsx:37
+#: src/components/chat/MessageActions.tsx:40
+#: src/components/chat/MessageActions.tsx:41
 msgid "Copy message"
 msgstr "复制消息"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:41
+#: src/components/chat/MessageActions.tsx:45
 msgid "Unable to copy message"
 msgstr "无法复制消息"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:52
-#: src/components/chat/MessageActions.tsx:53
+#: src/components/chat/MessageActions.tsx:56
+#: src/components/chat/MessageActions.tsx:57
 msgid "Fork from this message"
 msgstr "从此消息创建分支"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:64
-#: src/components/chat/MessageActions.tsx:65
+#: src/components/chat/MessageActions.tsx:68
+#: src/components/chat/MessageActions.tsx:69
 msgid "Edit message"
 msgstr "编辑消息"
 
 #. js-lingui-explicit-id
-#: src/components/chat/MessageActions.tsx:76
-#: src/components/chat/MessageActions.tsx:77
+#: src/components/chat/MessageActions.tsx:80
+#: src/components/chat/MessageActions.tsx:81
 msgid "Retry from this message"
 msgstr "从此消息重试"
 
@@ -4342,7 +4347,7 @@ msgstr "可用于此会话的 Shell。提交的值会单独保存，不会作为
 msgid "Back"
 msgstr "返回"
 
-#: src/components/PiChat.tsx:291
+#: src/components/PiChat.tsx:297
 msgid "Back to issue"
 msgstr "返回事项"
 
@@ -4590,7 +4595,7 @@ msgstr "删除"
 msgid "Delete agent"
 msgstr "删除智能体"
 
-#: src/components/harness/HomeMemoryPanel.tsx:704
+#: src/components/harness/HomeMemoryPanel.tsx:708
 msgid "Delete note"
 msgstr "删除笔记"
 
@@ -4742,7 +4747,7 @@ msgstr "完成连接{0}：打开机器人，从你的个人账号发送以下命
 msgid "Forget"
 msgstr "忘记"
 
-#: src/components/harness/HomeMemoryPanel.tsx:773
+#: src/components/harness/HomeMemoryPanel.tsx:777
 msgid "Forget all memory"
 msgstr "忘记所有记忆"
 
@@ -4760,7 +4765,7 @@ msgstr "前往"
 
 #: src/components/harness/AgentSchedulesPage.tsx:201
 #: src/components/harness/HomeMemoryPanel.tsx:684
-#: src/components/harness/HomeMemoryPanel.tsx:730
+#: src/components/harness/HomeMemoryPanel.tsx:734
 msgid "History"
 msgstr "历史"
 
@@ -4812,7 +4817,7 @@ msgstr "索引需要处理"
 msgid "Interrupted"
 msgstr "已中断"
 
-#: src/components/PiChat.tsx:287
+#: src/components/PiChat.tsx:293
 msgid "Issue conversation · Read-only history"
 msgstr "事项对话 · 只读历史"
 
@@ -4881,7 +4886,7 @@ msgstr "正在加载智能体设置…"
 msgid "Loading Carmel Agent"
 msgstr "正在加载 Carmel Agent"
 
-#: src/components/PiChat.tsx:424
+#: src/components/PiChat.tsx:430
 msgid "Loading chat..."
 msgstr "正在加载聊天…"
 
@@ -4978,7 +4983,7 @@ msgid "New agent"
 msgstr "新建智能体"
 
 #: src/components/chat/ChatMessages.tsx:419
-#: src/components/PiChat.tsx:279
+#: src/components/PiChat.tsx:285
 msgid "New context"
 msgstr "新上下文"
 
@@ -5007,7 +5012,7 @@ msgstr "新建会话"
 msgid "New task"
 msgstr "新建任务"
 
-#: src/components/harness/HomeMemoryPanel.tsx:724
+#: src/components/harness/HomeMemoryPanel.tsx:728
 msgid "Next"
 msgstr "下一页"
 
@@ -5203,7 +5208,7 @@ msgstr "准备深入搜索"
 msgid "Preview"
 msgstr "预览"
 
-#: src/components/harness/HomeMemoryPanel.tsx:717
+#: src/components/harness/HomeMemoryPanel.tsx:721
 msgid "Previous"
 msgstr "上一页"
 
@@ -5320,7 +5325,7 @@ msgid "Restart"
 msgstr "重新启动"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
-#: src/components/harness/HomeMemoryPanel.tsx:751
+#: src/components/harness/HomeMemoryPanel.tsx:755
 msgid "Restore"
 msgstr "恢复"
 
@@ -5328,7 +5333,7 @@ msgstr "恢复"
 msgid "Result"
 msgstr "结果"
 
-#: src/components/PiChat.tsx:317
+#: src/components/PiChat.tsx:323
 #: src/components/tasks/TaskSubtasks.tsx:72
 msgid "Resume"
 msgstr "恢复"
@@ -5337,7 +5342,7 @@ msgstr "恢复"
 msgid "Resume agent"
 msgstr "恢复智能体"
 
-#: src/components/PiChat.tsx:269
+#: src/components/PiChat.tsx:275
 msgid "Resume updates"
 msgstr "恢复更新"
 
@@ -5541,11 +5546,11 @@ msgstr "源码"
 msgid "Sources"
 msgstr "来源"
 
-#: src/components/PiChat.tsx:320
+#: src/components/PiChat.tsx:326
 msgid "Stop"
 msgstr "停止"
 
-#: src/components/PiChat.tsx:274
+#: src/components/PiChat.tsx:280
 msgid "Stop Home"
 msgstr "停止主页"
 
@@ -5619,7 +5624,7 @@ msgstr "此智能体已共享。任何有权运行它的人，执行命令时都
 msgid "This agent's working directory is not a git repository."
 msgstr "此智能体的工作目录不是 Git 仓库。"
 
-#: src/components/PiChat.tsx:311
+#: src/components/PiChat.tsx:317
 msgid "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 msgstr "此对话中有未完成的工作。请先恢复或停止，再重试或编辑消息。"
 
