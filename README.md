@@ -1,32 +1,29 @@
 # Carmel Agent
 
-Carmel Agent is a self-hosted, multi-user web app for running AI agents. You bring your own model provider keys, and Carmel Agent gives you a chat interface where agents can read and write files, run shell commands in a container, browse the web, and load your own skills.
+Carmel Agent is a self-hosted, multi-user web app for running AI agents. You bring your own model provider keys, and Carmel Agent gives you a chat interface where agents can read and write files, run shell commands in a container, browse the web, search your knowledge, and load your own skills.
 
 It runs on your machine or your server. Agents contact the model providers, websites, and remote MCP servers you configure or permit.
 
 ## What You Get
 
-- **Chat with agents that keep working.** Sessions persist, runs continue on the server if you close the tab, and reopening a session reconnects to a run in progress.
-- **Answers with the work tucked away.** Sessions fold thinking, tool calls and intermediate commentary under a “Show work” row, keeping the final answer and errors visible.
-- **Agents you shape.** Each agent has its own icon, color, workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
-- **Sandboxed shell.** When an agent is allowed to run commands, they execute in a per-agent container with CPU, memory, PID, mount, and network limits — not on your host shell.
-- **A terminal in the browser.** Open an interactive shell straight into an agent's container, with the same environment its own commands get. The shell lives on the server, so a reload reattaches instead of starting over.
-- **A workspace beside the conversation.** Files, Changes, Terminal, and Browser share a resizable right pane. Expand a tool to use the full main area, or select “Show beside chat” to return to the split view. Your layout and pane width are remembered; narrow windows show one main pane automatically. Drag the divider to resize, use its arrow keys for precise adjustment, or double-click it to reset the width. File and diff links retain the companion conversation across reloads.
-- **Read and edit Markdown.** Markdown files open as formatted previews, with an Edit tab for their source. Switch tabs without losing unsaved edits or editor history; Preview shows the current draft, and Save writes it to disk. Relative links and images resolve from the document's folder.
-- **Mermaid diagrams.** Mermaid code blocks render as diagrams in chat and Markdown previews, using [Pele](https://pele.run/) to match your theme and adapt to the available width. Expand **Source** beneath a diagram to view or copy its code; incomplete or invalid diagrams display their source.
-- **A shared live browser.** Watch the agent browse, take control to sign in, and explicitly resume it in the same browser. The profile and cookies belong to the agent and are shared across its users and conversations.
-- **Files in the browser.** A full file manager for an agent's workspace: browse, edit, upload (drag and drop, including folders), download files or a folder as a zip, and select several entries to move, copy, or delete — all under the same permissions the agent has.
-- **Per-agent secrets.** Give an agent a `GITHUB_TOKEN` or a registry password; it is encrypted at rest, available to that agent's sandbox and configured MCP connections, and redacted out of tool output.
-- **MCP tools.** Connect each agent to remote HTTP servers or stdio servers inside its sandbox, with tool allowlists and credentials from agent secrets.
-- **Private IM integrations.** Connect your own Telegram bot or Feishu/Lark app to an agent, including QR setup for Feishu/Lark. Chat through IM and let scheduled tasks send you private alerts. See [IM integrations](docs/im-integrations.md).
-- **Your own skills.** Drop skills into `.agents/skills` in an agent's workspace and they show up as slash commands in the chat.
-- **Tasks.** Queue work for an agent, continue the discussion, send live updates, and review saved results before accepting them. See [the Tasks workflow](docs/issues.md).
-- **Agents and Home.** Switch the sidebar to Agents to return to one private Home conversation per agent. Sessions keeps independent conversations available. Home supports a fresh model context while retaining its readable history; older messages load in pages.
-- **Subtasks.** Tasks can delegate up to four read-only analysis or web-research subtasks with isolated native Pi context; web access follows the agent's network permission. Inspect their evidence inside the parent task, collect parallel results, and review one consolidated outcome in Home.
-- **Conversation control.** Fork a session from any earlier message, edit your own messages, truncate a branch, pin the sessions you keep coming back to, attach images.
-- **Multiple people, one instance.** Admins manage provider credentials and accounts; everyone gets their own sessions and can share agents and model entries with the rest of the instance.
-- **Single sign-on.** Sign in with Pocket ID or any other OpenID Connect provider. You can link people to existing accounts by username or email, and use provider groups to decide who may sign in and who is an admin.
-- **Your providers.** Anthropic, OpenAI, and other providers supported by Pi (API key or OAuth login), any OpenAI-compatible endpoint, and local Ollama.
+- **Chat that keeps working.** Sessions persist and runs continue on the server; reopening a session reconnects to a run in progress.
+- **Answers with the work tucked away.** Thinking, tool calls, and intermediate commentary fold under “Show work,” keeping final answers and errors visible.
+- **Agents you shape.** Each agent has its own appearance, workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
+- **Sandboxed shell.** Bash runs in a per-agent container with CPU, memory, PID, mount, and network limits — not on your host shell.
+- **A terminal in the browser.** Open an interactive shell into an agent's container with the same environment its commands get; reloads reattach to the running shell.
+- **A workspace beside the conversation.** Files, Changes, Terminal, and Browser share a resizable pane, with Markdown previews and source editing, Mermaid diagrams, remembered layout, and a single-pane view on narrow windows.
+- **A shared live browser.** Watch the agent browse, take control to sign in, then resume it in the same browser; the profile belongs to the agent.
+- **Files in the browser.** Browse, edit, upload, download, move, copy, and delete workspace files under the agent's permissions.
+- **Secrets and credentials.** Encrypted per-agent secrets for sandboxes and MCP connections, redacted from tool output, plus private forms for questions or session credentials that can be promoted later. See [Questions and session credentials](docs/user-requests.md).
+- **Tools and MCP.** Connect remote HTTP or sandboxed stdio MCP servers with allowlists and credentials; codemode lets agents script their permitted tools in a sandboxed JavaScript worker. See [MCP tools](docs/mcp.md) and [Codemode](docs/codemode.md).
+- **Private IM integrations.** Connect Telegram or Feishu/Lark, including QR setup, and receive private alerts from scheduled tasks. See [IM integrations](docs/im-integrations.md).
+- **Skills and knowledge.** Skills in `.agents/skills` appear as slash commands, and agents can search and cite Markdown folders with keyword, semantic, or hybrid retrieval. See [Knowledge](docs/knowledge.md).
+- **Tasks and schedules.** Queue work with discussion, live updates, and review, or schedule reminders and recurring runs from chat. See [Tasks](docs/issues.md) and [scheduled tasks](docs/runtime-and-security.md#scheduled-tasks-from-chat).
+- **Agents, Home, and memory.** Each agent has a private Home conversation with fresh context and paged history; Home memory keeps private notes, recalls relevant topics, and supports opt-in learning and forgetting. See [Home memory](docs/home-memory.md).
+- **Subtasks and collaboration.** Tasks can delegate read-only analysis or web research, and agents can consult or delegate to permitted peers. See [Agent collaboration](docs/agent-collaboration.md).
+- **Conversation control.** Fork, edit, truncate, pin, attach images, reference files, folders, conversations, or agents with `@`, and search across sessions.
+- **Multi-user with SSO.** Admins manage accounts and provider credentials; everyone gets private sessions, can share agents and model entries, and can sign in through Pocket ID or any OpenID Connect provider.
+- **Your providers and API.** Anthropic, OpenAI, other Pi providers, OpenAI-compatible endpoints, and Ollama; create API keys for the OpenAI-compatible `/api/v1` endpoint. See [the API details](docs/configuration.md#openai-compatible-api).
 - **Bring your history.** Import Open WebUI JSON chat exports into an agent.
 
 ## Requirements
@@ -89,19 +86,11 @@ For HTTPS, backups, reverse proxies, release pinning, and building custom images
 
 New agents start with file read, write, and edit enabled; bash and network are off until you turn them on. Turning on bash requires the runner image and a reachable container socket.
 
-Each agent has a **Knowledge** page for searchable reference documents shared according to agent access. Private **Memory** lives only in Home, with automatic core context and optional semantic topic retrieval. Both reuse the qmd runner and model cache while keeping indexes separate. See [Knowledge](docs/knowledge.md) and [Home memory](docs/home-memory.md).
+Each agent has a **Knowledge** page for searchable Markdown sources, and **Memory** in Home keeps private notes. See [Knowledge](docs/knowledge.md) and [Home memory](docs/home-memory.md).
 
 ## Users And Sharing
 
-Carmel is multi-user, and sharing is opt-in rather than automatic.
-
-- **Accounts** come in two roles. Admins manage users and provider credentials; everyone else uses what's been set up.
-- **Provider configs and their secrets** are instance-level and admin-managed. Stored keys and OAuth credentials are never sent back to any browser.
-- **Model entries** belong to the person who created them. Mark one shared and everyone can select it — the underlying credentials stay on the server.
-- **Agents** belong to their owner. Mark one shared and others can use it; their sessions with it stay private to them.
-- **Sessions** are always private to the user who created them.
-
-So one operator can hold the API keys and publish a set of useful agents without exposing credentials or reading anyone's conversations.
+Carmel is multi-user, and sharing is opt-in rather than automatic. Accounts are either administrator or user; admins manage users and provider credentials. Provider configs and their secrets are instance-level and never sent back to a browser. Model entries and agents belong to their creator and can be shared, while sessions always stay private — so one operator can hold the API keys and publish useful agents without exposing credentials or reading anyone's conversations.
 
 ## Import From Open WebUI
 
@@ -110,11 +99,18 @@ Select the agent you want the chats to land in, open the import dialog from the 
 ## Documentation
 
 - [Deployment](docs/deployment.md) — Compose, manual containers, reverse proxies, and the production checklist.
-- [Configuration](docs/configuration.md) — environment variables, secrets, provider setup, data paths, and sandbox settings.
-- [Runtime And Security](docs/runtime-and-security.md) — how agents, tools, file access, sandboxing, roles, and sharing actually work.
+- [Configuration](docs/configuration.md) — environment variables, secrets, provider setup, data paths, sandbox settings, and the OpenAI-compatible API.
+- [Runtime And Security](docs/runtime-and-security.md) — how agents, tools, file access, sandboxing, roles, sharing, and scheduling actually work.
+- [Tasks](docs/issues.md) — queueing work, review, and task lifecycle.
+- [Agent collaboration](docs/agent-collaboration.md) — consultations, delegated tasks, and collaboration boundaries.
 - [MCP tools](docs/mcp.md) — configure remote and sandboxed servers, tool access, and authentication.
+- [Codemode](docs/codemode.md) — scripting permitted tools in a sandboxed JavaScript worker.
+- [Knowledge](docs/knowledge.md) — source registration, indexing, and retrieval.
 - [Home memory](docs/home-memory.md) — private notes, opt-in learning, recall, and forgetting.
+- [IM integrations](docs/im-integrations.md) — Telegram and Feishu/Lark setup, commands, and notifications.
+- [Questions and session credentials](docs/user-requests.md) — interactive questions, secret submission, and credential scope.
 - [Open WebUI Import](docs/open-webui-import.md) — supported import format and behavior.
+- [Pi Durable storage](docs/pi-durable.md) — session storage, recovery, replay, and streaming internals.
 
 ## Development
 
@@ -151,7 +147,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development and test guidance, and [S
 
 ## Project Layout
 
-- `packages/server` — Hono API, SQLite/Drizzle metadata, Pi-native session storage, auth, agent runtime, sandbox, file APIs.
+- `packages/server` — Hono API, SQLite/Drizzle metadata, Pi Durable session storage, auth, agent runtime, sandbox, file APIs.
 - `packages/client` — Vite + React UI for chat, files, settings, sessions, and agent management.
 - `packages/shared` — TypeScript types shared by client and server.
 - `Dockerfile` — web/API server image.
