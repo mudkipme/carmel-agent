@@ -553,10 +553,6 @@ export const api = {
       `/api/sessions/${encodeURIComponent(sessionId)}/helpers/${helperId}/stop`,
       { method: "POST" },
     ),
-  stopSubtasks: (sessionId: string) =>
-    request<{ ok: true }>(`/api/sessions/${encodeURIComponent(sessionId)}/helpers/stop`, {
-      method: "POST",
-    }),
   resumeSubtasks: (sessionId: string) =>
     request<{ ok: true }>(`/api/sessions/${encodeURIComponent(sessionId)}/helpers/resume`, {
       method: "POST",

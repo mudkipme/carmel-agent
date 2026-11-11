@@ -1,6 +1,5 @@
-import { getConnInfo } from "@hono/node-server/conninfo";
 import { eq } from "drizzle-orm";
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import {
   clearAuthSession,
   createAuthSession,
@@ -16,6 +15,7 @@ import { id, now } from "../db/seed.ts";
 import { serializeUser } from "../serializers.ts";
 import { readBootstrapPayload } from "../services/bootstrap.ts";
 import { jsonValidator } from "../validation.ts";
+import { connectionIp } from "../security.ts";
 import {
   accountUpdateRequestSchema,
   loginRequestSchema,
@@ -27,6 +27,8 @@ const passwordLoginDisabled = { error: "Password sign-in is disabled on this ser
 
 const maxLoginFailures = 5;
 const loginFailureWindowMs = 15 * 60 * 1000;
+/** Bounds the map when an attacker sprays usernames that never log in successfully. */
+const maxTrackedLoginFailures = 10_000;
 const loginFailures = new Map<string, { count: number; resetAt: number }>();
 
 export function createAuthRoutes() {
@@ -150,43 +152,8 @@ export function createAuthRoutes() {
   return route;
 }
 
-function loginAttemptKey(c: Context, username: string) {
-  return `${clientIp(c)}:${username.toLowerCase()}`;
-}
-
-// Use the TCP source address (which the client cannot spoof). `X-Forwarded-For`
-// is only honoured when the connection actually comes from a proxy listed in
-// CARMEL_TRUSTED_PROXY, so a direct attacker setting the header is ignored.
-function clientIp(c: Context) {
-  const socketIp = socketAddress(c);
-  if (socketIp && isTrustedProxy(socketIp)) {
-    const forwarded = normalizeIp(c.req.header("x-forwarded-for")?.split(",")[0]);
-    if (forwarded) return forwarded;
-  }
-  return socketIp ?? "unknown";
-}
-
-function socketAddress(c: Context) {
-  try {
-    return normalizeIp(getConnInfo(c).remote.address);
-  } catch {
-    return undefined;
-  }
-}
-
-function isTrustedProxy(ip: string) {
-  return (process.env.CARMEL_TRUSTED_PROXY ?? "")
-    .split(",")
-    .map((value) => normalizeIp(value))
-    .some((value) => value === ip);
-}
-
-// Lower-cases and unwraps IPv4-mapped IPv6 addresses (::ffff:192.168.1.3) so
-// configured IPs match what the socket reports on dual-stack listeners.
-function normalizeIp(value: string | undefined | null) {
-  const trimmed = value?.trim().toLowerCase();
-  if (!trimmed) return undefined;
-  return trimmed.startsWith("::ffff:") ? trimmed.slice("::ffff:".length) : trimmed;
+function loginAttemptKey(c: Parameters<typeof connectionIp>[0], username: string) {
+  return `${connectionIp(c)}:${username.toLowerCase()}`;
 }
 
 function isLoginRateLimited(key: string, timestamp = Date.now()) {
@@ -200,10 +167,29 @@ function isLoginRateLimited(key: string, timestamp = Date.now()) {
 }
 
 function recordFailedLogin(key: string, timestamp = Date.now()) {
+  if (loginFailures.size >= maxTrackedLoginFailures) pruneLoginFailures(timestamp);
   const current = loginFailures.get(key);
   if (!current || current.resetAt <= timestamp) {
     loginFailures.set(key, { count: 1, resetAt: timestamp + loginFailureWindowMs });
     return;
   }
   loginFailures.set(key, { ...current, count: current.count + 1 });
+}
+
+/**
+ * Drop expired entries, then the oldest ones if the map is still full.
+ *
+ * Only failed logins add entries, and a successful login for the same key
+ * removes one, so without this a spray of distinct usernames would grow the map
+ * for the lifetime of the process.
+ */
+function pruneLoginFailures(timestamp: number) {
+  for (const [key, entry] of loginFailures) {
+    if (entry.resetAt <= timestamp) loginFailures.delete(key);
+  }
+  while (loginFailures.size >= maxTrackedLoginFailures) {
+    const oldest = loginFailures.keys().next().value;
+    if (oldest === undefined) return;
+    loginFailures.delete(oldest);
+  }
 }

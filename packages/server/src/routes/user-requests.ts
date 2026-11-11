@@ -102,7 +102,7 @@ async function writableRequest(userId: string, sessionId: string, requestId: str
 async function respond(
   c: {
     header: (name: string, value: string) => void;
-    json: (body: unknown, status?: 200 | 400 | 403 | 404 | 409 | 503) => Response;
+    json: (body: unknown, status?: 200 | 400 | 403 | 404 | 409 | 500 | 503) => Response;
   },
   action: () => unknown,
 ) {
@@ -111,7 +111,9 @@ async function respond(
     return c.json(await action());
   } catch (error) {
     if (error instanceof AgentSecretError) return c.json({ error: error.message }, error.status);
-    // No unknown exception or validation payload from this boundary is logged/serialized.
-    return c.json({ error: "Unable to process this request." }, 503);
+    // Never serialize the exception, but do not disguise a bug or database
+    // failure as an unavailable service with no log line either.
+    console.error("Unable to handle user request:", error);
+    return c.json({ error: "Internal server error." }, 500);
   }
 }

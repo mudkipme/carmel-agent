@@ -50,6 +50,13 @@ export function useModelSelection(options: {
     }
   };
 
-  const setThinkingLevel = (level: ThinkingLevel) => agentRef.current?.setThinkingLevel(level);
+  const setThinkingLevel = (level: ThinkingLevel) => {
+    agentRef.current?.setThinkingLevel(level);
+    // Persist it too: the next connection snapshot reads the stored level and
+    // would otherwise silently revert the choice.
+    void updateSession(session.id, { thinkingLevel: level }).catch((error: unknown) =>
+      showError(i18n._("Unable to change thinking level"), error),
+    );
+  };
   return { selectModel, setThinkingLevel };
 }

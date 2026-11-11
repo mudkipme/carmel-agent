@@ -1,5 +1,4 @@
 import { useLingui } from "@lingui/react";
-import { i18n } from "@lingui/core";
 import { Trans } from "@lingui/react/macro";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
@@ -104,6 +103,29 @@ export const ChatMessages = memo(function ChatMessages({
       ? [...messages, streamingMessage]
       : messages;
 
+  // Stable per-message keys: identity, role, and timestamp, with an occurrence
+  // counted from the end so prepending an older page leaves every existing key
+  // unchanged. Index-based keys remounted the whole transcript on "load older".
+  const messageKeys = useMemo(() => {
+    const list =
+      streamingMessage && streamingMessage.role !== "toolResult"
+        ? [...messages, streamingMessage]
+        : messages;
+    const seen = new Map<string, number>();
+    const keys = new Map<AgentMessage, string>();
+    for (let index = list.length - 1; index >= 0; index -= 1) {
+      const message = list[index]!;
+      const base = `${message.role}:${message.timestamp ?? "none"}`;
+      const occurrence = seen.get(base) ?? 0;
+      seen.set(base, occurrence + 1);
+      keys.set(message, `${base}:${occurrence}`);
+    }
+    return keys;
+  }, [messages, streamingMessage]);
+
+  const messageKey = (message: AgentMessage, index: number) =>
+    messageKeys.get(message) ?? `${message.role}:${message.timestamp ?? index}`;
+
   const renderMessage = (
     message: AgentMessage,
     index: number,
@@ -113,7 +135,7 @@ export const ChatMessages = memo(function ChatMessages({
     const streaming = isStreaming && message === streamingMessage;
     return (
       <MessageItem
-        key={`${message.role}:${message.timestamp ?? index}:${index}`}
+        key={messageKey(message, index)}
         message={message}
         toolResultsById={toolResultsById}
         pendingToolCalls={pendingToolCalls}
@@ -158,12 +180,14 @@ export const ChatMessages = memo(function ChatMessages({
     <div className="flex min-w-0 flex-col gap-5">
       {segments.map((segment, segmentIndex) =>
         segment.kind === "message" ? (
-          <Fragment key={`message:${segment.index}`}>
+          <Fragment key={`message:${messageKey(segment.message, segment.index)}`}>
             {renderMessage(segment.message, segment.index)}
             {renderActivity(segmentIndex)}
           </Fragment>
         ) : (
-          <Fragment key={`run:${segment.messages[0]!.index}`}>
+          <Fragment
+            key={`run:${messageKey(segment.messages[0]!.message, segment.messages[0]!.index)}`}
+          >
             {renderActivity(segmentIndex)}
             <CollapsedRun
               messages={segment.messages}
@@ -402,6 +426,7 @@ const MessageItem = memo(function MessageItem({
   onRetryMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
 }) {
+  const { i18n } = useLingui();
   if (message.role === "homeNotice") {
     const reply = collaborationReply(message);
     if (reply) return <CollaborationReplyCard reply={reply} />;

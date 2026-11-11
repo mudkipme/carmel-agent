@@ -399,6 +399,12 @@ function contentDisposition(name: string) {
  */
 function agentFileContext(readVisibleAgent: ReadVisibleAgent) {
   return async (c: Context<AgentFilesEnv>, next: Next) => {
+    // Both the exact and wildcard registrations can match one request; run the
+    // lookup and cleanup once.
+    if (c.get("agentEnv")) {
+      await next();
+      return;
+    }
     const agentId = c.req.param("id");
     const agent = agentId ? readVisibleAgent(c.get("user").id, agentId) : undefined;
     if (!agent) return c.json({ error: "Agent not found." }, 404);

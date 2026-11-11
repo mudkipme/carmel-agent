@@ -1,3 +1,4 @@
+import { i18n as globalI18n } from "@lingui/core";
 import { useLingui } from "@lingui/react";
 import { useEffect, useState } from "react";
 import {
@@ -49,6 +50,8 @@ export function useModelManagement(modelRefs: ModelRef[], providerConfigs: Provi
     }
   };
 
+  // The provider follows the selected config; i18n only formats an error
+  // string and must not trigger a refetch when the language changes.
   useEffect(() => {
     if (!selectedProviderConfigRecordId) return;
     let cancelled = false;
@@ -64,14 +67,14 @@ export function useModelManagement(modelRefs: ModelRef[], providerConfigs: Provi
       (error: unknown) => {
         if (cancelled) return;
         setProviderModels([]);
-        setProviderModelsError(errorMessage(error, i18n._("Unable to load provider models")));
+        setProviderModelsError(errorMessage(error, globalI18n._("Unable to load provider models")));
         setLoadingProviderModels(false);
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [selectedProviderConfigRecordId, provider, i18n]);
+  }, [selectedProviderConfigRecordId]);
 
   const selectProviderConfig = (id: string) => {
     setProviderConfigId(id);

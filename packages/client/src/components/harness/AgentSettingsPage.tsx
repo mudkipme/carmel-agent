@@ -250,6 +250,7 @@ export function AgentSettingsPage() {
           ) : null}
           {activeSection === "templates" ? (
             <AgentTemplatesSettings
+              key={agent.id}
               templates={draft.promptTemplates}
               onChange={(promptTemplates) => updateDraft({ promptTemplates })}
             />
@@ -264,7 +265,7 @@ export function AgentSettingsPage() {
             />
           ) : null}
           {activeSection === "secrets" ? (
-            <AgentSecretsSettings agentId={agent.id} shared={draft.shared} />
+            <AgentSecretsSettings key={agent.id} agentId={agent.id} shared={draft.shared} />
           ) : null}
           {activeSection === "knowledge" ? (
             <AgentKnowledgeSettings key={agent.id} agentId={agent.id} />
@@ -277,6 +278,7 @@ export function AgentSettingsPage() {
           ) : null}
           {activeSection === "mcp" ? (
             <AgentMcpSettings
+              key={agent.id}
               agentId={agent.id}
               servers={draft.mcpServers ?? []}
               permissions={draft.permissions}

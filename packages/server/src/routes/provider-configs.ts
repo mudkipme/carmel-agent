@@ -94,7 +94,9 @@ export function createProviderConfigRoutes() {
     },
   );
 
-  route.get("/provider-configs/:id/models", requireAdmin, async (c) => {
+  // Any signed-in user may add model entries, so listing a provider's models
+  // is not admin-only. This response contains no credentials.
+  route.get("/provider-configs/:id/models", async (c) => {
     const providerConfig = db
       .select()
       .from(providerConfigs)

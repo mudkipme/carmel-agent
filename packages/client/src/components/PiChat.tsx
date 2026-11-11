@@ -100,7 +100,8 @@ export function PiChat({
       home.lastReadAt < home.activityAt &&
       observedAt >= home.activityAt
     )
-      void api.readHome(agentConfig.id, observedAt);
+      // Marking Home read is best-effort; never surface it as an unhandled rejection.
+      void api.readHome(agentConfig.id, observedAt).catch(() => undefined);
   }, [
     agentConfig.id,
     atBottom,
@@ -451,11 +452,11 @@ export function PiChat({
       <MessageEditDialog
         value={mutations.editingMessage}
         onChange={mutations.setEditingMessage}
-        onSave={async (edit, submit, removals) => {
-          if (edit.kind === "assistant")
-            await mutations.saveAssistantMessage(edit.message, edit.draft);
-          else await mutations.saveUserMessage(edit.message, edit.draft, submit, removals);
-        }}
+        onSave={async (edit, submit, removals) =>
+          edit.kind === "assistant"
+            ? mutations.saveAssistantMessage(edit.message, edit.draft)
+            : mutations.saveUserMessage(edit.message, edit.draft, submit, removals)
+        }
       />
     </WorkspaceFileLinkAgentContext>
   );

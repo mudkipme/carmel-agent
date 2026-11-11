@@ -13,6 +13,9 @@ import { ChatMessages } from "@/components/chat/ChatMessages";
 import { MarkdownContent } from "@/components/chat/MarkdownContent";
 import { ResourceError, ResourceLoading } from "@/components/harness/ResourceFeedback";
 
+/** A stable empty set, so ChatMessages' memo is not defeated on every render. */
+const NO_PENDING_TOOL_CALLS: ReadonlySet<string> = new Set();
+
 const active = (status: string) => ["working", "sleeping", "reporting"].includes(status);
 
 export function TaskSubtasks({ sessionId }: { sessionId: string }) {
@@ -175,7 +178,7 @@ function SubtaskDetail({
       ) : null}
       <ChatMessages
         messages={detail.session.messages}
-        pendingToolCalls={new Set()}
+        pendingToolCalls={NO_PENDING_TOOL_CALLS}
         isStreaming={running}
       />
     </>

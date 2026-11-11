@@ -52,7 +52,8 @@ export function AgentMcpSettings({
   const [values, setValues] = useState("{}");
   const [tools, setTools] = useState("");
   const [allTools, setAllTools] = useState(true);
-  const [timeoutMs, setTimeoutMs] = useState(60_000);
+  // Kept as text so clearing the field does not snap to 0 mid-edit.
+  const [timeoutSeconds, setTimeoutSeconds] = useState("60");
   const [error, setError] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, { message: string; error: boolean }>>({});
@@ -66,7 +67,8 @@ export function AgentMcpSettings({
     setValues("{}");
     setTools("");
     setAllTools(true);
-    setTimeoutMs(60_000);
+    setTimeoutSeconds("60");
+    setTransport("http");
     setError(null);
   };
   const edit = (server: AgentMcpServer) => {
@@ -79,15 +81,18 @@ export function AgentMcpSettings({
     setValues(JSON.stringify(server.transport === "http" ? server.headers : server.env, null, 2));
     setTools(server.tools?.join("\n") ?? "");
     setAllTools(server.tools === undefined);
-    setTimeoutMs(server.timeoutMs);
+    setTimeoutSeconds(String(server.timeoutMs / 1000));
     setError(null);
   };
   const save = () => {
     try {
+      const timeout = Number(timeoutSeconds);
+      if (!timeoutSeconds.trim() || !Number.isFinite(timeout) || timeout <= 0)
+        throw new Error(i18n._("Request timeout must be a positive number of seconds."));
       const server = agentMcpServerSchema.parse({
         id: id.trim(),
         transport,
-        timeoutMs,
+        timeoutMs: Math.round(timeout * 1000),
         enabled: servers.find((entry) => entry.id === editing)?.enabled ?? true,
         tools: allTools
           ? undefined
@@ -351,8 +356,8 @@ export function AgentMcpSettings({
               type="number"
               min={1}
               max={300}
-              value={timeoutMs / 1000}
-              onChange={(event) => setTimeoutMs(Number(event.target.value) * 1000)}
+              value={timeoutSeconds}
+              onChange={(event) => setTimeoutSeconds(event.target.value)}
             />
           </Field>
           {error ? (

@@ -43,7 +43,9 @@ const running = new Set<string>();
 export function startTaskScheduler() {
   if (timer) return;
   markInterruptedTaskRuns();
-  timer = setInterval(() => void tick(), POLL_INTERVAL_MS);
+  // The poll must not wait for a fired run to finish: one long run would stop
+  // every other due task from being scheduled until it ended.
+  timer = setInterval(() => void tick(now(), { waitForRuns: false }), POLL_INTERVAL_MS);
   timer.unref?.();
 }
 
@@ -53,12 +55,14 @@ export function stopTaskScheduler() {
   timer = undefined;
 }
 
-/** Exported for tests. */
-export async function tick(at = now()) {
+/** Exported for tests, which await the runs they start. */
+export async function tick(at = now(), options: { waitForRuns?: boolean } = {}) {
   // Ticks do not overlap. A slow tick would otherwise start a second copy of
   // every task it had not yet reached.
   if (ticking) return;
   ticking = true;
+  // The poll detaches; tests keep the default so they can inspect the outcome.
+  const waitForRuns = options.waitForRuns ?? true;
   try {
     const capacity = maxConcurrent() - running.size;
     if (capacity <= 0) return;
@@ -112,13 +116,19 @@ export async function tick(at = now()) {
           });
           updateTaskAfterRun(task.id, { nextRunAt: plan.nextRunAt, outcome: "missed" });
           break;
-        case "fire":
+        case "fire": {
           running.add(task.id);
-          fired.push(fireTask(task, plan.scheduledFor).finally(() => running.delete(task.id)));
+          const firing = fireTask(task, plan.scheduledFor).finally(() => running.delete(task.id));
+          if (waitForRuns) fired.push(firing);
+          else
+            void firing.catch((error) =>
+              console.warn("Scheduled task failed:", errorMessage(error)),
+            );
           break;
+        }
       }
     }
-    await Promise.allSettled(fired);
+    if (waitForRuns) await Promise.allSettled(fired);
   } catch (error) {
     // A poll loop that throws stops polling. Nothing here is worth that.
     console.warn("Task scheduler tick failed:", errorMessage(error));

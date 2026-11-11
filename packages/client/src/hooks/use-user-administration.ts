@@ -1,3 +1,4 @@
+import { i18n as globalI18n } from "@lingui/core";
 import { useLingui } from "@lingui/react";
 import { useEffect, useState } from "react";
 import type { User, UserRole } from "@carmel-agent/shared";
@@ -25,13 +26,15 @@ export function useUserAdministration() {
         if (!cancelled) setUsers(list);
       },
       (error: unknown) => {
-        if (!cancelled) setLoadError(errorMessage(error, i18n._("Unable to load users")));
+        if (!cancelled) setLoadError(errorMessage(error, globalI18n._("Unable to load users")));
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [i18n]);
+    // i18n only formats the failure message; a locale change is not a reason
+    // to re-fetch and discard an in-progress admin form.
+  }, []);
 
   const changeRole = async (userId: string, nextRole: UserRole) => {
     setStatus(null);

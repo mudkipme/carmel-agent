@@ -11,6 +11,9 @@ import { ResourceError, ResourceLoading } from "../ResourceFeedback";
 import { ChatMessages } from "@/components/chat/ChatMessages";
 import { ContextPressureNotice } from "@/components/chat/ContextPressureNotice";
 
+/** A stable empty set, so ChatMessages' memo is not defeated on every render. */
+const NO_PENDING_TOOL_CALLS: ReadonlySet<string> = new Set();
+
 export function TaskConversation({
   agent,
   sessionId,
@@ -19,7 +22,6 @@ export function TaskConversation({
   agent: AgentConfig;
   sessionId: string;
   notes: IssueNote[];
-  running: boolean;
 }) {
   const { i18n } = useLingui();
   const modelRefs = useHarnessStore((s) => s.modelRefs);
@@ -50,7 +52,7 @@ export function TaskConversation({
         agentId={agent.id}
         sessionId={sessionId}
         messages={withNotes(session.messages, notes)}
-        pendingToolCalls={new Set()}
+        pendingToolCalls={NO_PENDING_TOOL_CALLS}
         isStreaming={false}
       />
     );

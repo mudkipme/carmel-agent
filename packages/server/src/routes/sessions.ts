@@ -28,7 +28,7 @@ import { db } from "../db/index.ts";
 import { modelRefs, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { importOpenWebuiSessions } from "../import/open-webui.ts";
-import { serializeSession, serializeSessionMetadata } from "../serializers.ts";
+import { serializeSession, sessionMetadataSerializer } from "../serializers.ts";
 import {
   readUsableModelRef,
   readVisibleAgent,
@@ -85,7 +85,7 @@ export function createSessionRoutes() {
       )
       .orderBy(desc(sessions.archivedAt))
       .all();
-    return c.json(archived.map(serializeSessionMetadata));
+    return c.json(archived.map(sessionMetadataSerializer(currentUserId)));
   });
 
   // Addressed by entry id, which is immutable, so the responses can be cached for good.

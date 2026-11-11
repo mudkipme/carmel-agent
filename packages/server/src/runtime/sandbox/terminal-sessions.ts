@@ -63,6 +63,9 @@ export type TerminalHandle = {
 };
 
 const sessions = new Map<string, TerminalSession>();
+// A reload can reattach before the old socket is gone; both requests must share
+// one shell rather than racing to start two and leaking the loser.
+const starting = new Map<string, Promise<TerminalSession>>();
 let sweeper: ReturnType<typeof setInterval> | undefined;
 
 const sessionKey = (agentId: string, userId: string) => `${agentId}\0${userId}`;
@@ -83,7 +86,15 @@ export async function attachTerminal(
   if (!agent.permissions.bash) throw new Error("Bash permission is disabled for this agent.");
 
   const key = sessionKey(agent.id, userId);
-  const session = sessions.get(key) ?? (await startSession(agent, userId, key, size));
+  let session = sessions.get(key);
+  if (!session) {
+    let pending = starting.get(key);
+    if (!pending) {
+      pending = startSession(agent, userId, key, size).finally(() => starting.delete(key));
+      starting.set(key, pending);
+    }
+    session = await pending;
+  }
 
   session.subscribers.add(subscriber);
   session.detachedAt = undefined;

@@ -1,6 +1,7 @@
 import { useLingui } from "@lingui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { showError } from "@/lib/errors";
 import { highlightCode } from "@/lib/highlight";
 import { copyText } from "./chat-utils";
 
@@ -20,13 +21,19 @@ export function CodeBlock({ code, language, label }: CodeBlockProps) {
     [code, language, plainText],
   );
 
+  // Clear the "Copied" mark from an effect so unmounting cancels the timer.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
   const handleCopy = async () => {
     try {
       await copyText(code);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error("Failed to copy:", error);
+      showError(i18n._("Unable to copy code"), error);
     }
   };
 

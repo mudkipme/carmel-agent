@@ -5,6 +5,7 @@ import {
   homeMemoryPatchSchema,
   homeMemorySettingsSchema,
   homeMemorySearchSchema,
+  indexRefreshSchema,
 } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
 import { jsonValidator } from "../validation.ts";
@@ -56,22 +57,10 @@ export function createHomeMemoryRoutes() {
       ),
     ),
   );
-  route.post(
-    `${path}/refresh`,
-    jsonValidator(
-      z
-        .object({
-          embed: z.boolean().default(false),
-          allowDownloads: z.boolean().default(false),
-          deep: z.boolean().default(false),
-        })
-        .strict(),
-    ),
-    async (c) => {
-      await refreshHomeMemoryIndex(c.get("user").id, c.req.param("agentId"), c.req.valid("json"));
-      return c.json({ ok: true }, 202);
-    },
-  );
+  route.post(`${path}/refresh`, jsonValidator(indexRefreshSchema), async (c) => {
+    await refreshHomeMemoryIndex(c.get("user").id, c.req.param("agentId"), c.req.valid("json"));
+    return c.json({ ok: true }, 202);
+  });
   route.post(path, jsonValidator(homeMemoryInputSchema), (c) =>
     c.json(saveHomeMemory(c.get("user").id, c.req.param("agentId"), c.req.valid("json")), 201),
   );

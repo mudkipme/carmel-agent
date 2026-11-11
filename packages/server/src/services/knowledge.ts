@@ -3,7 +3,6 @@ import { mkdir, open, realpath, rm, stat } from "node:fs/promises";
 import { constants } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import { and, eq } from "drizzle-orm";
-import { z } from "zod";
 import {
   knowledgeSettingsSchema,
   knowledgeSearchSchema,
@@ -25,6 +24,8 @@ import { readVisibleAgent, type AgentRecord } from "./agent-access.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
 import {
   callKnowledgeWorker,
+  knowledgeWorkerSearchSchema as workerSearchSchema,
+  knowledgeWorkerStatusSchema as workerStatusSchema,
   stopKnowledgeWorker,
   type KnowledgeWorkerPlan,
 } from "../runtime/knowledge/worker-client.ts";
@@ -41,24 +42,6 @@ const initialStatus: KnowledgeStatus = {
   backend: null,
   devices: [],
 };
-const workerStatusSchema = z.object({
-  documents: z.number().int().nonnegative(),
-  needsEmbedding: z.number().int().nonnegative(),
-  backend: z.string().nullable(),
-  devices: z.array(z.string()),
-});
-const workerSearchSchema = workerStatusSchema.extend({
-  hits: z
-    .array(
-      z.object({
-        sourceId: z.string(),
-        path: z.string(),
-        hash: z.string(),
-        score: z.number(),
-      }),
-    )
-    .max(40),
-});
 export class KnowledgeError extends Error {
   constructor(
     message: string,

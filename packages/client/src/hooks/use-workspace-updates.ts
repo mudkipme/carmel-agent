@@ -17,7 +17,7 @@ export function useWorkspaceUpdates() {
         if (state.activeUserId !== userId || state.status !== "ready") return;
         if ("error" in result) {
           if (result.error instanceof ApiError && result.error.status === 401)
-            useHarnessStore.setState(resetState({ status: "unauthenticated" }));
+            useHarnessStore.setState((state) => resetState({ status: "unauthenticated" }, state));
           return;
         }
         useHarnessStore.setState(resolveBootstrapState(result.data, state));

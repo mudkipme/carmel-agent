@@ -1,4 +1,5 @@
 import "./env.ts";
+import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,11 +28,20 @@ export function resolveDataPath(path: string) {
 }
 
 export function normalizeDataRelativePath(path: string) {
+  return normalizeDataRelativePathStrict(path) ?? path;
+}
+
+/**
+ * The data-relative form of `path`, or undefined when it points outside the
+ * data directory. Callers that accept a path from a browser must use this, not
+ * the permissive form: an absolute path would otherwise escape the sandbox.
+ */
+export function normalizeDataRelativePathStrict(path: string) {
   const absolutePath = resolveDataPath(path);
   const relativePath = relative(dataDir, absolutePath);
   return relativePath && !relativePath.startsWith("..") && !isAbsolute(relativePath)
     ? relativePath
-    : path;
+    : undefined;
 }
 
 export function ensureDir(path: string) {
@@ -43,5 +53,10 @@ export function ensureParentDir(path: string) {
 }
 
 function safePathSegment(value: string) {
-  return value.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const sanitized = value.replace(/[^a-zA-Z0-9._-]/g, "_");
+  if (sanitized === value) return sanitized;
+  // Distinct ids must not share one directory just because their sanitized
+  // forms collide: `a/b`, `a b`, and `a_b` would otherwise all become `a_b`.
+  const digest = createHash("sha256").update(value).digest("hex").slice(0, 8);
+  return `${sanitized.slice(0, 64)}_${digest}`;
 }

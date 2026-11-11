@@ -4158,6 +4158,75 @@ components:
             updatedAt: { type: number },
           },
       }
+    PromptInput:
+      {
+        type: object,
+        required: [text],
+        properties:
+          {
+            text: { type: string },
+            references:
+              {
+                type: array,
+                maxItems: 10,
+                items:
+                  {
+                    oneOf:
+                      [
+                        {
+                          type: object,
+                          additionalProperties: false,
+                          required: [kind, agentId, label],
+                          properties:
+                            {
+                              kind: { type: string, enum: [agent] },
+                              agentId: { type: string, minLength: 1, maxLength: 256 },
+                              label: { type: string, minLength: 1, maxLength: 500 },
+                            },
+                        },
+                        {
+                          type: object,
+                          additionalProperties: false,
+                          required: [kind, path],
+                          properties:
+                            {
+                              kind: { type: string, enum: [file, folder] },
+                              path: { type: string, minLength: 1, maxLength: 4096 },
+                            },
+                        },
+                        {
+                          type: object,
+                          additionalProperties: false,
+                          required: [kind, sessionId, agentId, label],
+                          properties:
+                            {
+                              kind: { type: string, enum: [session] },
+                              sessionId: { type: string, minLength: 1, maxLength: 256 },
+                              agentId: { type: string, minLength: 1, maxLength: 256 },
+                              label: { type: string, minLength: 1, maxLength: 500 },
+                            },
+                        },
+                      ],
+                  },
+              },
+            images:
+              {
+                type: array,
+                maxItems: 10,
+                items:
+                  {
+                    type: object,
+                    required: [type, data, mimeType],
+                    properties:
+                      {
+                        type: { type: string, enum: [image] },
+                        data: { type: string },
+                        mimeType: { type: string },
+                      },
+                  },
+              },
+          },
+      }
     AgentRunRequest:
       {
         type: object,
@@ -4167,75 +4236,7 @@ components:
             sessionId: { type: string },
             modelRefId: { type: string },
             thinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
-            promptInput:
-              {
-                type: object,
-                required: [text],
-                properties:
-                  {
-                    text: { type: string },
-                    references:
-                      {
-                        type: array,
-                        maxItems: 10,
-                        items:
-                          {
-                            oneOf:
-                              [
-                                {
-                                  type: object,
-                                  additionalProperties: false,
-                                  required: [kind, agentId, label],
-                                  properties:
-                                    {
-                                      kind: { type: string, enum: [agent] },
-                                      agentId: { type: string, minLength: 1, maxLength: 256 },
-                                      label: { type: string, minLength: 1, maxLength: 500 },
-                                    },
-                                },
-                                {
-                                  type: object,
-                                  additionalProperties: false,
-                                  required: [kind, path],
-                                  properties:
-                                    {
-                                      kind: { type: string, enum: [file, folder] },
-                                      path: { type: string, minLength: 1, maxLength: 4096 },
-                                    },
-                                },
-                                {
-                                  type: object,
-                                  additionalProperties: false,
-                                  required: [kind, sessionId, agentId, label],
-                                  properties:
-                                    {
-                                      kind: { type: string, enum: [session] },
-                                      sessionId: { type: string, minLength: 1, maxLength: 256 },
-                                      agentId: { type: string, minLength: 1, maxLength: 256 },
-                                      label: { type: string, minLength: 1, maxLength: 500 },
-                                    },
-                                },
-                              ],
-                          },
-                      },
-                    images:
-                      {
-                        type: array,
-                        maxItems: 10,
-                        items:
-                          {
-                            type: object,
-                            required: [type, data, mimeType],
-                            properties:
-                              {
-                                type: { type: string, enum: [image] },
-                                data: { type: string },
-                                mimeType: { type: string },
-                              },
-                          },
-                      },
-                  },
-              },
+            promptInput: { $ref: "#/components/schemas/PromptInput" },
           },
       }
     SessionDraftRequest:

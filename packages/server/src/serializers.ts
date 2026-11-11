@@ -119,18 +119,42 @@ export function serializeSession(session: Session | SessionWithMessages): Sessio
   };
 }
 
-export function serializeSessionMetadata(
-  session: import("@carmel-agent/shared").SessionMetadataSource,
-): SessionMetadata {
-  return {
-    ...toSessionMetadata(session),
-    ...(db
+/**
+ * Serialize many sessions for one user with a single Home lookup.
+ *
+ * `serializeSessionMetadata` otherwise queries `agent_homes` once per session,
+ * which turns the bootstrap and archived-session lists into N+1 queries.
+ */
+export function sessionMetadataSerializer(userId: string) {
+  const homeSessionIds = new Set(
+    db
       .select({ id: agentHomes.sessionId })
       .from(agentHomes)
-      .where(eq(agentHomes.sessionId, session.id))
-      .get()
-      ? { home: true }
-      : {}),
+      .where(eq(agentHomes.userId, userId))
+      .all()
+      .map((row) => row.id),
+  );
+  return (session: import("@carmel-agent/shared").SessionMetadataSource) =>
+    serializeSessionMetadata(session, homeSessionIds);
+}
+
+export function serializeSessionMetadata(
+  session: import("@carmel-agent/shared").SessionMetadataSource,
+  /** Precomputed set of this user's Home session ids; omit for a single session. */
+  homeSessionIds?: ReadonlySet<string>,
+): SessionMetadata {
+  const isHome = homeSessionIds
+    ? homeSessionIds.has(session.id)
+    : Boolean(
+        db
+          .select({ id: agentHomes.sessionId })
+          .from(agentHomes)
+          .where(eq(agentHomes.sessionId, session.id))
+          .get(),
+      );
+  return {
+    ...toSessionMetadata(session),
+    ...(isHome ? { home: true } : {}),
   };
 }
 

@@ -8,6 +8,7 @@ import {
 } from "@earendil-works/pi-durable";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
+import { errorMessage } from "../errors.ts";
 import { helperHosts, sessions } from "../db/schema.ts";
 import { readVisibleAgent } from "../services/agent-access.ts";
 import { resolveRunModel } from "../services/model-context.ts";
@@ -201,8 +202,15 @@ export async function resumeHelperHost(sessionId: string) {
 export function startHelperHosts() {
   stopped = false;
   timer ??= setInterval(() => {
-    for (const row of db.select().from(helperHosts).all())
-      if (!row.error) void resumeHelperHost(row.sessionId);
+    try {
+      for (const row of db.select().from(helperHosts).all())
+        if (!row.error)
+          void resumeHelperHost(row.sessionId).catch((error) =>
+            console.warn("Helper host resume failed:", errorMessage(error)),
+          );
+    } catch (error) {
+      console.warn("Helper host poll failed:", errorMessage(error));
+    }
   }, 500);
   timer.unref();
 }

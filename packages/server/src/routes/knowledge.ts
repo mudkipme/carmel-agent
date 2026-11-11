@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { z } from "zod";
 import {
+  indexRefreshSchema,
   knowledgeReadSchema,
   knowledgeSearchSchema,
   knowledgeSettingsSchema,
@@ -66,20 +66,10 @@ export function createKnowledgeRoutes() {
   route.post("/agents/:agentId/knowledge/read", jsonValidator(knowledgeReadSchema), async (c) =>
     c.json(await readKnowledge(c.get("user").id, c.req.param("agentId"), c.req.valid("json"))),
   );
-  route.post(
-    "/agents/:agentId/knowledge/refresh",
-    jsonValidator(
-      z.object({
-        embed: z.boolean().default(false),
-        allowDownloads: z.boolean().default(false),
-        deep: z.boolean().default(false),
-      }),
-    ),
-    async (c) => {
-      const { embed, allowDownloads, deep } = c.req.valid("json");
-      await refreshKnowledge(c.get("user").id, c.req.param("agentId"), embed, allowDownloads, deep);
-      return c.json({ ok: true }, 202);
-    },
-  );
+  route.post("/agents/:agentId/knowledge/refresh", jsonValidator(indexRefreshSchema), async (c) => {
+    const { embed, allowDownloads, deep } = c.req.valid("json");
+    await refreshKnowledge(c.get("user").id, c.req.param("agentId"), embed, allowDownloads, deep);
+    return c.json({ ok: true }, 202);
+  });
   return route;
 }

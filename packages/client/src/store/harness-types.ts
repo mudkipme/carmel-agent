@@ -72,7 +72,6 @@ export type HarnessState = {
     options?: EditSessionMessageOptions,
   ) => Promise<Session>;
   connectSession: (sessionId: string) => Promise<SessionConnection>;
-  refreshSession: (sessionId: string) => Promise<Session>;
   forkSession: (sessionId: string, entryId: string) => Promise<Session>;
   deleteSession: (sessionId: string) => Promise<void>;
   archiveSession: (sessionId: string) => Promise<void>;

@@ -13,6 +13,7 @@ import { db } from "../db/index.ts";
 import { sessions } from "../db/schema.ts";
 import { imBindings, imInbox, imIntegrations, imOutbox, imSetups } from "../db/im-schema.ts";
 import { id, now } from "../db/seed.ts";
+import { errorMessage } from "../errors.ts";
 import {
   createImTransport,
   ImProviderError,
@@ -226,9 +227,10 @@ export class ImManager {
     if (this.timer) return;
     this.stopped = false;
     recoverImWork();
-    this.timer = setInterval(() => void this.tick(), 1000);
+    // A rejected tick would be an unhandled rejection and exit the process.
+    this.timer = setInterval(() => this.runTick(), 1000);
     this.timer.unref();
-    void this.tick();
+    this.runTick();
   }
   stop() {
     this.stopped = true;
@@ -252,6 +254,9 @@ export class ImManager {
         this.jobs.delete(pending);
       });
     this.jobs.add(pending);
+  }
+  private runTick() {
+    void this.tick().catch((error) => console.warn("IM manager tick failed:", errorMessage(error)));
   }
   async tick() {
     if (this.ticking || this.stopped) return;

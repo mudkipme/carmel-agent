@@ -99,7 +99,7 @@ Runner `/tmp` is private scratch storage shared with the agent's file tools. It 
 - Keep the container socket available to the service user (for rootless Podman, `loginctl enable-linger <user>` keeps the user socket alive without an active login session).
 - Prefer rootless Podman over a rootful Docker socket.
 - Set `CARMEL_ALLOWED_ORIGINS` if the browser UI is served from a different origin than the API.
-- Set `CARMEL_TRUSTED_PROXY` when a reverse proxy should be trusted for login rate-limit IP detection.
+- Set `CARMEL_TRUSTED_PROXY` to the reverse proxy's address when it should be trusted for forwarded IP and host headers. Without it, a rewritten `Host` is used for same-origin checks and login limits see the proxy's IP.
 - For single sign-on, set `CARMEL_PUBLIC_URL` and the `CARMEL_OIDC_*` variables, and register `<CARMEL_PUBLIC_URL>/api/auth/oidc/callback` with your provider. See [configuration.md](configuration.md#single-sign-on-openid-connect).
 
 ## Image Tags And Releases
@@ -113,7 +113,7 @@ CARMEL_IMAGE=ghcr.io/mudkipme/carmel-agent:v0.1.0
 CARMEL_BASH_IMAGE=ghcr.io/mudkipme/carmel-agent-runner:v0.1.0
 ```
 
-Pull the selected runner explicitly before restarting. Registry images already present on the host are reused, so changing a moving tag requires a pull. Schema initialization supports fresh databases and the current schema; historical schema migrations are not implemented. Restore the backed-up data and key together if a rollback needs an older schema.
+Pull the selected runner explicitly before restarting. Registry images already present on the host are reused, so changing a moving tag requires a pull. Schema initialization applies the bundled migrations, including upgrading databases created before Drizzle. Downgrade migrations are not implemented, so restore the backed-up data and key together if a rollback needs an older schema.
 
 Maintainers: GitHub Actions tests PRs without registry credentials and publishes only pushes to `main` or `v*` tags in `mudkipme/carmel-agent`. Authentication uses `GITHUB_TOKEN` with `packages: write`; no personal registry token is needed. After the first successful publication, set **both GHCR packages to public** in their package settings and verify anonymous pulls. Configure branch protection to require `check`, `browser`, and `containers`.
 
@@ -125,7 +125,7 @@ Forward WebSocket upgrades for `/api/updates`, `/api/browser`, and `/api/termina
 
 If the public browser origin differs from the API origin, add it to `CARMEL_ALLOWED_ORIGINS`.
 
-If you terminate TLS at a reverse proxy, pass the usual `Host` and `X-Forwarded-*` headers. `X-Forwarded-For` is only honored by the login rate limiter when the direct peer is listed in `CARMEL_TRUSTED_PROXY`.
+If you terminate TLS at a reverse proxy, pass the usual `Host` and `X-Forwarded-*` headers. `X-Forwarded-For` and `X-Forwarded-Host` are only honored when the direct peer is listed in `CARMEL_TRUSTED_PROXY`; otherwise the request's own `Host` is used.
 
 ## Manual Image Build
 
