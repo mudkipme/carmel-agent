@@ -35,7 +35,7 @@ export function MessageEditDialog({
     value: MessageEditState,
     submit: boolean,
     removals: UserMessageEditOptions,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
 }) {
   const { i18n } = useLingui();
   const survivingImages = value
@@ -49,8 +49,13 @@ export function MessageEditDialog({
 
   const save = async (submit: boolean) => {
     if (!value) return;
-    onChange(null);
-    await onSave(value, submit, computeImageRemovals(value.images, value.removedKeys));
+    // Keep the dialog (and the typed edit) open unless the server committed it.
+    const saved = await onSave(
+      value,
+      submit,
+      computeImageRemovals(value.images, value.removedKeys),
+    );
+    if (saved) onChange(null);
   };
 
   const removeImage = (key: string) => {

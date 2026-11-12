@@ -23,6 +23,18 @@ export const knowledgeSearchSchema = z.object({
   limit: z.number().int().min(1).max(20).default(8),
 });
 export type KnowledgeSearchInput = z.input<typeof knowledgeSearchSchema>;
+/**
+ * Refresh a qmd index. Knowledge and Home memory run the same worker, so they
+ * share this request shape; keeping it here stops their validation drifting.
+ */
+export const indexRefreshSchema = z
+  .object({
+    embed: z.boolean().default(false),
+    allowDownloads: z.boolean().default(false),
+    deep: z.boolean().default(false),
+  })
+  .strict();
+export type IndexRefreshCommand = z.infer<typeof indexRefreshSchema>;
 export const knowledgeReadSchema = z.object({
   sourceId: z.string().min(1).max(100),
   path: z.string().min(1).max(2000),

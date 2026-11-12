@@ -115,5 +115,7 @@ export function canUserSeeAgent(agent: AgentConfig, userId: string) {
 }
 
 function mergeSessionMetadata(session: Session, metadata: SessionMetadata): Session {
-  return { ...metadata, messages: session.messages, messageEntryIds: session.messageEntryIds };
+  // Keep transcript-only fields (olderCursor, observedAt) that bootstrap does
+  // not carry, or a refresh would silently disable Home read receipts.
+  return { ...session, ...metadata };
 }

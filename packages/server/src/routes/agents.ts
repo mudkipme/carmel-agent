@@ -70,7 +70,7 @@ export function createAgentRoutes() {
       defaultModelRef,
       agent.defaultThinkingLevel ?? "off",
     );
-    const workingDir = resolveAgentWorkingDir(agent, agentId, current);
+    const workingDir = resolveAgentWorkingDir(agent, agentId, current, currentUser.role);
     if (!workingDir) return c.json({ error: "Manual working directory is required." }, 400);
     const timestamp = now();
     db.insert(agents)

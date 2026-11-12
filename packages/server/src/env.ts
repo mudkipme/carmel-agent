@@ -5,11 +5,14 @@ import { fileURLToPath } from "node:url";
 const serverRoot = fileURLToPath(new URL("../", import.meta.url));
 const workspaceRoot = fileURLToPath(new URL("../../../", import.meta.url));
 
+// Highest precedence first: the first file to define a key wins, and a real
+// process environment variable always wins. `.env.local` overrides `.env`, and
+// the server's own files override the workspace's.
 for (const file of [
-  resolve(workspaceRoot, ".env"),
-  resolve(workspaceRoot, ".env.local"),
-  resolve(serverRoot, ".env"),
   resolve(serverRoot, ".env.local"),
+  resolve(serverRoot, ".env"),
+  resolve(workspaceRoot, ".env.local"),
+  resolve(workspaceRoot, ".env"),
 ]) {
   loadEnvFile(file);
 }

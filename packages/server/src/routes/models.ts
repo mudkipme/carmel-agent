@@ -55,7 +55,13 @@ export function createModelRoutes() {
             ? item.providerConfigId === model.providerConfigId
             : item.provider === model.provider && !item.providerConfigId),
       );
-    if (duplicate) return c.json(serializeModelRef(duplicate));
+    if (duplicate) {
+      // The uniqueness indexes are global, but another user's private entry is
+      // not something this caller may see or silently adopt.
+      if (duplicate.ownerUserId === currentUserId || duplicate.shared)
+        return c.json(serializeModelRef(duplicate));
+      return c.json({ error: "That model is already configured by another user." }, 409);
+    }
 
     db.insert(modelRefs)
       .values({

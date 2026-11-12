@@ -13,6 +13,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { api } from "@/lib/api";
+import { showError } from "@/lib/errors";
 import type {
   AgentCommandPayload,
   AgentConfig,
@@ -56,10 +57,13 @@ export function AgentCommandPalette({
       .then((commands) => {
         if (requestSeq.current === seq) setPayload(commands);
       })
+      .catch((error: unknown) => {
+        if (requestSeq.current === seq) showError(i18n._("Unable to load commands"), error);
+      })
       .finally(() => {
         if (requestSeq.current === seq) setLoading(false);
       });
-  }, [agent.id]);
+  }, [agent.id, i18n]);
 
   const setPaletteOpen = useCallback(
     (nextOpen: boolean) => {

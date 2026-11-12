@@ -37,18 +37,29 @@ export function useMessageMutations(
       nextMessages: AgentMessage[],
       commit: () => Promise<Session>,
       options?: { afterCommit?: () => Promise<void>; errorMessage?: string },
-    ) => {
+    ): Promise<boolean> => {
       const previousMessages = activeAgent.getSnapshot().messages;
+      const previousEntryIds = activeAgent.getMessageEntryIds();
       activeAgent.setMessages(nextMessages);
+      let saved: Session;
       try {
-        const saved = await commit();
-        sessionRef.current = saved;
-        activeAgent.setMessages(saved.messages);
+        saved = await commit();
+      } catch (error) {
+        // The commit failed, so nothing was changed on the server: restore both
+        // the messages and the entry ids that address them.
+        activeAgent.setMessages(previousMessages, previousEntryIds);
+        showError(options?.errorMessage ?? i18n._("Unable to update messages"), error);
+        return false;
+      }
+      sessionRef.current = saved;
+      activeAgent.setMessages(saved.messages, saved.messageEntryIds);
+      // Committed already: a failure while continuing must not roll the edit back.
+      try {
         await options?.afterCommit?.();
       } catch (error) {
-        activeAgent.setMessages(previousMessages);
-        showError(options?.errorMessage ?? i18n._("Unable to update messages"), error);
+        showError(i18n._("Unable to continue the conversation"), error);
       }
+      return true;
     },
     [sessionRef, i18n],
   );
@@ -57,7 +68,8 @@ export function useMessageMutations(
     async (message: AgentMessage) => {
       const activeAgent = agentRef.current;
       const snapshot = activeAgent?.getSnapshot();
-      if (!activeAgent || !snapshot || snapshot.isStreaming || !isUserMessage(message)) return;
+      if (!activeAgent || !snapshot || snapshot.isStreaming || !isUserMessage(message))
+        return false;
       const currentMessages = [...snapshot.messages];
       const index = findMessageIndex(currentMessages, message);
       const entryId = index >= 0 ? sessionRef.current.messageEntryIds[index] : undefined;
@@ -91,16 +103,17 @@ export function useMessageMutations(
     ) => {
       const activeAgent = agentRef.current;
       const snapshot = activeAgent?.getSnapshot();
-      if (!activeAgent || !snapshot || snapshot.isStreaming || !isUserMessage(message)) return;
+      if (!activeAgent || !snapshot || snapshot.isStreaming || !isUserMessage(message))
+        return false;
       const currentMessages = [...snapshot.messages];
       const index = findMessageIndex(currentMessages, message);
       const entryId = index >= 0 ? sessionRef.current.messageEntryIds[index] : undefined;
-      if (!entryId) return;
+      if (!entryId) return false;
       const editedMessage = updateUserMessageContent(currentMessages[index]!, content, removals);
       const nextMessages = submit
         ? [...currentMessages.slice(0, index), editedMessage]
         : currentMessages.map((item, itemIndex) => (itemIndex === index ? editedMessage : item));
-      await applyOptimisticMessages(
+      return applyOptimisticMessages(
         activeAgent,
         nextMessages,
         () =>
@@ -123,13 +136,13 @@ export function useMessageMutations(
       const activeAgent = agentRef.current;
       const snapshot = activeAgent?.getSnapshot();
       if (!activeAgent || !snapshot || snapshot.isStreaming || !isEditableAssistantMessage(message))
-        return;
+        return false;
       const currentMessages = [...snapshot.messages];
       const index = findMessageIndex(currentMessages, message);
       const entryId = index >= 0 ? sessionRef.current.messageEntryIds[index] : undefined;
-      if (!entryId) return;
+      if (!entryId) return false;
       const editedMessage = updateAssistantMessageContent(currentMessages[index]!, content);
-      await applyOptimisticMessages(
+      return applyOptimisticMessages(
         activeAgent,
         currentMessages.map((item, itemIndex) => (itemIndex === index ? editedMessage : item)),
         () => editSessionMessage(sessionRef.current.id, entryId, content, { truncate: false }),

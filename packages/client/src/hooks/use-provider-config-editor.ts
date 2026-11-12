@@ -1,5 +1,5 @@
 import { useLingui } from "@lingui/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   defaultBaseUrlForProvider,
   type ModelRef,
@@ -30,6 +30,9 @@ export function useProviderConfigEditor(
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savedTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(savedTimer.current), []);
   const selectedConfig = providerConfigs.find((item) => item.id === selectedConfigId);
   const oauthProvider = oauthProviders.find((item) => item.id === provider);
   const oauth = useProviderOAuth(selectedConfig);
@@ -67,20 +70,31 @@ export function useProviderConfigEditor(
   };
 
   const save = async () => {
-    await upsertProviderConfig({
-      id: selectedConfig?.id ?? createClientId("provider"),
-      userId: activeUserId,
-      label: label.trim() || selectedConfig?.label || i18n._("{provider} config", { provider }),
-      provider,
-      authType,
-      apiKey: authType === "api_key" ? apiKey || selectedConfig?.apiKey : undefined,
-      baseUrl: baseUrl.trim() || defaultBaseUrlForProvider(provider) || undefined,
-      createdAt: selectedConfig?.createdAt ?? Date.now(),
-      updatedAt: Date.now(),
-    });
-    resetEditor();
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1800);
+    // Guard against a double click creating two configs, and report a failed
+    // save instead of leaving it as an unhandled rejection.
+    if (saving) return;
+    setSaving(true);
+    try {
+      await upsertProviderConfig({
+        id: selectedConfig?.id ?? createClientId("provider"),
+        userId: activeUserId,
+        label: label.trim() || selectedConfig?.label || i18n._("{provider} config", { provider }),
+        provider,
+        authType,
+        apiKey: authType === "api_key" ? apiKey || selectedConfig?.apiKey : undefined,
+        baseUrl: baseUrl.trim() || defaultBaseUrlForProvider(provider) || undefined,
+        createdAt: selectedConfig?.createdAt ?? Date.now(),
+        updatedAt: Date.now(),
+      });
+      resetEditor();
+      setSaved(true);
+      window.clearTimeout(savedTimer.current);
+      savedTimer.current = window.setTimeout(() => setSaved(false), 1800);
+    } catch (error) {
+      showError(i18n._("Unable to save provider config"), error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const remove = async (config: ProviderConfig) => {
@@ -116,6 +130,7 @@ export function useProviderConfigEditor(
     apiKey,
     setApiKey,
     saved,
+    saving,
     oauthProvider,
     oauth,
     selectConfig,

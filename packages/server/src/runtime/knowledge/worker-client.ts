@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { StringDecoder } from "node:string_decoder";
 import type { Duplex } from "node:stream";
+import { z } from "zod";
 import type { KnowledgeSettings } from "@carmel-agent/shared";
 import { knowledgeLock } from "./queue.ts";
 import { dataDir } from "../../paths.ts";
@@ -29,6 +30,33 @@ export type KnowledgeWorkerPlan = {
   sources: Array<{ id: string; hostPath: string; description: string }>;
   model?: { hostPath: string; containerPath: string; revision?: string };
 };
+/**
+ * The `qmd` worker's response shape, parsed at the boundary.
+ *
+ * Knowledge and Home memory run the same worker over different collections, so
+ * the schema belongs here rather than being copied into both services.
+ */
+export const knowledgeWorkerStatusSchema = z.object({
+  documents: z.number().int().nonnegative(),
+  needsEmbedding: z.number().int().nonnegative(),
+  backend: z.string().nullable(),
+  devices: z.array(z.string()),
+});
+export const knowledgeWorkerSearchSchema = knowledgeWorkerStatusSchema.extend({
+  hits: z
+    .array(
+      z.object({
+        sourceId: z.string(),
+        path: z.string(),
+        hash: z.string(),
+        score: z.number(),
+        match: z
+          .object({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative() })
+          .optional(),
+      }),
+    )
+    .max(40),
+});
 const code = readFileSync(new URL("./worker.mjs", import.meta.url), "utf8");
 const label = "carmel.knowledge";
 const workers = new Map<string, { signature: string; client: WorkerClient; lastUsed: number }>();

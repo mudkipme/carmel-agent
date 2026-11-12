@@ -14,7 +14,6 @@ type SessionActions = Pick<
   | "truncateSessionMessages"
   | "editSessionMessage"
   | "connectSession"
-  | "refreshSession"
   | "forkSession"
   | "deleteSession"
   | "archiveSession"
@@ -68,11 +67,6 @@ export function createSessionSlice(set: SetState): SessionActions {
       const connection = await readSessionConnection(sessionId);
       set((state) => cacheSession(state, connection.session));
       return connection;
-    },
-    refreshSession: async (sessionId) => {
-      const session = (await readSessionConnection(sessionId)).session;
-      set((state) => cacheSession(state, session));
-      return session;
     },
     forkSession: async (sessionId, entryId) => {
       const session = await api.forkSession(sessionId, entryId);

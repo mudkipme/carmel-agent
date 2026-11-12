@@ -79,6 +79,17 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
   const sourceId = params.get("source"),
     path = params.get("path");
   const fromLine = Math.max(1, Number(params.get("line")) || 1);
+  // Merge instead of replacing, so opening a document keeps unrelated params
+  // (for example the Home `from` marker) intact.
+  const updateParams = (patch: Record<string, string | undefined>) =>
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === undefined) next.delete(key);
+        else next.set(key, value);
+      }
+      return next;
+    });
   const doc = useRemoteResource({
     key: `knowledge-doc:${agent.id}:${sourceId}:${path}:${fromLine}`,
     topics: ["knowledge"],
@@ -299,16 +310,21 @@ export function AgentKnowledgePage({ agent }: { agent: AgentConfig }) {
                   ) : null}
                 </CardContent>
                 <CardFooter className="gap-2">
-                  <Button variant="outline" onClick={() => setParams({})}>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      updateParams({ source: undefined, path: undefined, line: undefined })
+                    }
+                  >
                     <Trans>Close source</Trans>
                   </Button>
                   {doc.data && fromLine + 100 <= doc.data.totalLines ? (
                     <Button
                       variant="outline"
                       onClick={() =>
-                        setParams({
-                          source: sourceId,
-                          path,
+                        updateParams({
+                          source: sourceId ?? undefined,
+                          path: path ?? undefined,
                           line: String(fromLine + 100),
                         })
                       }

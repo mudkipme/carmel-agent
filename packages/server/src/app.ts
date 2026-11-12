@@ -4,13 +4,14 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { requireAuth, type AuthVariables } from "./auth.ts";
 import { createApiRoutes } from "./routes/index.ts";
 import { createOpenAIRoutes } from "./routes/openai.ts";
-import { allowedCorsOrigin, rejectCrossOriginMutations } from "./security.ts";
+import { allowedCorsOrigin, rejectCrossOriginMutations, requestHost } from "./security.ts";
 import { isValidationError, validationErrorMessage } from "./validation.ts";
 
 export function createApp() {
@@ -18,6 +19,15 @@ export function createApp() {
 
   app.onError((error, c) => {
     if (isValidationError(error)) return c.json({ error: validationErrorMessage(error) }, 400);
+    // Hono uses HTTPException for client mistakes such as a malformed JSON body;
+    // turning those into 500s hides the real cause and logs noise.
+    if (error instanceof HTTPException) {
+      if (error.status >= 500) {
+        console.error(error);
+        return c.json({ error: "Internal server error." }, 500);
+      }
+      return c.json({ error: error.message || "Request failed." }, error.status);
+    }
     console.error(error);
     return c.json({ error: "Internal server error." }, 500);
   });
@@ -59,8 +69,7 @@ export function createApp() {
   app.use(
     "/api/*",
     cors({
-      origin: (origin, c) =>
-        allowedCorsOrigin(origin, c.req.header("x-forwarded-host") ?? c.req.header("host")),
+      origin: (origin, c) => allowedCorsOrigin(origin, requestHost(c)),
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       credentials: true,
     }),

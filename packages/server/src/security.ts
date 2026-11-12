@@ -1,10 +1,13 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import type { MiddlewareHandler } from "hono";
+import { getConnInfo } from "@hono/node-server/conninfo";
+import type { Context, MiddlewareHandler } from "hono";
 
 const encryptedPrefix = "enc:v1:";
 const encryptedJsonKey = "__carmel_encrypted_v1";
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
-const defaultAllowedBrowserOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+// The Vite dev server is a trusted credential-bearing origin only in development.
+const defaultAllowedBrowserOrigins =
+  process.env.NODE_ENV === "production" ? [] : ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 export function protectSecret(value: string | null | undefined) {
   if (!value) return value ?? null;
@@ -65,16 +68,59 @@ export const rejectCrossOriginMutations: MiddlewareHandler = async (c, next) => 
   }
 
   const origin = c.req.header("origin");
-  if (
-    !origin ||
-    isAllowedBrowserOrigin(origin, c.req.header("x-forwarded-host") ?? c.req.header("host"))
-  ) {
+  if (!origin || isAllowedBrowserOrigin(origin, requestHost(c))) {
     await next();
     return;
   }
 
   return c.json({ error: "Cross-origin API requests are not allowed." }, 403);
 };
+
+/**
+ * The host the browser used, for the same-origin check.
+ *
+ * `X-Forwarded-Host` is client-controlled, so it is only honoured when the TCP
+ * peer is a configured trusted proxy. Otherwise a foreign `Origin` could name
+ * itself in the header and be treated as same-origin.
+ */
+export function requestHost(c: Context) {
+  return trustedForwardedHeader(c, "x-forwarded-host") ?? c.req.header("host");
+}
+
+/** The client IP, honouring `X-Forwarded-For` only from a trusted proxy. */
+export function connectionIp(c: Context) {
+  const forwarded = trustedForwardedHeader(c, "x-forwarded-for");
+  return (forwarded ? normalizeIp(forwarded.split(",")[0]) : undefined) ?? socketIp(c) ?? "unknown";
+}
+
+function trustedForwardedHeader(c: Context, header: string) {
+  const peer = socketIp(c);
+  if (!peer || !isTrustedProxy(peer)) return undefined;
+  return c.req.header(header);
+}
+
+function socketIp(c: Context) {
+  try {
+    return normalizeIp(getConnInfo(c).remote.address);
+  } catch {
+    // No raw Node socket (tests, in-process requests): fall back to peer headers.
+    return undefined;
+  }
+}
+
+function isTrustedProxy(ip: string) {
+  return (process.env.CARMEL_TRUSTED_PROXY ?? "")
+    .split(",")
+    .map((value) => normalizeIp(value))
+    .some((value) => value === ip);
+}
+
+/** Lower-cases and unwraps IPv4-mapped IPv6 addresses so configured IPs match. */
+function normalizeIp(value: string | undefined | null) {
+  const trimmed = value?.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  return trimmed.startsWith("::ffff:") ? trimmed.slice("::ffff:".length) : trimmed;
+}
 
 export function allowedCorsOrigin(origin: string, requestHost?: string) {
   const originUrl = parseUrl(origin);

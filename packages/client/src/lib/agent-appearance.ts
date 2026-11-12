@@ -47,5 +47,5 @@ export function agentColor(agent?: Pick<AgentConfig, "id" | "color">): AgentColo
   if (agent?.color) return agent.color;
   let hash = 0;
   for (const char of agent?.id ?? "") hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return agentColorOptions[hash % 5].value;
+  return agentColorOptions[hash % agentColorOptions.length]!.value;
 }

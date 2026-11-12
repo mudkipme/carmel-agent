@@ -54,7 +54,16 @@ export function AgentSchedulesPage({ agent }: { agent: AgentConfig }) {
   const [busy, setBusy] = useState(false);
   const [params, setParams] = useSearchParams();
   const historyTaskId = params.get("task") ?? undefined;
-  const setHistoryTaskId = (id?: string) => setParams(id ? { task: id } : {}, { replace: true });
+  const setHistoryTaskId = (id?: string) =>
+    setParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        if (id) next.set("task", id);
+        else next.delete("task");
+        return next;
+      },
+      { replace: true },
+    );
   const [historyRevision, setHistoryRevision] = useState(0);
   const draftKey = draftStorageKey(userId, agent.id, "task", editor?.id ?? "new");
   const act = async (action: () => Promise<unknown>, title: string) => {

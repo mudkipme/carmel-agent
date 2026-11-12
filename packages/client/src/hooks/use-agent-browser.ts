@@ -51,7 +51,13 @@ export function useAgentBrowser(agentId: string) {
       if (socket.current?.readyState !== WebSocket.OPEN)
         return Promise.reject(new Error(i18n._("Browser disconnected.")));
       if (text.length > browserClipboardLimit)
-        return Promise.reject(new Error(i18n._("Paste at most 16,384 characters at a time.")));
+        return Promise.reject(
+          new Error(
+            i18n._("Paste at most {limit} characters at a time.", {
+              limit: browserClipboardLimit.toLocaleString(i18n.locale),
+            }),
+          ),
+        );
       const requestId = crypto.randomUUID();
       return new Promise<string>((resolve, reject) => {
         const timer = setTimeout(() => {
@@ -148,8 +154,13 @@ export function useAgentBrowser(agentId: string) {
         setConnected(false);
         setHasControl(false);
         setFrame(undefined);
-        setError((previous) => previous ?? i18n._("Browser disconnected. Reconnecting…"));
-        if (++failures <= 3) retry = setTimeout(connect, Math.min(15000, failures * 2000));
+        if (++failures <= 3) {
+          setError((previous) => previous ?? i18n._("Browser disconnected. Reconnecting…"));
+          retry = setTimeout(connect, Math.min(15000, failures * 2000));
+        } else {
+          // Stop claiming to reconnect once the automatic retries are exhausted.
+          setError(i18n._("Browser disconnected. Reconnect when you are ready."));
+        }
       };
       ws.onerror = () => {
         /* onclose owns recovery. */

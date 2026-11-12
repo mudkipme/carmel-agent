@@ -1,4 +1,4 @@
-import { statusLabel } from "@/lib/labels";
+import { platformLabel, statusLabel } from "@/lib/labels";
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
 import { useState, type FormEvent } from "react";
@@ -17,12 +17,6 @@ import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
 import { confirmAction } from "@/lib/action-dialogs";
 import { errorMessage, showError } from "@/lib/errors";
-
-const names: Record<ImPlatform, string> = {
-  telegram: "Telegram",
-  feishu: /*i18n*/ "Feishu",
-  lark: "Lark",
-};
 
 export function AgentIntegrationsSettings({ agentId }: { agentId: string }) {
   const { i18n } = useLingui();
@@ -129,7 +123,7 @@ function PlatformSettings({
     if (
       !integration ||
       !(await confirmAction({
-        title: i18n._("Disconnect {value}?", { value: i18n._(names[platform]) }),
+        title: i18n._("Disconnect {value}?", { value: platformLabel(platform) }),
         description: i18n._(
           "Removes this connection and its credentials. Your Carmel conversations are kept.",
         ),
@@ -141,11 +135,11 @@ function PlatformSettings({
   };
   return (
     <section
-      aria-label={i18n._("{platform} integration", { platform: i18n._(names[platform]) })}
+      aria-label={i18n._("{platform} integration", { platform: platformLabel(platform) })}
       className="flex flex-col gap-4 border-b pb-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">{i18n._(names[platform])}</h3>
+        <h3 className="text-sm font-medium">{platformLabel(platform)}</h3>
         <Badge variant={integration?.status === "error" ? "destructive" : "secondary"}>
           {integration ? statusLabel(integration.status) : i18n._("Not connected")}
         </Badge>
@@ -492,7 +486,7 @@ function DeliveryHistory({ deliveries }: { deliveries: ImDelivery[] }) {
           >
             <div>
               <p>
-                {i18n._(names[delivery.platform])} ·{" "}
+                {platformLabel(delivery.platform)} ·{" "}
                 {new Date(delivery.createdAt).toLocaleString(i18n.locale)}
               </p>
               {delivery.error ? (

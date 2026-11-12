@@ -19,6 +19,8 @@ type OAuthFlow = OAuthLoginFlowState & {
 
 const flows = new Map<string, OAuthFlow>();
 const flowTtlMs = 15 * 60 * 1000;
+/** How long a finished flow stays readable so the UI can show its outcome. */
+const flowRetentionMs = 5 * 60 * 1000;
 
 export function listOAuthProviders(): OAuthProviderSummary[] {
   return builtinProviders().flatMap((provider) =>
@@ -53,6 +55,7 @@ export async function startOAuthLoginFlow(userId: string, providerConfig: Provid
     current.pendingInput?.reject(new Error("OAuth login expired."));
     current.status = "error";
     current.error = "OAuth login expired.";
+    scheduleFlowCleanup(current);
   }, flowTtlMs).unref?.();
 
   void runOAuthLoginFlow(flow, providerConfig);
@@ -96,7 +99,15 @@ async function runOAuthLoginFlow(flow: OAuthFlow, providerConfig: ProviderConfig
     flow.error = errorMessage(error);
   } finally {
     flow.pendingInput = undefined;
+    scheduleFlowCleanup(flow);
   }
+}
+
+/** Release a finished flow; without this the map grows for the process lifetime. */
+function scheduleFlowCleanup(flow: OAuthFlow) {
+  setTimeout(() => {
+    if (flows.get(flow.id) === flow) flows.delete(flow.id);
+  }, flowRetentionMs).unref?.();
 }
 
 function notifyOAuthFlow(flow: OAuthFlow, event: AuthEvent) {

@@ -10,7 +10,6 @@ Carmel Agent reads `.env`, `.env.local`, `packages/server/.env`, and `packages/s
 - `DATABASE_URL` — Carmel metadata/auth SQLite path. Defaults to `data/carmel-agent.sqlite`.
 - `CARMEL_PI_SESSION_DIR` — directory containing native Durable SQLite session databases. Defaults to `data/pi-sessions.sqlite.durable/`. See [Pi Durable storage](pi-durable.md).
 - `CARMEL_AGENT_DATA_DIR` — base data directory for databases and default agent workspaces. The container image sets `/data`.
-- `CARMEL_AGENT_DIR` — Pi agent runtime directory. Defaults to `data/pi-agent`.
 - `CLIENT_DIST_DIR` — override for the built web client directory.
 - `CARMEL_PUBLIC_URL` — absolute browser URL, also used by IM `/web` links and resolved when rendering agent-authored Carmel links. Agents receive a placeholder instead of the URL. Required when OIDC is enabled.
 
@@ -27,7 +26,7 @@ The `data/` directory stays sensitive even with encryption enabled: it contains 
 ## Browser And Proxy Security
 
 - `CARMEL_ALLOWED_ORIGINS` — comma-separated extra browser origins allowed to make mutating API requests with cookies.
-- `CARMEL_TRUSTED_PROXY` — comma-separated IPs of trusted reverse proxies. `X-Forwarded-For` is honored for the login rate limiter only when the connection comes from one of these addresses.
+- `CARMEL_TRUSTED_PROXY` — comma-separated IPs of trusted reverse proxies. `X-Forwarded-For` (login rate limiting) and `X-Forwarded-Host` (same-origin/CORS checks) are honored only when the connection comes from one of these addresses.
 
 The server applies secure headers, CORS for `/api/*`, cross-origin mutation checks, and cookie-based authentication (for password and single sign-on logins alike). The OpenAI-compatible API uses bearer keys and allows any browser origin, as described below. Repeated failed logins for the same username and source are rate limited.
 

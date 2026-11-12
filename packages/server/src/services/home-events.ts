@@ -8,6 +8,7 @@ import type {
 } from "@carmel-agent/shared";
 import { homeIssueUpdate } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
+import { errorMessage } from "../errors.ts";
 import { agentHomes, collaborations, homeEvents, sessions } from "../db/schema.ts";
 import { imInbox, imIntegrations } from "../db/im-schema.ts";
 import { id, now } from "../db/seed.ts";
@@ -496,7 +497,21 @@ export async function recoverHomeEvents() {
 export function startHomeDispatcher() {
   stopped = false;
   timer ??= setInterval(() => {
-    for (const home of db.select().from(agentHomes).all()) void dispatchHome(home.sessionId);
+    try {
+      // Only Homes with pending work need a dispatch; scanning every Home at
+      // 2 Hz is wasted work that grows with users × agents.
+      const pending = db
+        .selectDistinct({ sessionId: homeEvents.sessionId })
+        .from(homeEvents)
+        .where(inArray(homeEvents.status, ["preparing", "queued"]))
+        .all();
+      for (const { sessionId } of pending)
+        void dispatchHome(sessionId).catch((error) =>
+          console.warn("Home dispatch failed:", errorMessage(error)),
+        );
+    } catch (error) {
+      console.warn("Home dispatcher tick failed:", errorMessage(error));
+    }
   }, 500);
   timer.unref();
 }

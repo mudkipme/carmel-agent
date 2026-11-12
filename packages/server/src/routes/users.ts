@@ -1,14 +1,18 @@
 import { agentHomes } from "../db/schema.ts";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { hashPassword, requireAdmin, type AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import {
+  agentTaskRuns,
+  agentTasks,
   agents,
   apiKeys,
   authSessions,
+  issues,
   modelRefs,
   providerConfigs,
+  providerKeys,
   sessions,
   userIdentities,
   users,
@@ -125,6 +129,21 @@ export function createUserRoutes() {
         .set({ userId: adminId, updatedAt: timestamp })
         .where(eq(providerConfigs.userId, targetId))
         .run();
+      // Tasks and issues may belong to the target on agents owned by someone
+      // else, and provider_keys predates the model catalog. Delete them (and
+      // each task's run log) before the user row, or the FKs abort the whole
+      // transaction after the transcript files are already gone.
+      const taskIds = tx
+        .select({ id: agentTasks.id })
+        .from(agentTasks)
+        .where(eq(agentTasks.userId, targetId))
+        .all()
+        .map((task) => task.id);
+      if (taskIds.length > 0)
+        tx.delete(agentTaskRuns).where(inArray(agentTaskRuns.taskId, taskIds)).run();
+      tx.delete(agentTasks).where(eq(agentTasks.userId, targetId)).run();
+      tx.delete(issues).where(eq(issues.userId, targetId)).run();
+      tx.delete(providerKeys).where(eq(providerKeys.userId, targetId)).run();
       tx.delete(agentHomes).where(eq(agentHomes.userId, targetId)).run();
       tx.delete(sessions).where(eq(sessions.userId, targetId)).run();
       tx.delete(authSessions).where(eq(authSessions.userId, targetId)).run();

@@ -272,12 +272,14 @@ export function ProviderSettings({
             ) : null}
           </div>
         )}
-        <Button onClick={() => void editor.save()}>
+        <Button onClick={() => void editor.save()} disabled={editor.saving}>
           {saved
             ? i18n._("Saved")
-            : selectedConfig
-              ? i18n._("Update provider")
-              : i18n._("Create provider")}
+            : editor.saving
+              ? i18n._("Saving")
+              : selectedConfig
+                ? i18n._("Update provider")
+                : i18n._("Create provider")}
         </Button>
       </section>
     </div>

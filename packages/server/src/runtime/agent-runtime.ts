@@ -766,19 +766,29 @@ async function finalizeRun(
     } catch (error) {
       console.warn("Final transcript read failed:", errorMessage(error));
     }
-    try {
-      // Detach event delivery before releasing native storage. HTTP readers
-      // retain their own leases and continue reading committed progress.
-      await harness?.close();
-      if (sessionHome(session.id)) await retainPiSessionCompactions(piSession);
-      if (execution) keepExecution = await retainHelperHost(piSession, execution);
-      await (log ? log.close() : closePiSession(piSession));
-    } catch (error) {
-      // Closing is what drains the session's pending writes, so a failure here
-      // can mean the transcript is short of what the run produced.
-      console.warn("Pi session cleanup failed:", errorMessage(error));
-      outcome.recordPersistenceFailure(errorMessage(error));
-    }
+    // Each step is independent: a failing harness close must not skip the
+    // session close, which is what drains the run's pending writes.
+    const cleanup = async (step: () => Promise<unknown> | undefined, label: string) => {
+      try {
+        await step();
+      } catch (error) {
+        console.warn(`${label}:`, errorMessage(error));
+        outcome.recordPersistenceFailure(errorMessage(error));
+      }
+    };
+    // Detach event delivery before releasing native storage. HTTP readers
+    // retain their own leases and continue reading committed progress.
+    await cleanup(() => harness?.close(), "Pi harness close failed");
+    if (sessionHome(session.id))
+      await cleanup(() => retainPiSessionCompactions(piSession), "Pi compaction retention failed");
+    if (execution)
+      await cleanup(async () => {
+        keepExecution = await retainHelperHost(piSession, execution);
+      }, "Helper host retention failed");
+    await cleanup(
+      () => (log ? log.close() : closePiSession(piSession)),
+      "Pi session cleanup failed",
+    );
   }
 
   try {

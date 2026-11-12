@@ -137,12 +137,17 @@ export class RemoteAgent {
   }
 
   /** Replace the message list (e.g. an optimistic edit/retry) and notify subscribers. */
-  setMessages(messages: AgentMessage[]) {
+  setMessages(messages: AgentMessage[], messageEntryIds: string[] = []) {
     this.messages = [...messages];
     for (const message of messages) this.confirmPendingMessage(message);
-    this.messageEntryIds = [];
+    this.messageEntryIds = [...messageEntryIds];
     this.loadedEarlier = false;
     this.notify();
+  }
+
+  /** Entry ids aligned with the snapshot's messages, for optimistic rollback. */
+  getMessageEntryIds(): string[] {
+    return [...this.messageEntryIds];
   }
 
   setThinkingLevel(thinkingLevel: ThinkingLevel) {

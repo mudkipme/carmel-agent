@@ -93,10 +93,6 @@ export type User = {
   hasPassword?: boolean;
 };
 
-export type AuthUser = User & {
-  username: string;
-};
-
 export type SetupStatus = {
   needsSetup: boolean;
   /** Whether username/password sign-in (and the setup form) is available. */
@@ -281,8 +277,10 @@ export type ApiKeyCreated = ApiKey & { key: string };
 
 export type TaskScheduleKind = "cron" | "interval" | "once";
 export type AgentTaskStatus = "active" | "paused" | "completed" | "disabled";
-/** `missed` and `skipped` are recorded like any other firing: not running is a result. */
-/** A firing either ran, ending the way any run ends, or never ran at all. */
+/**
+ * A firing either ran, ending the way any run ends (`missed` and `skipped` are
+ * recorded like any other result), or never ran at all.
+ */
 export type AgentTaskOutcome = AgentRunOutcome | "missed" | "skipped";
 /** A run is logged when it starts, so the log can link its session while it is still going. */
 export type AgentTaskRunOutcome = AgentTaskOutcome | "running";

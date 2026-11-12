@@ -5,7 +5,7 @@ import {
   serializeModelRef,
   serializeProviderConfig,
   serializePublicAgent,
-  serializeSessionMetadata,
+  sessionMetadataSerializer,
   serializeUser,
 } from "../serializers.ts";
 import { readProviderConfigs, readVisibleAgents, readVisibleModelRefs } from "./agent-access.ts";
@@ -39,7 +39,7 @@ function readSessionMetadataForUser(userId: string) {
     )
     .all()
     .sort(sortSessions)
-    .map(serializeSessionMetadata);
+    .map(sessionMetadataSerializer(userId));
 }
 
 function sortSessions(a: typeof sessions.$inferSelect, b: typeof sessions.$inferSelect) {

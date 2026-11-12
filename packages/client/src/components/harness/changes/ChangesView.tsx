@@ -68,7 +68,6 @@ export function ChangesView({
       setStatusError(errorMessage(error, i18n._("Unable to read git status")));
     } finally {
       setLoading(false);
-      setRevision((current) => current + 1);
     }
   }, [agent.id, i18n]);
 
@@ -109,7 +108,10 @@ export function ChangesView({
             variant="ghost"
             title={i18n._("Refresh")}
             disabled={loading}
-            onClick={() => void loadStatus()}
+            onClick={() => {
+              setRevision((current) => current + 1);
+              void loadStatus();
+            }}
           >
             <RefreshCwIcon className={cn(loading && "animate-spin")} />
           </Button>

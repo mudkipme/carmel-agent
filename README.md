@@ -139,6 +139,8 @@ pnpm check        # check formatting, lint, test, and build
 pnpm serve        # run the built server entrypoint
 ```
 
+If the API runs somewhere other than `http://localhost:8797`, set `CARMEL_SERVER_URL` before `pnpm dev:client`. For LAN hostnames, set `CARMEL_DEV_HOSTS=host1,host2` so the Vite dev server allows them.
+
 For sandboxed bash in development, pull the published runner image and make sure your container socket is reachable. To use a local build, set `CARMEL_BASH_IMAGE=localhost/carmel-agent-runner:latest` after building `Dockerfile.runner`.
 
 Browser regressions use the `agent-browser` CLI (`npm install -g agent-browser@0.38.2`, then `agent-browser install --with-deps`). Set `AGENT_BROWSER_BIN` if the executable is outside your PATH. The suite builds the client and starts a fixture server on an ephemeral loopback port with an in-memory database, temporary data directory, and no schedulers or container socket. It does not use the running app or real provider credentials.

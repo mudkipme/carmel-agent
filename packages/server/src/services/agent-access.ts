@@ -8,6 +8,7 @@ import {
   defaultAgentWorkingDir,
   ensureDir,
   normalizeDataRelativePath,
+  normalizeDataRelativePathStrict,
   resolveDataPath,
 } from "../paths.ts";
 import { resolveServerModelRef } from "../runtime/model.ts";
@@ -90,11 +91,18 @@ export function resolveSupportedThinkingLevel(
 export function resolveAgentWorkingDir(
   agent: Pick<AgentConfig, "workingDirMode" | "workingDir" | "defaultWorkingDir">,
   agentId: string,
-  current?: AgentRecord,
+  current: AgentRecord | undefined,
+  role: UserRole,
 ) {
-  const defaultWorkingDir = normalizeDataRelativePath(
-    current?.defaultWorkingDir ?? agent.defaultWorkingDir ?? defaultAgentWorkingDir(agentId),
-  );
+  const requested =
+    current?.defaultWorkingDir ?? agent.defaultWorkingDir ?? defaultAgentWorkingDir(agentId);
+  // A non-admin cannot name a host path, even in the "default" mode: the value
+  // comes from a browser, and an absolute one would escape the data directory.
+  // Admins keep the permissive normalization they use for host-mounted setups.
+  const defaultWorkingDir =
+    role === "admin"
+      ? normalizeDataRelativePath(requested)
+      : (normalizeDataRelativePathStrict(requested) ?? defaultAgentWorkingDir(agentId));
   if ((agent.workingDirMode ?? "default") === "default") {
     ensureDir(resolveDataPath(defaultWorkingDir));
     return {

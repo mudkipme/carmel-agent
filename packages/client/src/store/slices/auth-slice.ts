@@ -65,7 +65,10 @@ export function createAuthSlice(
     logout: async () => {
       await api.logout();
       const authOptions = await api.setupStatus().catch(() => undefined);
-      set({ ...resetState({ status: "unauthenticated" }), authOptions });
+      set((state) => ({
+        ...resetState({ status: "unauthenticated" }, state),
+        authOptions,
+      }));
     },
     updateAccount: async (currentPassword, email, newPassword) => {
       const saved = await api.updateAccount(currentPassword, email, newPassword);

@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { and, eq } from "drizzle-orm";
-import { z } from "zod";
 import {
   homeMemorySearchSchema,
   type HomeMemory,
@@ -30,30 +29,11 @@ import { knowledgeModelPlan } from "../runtime/knowledge/models.ts";
 import { knowledgeLock } from "../runtime/knowledge/queue.ts";
 import {
   callKnowledgeWorker,
+  knowledgeWorkerSearchSchema as searchSchema,
+  knowledgeWorkerStatusSchema as statusSchema,
   type KnowledgeWorkerPlan,
 } from "../runtime/knowledge/worker-client.ts";
 
-const statusSchema = z.object({
-  documents: z.number().int().nonnegative(),
-  needsEmbedding: z.number().int().nonnegative(),
-  backend: z.string().nullable(),
-  devices: z.array(z.string()),
-});
-const searchSchema = statusSchema.extend({
-  hits: z
-    .array(
-      z.object({
-        sourceId: z.string(),
-        path: z.string(),
-        hash: z.string(),
-        score: z.number(),
-        match: z
-          .object({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative() })
-          .optional(),
-      }),
-    )
-    .max(40),
-});
 const owner = (userId: string, agentId: string) =>
   and(eq(homeMemorySettings.userId, userId), eq(homeMemorySettings.agentId, agentId));
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");

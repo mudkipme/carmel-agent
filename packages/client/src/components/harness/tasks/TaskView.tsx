@@ -527,7 +527,6 @@ function TaskWorkspace({
                     key={issue.sessionId}
                     agent={agent}
                     sessionId={issue.sessionId}
-                    running={issue.running}
                     notes={issue.notes}
                   />
                 ) : (

@@ -412,9 +412,15 @@ export function HarnessShell({
     navigate(workspaceChatPath(agentChangesPath(activeAgent.id, change), activeSession?.id));
   };
 
+  const endSidebarResize = useRef<(() => void) | null>(null);
+  // A drag that outlives the component would keep calling setState from window
+  // listeners, so the unmount cleanup removes them and restores the cursor.
+  useEffect(() => () => endSidebarResize.current?.(), []);
+
   const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches) return;
     event.preventDefault();
+    endSidebarResize.current?.();
     const startX = event.clientX;
     const startWidth = sidebarWidth;
     let width = startWidth;
@@ -425,6 +431,7 @@ export function HarnessShell({
     document.body.style.userSelect = "none";
 
     const finishResize = () => {
+      endSidebarResize.current = null;
       setSidebarResizing(false);
       document.body.style.cursor = originalCursor;
       document.body.style.userSelect = originalUserSelect;
@@ -439,6 +446,13 @@ export function HarnessShell({
       setSidebarWidth(width);
     };
 
+    endSidebarResize.current = () => {
+      document.body.style.cursor = originalCursor;
+      document.body.style.userSelect = originalUserSelect;
+      window.removeEventListener("pointermove", resize);
+      window.removeEventListener("pointerup", finishResize);
+      window.removeEventListener("pointercancel", finishResize);
+    };
     window.addEventListener("pointermove", resize);
     window.addEventListener("pointerup", finishResize);
     window.addEventListener("pointercancel", finishResize);

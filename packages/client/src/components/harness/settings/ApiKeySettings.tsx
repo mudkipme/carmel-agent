@@ -200,11 +200,15 @@ export function ApiKeySettings() {
 function CopyableValue({ value }: { value: string }) {
   const { i18n } = useLingui();
   const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
     } catch {
       // Clipboard access needs a secure context; the value is selectable anyway.
     }

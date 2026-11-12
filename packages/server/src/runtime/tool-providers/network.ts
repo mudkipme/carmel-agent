@@ -8,6 +8,38 @@ type ServerToolDefinition = ToolRegistration;
 const USER_AGENT = "Mozilla/5.0 (compatible; CarmelAgent/0.1)";
 
 /**
+ * Cap on a fetched body. The tool truncates its output anyway, but reading a
+ * whole multi-gigabyte response first would exhaust the server's memory.
+ */
+const MAX_FETCH_BYTES = 8 * 1024 * 1024;
+
+class ResponseTooLargeError extends Error {
+  constructor() {
+    super(`The response is larger than ${MAX_FETCH_BYTES / (1024 * 1024)} MiB.`);
+  }
+}
+
+async function readResponseText(response: Response) {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_FETCH_BYTES) throw new ResponseTooLargeError();
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
+/**
  * Web search and fetch.
  *
  * `fetch_url` is self-contained: it makes one HTTP request and extracts the
@@ -88,10 +120,12 @@ function createNetworkToolDefinitions(): ServerToolDefinition[] {
           signal,
         });
         if (!response.ok)
-          throw new Error(`Fetch failed with ${response.status}: ${await response.text()}`);
+          throw new Error(
+            `Fetch failed with ${response.status}: ${await readResponseText(response)}`,
+          );
 
         const contentType = response.headers.get("content-type");
-        const body = await response.text();
+        const body = await readResponseText(response);
         const details = {
           url: response.url || url,
           status: response.status,
