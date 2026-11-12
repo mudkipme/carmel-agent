@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "test": "lingui compile --strict --typescript && node --import tsx --import ./tests/setup-i18n.ts --test src/lib/*.test.ts",
+    "test": "lingui compile --strict --typescript && node --import tsx --import ./tests/setup-i18n.ts --test src/lib/*.test.ts src/store/*.test.ts",
     "test:browser": "pnpm build && node --import tsx --test tests/browser.test.ts",
     "preview": "vite preview --host 0.0.0.0",
     "i18n:extract": "lingui extract --clean",
