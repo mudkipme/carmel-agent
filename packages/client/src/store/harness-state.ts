@@ -92,7 +92,16 @@ export function resolveBootstrapState(
   current: Pick<HarnessState, "sessionDetails">,
 ) {
   const activeUserId = payload.users[0]?.id ?? "";
-  const sessions = payload.sessions.filter((session) => session.userId === activeUserId);
+  const listed = payload.sessions.filter((session) => session.userId === activeUserId);
+  const listedIds = new Set(listed.map((session) => session.id));
+  // Bootstrap never carries a task run's, an issue's, or an archived session:
+  // the shell fetches one only when the route names it. Keeping that open
+  // session here means an unrelated refresh cannot unmount the conversation.
+  const unlisted = Object.values(current.sessionDetails).filter(
+    (session) =>
+      session.userId === activeUserId && !isListedSession(session) && !listedIds.has(session.id),
+  );
+  const sessions = [...listed, ...unlisted.map(toSessionMetadata)];
   const agents = payload.agents.filter((agent) => canUserSeeAgent(agent, activeUserId));
   const sessionDetails = Object.fromEntries(
     sessions.flatMap((metadata) => {
