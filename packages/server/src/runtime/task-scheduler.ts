@@ -119,8 +119,10 @@ export async function tick(at = now(), options: { waitForRuns?: boolean } = {}) 
         case "fire": {
           running.add(task.id);
           const firing = fireTask(task, plan.scheduledFor).finally(() => running.delete(task.id));
-          if (waitForRuns) fired.push(firing);
-          else
+          // Counted in both modes: the poll detaches from awaiting a run, not
+          // from the cap that keeps a due backlog from all starting at once.
+          fired.push(firing);
+          if (!waitForRuns)
             void firing.catch((error) =>
               console.warn("Scheduled task failed:", errorMessage(error)),
             );

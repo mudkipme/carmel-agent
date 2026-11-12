@@ -283,6 +283,43 @@ test("deleting a task's model hands the task back to its agent's default", () =>
   assert.equal(row(task.id).modelRefId, null);
 });
 
+test("the poll detaches from runs without exceeding the concurrency cap", async () => {
+  // Three tasks are due at once with a cap of one. The poll may return before
+  // the run finishes, but it must still count that run: firing all three is a
+  // stampede, and the two over the cap must stay due for the next poll.
+  const dueAt = Date.now() - 1_000;
+  const tasks = [0, 1, 2].map(() => {
+    const { user, agentId } = fixture();
+    const task = createAgentTask(user, agentId, {
+      name: "Capped",
+      prompt: "Start.",
+      scheduleKind: "interval",
+      scheduleValue: String(60_000),
+    });
+    db.update(agentTasks).set({ nextRunAt: dueAt }).where(eq(agentTasks.id, task.id)).run();
+    return task;
+  });
+
+  const previous = process.env.CARMEL_AGENT_MAX_CONCURRENT_TASKS;
+  process.env.CARMEL_AGENT_MAX_CONCURRENT_TASKS = "1";
+  try {
+    await tick(Date.now(), { waitForRuns: false });
+    await waitFor(() => tasks.some((task) => runsFor(task.id).length > 0));
+    // Let any other detached firing record its run before counting: the fixed
+    // loop starts one run here, a regressed one starts three.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  } finally {
+    if (previous === undefined) delete process.env.CARMEL_AGENT_MAX_CONCURRENT_TASKS;
+    else process.env.CARMEL_AGENT_MAX_CONCURRENT_TASKS = previous;
+  }
+
+  const started = tasks.filter((task) => runsFor(task.id).length > 0);
+  assert.equal(started.length, 1, "the poll started more than the concurrency cap");
+  assert.ok(row(started[0]!.id).nextRunAt! > Date.now(), "the started task re-arms");
+  for (const task of tasks.filter((candidate) => candidate !== started[0]))
+    assert.equal(row(task.id).nextRunAt, dueAt, "a task over the cap must stay due");
+});
+
 function fixture() {
   const userId = createUser();
   const providerConfigId = createProviderConfig(userId);
