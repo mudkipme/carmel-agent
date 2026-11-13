@@ -42,8 +42,8 @@ export async function loadOwnedSession(
   userId: string,
   sessionId: string,
 ): Promise<SessionWithMessages | undefined> {
-  const session = await loadSession(sessionId);
-  return session?.userId === userId ? session : undefined;
+  const record = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+  return record?.userId === userId ? attachMessages(record) : undefined;
 }
 
 export async function loadOwnedSessionPage(

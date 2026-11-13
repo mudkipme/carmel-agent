@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { modelRefs, providerConfigs, providerKeys } from "../db/schema.ts";
 import type { AgentThinkingLevel } from "@carmel-agent/shared";
@@ -54,9 +54,8 @@ export async function resolveModelContext(
     const providerKey = db
       .select()
       .from(providerKeys)
-      .where(eq(providerKeys.userId, userId))
-      .all()
-      .find((item) => item.provider === modelRef.provider);
+      .where(and(eq(providerKeys.userId, userId), eq(providerKeys.provider, modelRef.provider)))
+      .get();
     if (providerKey?.apiKey) {
       await modelRuntime.setRuntimeApiKey(
         modelRef.provider,

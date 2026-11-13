@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context, MiddlewareHandler } from "hono";
 
@@ -85,6 +86,33 @@ export const rejectCrossOriginMutations: MiddlewareHandler = async (c, next) => 
  */
 export function requestHost(c: Context) {
   return trustedForwardedHeader(c, "x-forwarded-host") ?? c.req.header("host");
+}
+
+/** Node `IncomingMessage` equivalent of `requestHost` for WebSocket upgrades. */
+export function incomingRequestHost(
+  request: Pick<IncomingMessage, "headers"> & { socket?: { remoteAddress?: string } },
+) {
+  const peer = normalizeIp(request.socket?.remoteAddress);
+  if (peer && isTrustedProxy(peer)) {
+    const forwarded = firstHeaderValue(request.headers["x-forwarded-host"]);
+    if (forwarded) return forwarded;
+  }
+  return firstHeaderValue(request.headers.host);
+}
+
+/** Parse a Node upgrade request target without trusting `Host` or throwing on malformed URLs. */
+export function incomingRequestUrl(request: Pick<IncomingMessage, "url">) {
+  try {
+    return new URL(request.url ?? "/", "http://localhost");
+  } catch {
+    return undefined;
+  }
+}
+
+function firstHeaderValue(value: IncomingHttpHeaders[string]) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const trimmed = raw?.trim();
+  return trimmed || undefined;
 }
 
 /** The client IP, honouring `X-Forwarded-For` only from a trusted proxy. */

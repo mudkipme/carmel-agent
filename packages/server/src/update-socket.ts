@@ -2,7 +2,7 @@ import type { Server } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import type { UpdateServerMessage } from "@carmel-agent/shared";
 import { readAuthenticatedUser, readSessionCookie } from "./auth.ts";
-import { isAllowedBrowserOrigin } from "./security.ts";
+import { incomingRequestHost, incomingRequestUrl, isAllowedBrowserOrigin } from "./security.ts";
 import { agentRunSubscription } from "./runtime/run-stream.ts";
 import { stateEpoch, stateRevision, subscribeStateChanges } from "./state-changes.ts";
 
@@ -13,12 +13,11 @@ export function attachUpdateSocket(server: Server) {
     perMessageDeflate: false,
   });
   server.on("upgrade", (request, socket, head) => {
-    const url = new URL(request.url ?? "/", "http://localhost");
-    if (url.pathname !== "/api/updates") return;
+    const url = incomingRequestUrl(request);
+    if (url?.pathname !== "/api/updates") return;
     const reject = (status: number) =>
       socket.end(`HTTP/1.1 ${status} Rejected\r\nConnection: close\r\n\r\n`);
-    const host =
-      (request.headers["x-forwarded-host"] as string | undefined) ?? request.headers.host;
+    const host = incomingRequestHost(request);
     if (!request.headers.origin || !isAllowedBrowserOrigin(request.headers.origin, host))
       return reject(403);
     let token: string | undefined;

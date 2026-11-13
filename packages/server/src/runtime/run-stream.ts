@@ -181,17 +181,9 @@ function runResultOf(run: ActiveAgentRun): AgentRunResult {
   return run.result ?? { outcome: "interrupted", detail: INTERRUPTED_DETAIL };
 }
 
-/**
- * Resolve with a run's result once it has finished.
- *
- * For callers with no stream to close, which is what "finished" otherwise means
- * here. Polled rather than event-driven because `finishAgentRun` is reached
- * from a `finally` on several paths, and adding a notification to each of them
- * would be more surface than a scheduler tick needs.
- */
-export async function whenRunFinished(run: ActiveAgentRun, pollMs = 200): Promise<AgentRunResult> {
-  while (!run.finished) await new Promise((resolve) => setTimeout(resolve, pollMs));
-  return runResultOf(run);
+/** Resolve with a run's result once it has finished. */
+export function whenRunFinished(run: ActiveAgentRun, _pollMs?: number): Promise<AgentRunResult> {
+  return new Promise((resolve) => onRunFinished(run, resolve));
 }
 
 export function observeRunEvents(run: ActiveAgentRun, afterSequence = 0) {

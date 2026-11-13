@@ -196,10 +196,14 @@ export class RemoteAgent {
 
   async abort() {
     if (this.config.home) {
-      await api.stopHome(this.config.agentId);
-      this.pendingMessages = [];
-      this.notify();
-      if (!this.isStreaming) await this.refreshConnection();
+      try {
+        await api.stopHome(this.config.agentId);
+        this.pendingMessages = [];
+        this.notify();
+        if (!this.isStreaming) await this.refreshConnection();
+      } catch (error) {
+        this.fail(error);
+      }
       return;
     }
     const runId = this.runId;

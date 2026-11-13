@@ -134,7 +134,7 @@ export function ChangesView({
               return (
                 <section key={groupArea} aria-label={i18n._(label)}>
                   <h3 className="nav-label px-3 pt-3 pb-1">
-                    {label} <span className="tabular-nums">{group.length}</span>
+                    {i18n._(label)} <span className="tabular-nums">{group.length}</span>
                   </h3>
                   {group.map((change) => (
                     <ChangeRow

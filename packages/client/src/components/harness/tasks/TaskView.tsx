@@ -1,4 +1,5 @@
 import { priorityLabel } from "@/lib/labels";
+import { describeTaskOutcome } from "@/lib/task-schedule";
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
 import { useEffect, useRef, useState } from "react";
@@ -586,7 +587,9 @@ function TaskWorkspace({
                     <span>
                       <Trans>
                         Run {issue.attempts.length - issue.attempts.indexOf(attempt)} ·{" "}
-                        {attempt.outcome.replaceAll("_", " ")}
+                        {attempt.outcome === "succeeded"
+                          ? i18n._("Completed")
+                          : describeTaskOutcome(attempt.outcome)}
                       </Trans>
                     </span>
                     {attempt.finishedAt ? (

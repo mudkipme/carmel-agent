@@ -409,8 +409,16 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
             }
             onKeyDown={(event) => key(event, "keyDown")}
             onKeyUp={(event) => key(event, "keyUp")}
-            onBlur={() => {
-              if (hasControl) send({ type: "release_input" });
+            onBlur={(event) => {
+              if (
+                hasControl &&
+                !(
+                  event.relatedTarget instanceof Node &&
+                  event.currentTarget.contains(event.relatedTarget)
+                )
+              ) {
+                send({ type: "release_input" });
+              }
             }}
             onPaste={(event) => {
               if (canInput) {

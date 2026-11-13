@@ -3,8 +3,9 @@ import { Trans } from "@lingui/react/macro";
 import { PlusIcon, SquareIcon } from "lucide-react";
 import { TaskSubtasks } from "@/components/tasks/TaskSubtasks";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { showError } from "@/lib/errors";
+import { errorMessage, showError } from "@/lib/errors";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -271,7 +272,12 @@ export function PiChat({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => void api.resumeHome(agentConfig.id).then(homeStatus.refresh)}
+                onClick={() =>
+                  void api
+                    .resumeHome(agentConfig.id)
+                    .then(homeStatus.refresh)
+                    .catch((error) => toast.error(errorMessage(error)))
+                }
               >
                 <Trans>Resume updates</Trans>
               </Button>
