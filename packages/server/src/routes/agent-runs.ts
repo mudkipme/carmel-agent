@@ -24,7 +24,7 @@ import {
 } from "../runtime/run-stream.ts";
 import { readVisibleAgent } from "../services/agent-access.ts";
 import { NO_PROVIDER_AUTH_MESSAGE, resolveRunModel } from "../services/model-context.ts";
-import { readSessionConnection } from "../services/session-snapshot.ts";
+import { readSessionConnection, SessionSnapshotError } from "../services/session-snapshot.ts";
 import { jsonValidator } from "../validation.ts";
 import { errorMessage } from "../errors.ts";
 import { withPiSession } from "../services/pi-session-storage.ts";
@@ -36,6 +36,8 @@ export function createAgentRunRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
   route.onError((error, c) => {
     if (error instanceof HomeError) return c.json({ error: error.message }, error.status);
+    if (error instanceof SessionSnapshotError)
+      return c.json({ error: error.message }, error.status);
     throw error;
   });
 

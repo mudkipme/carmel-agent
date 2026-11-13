@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { WebSocketServer, type WebSocket } from "ws";
 import { readAuthenticatedUser, readSessionCookie } from "./auth.ts";
 import { readVisibleAgent } from "./services/agent-access.ts";
-import { isAllowedBrowserOrigin } from "./security.ts";
+import { incomingRequestHost, incomingRequestUrl, isAllowedBrowserOrigin } from "./security.ts";
 import { browserControl } from "./runtime/browser-control.ts";
 import { connectBrowser, type BrowserConnection } from "./runtime/sandbox/browser-sessions.ts";
 import { parseBrowserInput } from "./browser-protocol.ts";
@@ -17,14 +17,13 @@ export function attachBrowserSocket(server: Server, connect = connectBrowser) {
     perMessageDeflate: false,
   });
   server.on("upgrade", (request, socket, head) => {
-    const url = new URL(request.url ?? "/", "http://localhost");
-    if (url.pathname !== "/api/browser") return;
+    const url = incomingRequestUrl(request);
+    if (url?.pathname !== "/api/browser") return;
     const reject = (status: number) => {
       socket.end(`HTTP/1.1 ${status} Rejected\r\nConnection: close\r\n\r\n`);
     };
     const origin = request.headers.origin;
-    const host =
-      (request.headers["x-forwarded-host"] as string | undefined) ?? request.headers.host;
+    const host = incomingRequestHost(request);
     if (!origin || !isAllowedBrowserOrigin(origin, host)) return reject(403);
     let token: string | undefined;
     try {

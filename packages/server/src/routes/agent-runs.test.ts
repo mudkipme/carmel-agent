@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
@@ -7,9 +8,9 @@ import { db, initialize } from "../db/index.ts";
 import { agents, sessions, users } from "../db/schema.ts";
 import { id } from "../db/seed.ts";
 import { createActiveAgentRun, emitRunEvent, finishAgentRun } from "../runtime/run-stream.ts";
-import { replacePiSessionMessages } from "../services/pi-session-storage.ts";
+import { replacePiSessionMessages, withPiSession } from "../services/pi-session-storage.ts";
 import { createSession, createUser, userMessage } from "../test-support.ts";
-import { readSessionConnection } from "../services/session-snapshot.ts";
+import { readSessionConnection, SessionSnapshotError } from "../services/session-snapshot.ts";
 import { createAgentRunRoutes } from "./agent-runs.ts";
 
 initialize();
@@ -134,4 +135,120 @@ test("connection snapshots replace raw image data with the shared authenticated 
     },
   ]);
   assert.doesNotMatch(JSON.stringify(connection), new RegExp(rawImageData));
+});
+
+test("connection snapshot retries refresh session metadata and exhaustion fails rather than skewing", async () => {
+  const fixture = createSession();
+  await replacePiSessionMessages(fixture.sessionId, [userMessage("message 1")]);
+  const run = createActiveAgentRun({
+    runId: id("run"),
+    userId: fixture.userId,
+    sessionId: fixture.sessionId,
+    abort: () => {},
+  });
+
+  try {
+    await withPiSession(fixture.sessionId, async (pi) => {
+      let releaseCommit!: () => void;
+      const enteredCommit = new Promise<void>((resolveEntered) => {
+        void pi.conversation.commit(async () => {
+          resolveEntered();
+          await new Promise<void>((resolveRelease) => {
+            releaseCommit = resolveRelease;
+          });
+        }, BACKGROUND_CONTEXT);
+      });
+
+      await enteredCommit;
+      const retriedPromise = readSessionConnection(fixture.userId, fixture.sessionId);
+      // Let readSessionConnection capture version 1 and queue behind our active commit.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      db.update(sessions)
+        .set({ title: "Updated after run finished", thinkingLevel: "high" })
+        .where(eq(sessions.id, fixture.sessionId))
+        .run();
+      finishAgentRun(run);
+      releaseCommit();
+
+      const retried = await retriedPromise;
+      assert.equal(retried?.activeRun, null);
+      assert.equal(retried?.session.title, "Updated after run finished");
+      assert.equal(retried?.session.thinkingLevel, "high");
+
+      const busyRun = createActiveAgentRun({
+        runId: id("run"),
+        userId: fixture.userId,
+        sessionId: fixture.sessionId,
+        abort: () => {},
+      });
+      try {
+        let releaseExhaustion!: () => void;
+        const enteredExhaustion = new Promise<void>((resolveEntered) => {
+          void pi.conversation.commit(async () => {
+            resolveEntered();
+            await new Promise<void>((resolveRelease) => {
+              releaseExhaustion = resolveRelease;
+            });
+          }, BACKGROUND_CONTEXT);
+        });
+
+        await enteredExhaustion;
+        const exhaustedPromise = readSessionConnection(fixture.userId, fixture.sessionId, 1);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        emitRunEvent(busyRun, { type: "message_end", message: userMessage("message 2") });
+        releaseExhaustion();
+
+        await assert.rejects(
+          () => exhaustedPromise,
+          (error: unknown) => error instanceof SessionSnapshotError && error.status === 503,
+        );
+      } finally {
+        finishAgentRun(busyRun);
+      }
+    });
+  } finally {
+    if (!run.finished) finishAgentRun(run);
+  }
+});
+
+test("connection route maps SessionSnapshotError to 503 on real connection retries", async () => {
+  const fixture = createSession();
+  const user = db.select().from(users).where(eq(users.id, fixture.userId)).get();
+  assert.ok(user);
+  const app = new Hono<{ Variables: AuthVariables }>();
+  app.use("*", async (c, next) => {
+    c.set("user", user);
+    await next();
+  });
+  app.route("/", createAgentRunRoutes());
+
+  const run = createActiveAgentRun({
+    runId: id("run"),
+    userId: fixture.userId,
+    sessionId: fixture.sessionId,
+    abort: () => {},
+  });
+
+  try {
+    await withPiSession(fixture.sessionId, async (pi) => {
+      const originalCommit = pi.conversation.commit.bind(pi.conversation);
+      pi.conversation.commit = ((fn, ctx) => {
+        emitRunEvent(run, {
+          type: "message_end",
+          message: userMessage("concurrent update"),
+        });
+        return originalCommit(fn, ctx);
+      }) as typeof pi.conversation.commit;
+
+      try {
+        const response = await app.request(`/sessions/${fixture.sessionId}/connection`);
+        assert.equal(response.status, 503);
+      } finally {
+        pi.conversation.commit = originalCommit;
+      }
+    });
+  } finally {
+    finishAgentRun(run);
+  }
 });

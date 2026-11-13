@@ -98,22 +98,30 @@ export function listCollaborators(owner: CollaborationOwner) {
 export function readCollaborators(userId: string, agentId: string) {
   if (!readVisibleAgent(userId, agentId)) throw denied();
   return db
-    .select()
-    .from(agents)
+    .select({
+      agentId: agents.id,
+      name: agents.name,
+      description: agents.description,
+      capabilities: connections.capabilities,
+    })
+    .from(connections)
+    .innerJoin(agents, eq(agents.id, connections.peerAgentId))
+    .where(
+      and(
+        eq(connections.agentId, agentId),
+        eq(connections.direction, "outgoing"),
+        or(eq(agents.ownerUserId, userId), eq(agents.shared, true)),
+      ),
+    )
     .all()
-    .flatMap((agent) => {
-      const capabilities = { consult: false, createTask: false, queueTask: false };
-      for (const capability of Object.keys(capabilities) as Array<keyof CollaborationGrant>) {
-        try {
-          authorizeCollaboration(userId, agentId, agent.id, capability);
-          capabilities[capability] = true;
-        } catch {
-          /* Hidden connections are omitted. */
-        }
-      }
-      return Object.values(capabilities).some(Boolean)
-        ? [{ agentId: agent.id, name: agent.name, description: agent.description, capabilities }]
-        : [];
+    .flatMap((row) => {
+      if (row.agentId === agentId) return [];
+      const capabilities = {
+        consult: Boolean(row.capabilities.consult),
+        createTask: Boolean(row.capabilities.createTask),
+        queueTask: Boolean(row.capabilities.queueTask),
+      };
+      return Object.values(capabilities).some(Boolean) ? [{ ...row, capabilities }] : [];
     });
 }
 export function receiverCollaboration(sessionId: string, issueId?: string | null) {
@@ -202,6 +210,7 @@ export function createCollaboration(
       "Collect or cancel outstanding collaborations before starting more (maximum four).",
     );
   const collaborationId = id("collaboration");
+  let queuedTargetIssueId: string | undefined;
   db.transaction(() => {
     const targetIssue = task
       ? createIssue(owner.userId, target, { ...task, queue: false })
@@ -247,9 +256,10 @@ export function createCollaboration(
           `Delegated to [${readVisibleAgent(owner.userId, target)!.name}](/agents/${target}/tasks/${targetIssue.id})`,
         );
     }
-    if (targetIssue && task?.queue)
-      void runIssue(owner.userId, target, targetIssue.id, {}).catch(() => {});
+    if (targetIssue && task?.queue) queuedTargetIssueId = targetIssue.id;
   });
+  if (queuedTargetIssueId)
+    void runIssue(owner.userId, target, queuedTargetIssueId, {}).catch(() => {});
   return collaborationView(owner, collaborationId);
 }
 export async function sendCollaborationMessage(
@@ -610,17 +620,19 @@ async function deliver(row: Collaboration, answer: string, key: string, final = 
     const parent = db.select().from(issues).where(eq(issues.id, row.sourceIssueId)).get();
     if (parent && !["done", "cancelled"].includes(parent.status)) {
       if (row.waiting && parent.status === "in_progress") return false;
+      let resumeParent = false;
       db.transaction(() => {
         addIssueNote(row.userId, row.sourceAgentId, parent.id, text);
-        if (row.waiting && parent.status === "waiting")
-          void runIssue(row.userId, row.sourceAgentId, parent.id, { instructions: text }).catch(
-            () => {},
-          );
+        resumeParent = Boolean(row.waiting && parent.status === "waiting");
         db.update(collaborations)
           .set({ ...(final ? { deliveredKey: key } : {}), waiting: false })
           .where(eq(collaborations.id, row.id))
           .run();
       });
+      if (resumeParent)
+        void runIssue(row.userId, row.sourceAgentId, parent.id, { instructions: text }).catch(
+          () => {},
+        );
       return true;
     }
   } else if (row.waiting && !sessionHome(row.sourceSessionId)) {

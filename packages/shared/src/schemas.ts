@@ -82,7 +82,17 @@ export function agentSecretNameError(name: string) {
   return undefined;
 }
 
-export const agentSecretWriteSchema = z.object({ value: z.string().min(1).max(8192) }).strict();
+export const agentSecretWriteSchema = z
+  .object({
+    value: z
+      .string()
+      .min(1)
+      .max(8192)
+      .refine((value) => !value.includes("\0"), {
+        message: "Secret values cannot contain NUL bytes.",
+      }),
+  })
+  .strict();
 export const apiKeyCreateSchema = z.object({ name: z.string().trim().min(1).max(100) }).strict();
 
 export const agentPermissionsSchema = z.object({

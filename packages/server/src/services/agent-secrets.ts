@@ -83,9 +83,7 @@ export function importAgentWorkspaceDotEnv(userId: string, agentId: string) {
         .values({
           agentId,
           name,
-          value: value.startsWith("enc:v1:")
-            ? encryptSubmittedSecret(value)
-            : protectSecret(value)!,
+          value: protectSubmittedAgentSecret(value),
           createdAt: timestamp,
           updatedAt: timestamp,
         })
@@ -107,20 +105,34 @@ export function writeAgentSecret(
   assertAgentOwner(userId, agentId);
   const nameError = agentSecretNameError(name);
   if (nameError) throw new AgentSecretError(nameError, 400);
+  if (!value || value.length > 8192 || value.includes("\0"))
+    throw new AgentSecretError("Invalid secret value.", 400);
 
   const timestamp = now();
   const current = readSecretRow(agentId, name);
   const fields = {
     agentId,
     name,
-    // Never accept a client's enc:v1: prefix as proof of encryption.
-    value: value.startsWith("enc:v1:") ? encryptSubmittedSecret(value) : protectSecret(value)!,
+    value: protectSubmittedAgentSecret(value),
     createdAt: current?.createdAt ?? timestamp,
     updatedAt: timestamp,
   };
   if (current) db.update(agentSecrets).set(fields).where(eq(agentSecrets.id, current.id)).run();
   else db.insert(agentSecrets).values(fields).run();
   return serializeAgentSecret(readSecretRow(agentId, name)!);
+}
+
+function protectSubmittedAgentSecret(value: string): string {
+  // Never accept a client's enc:v1: prefix as proof of encryption.
+  if (!value.startsWith("enc:v1:")) return protectSecret(value)!;
+  try {
+    return encryptSubmittedSecret(value);
+  } catch {
+    throw new AgentSecretError(
+      "Configure CARMEL_SECRET_KEY before storing credentials with the internal encryption prefix.",
+      503,
+    );
+  }
 }
 
 export function deleteAgentSecret(userId: string, agentId: string, name: string) {

@@ -153,3 +153,21 @@ test("deleting an agent takes its secrets with it", () => {
   deleteAgentSecretsForAgent(agentId);
   assert.deepEqual(readAgentSecretEnv(agentId), []);
 });
+
+test("writeAgentSecret rejects NUL bytes and maps missing CARMEL_SECRET_KEY to 503", () => {
+  const { ownerUserId, agentId } = fixture();
+  assert.throws(
+    () => writeAgentSecret(ownerUserId, agentId, "TOKEN", "abc\0def"),
+    (error: unknown) => error instanceof AgentSecretError && error.status === 400,
+  );
+  const previous = process.env.CARMEL_SECRET_KEY;
+  delete process.env.CARMEL_SECRET_KEY;
+  try {
+    assert.throws(
+      () => writeAgentSecret(ownerUserId, agentId, "TOKEN", "enc:v1:forged"),
+      (error: unknown) => error instanceof AgentSecretError && error.status === 503,
+    );
+  } finally {
+    if (previous !== undefined) process.env.CARMEL_SECRET_KEY = previous;
+  }
+});

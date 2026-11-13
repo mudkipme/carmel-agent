@@ -634,21 +634,22 @@ export async function forkPiSession(sourceId: string, targetId: string, id: stri
     }
   });
 }
+export async function piSessionHasPendingWork(session: PiSession, includeBackground = false) {
+  if (includeBackground) {
+    const work = await session.native.inspect(ctx);
+    return Boolean(work.tasks.length || work.submissions.length);
+  }
+  return session.conversation.commit(
+    async (tx) =>
+      Boolean(
+        (await tx.doc(LiveDoc, session.conversation.id)).run ||
+        (await tx.doc(InboxDoc, session.conversation.id)).items.length,
+      ),
+    ctx,
+  );
+}
 export async function hasPendingPiSessionWork(sessionId: string, includeBackground = false) {
-  return withPiSession(sessionId, async (session) => {
-    if (includeBackground) {
-      const work = await session.native.inspect(ctx);
-      return Boolean(work.tasks.length || work.submissions.length);
-    }
-    return session.conversation.commit(
-      async (tx) =>
-        Boolean(
-          (await tx.doc(LiveDoc, session.conversation.id)).run ||
-          (await tx.doc(InboxDoc, session.conversation.id)).items.length,
-        ),
-      ctx,
-    );
-  });
+  return withPiSession(sessionId, (session) => piSessionHasPendingWork(session, includeBackground));
 }
 export async function deletePiSession(session: typeof sessions.$inferSelect) {
   if (leases.has(session.id)) throw new Error("Cannot delete an open Pi session.");

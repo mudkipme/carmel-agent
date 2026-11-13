@@ -19,7 +19,7 @@ export function createHelperRoutes() {
       .from(sessions)
       .where(eq(sessions.id, c.req.param("id")!))
       .get();
-    if (!row || row.userId !== c.get("user").id)
+    if (!row || row.userId !== c.get("user").id || !readVisibleAgent(row.userId, row.agentId))
       return c.json({ error: "Session not found." }, 404);
     await next();
   });

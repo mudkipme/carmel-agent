@@ -475,18 +475,26 @@ export class ImManager {
     }
   }
   private async runNext(snapshot: IntegrationRecord) {
-    const input = db
-      .select()
-      .from(imInbox)
-      .where(and(eq(imInbox.integrationId, snapshot.id), eq(imInbox.status, "queued")))
-      .orderBy(asc(imInbox.createdAt), asc(sql`rowid`))
-      .get();
-    if (!input) return;
-    if (!input.legacy) {
+    while (true) {
+      const input = db
+        .select()
+        .from(imInbox)
+        .where(and(eq(imInbox.integrationId, snapshot.id), eq(imInbox.status, "queued")))
+        .orderBy(asc(imInbox.createdAt), asc(sql`rowid`))
+        .get();
+      if (!input) return;
+      if (input.legacy) {
+        await this.runLegacyNext(snapshot, input);
+        return;
+      }
       const event = input.homeEventId
         ? db.select().from(homeEvents).where(eq(homeEvents.id, input.homeEventId)).get()
         : undefined;
-      if (!event) return;
+      if (!event) {
+        // Never leave an orphaned inbox entry at the head of the queue.
+        db.update(imInbox).set({ status: "interrupted" }).where(eq(imInbox.id, input.id)).run();
+        continue;
+      }
       if (event.status === "preparing") {
         try {
           const transport = this.connections.get(`integration:${snapshot.id}`)?.transport;
@@ -522,6 +530,8 @@ export class ImManager {
       await dispatchHome(event.sessionId);
       return;
     }
+  }
+  private async runLegacyNext(snapshot: IntegrationRecord, input: typeof imInbox.$inferSelect) {
     const binding = db
       .select()
       .from(imBindings)

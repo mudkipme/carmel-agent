@@ -1,4 +1,4 @@
-import type { IncomingMessage, Server } from "node:http";
+import type { Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { eq } from "drizzle-orm";
 import { WebSocketServer, type WebSocket } from "ws";
@@ -6,7 +6,7 @@ import { readAuthenticatedUser, readSessionCookie } from "./auth.ts";
 import { db } from "./db/index.ts";
 import { agents } from "./db/schema.ts";
 import { attachTerminal } from "./runtime/sandbox/terminal-sessions.ts";
-import { isAllowedBrowserOrigin } from "./security.ts";
+import { incomingRequestHost, incomingRequestUrl, isAllowedBrowserOrigin } from "./security.ts";
 import { errorMessage } from "./errors.ts";
 
 /**
@@ -30,7 +30,7 @@ export function attachTerminalSocket(server: Server) {
   const wss = new WebSocketServer({ noServer: true });
 
   server.on("upgrade", (request, socket, head) => {
-    const url = safeUrl(request);
+    const url = incomingRequestUrl(request);
     if (url?.pathname !== terminalSocketPath) return;
 
     // A WebSocket handshake is not covered by the CORS preflight that guards
@@ -38,8 +38,7 @@ export function attachTerminalSocket(server: Server) {
     // server-side check. Validate the origin here or a page on another site
     // could open a shell with the visitor's cookie.
     const origin = request.headers.origin;
-    const host =
-      (request.headers["x-forwarded-host"] as string | undefined) ?? request.headers.host;
+    const host = incomingRequestHost(request);
     if (origin && !isAllowedBrowserOrigin(origin, host))
       return rejectUpgrade(socket, 403, "Forbidden");
 
@@ -127,14 +126,6 @@ function parseMessage(raw: string): ClientMessage | undefined {
     // A malformed frame is ignored rather than fatal: it cannot reach the shell.
   }
   return undefined;
-}
-
-function safeUrl(request: IncomingMessage) {
-  try {
-    return new URL(request.url ?? "", `http://${request.headers.host ?? "localhost"}`);
-  } catch {
-    return undefined;
-  }
 }
 
 function rejectUpgrade(socket: Duplex, status: number, reason: string) {

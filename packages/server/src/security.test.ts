@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   allowedCorsOrigin,
+  incomingRequestHost,
+  incomingRequestUrl,
   isAllowedBrowserOrigin,
   protectJsonSecret,
   protectSecret,
@@ -82,6 +84,32 @@ test("json secrets encrypt and decrypt when CARMEL_SECRET_KEY is configured", ()
   } finally {
     restoreSecret(previous);
   }
+});
+
+test("incomingRequestHost honours x-forwarded-host only from a trusted proxy", () => {
+  const previous = process.env.CARMEL_TRUSTED_PROXY;
+  process.env.CARMEL_TRUSTED_PROXY = "10.0.0.5";
+  try {
+    const untrusted = {
+      headers: { host: "local.example", "x-forwarded-host": "evil.example" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    assert.equal(incomingRequestHost(untrusted), "local.example");
+
+    const trusted = {
+      headers: { host: "127.0.0.1:8797", "x-forwarded-host": "app.example.test" },
+      socket: { remoteAddress: "::ffff:10.0.0.5" },
+    };
+    assert.equal(incomingRequestHost(trusted), "app.example.test");
+  } finally {
+    if (previous === undefined) delete process.env.CARMEL_TRUSTED_PROXY;
+    else process.env.CARMEL_TRUSTED_PROXY = previous;
+  }
+});
+
+test("incomingRequestUrl returns undefined for malformed URLs", () => {
+  assert.equal(incomingRequestUrl({ url: "http://[invalid" }), undefined);
+  assert.equal(incomingRequestUrl({ url: "/api/updates?a=1" })?.pathname, "/api/updates");
 });
 
 function restoreSecret(value: string | undefined) {

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
@@ -46,15 +46,16 @@ export function createModelRoutes() {
     const duplicate = db
       .select()
       .from(modelRefs)
-      .all()
-      .find(
-        (item) =>
-          item.id !== c.req.param("id") &&
-          item.modelId === model.modelId &&
-          (model.providerConfigId
-            ? item.providerConfigId === model.providerConfigId
-            : item.provider === model.provider && !item.providerConfigId),
-      );
+      .where(
+        and(
+          ne(modelRefs.id, c.req.param("id")),
+          eq(modelRefs.modelId, model.modelId),
+          model.providerConfigId
+            ? eq(modelRefs.providerConfigId, model.providerConfigId)
+            : and(eq(modelRefs.provider, model.provider), isNull(modelRefs.providerConfigId)),
+        ),
+      )
+      .get();
     if (duplicate) {
       // The uniqueness indexes are global, but another user's private entry is
       // not something this caller may see or silently adopt.

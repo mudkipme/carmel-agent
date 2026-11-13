@@ -716,3 +716,38 @@ test("tool enqueue keys stay idempotent across retries", async () => {
   assert.equal(db.select().from(imOutbox).all().length, 1);
   assert.equal(listImSetups(f.userId, f.agentId).length, 0);
 });
+test("missing home events do not deadlock subsequent IM inbox entries", async () => {
+  const f = await paired();
+  await receiveImMessage(f.integrationId, incoming("First message", "ev-1"));
+  const firstInbox = db.select().from(imInbox).where(eq(imInbox.eventId, "ev-1")).get()!;
+  // Delete the referenced home_events row to simulate an orphaned head-of-line inbox row.
+  db.delete(homeEvents).where(eq(homeEvents.id, firstInbox.homeEventId!)).run();
+  await receiveImMessage(f.integrationId, {
+    ...incoming("Second message", "ev-2"),
+    imageKeys: ["missing-key"],
+  });
+  const manager = new ImManager(() => ({
+    async start() {},
+    stop() {},
+    async send() {
+      return "sent";
+    },
+    async image() {
+      throw new Error("download failed");
+    },
+  }));
+  try {
+    await manager.tick();
+    await manager.drain();
+    assert.equal(
+      db.select().from(imInbox).where(eq(imInbox.id, firstInbox.id)).get()!.status,
+      "interrupted",
+    );
+    assert.equal(
+      db.select().from(imInbox).where(eq(imInbox.eventId, "ev-2")).get()!.status,
+      "done",
+    );
+  } finally {
+    manager.stop();
+  }
+});
