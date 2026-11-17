@@ -59,6 +59,7 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
   const [aliases, setAliases] = useState("");
   const [kind, setKind] = useState<HomeMemory["kind"]>("fact");
   const [placement, setPlacement] = useState<HomeMemory["placement"]>("topic");
+  const [aboutUser, setAboutUser] = useState(false);
   const [expiry, setExpiry] = useState("");
   const [history, setHistory] = useState<{ note: HomeMemory; rows: HomeMemoryRevision[] }>();
   const [mountedAt] = useState(() => Date.now());
@@ -139,6 +140,7 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
     setAliases(note === "new" ? "" : note.aliases.join(", "));
     setKind(note === "new" ? "fact" : note.kind);
     setPlacement(note === "new" ? "topic" : note.placement);
+    setAboutUser(note === "new" ? false : Boolean(note.aboutUser));
     const date = note === "new" || !note.expiresAt ? null : new Date(note.expiresAt);
     setExpiry(
       date
@@ -233,6 +235,32 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                   ) : null}
                 </p>
               ) : null}
+              {data.lastTidy ? (
+                <p className="text-xs text-muted-foreground">
+                  <Trans>Last tidy</Trans> {formatRelativeTime(data.lastTidy.at)}
+                  {" · "}
+                  {[
+                    data.lastTidy.expired ? `${data.lastTidy.expired} expired` : "",
+                    data.lastTidy.duplicates ? `${data.lastTidy.duplicates} merged` : "",
+                    data.lastTidy.superseded ? `${data.lastTidy.superseded} updated` : "",
+                    data.lastTidy.organized ? `${data.lastTidy.organized} organized` : "",
+                    data.lastTidy.coalesced ? `${data.lastTidy.coalesced} coalesced` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || i18n._("clean")}
+                </p>
+              ) : null}
+              {data.lastDream?.ideas?.length ? (
+                <Alert>
+                  <AlertDescription>
+                    <ul className="list-disc pl-4 text-xs">
+                      {data.lastDream.ideas.map((idea) => (
+                        <li key={idea}>{idea}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               {editor ? (
                 <form
                   className="flex flex-col gap-4"
@@ -249,6 +277,7 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                           .filter(Boolean),
                         kind,
                         placement,
+                        aboutUser,
                         expiresAt: expiry ? new Date(expiry).getTime() : null,
                       };
                       if (editor === "new") await api.saveHomeMemory(agentId, input);
@@ -356,6 +385,16 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                         </p>
                       </Field>
                     ) : null}
+                    <Field orientation="horizontal">
+                      <FieldLabel htmlFor="home-memory-about-user">
+                        <Trans>Share across my agents</Trans>
+                      </FieldLabel>
+                      <Switch
+                        id="home-memory-about-user"
+                        checked={aboutUser}
+                        onCheckedChange={setAboutUser}
+                      />
+                    </Field>
                     <Field>
                       <FieldLabel htmlFor="home-memory-expiry">
                         <Trans>Expires</Trans>
@@ -418,6 +457,15 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                       <PlusIcon data-icon="inline-start" />
                       <Trans>Add</Trans>
                     </Button>
+                    {data.total > 0 ? (
+                      <Button
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => void act(() => api.tidyHomeMemory(agentId, true))}
+                      >
+                        <Trans>Tidy</Trans>
+                      </Button>
+                    ) : null}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {i18n._(
@@ -577,8 +625,13 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                         {group.notes.map((note) => (
                           <Card key={note.id}>
                             <CardHeader>
-                              <CardTitle className="flex items-center gap-2">
+                              <CardTitle className="flex flex-wrap items-center gap-2">
                                 {note.title || note.scope || i18n._("General")}
+                                {note.title &&
+                                note.scope &&
+                                note.title.toLowerCase() !== note.scope.toLowerCase() ? (
+                                  <Badge variant="outline">{note.scope}</Badge>
+                                ) : null}
                                 {note.pinned ? (
                                   <PinIcon aria-label={i18n._("Pinned")} className="size-4" />
                                 ) : null}
@@ -587,10 +640,20 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                                     <Trans>Learned</Trans>
                                   </Badge>
                                 ) : null}
+                                {note.aboutUser ? (
+                                  <Badge variant="secondary">
+                                    <Trans>Shared</Trans>
+                                  </Badge>
+                                ) : null}
                               </CardTitle>
                             </CardHeader>
                             <CardContent className="flex flex-col gap-2">
                               <p className="whitespace-pre-wrap">{note.content}</p>
+                              {note.aliases.length ? (
+                                <p className="text-xs text-muted-foreground">
+                                  {note.aliases.join(", ")}
+                                </p>
+                              ) : null}
                               {note.expiresAt ? (
                                 <p className="text-sm text-muted-foreground">
                                   {i18n._("Expires {date}", {
@@ -712,6 +775,45 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                         ))}
                       </section>
                     ))}
+                  {data.sharedMemories?.length && !query.trim() ? (
+                    <section
+                      aria-label={i18n._("Shared across agents")}
+                      className="flex flex-col gap-3"
+                    >
+                      <h3 className="font-medium">
+                        <Trans>Shared across agents</Trans>
+                      </h3>
+                      {data.sharedMemories.map((note) => (
+                        <Card key={note.id}>
+                          <CardHeader>
+                            <CardTitle className="flex flex-wrap items-center gap-2">
+                              {note.title || note.scope || i18n._("About you")}
+                              <Badge variant="secondary">
+                                <Trans>Shared</Trans>
+                              </Badge>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="whitespace-pre-wrap">{note.content}</p>
+                          </CardContent>
+                          <CardFooter>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={busy}
+                              onClick={() =>
+                                void act(() =>
+                                  api.forgetHomeMemory(agentId, note.id, note.revision),
+                                )
+                              }
+                            >
+                              <Trans>Forget</Trans>
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      ))}
+                    </section>
+                  ) : null}
                   <div className="flex justify-between gap-2">
                     <Button
                       variant="ghost"

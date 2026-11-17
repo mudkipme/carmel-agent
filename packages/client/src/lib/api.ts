@@ -9,6 +9,8 @@ import type {
   HomeMemoryRevision,
   HomeMemorySearchInput,
   HomeMemorySearchResult,
+  HomeMemoryTidyReport,
+  HomeMemoryDreamReport,
   KnowledgeOverview,
   KnowledgeSettings,
   KnowledgeSourceInput,
@@ -631,6 +633,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ embed, allowDownloads, deep }),
     }),
+  tidyHomeMemory: (agentId: string, dream = false) =>
+    request<{ tidy: HomeMemoryTidyReport; dream: HomeMemoryDreamReport | null }>(
+      `/api/agents/${encodeURIComponent(agentId)}/home/memory/tidy`,
+      { method: "POST", body: JSON.stringify({ dream }) },
+    ),
   saveHomeMemory: (agentId: string, input: HomeMemoryInput) =>
     request<HomeMemory>(`/api/agents/${encodeURIComponent(agentId)}/home/memory`, {
       method: "POST",

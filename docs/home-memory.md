@@ -1,35 +1,44 @@
 # Home memory
 
 Open **Memory** in Home to manage notes private to you and that agent, including
-when other people use the same shared agent. **Remember when asked** is the
-default: ask Home to remember, correct, or forget a detail, or edit notes in the
-panel. **Off** stops recall without deleting notes. **Learn from Home** also
-uses your Home model to extract useful lasting preferences, facts, and decisions
-from future human messages after a short idle period or a batch of exchanges.
-These background model calls may incur provider usage. Task reports, scheduled
-notices, attachments, and collaboration results are not automatic sources.
+when other people use the same shared agent. **Learn from Home** is the default:
+it uses your Home model to extract useful lasting preferences, facts, confirmed
+answers, and settled decisions from human Home exchanges after a short idle period
+or a batch of exchanges. These background model calls may incur provider usage.
+**Remember when asked** disables automatic background learning while keeping
+explicit saves, edits, and recall active. **Off** stops recall without deleting
+notes. Task reports, scheduled notices, and collaboration results are not
+automatic sources.
 
 Home memory uses [OpenMausBot](https://github.com/milind-soni/OpenMausBot)'s
-core-notebook and topic-note structure, scoped to your private Home conversation.
+core-notebook and topic-note structure, scoped to your private Home conversation,
+and renders notes and topics as clean Markdown in the prompt.
 
 **Core** notes load before every human Home reply, without a tool call, within
-**200 lines / 24,000 UTF-8 bytes** of rendered notes. They hold who you are, your
-lasting preferences and constraints, and standing decisions. Pinned notes take
-priority within the same notebook. When it fills, new automatic notes go to
-topics; saved notes are not deleted. Smaller model context windows can show less.
+**200 lines / 24,000 UTF-8 bytes** of rendered Markdown bullets. They hold who you
+are, your lasting preferences and constraints, and standing decisions. Pinned notes
+and health/diet constraints take priority within the notebook. When core fills,
+older unpinned core notes move automatically to topics so new core facts fit;
+saved notes are not deleted. Smaller model context windows can show less.
 
 **Topics** group details about a project, person, trip, place, or domain under a
 scope. Each can have aliases, such as **food → dinner, restaurants, cuisine**.
-A compact topic index (up to 40 topics / 2,000 characters) is supplied alongside
-core, so Home knows which subjects it remembers. Relevant passages from up to
-four topics load automatically before the reply, within 6,000 characters, with
-up to 600 characters of content per topic. Home can search for the full notes
-when it needs more detail. Topic notes support a title and up to 20,000 characters.
+A compact Markdown topic index (up to 40 topics / 2,000 characters) is supplied
+alongside core, so Home knows which subjects it remembers. Relevant passages from
+up to four topics, up to four matching excerpts from earlier conversations and
+tasks, and a 48-hour recent-work brief across your tasks and sessions load
+automatically before the reply within the recall budget. Home can search or read
+for the full notes when it needs more detail. Topic notes support a title and up
+to 20,000 characters.
 
 Home exposes one tool set: `memory_search`, `memory_read`, `memory_save`,
-`memory_edit`, and `memory_forget`. Search returns bounded excerpts; read supports
-line ranges, and edit supports exact replacements with a revision check. No
-memory tools are exposed to plain sessions or task runs.
+`memory_edit`, and `memory_forget`. Save, edit, and forget work in a single step:
+`memory_save` accepts `until` (`YYYY-MM-DD`) and `replaces` to supersede an older
+note directly; `memory_edit` and `memory_read` match by `query` or `id`; and
+`memory_forget` can forget matching notes across core and topics by `query` phrase
+or `id`. `session_search` also supports `since` and `until` time ranges alongside
+stop-word-filtered keyword, stem, and CJK matching. No memory tools are exposed
+to plain sessions or task runs.
 
 Open **Search and indexing** to enable a private index, select acceleration, and
 refresh keyword indexes, build embeddings, or prepare deep hybrid search. The
@@ -43,12 +52,17 @@ Automatic retrieval has a short deadline so an unavailable embedding model does
 not hold up Home replies. Background maintenance refreshes enabled indexes and
 updates embeddings after the initial build; it runs offline.
 
-The panel shows **Default context**, its line and byte usage, and **Topics**.
-Use **Use as core**, **Move to topics**, or the editor to control placement and
-aliases. Automatic learning can organize its own notes by subject, but protects
-your edits and placement choices. Existing unpinned notes start as topics;
-learning can reclassify supported lasting facts during a later capture. Turning
-on learning does not scan old conversations.
+The panel shows **Default context**, its line and byte usage, **Topics**, and
+**Shared across agents**. Use **Use as core**, **Move to topics**, **Tidy**, or
+the editor to control placement, aliases, and whether a durable personal fact is
+shared across your agents (`aboutUser`). **Tidy** removes expired notes, merges
+duplicates (preserving signs and symbols), coalesces fragmented automatic topic
+notes, moves subject-specific or finished work-log entries from core to topics,
+resolve contradictions (preserving still-true remainder clauses), and consolidates
+cross-conversation patterns and automation ideas across your recent sessions.
+Automatic learning protects your manual edits and pinned notes. Existing unpinned
+notes start as topics; learning can reclassify supported lasting facts during a
+later capture. Turning on learning does not scan old conversations.
 
 Learning requires evidence from your own words and rejects uncertain facts,
 one-task instructions, greetings, daily chatter, and inferred traits. Confirmed

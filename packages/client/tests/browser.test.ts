@@ -212,7 +212,7 @@ test(
         evaluate(
           'document.querySelector(\'[aria-label="Memory mode"] [data-state="on"]\')?.textContent',
         ),
-        "Remember when asked",
+        "Learn from Home",
       );
       click("button", "Add");
       browser("fill", "#home-memory-title", "Carmel UI preference");

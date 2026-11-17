@@ -404,12 +404,16 @@ test("long-note keyword recall and memory_search return the matching passage wit
   });
   const query = "zephyrflux migration target";
   const sections = buildHomeMemorySections(value.userId, value.agentId, query, 128000);
-  const [recalled] = JSON.parse(sections.home_memory_recall!);
-  assert.equal(recalled.id, note.id);
-  assert.ok(recalled.content.includes(fact));
-  assert.ok(recalled.content.length <= 600);
-  assert.ok(recalled.fromLine > 1);
-  assert.ok(recalled.fromLine <= 201 && recalled.toLine >= 201);
+  const recalledText = sections.home_memory_recall!;
+  assert.ok(recalledText.includes(note.id));
+  assert.ok(recalledText.includes(fact));
+  assert.ok(recalledText.length <= 700);
+  const lineMatch = /lines (\d+)–(\d+)/u.exec(recalledText);
+  assert.ok(lineMatch);
+  const fromLine = Number(lineMatch[1]);
+  const toLine = Number(lineMatch[2]);
+  assert.ok(fromLine > 1);
+  assert.ok(fromLine <= 201 && toLine >= 201);
   const event = db
     .insert(homeEvents)
     .values({
@@ -488,7 +492,7 @@ test("semantic passage locations survive document headers and select facts witho
     result.memories,
   ).home_memory_recall!;
   assert.ok(section.includes(fact));
-  assert.equal(JSON.parse(section)[0].fromLine, 221);
+  assert.match(section, /lines 221–/);
   const stale = await searchHomeMemory(
     value.userId,
     value.agentId,

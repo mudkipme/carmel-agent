@@ -18,6 +18,7 @@ export const homeMemoryInputSchema = z
     placement: homeMemoryPlacementSchema.default("topic"),
     aliases: homeMemoryAliasesSchema.default([]),
     expiresAt: z.number().int().positive().nullable().default(null),
+    aboutUser: z.boolean().optional(),
   })
   .strict();
 export const homeMemoryPatchSchema = z
@@ -29,8 +30,14 @@ export const homeMemoryPatchSchema = z
     placement: homeMemoryPlacementSchema.optional(),
     aliases: homeMemoryAliasesSchema.optional(),
     expiresAt: z.number().int().positive().nullable().optional(),
+    aboutUser: z.boolean().optional(),
     expectedRevision: z.number().int().positive(),
     pinned: z.boolean().optional(),
+  })
+  .strict();
+export const homeMemoryTidySchema = z
+  .object({
+    dream: z.boolean().optional(),
   })
   .strict();
 export const homeMemorySettingsSchema = z
@@ -88,6 +95,25 @@ export type HomeMemoryRevision = {
   expiresAt: number | null;
   createdAt: number;
 };
+export type HomeMemoryTidyReport = {
+  at: number;
+  expired: number;
+  duplicates: number;
+  superseded: number;
+  organized: number;
+  coalesced: number;
+  contradictionsChecked: boolean;
+  note: string | null;
+};
+export type HomeMemoryDreamReport = {
+  at: number;
+  conversations: number;
+  learned: Array<{ content: string; scope: string }>;
+  outdated: Array<{ was: string; now: string }>;
+  ideas: string[];
+  aboutMe: number;
+  note: string | null;
+};
 /** Internal diagnostics for the last background learning call, stored per Home. */
 export type HomeMemoryCaptureReport = {
   at: number;
@@ -106,6 +132,10 @@ export type HomeMemoryCaptureReport = {
     cost: number;
   } | null;
   error: string | null;
+  lastTidy?: HomeMemoryTidyReport | null;
+  lastDream?: HomeMemoryDreamReport | null;
+  dreamedTo?: number | null;
+  judgedCore?: string[];
 };
 export type HomeMemoryOverview = {
   mode: HomeMemoryMode;
@@ -113,6 +143,7 @@ export type HomeMemoryOverview = {
   indexStatus: KnowledgeStatus;
   embeddingModel: string;
   memories: HomeMemory[];
+  sharedMemories?: HomeMemory[];
   total: number;
   coreIds: string[];
   coreLines: number;
@@ -122,5 +153,7 @@ export type HomeMemoryOverview = {
   lastCaptureAt: number | null;
   /** Diagnostics for the most recent learning call, including quiet, empty runs. */
   lastCapture: HomeMemoryCaptureReport | null;
+  lastTidy?: HomeMemoryTidyReport | null;
+  lastDream?: HomeMemoryDreamReport | null;
   error: string | null;
 };

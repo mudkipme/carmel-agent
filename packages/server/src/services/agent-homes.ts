@@ -1,7 +1,7 @@
 import { imBindings, imIntegrations } from "../db/im-schema.ts";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.ts";
-import { agentHomes, homeEvents, sessions } from "../db/schema.ts";
+import { agentHomes, homeEvents, homeMemoryCaptures, sessions } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import {
   readVisibleAgent,
@@ -116,6 +116,23 @@ export async function resetHome(userId: string, agentId: string) {
       BACKGROUND_CONTEXT,
     );
   });
+  const doneEventIds = db
+    .select({ id: homeEvents.id })
+    .from(homeEvents)
+    .where(and(eq(homeEvents.sessionId, home.sessionId), eq(homeEvents.status, "done")))
+    .all()
+    .map((row) => row.id);
+  if (doneEventIds.length) {
+    db.update(homeMemoryCaptures)
+      .set({ retryAt: -1 })
+      .where(
+        and(
+          inArray(homeMemoryCaptures.eventId, doneEventIds),
+          eq(homeMemoryCaptures.status, "pending"),
+        ),
+      )
+      .run();
+  }
   db.update(sessions)
     .set({
       revision:

@@ -590,7 +590,7 @@ export const homeMemorySettings = sqliteTable(
     agentId: text("agent_id")
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
-    mode: text("mode").$type<HomeMemoryMode>().notNull().default("manual"),
+    mode: text("mode").$type<HomeMemoryMode>().notNull().default("automatic"),
     retrieval: text("retrieval", { mode: "json" })
       .$type<KnowledgeSettings>()
       .notNull()

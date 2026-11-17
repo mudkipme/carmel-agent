@@ -7,18 +7,42 @@ export const HOME_MEMORY_TOPIC_INDEX_MAX_CHARS = 2_000;
 export const HOME_MEMORY_RECALL_MAX_CHARS = 6_000;
 
 type Note = Pick<HomeMemory, "id" | "revision" | "scope" | "content"> &
-  Partial<Pick<HomeMemory, "title">> & { fromLine?: number; toLine?: number };
+  Partial<Pick<HomeMemory, "title" | "expiresAt">> & { fromLine?: number; toLine?: number };
 
-function memoryJson(value: unknown) {
-  return JSON.stringify(value).replace(
-    /[<>&]/g,
-    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`,
-  );
+export function cleanMemoryPromptText(value: string) {
+  return value
+    .replace(/<\/?[a-z_][\w-]*[^>]*>/giu, (tag) =>
+      tag.replaceAll("<", "&lt;").replaceAll(">", "&gt;"),
+    )
+    .replace(/```/gu, "'''")
+    .trim();
 }
 
 export function renderHomeMemoryNotes(notes: readonly Note[]) {
   if (!notes.length) return "";
-  return `[\n${notes.map(({ id, revision, scope, content, title, fromLine, toLine }) => memoryJson({ id, revision, scope, content, ...(title ? { title } : {}), ...(fromLine === undefined ? {} : { fromLine, toLine }) })).join(",\n")}\n]`;
+  return notes
+    .map(({ id, scope, content, title, fromLine, toLine, expiresAt }) => {
+      const cleanScope = scope ? cleanMemoryPromptText(scope) : "";
+      const cleanTitle = title ? cleanMemoryPromptText(title) : "";
+      const heading =
+        cleanScope && cleanTitle && cleanScope.toLowerCase() !== cleanTitle.toLowerCase()
+          ? `${cleanScope} / ${cleanTitle}`
+          : cleanScope || cleanTitle;
+      const range =
+        fromLine !== undefined && toLine !== undefined ? `lines ${fromLine}–${toLine}` : "";
+      const until =
+        typeof expiresAt === "number" && Number.isFinite(expiresAt)
+          ? `until ${new Date(expiresAt - 1).toISOString().slice(0, 10)}`
+          : "";
+      const meta = [heading, ...(fromLine !== undefined ? [`id: ${id}`, range] : []), until]
+        .filter(Boolean)
+        .join(" · ");
+      const body = cleanMemoryPromptText(content)
+        .replace(/\s*\n+\s*/gu, " ")
+        .replace(/[ \t]+/gu, " ");
+      return `- ${meta ? `[${meta}] ` : ""}${body}`;
+    })
+    .join("\n");
 }
 
 export function homeMemoryNotebookSize(notes: readonly Note[]) {
@@ -35,8 +59,8 @@ export function homeMemoryTopicGroups(notes: readonly HomeMemory[]) {
   const groups = new Map<string, { scope: string; aliases: string[]; notes: HomeMemory[] }>();
   for (const note of notes) {
     if (note.pinned || note.placement === "core") continue;
-    const topic = note.scope || note.title;
-    const key = topic.normalize("NFKC").toLowerCase().trim();
+    const topic = (note.scope || note.title || "General").trim();
+    const key = topic.normalize("NFKC").toLowerCase();
     const group = groups.get(key) ?? { scope: topic, aliases: [], notes: [] };
     group.notes.push(note);
     group.aliases = [...new Set([...group.aliases, ...note.aliases])].slice(0, 12);
@@ -50,7 +74,10 @@ export function renderHomeMemoryTopicIndex(notes: readonly HomeMemory[]) {
   const lines: string[] = [];
   let omitted = 0;
   for (const { scope, aliases, notes: items } of groups) {
-    const line = memoryJson({ scope, aliases, notes: items.length });
+    const cleanAliases = aliases.map(cleanMemoryPromptText).filter(Boolean);
+    const also = cleanAliases.length ? ` (also: ${cleanAliases.join(", ")})` : "";
+    const count = `${items.length} ${items.length === 1 ? "note" : "notes"}`;
+    const line = `- ${cleanMemoryPromptText(scope)}${also} — ${count}`;
     if (
       lines.length >= HOME_MEMORY_TOPIC_INDEX_MAX_TOPICS ||
       [...lines, line].join("\n").length > HOME_MEMORY_TOPIC_INDEX_MAX_CHARS - 60
@@ -60,6 +87,6 @@ export function renderHomeMemoryTopicIndex(notes: readonly HomeMemory[]) {
     }
     lines.push(line);
   }
-  if (omitted) lines.push(JSON.stringify({ omittedTopics: omitted }));
+  if (omitted) lines.push(`- …and ${omitted} more ${omitted === 1 ? "topic" : "topics"}`);
   return lines.length ? lines.join("\n") : undefined;
 }

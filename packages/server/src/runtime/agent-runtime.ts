@@ -88,6 +88,7 @@ import {
   humanHomeMemoryEvent,
 } from "./home-memory-tools.ts";
 import { recallHomeMemories } from "../services/home-memory-search.ts";
+import { buildHomeRecentWorkBrief, recallHomeConversations } from "../services/session-search.ts";
 import { createSchedulingTools, buildSchedulingInstructions } from "./task-tools.ts";
 import { createUserRequestTools, userRequestInstructions } from "./user-request-tools.ts";
 import {
@@ -597,6 +598,19 @@ async function openRunHarness(
             agent.id,
             context.promptInput?.text ?? "",
           ),
+          {
+            conversations: await recallHomeConversations(
+              context.session.userId,
+              agent.id,
+              context.session.id,
+              context.promptInput?.text ?? "",
+            ),
+            recentWork: buildHomeRecentWorkBrief(
+              context.session.userId,
+              agent.id,
+              context.session.id,
+            ),
+          },
         )
       : {
           home_memory: undefined,
@@ -638,7 +652,6 @@ async function openRunHarness(
             }),
         links: carmelLinkInstructions(agent.id),
         home: home ? buildHomeInstructions(agent.id, activeToolNames) : undefined,
-        ...memorySections,
         issue: sessionAddons?.instructions,
         browser: agent.permissions.bash ? browserInstructions : undefined,
         knowledge:
@@ -647,6 +660,7 @@ async function openRunHarness(
         scheduling: schedulingTools.length
           ? buildSchedulingInstructions(context.timezone, messagingPlatforms)
           : undefined,
+        ...memorySections,
       },
       tools,
       env: execution.env,

@@ -9,7 +9,13 @@ import { db, initialize, sqlite } from "../db/index.ts";
 import { agents, sessions, users } from "../db/schema.ts";
 import { createSession, createUser, userMessage } from "../test-support.ts";
 import { replacePiSessionMessages } from "./pi-session-storage.ts";
-import { searchGlobalSessions, searchSessions, readSessionExcerpt } from "./session-search.ts";
+import {
+  searchGlobalSessions,
+  searchSessions,
+  readSessionExcerpt,
+  recallHomeConversations,
+  buildHomeRecentWorkBrief,
+} from "./session-search.ts";
 import { readSessionSnapshot } from "./session-snapshot.ts";
 
 initialize();
@@ -201,4 +207,50 @@ test("global search API validates queries and searches as the signed-in user", a
   assert.deepEqual(await (await app.request("/sessions/search")).json(), []);
   const tooLong = await app.request(`/sessions/search?q=${"a".repeat(501)}`);
   assert.equal(tooLong.status, 400);
+});
+
+test("session_search handles natural multi-word, CJK, and time-ranged queries, plus Home conversation recall and recent-work brief", async () => {
+  const home = createSession();
+  const other = createSession({ userId: home.userId });
+  db.update(sessions)
+    .set({ agentId: home.agentId, title: "Saffron architecture", updatedAt: Date.now() })
+    .where(eq(sessions.id, other.sessionId))
+    .run();
+  await replacePiSessionMessages(other.sessionId, [
+    userMessage("We decided to deploy Saffron on Fly.io with SQLite."),
+    fauxAssistantMessage("Saffron deployment plan recorded: Fly.io + SQLite."),
+    userMessage("顺便记录一下：备份策略是每天凌晨三点。"),
+  ]);
+
+  // Stop words and natural phrasing still match via any-term FTS + stemming
+  const natural = await searchSessions(
+    home.userId,
+    home.agentId,
+    "what did we decide about deploying Saffron?",
+  );
+  assert.ok(natural.length >= 1);
+  assert.match(natural[0]!.excerpt, /Fly\.io/);
+
+  // CJK query matches in session_search
+  const cjk = await searchSessions(home.userId, home.agentId, "备份策略是什么");
+  assert.equal(cjk.length, 1);
+  assert.match(cjk[0]!.excerpt, /凌晨三点/);
+
+  // Time-bounded search works without a keyword query
+  const recent = await searchSessions(home.userId, home.agentId, "", false, { since: "24h" });
+  assert.ok(recent.some((item) => item.sessionId === other.sessionId));
+
+  // Home conversation recall retrieves from other sessions without duplicating active Home context
+  const recalled = await recallHomeConversations(
+    home.userId,
+    home.agentId,
+    home.sessionId,
+    "How are we deploying Saffron?",
+  );
+  assert.ok(recalled.some((item) => item.sessionId === other.sessionId));
+
+  // Recent-work brief summarizes recent sessions/tasks for Home
+  const brief = buildHomeRecentWorkBrief(home.userId, home.agentId, home.sessionId);
+  assert.ok(brief);
+  assert.match(brief, /Saffron architecture/);
 });

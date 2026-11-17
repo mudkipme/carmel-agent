@@ -5,6 +5,7 @@ import {
   homeMemoryPatchSchema,
   homeMemorySettingsSchema,
   homeMemorySearchSchema,
+  homeMemoryTidySchema,
   indexRefreshSchema,
 } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
@@ -19,6 +20,7 @@ import {
   homeMemoryHistory,
   restoreHomeMemory,
 } from "../services/home-memory.ts";
+import { dreamHomeMemories, tidyHomeMemories } from "../services/home-memory-upkeep.ts";
 
 import { refreshHomeMemoryIndex, searchHomeMemory } from "../services/home-memory-search.ts";
 
@@ -60,6 +62,16 @@ export function createHomeMemoryRoutes() {
   route.post(`${path}/refresh`, jsonValidator(indexRefreshSchema), async (c) => {
     await refreshHomeMemoryIndex(c.get("user").id, c.req.param("agentId"), c.req.valid("json"));
     return c.json({ ok: true }, 202);
+  });
+  route.post(`${path}/tidy`, async (c) => {
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = homeMemoryTidySchema.safeParse(raw ?? {});
+    if (!parsed.success) return c.json({ error: "Invalid tidy options." }, 400);
+    const userId = c.get("user").id;
+    const agentId = c.req.param("agentId");
+    const tidy = await tidyHomeMemories(userId, agentId);
+    const dream = parsed.data.dream ? await dreamHomeMemories(userId, agentId) : null;
+    return c.json({ tidy, dream });
   });
   route.post(path, jsonValidator(homeMemoryInputSchema), (c) =>
     c.json(saveHomeMemory(c.get("user").id, c.req.param("agentId"), c.req.valid("json")), 201),

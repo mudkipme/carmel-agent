@@ -193,6 +193,32 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/OK" }
+  /api/agents/{agentId}/home/memory/tidy:
+    parameters: *a2
+    post:
+      operationId: tidyHomeMemory
+      tags:
+        - Agents
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                dream: { type: boolean }
+      responses:
+        "200":
+          description: Private Home memory tidy and upkeep report
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400": *a1
+        "404": *a1
+        "409": *a1
   /api/agents/{agentId}/home/memory/{id}:
     parameters: &a4
       - *a3
@@ -3429,6 +3455,8 @@ components:
           type: integer
           minimum: 1
           nullable: true
+        aboutUser: &homeMemoryAboutUser
+          type: boolean
     HomeMemoryPatch:
       type: object
       additionalProperties: false
@@ -3442,6 +3470,7 @@ components:
         placement: *homeMemoryPlacement
         aliases: *homeMemoryAliases
         expiresAt: *a4
+        aboutUser: *homeMemoryAboutUser
         expectedRevision: &a5
           type: integer
           minimum: 1
@@ -3477,6 +3506,7 @@ components:
         placement: *homeMemoryPlacement
         aliases: *homeMemoryAliases
         expiresAt: *a4
+        aboutUser: *homeMemoryAboutUser
         id:
           type: string
         revision: *a5

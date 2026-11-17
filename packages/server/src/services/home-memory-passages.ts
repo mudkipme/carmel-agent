@@ -1,5 +1,5 @@
 import type { HomeMemorySearchHit } from "@carmel-agent/shared";
-import { homeMemoryQueryTerms } from "./home-memory.ts";
+import { hasCjk, homeMemoryQueryTerms, sameMemoryWord } from "./home-memory.ts";
 
 export function homeMemoryPassage(note: HomeMemorySearchHit, query: string, maxChars: number) {
   const { content } = note;
@@ -11,10 +11,27 @@ export function homeMemoryPassage(note: HomeMemorySearchHit, query: string, maxC
   const matchWidth = limit - padding * 2;
   const regionStart = note.match?.start ?? 0;
   const regionEnd = note.match?.end ?? content.length;
-  const terms = new Set(homeMemoryQueryTerms(query));
-  const hits = [...content.slice(regionStart, regionEnd).matchAll(/[\p{L}\p{N}_-]{2,}/gu)]
-    .filter((hit) => terms.has(hit[0].toLowerCase()))
-    .map((hit) => ({ word: hit[0].toLowerCase(), start: hit.index + regionStart }));
+  const slice = content.slice(regionStart, regionEnd);
+  const terms = homeMemoryQueryTerms(query);
+  const cjkTerms = terms.filter(hasCjk);
+  const wordTerms = terms.filter((term) => !hasCjk(term));
+  const hits: Array<{ word: string; start: number }> = [];
+  for (const hit of slice.matchAll(/[\p{L}\p{N}_-]{2,}/gu)) {
+    const raw = hit[0].toLowerCase();
+    const matched = wordTerms.find((term) => sameMemoryWord(term, raw));
+    if (matched) hits.push({ word: matched, start: hit.index + regionStart });
+  }
+  if (cjkTerms.length) {
+    const lowerSlice = slice.toLowerCase();
+    for (const term of cjkTerms) {
+      let at = lowerSlice.indexOf(term);
+      while (at >= 0) {
+        hits.push({ word: term, start: at + regionStart });
+        at = lowerSlice.indexOf(term, at + 1);
+      }
+    }
+  }
+  hits.sort((a, b) => a.start - b.start);
   const counts = new Map<string, number>();
   let left = 0;
   let bestTerms = 0;
