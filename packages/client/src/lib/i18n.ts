@@ -1,6 +1,7 @@
 import { i18n } from "@lingui/core";
 import { useSyncExternalStore } from "react";
 import { messages as en } from "@/locales/en/messages.po";
+import { messages as ja } from "@/locales/ja/messages.po";
 import { messages as zhHans } from "@/locales/zh-Hans/messages.po";
 import { messages as zhHant } from "@/locales/zh-Hant/messages.po";
 import { isLanguagePreference, resolveLocale, type LanguagePreference } from "./locale";
@@ -8,7 +9,7 @@ import { isLanguagePreference, resolveLocale, type LanguagePreference } from "./
 const storageKey = "carmel-agent-language";
 let languagePreference = readLanguagePreference();
 
-i18n.load({ en, "zh-Hans": zhHans, "zh-Hant": zhHant });
+i18n.load({ en, ja, "zh-Hans": zhHans, "zh-Hant": zhHant });
 activateLanguage();
 
 function readLanguagePreference(): LanguagePreference {

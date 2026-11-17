@@ -1,4 +1,4 @@
-export const locales = ["en", "zh-Hans", "zh-Hant"] as const;
+export const locales = ["en", "ja", "zh-Hans", "zh-Hant"] as const;
 export type Locale = (typeof locales)[number];
 export type LanguagePreference = Locale | "system";
 
@@ -10,6 +10,7 @@ export function resolveLocale(languages: readonly string[]): Locale {
   for (const language of languages) {
     const tag = language.toLowerCase().replaceAll("_", "-");
     if (tag === "en" || tag.startsWith("en-")) return "en";
+    if (tag === "ja" || tag.startsWith("ja-")) return "ja";
     if (tag === "zh" || tag.startsWith("zh-")) {
       const subtags = tag.split("-");
       if (subtags.includes("hans")) return "zh-Hans";

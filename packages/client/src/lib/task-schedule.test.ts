@@ -49,9 +49,10 @@ test("common cron schedules retain their time zone; complex expressions remain e
   );
 });
 
-test("Chinese schedules translate full phrases and retain the time and zone", (t) => {
+test("Localized schedules translate full phrases and retain the time and zone", (t) => {
   t.after(() => i18n.activate("en"));
   for (const [locale, expected, weekday] of [
+    ["ja", "毎時", "毎週月曜日 09:00 (Asia/Singapore)"],
     ["zh-Hans", "每小时", "每周一 09:00 (Asia/Singapore)"],
     ["zh-Hant", "每小時", "每週一 09:00 (Asia/Singapore)"],
   ] as const) {

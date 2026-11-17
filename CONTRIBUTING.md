@@ -18,7 +18,7 @@ The client uses ordinary React hooks without React Compiler. Lint keeps the comp
 
 ## Localization
 
-The client uses Lingui with English source messages and Simplified Chinese (`zh-Hans`) and Traditional Chinese (`zh-Hant`) catalogs. Mark interface text with `<Trans>` from `@lingui/react/macro` or `i18n._()` from `useLingui()`. Translate static label tables when rendering them so they follow language changes. Keep protocol values, user content, and model prompts unchanged.
+The client uses Lingui with English source messages and Japanese (`ja`), Simplified Chinese (`zh-Hans`), and Traditional Chinese (`zh-Hant`) catalogs. Mark interface text with `<Trans>` from `@lingui/react/macro` or `i18n._()` from `useLingui()`. Translate static label tables when rendering them so they follow language changes. Keep protocol values, user content, and model prompts unchanged.
 
 Run `pnpm --filter @carmel-agent/client i18n:extract` after changing messages, then update the PO files under `packages/client/src/locales`. Run `pnpm --filter @carmel-agent/client i18n:compile` to check for missing translations. Vite compiles catalogs and JSX macros for development and production; compiled TypeScript catalogs for tests are generated and ignored. The language selector is available at sign-in, setup, and Settings → Appearance, and the browser preference is used until a language is selected.
 

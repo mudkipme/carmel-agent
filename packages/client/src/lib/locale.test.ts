@@ -11,6 +11,8 @@ test("language detection respects browser order and Chinese scripts before regio
   for (const language of ["zh-TW", "zh-HK", "zh-MO"]) {
     assert.equal(resolveLocale([language]), "zh-Hant");
   }
-  assert.equal(resolveLocale(["ja-JP"]), "en");
+  assert.equal(resolveLocale(["ja", "en"]), "ja");
+  assert.equal(resolveLocale(["ja-JP"]), "ja");
+  assert.equal(resolveLocale(["ko-KR"]), "en");
   assert.equal(resolveLocale([]), "en");
 });

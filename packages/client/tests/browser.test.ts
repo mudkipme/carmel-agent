@@ -2283,7 +2283,16 @@ test("language selection updates settings in place and persists across reload an
     browser("find", "label", label, "click");
     click("option", option);
   };
-  selectLanguage("Language", "简体中文");
+  selectLanguage("Language", "日本語");
+  browser("wait", "--text", "外観を保存");
+  assert.equal(evaluate("document.documentElement.lang"), "ja");
+  assert.equal(
+    evaluate(`document.querySelector('#appearance-theme').textContent.trim()`),
+    "ダーク",
+  );
+  assert.match(snapshot(), /モデル/);
+
+  selectLanguage("言語", "简体中文");
   browser("wait", "--text", "保存外观");
   assert.equal(evaluate("document.documentElement.lang"), "zh-Hans");
   assert.equal(evaluate(`document.querySelector('#appearance-theme').textContent.trim()`), "深色");

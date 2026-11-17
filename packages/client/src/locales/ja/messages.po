@@ -1,0 +1,5873 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-11-17 18:18+0900\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: ja\n"
+
+#. js-lingui-explicit-id
+#: src/App.tsx:100
+msgid "Can't reach Carmel Agent"
+msgstr "Carmel Agent に接続できません"
+
+#. js-lingui-explicit-id
+#: src/App.tsx:103
+msgid "We couldn't connect to the server. Check that it's running, then reload this page."
+msgstr "サーバーに接続できませんでした。サーバーが起動していることを確認して、ページを再読み込みしてください。"
+
+#. js-lingui-explicit-id
+#: src/store/slices/auth-slice.ts:39
+msgid "Something went wrong while loading your workspace."
+msgstr "ワークスペースの読み込み中にエラーが発生しました。"
+
+#. js-lingui-explicit-id
+#: src/store/slices/auth-slice.ts:50
+msgid "Setup failed"
+msgstr "セットアップに失敗しました"
+
+#. js-lingui-explicit-id
+#: src/store/slices/auth-slice.ts:61
+msgid "Login failed"
+msgstr "ログインに失敗しました"
+
+#. js-lingui-explicit-id
+#: src/store/slices/resource-slice.ts:46
+msgid "Create a model before creating an agent."
+msgstr "エージェントを作成する前に、まずモデルを追加してください。"
+
+#. js-lingui-explicit-id
+#: src/store/slices/resource-slice.ts:52
+msgid "New agent"
+msgstr "新しいエージェント"
+
+#. js-lingui-explicit-id
+#: src/store/slices/resource-slice.ts:55
+msgid "Personal agent"
+msgstr "個人用エージェント"
+
+#. js-lingui-explicit-id
+#: src/components/harness/ActionDialogs.tsx:65
+#: src/lib/action-dialogs.ts:30
+msgid "Continue"
+msgstr "続行"
+
+#. js-lingui-explicit-id
+#: src/components/harness/ActionDialogs.tsx:105
+#: src/components/harness/AgentSettingsPage.tsx:209
+#: src/components/harness/files/FileEditorView.tsx:185
+#: src/components/harness/files/FileEditorView.tsx:191
+#: src/lib/action-dialogs.ts:47
+msgid "Save"
+msgstr "保存"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:19
+msgid "Bot"
+msgstr "ロボット"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:20
+msgid "Sparkles"
+msgstr "きらめき"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:21
+msgid "Orbit"
+msgstr "軌道"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:22
+msgid "Compass"
+msgstr "コンパス"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:23
+msgid "Sprout"
+msgstr "新芽"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:24
+msgid "Sun"
+msgstr "太陽"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:25
+msgid "Moon"
+msgstr "月"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:26
+msgid "Rocket"
+msgstr "ロケット"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:27
+msgid "Book"
+msgstr "本"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:28
+msgid "Code"
+msgstr "コード"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:29
+msgid "Palette"
+msgstr "パレット"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:30
+msgid "Heart"
+msgstr "ハート"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:38
+msgid "Blue"
+msgstr "ブルー"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:39
+msgid "Green"
+msgstr "グリーン"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:40
+msgid "Orange"
+msgstr "オレンジ"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:41
+msgid "Violet"
+msgstr "バイオレット"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:42
+msgid "Teal"
+msgstr "ティール"
+
+#. js-lingui-explicit-id
+#: src/lib/agent-appearance.ts:43
+msgid "Rose"
+msgstr "ローズ"
+
+#. js-lingui-explicit-id
+#: src/lib/api.ts:117
+msgid "Request failed: {status}"
+msgstr "リクエストに失敗しました: {status}"
+
+#. js-lingui-explicit-id
+#: src/lib/api.ts:160
+#: src/lib/api.ts:192
+msgid "Upload cancelled"
+msgstr "アップロードがキャンセルされました"
+
+#. js-lingui-explicit-id
+#: src/lib/api.ts:184
+msgid "Upload failed: {status}"
+msgstr "アップロードに失敗しました: {status}"
+
+#. js-lingui-explicit-id
+#: src/lib/api.ts:190
+msgid "Unable to upload {path}"
+msgstr "{path} をアップロードできません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/LoginScreen.tsx:45
+#: src/components/harness/SetupScreen.tsx:46
+#: src/lib/auth-errors.ts:19
+msgid "single sign-on"
+msgstr "シングルサインオン"
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:21
+msgid "Your {providerName} account isn't allowed to use Carmel Agent."
+msgstr "お使いの {providerName} アカウントは Carmel Agent の利用を許可されていません。"
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:24
+msgid "No Carmel Agent account is linked to your {providerName} sign-in. Ask an administrator to create one."
+msgstr "この {providerName} サインインに紐付けられた Carmel Agent アカウントがありません。管理者に作成を依頼してください。"
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:28
+msgid "More than one Carmel Agent account matches your {providerName} sign-in. Ask an administrator to resolve it."
+msgstr "この {providerName} サインインに一致する Carmel Agent アカウントが複数あります。管理者に解決を依頼してください。"
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:32
+msgid "The matching Carmel Agent account is already linked to a different {providerName} sign-in."
+msgstr "一致する Carmel Agent アカウントは、すでに別の {providerName} サインインに紐付けられています。"
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:36
+msgid "That sign-in expired or was started in another browser. Try again."
+msgstr "サインインの有効期限が切れたか、別のブラウザーで開始されました。もう一度お試しください。"
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:37
+msgid "Sign-in with {providerName} was cancelled."
+msgstr "{providerName} でのサインインがキャンセルされました。"
+
+#. js-lingui-explicit-id
+#: src/lib/auth-errors.ts:38
+msgid "Sign-in with {providerName} failed. Try again, or ask an administrator if it keeps happening."
+msgstr "{providerName} でのサインインに失敗しました。もう一度お試しいただくか、問題が続く場合は管理者にお問い合わせください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:307
+#: src/lib/browser-input.ts:38
+msgid "Enter an HTTP or HTTPS address."
+msgstr "HTTP または HTTPS のアドレスを入力してください。"
+
+#. js-lingui-explicit-id
+#: src/lib/chat-attachments.ts:12
+msgid "Upload filenames must not contain a path."
+msgstr "アップロードするファイル名にパスを含めることはできません。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:274
+#: src/lib/chat-attachments.ts:15
+msgid "{name} exceeds the 20MB file limit."
+msgstr "{name} は 20MB のファイルサイズ上限を超えています。"
+
+#. js-lingui-explicit-id
+#: src/lib/errors.ts:4
+msgid "Unexpected error"
+msgstr "予期しないエラーが発生しました"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:6
+msgid "Off"
+msgstr "オフ"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:7
+msgid "Minimal"
+msgstr "最小"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:8
+#: src/lib/labels.ts:18
+msgid "Low"
+msgstr "低"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:9
+msgid "Medium"
+msgstr "中"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:10
+#: src/lib/labels.ts:20
+msgid "High"
+msgstr "高"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:11
+msgid "X-High"
+msgstr "超高"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:12
+msgid "Max"
+msgstr "最大"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:19
+msgid "Normal"
+msgstr "通常"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:21
+msgid "Urgent"
+msgstr "緊急"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:259
+#: src/lib/labels.ts:27
+msgid "Connecting"
+msgstr "接続中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:197
+#: src/lib/labels.ts:28
+msgid "Connected"
+msgstr "接続済み"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:168
+#: src/lib/labels.ts:29
+msgid "Disabled"
+msgstr "無効"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:50
+#: src/components/chat/ToolCallView.tsx:260
+#: src/lib/labels.ts:30
+msgid "Error"
+msgstr "エラー"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:57
+#: src/lib/labels.ts:31
+msgid "Pending"
+msgstr "保留中"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:32
+msgid "Sending"
+msgstr "送信中"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:33
+msgid "Sent"
+msgstr "送信済み"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:14
+#: src/components/tasks/TaskSubtasks.tsx:108
+#: src/lib/labels.ts:34
+#: src/lib/task-schedule.ts:131
+msgid "Failed"
+msgstr "失敗"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:15
+#: src/components/chat/ToolCallView.tsx:259
+#: src/components/harness/tasks/issue-state.ts:30
+#: src/lib/labels.ts:35
+#: src/lib/task-schedule.ts:132
+msgid "Cancelled"
+msgstr "キャンセル済み"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:36
+msgid "Uncertain"
+msgstr "不明"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:37
+msgid "Idle"
+msgstr "待機中"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:38
+msgid "Updating"
+msgstr "更新中"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:39
+msgid "Building embeddings"
+msgstr "埋め込みを生成中"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:40
+msgid "Ready"
+msgstr "準備完了"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:502
+#: src/components/chat/CollaborationActivity.tsx:13
+#: src/components/chat/UserRequestCards.tsx:125
+#: src/lib/labels.ts:41
+msgid "Answered"
+msgstr "回答済み"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:506
+#: src/lib/labels.ts:42
+msgid "Expired"
+msgstr "期限切れ"
+
+#. js-lingui-explicit-id
+#: src/lib/labels.ts:48
+msgid "Feishu"
+msgstr "Feishu"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:261
+#: src/lib/remote-agent.ts:325
+#: src/lib/remote-agent.ts:425
+msgid "Agent is already processing."
+msgstr "エージェントはすでに処理中です。"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:309
+msgid "Unable to queue this message."
+msgstr "このメッセージをキューに追加できません。"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:368
+msgid "This conversation already has a run in progress; your message was not sent."
+msgstr "この会話ではすでに実行が進行中のため、メッセージは送信されませんでした。"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:388
+msgid "Agent request failed with {status}"
+msgstr "エージェントリクエストが失敗しました（{status}）"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:398
+msgid "Agent response did not identify its server run."
+msgstr "エージェントの応答にサーバー実行の識別子が含まれていませんでした。"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:446
+msgid "Cannot continue from current message state."
+msgstr "現在のメッセージ状態から続行できません。"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:562
+msgid "Invalid agent event cursor."
+msgstr "無効なエージェントイベントカーソルです。"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:721
+msgid "Invalid agent event envelope."
+msgstr "無効なエージェントイベントエンベロープです。"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:726
+msgid "Agent event sequence gap: expected {value}, received {sequence}."
+msgstr "エージェントイベントのシーケンスに欠落があります: 期待値 {value}、受信値 {sequence}。"
+
+#. js-lingui-explicit-id
+#: src/lib/remote-agent.ts:815
+msgid "This run did not finish successfully."
+msgstr "この実行は正常に完了しませんでした。"
+
+#. js-lingui-explicit-id
+#: src/lib/session-groups.ts:39
+msgid "Today"
+msgstr "今日"
+
+#. js-lingui-explicit-id
+#: src/lib/session-groups.ts:40
+msgid "Yesterday"
+msgstr "昨日"
+
+#. js-lingui-explicit-id
+#: src/lib/session-groups.ts:41
+msgid "Previous 7 days"
+msgstr "過去 7 日間"
+
+#. js-lingui-explicit-id
+#: src/lib/session-groups.ts:42
+msgid "Previous 30 days"
+msgstr "過去 30 日間"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:636
+#: src/lib/session-groups.ts:53
+msgid "Pinned"
+msgstr "ピン留め済み"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:37
+msgid "Unknown time"
+msgstr "不明な時刻"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:54
+msgid "{amount, plural, one {Every week} other {Every # weeks}}"
+msgstr "{amount, plural, =1 {毎週} other {#週間ごと}}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:55
+msgid "{amount, plural, one {Every day} other {Every # days}}"
+msgstr "{amount, plural, =1 {毎日} other {#日ごと}}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:56
+msgid "{amount, plural, one {Every hour} other {Every # hours}}"
+msgstr "{amount, plural, =1 {毎時} other {#時間ごと}}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:57
+msgid "{amount, plural, one {Every minute} other {Every # minutes}}"
+msgstr "{amount, plural, =1 {毎分} other {#分ごと}}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:63
+msgid "{amount, plural, one {Every second} other {Every # seconds}}"
+msgstr "{amount, plural, =1 {毎秒} other {#秒ごと}}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:68
+msgid "Once at {value}"
+msgstr "1回のみ: {value}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:82
+msgid "Every day at {time}{timezone}"
+msgstr "毎日 {time}{timezone}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:84
+msgid "Every weekday at {time}{timezone}"
+msgstr "平日 {time}{timezone}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:86
+#: src/lib/task-schedule.ts:93
+msgid "Sunday"
+msgstr "日曜日"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:87
+msgid "Monday"
+msgstr "月曜日"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:88
+msgid "Tuesday"
+msgstr "火曜日"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:89
+msgid "Wednesday"
+msgstr "水曜日"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:90
+msgid "Thursday"
+msgstr "木曜日"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:91
+msgid "Friday"
+msgstr "金曜日"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:92
+msgid "Saturday"
+msgstr "土曜日"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:96
+msgid "Every {weekday} at {time}{timezone}"
+msgstr "毎週{weekday} {time}{timezone}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:102
+msgid "Cron: {scheduleValue}{timezone}"
+msgstr "Cron: {scheduleValue}{timezone}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:165
+#: src/lib/task-schedule.ts:109
+msgid "Paused"
+msgstr "一時停止中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:167
+#: src/components/harness/tasks/TaskActivity.tsx:54
+#: src/components/harness/tasks/TaskView.tsx:591
+#: src/components/tasks/TaskSubtasks.tsx:99
+#: src/lib/task-schedule.ts:110
+msgid "Completed"
+msgstr "完了"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:112
+msgid "Disabled · {value}"
+msgstr "無効 · {value}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:113
+msgid "Unable to read the schedule"
+msgstr "スケジュールを読み取れません"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:116
+msgid "Next run: {value}"
+msgstr "次回実行: {value}"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:117
+msgid "Not scheduled"
+msgstr "未スケジュール"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:119
+msgid "{next} · Last run: {value} · {value2}"
+msgstr "{next} · 前回の実行: {value} · {value2}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:54
+#: src/components/chat/ToolCallView.tsx:255
+#: src/components/tasks/TaskSubtasks.tsx:101
+#: src/lib/task-schedule.ts:129
+msgid "Running"
+msgstr "実行中"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:130
+msgid "Succeeded"
+msgstr "成功"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:133
+msgid "Interrupted"
+msgstr "中断"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:134
+msgid "Missed"
+msgstr "未実行"
+
+#. js-lingui-explicit-id
+#: src/lib/task-schedule.ts:135
+msgid "Skipped"
+msgstr "スキップ"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:17
+#: src/lib/tool-presentation.ts:18
+#: src/lib/tool-presentation.ts:19
+msgid "Run command"
+msgstr "コマンドを実行"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:20
+#: src/lib/tool-presentation.ts:21
+msgid "Read file"
+msgstr "ファイルを読み取る"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:22
+#: src/lib/tool-presentation.ts:23
+msgid "Write file"
+msgstr "ファイルに書き込む"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:24
+#: src/lib/tool-presentation.ts:25
+msgid "Edit file"
+msgstr "ファイルを編集"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:26
+msgid "Apply patch"
+msgstr "パッチを適用"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:27
+msgid "Search content"
+msgstr "内容を検索"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:28
+msgid "Find files"
+msgstr "ファイルを検索"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:29
+msgid "List files"
+msgstr "ファイル一覧を表示"
+
+#. js-lingui-explicit-id
+#: src/lib/tool-presentation.ts:30
+msgid "Run code"
+msgstr "コードを実行"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:11
+msgid "{count}s"
+msgstr "{count}秒"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:13
+msgid "{count}m"
+msgstr "{count}分"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:15
+msgid "{count}h"
+msgstr "{count}時間"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:17
+msgid "{count}d"
+msgstr "{count}日"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:19
+msgid "{count}w"
+msgstr "{count}週間"
+
+#. js-lingui-explicit-id
+#: src/lib/utils.ts:20
+msgid "{count}y"
+msgstr "{count}年"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:29
+msgid "Browser clipboard transfer was interrupted."
+msgstr "ブラウザーのクリップボード転送が中断されました。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:52
+msgid "Browser disconnected."
+msgstr "ブラウザーが切断されました。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:56
+msgid "Paste at most {limit} characters at a time."
+msgstr "一度に貼り付けられるのは最大 {limit} 文字までです。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:67
+msgid "Clipboard transfer timed out. Reconnect the browser before trying again."
+msgstr "クリップボード転送がタイムアウトしました。ブラウザーに再接続してからもう一度お試しください。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:158
+msgid "Browser disconnected. Reconnecting…"
+msgstr "ブラウザーが切断されました。再接続しています…"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-agent-browser.ts:162
+msgid "Browser disconnected. Reconnect when you are ready."
+msgstr "ブラウザーが切断されました。準備ができたら再接続してください。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:61
+msgid "Unable to load files"
+msgstr "ファイルを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:169
+msgid "Folder name"
+msgstr "フォルダー名"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:169
+msgid "File name"
+msgstr "ファイル名"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:170
+msgid "Create folder"
+msgstr "フォルダーを作成"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:170
+msgid "Create file"
+msgstr "ファイルを作成"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:178
+msgid "Unable to create entry"
+msgstr "項目を作成できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:188
+msgid "Rename {name}"
+msgstr "{name} の名前を変更"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:201
+msgid "Unable to rename entry"
+msgstr "項目の名前を変更できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:213
+msgid "{count, plural, one {# item} other {# items}}"
+msgstr "{count, plural, other {#件の項目}}"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:215
+#: src/hooks/use-model-management.ts:106
+#: src/hooks/use-provider-config-editor.ts:103
+msgid "Delete {label}?"
+msgstr "「{label}」を削除しますか？"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:218
+msgid "The folder and everything inside it will be permanently deleted."
+msgstr "このフォルダーと中のすべての項目は完全に削除されます。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:219
+msgid "The selected entries will be permanently deleted."
+msgstr "選択した項目は完全に削除されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:235
+#: src/hooks/use-file-browser.ts:220
+msgid "Delete"
+msgstr "削除"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:228
+msgid "Some entries could not be deleted"
+msgstr "一部の項目を削除できませんでした"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:232
+msgid "Unable to delete entries"
+msgstr "項目を削除できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:271
+msgid "Replace “{name}”?"
+msgstr "「{name}」を置き換えますか？"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:272
+msgid "Replace {length} files?"
+msgstr "{length} 件のファイルを置き換えますか？"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:273
+msgid "Files with the same name in this folder will be overwritten."
+msgstr "このフォルダー内の同名ファイルは上書きされます。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:274
+msgid "Replace"
+msgstr "置き換え"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:296
+#: src/hooks/use-file-browser.ts:307
+msgid "Upload failed"
+msgstr "アップロードに失敗しました"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:308
+msgid "{length} uploads failed"
+msgstr "{length} 件のアップロードに失敗しました"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:332
+msgid "Some entries could not be moved"
+msgstr "一部の項目を移動できませんでした"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:333
+msgid "Some entries could not be copied"
+msgstr "一部の項目をコピーできませんでした"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-file-browser.ts:339
+msgid "Unable to paste entries"
+msgstr "項目を貼り付けできません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:51
+msgid "Unable to update messages"
+msgstr "メッセージを更新できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:60
+msgid "Unable to continue the conversation"
+msgstr "会話を続行できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:90
+msgid "Unable to retry message"
+msgstr "メッセージを再試行できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:127
+msgid "Unable to save message"
+msgstr "メッセージを保存できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:149
+msgid "Unable to save assistant message"
+msgstr "アシスタントメッセージを保存できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-message-mutations.ts:167
+msgid "Unable to fork session"
+msgstr "セッションをフォークできません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-model-management.ts:47
+msgid "Unable to load provider models"
+msgstr "プロバイダーのモデルを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-model-management.ts:107
+msgid "Agents and sessions using it will fall back to another available model."
+msgstr "これを使用しているエージェントやセッションは、利用可能な別のモデルにフォールバックします。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:126
+#: src/hooks/use-model-management.ts:110
+msgid "Delete model"
+msgstr "モデルを削除"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-model-management.ts:116
+msgid "Unable to delete model"
+msgstr "モデルを削除できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-model-selection.ts:49
+msgid "Unable to change model"
+msgstr "モデルを変更できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-model-selection.ts:58
+msgid "Unable to change thinking level"
+msgstr "思考レベルを変更できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-config-editor.ts:81
+msgid "{provider} config"
+msgstr "{provider} 設定"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-config-editor.ts:94
+msgid "Unable to save provider config"
+msgstr "プロバイダー設定を保存できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-config-editor.ts:104
+msgid "This also removes {length} model entries. Affected agents and sessions will fall back automatically."
+msgstr "これにより {length} 件のモデル登録も削除されます。影響を受けるエージェントやセッションは自動的にフォールバックします。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-config-editor.ts:108
+msgid "Delete provider"
+msgstr "プロバイダーを削除"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-config-editor.ts:115
+msgid "Unable to delete provider config"
+msgstr "プロバイダー設定を削除できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-oauth.ts:43
+msgid "Unable to start OAuth login"
+msgstr "OAuth ログインを開始できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-provider-oauth.ts:54
+msgid "Unable to submit OAuth login"
+msgstr "OAuth ログインを送信できません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-remote-resource.ts:43
+msgid "Unable to load data"
+msgstr "データを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-session-agent.ts:158
+msgid "Not connected to this conversation yet."
+msgstr "まだこの会話に接続されていません。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-session-agent.ts:162
+msgid "This conversation already has a run in progress."
+msgstr "この会話ではすでに実行が進行中です。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:45
+msgid "Unable to update role."
+msgstr "ロールを更新できません。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:55
+msgid "Password reset."
+msgstr "パスワードをリセットしました。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:57
+msgid "Unable to reset password."
+msgstr "パスワードをリセットできません。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:68
+msgid "Delete {value}?"
+msgstr "「{value}」を削除しますか？"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:69
+msgid "Their agents and models will transfer to your account; their sessions will be deleted."
+msgstr "このユーザーのエージェントとモデルはあなたのアカウントに移行され、セッションは削除されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/UserSettings.tsx:94
+#: src/hooks/use-user-administration.ts:72
+msgid "Delete user"
+msgstr "ユーザーを削除"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:80
+msgid "Unable to delete user."
+msgstr "ユーザーを削除できません。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:94
+msgid "Created {username}."
+msgstr "{username} を作成しました。"
+
+#. js-lingui-explicit-id
+#: src/hooks/use-user-administration.ts:96
+msgid "Unable to create user."
+msgstr "ユーザーを作成できません。"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:119
+msgid "Unable to open the earlier message"
+msgstr "以前のメッセージを開けません"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:228
+msgid "Unable to start a new context"
+msgstr "新しいコンテキストを開始できません"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:251
+msgid "{count, plural, one {# message queued} other {# messages queued}}"
+msgstr "{count, plural, other {#件のメッセージが待機中}}"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:264
+msgid "Unable to dismiss the error"
+msgstr "エラーを閉じられません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/TerminalPanel.tsx:107
+#: src/components/PiChat.tsx:311
+msgid "Connection lost."
+msgstr "接続が切断されました。"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:364
+msgid "Unable to load history"
+msgstr "履歴を読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:375
+msgid "Unable to load the latest messages"
+msgstr "最新のメッセージを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:439
+#: src/components/PiChat.tsx:411
+msgid "New context"
+msgstr "新しいコンテキスト"
+
+#. js-lingui-explicit-id
+#: src/components/PiChat.tsx:418
+msgid "Stop Home"
+msgstr "ホームを停止"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:120
+#: src/components/ui/command.tsx:32
+msgid "Command Palette"
+msgstr "コマンドパレット"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:121
+#: src/components/ui/command.tsx:33
+msgid "Search for a command to run..."
+msgstr "実行するコマンドを検索..."
+
+#. js-lingui-explicit-id
+#: src/components/tasks/TaskSubtasks.tsx:56
+msgid "Unable to update subtasks"
+msgstr "サブタスクを更新できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:444
+#: src/components/harness/tasks/TaskView.tsx:650
+#: src/components/tasks/TaskSubtasks.tsx:60
+msgid "Subtasks"
+msgstr "サブタスク"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:163
+#: src/components/tasks/TaskSubtasks.tsx:103
+msgid "Scheduled"
+msgstr "スケジュール済み"
+
+#. js-lingui-explicit-id
+#: src/components/tasks/TaskSubtasks.tsx:105
+msgid "Finishing"
+msgstr "完了処理中"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:48
+#: src/components/harness/tasks/issue-state.ts:44
+#: src/components/tasks/TaskSubtasks.tsx:107
+msgid "Stopped"
+msgstr "停止済み"
+
+#. js-lingui-explicit-id
+#: src/components/tasks/TaskSubtasks.tsx:114
+msgid "Stop {name}"
+msgstr "{name} を停止"
+
+#. js-lingui-explicit-id
+#: src/components/tasks/TaskSubtasks.tsx:196
+msgid "Loading subtask"
+msgstr "サブタスクを読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/ActionDialogs.tsx:54
+msgid "Confirm action"
+msgstr "操作の確認"
+
+#. js-lingui-explicit-id
+#: src/components/harness/ActionDialogs.tsx:80
+msgid "Enter a value"
+msgstr "値を入力"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:61
+msgid "Unable to load commands"
+msgstr "コマンドを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:111
+#: src/components/harness/AgentCommandPalette.tsx:112
+#: src/components/harness/AgentCommandPalette.tsx:164
+msgid "Commands"
+msgstr "コマンド"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:123
+msgid "Search commands..."
+msgstr "コマンドを検索..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:64
+#: src/components/harness/AgentCommandPalette.tsx:126
+#: src/components/harness/files/FileEditorView.tsx:103
+msgid "Loading..."
+msgstr "読み込み中..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:126
+msgid "No commands found."
+msgstr "コマンドが見つかりません。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:129
+msgid "System Commands"
+msgstr "システムコマンド"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:149
+msgid "Prompt Commands"
+msgstr "プロンプトコマンド"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentCommandPalette.tsx:158
+msgid "Skill Commands"
+msgstr "スキルコマンド"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:112
+msgid "Knowledge action failed"
+msgstr "ナレッジ操作に失敗しました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:123
+#: src/components/harness/AgentSettingsPage.tsx:37
+#: src/components/harness/shell/HarnessHeader.tsx:103
+#: src/components/harness/shell/HarnessSidebar.tsx:209
+msgid "Knowledge"
+msgstr "ナレッジ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:139
+msgid "Loading knowledge"
+msgstr "ナレッジを読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:149
+msgid "Enable knowledge in settings to register searchable document sources."
+msgstr "検索可能なドキュメントソースを登録するには、設定でナレッジを有効にしてください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:152
+msgid "The agent owner can enable knowledge in settings."
+msgstr "エージェントの所有者が設定からナレッジを有効にできます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:202
+msgid "Search failed"
+msgstr "検索に失敗しました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:216
+msgid "Search reference documents…"
+msgstr "参照ドキュメントを検索…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:246
+#: src/components/harness/HomeMemoryPanel.tsx:597
+msgid "Searching…"
+msgstr "検索中…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:246
+#: src/components/harness/shell/HarnessHeader.tsx:79
+#: src/components/harness/shell/HarnessHeader.tsx:80
+#: src/components/harness/shell/HarnessSidebar.tsx:127
+#: src/components/harness/shell/HarnessSidebar.tsx:128
+msgid "Search"
+msgstr "検索"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:302
+msgid "Source document"
+msgstr "ソースドキュメント"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:306
+msgid "Loading source"
+msgstr "ソースを読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:338
+msgid "Knowledge sources"
+msgstr "ナレッジソース"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:363
+#: src/components/harness/AgentKnowledgePage.tsx:364
+msgid "Index actions"
+msgstr "インデックス操作"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:446
+msgid "Source actions for {name}"
+msgstr "{name} のソース操作"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:551
+msgid "docs or /mounted-vault"
+msgstr "docs または /mounted-vault"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentKnowledgePage.tsx:563
+msgid "What is this collection useful for?"
+msgstr "このコレクションの用途は何ですか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:88
+#: src/components/harness/shell/HarnessHeader.tsx:105
+#: src/components/harness/shell/HarnessSidebar.tsx:201
+msgid "Schedules"
+msgstr "スケジュール"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:104
+msgid "Unable to load schedules"
+msgstr "スケジュールを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:127
+msgid "Unable to save schedule"
+msgstr "スケジュールを保存できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:127
+msgid "Unable to create schedule"
+msgstr "スケジュールを作成できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:133
+msgid "Loading tasks"
+msgstr "タスクを読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:185
+msgid "Run {name} now"
+msgstr "{name} を今すぐ実行"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:191
+msgid "The task did not run."
+msgstr "タスクは実行されませんでした。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:194
+msgid "Unable to run task"
+msgstr "タスクを実行できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:203
+msgid "Run history for {name}"
+msgstr "{name} の実行履歴"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:222
+#: src/components/harness/tasks/TaskView.tsx:217
+msgid "Unable to update task"
+msgstr "タスクを更新できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:226
+msgid "Pause"
+msgstr "一時停止"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:226
+msgid "Resume"
+msgstr "再開"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:231
+msgid "Edit {name}"
+msgstr "{name} を編集"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:242
+msgid "Delete {name}"
+msgstr "{name} を削除"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:247
+msgid "Delete “{name}”?"
+msgstr "「{name}」を削除しますか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:248
+msgid "This deletes the task and its run conversations. Runs moved to your session list are kept."
+msgstr "タスクとその実行履歴の会話が削除されます。セッション一覧に移動した実行は保持されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:251
+msgid "Delete schedule"
+msgstr "スケジュールを削除"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSchedulesPage.tsx:259
+#: src/components/harness/tasks/TaskView.tsx:247
+msgid "Unable to delete task"
+msgstr "タスクを削除できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSessionsPage.tsx:35
+msgid "Import Open WebUI export"
+msgstr "Open WebUI エクスポートをインポート"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:36
+#: src/components/harness/HomeMemoryPanel.tsx:629
+msgid "General"
+msgstr "一般"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:38
+msgid "Templates"
+msgstr "テンプレート"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:39
+msgid "Collaboration"
+msgstr "コラボレーション"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:40
+msgid "Permissions"
+msgstr "権限"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:41
+msgid "Codemode"
+msgstr "コードモード"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:42
+msgid "Secrets"
+msgstr "シークレット"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:44
+msgid "Integrations"
+msgstr "外部連携"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:89
+#: src/components/harness/AgentSettingsPage.tsx:45
+msgid "Archived"
+msgstr "アーカイブ済み"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:121
+msgid "Unable to load agent settings"
+msgstr "エージェント設定を読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:159
+msgid "Agent saved."
+msgstr "エージェントを保存しました。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:162
+msgid "Unable to save agent"
+msgstr "エージェントを保存できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:98
+#: src/components/harness/AgentSettingsPage.tsx:172
+msgid "Delete {name}?"
+msgstr "「{name}」を削除しますか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:173
+msgid "This permanently deletes the agent and all of its sessions."
+msgstr "エージェントとすべてのセッションが完全に削除されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:174
+msgid "Delete agent"
+msgstr "エージェントを削除"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:181
+msgid "Unable to delete agent"
+msgstr "エージェントを削除できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:189
+msgid "Agent Settings"
+msgstr "エージェント設定"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:191
+msgid "Back to agent"
+msgstr "エージェントに戻る"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:209
+#: src/components/harness/files/FileEditorView.tsx:107
+#: src/components/harness/files/FileEditorView.tsx:185
+#: src/components/harness/files/FileEditorView.tsx:191
+msgid "Saving..."
+msgstr "保存中..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:221
+msgid "Paste text into the text entry field, then select Send text."
+msgstr "テキスト入力欄に貼り付けてから「テキストを送信」を選択してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:233
+msgid "Select text in the remote page before copying."
+msgstr "コピーする前にリモートページ上のテキストを選択してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:240
+msgid "Copied from browser"
+msgstr "ブラウザーからコピーしました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:246
+msgid "Pasted into browser"
+msgstr "ブラウザーに貼り付けました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:250
+msgid "Clipboard transfer failed."
+msgstr "クリップボードの転送に失敗しました。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:30
+#: src/components/harness/BrowserPanel.tsx:261
+msgid "You have control"
+msgstr "あなたが操作中"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:32
+#: src/components/harness/BrowserPanel.tsx:263
+msgid "Pausing agent…"
+msgstr "エージェントを一時停止中…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:265
+msgid "{controllerName} has control"
+msgstr "{controllerName} が操作中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:267
+msgid "Waiting for help"
+msgstr "操作待ち"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:268
+msgid "Agent has control"
+msgstr "エージェントが操作中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:281
+msgid "Agent browser"
+msgstr "エージェントブラウザー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:294
+#: src/components/harness/BrowserPanel.tsx:533
+msgid "Resume agent"
+msgstr "エージェントを再開"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:294
+#: src/components/harness/BrowserPanel.tsx:533
+msgid "Take control"
+msgstr "操作を引き継ぐ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:315
+msgid "Browser back"
+msgstr "戻る"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:325
+msgid "Browser forward"
+msgstr "進む"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:335
+msgid "Reload browser page"
+msgstr "ページを再読み込み"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:367
+msgid "Browser tab"
+msgstr "ブラウザータブ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:368
+msgid "Select tab"
+msgstr "タブを選択"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:374
+msgid "Untitled"
+msgstr "無題"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:405
+msgid "Remote browser. Click to focus, then type or use copy and paste shortcuts. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile."
+msgstr "リモートブラウザーです。クリックしてフォーカスし、入力やコピー＆ペーストのショートカットを使用できます。Shift+Escape でリモートブラウザーから抜けます。モバイルで文字入力するには「キーボード」ボタンを使用してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:408
+msgid "Live browser preview. Take control to interact."
+msgstr "ライブブラウザープレビュー。操作するには「操作を引き継ぐ」を押してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:436
+msgid "Remote browser keyboard input"
+msgstr "リモートブラウザーのキーボード入力"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:446
+msgid "Live page in the agent's browser"
+msgstr "エージェントのブラウザー上のライブページ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:469
+msgid "Waiting for the page"
+msgstr "ページを待機中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:470
+msgid "Connecting to the browser"
+msgstr "ブラウザーに接続中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:542
+msgid "Shared agent · Shared sign-ins"
+msgstr "共有エージェント · 共有サインイン"
+
+#. js-lingui-explicit-id
+#: src/components/harness/BrowserPanel.tsx:543
+msgid "Agent profile · Sign-ins retained"
+msgstr "エージェントプロファイル · サインイン保持"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:465
+msgid "Close sidebar"
+msgstr "サイドバーを閉じる"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:508
+msgid "New task"
+msgstr "新しいタスク"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:532
+#: src/components/harness/HarnessShell.tsx:561
+msgid "Unable to open Home"
+msgstr "ホームを開けません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:569
+msgid "Unable to refresh session status"
+msgstr "セッション状態を更新できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:649
+msgid "Create an agent to start chatting."
+msgstr "チャットを始めるにはエージェントを作成してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HarnessShell.tsx:650
+msgid "Loading session..."
+msgstr "セッションを読み込み中..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:90
+#: src/components/harness/HomeMemoryPanel.tsx:128
+msgid "Memory action failed"
+msgstr "メモリ操作に失敗しました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:105
+msgid "Remembered {count, plural, one {# detail} other {# details}}"
+msgstr "{count, plural, other {#件の情報を記憶しました}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:110
+msgid "Review"
+msgstr "確認"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:112
+#: src/components/harness/shell/SessionList.tsx:184
+msgid "Undo"
+msgstr "元に戻す"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:177
+msgid "Loading memory"
+msgstr "メモリを読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:186
+msgid "Memory mode"
+msgstr "メモリモード"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:250
+msgid "clean"
+msgstr "変更なし"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:336
+msgid "dinner, restaurants, cuisine"
+msgstr "夕食、レストラン、料理"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:371
+msgid "Memory context"
+msgstr "メモリコンテキスト"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:424
+#: src/components/harness/HomeMemoryPanel.tsx:425
+msgid "Search memory"
+msgstr "メモリを検索"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:439
+msgid "Search mode"
+msgstr "検索モード"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:471
+msgid "Default context: {lines} / {maxLines} lines · {bytes} / {maxBytes} bytes"
+msgstr "既定コンテキスト: {lines} / {maxLines} 行 · {bytes} / {maxBytes} バイト"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:609
+msgid "Default context"
+msgstr "既定コンテキスト"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:613
+msgid "Topics"
+msgstr "トピック"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:659
+msgid "Expires {date}"
+msgstr "有効期限: {date}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:780
+msgid "Shared across agents"
+msgstr "エージェント間で共有"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:790
+msgid "About you"
+msgstr "あなたについて"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:834
+msgid "Memory history"
+msgstr "メモリ履歴"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:869
+msgid "Forget all Home memory?"
+msgstr "すべてのホームメモリを忘れますか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:870
+msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
+msgstr "メモとその変更履歴が削除され、自動学習でもそれらの事実はスキップされます。明示的に再度記憶させることは可能です。ホームの会話自体は残ります。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:873
+msgid "Forget all"
+msgstr "すべて忘れる"
+
+#. js-lingui-explicit-id
+#: src/components/harness/LoginScreen.tsx:43
+msgid "Sign in with a server-created account."
+msgstr "サーバーで作成されたアカウントでサインインしてください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/LoginScreen.tsx:44
+msgid "Sign in with {value}."
+msgstr "{value} でサインインしてください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/LoginScreen.tsx:92
+msgid "Signing in"
+msgstr "サインイン中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/LoginScreen.tsx:92
+msgid "Sign in"
+msgstr "サインイン"
+
+#. js-lingui-explicit-id
+#: src/components/harness/NewSessionView.tsx:85
+msgid "A session is already being created."
+msgstr "セッションはすでに作成中です。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/NewSessionView.tsx:99
+msgid "Unable to create session"
+msgstr "セッションを作成できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/NewSessionView.tsx:131
+msgid "New session in {name}"
+msgstr "{name} の新しいセッション"
+
+#. js-lingui-explicit-id
+#: src/components/harness/OidcLoginButton.tsx:10
+msgid "Sign in with {providerName}"
+msgstr "{providerName} でサインイン"
+
+#. js-lingui-explicit-id
+#: src/components/harness/OidcLoginButton.tsx:33
+msgid "Redirecting to {providerName}"
+msgstr "{providerName} へリダイレクト中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/ResourceFeedback.tsx:11
+msgid "Unable to load updates"
+msgstr "更新を読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ModelCommandDialog.tsx:43
+#: src/components/harness/SettingsPage.tsx:26
+msgid "Models"
+msgstr "モデル"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:27
+msgid "Providers"
+msgstr "プロバイダー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:28
+msgid "API Keys"
+msgstr "API キー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:29
+msgid "Appearance"
+msgstr "外観"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:30
+msgid "Users"
+msgstr "ユーザー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:31
+msgid "Account"
+msgstr "アカウント"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:82
+msgid "Saving fast task model..."
+msgstr "高速タスクモデルを保存中..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:88
+msgid "Fast task model saved."
+msgstr "高速タスクモデルを保存しました。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:92
+msgid "Unable to save fast task model"
+msgstr "高速タスクモデルを保存できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:101
+msgid "Saving model sharing..."
+msgstr "モデル共有設定を保存中..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:104
+msgid "Model sharing saved."
+msgstr "モデル共有設定を保存しました。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:108
+msgid "Unable to save model sharing"
+msgstr "モデル共有設定を保存できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:117
+msgid "Appearance saved."
+msgstr "外観を保存しました。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:122
+#: src/components/harness/shell/HarnessSidebar.tsx:266
+#: src/components/harness/shell/HarnessSidebar.tsx:267
+msgid "Settings"
+msgstr "設定"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SettingsPage.tsx:123
+msgid "Back to harness"
+msgstr "ハーネスに戻る"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SetupScreen.tsx:44
+msgid "Create the first account. It will be the administrator."
+msgstr "最初のアカウントを作成してください。これが管理者になります。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SetupScreen.tsx:45
+msgid "The first person to sign in with {value} becomes the administrator."
+msgstr "{value} で最初にサインインしたユーザーが管理者になります。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SetupScreen.tsx:55
+msgid "Continue with {providerName}"
+msgstr "{providerName} で続行"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SetupScreen.tsx:106
+msgid "Creating account"
+msgstr "アカウントを作成中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SetupScreen.tsx:106
+msgid "Create admin account"
+msgstr "管理者アカウントを作成"
+
+#. js-lingui-explicit-id
+#: src/components/harness/SubtaskRedirect.tsx:15
+msgid "Opening task"
+msgstr "タスクを開いています"
+
+#. js-lingui-explicit-id
+#: src/components/harness/TerminalPanel.tsx:156
+msgid "Starting shell…"
+msgstr "シェルを起動中…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:149
+#: src/components/harness/schedules/TaskForm.tsx:237
+#: src/components/harness/tasks/TaskBriefForm.tsx:152
+#: src/components/harness/UnsavedChangesDialog.tsx:102
+msgid "Saving…"
+msgstr "保存中…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/UnsavedChangesDialog.tsx:102
+msgid "Save and leave"
+msgstr "保存して移動"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/NewTaskView.tsx:28
+msgid "Unable to create task"
+msgstr "タスクを作成できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskActivity.tsx:50
+msgid "Run {number} · {value}"
+msgstr "実行 {number} · {value}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskActivity.tsx:58
+msgid "Note"
+msgstr "メモ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskActivity.tsx:59
+msgid "Task updated"
+msgstr "タスクが更新されました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskActivity.tsx:78
+msgid "View result for run {number}"
+msgstr "実行 {number} の結果を表示"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskActivity.tsx:87
+msgid "Open conversation for run {number}"
+msgstr "実行 {number} の会話を開く"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskBriefForm.tsx:77
+msgid "What needs to change?"
+msgstr "何を変更する必要がありますか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskBriefForm.tsx:93
+msgid "Describe the outcome, context, and constraints."
+msgstr "期待する結果、背景、制約事項を記述してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskBriefForm.tsx:111
+msgid "One criterion per line"
+msgstr "1行につき1つの基準を入力"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskBriefForm.tsx:152
+msgid "Save brief"
+msgstr "概要を保存"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskBriefForm.tsx:152
+msgid "Save to backlog"
+msgstr "バックログに保存"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskComposer.tsx:42
+msgid "Task reply"
+msgstr "タスクへの返信"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:416
+#: src/components/harness/tasks/TaskComposer.tsx:52
+msgid "Message"
+msgstr "メッセージ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskComposer.tsx:72
+msgid "Reply options"
+msgstr "返信オプション"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskComposer.tsx:92
+msgid "Save note"
+msgstr "メモを保存"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:43
+msgid "Unable to load conversation"
+msgstr "会話を読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:47
+msgid "Connecting to conversation"
+msgstr "会話に接続中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:82
+msgid "Unable to refresh conversation"
+msgstr "会話を更新できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:126
+msgid "Work on this task."
+msgstr "このタスクに取り組む。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:132
+msgid "Update queued"
+msgstr "更新をキューに追加しました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:134
+msgid "Update saved · Not delivered"
+msgstr "更新を保存しました · 未配信"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskConversation.tsx:135
+msgid "Saved note"
+msgstr "保存済みのメモ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskPanel.tsx:32
+#: src/components/harness/tasks/TaskPanel.tsx:58
+msgid "Close {value}"
+msgstr "{value} を閉じる"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskResult.tsx:43
+msgid "Before this run"
+msgstr "この実行の前"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskResult.tsx:43
+msgid "After this run"
+msgstr "この実行の後"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskResult.tsx:49
+msgid "File did not exist"
+msgstr "ファイルは存在しませんでした"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskResult.tsx:50
+msgid "File deleted"
+msgstr "ファイルは削除されました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:75
+msgid "Loading task"
+msgstr "タスクを読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:79
+msgid "Unable to load task"
+msgstr "タスクを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:233
+msgid "Delete task?"
+msgstr "タスクを削除しますか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:234
+msgid "Delete the brief, discussion, saved results, and all conversations."
+msgstr "概要、ディスカッション、保存された結果、すべての会話が削除されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:98
+#: src/components/harness/shell/HarnessHeader.tsx:117
+#: src/components/harness/shell/HarnessSidebar.tsx:182
+#: src/components/harness/tasks/TaskView.tsx:257
+msgid "Home"
+msgstr "ホーム"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:115
+#: src/components/harness/shell/HarnessSidebar.tsx:195
+#: src/components/harness/tasks/TasksOverview.tsx:148
+#: src/components/harness/tasks/TaskView.tsx:257
+msgid "Tasks"
+msgstr "タスク"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:325
+msgid "Retry task"
+msgstr "タスクを再試行"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:325
+msgid "Queue task"
+msgstr "タスクをキューに追加"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:330
+msgid "Task actions"
+msgstr "タスク操作"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:350
+msgid "Continue this conversation next run"
+msgstr "次回の実行でこの会話を引き継ぐ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:351
+msgid "Use a fresh conversation next run"
+msgstr "次回の実行で新しい会話を使う"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:372
+msgid "Cancel task?"
+msgstr "タスクをキャンセルしますか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:373
+msgid "Stop any active run and close this task. You can reopen it later."
+msgstr "実行中の処理をすべて停止し、このタスクを閉じます。後から再開できます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:376
+msgid "Cancel task"
+msgstr "タスクをキャンセル"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:428
+msgid "Task views"
+msgstr "タスク表示"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:452
+msgid "{count} running"
+msgstr "{count} 件実行中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:453
+msgid "{count, plural, one {# subtask} other {# subtasks}}"
+msgstr "{count, plural, other {#件のサブタスク}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:462
+msgid "Details"
+msgstr "詳細"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:476
+msgid "Connection lost"
+msgstr "接続が切断されました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:493
+msgid "Run stopped"
+msgstr "実行が停止されました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:45
+#: src/components/harness/tasks/TaskView.tsx:494
+msgid "Run failed"
+msgstr "実行に失敗しました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:495
+msgid "Needs your input"
+msgstr "あなたの入力が必要です"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:503
+msgid "Queue this task to continue."
+msgstr "続行するにはこのタスクをキューに追加してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:504
+msgid "Retry this task to continue."
+msgstr "続行するにはこのタスクを再試行してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:520
+msgid "This task will start when the agent is available."
+msgstr "エージェントが利用可能になり次第、このタスクが開始されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:555
+msgid "Send update"
+msgstr "更新を送信"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:557
+msgid "Request changes"
+msgstr "変更をリクエスト"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:558
+msgid "Send & queue"
+msgstr "送信してキューに追加"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:562
+msgid "Leave a note…"
+msgstr "メモを残す…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:564
+msgid "Answer the agent’s question…"
+msgstr "エージェントの質問に回答…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:566
+msgid "Describe what should change…"
+msgstr "変更すべき内容を記述…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:567
+msgid "Reply to the agent…"
+msgstr "エージェントに返信…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TaskView.tsx:650
+msgid "Task details"
+msgstr "タスク詳細"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:68
+msgid "Unable to reorder queue"
+msgstr "キューの順序を変更できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:105
+msgid "Move {title} up"
+msgstr "{title} を上へ移動"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:114
+msgid "Move {title} down"
+msgstr "{title} を下へ移動"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:132
+msgid "No matching tasks"
+msgstr "一致するタスクがありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:134
+msgid "Nothing needs your attention"
+msgstr "対応が必要な項目はありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:136
+msgid "No queued work"
+msgstr "待機中の作業はありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:138
+msgid "Backlog is empty"
+msgstr "バックログは空です"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:139
+msgid "No completed tasks"
+msgstr "完了したタスクはありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:167
+msgid "Queue"
+msgstr "キュー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:179
+msgid "Needs you"
+msgstr "要対応"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:21
+#: src/components/harness/tasks/issue-state.ts:22
+#: src/components/harness/tasks/TasksOverview.tsx:188
+msgid "Backlog"
+msgstr "バックログ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:29
+#: src/components/harness/tasks/TasksOverview.tsx:197
+msgid "Done"
+msgstr "完了"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:214
+msgid "Search tasks"
+msgstr "タスクを検索"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:215
+msgid "Search tasks…"
+msgstr "タスクを検索…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:224
+msgid "Unable to load tasks"
+msgstr "タスクを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:232
+msgid "Loading issues"
+msgstr "イシューを読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:11
+#: src/components/harness/tasks/issue-state.ts:23
+msgid "Queued"
+msgstr "待機中"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:305
+#: src/components/chat/CollaborationActivity.tsx:12
+#: src/components/harness/tasks/issue-state.ts:24
+msgid "Working"
+msgstr "作業中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:25
+msgid "Waiting for agent"
+msgstr "エージェント待機中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:26
+msgid "Needs input"
+msgstr "入力待ち"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:27
+msgid "Blocked"
+msgstr "ブロック中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/issue-state.ts:28
+msgid "In review"
+msgstr "レビュー中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/ConversationSwitcher.tsx:38
+msgid "Switch conversation"
+msgstr "会話を切り替え"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:87
+#: src/components/harness/shell/GlobalSearch.tsx:88
+#: src/components/harness/shell/GlobalSearch.tsx:110
+msgid "Search titles and messages"
+msgstr "タイトルとメッセージを検索"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:104
+msgid "Unable to search"
+msgstr "検索できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/GlobalSearch.tsx:110
+msgid "No sessions found."
+msgstr "セッションが見つかりません。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:71
+msgid "Show sidebar"
+msgstr "サイドバーを表示"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:99
+#: src/components/harness/shell/HarnessHeader.tsx:118
+msgid "New session"
+msgstr "新しいセッション"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:101
+#: src/components/harness/shell/HarnessSidebar.tsx:188
+msgid "Sessions"
+msgstr "セッション"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:107
+#: src/components/harness/shell/WorkspaceLayout.tsx:21
+msgid "Files"
+msgstr "ファイル"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:36
+#: src/components/harness/changes/ChangesView.tsx:421
+#: src/components/harness/shell/HarnessHeader.tsx:109
+#: src/components/harness/shell/WorkspaceLayout.tsx:22
+msgid "Changes"
+msgstr "変更"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:111
+#: src/components/harness/shell/WorkspaceLayout.tsx:24
+msgid "Browser"
+msgstr "ブラウザー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:113
+#: src/components/harness/shell/WorkspaceLayout.tsx:23
+msgid "Terminal"
+msgstr "ターミナル"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:138
+msgid "Back to sessions"
+msgstr "セッション一覧に戻る"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:151
+#: src/components/harness/shell/ImportSessionsDialog.tsx:104
+msgid "No agent"
+msgstr "エージェントなし"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:163
+msgid "Close files"
+msgstr "ファイルを閉じる"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:163
+msgid "Browse files"
+msgstr "ファイルを参照"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:175
+msgid "Close changes"
+msgstr "変更を閉じる"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:175
+msgid "Uncommitted changes"
+msgstr "未コミットの変更"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:187
+msgid "Close terminal"
+msgstr "ターミナルを閉じる"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:187
+msgid "Open terminal"
+msgstr "ターミナルを開く"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:199
+#: src/components/harness/shell/HarnessHeader.tsx:200
+msgid "Close browser"
+msgstr "ブラウザーを閉じる"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:11
+#: src/components/harness/shell/HarnessHeader.tsx:199
+#: src/components/harness/shell/HarnessHeader.tsx:200
+msgid "Open browser"
+msgstr "ブラウザーを開く"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessHeader.tsx:216
+#: src/components/harness/shell/HarnessHeader.tsx:217
+msgid "Agent settings"
+msgstr "エージェント設定"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:81
+msgid "Agent {number}"
+msgstr "エージェント {number}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:85
+msgid "Unable to create agent"
+msgstr "エージェントを作成できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:119
+msgid "Collapse sidebar"
+msgstr "サイドバーを折りたたむ"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:115
+#: src/components/harness/shell/HarnessSidebar.tsx:138
+msgid "Agents"
+msgstr "エージェント"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:156
+#: src/components/harness/shell/HarnessSidebar.tsx:157
+msgid "Needs your attention"
+msgstr "対応が必要"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:170
+msgid "Unread messages"
+msgstr "未読メッセージ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:177
+msgid "Agent work"
+msgstr "エージェントの作業"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/HarnessSidebar.tsx:277
+msgid "Resize sidebar"
+msgstr "サイドバーのサイズを変更"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/ImportSessionsDialog.tsx:70
+msgid "Unable to import sessions"
+msgstr "セッションをインポートできません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/ImportSessionsDialog.tsx:106
+msgid "No model"
+msgstr "モデルなし"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/ImportSessionsDialog.tsx:116
+msgid "Importing..."
+msgstr "インポート中..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/ImportSessionsDialog.tsx:116
+msgid "Import"
+msgstr "インポート"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:70
+#: src/components/harness/shell/SessionList.tsx:71
+msgid "Search sessions"
+msgstr "セッションを検索"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:129
+msgid "No sessions match “{value}”."
+msgstr "「{value}」に一致するセッションはありません。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:130
+msgid "No sessions yet"
+msgstr "まだセッションがありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:173
+msgid "Unable to archive session"
+msgstr "セッションをアーカイブできません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:179
+msgid "Session archived"
+msgstr "セッションをアーカイブしました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:180
+msgid "Archived sessions are listed in agent settings."
+msgstr "アーカイブされたセッションはエージェント設定に表示されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:98
+#: src/components/harness/shell/SessionList.tsx:190
+msgid "Unable to restore session"
+msgstr "セッションを復元できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:211
+msgid "Session actions"
+msgstr "セッション操作"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:226
+msgid "Unable to unpin session"
+msgstr "セッションのピン留めを解除できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:227
+msgid "Unable to pin session"
+msgstr "セッションをピン留めできません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:234
+msgid "Unpin"
+msgstr "ピン留め解除"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:234
+msgid "Pin"
+msgstr "ピン留め"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:239
+msgid "Rename session"
+msgstr "セッション名を変更"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/SessionList.tsx:245
+msgid "Unable to rename session"
+msgstr "セッション名を変更できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:56
+#: src/components/harness/shell/SessionList.tsx:264
+msgid "Delete “{title}”?"
+msgstr "「{title}」を削除しますか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:57
+#: src/components/harness/shell/SessionList.tsx:265
+msgid "This session and its message history will be permanently deleted."
+msgstr "このセッションとメッセージ履歴は完全に削除されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:58
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:107
+#: src/components/harness/shell/SessionList.tsx:268
+msgid "Delete session"
+msgstr "セッションを削除"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:60
+#: src/components/harness/shell/SessionList.tsx:272
+msgid "Unable to delete session"
+msgstr "セッションを削除できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/TaskRunBanner.tsx:26
+msgid "Moved to sessions"
+msgstr "セッション一覧に移動しました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/TaskRunBanner.tsx:28
+msgid "Unable to move session"
+msgstr "セッションを移動できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:96
+msgid "Conversation"
+msgstr "会話"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:104
+msgid "Resize workspace pane"
+msgstr "ワークスペースペインのサイズを変更"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:110
+msgid "{width} pixels"
+msgstr "{width} ピクセル"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:157
+msgid "{view} workspace"
+msgstr "{view} ワークスペース"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:157
+#: src/components/harness/shell/WorkspaceLayout.tsx:164
+msgid "Workspace"
+msgstr "ワークスペース"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:173
+msgid "Expand {view}"
+msgstr "{view} を展開"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:176
+#: src/components/harness/shell/WorkspaceLayout.tsx:178
+msgid "Show beside chat"
+msgstr "チャットの横に表示"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:178
+msgid "Use full main area"
+msgstr "メインエリア全体を使用"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:191
+msgid "Close workspace"
+msgstr "ワークスペースを閉じる"
+
+#. js-lingui-explicit-id
+#: src/components/harness/shell/WorkspaceLayout.tsx:192
+msgid "Back to chat"
+msgstr "チャットに戻る"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:32
+msgid "Email and password updated."
+msgstr "メールアドレスとパスワードを更新しました。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:32
+msgid "Email updated."
+msgstr "メールアドレスを更新しました。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:34
+msgid "Unable to update account."
+msgstr "アカウントを更新できません。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:58
+msgid "Single sign-on"
+msgstr "シングルサインオン"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:59
+msgid "This account signs in through your identity provider, which also manages its name and email. Changes there apply the next time you sign in."
+msgstr "このアカウントは ID プロバイダー経由でサインインし、名前とメールアドレスもそちらで管理されています。変更は次回のサインイン時に反映されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:67
+msgid "Email & Password"
+msgstr "メールアドレスとパスワード"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/AccountSettings.tsx:68
+msgid "Confirm your current password to change your email. Leave the new password blank to keep it."
+msgstr "メールアドレスを変更するには現在のパスワードを確認してください。パスワードを変更しない場合は新しいパスワードを空欄にしてください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:32
+msgid "Unable to load API keys"
+msgstr "API キーを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:43
+msgid "A name is required."
+msgstr "名前は必須です。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:52
+msgid "Unable to create API key"
+msgstr "API キーを作成できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:60
+msgid "Revoke {name}?"
+msgstr "「{name}」を取り消しますか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:61
+msgid "Anything using this key stops working immediately."
+msgstr "このキーを使用しているすべての連携は直ちに動作を停止します。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:62
+#: src/components/harness/settings/ApiKeySettings.tsx:144
+msgid "Revoke key"
+msgstr "キーを取り消す"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:71
+msgid "Unable to revoke API key"
+msgstr "API キーを取り消せません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:132
+msgid "last used {value}"
+msgstr "最終使用: {value}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ApiKeySettings.tsx:163
+msgid "Laptop editor"
+msgstr "ノート PC 用エディター"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CodeBlock.tsx:56
+#: src/components/harness/settings/ApiKeySettings.tsx:219
+msgid "Copy"
+msgstr "コピー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/LanguagePicker.tsx:22
+msgid "Language"
+msgstr "言語"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/LanguagePicker.tsx:34
+msgid "System"
+msgstr "システム"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:48
+msgid "Fast Task Model"
+msgstr "高速タスクモデル"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:49
+msgid "Used for lightweight background tasks such as session title generation."
+msgstr "セッションタイトルの生成など、軽量なバックグラウンドタスクに使用されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:85
+msgid "Model Management"
+msgstr "モデル管理"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:107
+msgid "Shared provider"
+msgstr "共有プロバイダー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:266
+#: src/components/harness/settings/ModelSettings.tsx:120
+msgid "Shared"
+msgstr "共有中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:120
+msgid "Share"
+msgstr "共有"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:149
+msgid "Add Model"
+msgstr "モデルを追加"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:156
+msgid "Model provider"
+msgstr "モデルプロバイダー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:157
+msgid "Choose a provider"
+msgstr "プロバイダーを選択"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:194
+msgid "Refreshing..."
+msgstr "更新中..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:194
+msgid "Refresh models"
+msgstr "モデルを更新"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:204
+msgid "Already configured"
+msgstr "設定済み"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:204
+msgid "Add model"
+msgstr "モデルを追加"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:241
+msgid "Search models"
+msgstr "モデルを検索"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ModelSettings.tsx:242
+msgid "Search {length} models..."
+msgstr "{length} 件のモデルを検索..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:66
+msgid "Delete provider config"
+msgstr "プロバイダー設定を削除"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:140
+msgid "Provider label"
+msgstr "プロバイダーラベル"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:150
+msgid "Optional API base URL"
+msgstr "API ベース URL（任意）"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:187
+msgid "API key"
+msgstr "API キー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:144
+#: src/components/harness/settings/ProviderSettings.tsx:197
+msgid "Not connected"
+msgstr "未接続"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:110
+#: src/components/harness/settings/ProviderSettings.tsx:277
+msgid "Saved"
+msgstr "保存済み"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:279
+msgid "Saving"
+msgstr "保存中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:281
+msgid "Update provider"
+msgstr "プロバイダーを更新"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/ProviderSettings.tsx:282
+msgid "Create provider"
+msgstr "プロバイダーを作成"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/UserSettings.tsx:84
+msgid "Reset password"
+msgstr "パスワードをリセット"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/UserSettings.tsx:108
+msgid "New password"
+msgstr "新しいパスワード"
+
+#. js-lingui-explicit-id
+#: src/components/harness/settings/UserSettings.tsx:130
+msgid "Create User"
+msgstr "ユーザーを作成"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:77
+msgid "Edit schedule"
+msgstr "スケジュールを編集"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:77
+msgid "New schedule"
+msgstr "新しいスケジュール"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:144
+msgid "Minutes"
+msgstr "分"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:146
+msgid "When (ISO date and time)"
+msgstr "実行日時（ISO 日時）"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:147
+msgid "Cron expression"
+msgstr "Cron 式"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:173
+msgid "Minute, hour, day of month, month, weekday."
+msgstr "分、時、日、月、曜日。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:174
+msgid "Include a time zone, for example 2026-10-01T09:00:00+08:00."
+msgstr "タイムゾーンを含めてください（例: 2026-10-01T09:00:00+09:00）。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:237
+msgid "Save schedule"
+msgstr "スケジュールを保存"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskForm.tsx:237
+msgid "Create schedule"
+msgstr "スケジュールを作成"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskRunHistory.tsx:54
+msgid "Unable to load run history"
+msgstr "実行履歴を読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/schedules/TaskRunHistory.tsx:59
+msgid "Loading run history"
+msgstr "実行履歴を読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:69
+#: src/components/harness/files/FileEditorView.tsx:105
+msgid "Unable to open file"
+msgstr "ファイルを開けません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:92
+msgid "Unable to save file"
+msgstr "ファイルを保存できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:101
+msgid "Image preview"
+msgstr "画像プレビュー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:109
+msgid "Unsaved changes"
+msgstr "未保存の変更"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:133
+msgid "Back to files"
+msgstr "ファイル一覧に戻る"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:146
+msgid "Markdown view"
+msgstr "Markdown 表示"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:158
+#: src/components/harness/files/FileEditorView.tsx:159
+msgid "Download this file"
+msgstr "このファイルをダウンロード"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:173
+msgid "Discard"
+msgstr "破棄"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:174
+msgid "Discard unsaved changes"
+msgstr "未保存の変更を破棄"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileEditorView.tsx:186
+msgid "Save file"
+msgstr "ファイルを保存"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:54
+msgid "Name"
+msgstr "名前"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:55
+msgid "Size"
+msgstr "サイズ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:257
+#: src/components/harness/files/FileManagerView.tsx:56
+msgid "Modified"
+msgstr "更新日時"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:125
+msgid "New file"
+msgstr "新しいファイル"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:134
+msgid "New folder"
+msgstr "新しいフォルダー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:109
+#: src/components/harness/files/FileManagerView.tsx:143
+msgid "Refresh"
+msgstr "更新"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:150
+msgid "View options"
+msgstr "表示オプション"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:172
+msgid "Hide hidden files"
+msgstr "隠しファイルを非表示"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:172
+msgid "Show hidden files"
+msgstr "隠しファイルを表示"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:204
+#: src/components/harness/files/FileManagerView.tsx:205
+msgid "Filter this folder"
+msgstr "このフォルダーを絞り込む"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:213
+msgid "{count, plural, one {# item to move} other {# items to move}}"
+msgstr "{count, plural, other {#件を移動}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:216
+msgid "{count, plural, one {# item to copy} other {# items to copy}}"
+msgstr "{count, plural, other {#件をコピー}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:291
+msgid "Select all"
+msgstr "すべて選択"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:332
+msgid "No matching files"
+msgstr "一致するファイルがありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:332
+msgid "This folder is empty"
+msgstr "このフォルダーは空です"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:363
+msgid "Select {name}"
+msgstr "{name} を選択"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:391
+msgid "Actions for {name}"
+msgstr "{name} の操作"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:504
+msgid "File location"
+msgstr "ファイルの場所"
+
+#. js-lingui-explicit-id
+#: src/components/harness/files/FileManagerView.tsx:510
+msgid "Working directory"
+msgstr "作業ディレクトリ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:34
+msgid "Conflicts"
+msgstr "競合"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:35
+msgid "Staged"
+msgstr "ステージ済み"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:37
+#: src/components/harness/changes/ChangesView.tsx:256
+msgid "Untracked"
+msgstr "未追跡"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:68
+msgid "Unable to read git status"
+msgstr "Git ステータスを読み取れません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:184
+msgid "Loading changes"
+msgstr "変更を読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:186
+msgid "Changes unavailable"
+msgstr "変更を取得できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:188
+msgid "No diff to show"
+msgstr "表示する差分がありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:190
+msgid "Select a file"
+msgstr "ファイルを選択"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:192
+msgid "Working tree is clean"
+msgstr "作業ツリーはクリーンです"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:193
+msgid "No Git repository"
+msgstr "Git リポジトリがありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:255
+msgid "Added"
+msgstr "追加"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:260
+msgid "Type changed"
+msgstr "種類変更"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:263
+msgid "Renamed"
+msgstr "名前変更"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:40
+#: src/components/chat/MessageActions.tsx:41
+#: src/components/harness/changes/ChangesView.tsx:264
+msgid "Copied"
+msgstr "コピー済み"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:265
+msgid "Deleted"
+msgstr "削除"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:266
+msgid "Conflicted"
+msgstr "競合"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:270
+msgid "Staged: HEAD → index"
+msgstr "ステージ済み: HEAD → インデックス"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:271
+msgid "Unstaged: index → working tree"
+msgstr "未ステージ: インデックス → 作業ツリー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:272
+msgid "Untracked: new file"
+msgstr "未追跡: 新規ファイル"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:273
+msgid "Conflicted: ours → working tree"
+msgstr "競合: 現在のブランチ → 作業ツリー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:304
+msgid "Unable to load this diff"
+msgstr "この差分を読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:325
+msgid "All changes"
+msgstr "すべての変更"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:340
+msgid "Diff layout"
+msgstr "差分レイアウト"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:407
+msgid "Binary file; no text diff to show."
+msgstr "バイナリファイルのためテキスト差分を表示できません。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:410
+msgid "Too large to diff here ({value})."
+msgstr "サイズが大きすぎるためここでは差分を表示できません（{value}）。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:412
+msgid "Nothing to compare."
+msgstr "比較する内容がありません。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:425
+msgid "Detached at {value}"
+msgstr "{value} でデタッチ状態"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:426
+msgid "No commits yet"
+msgstr "まだコミットがありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:431
+msgid "Reading git status..."
+msgstr "Git ステータスを読み取り中..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:432
+msgid "Not a repository"
+msgstr "リポジトリではありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:435
+msgid "{count} ahead"
+msgstr "{count} 先行"
+
+#. js-lingui-explicit-id
+#: src/components/harness/changes/ChangesView.tsx:436
+msgid "{count} behind"
+msgstr "{count} 遅れ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentAppearancePicker.tsx:28
+msgid "Agent icon"
+msgstr "エージェントアイコン"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentAppearancePicker.tsx:56
+msgid "Agent color"
+msgstr "エージェントカラー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:33
+msgid "Unable to load archived sessions"
+msgstr "アーカイブ済みセッションを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:86
+msgid "Archived {value} ago"
+msgstr "{value}前にアーカイブ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:11
+msgid "Consultations"
+msgstr "相談"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:12
+msgid "Create tasks"
+msgstr "タスクを作成"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:13
+msgid "Run tasks with this agent's permissions"
+msgstr "このエージェントの権限でタスクを実行"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentCollaborationSettings.tsx:55
+msgid "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials."
+msgstr "このエージェントから以下のエージェントへの呼び出しを許可します。逆方向の呼び出しは相手のエージェント側で設定してください。相談は読み取り専用で、タスクでは受信側エージェントの権限と認証情報が使用されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:125
+msgid "Manual server folder"
+msgstr "手動サーバーフォルダー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:169
+msgid "Remove mount"
+msgstr "マウントを削除"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:183
+msgid "Container path (defaults to source)"
+msgstr "コンテナーパス（既定はホストパスと同じ）"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:187
+msgid "Read only"
+msgstr "読み取り専用"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:275
+msgid "Danger Zone"
+msgstr "危険な操作"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:276
+msgid "Deleting an agent also deletes sessions that belong to it."
+msgstr "エージェントを削除すると、そのエージェントに属するセッションも削除されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:46
+msgid "Unable to load integrations"
+msgstr "連携情報を読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:51
+msgid "Loading integrations"
+msgstr "連携情報を読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:99
+msgid "Unable to update integration"
+msgstr "連携設定を更新できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:126
+msgid "Disconnect {value}?"
+msgstr "{value} の接続を解除しますか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:127
+msgid "Removes this connection and its credentials. Your Carmel conversations are kept."
+msgstr "この接続と認証情報を削除します。Carmel 上の会話は保持されます。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:130
+msgid "Disconnect"
+msgstr "接続解除"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:138
+msgid "{platform} integration"
+msgstr "{platform} 連携"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:237
+msgid "Create a dedicated bot with BotFather, then connect its token."
+msgstr "BotFather で専用のボットを作成し、そのトークンを接続してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:238
+msgid "Scan a QR code to create and authorize a bot, or connect an existing app."
+msgstr "QR コードをスキャンしてボットを作成・認証するか、既存のアプリを接続してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:259
+msgid "Connect Telegram"
+msgstr "Telegram を接続"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:259
+msgid "Use existing app"
+msgstr "既存のアプリを使用"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:322
+msgid "Connecting…"
+msgstr "接続中…"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:322
+msgid "Connect"
+msgstr "接続"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:374
+msgid "Scan to create your Feishu or Lark bot"
+msgstr "スキャンして Feishu または Lark ボットを作成"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:423
+msgid "Unable to copy command"
+msgstr "コマンドをコピーできません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:435
+msgid "Setup expired"
+msgstr "セットアップの有効期限が切れました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:437
+msgid "Authorization declined"
+msgstr "認可が拒否されました"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:438
+msgid "Setup needs attention"
+msgstr "セットアップの確認が必要です"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:441
+msgid "Start again when you are ready."
+msgstr "準備ができたら最初からやり直してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:476
+msgid "Recent deliveries"
+msgstr "最近の配信"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:477
+msgid "Task execution and notification delivery are tracked separately. An uncertain delivery may already be in your chat; check before resending."
+msgstr "タスクの実行と通知の配信は別々に追跡されます。「不明」の配信はすでにチャットに届いている可能性があるため、再送前に確認してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:36
+msgid "Knowledge settings saved."
+msgstr "ナレッジ設定を保存しました。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:38
+msgid "Unable to save knowledge settings"
+msgstr "ナレッジ設定を保存できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:47
+msgid "Loading knowledge settings"
+msgstr "ナレッジ設定を読み込み中"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:125
+msgid "Automatic"
+msgstr "自動"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:149
+msgid "Save settings"
+msgstr "設定を保存"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:91
+msgid "Request timeout must be a positive number of seconds."
+msgstr "リクエストタイムアウトは正の秒数で指定してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:112
+msgid "Choose a unique server ID."
+msgstr "一意のサーバー ID を指定してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:120
+msgid "Check the server configuration."
+msgstr "サーバー設定を確認してください。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:131
+msgid "{length} tools available{value}"
+msgstr "{length} 個のツールが利用可能{value}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:142
+msgid "Connection failed."
+msgstr "接続に失敗しました。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:190
+msgid "Connecting..."
+msgstr "接続中..."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:190
+msgid "Test connection"
+msgstr "接続テスト"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:218
+msgid "Edit {editing}"
+msgstr "{editing} を編集"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:218
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:371
+msgid "Add server"
+msgstr "サーバーを追加"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:262
+msgid "Requires network permission."
+msgstr "ネットワーク権限が必要です。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:263
+msgid "Runs inside the agent sandbox and requires bash permission. The command must be installed in the runner."
+msgstr "エージェントのサンドボックス内で実行され、bash 権限が必要です。コマンドはランナーにインストールされている必要があります。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:316
+msgid "HTTP headers"
+msgstr "HTTP ヘッダー"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:316
+msgid "Environment variables"
+msgstr "環境変数"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:324
+msgid "Enter a JSON object of string values. Use $'{'SECRET_NAME'}' to reference an agent secret."
+msgstr "文字列値の JSON オブジェクトを入力してください。エージェントシークレットを参照するには $'{'SECRET_NAME'}' を使用します。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:371
+msgid "Update server"
+msgstr "サーバーを更新"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:14
+msgid "Read files"
+msgstr "ファイルの読み取り"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:15
+msgid "Write files"
+msgstr "ファイルの書き込み"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:16
+msgid "Edit files"
+msgstr "ファイルの編集"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:17
+msgid "Run commands"
+msgstr "コマンドの実行"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:18
+msgid "Network access"
+msgstr "ネットワークアクセス"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:42
+msgid "Unable to load secrets"
+msgstr "シークレットを読み込めません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:74
+msgid "A secret value is required."
+msgstr "シークレットの値は必須です。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:80
+msgid "Replace {name}?"
+msgstr "「{name}」を置き換えますか？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:81
+msgid "The current value is overwritten and cannot be recovered."
+msgstr "現在の値は上書きされ、復元できなくなります。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:82
+msgid "Replace secret"
+msgstr "シークレットを置き換え"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:89
+msgid "Unable to save secret"
+msgstr "シークレットを保存できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:99
+msgid "Commands this agent runs will no longer see this variable."
+msgstr "このエージェントが実行するコマンドからこの変数は参照できなくなります。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:100
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:183
+msgid "Delete secret"
+msgstr "シークレットを削除"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:103
+msgid "Unable to delete secret"
+msgstr "シークレットを削除できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:111
+msgid "Unable to import .env"
+msgstr ".env をインポートできません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:114
+msgid "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}"
+msgstr "{count, plural, other {.env から #件のシークレットをインポートしました}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:122
+msgid "{skippedExisting} already stored"
+msgstr "{skippedExisting} 件は登録済み"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:126
+msgid "{skippedInvalid} invalid or empty"
+msgstr "{skippedInvalid} 件は無効または空"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:53
+msgid "Delete template"
+msgstr "テンプレートを削除"
+
+#. js-lingui-explicit-id
+#: src/components/chat/AgentRequestCard.tsx:56
+msgid "Agent requests"
+msgstr "エージェントからのリクエスト"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:24
+#: src/components/chat/BrowserRequestCard.tsx:27
+msgid "Browser assistance"
+msgstr "ブラウザー操作の支援"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:34
+msgid "Browser in use"
+msgstr "ブラウザー使用中"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:35
+#: src/components/chat/UserRequestCards.tsx:123
+msgid "Waiting for you"
+msgstr "ユーザーの操作待ち"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:37
+msgid "The agent needs your help in the browser."
+msgstr "エージェントがブラウザー上でのあなたの操作を必要としています。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:46
+msgid "Complete the action, then select Resume agent. Your browser input is not added to chat."
+msgstr "操作を完了してから「エージェントを再開」を選択してください。ブラウザーでの入力内容はチャットには追加されません。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:50
+msgid "Waiting for the current tool call to finish before handing over control."
+msgstr "操作を引き渡す前に、現在のツール呼び出しの完了を待っています。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:52
+msgid "{controllerName} is helping. Automation stays paused until they resume the agent."
+msgstr "{controllerName} が操作を支援しています。エージェントを再開するまで自動処理は一時停止されます。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:56
+msgid "Take control to complete the action, then resume the agent."
+msgstr "「操作を引き継ぐ」から操作を完了し、その後エージェントを再開してください。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatErrorNotice.tsx:44
+msgid "Dismiss error"
+msgstr "エラーを閉じる"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:213
+msgid "This model does not support images. Remove them or choose another model."
+msgstr "このモデルは画像に対応していません。画像を削除するか、別のモデルを選択してください。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:252
+#: src/components/chat/ChatInput.tsx:594
+msgid "Maximum {MAX_FILES} attachments and references allowed."
+msgstr "添付ファイルと参照は合計最大 {MAX_FILES} 件までです。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:265
+msgid "Enable read and write permissions for this agent to upload workspace files."
+msgstr "ワークスペースにファイルをアップロードするには、このエージェントの読み取り・書き込み権限を有効にしてください。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:270
+msgid "This model does not support images."
+msgstr "このモデルは画像に対応していません。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:286
+msgid "{name} was uploaded, but the message already has {MAX_FILES} references."
+msgstr "{name} をアップロードしましたが、メッセージにはすでに {MAX_FILES} 件の参照が含まれています。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:303
+msgid "Unable to attach file"
+msgstr "ファイルを添付できません"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:343
+msgid "Drop files here"
+msgstr "ここにファイルをドロップ"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:343
+msgid "Drop images here"
+msgstr "ここに画像をドロップ"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:369
+msgid "Remove {fileName}"
+msgstr "{fileName} を削除"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:381
+msgid "Selected references"
+msgstr "選択中の参照"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:394
+msgid "Remove reference {value}"
+msgstr "参照 {value} を削除"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:415
+msgid "Type a message..."
+msgstr "メッセージを入力..."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:479
+#: src/components/chat/ReferencePicker.tsx:83
+msgid "Mention a reference"
+msgstr "参照をメンション"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:480
+msgid "Mention a file, folder, or conversation"
+msgstr "ファイル、フォルダー、または会話をメンション"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:502
+#: src/components/chat/ChatInput.tsx:505
+msgid "Attach files"
+msgstr "ファイルを添付"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:507
+msgid "Attach images"
+msgstr "画像を添付"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:508
+msgid "Enable read and write permissions to upload files"
+msgstr "ファイルをアップロードするには読み取り・書き込み権限を有効にしてください"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:524
+msgid "Thinking level"
+msgstr "思考レベル"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:546
+msgid "Choose model ({id})"
+msgstr "モデルを選択 ({id})"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:561
+#: src/components/chat/ChatInput.tsx:562
+msgid "Abort"
+msgstr "中止"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatInput.tsx:574
+#: src/components/chat/ChatInput.tsx:575
+msgid "Send"
+msgstr "送信"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:274
+msgid "{count, plural, one {# tool call} other {# tool calls}}"
+msgstr "{count, plural, other {#回のツール呼び出し}}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:276
+msgid "thinking"
+msgstr "思考"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:304
+msgid "Working · {currentTool}"
+msgstr "作業中 · {currentTool}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:307
+msgid "Hide work"
+msgstr "作業を隠す"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:308
+msgid "Show work"
+msgstr "作業を表示"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:68
+#: src/components/chat/ChatMessages.tsx:372
+#: src/components/chat/ChatMessages.tsx:586
+#: src/components/chat/ChatMessages.tsx:663
+msgid "Image"
+msgstr "画像"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:494
+msgid "Answer sent"
+msgstr "回答を送信しました"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:496
+msgid "Question response"
+msgstr "質問への回答"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:501
+msgid "Credential provided"
+msgstr "認証情報を提供しました"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:504
+msgid "Declined"
+msgstr "拒否"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:507
+msgid "Unavailable"
+msgstr "利用不可"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:514
+msgid "Saved for reuse across this agent’s sessions."
+msgstr "このエージェントのセッション全体で再利用できるよう保存されました。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:516
+msgid "Provided for this session only."
+msgstr "このセッション限りで提供されました。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ChatMessages.tsx:519
+msgid "This request did not make a credential available to the agent."
+msgstr "このリクエストでは認証情報がエージェントに提供されませんでした。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CodeBlock.tsx:36
+msgid "Unable to copy code"
+msgstr "コードをコピーできません"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CodeBlock.tsx:48
+#: src/components/chat/CodeBlock.tsx:51
+msgid "Copy {value}"
+msgstr "{value} をコピー"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CodeBlock.tsx:48
+#: src/components/chat/CodeBlock.tsx:51
+msgid "Copy code"
+msgstr "コードをコピー"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CodeBlock.tsx:56
+msgid "Copied!"
+msgstr "コピーしました！"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:45
+#: src/components/chat/CollaborationReplyCard.tsx:26
+msgid "Agent"
+msgstr "エージェント"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:54
+msgid "Open"
+msgstr "開く"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:65
+msgid "Unable to stop collaboration"
+msgstr "コラボレーションを停止できません"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationActivity.tsx:68
+msgid "Stop"
+msgstr "停止"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:45
+msgid "Open task"
+msgstr "タスクを開く"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:45
+msgid "Open conversation"
+msgstr "会話を開く"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:69
+msgid "Show less"
+msgstr "折りたたむ"
+
+#. js-lingui-explicit-id
+#: src/components/chat/CollaborationReplyCard.tsx:69
+msgid "Show more"
+msgstr "もっと見る"
+
+#. js-lingui-explicit-id
+#: src/components/chat/HomeTaskCard.tsx:15
+msgid "Open task: {title}"
+msgstr "タスクを開く: {title}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:40
+#: src/components/chat/MessageActions.tsx:41
+msgid "Copy message"
+msgstr "メッセージをコピー"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:45
+msgid "Unable to copy message"
+msgstr "メッセージをコピーできません"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:56
+#: src/components/chat/MessageActions.tsx:57
+msgid "Fork from this message"
+msgstr "このメッセージから分岐"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:68
+#: src/components/chat/MessageActions.tsx:69
+msgid "Edit message"
+msgstr "メッセージを編集"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageActions.tsx:80
+#: src/components/chat/MessageActions.tsx:81
+msgid "Retry from this message"
+msgstr "このメッセージから再試行"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageEditDialog.tsx:74
+msgid "Edit Assistant Message"
+msgstr "アシスタントメッセージを編集"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageEditDialog.tsx:75
+msgid "Edit Message"
+msgstr "メッセージを編集"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageEditDialog.tsx:79
+msgid "Rewrites this assistant message in place. It won't rerun anything and only affects the next turn."
+msgstr "このアシスタントメッセージをその場で書き換えます。再実行は行われず、次のターン以降にのみ影響します。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageEditDialog.tsx:82
+msgid "Save updates the message only. Submit saves it and reruns from this point."
+msgstr "「保存」はメッセージの更新のみを行います。「送信」は保存してこの時点から再実行します。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageEditDialog.tsx:113
+msgid "Remove {label}"
+msgstr "{label} を削除"
+
+#. js-lingui-explicit-id
+#: src/components/chat/MessageReferences.tsx:20
+msgid "Message references"
+msgstr "メッセージの参照"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ModelCommandDialog.tsx:34
+msgid "Select Model"
+msgstr "モデルを選択"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ModelCommandDialog.tsx:35
+msgid "Select one of the models configured in settings."
+msgstr "設定で構成済みのモデルから選択してください。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ModelCommandDialog.tsx:38
+msgid "Search configured models..."
+msgstr "設定済みのモデルを検索..."
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:84
+msgid "Choose an agent to collaborate with, or a file, folder, or conversation to reference."
+msgstr "連携するエージェント、または参照するファイル・フォルダー・会話を選択してください。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:91
+msgid "Search agents, conversations, or type a file path…"
+msgstr "エージェントや会話を検索、またはファイルパスを入力…"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:93
+msgid "References"
+msgstr "参照"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:109
+msgid "Agents unavailable: {error}"
+msgstr "エージェントを取得できません: {error}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:134
+msgid "Workspace files and folders"
+msgstr "ワークスペースのファイルとフォルダー"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ReferencePicker.tsx:182
+msgid "Conversations"
+msgstr "会話"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:52
+#: src/components/chat/ToolCallView.tsx:257
+msgid "Complete"
+msgstr "完了"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:56
+msgid "Preparing"
+msgstr "準備中"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:149
+msgid "Input"
+msgstr "入力"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:159
+msgid "Output"
+msgstr "出力"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:160
+msgid "Tool call aborted."
+msgstr "ツール呼び出しが中止されました。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ToolCallView.tsx:172
+msgid "Tool result"
+msgstr "ツール結果"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:99
+msgid "Unable to respond to this request."
+msgstr "このリクエストに応答できません。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:109
+msgid "Credential request: {value}"
+msgstr "認証情報のリクエスト: {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:110
+msgid "Question from agent"
+msgstr "エージェントからの質問"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:132
+msgid "Choose an option or enter your answer."
+msgstr "選択肢を選ぶか、回答を入力してください。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:133
+msgid "Your response is saved with this conversation."
+msgstr "回答はこの会話とともに保存されます。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:147
+msgid "Provide credential"
+msgstr "認証情報を提供"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:147
+msgid "Submit answer"
+msgstr "回答を送信"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:195
+msgid "Save for this agent"
+msgstr "このエージェント用に保存"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:196
+msgid "Use in this session only"
+msgstr "このセッションでのみ使用"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:275
+#: src/components/chat/UserRequestCards.tsx:297
+msgid "Answer options"
+msgstr "回答の選択肢"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:335
+msgid "Credential provided · {value}"
+msgstr "認証情報を提供済み · {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:338
+msgid "Saved for this agent"
+msgstr "このエージェント用に保存済み"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:339
+msgid "This session only"
+msgstr "このセッションのみ"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:342
+msgid "Credential revoked."
+msgstr "認証情報が取り消されました。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/UserRequestCards.tsx:343
+msgid "No credential was provided."
+msgstr "認証情報は提供されませんでした。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ZoomableImage.tsx:23
+msgid "Zoom {value}"
+msgstr "{value} を拡大"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ZoomableLightbox.tsx:18
+msgid "Close"
+msgstr "閉じる"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ZoomableLightbox.tsx:19
+msgid "Zoom in"
+msgstr "拡大"
+
+#. js-lingui-explicit-id
+#: src/components/chat/ZoomableLightbox.tsx:20
+msgid "Zoom out"
+msgstr "縮小"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:99
+msgid "in {value}"
+msgstr "入力 {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:100
+msgid "out {value}"
+msgstr "出力 {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:102
+msgid "read {value}"
+msgstr "読み取り {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:104
+msgid "write {value}"
+msgstr "書き込み {value}"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:115
+msgid "[Image output: {mimeType}]"
+msgstr "[画像出力: {mimeType}]"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:151
+msgid "{name} is not an image."
+msgstr "{name} は画像ではありません。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:167
+msgid "{fileName} has no image content."
+msgstr "{fileName} には画像コンテンツがありません。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:213
+msgid "{value}\n"
+"\n"
+"[Truncated {value2} characters for display]"
+msgstr ""
+"{value}\n"
+"\n"
+"[表示のため {value2} 文字省略されました]"
+
+#. js-lingui-explicit-id
+#: src/components/chat/chat-utils.ts:224
+msgid "Failed to read file."
+msgstr "ファイルの読み取りに失敗しました。"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:84
+msgid "(optional)"
+msgstr "(任意)"
+
+#. placeholder {0}: item.baseUrl ?? "default endpoint"
+#. placeholder {1}: item.authType === "oauth" ? item.hasOAuth ? "oauth connected" : "oauth not connected" : item.hasApiKey ? "key saved" : "no key"
+#. placeholder {2}: relatedModels.length
+#: src/components/harness/settings/ProviderSettings.tsx:74
+msgid "{0} · {1} · {2} models"
+msgstr "{0} · {1} · {2} モデル"
+
+#. placeholder {0}: integration.botName
+#. placeholder {1}: integration.senderId
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:150
+msgid "{0} · Paired account {1}"
+msgstr "{0} · ペアリング済みアカウント {1}"
+
+#. placeholder {0}: user.role
+#: src/components/harness/settings/UserSettings.tsx:61
+msgid "{0} (you)"
+msgstr "{0}（あなた）"
+
+#. placeholder {0}: agent.name
+#: src/components/harness/tasks/NewTaskView.tsx:36
+msgid "{0} / Tasks"
+msgstr "{0} / タスク"
+
+#. placeholder {0}: data.status.needsEmbedding
+#: src/components/harness/AgentKnowledgePage.tsx:169
+msgid "{0} awaiting embeddings"
+msgstr "{0} 件の埋め込み待機中"
+
+#. placeholder {0}: data.indexStatus.documents
+#. placeholder {0}: data.status.documents
+#: src/components/harness/AgentKnowledgePage.tsx:165
+#: src/components/harness/HomeMemoryPanel.tsx:547
+msgid "{0} documents"
+msgstr "{0} 件のドキュメント"
+
+#. placeholder {0}: platformLabel(delivery.platform)
+#. placeholder {1}: statusLabel(delivery.status)
+#. placeholder {2}: delivery.error ? ` · ${delivery.error}` : ""
+#: src/components/harness/schedules/TaskRunHistory.tsx:89
+msgid "{0} notification: {1}{2}"
+msgstr "{0} 通知: {1}{2}"
+
+#. placeholder {0}: priorityLabel(issue.priority)
+#: src/components/harness/tasks/TaskView.tsx:276
+msgid "{0} priority"
+msgstr "優先度: {0}"
+
+#. placeholder {0}: selected.length
+#: src/components/harness/files/FileManagerView.tsx:236
+msgid "{0} selected"
+msgstr "{0} 件選択中"
+
+#. placeholder {0}: entry.type === "directory" ? <FolderIcon /> : <FileIcon />
+#: src/components/harness/files/FileManagerView.tsx:398
+msgid "{0}Open"
+msgstr "{0}開く"
+
+#: src/components/chat/ChatMessages.tsx:313
+msgid "{failedTools} failed"
+msgstr "{failedTools} 件失敗"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:112
+#: src/components/harness/HomeMemoryPanel.tsx:513
+msgid "Acceleration"
+msgstr "アクセラレーション"
+
+#: src/components/harness/tasks/TaskView.tsx:315
+msgid "Accept result"
+msgstr "結果を承認"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:104
+#: src/components/harness/tasks/TaskView.tsx:405
+msgid "Acceptance criteria"
+msgstr "受け入れ基準"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:98
+msgid "Acceptance criteria & priority"
+msgstr "受け入れ基準と優先度"
+
+#: src/components/harness/tasks/TaskView.tsx:436
+msgid "Activity"
+msgstr "アクティビティ"
+
+#: src/components/harness/HomeMemoryPanel.tsx:458
+msgid "Add"
+msgstr "追加"
+
+#: src/components/harness/AgentKnowledgePage.tsx:482
+#: src/components/harness/AgentKnowledgePage.tsx:518
+msgid "Add a Markdown directory from this agent's workspace or mounts."
+msgstr "このエージェントのワークスペースまたはマウントから Markdown ディレクトリを追加します。"
+
+#: src/components/harness/NewSessionView.tsx:74
+msgid "Add a model in Settings to start chatting."
+msgstr "チャットを始めるには、設定からモデルを追加してください。"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:205
+msgid "Add mount"
+msgstr "マウントを追加"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:241
+msgid "Add secret"
+msgstr "シークレットを追加"
+
+#: src/components/harness/AgentKnowledgePage.tsx:354
+#: src/components/harness/AgentKnowledgePage.tsx:515
+#: src/components/harness/AgentKnowledgePage.tsx:572
+msgid "Add source"
+msgstr "ソースを追加"
+
+#: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:86
+msgid "Add template"
+msgstr "テンプレートを追加"
+
+#: src/components/harness/settings/UserSettings.tsx:77
+#: src/components/harness/settings/UserSettings.tsx:176
+msgid "Admin"
+msgstr "管理者"
+
+#: src/components/harness/HomeMemoryPanel.tsx:330
+msgid "Aliases"
+msgstr "エイリアス"
+
+#: src/components/harness/changes/ChangesView.tsx:204
+msgid "All changes"
+msgstr "すべての変更"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:186
+msgid "Allow proactive messages, including scheduled task alerts"
+msgstr "スケジュールタスクの通知を含む、エージェントからの能動的なメッセージを許可"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:338
+msgid "Allowed tools"
+msgstr "許可されたツール"
+
+#: src/components/PiChat.tsx:244
+msgid "An IM delivery needs attention. Check Integrations for its status before resending."
+msgstr "IM 配信に確認が必要です。再送する前に「外部連携」で状態を確認してください。"
+
+#: src/components/harness/settings/ProviderSettings.tsx:168
+#: src/components/harness/settings/ProviderSettings.tsx:182
+msgid "API key"
+msgstr "API キー"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:289
+msgid "App ID"
+msgstr "App ID"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:300
+msgid "App Secret"
+msgstr "App Secret"
+
+#: src/components/harness/shell/SessionList.tsx:255
+msgid "Archive"
+msgstr "アーカイブ"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:298
+msgid "Arguments"
+msgstr "引数"
+
+#: src/components/harness/settings/ProviderSettings.tsx:156
+msgid "Authentication"
+msgstr "認証"
+
+#: src/components/chat/UserRequestCards.tsx:253
+msgid "Available to this session’s shell. The submitted value is stored separately and is not sent as a chat message."
+msgstr "このセッションのシェルから利用できます。送信された値は別途保存され、チャットメッセージとしては送信されません。"
+
+#: src/components/chat/ReferencePicker.tsx:146
+msgid "Back"
+msgstr "戻る"
+
+#: src/components/PiChat.tsx:304
+msgid "Back to issue"
+msgstr "イシューに戻る"
+
+#: src/components/harness/tasks/TaskView.tsx:85
+msgid "Back to tasks"
+msgstr "タスク一覧に戻る"
+
+#: src/components/harness/tasks/TasksOverview.tsx:189
+msgid "Backlog"
+msgstr "バックログ"
+
+#: src/components/harness/settings/ApiKeySettings.tsx:87
+#: src/components/harness/settings/ProviderSettings.tsx:146
+msgid "Base URL"
+msgstr "ベース URL"
+
+#: src/components/harness/TerminalPanel.tsx:144
+msgid "Bash is disabled for this agent. Enable it in the agent's permissions to open a terminal."
+msgstr "このエージェントでは Bash が無効になっています。ターミナルを開くにはエージェントの権限設定で有効にしてください。"
+
+#: src/components/harness/tasks/TaskResult.tsx:36
+msgid "Binary content was not captured."
+msgstr "バイナリコンテンツは記録されませんでした。"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:269
+msgid "Bot token"
+msgstr "ボットトークン"
+
+#: src/components/harness/tasks/TaskActivity.tsx:99
+msgid "Brief used for this run"
+msgstr "この実行で使用された概要"
+
+#: src/components/chat/ReferencePicker.tsx:175
+msgid "Browse"
+msgstr "参照"
+
+#: src/components/harness/BrowserPanel.tsx:287
+msgid "Browser"
+msgstr "ブラウザー"
+
+#: src/components/harness/BrowserPanel.tsx:343
+msgid "Browser address"
+msgstr "ブラウザーアドレス"
+
+#: src/components/harness/BrowserPanel.tsx:386
+msgid "Browser connection"
+msgstr "ブラウザー接続"
+
+#: src/components/harness/AgentKnowledgePage.tsx:384
+#: src/components/harness/HomeMemoryPanel.tsx:578
+msgid "Build embeddings"
+msgstr "埋め込みを生成"
+
+#: src/components/chat/MessageEditDialog.tsx:124
+#: src/components/harness/ActionDialogs.tsx:62
+#: src/components/harness/ActionDialogs.tsx:102
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:335
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:375
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:225
+#: src/components/harness/AgentKnowledgePage.tsx:569
+#: src/components/harness/HomeMemoryPanel.tsx:412
+#: src/components/harness/schedules/TaskForm.tsx:234
+#: src/components/harness/settings/ApiKeySettings.tsx:179
+#: src/components/harness/settings/UserSettings.tsx:119
+#: src/components/harness/shell/ImportSessionsDialog.tsx:113
+#: src/components/harness/tasks/TaskBriefForm.tsx:144
+#: src/components/harness/UnsavedChangesDialog.tsx:92
+msgid "Cancel"
+msgstr "キャンセル"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:456
+msgid "Cancel setup"
+msgstr "セットアップをキャンセル"
+
+#: src/components/harness/tasks/TaskView.tsx:383
+msgid "Cancel task"
+msgstr "タスクをキャンセル"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:463
+msgid "Check bot configuration"
+msgstr "ボット設定を確認"
+
+#: src/components/harness/files/FileManagerView.tsx:276
+msgid "Clear"
+msgstr "クリア"
+
+#: src/components/harness/files/FileManagerView.tsx:337
+msgid "Clear filter"
+msgstr "フィルターをクリア"
+
+#: src/components/harness/BrowserPanel.tsx:511
+msgid "Clipboard access is blocked. Select this text and copy it using your device’s copy command."
+msgstr "クリップボードへのアクセスがブロックされています。このテキストを選択し、お使いのデバイスのコピー操作でコピーしてください。"
+
+#: src/components/ui/dialog.tsx:70
+msgid "Close"
+msgstr "閉じる"
+
+#: src/components/harness/AgentKnowledgePage.tsx:319
+msgid "Close source"
+msgstr "ソースを閉じる"
+
+#: src/components/harness/agent-settings/AgentAppearancePicker.tsx:50
+msgid "Color"
+msgstr "カラー"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:287
+msgid "Command"
+msgstr "コマンド"
+
+#: src/components/harness/schedules/TaskForm.tsx:224
+msgid "Connect your bot in this agent's Integrations settings first. Describe when to notify you in the prompt, including any conditions."
+msgstr "まずこのエージェントの「外部連携」設定でボットを接続してください。通知するタイミングや条件はプロンプト内に記述してください。"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:237
+msgid "Connection"
+msgstr "接続"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:157
+msgid "Connection needs attention"
+msgstr "接続に確認が必要です"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:39
+msgid "Connections belong to you, including on shared agents. Use a dedicated bot for each."
+msgstr "共有エージェント上を含め、接続はあなた個人に紐づきます。それぞれ専用のボットを使用してください。"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:177
+msgid "Container path"
+msgstr "コンテナーパス"
+
+#: src/components/harness/HomeMemoryPanel.tsx:365
+msgid "Context"
+msgstr "コンテキスト"
+
+#: src/components/harness/settings/ProviderSettings.tsx:256
+msgid "Continue"
+msgstr "続行"
+
+#: src/components/harness/tasks/TaskView.tsx:430
+#: src/components/tasks/TaskSubtasks.tsx:207
+msgid "Conversation"
+msgstr "会話"
+
+#: src/components/harness/files/FileManagerView.tsx:254
+#: src/components/harness/files/FileManagerView.tsx:420
+msgid "Copy"
+msgstr "コピー"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:427
+msgid "Copy command"
+msgstr "コマンドをコピー"
+
+#: src/components/harness/BrowserPanel.tsx:508
+msgid "Copy from browser"
+msgstr "ブラウザーからコピー"
+
+#: src/components/harness/BrowserPanel.tsx:553
+msgid "Copy selection"
+msgstr "選択範囲をコピー"
+
+#: src/components/harness/settings/ApiKeySettings.tsx:95
+msgid "Copy your new key now — it will not be shown again."
+msgstr "新しいキーを今すぐコピーしてください — 二度と表示されません。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:377
+msgid "Core"
+msgstr "コア"
+
+#: src/components/harness/HomeMemoryPanel.tsx:384
+msgid "Core loads on every Home turn. Topics load when relevant."
+msgstr "コアはホームの毎ターンで読み込まれます。トピックは関連する場合に読み込まれます。"
+
+#: src/components/harness/AgentSchedulesPage.tsx:144
+msgid "Create a task to run this agent on a schedule, even while the app is closed."
+msgstr "アプリを閉じている間も、このエージェントを定期実行するタスクを作成します。"
+
+#: src/components/harness/settings/ApiKeySettings.tsx:182
+#: src/components/harness/settings/ApiKeySettings.tsx:190
+msgid "Create key"
+msgstr "キーを作成"
+
+#: src/components/harness/settings/ProviderSettings.tsx:270
+msgid "Create the provider before logging in."
+msgstr "ログインする前にプロバイダーを作成してください。"
+
+#: src/components/harness/settings/UserSettings.tsx:187
+msgid "Create user"
+msgstr "ユーザーを作成"
+
+#. placeholder {0}: new Date(key.createdAt).toLocaleString(i18n.locale)
+#. placeholder {1}: key.lastUsedAt ? i18n._("last used {value}", { value: new Date(key.lastUsedAt).toLocaleString(i18n.locale), }) : "never used"
+#: src/components/harness/settings/ApiKeySettings.tsx:129
+msgid "Created {0} · {1}"
+msgstr "作成日時: {0} · {1}"
+
+#: src/components/harness/settings/AccountSettings.tsx:87
+msgid "Current password"
+msgstr "現在のパスワード"
+
+#: src/components/harness/files/FileManagerView.tsx:263
+#: src/components/harness/files/FileManagerView.tsx:424
+msgid "Cut"
+msgstr "切り取り"
+
+#: src/components/harness/settings/AppearanceSettings.tsx:46
+msgid "Dark"
+msgstr "ダーク"
+
+#: src/components/harness/HomeMemoryPanel.tsx:358
+msgid "Decision"
+msgstr "決定事項"
+
+#: src/components/chat/UserRequestCards.tsx:169
+msgid "Decline"
+msgstr "拒否"
+
+#: src/components/harness/AgentKnowledgePage.tsx:238
+#: src/components/harness/HomeMemoryPanel.tsx:451
+msgid "Deep"
+msgstr "詳細"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:212
+msgid "Default model"
+msgstr "既定のモデル"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:199
+msgid "Default notification destination"
+msgstr "既定の通知先"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:113
+msgid "Default per-agent folder"
+msgstr "エージェントごとの既定フォルダー"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:233
+msgid "Default thinking"
+msgstr "既定の思考レベル"
+
+#: src/components/harness/files/FileManagerView.tsx:272
+#: src/components/harness/files/FileManagerView.tsx:433
+#: src/components/harness/shell/SessionList.tsx:278
+msgid "Delete"
+msgstr "削除"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:281
+msgid "Delete agent"
+msgstr "エージェントを削除"
+
+#: src/components/harness/HomeMemoryPanel.tsx:771
+msgid "Delete note"
+msgstr "メモを削除"
+
+#: src/components/harness/tasks/TaskView.tsx:391
+msgid "Delete task"
+msgstr "タスクを削除"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:80
+#: src/components/harness/AgentKnowledgePage.tsx:556
+msgid "Description"
+msgstr "説明"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:82
+#: src/components/harness/tasks/TaskView.tsx:468
+msgid "Details"
+msgstr "詳細"
+
+#: src/components/harness/AgentKnowledgePage.tsx:543
+msgid "Directory"
+msgstr "ディレクトリ"
+
+#: src/components/harness/files/FileEditorView.tsx:179
+msgid "Discard"
+msgstr "破棄"
+
+#: src/components/harness/UnsavedChangesDialog.tsx:99
+msgid "Discard changes"
+msgstr "変更を破棄"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:223
+msgid "Disconnect"
+msgstr "接続解除"
+
+#: src/components/harness/AgentKnowledgePage.tsx:462
+msgid "Disconnect source"
+msgstr "ソースを切断"
+
+#: src/components/harness/BrowserPanel.tsx:524
+msgid "Dismiss"
+msgstr "閉じる"
+
+#: src/components/harness/settings/ApiKeySettings.tsx:100
+#: src/components/harness/tasks/TasksOverview.tsx:198
+msgid "Done"
+msgstr "完了"
+
+#: src/components/harness/files/FileEditorView.tsx:164
+#: src/components/harness/files/FileManagerView.tsx:245
+#: src/components/harness/files/FileManagerView.tsx:408
+msgid "Download"
+msgstr "ダウンロード"
+
+#: src/components/harness/files/FileManagerView.tsx:167
+msgid "Download this folder"
+msgstr "このフォルダーをダウンロード"
+
+#. placeholder {0}: browser.path || "the working directory"
+#: src/components/harness/files/FileManagerView.tsx:466
+msgid "Drop to upload into {0}"
+msgstr "ドロップして {0} にアップロード"
+
+#: src/components/chat/ChatPanel.tsx:188
+#: src/components/tasks/TaskSubtasks.tsx:171
+msgid "Earlier messages"
+msgstr "以前のメッセージ"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:181
+#: src/components/harness/AgentSchedulesPage.tsx:236
+#: src/components/harness/files/FileEditorView.tsx:151
+#: src/components/harness/HomeMemoryPanel.tsx:711
+msgid "Edit"
+msgstr "編集"
+
+#: src/components/harness/tasks/TaskView.tsx:344
+#: src/components/harness/tasks/TaskView.tsx:688
+msgid "Edit brief"
+msgstr "概要を編集"
+
+#: src/components/harness/settings/AccountSettings.tsx:75
+#: src/components/harness/settings/UserSettings.tsx:143
+#: src/components/harness/SetupScreen.tsx:80
+msgid "Email"
+msgstr "メールアドレス"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:139
+msgid "Embedding model"
+msgstr "埋め込みモデル"
+
+#: src/components/harness/agent-settings/AgentCodemodeSettings.tsx:19
+msgid "Enable codemode"
+msgstr "コードモードを有効にする"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:311
+msgid "Enable the bot, publish the app, and subscribe to message events using a long connection."
+msgstr "ボットを有効にしてアプリを公開し、ロングコネクション（長接続）でメッセージイベントを購読してください。"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:176
+msgid "Enabled"
+msgstr "有効"
+
+#: src/components/harness/schedules/TaskForm.tsx:132
+msgid "Every N minutes"
+msgstr "N 分ごと"
+
+#: src/components/harness/HomeMemoryPanel.tsx:400
+msgid "Expires"
+msgstr "有効期限"
+
+#. placeholder {0}: new Date(setup.expiresAt).toLocaleTimeString(i18n.locale)
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:448
+msgid "Expires {0}"
+msgstr "有効期限: {0}"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:332
+msgid "Expose all tools"
+msgstr "すべてのツールを公開"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:136
+msgid "Extra runner mounts"
+msgstr "追加ランナーマウント"
+
+#: src/components/harness/HomeMemoryPanel.tsx:352
+msgid "Fact"
+msgstr "事実"
+
+#: src/components/harness/AgentKnowledgePage.tsx:232
+#: src/components/harness/HomeMemoryPanel.tsx:445
+msgid "Fast"
+msgstr "高速"
+
+#: src/components/harness/schedules/TaskForm.tsx:217
+msgid "Feishu"
+msgstr "Feishu"
+
+#: src/components/harness/tasks/TaskResult.tsx:24
+msgid "Files"
+msgstr "ファイル"
+
+#: src/components/chat/ReferencePicker.tsx:101
+msgid "Files unavailable: {error}"
+msgstr "ファイルを取得できません: {error}"
+
+#. placeholder {0}: setup.botName
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:390
+msgid "Finish connecting {0}: open the bot and send the command below from your private account."
+msgstr "{0} の接続を完了するには、ボットを開き、あなたの個人アカウントから以下のコマンドを送信してください。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:759
+#: src/components/harness/HomeMemoryPanel.tsx:810
+msgid "Forget"
+msgstr "忘れる"
+
+#: src/components/harness/HomeMemoryPanel.tsx:879
+msgid "Forget all memory"
+msgstr "すべてのメモリを忘れる"
+
+#: src/components/harness/tasks/TaskComposer.tsx:88
+msgid "Fresh conversation"
+msgstr "新しい会話"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:280
+msgid "Get this from @BotFather. Carmel stores it encrypted and never shows it again."
+msgstr "@BotFather から取得してください。Carmel はこれを暗号化して保存し、再表示しません。"
+
+#: src/components/harness/BrowserPanel.tsx:357
+msgid "Go"
+msgstr "移動"
+
+#: src/components/harness/AgentSchedulesPage.tsx:210
+#: src/components/harness/HomeMemoryPanel.tsx:747
+#: src/components/harness/HomeMemoryPanel.tsx:836
+msgid "History"
+msgstr "履歴"
+
+#: src/components/harness/shell/ConversationSwitcher.tsx:51
+msgid "Home"
+msgstr "ホーム"
+
+#: src/components/harness/HomeMemoryPanel.tsx:168
+msgid "Home memory"
+msgstr "ホームメモリ"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:140
+msgid "Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the host."
+msgstr "ワークスペースに加えて bash サンドボックス内にマウントされるホストディレクトリです。ホストパスにはホスト側のパスを指定します。"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:153
+msgid "Host path"
+msgstr "ホストパス"
+
+#: src/components/harness/agent-settings/AgentAppearancePicker.tsx:22
+msgid "Icon"
+msgstr "アイコン"
+
+#: src/components/chat/ToolCallView.tsx:165
+msgid "Images"
+msgstr "画像"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:246
+msgid "Import .env"
+msgstr ".env をインポート"
+
+#: src/components/harness/shell/ImportSessionsDialog.tsx:90
+msgid "Import Open WebUI JSON exports into the selected agent."
+msgstr "Open WebUI の JSON エクスポートを選択したエージェントにインポートします。"
+
+#: src/components/harness/shell/ImportSessionsDialog.tsx:87
+msgid "Import Sessions"
+msgstr "セッションをインポート"
+
+#: src/components/harness/HomeMemoryPanel.tsx:671
+msgid "Imported agent memory"
+msgstr "インポートされたエージェントメモリ"
+
+#: src/components/harness/AgentKnowledgePage.tsx:189
+msgid "Index needs attention"
+msgstr "インデックスの確認が必要です"
+
+#: src/components/chat/ChatMessages.tsx:396
+msgid "Interrupted"
+msgstr "中断"
+
+#: src/components/PiChat.tsx:300
+msgid "Issue conversation · Read-only history"
+msgstr "イシューの会話 · 読み取り専用履歴"
+
+#: src/components/harness/BrowserPanel.tsx:572
+msgid "Keyboard"
+msgstr "キーボード"
+
+#: src/components/harness/HomeMemoryPanel.tsx:341
+msgid "Kind"
+msgstr "種類"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:89
+msgid "Knowledge"
+msgstr "ナレッジ"
+
+#: src/components/harness/AgentKnowledgePage.tsx:145
+msgid "Knowledge is off"
+msgstr "ナレッジはオフです"
+
+#: src/components/harness/AgentKnowledgePage.tsx:130
+msgid "Knowledge settings"
+msgstr "ナレッジ設定"
+
+#: src/components/harness/settings/ProviderSettings.tsx:136
+msgid "Label"
+msgstr "ラベル"
+
+#: src/components/harness/HomeMemoryPanel.tsx:216
+msgid "Last check"
+msgstr "前回の確認"
+
+#: src/components/harness/HomeMemoryPanel.tsx:240
+msgid "Last tidy"
+msgstr "前回の整理"
+
+#: src/components/chat/ChatPanel.tsx:204
+#: src/components/tasks/TaskSubtasks.tsx:176
+msgid "Latest messages"
+msgstr "最新のメッセージ"
+
+#: src/components/harness/tasks/TaskView.tsx:606
+msgid "Latest result"
+msgstr "最新の結果"
+
+#: src/components/harness/HomeMemoryPanel.tsx:198
+msgid "Learn from Home"
+msgstr "ホームから学習"
+
+#: src/components/harness/HomeMemoryPanel.tsx:203
+msgid "Learn useful details from future Home messages using your Home model. Background model usage may incur charges."
+msgstr "ホームモデルを使用して、今後のホームメッセージから役立つ情報を学習します。バックグラウンドでのモデル利用には料金が発生する場合があります。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:640
+msgid "Learned"
+msgstr "学習済み"
+
+#: src/components/harness/settings/AppearanceSettings.tsx:43
+msgid "Light"
+msgstr "ライト"
+
+#: src/components/harness/HarnessShell.tsx:658
+msgid "Loading {view}…"
+msgstr "{view} を読み込み中…"
+
+#: src/components/harness/AgentSettingsPage.tsx:233
+msgid "Loading agent settings..."
+msgstr "エージェント設定を読み込み中..."
+
+#: src/components/harness/shell/HarnessSkeleton.tsx:18
+msgid "Loading Carmel Agent"
+msgstr "Carmel Agent を読み込み中"
+
+#: src/components/PiChat.tsx:442
+msgid "Loading chat..."
+msgstr "チャットを読み込み中..."
+
+#: src/components/harness/changes/ChangesView.tsx:370
+msgid "Loading diff..."
+msgstr "差分を読み込み中..."
+
+#: src/components/harness/files/FileManagerView.tsx:322
+msgid "Loading files..."
+msgstr "ファイルを読み込み中..."
+
+#: src/components/chat/ReferencePicker.tsx:96
+msgid "Loading files…"
+msgstr "ファイルを読み込み中…"
+
+#: src/components/harness/files/FileEditorView.tsx:236
+msgid "Loading Markdown…"
+msgstr "Markdown を読み込み中…"
+
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:68
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:157
+#: src/components/harness/settings/ApiKeySettings.tsx:108
+msgid "Loading…"
+msgstr "読み込み中…"
+
+#: src/components/harness/settings/ProviderSettings.tsx:206
+msgid "Login"
+msgstr "ログイン"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:117
+msgid "Manual server folder"
+msgstr "手動サーバーフォルダー"
+
+#: src/components/harness/HomeMemoryPanel.tsx:162
+#: src/components/harness/HomeMemoryPanel.tsx:307
+msgid "Memory"
+msgstr "メモリ"
+
+#: src/components/harness/HomeMemoryPanel.tsx:497
+msgid "Memory indexing"
+msgstr "メモリインデックス"
+
+#. placeholder {0}: directory ? `${directory}/` : "workspace folder"
+#: src/components/chat/ReferencePicker.tsx:156
+msgid "Mention {0}"
+msgstr "{0} をメンション"
+
+#: src/components/harness/settings/ModelSettings.tsx:55
+msgid "Model"
+msgstr "モデル"
+
+#: src/components/harness/settings/ModelSettings.tsx:178
+msgid "Model ID"
+msgstr "モデル ID"
+
+#: src/components/harness/files/FileManagerView.tsx:305
+msgid "Modified"
+msgstr "更新日時"
+
+#. placeholder {0}: index + 1
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:148
+msgid "Mount {0}"
+msgstr "マウント {0}"
+
+#: src/components/harness/shell/TaskRunBanner.tsx:56
+msgid "Move to sessions"
+msgstr "セッション一覧へ移動"
+
+#: src/components/harness/HomeMemoryPanel.tsx:728
+msgid "Move to topics"
+msgstr "トピックへ移動"
+
+#: src/components/harness/ActionDialogs.tsx:88
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:68
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:197
+#: src/components/harness/AgentKnowledgePage.tsx:531
+#: src/components/harness/files/FileManagerView.tsx:299
+#: src/components/harness/schedules/TaskForm.tsx:82
+#: src/components/harness/settings/ApiKeySettings.tsx:158
+msgid "Name"
+msgstr "名前"
+
+#: src/components/harness/tasks/TasksOverview.tsx:180
+msgid "Needs you"
+msgstr "要対応"
+
+#. placeholder {0}: calls?.length ?? slots.length
+#: src/components/chat/ToolCallView.tsx:225
+msgid "Nested tool calls ({0})"
+msgstr "ネストされたツール呼び出し ({0})"
+
+#: src/components/harness/shell/HarnessSidebar.tsx:252
+msgid "New agent"
+msgstr "新しいエージェント"
+
+#: src/components/chat/ChatMessages.tsx:444
+#: src/components/PiChat.tsx:292
+msgid "New context"
+msgstr "新しいコンテキスト"
+
+#: src/components/harness/settings/AccountSettings.tsx:99
+msgid "New password (optional)"
+msgstr "新しいパスワード（任意）"
+
+#: src/components/harness/settings/AccountSettings.tsx:112
+msgid "New password must be at least 8 characters."
+msgstr "新しいパスワードは 8 文字以上である必要があります。"
+
+#: src/components/harness/settings/ProviderSettings.tsx:104
+msgid "New provider config"
+msgstr "新しいプロバイダー設定"
+
+#: src/components/harness/AgentSchedulesPage.tsx:97
+msgid "New schedule"
+msgstr "新しいスケジュール"
+
+#: src/components/harness/shell/ConversationSwitcher.tsx:55
+msgid "New session"
+msgstr "新しいセッション"
+
+#: src/components/harness/tasks/NewTaskView.tsx:39
+#: src/components/harness/tasks/TasksOverview.tsx:155
+msgid "New task"
+msgstr "新しいタスク"
+
+#: src/components/harness/HomeMemoryPanel.tsx:830
+msgid "Next"
+msgstr "次へ"
+
+#: src/components/harness/AgentKnowledgePage.tsx:332
+msgid "Next lines"
+msgstr "次の行"
+
+#: src/components/harness/tasks/TaskActivity.tsx:114
+msgid "No activity yet."
+msgstr "まだアクティビティはありません。"
+
+#: src/components/harness/settings/ApiKeySettings.tsx:112
+msgid "No API keys yet."
+msgstr "API キーはまだありません。"
+
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:73
+msgid "No archived sessions."
+msgstr "アーカイブされたセッションはありません。"
+
+#: src/components/chat/ModelCommandDialog.tsx:41
+msgid "No configured models found."
+msgstr "設定済みのモデルが見つかりません。"
+
+#: src/components/harness/AgentKnowledgePage.tsx:263
+msgid "No matches"
+msgstr "一致する結果がありません"
+
+#: src/components/chat/ReferencePicker.tsx:105
+msgid "No matching references."
+msgstr "一致する参照がありません。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:602
+msgid "No memories"
+msgstr "メモリはありません"
+
+#: src/components/harness/settings/ModelSettings.tsx:267
+msgid "No models found."
+msgstr "モデルが見つかりません。"
+
+#: src/components/harness/schedules/TaskRunHistory.tsx:62
+msgid "No runs yet."
+msgstr "まだ実行履歴はありません。"
+
+#: src/components/harness/AgentSchedulesPage.tsx:141
+msgid "No schedules"
+msgstr "スケジュールはありません"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:161
+msgid "No secrets yet."
+msgstr "シークレットはまだありません。"
+
+#: src/components/harness/AgentCommandPalette.tsx:166
+msgid "No slash commands are available for this agent."
+msgstr "このエージェントで利用できるスラッシュコマンドはありません。"
+
+#: src/components/harness/AgentKnowledgePage.tsx:478
+msgid "No sources yet"
+msgstr "ソースはまだありません"
+
+#: src/components/harness/changes/ChangesView.tsx:128
+msgid "No uncommitted changes."
+msgstr "未コミットの変更はありません。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:223
+msgid "nothing new"
+msgstr "新規項目なし"
+
+#: src/components/harness/HomeMemoryPanel.tsx:221
+msgid "nothing saved"
+msgstr "保存された項目なし"
+
+#: src/components/harness/schedules/TaskForm.tsx:194
+msgid "Notification destination"
+msgstr "通知先"
+
+#: src/components/harness/settings/ProviderSettings.tsx:172
+msgid "OAuth login"
+msgstr "OAuth ログイン"
+
+#: src/components/harness/settings/ProviderSettings.tsx:262
+msgid "OAuth login completed."
+msgstr "OAuth ログインが完了しました。"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:101
+#: src/components/harness/HomeMemoryPanel.tsx:192
+msgid "Off"
+msgstr "オフ"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:104
+msgid "On"
+msgstr "オン"
+
+#: src/components/harness/schedules/TaskForm.tsx:129
+msgid "On a cron schedule"
+msgstr "Cron スケジュールで実行"
+
+#: src/components/harness/schedules/TaskForm.tsx:135
+msgid "Once, at a time"
+msgstr "指定時刻に 1 回のみ"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:307
+msgid "One argument per line. Arguments are passed directly without shell expansion."
+msgstr "1行につき1つの引数を入力します。引数はシェル展開なしでそのまま渡されます。"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:346
+msgid "One original tool name per line. An empty list exposes no tools."
+msgstr "1行につき1つの元のツール名を入力します。空のリストにするとツールは公開されません。"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:381
+msgid "Open authorization link"
+msgstr "認可リンクを開く"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:412
+msgid "Open bot"
+msgstr "ボットを開く"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:228
+#: src/components/harness/schedules/TaskRunHistory.tsx:107
+#: src/components/harness/tasks/TaskActivity.tsx:92
+msgid "Open conversation"
+msgstr "会話を開く"
+
+#: src/components/harness/changes/ChangesView.tsx:361
+msgid "Open file"
+msgstr "ファイルを開く"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:153
+msgid "Open knowledge"
+msgstr "ナレッジを開く"
+
+#: src/components/harness/settings/ProviderSettings.tsx:216
+msgid "Open login page"
+msgstr "ログインページを開く"
+
+#: src/components/harness/HomeMemoryPanel.tsx:683
+msgid "Open message"
+msgstr "メッセージを開く"
+
+#: src/components/harness/shell/SessionList.tsx:96
+msgid "Open session"
+msgstr "セッションを開く"
+
+#: src/components/chat/UserRequestCards.tsx:264
+msgid "Options"
+msgstr "オプション"
+
+#: src/components/harness/LoginScreen.tsx:59
+#: src/components/harness/SetupScreen.tsx:61
+msgid "or"
+msgstr "または"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:398
+msgid "Pairing command"
+msgstr "ペアリングコマンド"
+
+#: src/components/harness/LoginScreen.tsx:78
+#: src/components/harness/settings/UserSettings.tsx:154
+#: src/components/harness/SetupScreen.tsx:92
+msgid "Password"
+msgstr "パスワード"
+
+#: src/components/harness/settings/UserSettings.tsx:190
+#: src/components/harness/SetupScreen.tsx:109
+msgid "Password must be at least 8 characters."
+msgstr "パスワードは 8 文字以上である必要があります。"
+
+#: src/components/harness/BrowserPanel.tsx:562
+msgid "Paste"
+msgstr "貼り付け"
+
+#: src/components/harness/files/FileManagerView.tsx:227
+msgid "Paste here"
+msgstr "ここに貼り付け"
+
+#: src/components/chat/UserRequestCards.tsx:359
+msgid "People who can run this shared agent can use this credential."
+msgstr "この共有エージェントを実行できるユーザーは、この認証情報を使用できます。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:703
+msgid "Pin"
+msgstr "ピン留め"
+
+#: src/components/harness/HomeMemoryPanel.tsx:355
+msgid "Preference"
+msgstr "好み・設定"
+
+#: src/components/harness/AgentKnowledgePage.tsx:398
+#: src/components/harness/HomeMemoryPanel.tsx:590
+msgid "Prepare deep search"
+msgstr "詳細検索を準備"
+
+#: src/components/harness/files/FileEditorView.tsx:148
+msgid "Preview"
+msgstr "プレビュー"
+
+#: src/components/harness/HomeMemoryPanel.tsx:823
+msgid "Previous"
+msgstr "前へ"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:117
+msgid "Priority"
+msgstr "優先度"
+
+#. placeholder {0}: priorityLabel(issue.priority)
+#: src/components/harness/tasks/TaskView.tsx:692
+msgid "Priority · {0}"
+msgstr "優先度 · {0}"
+
+#: src/components/harness/HomeMemoryPanel.tsx:171
+msgid "Private to you and this agent. New context keeps these notes."
+msgstr "あなたとこのエージェントだけの非公開メモリです。新しいコンテキストでも引き継がれます。"
+
+#: src/components/harness/schedules/TaskForm.tsx:94
+msgid "Prompt"
+msgstr "プロンプト"
+
+#: src/components/harness/settings/ProviderSettings.tsx:95
+msgid "Provider config"
+msgstr "プロバイダー設定"
+
+#: src/components/harness/settings/ProviderSettings.tsx:117
+msgid "Provider type"
+msgstr "プロバイダーの種類"
+
+#: src/components/harness/tasks/TasksOverview.tsx:168
+msgid "Queue"
+msgstr "キュー"
+
+#: src/components/harness/tasks/TaskBriefForm.tsx:156
+msgid "Queue work"
+msgstr "作業をキューに追加"
+
+#: src/components/harness/tasks/TaskView.tsx:516
+msgid "Queued"
+msgstr "待機中"
+
+#: src/components/harness/AgentKnowledgePage.tsx:288
+msgid "Read source"
+msgstr "ソースを読む"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:173
+msgid "Receive and send messages"
+msgstr "メッセージを送受信"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:220
+#: src/components/harness/BrowserPanel.tsx:391
+msgid "Reconnect"
+msgstr "再接続"
+
+#: src/components/harness/BrowserPanel.tsx:474
+msgid "Reconnecting preserves the agent’s browser and saved sign-ins."
+msgstr "再接続してもエージェントのブラウザーと保存済みのサインイン状態は維持されます。"
+
+#: src/components/harness/AgentKnowledgePage.tsx:375
+#: src/components/harness/HomeMemoryPanel.tsx:566
+msgid "Refresh index"
+msgstr "インデックスを更新"
+
+#: src/components/harness/HomeMemoryPanel.tsx:195
+msgid "Remember when asked"
+msgstr "指示されたときに記憶"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:252
+msgid "Remote HTTP"
+msgstr "リモート HTTP"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:201
+msgid "Remove"
+msgstr "削除"
+
+#: src/components/harness/tasks/TaskView.tsx:359
+msgid "Remove from queue"
+msgstr "キューから削除"
+
+#: src/components/harness/files/FileManagerView.tsx:416
+#: src/components/harness/shell/SessionList.tsx:251
+msgid "Rename"
+msgstr "名前変更"
+
+#: src/components/harness/tasks/TaskView.tsx:301
+msgid "Reopen task"
+msgstr "タスクを再開"
+
+#: src/components/harness/schedules/TaskForm.tsx:107
+msgid "Repeats"
+msgstr "繰り返し"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:210
+msgid "Replace credentials"
+msgstr "認証情報を置き換え"
+
+#: src/components/harness/tasks/TaskView.tsx:320
+msgid "Reply to agent"
+msgstr "エージェントに返信"
+
+#: src/components/chat/ChatMessages.tsx:698
+msgid "Request aborted"
+msgstr "リクエストが中止されました"
+
+#: src/components/harness/tasks/TaskView.tsx:307
+msgid "Request changes"
+msgstr "変更をリクエスト"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:352
+msgid "Request timeout (seconds)"
+msgstr "リクエストタイムアウト（秒）"
+
+#: src/components/harness/TerminalPanel.tsx:161
+msgid "Restart"
+msgstr "再起動"
+
+#: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
+#: src/components/harness/HomeMemoryPanel.tsx:857
+msgid "Restore"
+msgstr "復元"
+
+#: src/components/harness/tasks/TaskView.tsx:433
+msgid "Result"
+msgstr "結果"
+
+#: src/components/PiChat.tsx:335
+#: src/components/tasks/TaskSubtasks.tsx:75
+msgid "Resume"
+msgstr "再開"
+
+#: src/components/chat/UserRequestCards.tsx:176
+msgid "Resume agent"
+msgstr "エージェントを再開"
+
+#: src/components/PiChat.tsx:282
+msgid "Resume updates"
+msgstr "更新を再開"
+
+#: src/components/harness/ResourceFeedback.tsx:24
+msgid "Retry"
+msgstr "再試行"
+
+#: src/components/chat/UserRequestCards.tsx:210
+msgid "Revoke credential"
+msgstr "認証情報を取り消す"
+
+#: src/components/harness/settings/UserSettings.tsx:165
+msgid "Role"
+msgstr "ロール"
+
+#. placeholder {0}: issue.attempts.length - issue.attempts.indexOf(attempt)
+#. placeholder {1}: attempt.outcome === "succeeded" ? i18n._("Completed") : describeTaskOutcome(attempt.outcome)
+#: src/components/harness/tasks/TaskView.tsx:588
+msgid "Run {0} · {1}"
+msgstr "実行 {0} · {1}"
+
+#: src/components/harness/schedules/TaskRunHistory.tsx:49
+#: src/components/harness/shell/TaskRunBanner.tsx:50
+msgid "Run history"
+msgstr "実行履歴"
+
+#: src/components/harness/AgentSchedulesPage.tsx:198
+msgid "Run now"
+msgstr "今すぐ実行"
+
+#: src/components/harness/shell/SessionList.tsx:110
+msgid "Running"
+msgstr "実行中"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:255
+msgid "Sandbox stdio"
+msgstr "サンドボックス stdio"
+
+#: src/components/chat/MessageEditDialog.tsx:131
+msgid "Save"
+msgstr "保存"
+
+#: src/components/harness/settings/AppearanceSettings.tsx:58
+msgid "Save appearance"
+msgstr "外観を保存"
+
+#: src/components/harness/tasks/TaskComposer.tsx:80
+msgid "Save as note"
+msgstr "メモとして保存"
+
+#: src/components/harness/settings/AccountSettings.tsx:121
+msgid "Save changes"
+msgstr "変更を保存"
+
+#: src/components/harness/HomeMemoryPanel.tsx:415
+msgid "Save memory"
+msgstr "メモリを保存"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:228
+msgid "Save secret"
+msgstr "シークレットを保存"
+
+#: src/components/harness/UnsavedChangesDialog.tsx:74
+msgid "Save your changes?"
+msgstr "変更を保存しますか？"
+
+#. placeholder {0}: data.lastCapture.saved
+#: src/components/harness/HomeMemoryPanel.tsx:219
+msgid "saved {0}"
+msgstr "{0} 件保存"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:250
+msgid "Scan QR code"
+msgstr "QR コードをスキャン"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:369
+msgid "Scan with the Feishu or Lark mobile app and approve creation of your bot."
+msgstr "Feishu または Lark モバイルアプリでスキャンし、ボットの作成を承認してください。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:319
+msgid "Scope"
+msgstr "スコープ"
+
+#: src/components/harness/shell/GlobalSearch.tsx:51
+msgid "Search"
+msgstr "検索"
+
+#: src/components/harness/HomeMemoryPanel.tsx:491
+msgid "Search and indexing"
+msgstr "検索とインデックス"
+
+#: src/components/harness/AgentKnowledgePage.tsx:210
+msgid "Search knowledge"
+msgstr "ナレッジを検索"
+
+#: src/components/harness/AgentKnowledgePage.tsx:223
+msgid "Search mode"
+msgstr "検索モード"
+
+#: src/components/harness/AgentKnowledgePage.tsx:254
+msgid "Search notice"
+msgstr "検索に関するお知らせ"
+
+#: src/components/harness/shell/GlobalSearch.tsx:97
+msgid "Searching…"
+msgstr "検索中…"
+
+#: src/components/chat/UserRequestCards.tsx:238
+msgid "Secret value"
+msgstr "シークレットの値"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:140
+msgid "Secrets become environment variables in this agent's shell. Saved values can be replaced but cannot be viewed."
+msgstr "シークレットはこのエージェントのシェル内で環境変数になります。保存済みの値は置き換え可能ですが、閲覧はできません。"
+
+#: src/components/harness/files/FileEditorView.tsx:124
+msgid "Select a file from the sidebar."
+msgstr "サイドバーからファイルを選択してください。"
+
+#: src/components/harness/files/FileEditorView.tsx:116
+#: src/components/harness/files/FileManagerView.tsx:69
+msgid "Select an agent to browse files."
+msgstr "ファイルを参照するにはエージェントを選択してください。"
+
+#. placeholder {0}: selectedModel.name
+#. placeholder {1}: selectedModel.id
+#: src/components/harness/settings/ModelSettings.tsx:274
+msgid "Selected: {0} · {1}"
+msgstr "選択中: {0} · {1}"
+
+#: src/components/harness/AgentKnowledgePage.tsx:235
+#: src/components/harness/HomeMemoryPanel.tsx:448
+msgid "Semantic"
+msgstr "セマンティック"
+
+#: src/components/harness/BrowserPanel.tsx:501
+msgid "Send text"
+msgstr "テキストを送信"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:223
+msgid "Server ID"
+msgstr "サーバー ID"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:274
+msgid "Server URL"
+msgstr "サーバー URL"
+
+#. placeholder {0}: activeAgent.name
+#. placeholder {1}: customWorkingDir ? ` · ${customWorkingDir}` : ""
+#: src/components/harness/shell/HarnessHeader.tsx:143
+msgid "Sessions · {0}{1}"
+msgstr "セッション · {0}{1}"
+
+#: src/components/harness/settings/UserSettings.tsx:116
+msgid "Set"
+msgstr "設定"
+
+#. placeholder {0}: new Date(secret.updatedAt).toLocaleString(i18n.locale)
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:175
+msgid "Set {0}"
+msgstr "設定日時: {0}"
+
+#: src/components/harness/HomeMemoryPanel.tsx:390
+msgid "Share across my agents"
+msgstr "自分のエージェント間で共有"
+
+#: src/components/harness/settings/ModelSettings.tsx:102
+msgid "shared"
+msgstr "共有"
+
+#: src/components/harness/HomeMemoryPanel.tsx:645
+#: src/components/harness/HomeMemoryPanel.tsx:792
+msgid "Shared"
+msgstr "共有中"
+
+#: src/components/harness/HomeMemoryPanel.tsx:784
+msgid "Shared across agents"
+msgstr "エージェント間で共有"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:143
+msgid "Shared by all agents. The server administrator configures this model."
+msgstr "すべてのエージェントで共有されます。このモデルはサーバー管理者が設定します。"
+
+#. placeholder {0}: Math.min(hidden, PAGE_SIZE)
+#: src/components/harness/shell/SessionList.tsx:142
+msgid "Show {0} more"
+msgstr "さらに {0} 件表示"
+
+#: src/components/harness/settings/AccountSettings.tsx:52
+msgid "Sign out"
+msgstr "サインアウト"
+
+#. placeholder {0}: user.username ?? user.name
+#: src/components/harness/settings/AccountSettings.tsx:47
+msgid "Signed in as {0}"
+msgstr "{0} としてサインイン中"
+
+#: src/components/harness/files/FileManagerView.tsx:302
+msgid "Size"
+msgstr "サイズ"
+
+#. placeholder {0}: i18n._(sortLabels[key]).toLowerCase()
+#. placeholder {1}: browser.sort.key === key ? ( <span className="ml-auto text-xs text-muted-foreground"> {browser.sort.ascending ? "A→Z" : "Z→A"} </span> ) : null
+#: src/components/harness/files/FileManagerView.tsx:186
+msgid "Sort by {0}{1}"
+msgstr "{0}で並べ替え{1}"
+
+#: src/components/chat/MermaidBlock.tsx:50
+#: src/components/harness/HomeMemoryPanel.tsx:667
+msgid "Source"
+msgstr "ソース"
+
+#: src/components/harness/AgentKnowledgePage.tsx:347
+msgid "Sources"
+msgstr "ソース"
+
+#: src/components/PiChat.tsx:338
+msgid "Stop"
+msgstr "停止"
+
+#: src/components/PiChat.tsx:287
+msgid "Stop Home"
+msgstr "ホームを停止"
+
+#: src/components/harness/tasks/TaskView.tsx:293
+msgid "Stop run"
+msgstr "実行を停止"
+
+#: src/components/chat/MessageEditDialog.tsx:135
+msgid "Submit"
+msgstr "送信"
+
+#: src/components/tasks/TaskSubtasks.tsx:63
+msgid "Subtasks"
+msgstr "サブタスク"
+
+#: src/components/harness/shell/ConversationSwitcher.tsx:45
+msgid "Switch conversation"
+msgstr "会話を切り替え"
+
+#: src/components/harness/settings/AppearanceSettings.tsx:40
+msgid "System"
+msgstr "システム"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:257
+msgid "System prompt"
+msgstr "システムプロンプト"
+
+#. placeholder {0}: activeAgent?.name ?? i18n._("No agent")
+#. placeholder {1}: modelRefs.find((model) => model.id === activeAgent?.defaultModelRefId)?.label ?? i18n._("No model")
+#: src/components/harness/shell/ImportSessionsDialog.tsx:103
+msgid "Target: {0} · {1}"
+msgstr "対象: {0} · {1}"
+
+#: src/components/harness/schedules/TaskForm.tsx:213
+msgid "Task history only"
+msgstr "タスク履歴のみ"
+
+#: src/components/harness/shell/TaskRunBanner.tsx:38
+msgid "Task run ·"
+msgstr "タスク実行 ·"
+
+#: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:65
+msgid "Template name"
+msgstr "テンプレート名"
+
+#: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:75
+msgid "Template text"
+msgstr "テンプレート本文"
+
+#: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:36
+msgid "Templates appear in this agent's chat command palette."
+msgstr "テンプレートはこのエージェントのチャットコマンドパレットに表示されます。"
+
+#: src/components/harness/changes/ChangesView.tsx:153
+msgid "The list was cut off; there are more changes than it shows. An untracked dependency folder usually belongs in .gitignore."
+msgstr "一覧が省略されました。表示されている以外にも変更があります。未追跡の依存関係フォルダーは通常 .gitignore に追加します。"
+
+#: src/components/harness/settings/AppearanceSettings.tsx:31
+msgid "Theme"
+msgstr "テーマ"
+
+#: src/components/chat/ChatMessages.tsx:723
+msgid "Thinking"
+msgstr "思考"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:148
+msgid "This agent is shared. Anyone who can run it runs commands with these secrets in their environment."
+msgstr "このエージェントは共有されています。実行権限のあるユーザーは、これらのシークレットを環境変数に含めた状態でコマンドを実行できます。"
+
+#: src/components/harness/changes/ChangesView.tsx:124
+msgid "This agent's working directory is not a git repository."
+msgstr "このエージェントの作業ディレクトリは Git リポジトリではありません。"
+
+#: src/components/PiChat.tsx:329
+msgid "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
+msgstr "この会話には未完了の作業があります。メッセージを再試行または編集する前に、再開するか停止してください。"
+
+#: src/components/harness/HomeMemoryPanel.tsx:466
+msgid "Tidy"
+msgstr "整理"
+
+#: src/components/harness/schedules/TaskForm.tsx:182
+msgid "Time zone"
+msgstr "タイムゾーン"
+
+#: src/components/harness/HomeMemoryPanel.tsx:296
+#: src/components/harness/tasks/TaskBriefForm.tsx:68
+msgid "Title"
+msgstr "タイトル"
+
+#: src/components/harness/HomeMemoryPanel.tsx:380
+msgid "Topic"
+msgstr "トピック"
+
+#: src/components/harness/AgentKnowledgePage.tsx:266
+msgid "Try another phrase or refresh the source index."
+msgstr "別の語句を試すか、ソースのインデックスを更新してください。"
+
+#: src/components/harness/BrowserPanel.tsx:491
+msgid "Type into the focused browser field"
+msgstr "フォーカス中のブラウザー入力欄に入力"
+
+#: src/components/harness/files/FileEditorView.tsx:209
+msgid "Unable to open file"
+msgstr "ファイルを開けません"
+
+#: src/components/harness/files/FileEditorView.tsx:292
+msgid "Unable to preview this image."
+msgstr "この画像をプレビューできません。"
+
+#: src/components/harness/UnsavedChangesDialog.tsx:85
+msgid "Unable to save. Your changes are still here. Try again or cancel to keep editing."
+msgstr "保存できませんでした。変更内容は保持されています。もう一度試すか、キャンセルして編集を続けてください。"
+
+#: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:343
+msgid "Unable to update integration"
+msgstr "連携設定を更新できません"
+
+#: src/components/harness/HomeMemoryPanel.tsx:703
+msgid "Unpin"
+msgstr "ピン留め解除"
+
+#: src/components/harness/agent-settings/AgentMcpSettings.tsx:232
+msgid "Up to 32 letters, numbers, underscores, or hyphens."
+msgstr "英数字、アンダースコア、ハイフンで最大 32 文字まで。"
+
+#. placeholder {0}: formatRelativeTime(issue.updatedAt)
+#. placeholder {0}: new Date(data.status.lastUpdatedAt).toLocaleString(i18n.locale)
+#: src/components/harness/AgentKnowledgePage.tsx:180
+#: src/components/harness/tasks/TaskView.tsx:280
+msgid "Updated {0}"
+msgstr "更新日時: {0}"
+
+#: src/components/harness/files/FileManagerView.tsx:120
+msgid "Upload"
+msgstr "アップロード"
+
+#: src/components/harness/files/FileManagerView.tsx:342
+msgid "Upload files"
+msgstr "ファイルをアップロード"
+
+#: src/components/harness/files/FileManagerView.tsx:160
+msgid "Upload folder"
+msgstr "フォルダーをアップロード"
+
+#: src/components/harness/HomeMemoryPanel.tsx:730
+msgid "Use as core"
+msgstr "コアとして使用"
+
+#: src/components/harness/settings/ModelSettings.tsx:70
+msgid "Use current session model"
+msgstr "現在のセッションのモデルを使用"
+
+#: src/components/chat/UserRequestCards.tsx:158
+msgid "Use saved credential"
+msgstr "保存済みの認証情報を使用"
+
+#: src/components/harness/settings/ApiKeySettings.tsx:80
+msgid "Use your models from an OpenAI-compatible client. Tool calls return to that client to run."
+msgstr "OpenAI 互換クライアントからモデルを利用します。ツール呼び出しはそのクライアント側へ返されて実行されます。"
+
+#: src/components/harness/settings/UserSettings.tsx:74
+#: src/components/harness/settings/UserSettings.tsx:173
+msgid "User"
+msgstr "ユーザー"
+
+#: src/components/harness/LoginScreen.tsx:67
+#: src/components/harness/settings/UserSettings.tsx:133
+#: src/components/harness/SetupScreen.tsx:69
+msgid "Username"
+msgstr "ユーザー名"
+
+#: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:132
+msgid "Uses GPUs exposed to the runner. Vulkan works with compatible NVIDIA and AMD drivers."
+msgstr "ランナーに公開された GPU を使用します。Vulkan は互換性のある NVIDIA および AMD ドライバーで動作します。"
+
+#: src/components/harness/agent-settings/AgentCodemodeSettings.tsx:23
+msgid "Uses this agent's permitted workspace, shell, network, MCP, and session tools. Existing permissions and MCP tool allowlists still apply."
+msgstr "このエージェントに許可されたワークスペース、シェル、ネットワーク、MCP、セッションツールを使用します。既存の権限と MCP ツール許可リストはそのまま適用されます。"
+
+#. placeholder {0}: skill.name
+#: src/components/chat/ChatMessages.tsx:562
+msgid "Using skill: {0}"
+msgstr "スキルを使用中: {0}"
+
+#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:210
+msgid "Value"
+msgstr "値"
+
+#: src/components/harness/tasks/TaskResult.tsx:16
+msgid "Verification & evidence"
+msgstr "検証とエビデンス"
+
+#: src/components/harness/HomeMemoryPanel.tsx:233
+msgid "via reply text"
+msgstr "返信テキスト経由"
+
+#: src/components/harness/HomeMemoryPanel.tsx:228
+msgid "via tool call"
+msgstr "ツール呼び出し経由"
+
+#: src/components/harness/tasks/TaskView.tsx:613
+#: src/components/harness/tasks/TaskView.tsx:623
+msgid "View conversation"
+msgstr "会話を表示"
+
+#: src/components/harness/tasks/TaskActivity.tsx:81
+msgid "View result"
+msgstr "結果を表示"
+
+#: src/components/chat/ChatMessages.tsx:755
+msgid "View subtask result"
+msgstr "サブタスクの結果を表示"
+
+#: src/components/harness/SetupScreen.tsx:40
+msgid "Welcome to Carmel Agent"
+msgstr "Carmel Agent へようこそ"
+
+#. placeholder {0}: agent.name
+#: src/components/chat/ChatWelcome.tsx:15
+msgid "What can {0} help with?"
+msgstr "{0} がお手伝いできることはありますか？"
+
+#: src/components/harness/shell/HarnessSidebar.tsx:164
+msgid "Working"
+msgstr "作業中"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:90
+msgid "Working dir"
+msgstr "作業ディレクトリ"
+
+#: src/components/harness/UnsavedChangesDialog.tsx:77
+msgid "You have unsaved changes. Save them before leaving, discard them, or cancel to keep editing."
+msgstr "未保存の変更があります。移動する前に保存するか、変更を破棄するか、キャンセルして編集を続けてください。"
+
+#: src/components/chat/UserRequestCards.tsx:316
+msgid "Your answer"
+msgstr "あなたの回答"

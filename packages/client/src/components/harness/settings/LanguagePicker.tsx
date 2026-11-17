@@ -35,6 +35,9 @@ export function LanguagePicker() {
             <SelectItem value="en" lang="en">
               English
             </SelectItem>
+            <SelectItem value="ja" lang="ja">
+              日本語
+            </SelectItem>
             <SelectItem value="zh-Hans" lang="zh-Hans">
               简体中文
             </SelectItem>
