@@ -149,6 +149,7 @@ export function HarnessShell({
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [taskHeaderTarget, setTaskHeaderTarget] = useState<HTMLDivElement | null>(null);
+  const [headerActionsTarget, setHeaderActionsTarget] = useState<HTMLDivElement | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const [workspaceSplit, setWorkspaceSplit] = useState(false);
@@ -507,6 +508,7 @@ export function HarnessShell({
           activeSession={activeSessionMetadata}
           issueTitle={activeIssueId === "new" ? i18n._("New task") : activeIssue?.title}
           taskHeaderRef={activeIssueId && activeIssueId !== "new" ? setTaskHeaderTarget : undefined}
+          actionsRef={setHeaderActionsTarget}
           contentView={view}
           homeView={homeView}
           companionVisible={isWorkspaceView(view) && workspaceSplit}
@@ -637,6 +639,7 @@ export function HarnessShell({
                 key={activeSession.id}
                 agentConfig={activeAgent}
                 browserRequest={browserRequest}
+                headerActionsTarget={headerActionsTarget}
                 session={activeSession}
                 modelRef={activeModel}
                 modelRefs={modelRefs}

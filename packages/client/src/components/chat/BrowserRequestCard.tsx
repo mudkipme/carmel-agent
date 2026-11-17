@@ -19,6 +19,18 @@ export function BrowserRequestCard({
   onAction: () => void;
 }) {
   useLingui();
+  const guidance = hasControl
+    ? i18n._(
+        "Complete the action, then select Resume agent. Your browser input is not added to chat.",
+      )
+    : control.phase === "pausing"
+      ? i18n._("Waiting for the current tool call to finish before handing over control.")
+      : control.controllerName
+        ? i18n._(
+            "{controllerName} is helping. Automation stays paused until they resume the agent.",
+            { controllerName: control.controllerName },
+          )
+        : undefined;
   return (
     <AgentRequestCard
       label={i18n._("Browser assistance")}
@@ -41,20 +53,7 @@ export function BrowserRequestCard({
         </Button>
       }
     >
-      <p className="text-sm text-muted-foreground">
-        {hasControl
-          ? i18n._(
-              "Complete the action, then select Resume agent. Your browser input is not added to chat.",
-            )
-          : control.phase === "pausing"
-            ? i18n._("Waiting for the current tool call to finish before handing over control.")
-            : control.controllerName
-              ? i18n._(
-                  "{controllerName} is helping. Automation stays paused until they resume the agent.",
-                  { controllerName: control.controllerName },
-                )
-              : i18n._("Take control to complete the action, then resume the agent.")}
-      </p>
+      {guidance ? <p className="text-sm text-muted-foreground">{guidance}</p> : null}
     </AgentRequestCard>
   );
 }

@@ -45,7 +45,7 @@ export function ModelSettings({
     <div className="flex min-w-0 flex-col gap-6">
       <section className="grid min-w-0 gap-4">
         <SectionHeader
-          title={i18n._("Fast Task Model")}
+          title={i18n._("Fast task model")}
           description={i18n._(
             "Used for lightweight background tasks such as session title generation.",
           )}
@@ -82,7 +82,7 @@ export function ModelSettings({
       </section>
 
       <section className="grid min-w-0 gap-4 border-t pt-6">
-        <SectionHeader title={i18n._("Model Management")} />
+        <SectionHeader title={i18n._("Model management")} />
         <div className="grid gap-2">
           {modelRefs.map((model) => {
             const providerConfig = providerConfigs.find(
@@ -146,7 +146,7 @@ export function ModelSettings({
       </section>
 
       <section className="grid min-w-0 gap-4 border-t pt-6">
-        <SectionHeader title={i18n._("Add Model")} />
+        <SectionHeader title={i18n._("Add model")} />
         <div className="grid gap-3">
           <Select
             value={management.providerConfigId}

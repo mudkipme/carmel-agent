@@ -117,7 +117,7 @@ export function AgentCommandPalette({
       <CommandDialog
         open={open}
         onOpenChange={setPaletteOpen}
-        title={i18n._("Command Palette")}
+        title={i18n._("Command palette")}
         description={i18n._("Search for a command to run...")}
       >
         <CommandInput placeholder={i18n._("Search commands...")} />
@@ -126,7 +126,7 @@ export function AgentCommandPalette({
             {loading ? i18n._("Loading...") : i18n._("No commands found.")}
           </CommandEmpty>
           {systemCommands.length > 0 ? (
-            <CommandGroup heading={i18n._("System Commands")}>
+            <CommandGroup heading={i18n._("System commands")}>
               {systemCommands.map(({ name, label, icon: Icon, disabled, onSelect }) => (
                 <CommandItem
                   key={name}
@@ -146,7 +146,7 @@ export function AgentCommandPalette({
           ) : null}
           {systemCommands.length > 0 && payload.commands.length > 0 ? <CommandSeparator /> : null}
           <CommandSection
-            heading={i18n._("Prompt Commands")}
+            heading={i18n._("Prompt commands")}
             commands={groupedCommands.prompt}
             icon={FileTextIcon}
             onSelect={insertCommand}
@@ -155,7 +155,7 @@ export function AgentCommandPalette({
             <CommandSeparator />
           ) : null}
           <CommandSection
-            heading={i18n._("Skill Commands")}
+            heading={i18n._("Skill commands")}
             commands={groupedCommands.skill}
             icon={SparklesIcon}
             onSelect={insertCommand}

@@ -10,13 +10,30 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Empty, EmptyMedia, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyContent, EmptyMedia, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
-import { issueFilters, issueListSearch, readIssueFilter } from "@/lib/issue-navigation";
+import {
+  issueFilters,
+  issueListSearch,
+  readIssueFilter,
+  type IssueFilter,
+} from "@/lib/issue-navigation";
 import { ResourceError, ResourceLoading } from "../ResourceFeedback";
 import { describeIssue, issueGroup, sortIssues } from "./issue-state";
+
+const issueTabs: Array<{
+  value: IssueFilter;
+  label: string;
+  groups: Array<ReturnType<typeof issueGroup>>;
+}> = [
+  { value: "queue", label: /*i18n*/ "Queue", groups: ["Working", "Queued"] },
+  { value: "attention", label: /*i18n*/ "Needs you", groups: ["Needs you"] },
+  { value: "backlog", label: /*i18n*/ "Backlog", groups: ["Backlog"] },
+  { value: "done", label: /*i18n*/ "Done", groups: ["Done"] },
+];
+
 export function TasksOverview({
   agent,
   issues,
@@ -44,13 +61,7 @@ export function TasksOverview({
     setParams(next, { replace });
   };
   const [busy, setBusy] = useState(false);
-  const groupForFilter =
-    {
-      queue: ["Working", "Queued"],
-      attention: ["Needs you"],
-      backlog: ["Backlog"],
-      done: ["Done"],
-    }[filter] ?? [];
+  const groupForFilter = issueTabs.find((tab) => tab.value === filter)?.groups ?? [];
   const filtered = issues
     .filter(
       (issue) =>
@@ -59,6 +70,7 @@ export function TasksOverview({
     )
     .sort(sortIssues);
   const queue = issues.filter((issue) => issue.status === "queued").sort(sortIssues);
+  const attentionCount = issues.filter((issue) => issueGroup(issue) === "Needs you").length;
   const move = async (issueId: string, direction: "up" | "down") => {
     setBusy(true);
     try {
@@ -139,6 +151,15 @@ export function TasksOverview({
                   : i18n._("No completed tasks")}
         </EmptyTitle>
       </EmptyHeader>
+      {!query && filter === "queue" && attentionCount > 0 ? (
+        <EmptyContent>
+          <Button variant="outline" size="sm" onClick={() => updateParams("filter", "attention")}>
+            {i18n._("{count, plural, one {# task needs you} other {# tasks need you}}", {
+              count: attentionCount,
+            })}
+          </Button>
+        </EmptyContent>
+      ) : null}
     </Empty>
   );
   return (
@@ -164,45 +185,25 @@ export function TasksOverview({
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TabsList className="w-full sm:w-auto">
-              <TabsTrigger value="queue" aria-label={i18n._("Queue")}>
-                <Trans>Queue</Trans>
-                <span
-                  aria-hidden="true"
-                  className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
-                >
-                  {
-                    issues.filter((issue) => ["Working", "Queued"].includes(issueGroup(issue)))
-                      .length
-                  }
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="attention" aria-label={i18n._("Needs you")}>
-                <Trans>Needs you</Trans>
-                <span
-                  aria-hidden="true"
-                  className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
-                >
-                  {issues.filter((issue) => ["Needs you"].includes(issueGroup(issue))).length}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="backlog" aria-label={i18n._("Backlog")}>
-                <Trans>Backlog</Trans>
-                <span
-                  aria-hidden="true"
-                  className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
-                >
-                  {issues.filter((issue) => ["Backlog"].includes(issueGroup(issue))).length}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="done" aria-label={i18n._("Done")}>
-                <Trans>Done</Trans>
-                <span
-                  aria-hidden="true"
-                  className="ml-1 hidden text-xs text-muted-foreground tabular-nums sm:inline"
-                >
-                  {issues.filter((issue) => ["Done"].includes(issueGroup(issue))).length}
-                </span>
-              </TabsTrigger>
+              {issueTabs.map(({ value, label, groups }) => {
+                const count = issues.filter((issue) => groups.includes(issueGroup(issue))).length;
+                return (
+                  <TabsTrigger key={value} value={value} aria-label={i18n._(label)}>
+                    {i18n._(label)}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "ml-1 text-xs tabular-nums",
+                        value === "attention" && count > 0
+                          ? "rounded-full bg-primary px-1.5 font-medium text-primary-foreground"
+                          : "hidden text-muted-foreground sm:inline",
+                      )}
+                    >
+                      {count}
+                    </span>
+                  </TabsTrigger>
+                );
+              })}
             </TabsList>
             <div className="relative w-full sm:w-auto">
               <SearchIcon

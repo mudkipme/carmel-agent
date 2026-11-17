@@ -272,7 +272,7 @@ export function AgentGeneralSettings({
 
       <section className="grid gap-4 border-t pt-6">
         <SectionHeader
-          title={i18n._("Danger Zone")}
+          title={i18n._("Danger zone")}
           description={i18n._("Deleting an agent also deletes sessions that belong to it.")}
         />
         <div>

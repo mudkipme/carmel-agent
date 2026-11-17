@@ -31,7 +31,7 @@ export function ModelCommandDialog({
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={i18n._("Select Model")}
+      title={i18n._("Select model")}
       description={i18n._("Select one of the models configured in settings.")}
       className="w-[calc(100vw-1.5rem)] max-w-md sm:max-w-lg"
     >

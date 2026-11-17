@@ -71,8 +71,8 @@ export function MessageEditDialog({
         <DialogHeader className="shrink-0 pr-8 text-left">
           <DialogTitle className="text-base sm:text-lg">
             {value?.kind === "assistant"
-              ? i18n._("Edit Assistant Message")
-              : i18n._("Edit Message")}
+              ? i18n._("Edit assistant message")
+              : i18n._("Edit message")}
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
             {value?.kind === "assistant"

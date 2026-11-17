@@ -127,7 +127,7 @@ export function UserSettings() {
       </section>
 
       <section className="grid gap-3 border-t pt-6">
-        <SectionHeader title={i18n._("Create User")} />
+        <SectionHeader title={i18n._("Create user")} />
         <Field>
           <FieldLabel>
             <Trans>Username</Trans>

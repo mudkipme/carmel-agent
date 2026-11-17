@@ -6,7 +6,9 @@ import {
   BookOpenIcon,
   CodeIcon,
   FileTextIcon,
+  HandshakeIcon,
   KeyRoundIcon,
+  MessageCircleIcon,
   PlugIcon,
   ShieldIcon,
   SlidersHorizontalIcon,
@@ -36,12 +38,12 @@ const agentSettingsSections = [
   { id: "general", label: /*i18n*/ "General", icon: SlidersHorizontalIcon },
   { id: "knowledge", label: /*i18n*/ "Knowledge", icon: BookOpenIcon },
   { id: "templates", label: /*i18n*/ "Templates", icon: FileTextIcon },
-  { id: "collaboration", label: /*i18n*/ "Collaboration", icon: PlugIcon },
+  { id: "collaboration", label: /*i18n*/ "Collaboration", icon: HandshakeIcon },
   { id: "permissions", label: /*i18n*/ "Permissions", icon: ShieldIcon },
   { id: "codemode", label: /*i18n*/ "Codemode", icon: CodeIcon },
   { id: "secrets", label: /*i18n*/ "Secrets", icon: KeyRoundIcon },
   { id: "mcp", label: "MCP", icon: PlugIcon },
-  { id: "integrations", label: /*i18n*/ "Integrations", icon: PlugIcon },
+  { id: "integrations", label: /*i18n*/ "Integrations", icon: MessageCircleIcon },
   { id: "archived", label: /*i18n*/ "Archived", icon: ArchiveIcon },
 ] as const;
 type AgentSettingsSection = (typeof agentSettingsSections)[number]["id"];
@@ -186,7 +188,7 @@ export function AgentSettingsPage() {
 
   return (
     <SettingsLayout
-      title={i18n._("Agent Settings")}
+      title={i18n._("Agent settings")}
       subtitle={agent.name}
       backLabel={i18n._("Back to agent")}
       onBack={() => navigate(`/agents/${agent.id}`)}

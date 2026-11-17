@@ -55,7 +55,7 @@ msgstr "続行"
 
 #. js-lingui-explicit-id
 #: src/components/harness/ActionDialogs.tsx:105
-#: src/components/harness/AgentSettingsPage.tsx:209
+#: src/components/harness/AgentSettingsPage.tsx:211
 #: src/components/harness/files/FileEditorView.tsx:185
 #: src/components/harness/files/FileEditorView.tsx:191
 #: src/lib/action-dialogs.ts:47
@@ -1015,56 +1015,56 @@ msgid "Unable to create user."
 msgstr "ユーザーを作成できません。"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:119
+#: src/components/PiChat.tsx:125
 msgid "Unable to open the earlier message"
 msgstr "以前のメッセージを開けません"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:228
+#: src/components/PiChat.tsx:234
 msgid "Unable to start a new context"
 msgstr "新しいコンテキストを開始できません"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:251
+#: src/components/PiChat.tsx:290
 msgid "{count, plural, one {# message queued} other {# messages queued}}"
 msgstr "{count, plural, other {#件のメッセージが待機中}}"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:264
+#: src/components/PiChat.tsx:303
 msgid "Unable to dismiss the error"
 msgstr "エラーを閉じられません"
 
 #. js-lingui-explicit-id
 #: src/components/harness/TerminalPanel.tsx:107
-#: src/components/PiChat.tsx:311
+#: src/components/PiChat.tsx:326
 msgid "Connection lost."
 msgstr "接続が切断されました。"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:364
+#: src/components/PiChat.tsx:379
 msgid "Unable to load history"
 msgstr "履歴を読み込めません"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:375
+#: src/components/PiChat.tsx:390
 msgid "Unable to load the latest messages"
 msgstr "最新のメッセージを読み込めません"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatMessages.tsx:444
-#: src/components/PiChat.tsx:411
+#: src/components/PiChat.tsx:426
 msgid "New context"
 msgstr "新しいコンテキスト"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:418
+#: src/components/PiChat.tsx:433
 msgid "Stop Home"
 msgstr "ホームを停止"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentCommandPalette.tsx:120
 #: src/components/ui/command.tsx:32
-msgid "Command Palette"
+msgid "Command palette"
 msgstr "コマンドパレット"
 
 #. js-lingui-explicit-id
@@ -1154,17 +1154,17 @@ msgstr "コマンドが見つかりません。"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentCommandPalette.tsx:129
-msgid "System Commands"
+msgid "System commands"
 msgstr "システムコマンド"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentCommandPalette.tsx:149
-msgid "Prompt Commands"
+msgid "Prompt commands"
 msgstr "プロンプトコマンド"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentCommandPalette.tsx:158
-msgid "Skill Commands"
+msgid "Skill commands"
 msgstr "スキルコマンド"
 
 #. js-lingui-explicit-id
@@ -1174,9 +1174,9 @@ msgstr "ナレッジ操作に失敗しました"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentKnowledgePage.tsx:123
-#: src/components/harness/AgentSettingsPage.tsx:37
-#: src/components/harness/shell/HarnessHeader.tsx:103
-#: src/components/harness/shell/HarnessSidebar.tsx:209
+#: src/components/harness/AgentSettingsPage.tsx:39
+#: src/components/harness/shell/HarnessHeader.tsx:106
+#: src/components/harness/shell/HarnessSidebar.tsx:211
 msgid "Knowledge"
 msgstr "ナレッジ"
 
@@ -1213,10 +1213,10 @@ msgstr "検索中…"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentKnowledgePage.tsx:246
-#: src/components/harness/shell/HarnessHeader.tsx:79
-#: src/components/harness/shell/HarnessHeader.tsx:80
-#: src/components/harness/shell/HarnessSidebar.tsx:127
+#: src/components/harness/shell/HarnessHeader.tsx:82
+#: src/components/harness/shell/HarnessHeader.tsx:83
 #: src/components/harness/shell/HarnessSidebar.tsx:128
+#: src/components/harness/shell/HarnessSidebar.tsx:129
 msgid "Search"
 msgstr "検索"
 
@@ -1258,8 +1258,8 @@ msgstr "このコレクションの用途は何ですか？"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentSchedulesPage.tsx:88
-#: src/components/harness/shell/HarnessHeader.tsx:105
-#: src/components/harness/shell/HarnessSidebar.tsx:201
+#: src/components/harness/shell/HarnessHeader.tsx:108
+#: src/components/harness/shell/HarnessSidebar.tsx:203
 msgid "Schedules"
 msgstr "スケジュール"
 
@@ -1356,95 +1356,97 @@ msgid "Import Open WebUI export"
 msgstr "Open WebUI エクスポートをインポート"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:36
+#: src/components/harness/AgentSettingsPage.tsx:38
 #: src/components/harness/HomeMemoryPanel.tsx:639
 msgid "General"
 msgstr "一般"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:38
+#: src/components/harness/AgentSettingsPage.tsx:40
 msgid "Templates"
 msgstr "テンプレート"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:39
+#: src/components/harness/AgentSettingsPage.tsx:41
 msgid "Collaboration"
 msgstr "コラボレーション"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:40
+#: src/components/harness/AgentSettingsPage.tsx:42
 msgid "Permissions"
 msgstr "権限"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:41
+#: src/components/harness/AgentSettingsPage.tsx:43
 msgid "Codemode"
 msgstr "コードモード"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:42
+#: src/components/harness/AgentSettingsPage.tsx:44
 msgid "Secrets"
 msgstr "シークレット"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:44
+#: src/components/harness/AgentSettingsPage.tsx:46
 msgid "Integrations"
 msgstr "外部連携"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:89
-#: src/components/harness/AgentSettingsPage.tsx:45
+#: src/components/harness/AgentSettingsPage.tsx:47
 msgid "Archived"
 msgstr "アーカイブ済み"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:121
+#: src/components/harness/AgentSettingsPage.tsx:123
 msgid "Unable to load agent settings"
 msgstr "エージェント設定を読み込めません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:159
+#: src/components/harness/AgentSettingsPage.tsx:161
 msgid "Agent saved."
 msgstr "エージェントを保存しました。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:162
+#: src/components/harness/AgentSettingsPage.tsx:164
 msgid "Unable to save agent"
 msgstr "エージェントを保存できません"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentSecretsSettings.tsx:98
-#: src/components/harness/AgentSettingsPage.tsx:172
+#: src/components/harness/AgentSettingsPage.tsx:174
 msgid "Delete {name}?"
 msgstr "「{name}」を削除しますか？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:173
+#: src/components/harness/AgentSettingsPage.tsx:175
 msgid "This permanently deletes the agent and all of its sessions."
 msgstr "エージェントとすべてのセッションが完全に削除されます。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:174
+#: src/components/harness/AgentSettingsPage.tsx:176
 msgid "Delete agent"
 msgstr "エージェントを削除"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:181
+#: src/components/harness/AgentSettingsPage.tsx:183
 msgid "Unable to delete agent"
 msgstr "エージェントを削除できません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:189
-msgid "Agent Settings"
+#: src/components/harness/AgentSettingsPage.tsx:191
+#: src/components/harness/shell/HarnessHeader.tsx:210
+#: src/components/harness/shell/HarnessHeader.tsx:211
+msgid "Agent settings"
 msgstr "エージェント設定"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:191
+#: src/components/harness/AgentSettingsPage.tsx:193
 msgid "Back to agent"
 msgstr "エージェントに戻る"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:209
+#: src/components/harness/AgentSettingsPage.tsx:211
 #: src/components/harness/files/FileEditorView.tsx:107
 #: src/components/harness/files/FileEditorView.tsx:185
 #: src/components/harness/files/FileEditorView.tsx:191
@@ -1477,13 +1479,13 @@ msgid "Clipboard transfer failed."
 msgstr "クリップボードの転送に失敗しました。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/BrowserRequestCard.tsx:30
+#: src/components/chat/BrowserRequestCard.tsx:42
 #: src/components/harness/BrowserPanel.tsx:262
 msgid "You have control"
 msgstr "あなたが操作中"
 
 #. js-lingui-explicit-id
-#: src/components/chat/BrowserRequestCard.tsx:32
+#: src/components/chat/BrowserRequestCard.tsx:44
 #: src/components/harness/BrowserPanel.tsx:264
 msgid "Pausing agent…"
 msgstr "エージェントを一時停止中…"
@@ -1591,33 +1593,33 @@ msgid "Agent profile · Sign-ins retained"
 msgstr "エージェントプロファイル · サインイン保持"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:465
+#: src/components/harness/HarnessShell.tsx:466
 msgid "Close sidebar"
 msgstr "サイドバーを閉じる"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:508
+#: src/components/harness/HarnessShell.tsx:509
 msgid "New task"
 msgstr "新しいタスク"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:532
-#: src/components/harness/HarnessShell.tsx:561
+#: src/components/harness/HarnessShell.tsx:534
+#: src/components/harness/HarnessShell.tsx:563
 msgid "Unable to open Home"
 msgstr "ホームを開けません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:569
+#: src/components/harness/HarnessShell.tsx:571
 msgid "Unable to refresh session status"
 msgstr "セッション状態を更新できません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:649
+#: src/components/harness/HarnessShell.tsx:652
 msgid "Create an agent to start chatting."
 msgstr "チャットを始めるにはエージェントを作成してください。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HarnessShell.tsx:650
+#: src/components/harness/HarnessShell.tsx:653
 msgid "Loading session..."
 msgstr "セッションを読み込み中..."
 
@@ -1872,8 +1874,8 @@ msgstr "外観を保存しました。"
 
 #. js-lingui-explicit-id
 #: src/components/harness/SettingsPage.tsx:122
-#: src/components/harness/shell/HarnessSidebar.tsx:266
-#: src/components/harness/shell/HarnessSidebar.tsx:267
+#: src/components/harness/shell/HarnessSidebar.tsx:268
+#: src/components/harness/shell/HarnessSidebar.tsx:269
 msgid "Settings"
 msgstr "設定"
 
@@ -2088,17 +2090,17 @@ msgid "Delete the brief, discussion, saved results, and all conversations."
 msgstr "概要、ディスカッション、保存された結果、すべての会話が削除されます。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:98
-#: src/components/harness/shell/HarnessHeader.tsx:117
-#: src/components/harness/shell/HarnessSidebar.tsx:182
+#: src/components/harness/shell/HarnessHeader.tsx:101
+#: src/components/harness/shell/HarnessHeader.tsx:120
+#: src/components/harness/shell/HarnessSidebar.tsx:184
 #: src/components/harness/tasks/TaskView.tsx:257
 msgid "Home"
 msgstr "ホーム"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:115
-#: src/components/harness/shell/HarnessSidebar.tsx:195
-#: src/components/harness/tasks/TasksOverview.tsx:148
+#: src/components/harness/shell/HarnessHeader.tsx:118
+#: src/components/harness/shell/HarnessSidebar.tsx:197
+#: src/components/harness/tasks/TasksOverview.tsx:169
 #: src/components/harness/tasks/TaskView.tsx:257
 msgid "Tasks"
 msgstr "タスク"
@@ -2240,85 +2242,90 @@ msgid "Task details"
 msgstr "タスク詳細"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:68
-msgid "Unable to reorder queue"
-msgstr "キューの順序を変更できません"
-
-#. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:105
-msgid "Move {title} up"
-msgstr "{title} を上へ移動"
-
-#. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:114
-msgid "Move {title} down"
-msgstr "{title} を下へ移動"
-
-#. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:132
-msgid "No matching tasks"
-msgstr "一致するタスクがありません"
-
-#. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:134
-msgid "Nothing needs your attention"
-msgstr "対応が必要な項目はありません"
-
-#. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:136
-msgid "No queued work"
-msgstr "待機中の作業はありません"
-
-#. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:138
-msgid "Backlog is empty"
-msgstr "バックログは空です"
-
-#. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:139
-msgid "No completed tasks"
-msgstr "完了したタスクはありません"
-
-#. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:167
+#: src/components/harness/tasks/TasksOverview.tsx:31
 msgid "Queue"
 msgstr "キュー"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:179
+#: src/components/harness/tasks/TasksOverview.tsx:32
 msgid "Needs you"
 msgstr "要対応"
 
 #. js-lingui-explicit-id
 #: src/components/harness/tasks/issue-state.ts:21
 #: src/components/harness/tasks/issue-state.ts:22
-#: src/components/harness/tasks/TasksOverview.tsx:188
+#: src/components/harness/tasks/TasksOverview.tsx:33
 msgid "Backlog"
 msgstr "バックログ"
 
 #. js-lingui-explicit-id
 #: src/components/harness/tasks/issue-state.ts:29
-#: src/components/harness/tasks/TasksOverview.tsx:197
+#: src/components/harness/tasks/TasksOverview.tsx:34
 msgid "Done"
 msgstr "完了"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:214
+#: src/components/harness/tasks/TasksOverview.tsx:80
+msgid "Unable to reorder queue"
+msgstr "キューの順序を変更できません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:117
+msgid "Move {title} up"
+msgstr "{title} を上へ移動"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:126
+msgid "Move {title} down"
+msgstr "{title} を下へ移動"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:144
+msgid "No matching tasks"
+msgstr "一致するタスクがありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:146
+msgid "Nothing needs your attention"
+msgstr "対応が必要な項目はありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:148
+msgid "No queued work"
+msgstr "待機中の作業はありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:150
+msgid "Backlog is empty"
+msgstr "バックログは空です"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:151
+msgid "No completed tasks"
+msgstr "完了したタスクはありません"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:157
+msgid "{count, plural, one {# task needs you} other {# tasks need you}}"
+msgstr "{count, plural, other {#件のタスクが対応待ち}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/tasks/TasksOverview.tsx:215
 msgid "Search tasks"
 msgstr "タスクを検索"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:215
+#: src/components/harness/tasks/TasksOverview.tsx:216
 msgid "Search tasks…"
 msgstr "タスクを検索…"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:224
+#: src/components/harness/tasks/TasksOverview.tsx:225
 msgid "Unable to load tasks"
 msgstr "タスクを読み込めません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/tasks/TasksOverview.tsx:232
+#: src/components/harness/tasks/TasksOverview.tsx:233
 msgid "Loading issues"
 msgstr "イシューを読み込み中"
 
@@ -2378,24 +2385,24 @@ msgid "No sessions found."
 msgstr "セッションが見つかりません。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:71
+#: src/components/harness/shell/HarnessHeader.tsx:74
 msgid "Show sidebar"
 msgstr "サイドバーを表示"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:99
-#: src/components/harness/shell/HarnessHeader.tsx:118
+#: src/components/harness/shell/HarnessHeader.tsx:102
+#: src/components/harness/shell/HarnessHeader.tsx:121
 msgid "New session"
 msgstr "新しいセッション"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:101
-#: src/components/harness/shell/HarnessSidebar.tsx:188
+#: src/components/harness/shell/HarnessHeader.tsx:104
+#: src/components/harness/shell/HarnessSidebar.tsx:190
 msgid "Sessions"
 msgstr "セッション"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:107
+#: src/components/harness/shell/HarnessHeader.tsx:110
 #: src/components/harness/shell/WorkspaceLayout.tsx:21
 msgid "Files"
 msgstr "ファイル"
@@ -2403,122 +2410,116 @@ msgstr "ファイル"
 #. js-lingui-explicit-id
 #: src/components/harness/changes/ChangesView.tsx:36
 #: src/components/harness/changes/ChangesView.tsx:421
-#: src/components/harness/shell/HarnessHeader.tsx:109
+#: src/components/harness/shell/HarnessHeader.tsx:112
 #: src/components/harness/shell/WorkspaceLayout.tsx:22
 msgid "Changes"
 msgstr "変更"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:111
+#: src/components/harness/shell/HarnessHeader.tsx:114
 #: src/components/harness/shell/WorkspaceLayout.tsx:24
 msgid "Browser"
 msgstr "ブラウザー"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:113
+#: src/components/harness/shell/HarnessHeader.tsx:116
 #: src/components/harness/shell/WorkspaceLayout.tsx:23
 msgid "Terminal"
 msgstr "ターミナル"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:138
+#: src/components/harness/shell/HarnessHeader.tsx:132
 msgid "Back to sessions"
 msgstr "セッション一覧に戻る"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:151
+#: src/components/harness/shell/HarnessHeader.tsx:142
 #: src/components/harness/shell/ImportSessionsDialog.tsx:104
 msgid "No agent"
 msgstr "エージェントなし"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:163
+#: src/components/harness/shell/HarnessHeader.tsx:157
 msgid "Close files"
 msgstr "ファイルを閉じる"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:163
+#: src/components/harness/shell/HarnessHeader.tsx:157
 msgid "Browse files"
 msgstr "ファイルを参照"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:175
+#: src/components/harness/shell/HarnessHeader.tsx:169
 msgid "Close changes"
 msgstr "変更を閉じる"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:175
+#: src/components/harness/shell/HarnessHeader.tsx:169
 msgid "Uncommitted changes"
 msgstr "未コミットの変更"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:187
+#: src/components/harness/shell/HarnessHeader.tsx:181
 msgid "Close terminal"
 msgstr "ターミナルを閉じる"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:187
+#: src/components/harness/shell/HarnessHeader.tsx:181
 msgid "Open terminal"
 msgstr "ターミナルを開く"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:199
-#: src/components/harness/shell/HarnessHeader.tsx:200
+#: src/components/harness/shell/HarnessHeader.tsx:193
+#: src/components/harness/shell/HarnessHeader.tsx:194
 msgid "Close browser"
 msgstr "ブラウザーを閉じる"
 
 #. js-lingui-explicit-id
 #: src/components/chat/BrowserRequestCard.tsx:11
-#: src/components/harness/shell/HarnessHeader.tsx:199
-#: src/components/harness/shell/HarnessHeader.tsx:200
+#: src/components/harness/shell/HarnessHeader.tsx:193
+#: src/components/harness/shell/HarnessHeader.tsx:194
 msgid "Open browser"
 msgstr "ブラウザーを開く"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessHeader.tsx:216
-#: src/components/harness/shell/HarnessHeader.tsx:217
-msgid "Agent settings"
-msgstr "エージェント設定"
-
-#. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:81
+#: src/components/harness/shell/HarnessSidebar.tsx:82
 msgid "Agent {number}"
 msgstr "エージェント {number}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:85
+#: src/components/harness/shell/HarnessSidebar.tsx:86
 msgid "Unable to create agent"
 msgstr "エージェントを作成できません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:119
+#: src/components/harness/shell/HarnessSidebar.tsx:120
 msgid "Collapse sidebar"
 msgstr "サイドバーを折りたたむ"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ReferencePicker.tsx:115
-#: src/components/harness/shell/HarnessSidebar.tsx:138
+#: src/components/harness/shell/HarnessSidebar.tsx:139
 msgid "Agents"
 msgstr "エージェント"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:156
-#: src/components/harness/shell/HarnessSidebar.tsx:157
+#: src/components/harness/shell/HarnessSidebar.tsx:158
+#: src/components/harness/shell/HarnessSidebar.tsx:161
 msgid "Needs your attention"
 msgstr "対応が必要"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:170
+#: src/components/harness/shell/HarnessSidebar.tsx:172
 msgid "Unread messages"
 msgstr "未読メッセージ"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:177
+#: src/components/harness/shell/HarnessSidebar.tsx:179
 msgid "Agent work"
 msgstr "エージェントの作業"
 
 #. js-lingui-explicit-id
-#: src/components/harness/shell/HarnessSidebar.tsx:277
+#: src/components/harness/shell/HarnessSidebar.tsx:279
 msgid "Resize sidebar"
 msgstr "サイドバーのサイズを変更"
 
@@ -2728,7 +2729,7 @@ msgstr "このアカウントは ID プロバイダー経由でサインイン�
 
 #. js-lingui-explicit-id
 #: src/components/harness/settings/AccountSettings.tsx:67
-msgid "Email & Password"
+msgid "Email & password"
 msgstr "メールアドレスとパスワード"
 
 #. js-lingui-explicit-id
@@ -2800,7 +2801,7 @@ msgstr "システム"
 
 #. js-lingui-explicit-id
 #: src/components/harness/settings/ModelSettings.tsx:48
-msgid "Fast Task Model"
+msgid "Fast task model"
 msgstr "高速タスクモデル"
 
 #. js-lingui-explicit-id
@@ -2810,7 +2811,7 @@ msgstr "セッションタイトルの生成など、軽量なバックグラウ
 
 #. js-lingui-explicit-id
 #: src/components/harness/settings/ModelSettings.tsx:85
-msgid "Model Management"
+msgid "Model management"
 msgstr "モデル管理"
 
 #. js-lingui-explicit-id
@@ -2831,7 +2832,8 @@ msgstr "共有"
 
 #. js-lingui-explicit-id
 #: src/components/harness/settings/ModelSettings.tsx:149
-msgid "Add Model"
+#: src/components/harness/settings/ModelSettings.tsx:204
+msgid "Add model"
 msgstr "モデルを追加"
 
 #. js-lingui-explicit-id
@@ -2858,11 +2860,6 @@ msgstr "モデルを更新"
 #: src/components/harness/settings/ModelSettings.tsx:204
 msgid "Already configured"
 msgstr "設定済み"
-
-#. js-lingui-explicit-id
-#: src/components/harness/settings/ModelSettings.tsx:204
-msgid "Add model"
-msgstr "モデルを追加"
 
 #. js-lingui-explicit-id
 #: src/components/harness/settings/ModelSettings.tsx:241
@@ -2933,7 +2930,7 @@ msgstr "新しいパスワード"
 
 #. js-lingui-explicit-id
 #: src/components/harness/settings/UserSettings.tsx:130
-msgid "Create User"
+msgid "Create user"
 msgstr "ユーザーを作成"
 
 #. js-lingui-explicit-id
@@ -3366,7 +3363,7 @@ msgstr "読み取り専用"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentGeneralSettings.tsx:275
-msgid "Danger Zone"
+msgid "Danger zone"
 msgstr "危険な操作"
 
 #. js-lingui-explicit-id
@@ -3682,46 +3679,41 @@ msgid "Agent requests"
 msgstr "エージェントからのリクエスト"
 
 #. js-lingui-explicit-id
-#: src/components/chat/BrowserRequestCard.tsx:24
+#: src/components/chat/BrowserRequestCard.tsx:23
+msgid "Complete the action, then select Resume agent. Your browser input is not added to chat."
+msgstr "操作を完了してから「エージェントを再開」を選択してください。ブラウザーでの入力内容はチャットには追加されません。"
+
+#. js-lingui-explicit-id
 #: src/components/chat/BrowserRequestCard.tsx:27
+msgid "Waiting for the current tool call to finish before handing over control."
+msgstr "操作を引き渡す前に、現在のツール呼び出しの完了を待っています。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:29
+msgid "{controllerName} is helping. Automation stays paused until they resume the agent."
+msgstr "{controllerName} が操作を支援しています。エージェントを再開するまで自動処理は一時停止されます。"
+
+#. js-lingui-explicit-id
+#: src/components/chat/BrowserRequestCard.tsx:36
+#: src/components/chat/BrowserRequestCard.tsx:39
 msgid "Browser assistance"
 msgstr "ブラウザー操作の支援"
 
 #. js-lingui-explicit-id
-#: src/components/chat/BrowserRequestCard.tsx:34
+#: src/components/chat/BrowserRequestCard.tsx:46
 msgid "Browser in use"
 msgstr "ブラウザー使用中"
 
 #. js-lingui-explicit-id
-#: src/components/chat/BrowserRequestCard.tsx:35
+#: src/components/chat/BrowserRequestCard.tsx:47
 #: src/components/chat/UserRequestCards.tsx:123
 msgid "Waiting for you"
 msgstr "ユーザーの操作待ち"
 
 #. js-lingui-explicit-id
-#: src/components/chat/BrowserRequestCard.tsx:37
+#: src/components/chat/BrowserRequestCard.tsx:49
 msgid "The agent needs your help in the browser."
 msgstr "エージェントがブラウザー上でのあなたの操作を必要としています。"
-
-#. js-lingui-explicit-id
-#: src/components/chat/BrowserRequestCard.tsx:46
-msgid "Complete the action, then select Resume agent. Your browser input is not added to chat."
-msgstr "操作を完了してから「エージェントを再開」を選択してください。ブラウザーでの入力内容はチャットには追加されません。"
-
-#. js-lingui-explicit-id
-#: src/components/chat/BrowserRequestCard.tsx:50
-msgid "Waiting for the current tool call to finish before handing over control."
-msgstr "操作を引き渡す前に、現在のツール呼び出しの完了を待っています。"
-
-#. js-lingui-explicit-id
-#: src/components/chat/BrowserRequestCard.tsx:52
-msgid "{controllerName} is helping. Automation stays paused until they resume the agent."
-msgstr "{controllerName} が操作を支援しています。エージェントを再開するまで自動処理は一時停止されます。"
-
-#. js-lingui-explicit-id
-#: src/components/chat/BrowserRequestCard.tsx:56
-msgid "Take control to complete the action, then resume the agent."
-msgstr "「操作を引き継ぐ」から操作を完了し、その後エージェントを再開してください。"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatErrorNotice.tsx:44
@@ -3999,6 +3991,7 @@ msgstr "このメッセージから分岐"
 #. js-lingui-explicit-id
 #: src/components/chat/MessageActions.tsx:68
 #: src/components/chat/MessageActions.tsx:69
+#: src/components/chat/MessageEditDialog.tsx:75
 msgid "Edit message"
 msgstr "メッセージを編集"
 
@@ -4010,13 +4003,8 @@ msgstr "このメッセージから再試行"
 
 #. js-lingui-explicit-id
 #: src/components/chat/MessageEditDialog.tsx:74
-msgid "Edit Assistant Message"
+msgid "Edit assistant message"
 msgstr "アシスタントメッセージを編集"
-
-#. js-lingui-explicit-id
-#: src/components/chat/MessageEditDialog.tsx:75
-msgid "Edit Message"
-msgstr "メッセージを編集"
 
 #. js-lingui-explicit-id
 #: src/components/chat/MessageEditDialog.tsx:79
@@ -4040,7 +4028,7 @@ msgstr "メッセージの参照"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ModelCommandDialog.tsx:34
-msgid "Select Model"
+msgid "Select model"
 msgstr "モデルを選択"
 
 #. js-lingui-explicit-id
@@ -4398,7 +4386,7 @@ msgstr "スケジュールタスクの通知を含む、エージェントから
 msgid "Allowed tools"
 msgstr "許可されたツール"
 
-#: src/components/PiChat.tsx:244
+#: src/components/PiChat.tsx:283
 msgid "An IM delivery needs attention. Check Integrations for its status before resending."
 msgstr "IM 配信に確認が必要です。再送する前に「外部連携」で状態を確認してください。"
 
@@ -4435,17 +4423,13 @@ msgstr "このセッションのシェルから利用できます。送信され
 msgid "Back"
 msgstr "戻る"
 
-#: src/components/PiChat.tsx:304
+#: src/components/PiChat.tsx:319
 msgid "Back to issue"
 msgstr "イシューに戻る"
 
 #: src/components/harness/tasks/TaskView.tsx:85
 msgid "Back to tasks"
 msgstr "タスク一覧に戻る"
-
-#: src/components/harness/tasks/TasksOverview.tsx:189
-msgid "Backlog"
-msgstr "バックログ"
 
 #: src/components/harness/settings/ApiKeySettings.tsx:87
 #: src/components/harness/settings/ProviderSettings.tsx:146
@@ -4726,7 +4710,6 @@ msgid "Dismiss"
 msgstr "閉じる"
 
 #: src/components/harness/settings/ApiKeySettings.tsx:100
-#: src/components/harness/tasks/TasksOverview.tsx:198
 msgid "Done"
 msgstr "完了"
 
@@ -4891,7 +4874,7 @@ msgid "Import Open WebUI JSON exports into the selected agent."
 msgstr "Open WebUI の JSON エクスポートを選択したエージェントにインポートします。"
 
 #: src/components/harness/shell/ImportSessionsDialog.tsx:87
-msgid "Import Sessions"
+msgid "Import sessions"
 msgstr "セッションをインポート"
 
 #: src/components/harness/AgentKnowledgePage.tsx:189
@@ -4902,7 +4885,7 @@ msgstr "インデックスの確認が必要です"
 msgid "Interrupted"
 msgstr "中断"
 
-#: src/components/PiChat.tsx:300
+#: src/components/PiChat.tsx:315
 msgid "Issue conversation · Read-only history"
 msgstr "イシューの会話 · 読み取り専用履歴"
 
@@ -4963,11 +4946,11 @@ msgstr "学習済み"
 msgid "Light"
 msgstr "ライト"
 
-#: src/components/harness/HarnessShell.tsx:658
+#: src/components/harness/HarnessShell.tsx:661
 msgid "Loading {view}…"
 msgstr "{view} を読み込み中…"
 
-#: src/components/harness/AgentSettingsPage.tsx:233
+#: src/components/harness/AgentSettingsPage.tsx:235
 msgid "Loading agent settings..."
 msgstr "エージェント設定を読み込み中..."
 
@@ -4975,7 +4958,7 @@ msgstr "エージェント設定を読み込み中..."
 msgid "Loading Carmel Agent"
 msgstr "Carmel Agent を読み込み中"
 
-#: src/components/PiChat.tsx:442
+#: src/components/PiChat.tsx:457
 msgid "Loading chat..."
 msgstr "チャットを読み込み中..."
 
@@ -5058,21 +5041,17 @@ msgstr "トピックへ移動"
 msgid "Name"
 msgstr "名前"
 
-#: src/components/harness/tasks/TasksOverview.tsx:180
-msgid "Needs you"
-msgstr "要対応"
-
 #. placeholder {0}: calls?.length ?? slots.length
 #: src/components/chat/ToolCallView.tsx:225
 msgid "Nested tool calls ({0})"
 msgstr "ネストされたツール呼び出し ({0})"
 
-#: src/components/harness/shell/HarnessSidebar.tsx:252
+#: src/components/harness/shell/HarnessSidebar.tsx:254
 msgid "New agent"
 msgstr "新しいエージェント"
 
 #: src/components/chat/ChatMessages.tsx:449
-#: src/components/PiChat.tsx:292
+#: src/components/PiChat.tsx:264
 msgid "New context"
 msgstr "新しいコンテキスト"
 
@@ -5097,7 +5076,7 @@ msgid "New session"
 msgstr "新しいセッション"
 
 #: src/components/harness/tasks/NewTaskView.tsx:39
-#: src/components/harness/tasks/TasksOverview.tsx:155
+#: src/components/harness/tasks/TasksOverview.tsx:176
 msgid "New task"
 msgstr "新しいタスク"
 
@@ -5326,10 +5305,6 @@ msgstr "プロバイダー設定"
 msgid "Provider type"
 msgstr "プロバイダーの種類"
 
-#: src/components/harness/tasks/TasksOverview.tsx:168
-msgid "Queue"
-msgstr "キュー"
-
 #: src/components/harness/tasks/TaskBriefForm.tsx:156
 msgid "Queue work"
 msgstr "作業をキューに追加"
@@ -5422,7 +5397,7 @@ msgstr "復元"
 msgid "Result"
 msgstr "結果"
 
-#: src/components/PiChat.tsx:335
+#: src/components/PiChat.tsx:350
 #: src/components/tasks/TaskSubtasks.tsx:75
 msgid "Resume"
 msgstr "再開"
@@ -5431,7 +5406,7 @@ msgstr "再開"
 msgid "Resume agent"
 msgstr "エージェントを再開"
 
-#: src/components/PiChat.tsx:282
+#: src/components/PiChat.tsx:252
 msgid "Resume updates"
 msgstr "更新を再開"
 
@@ -5580,10 +5555,9 @@ msgid "Server URL"
 msgstr "サーバー URL"
 
 #. placeholder {0}: activeAgent.name
-#. placeholder {1}: customWorkingDir ? ` · ${customWorkingDir}` : ""
-#: src/components/harness/shell/HarnessHeader.tsx:143
-msgid "Sessions · {0}{1}"
-msgstr "セッション · {0}{1}"
+#: src/components/harness/shell/HarnessHeader.tsx:137
+msgid "Sessions · {0}"
+msgstr "セッション · {0}"
 
 #: src/components/harness/settings/UserSettings.tsx:116
 msgid "Set"
@@ -5648,11 +5622,11 @@ msgstr "ソース"
 msgid "Sources"
 msgstr "ソース"
 
-#: src/components/PiChat.tsx:338
+#: src/components/PiChat.tsx:353
 msgid "Stop"
 msgstr "停止"
 
-#: src/components/PiChat.tsx:287
+#: src/components/PiChat.tsx:258
 msgid "Stop Home"
 msgstr "ホームを停止"
 
@@ -5726,7 +5700,7 @@ msgstr "このエージェントは共有されています。実行権限のあ
 msgid "This agent's working directory is not a git repository."
 msgstr "このエージェントの作業ディレクトリは Git リポジトリではありません。"
 
-#: src/components/PiChat.tsx:329
+#: src/components/PiChat.tsx:344
 msgid "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 msgstr "この会話には未完了の作業があります。メッセージを再試行または編集する前に、再開するか停止してください。"
 
@@ -5876,7 +5850,7 @@ msgstr "Carmel Agent へようこそ"
 msgid "What can {0} help with?"
 msgstr "{0} がお手伝いできることはありますか？"
 
-#: src/components/harness/shell/HarnessSidebar.tsx:164
+#: src/components/harness/shell/HarnessSidebar.tsx:166
 msgid "Working"
 msgstr "作業中"
 

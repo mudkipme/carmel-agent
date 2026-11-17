@@ -64,7 +64,7 @@ export function AccountSettings() {
       ) : (
         <section className="grid gap-3 border-t pt-6">
           <SectionHeader
-            title={i18n._("Email & Password")}
+            title={i18n._("Email & password")}
             description={i18n._(
               "Confirm your current password to change your email. Leave the new password blank to keep it.",
             )}

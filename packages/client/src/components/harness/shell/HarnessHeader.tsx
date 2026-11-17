@@ -24,6 +24,7 @@ export function HarnessHeader({
   activeSession,
   issueTitle,
   taskHeaderRef,
+  actionsRef,
   contentView,
   homeView,
   companionVisible,
@@ -43,6 +44,8 @@ export function HarnessHeader({
   /** The open issue's title, when the issues pane is showing one. */
   issueTitle?: string;
   taskHeaderRef?: Ref<HTMLDivElement>;
+  /** Where the open conversation puts its own actions on wide screens. */
+  actionsRef?: Ref<HTMLDivElement>;
   contentView: ContentView;
   homeView: boolean;
   companionVisible: boolean;
@@ -116,15 +119,6 @@ export function HarnessHeader({
                     : homeView || activeSession?.home
                       ? i18n._("Home")
                       : (activeSession?.title ?? i18n._("New session"));
-  /* The subtitle carries only what nothing else on screen says: the model is
-     already named in the composer, and the working directory is worth the room
-     just when the agent runs somewhere other than its own default. */
-  const customWorkingDir =
-    activeAgent?.workingDirMode === "manual" &&
-    activeAgent.workingDir !== activeAgent.defaultWorkingDir
-      ? activeAgent.workingDir
-      : "";
-
   return (
     <header className="flex h-[calc(var(--header-height)+var(--safe-top))] shrink-0 items-center justify-between gap-2 border-b bg-background px-2 pt-[var(--safe-top)] max-[360px]:h-auto max-[360px]:min-h-[calc(var(--header-height)+var(--safe-top))] max-[360px]:flex-wrap max-[360px]:pt-[calc(0.25rem+var(--safe-top))] max-[360px]:pb-1 sm:gap-3 sm:px-5">
       <div className="flex min-w-0 items-center gap-2">
@@ -140,21 +134,21 @@ export function HarnessHeader({
             >
               <ArrowLeftIcon className="size-3 shrink-0" />
               <span className="truncate">
-                <Trans>
-                  Sessions · {activeAgent.name}
-                  {customWorkingDir ? ` · ${customWorkingDir}` : ""}
-                </Trans>
+                <Trans>Sessions · {activeAgent.name}</Trans>
               </span>
             </Link>
           ) : (
             <p className="text-ui-smaller truncate text-muted-foreground">
               {activeAgent?.name ?? i18n._("No agent")}
-              {customWorkingDir ? ` · ${customWorkingDir}` : ""}
             </p>
           )}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-0 max-[360px]:ml-auto sm:gap-2">
+        <div
+          ref={actionsRef}
+          className="hidden items-center gap-1 border-r pr-2 md:flex md:empty:hidden"
+        />
         {/* Pressing the active tool returns to the companion conversation. */}
         {activeAgent ? (
           <Button

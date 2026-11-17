@@ -1,6 +1,7 @@
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
-import { PlusIcon, SquareIcon } from "lucide-react";
+import { PlayIcon, PlusIcon, SquareIcon } from "lucide-react";
+import { createPortal } from "react-dom";
 import { TaskSubtasks } from "@/components/tasks/TaskSubtasks";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ import { ModelCommandDialog } from "@/components/chat/ModelCommandDialog";
 import { HomeMemoryPanel } from "@/components/harness/HomeMemoryPanel";
 import { useMessageMutations } from "@/hooks/use-message-mutations";
 import { useModelSelection } from "@/hooks/use-model-selection";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSessionAgent } from "@/hooks/use-session-agent";
 import { takePendingPrompt } from "@/lib/pending-prompts";
 import { getUserRequestReceipt } from "@carmel-agent/shared";
@@ -45,6 +47,8 @@ type PiChatProps = {
   /** Told when a run starts or ends, for views that show run state outside the chat. */
   onStreamingChange?: (streaming: boolean, hasStreamed: boolean) => void;
   browserRequest?: ReactNode;
+  /** Header slot that hosts Home's actions on wide screens instead of a row of their own. */
+  headerActionsTarget?: HTMLElement | null;
 };
 
 export function PiChat({
@@ -56,8 +60,10 @@ export function PiChat({
   collapseRunDetails,
   onStreamingChange,
   browserRequest,
+  headerActionsTarget,
 }: PiChatProps) {
   const { i18n } = useLingui();
+  const wideHeader = useMediaQuery("(min-width: 48rem)");
   const [searchParams] = useSearchParams();
   const entryAnchor = searchParams.get("entry");
   const chatInputRef = useRef<ChatInputHandle | null>(null);
@@ -228,6 +234,39 @@ export function PiChat({
       .catch((error) => showError(i18n._("Unable to start a new context"), error));
   };
 
+  const homeActions = session.home ? (
+    <>
+      <HomeMemoryPanel key={`${activeUserId}:${agentConfig.id}`} agentId={agentConfig.id} />
+      {homeStatus.data?.home?.paused ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() =>
+            void api
+              .resumeHome(agentConfig.id)
+              .then(homeStatus.refresh)
+              .catch((error) => toast.error(errorMessage(error)))
+          }
+        >
+          <PlayIcon data-icon="inline-start" />
+          <Trans>Resume updates</Trans>
+        </Button>
+      ) : null}
+      {homeBusy ? (
+        <Button size="sm" variant="ghost" onClick={() => void agent?.abort()}>
+          <SquareIcon data-icon="inline-start" />
+          <Trans>Stop Home</Trans>
+        </Button>
+      ) : null}
+      {!emptyHome ? (
+        <Button size="sm" variant="ghost" disabled={homeBusy} onClick={startNewContext}>
+          <PlusIcon data-icon="inline-start" />
+          <Trans>New context</Trans>
+        </Button>
+      ) : null}
+    </>
+  ) : null;
+
   return (
     <WorkspaceFileLinkAgentContext value={agentConfig.id}>
       <div className="relative flex h-full min-h-0 flex-col">
@@ -265,34 +304,12 @@ export function PiChat({
             }}
           />
         ) : null}
-        {session.home ? (
-          <div className="flex justify-end border-b px-4 py-1">
-            <HomeMemoryPanel key={`${activeUserId}:${agentConfig.id}`} agentId={agentConfig.id} />
-            {homeStatus.data?.home?.paused ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  void api
-                    .resumeHome(agentConfig.id)
-                    .then(homeStatus.refresh)
-                    .catch((error) => toast.error(errorMessage(error)))
-                }
-              >
-                <Trans>Resume updates</Trans>
-              </Button>
-            ) : null}
-            {homeBusy ? (
-              <Button size="sm" variant="ghost" onClick={() => void agent?.abort()}>
-                <Trans>Stop Home</Trans>
-              </Button>
-            ) : null}
-            {!emptyHome ? (
-              <Button size="sm" variant="ghost" disabled={homeBusy} onClick={startNewContext}>
-                <Trans>New context</Trans>
-              </Button>
-            ) : null}
-          </div>
+        {homeActions ? (
+          wideHeader && headerActionsTarget ? (
+            createPortal(homeActions, headerActionsTarget)
+          ) : (
+            <div className="flex justify-end border-b px-4 py-1">{homeActions}</div>
+          )
         ) : null}
         {session.issueId ? (
           <div className="flex items-center justify-between gap-3 border-b px-4 py-2 text-sm text-muted-foreground">

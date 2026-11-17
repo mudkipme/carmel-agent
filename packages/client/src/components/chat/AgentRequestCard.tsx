@@ -26,7 +26,7 @@ export function AgentRequestCard({
   title: ReactNode;
   status: string;
   description: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
   actions: ReactNode;
 }) {
   return (
@@ -41,7 +41,7 @@ export function AgentRequestCard({
         </CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      {children ? <CardContent>{children}</CardContent> : null}
       <CardFooter className="flex-wrap gap-2">{actions}</CardFooter>
     </Card>
   );

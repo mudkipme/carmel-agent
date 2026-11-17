@@ -2118,7 +2118,7 @@ test("chat controls fit narrow touch screens with reasoning and long model names
     assert.match(snapshot(), /combobox "Thinking level".*High/);
     clickSelector('.agent-chat-host button[aria-label^="Choose model"]');
     browser("wait", '[role="dialog"]');
-    assert.match(browser<{ snapshot: string }>("snapshot").snapshot, /Select Model/);
+    assert.match(browser<{ snapshot: string }>("snapshot").snapshot, /Select model/);
     browser("press", "Escape");
     browser("fill", 'textarea[aria-label="Message"]', "A mobile draft");
     assert.equal(
@@ -2165,7 +2165,7 @@ test("Knowledge settings persist and Knowledge has no memory editor", { timeout:
   click("link", "Knowledge settings");
   browser("wait", "--url", `**${agentPath("settings/knowledge")}`);
   browser("wait", "#knowledge-model");
-  assert.equal(evaluate<string>('document.querySelector("h1").textContent'), "Agent Settings");
+  assert.equal(evaluate<string>('document.querySelector("h1").textContent'), "Agent settings");
   assert.equal(evaluate<number>('document.querySelectorAll("footer button").length'), 0);
   assert.equal(evaluate<boolean>('document.querySelector("#knowledge-model").readOnly'), true);
   clickSelector("#knowledge-enabled");

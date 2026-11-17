@@ -4,6 +4,7 @@ import { AgentAvatar } from "./AgentAvatar";
 import {
   PanelLeftCloseIcon,
   CalendarClockIcon,
+  CircleAlertIcon,
   ListTodoIcon,
   SettingsIcon,
   BookOpenIcon,
@@ -152,12 +153,13 @@ export function HarnessSidebar({
                       <AgentAvatar agent={agent} />
                       <span className="min-w-0 flex-1 truncate">{agent.name}</span>
                       {home?.needsAttention ? (
-                        <span
-                          title={i18n._("Needs your attention")}
+                        <CircleAlertIcon
+                          role="img"
                           aria-label={i18n._("Needs your attention")}
+                          className="size-4 shrink-0 text-[var(--color-orange)]"
                         >
-                          !
-                        </span>
+                          <title>{i18n._("Needs your attention")}</title>
+                        </CircleAlertIcon>
                       ) : null}
                       {home?.working ? (
                         <span className="text-muted-foreground" role="status">

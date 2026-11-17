@@ -84,7 +84,7 @@ export function ImportSessionsDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            <Trans>Import Sessions</Trans>
+            <Trans>Import sessions</Trans>
           </DialogTitle>
           <DialogDescription>
             <Trans>Import Open WebUI JSON exports into the selected agent.</Trans>
