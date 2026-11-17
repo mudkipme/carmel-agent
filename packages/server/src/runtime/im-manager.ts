@@ -1,4 +1,4 @@
-import { ensureHome, readHome, resetHome } from "../services/agent-homes.ts";
+import { readHome, resetHome } from "../services/agent-homes.ts";
 import {
   admitHomeInput,
   dispatchHome,
@@ -7,10 +7,8 @@ import {
 } from "../services/home-events.ts";
 import { homeEvents, issues } from "../db/schema.ts";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { applyRunProgress, resolveCarmelLinks, type RunProgress } from "@carmel-agent/shared";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import { resolveCarmelLinks } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { sessions } from "../db/schema.ts";
 import { imBindings, imInbox, imIntegrations, imOutbox, imSetups } from "../db/im-schema.ts";
 import { id, now } from "../db/seed.ts";
 import { errorMessage } from "../errors.ts";
@@ -32,18 +30,8 @@ import {
   setupState,
   type IntegrationRecord,
 } from "../services/im-integrations.ts";
-import { readVisibleAgent } from "../services/agent-access.ts";
-import { resolveRunModel } from "../services/model-context.ts";
-import { hasPendingPiSessionWork } from "../services/pi-session-storage.ts";
-import { startDetachedAgentRun } from "./agent-runtime.ts";
 import { carmelPublicBaseUrl } from "./carmel-links.ts";
-import {
-  abortAgentRun,
-  observeRunEvents,
-  getActiveAgentRunForSession,
-  whenRunFinished,
-  type ActiveAgentRun,
-} from "./run-stream.ts";
+import { abortAgentRun, getActiveAgentRunForSession } from "./run-stream.ts";
 
 type Connection = { version: string; transport: ImTransport };
 export function imSessionLink(agentId: string, sessionId?: string) {
@@ -115,7 +103,7 @@ export async function receiveImMessage(integrationId: string, event: ImIncoming)
         .where(eq(imInbox.id, inboxId))
         .run();
     } catch (error) {
-      admissionError = error instanceof Error ? error.message : "Cannot queue this message.";
+      admissionError = errorMessage(error, "Cannot queue this message.");
       db.update(imInbox).set({ status: "done" }).where(eq(imInbox.id, inboxId)).run();
     }
     return inserted;
@@ -166,7 +154,7 @@ export async function receiveImMessage(integrationId: string, event: ImIncoming)
             "Fresh Home context. Earlier history, saved memory, and background jobs are retained.",
           );
         } catch (error) {
-          reply(error instanceof Error ? error.message : "Cannot reset Home.");
+          reply(errorMessage(error, "Cannot reset Home."));
         }
       }
       return;
@@ -483,10 +471,6 @@ export class ImManager {
         .orderBy(asc(imInbox.createdAt), asc(sql`rowid`))
         .get();
       if (!input) return;
-      if (input.legacy) {
-        await this.runLegacyNext(snapshot, input);
-        return;
-      }
       const event = input.homeEventId
         ? db.select().from(homeEvents).where(eq(homeEvents.id, input.homeEventId)).get()
         : undefined;
@@ -530,190 +514,6 @@ export class ImManager {
       await dispatchHome(event.sessionId);
       return;
     }
-  }
-  private async runLegacyNext(snapshot: IntegrationRecord, input: typeof imInbox.$inferSelect) {
-    const binding = db
-      .select()
-      .from(imBindings)
-      .where(eq(imBindings.integrationId, snapshot.id))
-      .get();
-    let session = input.sessionId
-      ? db.select().from(sessions).where(eq(sessions.id, input.sessionId)).get()
-      : undefined;
-    if (session && getActiveAgentRunForSession(snapshot.userId, session.id)) return;
-    if (session && (await hasPendingPiSessionWork(session.id))) {
-      // Restarted Durable work requires the person's decision to resume or stop.
-      db.update(imInbox).set({ status: "interrupted" }).where(eq(imInbox.id, input.id)).run();
-      enqueueImMessage(
-        snapshot.id,
-        "This conversation has interrupted work. Resume or stop it in Carmel, or use /new for a fresh conversation.",
-        `pending:${input.id}`,
-        false,
-      );
-      return;
-    }
-    try {
-      const transport = this.connections.get(`integration:${snapshot.id}`)?.transport;
-      if (!transport || !binding) return;
-      const images = [];
-      for (const imageKey of input.imageKeys)
-        images.push(await transport.image(imageKey, input.messageId ?? undefined));
-      const integration = activeIntegration(snapshot.id);
-      if (
-        !integration ||
-        this.stopped ||
-        db.select().from(imInbox).where(eq(imInbox.id, input.id)).get()?.status !== "queued"
-      )
-        return;
-      const agent = readVisibleAgent(integration.userId, integration.agentId)!;
-      if (
-        session &&
-        (session.userId !== integration.userId ||
-          session.agentId !== agent.id ||
-          session.issueId ||
-          session.taskId ||
-          session.archivedAt)
-      )
-        session = undefined;
-      const model = await resolveRunModel(
-        integration.userId,
-        session?.modelRefId ?? agent.defaultModelRefId,
-        session?.thinkingLevel ?? agent.defaultThinkingLevel,
-      );
-      if (!model.ok)
-        throw new Error("The agent's model is unavailable. Configure a usable model in Carmel.");
-      const current = activeIntegration(snapshot.id);
-      const currentBinding = db
-        .select()
-        .from(imBindings)
-        .where(eq(imBindings.integrationId, snapshot.id))
-        .get();
-      if (
-        !current ||
-        this.stopped ||
-        current.updatedAt !== integration.updatedAt ||
-        currentBinding?.sessionId !== binding.sessionId ||
-        db.select().from(imInbox).where(eq(imInbox.id, input.id)).get()?.status !== "queued"
-      )
-        return;
-      if (session) {
-        const latest = db.select().from(sessions).where(eq(sessions.id, session.id)).get();
-        if (
-          !latest ||
-          latest.revision !== session.revision ||
-          getActiveAgentRunForSession(current.userId, latest.id)
-        )
-          return;
-        session = latest;
-      }
-      if (!session)
-        session = db
-          .select()
-          .from(sessions)
-          .where(eq(sessions.id, ensureHome(current.userId, agent.id).sessionId))
-          .get()!;
-      db.update(imInbox)
-        .set({ status: "running", sessionId: session.id })
-        .where(eq(imInbox.id, input.id))
-        .run();
-      const run = startDetachedAgentRun({
-        agent,
-        session,
-        ...model.value,
-        promptInput: { ...input.prompt, images: images.length ? images : undefined },
-      });
-      db.update(imInbox).set({ runId: run.runId }).where(eq(imInbox.id, input.id)).run();
-      const observed = await this.observeRun(current, binding.chatId, run, transport);
-      const result = await whenRunFinished(run);
-      db.transaction(() => {
-        db.update(imInbox).set({ status: "done" }).where(eq(imInbox.id, input.id)).run();
-        if (!activeIntegration(current.id)) return;
-        const text =
-          result.outcome === "succeeded"
-            ? observed.text ||
-              "The agent finished without a text response. Open Carmel to see its work."
-            : `The run ${result.outcome === "cancelled" ? "was stopped" : result.outcome === "interrupted" ? "was interrupted" : "failed"}. Open Carmel for details.`;
-        const delivery = enqueueImMessage(
-          current.id,
-          text,
-          `result:${input.id}`,
-          false,
-          session!.id,
-        );
-        if (observed.previewId)
-          db.update(imOutbox)
-            .set({ providerIds: [observed.previewId] })
-            .where(eq(imOutbox.id, delivery.id))
-            .run();
-      });
-    } catch (error) {
-      db.update(imInbox).set({ status: "done" }).where(eq(imInbox.id, input.id)).run();
-      if (activeIntegration(snapshot.id))
-        enqueueImMessage(
-          snapshot.id,
-          error instanceof Error &&
-            /^(The agent's model|Cannot download|The image)/.test(error.message)
-            ? error.message
-            : "Cannot process this message. Check the conversation and model settings in Carmel.",
-          `error:${input.id}`,
-          false,
-        );
-    }
-  }
-  private async observeRun(
-    integration: IntegrationRecord,
-    chatId: string,
-    run: ActiveAgentRun,
-    transport: ImTransport,
-  ) {
-    const reader = observeRunEvents(run).getReader();
-    let message: AgentMessage | undefined;
-    let progress: RunProgress = {};
-    let text = "";
-    let previewId: string | undefined;
-    let previewDisabled = false;
-    let lastPreview = now();
-    try {
-      while (true) {
-        const part = await reader.read();
-        if (part.done) break;
-        const { event } = part.value;
-        progress = applyRunProgress(progress, event);
-        if (event.type === "live_update")
-          message = progress.live?.generation?.message as AgentMessage | undefined;
-        else if (event.type === "message_end") message = event.message;
-        if (message?.role !== "assistant") continue;
-        const currentText = resolveCarmelLinks(
-          message.content
-            .flatMap((block) => (block.type === "text" ? [block.text] : []))
-            .join("\n"),
-          carmelPublicBaseUrl(),
-        );
-        if (currentText) text = currentText;
-        if (
-          !previewDisabled &&
-          currentText &&
-          now() - lastPreview > 2000 &&
-          activeIntegration(integration.id) &&
-          !this.stopped
-        ) {
-          lastPreview = now();
-          try {
-            previewId = await transport.send(
-              chatId,
-              splitImText(currentText)[0],
-              `preview:${run.runId}`,
-              previewId,
-            );
-          } catch {
-            previewDisabled = true;
-          }
-        }
-      }
-    } finally {
-      await reader.cancel().catch(() => {});
-    }
-    return { text, previewId };
   }
 }
 const manager = new ImManager();

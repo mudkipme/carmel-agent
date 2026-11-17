@@ -1,4 +1,3 @@
-import { collaborations } from "../db/schema.ts";
 import { HomeError, sessionHome } from "../services/agent-homes.ts";
 import { admitHomeInput, dispatchHome, stopHome } from "../services/home-events.ts";
 import {
@@ -10,7 +9,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
-import { agentHomes, sessions } from "../db/schema.ts";
+import { agentHomes, collaborations, sessions } from "../db/schema.ts";
 import {
   abortAgentRun,
   admitAgentRun,
@@ -44,7 +43,7 @@ export function createAgentRunRoutes() {
   route.get("/agents/:id/active-sessions", (c) => {
     const userId = c.get("user").id;
     const agent = readVisibleAgent(userId, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found" }, 404);
+    if (!agent) return c.json({ error: "Agent not found." }, 404);
     const activeSessionIds = getActiveSessionIdsForUser(userId);
     if (activeSessionIds.length === 0) return c.json({ sessionIds: [] });
     const listed = db
@@ -66,20 +65,20 @@ export function createAgentRunRoutes() {
 
   route.post("/agent-runs/:runId/abort", (c) => {
     const aborted = abortAgentRun(c.get("user").id, c.req.param("runId"));
-    if (!aborted) return c.json({ error: "Agent run not found" }, 404);
+    if (!aborted) return c.json({ error: "Agent run not found." }, 404);
     return c.json({ ok: true });
   });
 
   route.get("/sessions/:id/connection", async (c) => {
     const connection = await readSessionConnection(c.get("user").id, c.req.param("id"));
-    return connection ? c.json(connection) : c.json({ error: "Session not found" }, 404);
+    return connection ? c.json(connection) : c.json({ error: "Session not found." }, 404);
   });
 
   route.post("/sessions/:id/abort", async (c) => {
     const userId = c.get("user").id;
     const sessionId = c.req.param("id");
     const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-    if (!session || session.userId !== userId) return c.json({ error: "Session not found" }, 404);
+    if (!session || session.userId !== userId) return c.json({ error: "Session not found." }, 404);
     if (session.issueId) return c.json({ error: "Stop the attempt from the issue." }, 409);
     db.update(collaborations)
       .set({ waiting: false })
@@ -116,14 +115,14 @@ export function createAgentRunRoutes() {
   route.post("/agents/:id/run", jsonValidator(agentRunRequestSchema), async (c) => {
     const currentUserId = c.get("user").id;
     const agent = readVisibleAgent(currentUserId, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found" }, 404);
+    if (!agent) return c.json({ error: "Agent not found." }, 404);
 
     const body = c.req.valid("json");
     const session = body.sessionId
       ? db.select().from(sessions).where(eq(sessions.id, body.sessionId)).get()
       : undefined;
     if (!session || session.userId !== currentUserId || session.agentId !== agent.id) {
-      return c.json({ error: "Session not found" }, 404);
+      return c.json({ error: "Session not found." }, 404);
     }
     if (session.issueId) return c.json({ error: "Start a new attempt from the issue." }, 409);
     if (sessionHome(session.id) && body.promptInput) {
@@ -156,7 +155,7 @@ export function createAgentRunRoutes() {
     );
     if (!model.ok) {
       return model.reason === "not_found"
-        ? c.json({ error: "Model not found" }, 404)
+        ? c.json({ error: "Model not found." }, 404)
         : c.json({ error: NO_PROVIDER_AUTH_MESSAGE }, 400);
     }
     const { modelRef, providerConfig, modelRuntime, thinkingLevel } = model.value;
@@ -184,7 +183,7 @@ export function createAgentRunRoutes() {
       currentSession.userId !== currentUserId ||
       currentSession.agentId !== agent.id
     ) {
-      return c.json({ error: "Session not found" }, 404);
+      return c.json({ error: "Session not found." }, 404);
     }
     const currentActiveRun = getActiveAgentRunForSession(currentUserId, currentSession.id);
     if (currentActiveRun) return alreadyRunning(c, currentActiveRun);

@@ -1,9 +1,8 @@
 import { receiverCollaboration, assertReceiverAccess } from "../services/collaborations.ts";
 import { db } from "../db/index.ts";
-import { sessions } from "../db/schema.ts";
+import { sessions, agents } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
 import type { ToolRegistration, Context } from "../effectors/pi-durable/index.ts";
-import { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { builtinToolProviders } from "./tool-providers/index.ts";
 import { AgentMcpTools } from "./mcp-tools.ts";

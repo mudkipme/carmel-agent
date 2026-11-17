@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { and, eq } from "drizzle-orm";
@@ -12,18 +12,10 @@ process.env.DATABASE_URL = ":memory:";
 process.env.CARMEL_KNOWLEDGE_EMBED_MODEL = "";
 process.env.CARMEL_PODMAN_SOCKET = join(root, "unavailable.sock");
 const { db, initialize } = await import("../db/index.ts");
-const { agents, homeMemorySettings, knowledgeConfigs, knowledgeMemories, homeEvents } =
-  await import("../db/schema.ts");
+const { agents, homeMemorySettings, homeEvents } = await import("../db/schema.ts");
 const { createSession, createUser } = await import("../test-support.ts");
 const memory = await import("./home-memory.ts");
-const { migrateAgentMemories } = await import("./home-memory-migration.ts");
-const {
-  knowledgeDir,
-  knowledgeOverview,
-  addKnowledgeSource,
-  saveKnowledgeSettings,
-  readKnowledge,
-} = await import("./knowledge.ts");
+const { saveKnowledgeSettings } = await import("./knowledge.ts");
 const {
   searchHomeMemory,
   refreshHomeMemoryIndex,
@@ -72,132 +64,6 @@ function enableIndex(userId: string, agentId: string) {
     .where(whereHome(userId, agentId))
     .run();
 }
-
-async function legacyNote(
-  value: ReturnType<typeof fixture>,
-  content: string,
-  changes: { pendingContent?: string; deletedAt?: number } = {},
-) {
-  const contributorId = createUser();
-  const id = `m${crypto.randomUUID().replaceAll("-", "")}`;
-  const title = "A long project decision";
-  const raw = `# ${title}\n\n${content}`;
-  await mkdir(join(knowledgeDir(value.agentId), "notes"), { recursive: true });
-  await writeFile(join(knowledgeDir(value.agentId), "notes", `${id}.md`), raw);
-  db.insert(knowledgeMemories)
-    .values({
-      id,
-      agentId: value.agentId,
-      title,
-      contributorId,
-      revision: digest(changes.pendingContent ?? raw),
-      createdAt: 10,
-      updatedAt: 20,
-      ...changes,
-    })
-    .run();
-  db.insert(knowledgeConfigs)
-    .values({
-      agentId: value.agentId,
-      settings: { enabled: true, acceleration: "cpu" },
-      status: emptyMemoryIndexStatus,
-      dirty: false,
-      memoriesMigrated: false,
-    })
-    .onConflictDoUpdate({ target: knowledgeConfigs.agentId, set: { memoriesMigrated: false } })
-    .run();
-  return { id, title, contributorId, raw };
-}
-
-test("legacy agent notes move to the owner's private Home without losing long content or provenance", async () => {
-  const value = fixture();
-  memory.setHomeMemorySettings(value.userId, value.agentId, { mode: "off" });
-  const content = "Preserve this entire Markdown note.\n".repeat(500);
-  const legacy = await legacyNote(value, content);
-  await mkdir(join(knowledgeDir(value.agentId), "index"), { recursive: true });
-  await writeFile(
-    join(knowledgeDir(value.agentId), "index", "old.sqlite"),
-    "shared derived memory",
-  );
-  const source = join(root, "references");
-  await mkdir(source, { recursive: true });
-  await writeFile(join(source, "guide.md"), "# A reference\n\nKeep this source.");
-  db.update(agents).set({ workingDir: source }).where(eq(agents.id, value.agentId)).run();
-  const registered = await addKnowledgeSource(value.userId, value.agentId, {
-    name: "References",
-    path: source,
-  });
-  await migrateAgentMemories();
-  const note = memory.readHomeMemory(value.userId, value.agentId, legacy.id);
-  assert.equal(note.content, content);
-  assert.equal(note.title, legacy.title);
-  assert.equal(note.contributorId, legacy.contributorId);
-  assert.equal(note.legacyRevision, digest(legacy.raw));
-  assert.equal(note.createdAt, 10);
-  assert.equal(note.updatedAt, 20);
-  assert.equal(note.placement, "topic");
-  assert.equal(note.origin, "manual");
-  assert.equal(memory.readHomeMemorySettings(value.userId, value.agentId).mode, "off");
-  assert.equal(memory.readHomeMemorySettings(value.userId, value.agentId).retrieval.enabled, true);
-  assert.deepEqual(memory.readHomeMemoryOverview(value.userId, value.agentId).coreIds, []);
-  assert.equal(memory.readHomeMemoryOverview(legacy.contributorId, value.agentId).total, 0);
-  assert.throws(
-    () => memory.readHomeMemory(legacy.contributorId, value.agentId, legacy.id),
-    /not found/,
-  );
-  assert.equal(
-    db.select().from(knowledgeMemories).where(eq(knowledgeMemories.id, legacy.id)).get(),
-    undefined,
-  );
-  await assert.rejects(stat(join(knowledgeDir(value.agentId), "index")), { code: "ENOENT" });
-  await assert.rejects(stat(join(knowledgeDir(value.agentId), "notes")), { code: "ENOENT" });
-  assert.equal(
-    (await knowledgeOverview(value.userId, value.agentId)).sources[0]?.id,
-    registered.id,
-  );
-  await assert.rejects(
-    readKnowledge(value.userId, value.agentId, { sourceId: "memories", path: `${legacy.id}.md` }),
-    /not found/,
-  );
-  memory.editHomeMemory(value.userId, value.agentId, legacy.id, {
-    expectedRevision: 1,
-    title: "Owner's corrected title",
-  });
-  await migrateAgentMemories();
-  assert.equal(
-    memory.readHomeMemory(value.userId, value.agentId, legacy.id).contributorId,
-    legacy.contributorId,
-  );
-  assert.equal(memory.readHomeMemoryOverview(value.userId, value.agentId).total, 1);
-  assert.equal(
-    memory.readHomeMemory(value.userId, value.agentId, legacy.id).title,
-    "Owner's corrected title",
-  );
-});
-
-test("migration replays pending note content, skips deleted notes, and retains unreadable originals", async () => {
-  const value = fixture();
-  const pending = "# A long project decision\n\nThe pending update is authoritative.";
-  const first = await legacyNote(value, "An older copy.", { pendingContent: pending });
-  const deleted = await legacyNote(value, "Do not resurrect this note.", { deletedAt: 30 });
-  await migrateAgentMemories();
-  assert.equal(
-    memory.readHomeMemory(value.userId, value.agentId, first.id).content,
-    "The pending update is authoritative.",
-  );
-  assert.throws(() => memory.readHomeMemory(value.userId, value.agentId, deleted.id), /not found/);
-  const broken = fixture();
-  const missing = await legacyNote(broken, "Original must survive failure.");
-  await rm(join(knowledgeDir(broken.agentId), "notes", `${missing.id}.md`));
-  await assert.rejects(migrateAgentMemories(), { code: "ENOENT" });
-  assert.ok(db.select().from(knowledgeMemories).where(eq(knowledgeMemories.id, missing.id)).get());
-  await writeFile(join(knowledgeDir(broken.agentId), "notes", `${missing.id}.md`), missing.raw);
-  await migrateAgentMemories();
-  assert.equal(
-    memory.readHomeMemory(broken.userId, broken.agentId, missing.id).content,
-    "Original must survive failure.",
-  );
-});
 
 test("Home workers isolate indexes and mounts by user and agent while reusing only model weights", async () => {
   const value = fixture(),

@@ -1,11 +1,10 @@
-import { homeEvents } from "../db/schema.ts";
+import { homeEvents, users } from "../db/schema.ts";
 import { readHome } from "./agent-homes.ts";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import QRCode from "qrcode";
 import type { ImDelivery, ImIntegration, ImPlatform, ImSetup } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { users } from "../db/schema.ts";
 import {
   imBindings,
   imCredentials,

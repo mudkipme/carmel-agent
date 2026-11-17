@@ -161,7 +161,6 @@ test("representative response fixtures satisfy every response component", async 
       aliases: [],
       origin: "manual",
       contributorId: "u1",
-      legacyRevision: null,
       expiresAt: null,
       sourceEventId: null,
       sourceEntryId: null,

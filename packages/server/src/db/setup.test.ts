@@ -40,27 +40,6 @@ test("initialization and seeding preserve existing data on repeated startup", ()
   }
 });
 
-test("legacy agent secrets migrate without changing their encrypted payload or scope", () => {
-  const sqlite = database(true);
-  try {
-    sqlite.exec(`DROP TABLE agent_secrets;
-      CREATE TABLE agent_secrets (agent_id TEXT NOT NULL REFERENCES agents(id), name TEXT NOT NULL,
-        value TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(agent_id,name));
-      INSERT INTO agent_secrets VALUES ('agent_self','GITHUB_TOKEN','enc:v1:preserve-exactly',1,2);`);
-    initializeSchema(sqlite);
-    const row = sqlite.prepare("SELECT * FROM agent_secrets").get() as Record<string, unknown>;
-    assert.equal(typeof row.id, "string");
-    assert.equal(row.session_id, null);
-    assert.equal(row.value, "enc:v1:preserve-exactly");
-    assert.equal(row.name, "GITHUB_TOKEN");
-    initializeSchema(sqlite);
-    assert.deepEqual(sqlite.prepare("SELECT * FROM agent_secrets").get(), row);
-    assert.deepEqual(sqlite.pragma("foreign_key_check"), []);
-  } finally {
-    sqlite.close();
-  }
-});
-
 test("model identity uniqueness is scoped to its configured provider or builtin provider", () => {
   const sqlite = database();
   try {
@@ -121,7 +100,7 @@ test("current issue schema defaults to todo and enforces one running attempt wit
   }
 });
 
-test("pre-Home metadata adopts Drizzle migrations while retaining pending IM inputs and saved data", () => {
+test("pre-Home metadata adopts Drizzle migrations while retaining saved data", () => {
   const sqlite = database(true);
   try {
     sqlite.exec(`
@@ -131,11 +110,6 @@ test("pre-Home metadata adopts Drizzle migrations while retaining pending IM inp
       DROP TRIGGER session_search_delete;
       DROP TABLE session_search;
       DROP TABLE session_search_state;
-      ALTER TABLE agent_tasks DROP COLUMN notify_platform;
-      ALTER TABLE issues DROP COLUMN notify_platform;
-      ALTER TABLE im_inbox DROP COLUMN home_event_id;
-      ALTER TABLE im_inbox DROP COLUMN legacy;
-      ALTER TABLE im_outbox DROP COLUMN home_event_id;
       UPDATE sessions SET title='Retained IM conversation', revision=19;
       INSERT INTO im_integrations(id,agent_id,user_id,platform,bot_id,bot_name,status,updated_at)
         VALUES ('integration','agent_self','user_self','telegram','bot','Demo bot','connected',1);
@@ -148,14 +122,6 @@ test("pre-Home metadata adopts Drizzle migrations while retaining pending IM inp
           ('completed','integration','event-completed','{"text":"Completed input"}','done',3);
     `);
     initializeSchema(sqlite);
-    assert.deepEqual(
-      sqlite.prepare("SELECT id, session_id, legacy FROM im_inbox ORDER BY created_at").all(),
-      [
-        { id: "pending", session_id: "session_initial", legacy: 1 },
-        { id: "running", session_id: "session_initial", legacy: 1 },
-        { id: "completed", session_id: null, legacy: 0 },
-      ],
-    );
     assert.equal(
       (sqlite.prepare("SELECT prompt FROM im_inbox WHERE id='pending'").get() as { prompt: string })
         .prompt,

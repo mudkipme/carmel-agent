@@ -6,15 +6,6 @@ settings:
 
 overrides:
   esbuild@<0.24.3: ^0.25.12
-  hono@<4.13.7: ^4.13.13
-  '@hono/node-server@<1.19.15': ^1.19.15
-  ip-address@<10.7.1: ^10.7.1
-  qs@<6.16.0: ^6.16.0
-  proxy-addr@<2.0.8: ^2.0.8
-  body-parser@>=2.0.0 <2.4.0: ^2.4.0
-  undici@>=8.0.0 <8.12.2: ^8.12.2
-  shell-quote@<1.11.0: ^1.11.0
-  follow-redirects@>=1.16.0 <1.16.2: ^1.16.2
 
 importers:
 
@@ -923,22 +914,16 @@ packages:
       '@modelcontextprotocol/sdk':
         optional: true
 
-  '@hono/node-server@1.19.17':
-    resolution: {integrity: sha512-dSneS5qhiauZWGDCeK4o695Xd9nUNjviSZCMQrj10eetr8Uln1ucn6bbphOM6UynAMMtNIzZNSpL9vnASJwrPQ==}
-    engines: {node: '>=18.14.1'}
-    peerDependencies:
-      hono: ^4.13.13
-
   '@hono/node-server@2.1.6':
     resolution: {integrity: sha512-p/KH9MnfNcsm3sR6x4lNgm5j+QN4Et8srKredl9DZfXiyZ1UQ3aQ2YVpFLbqktYN5JI+DB+VZFKM2PqE5hLKjQ==}
     engines: {node: '>=20'}
     peerDependencies:
-      hono: ^4.13.13
+      hono: ^4 || ^5.0.0-0
 
   '@hono/zod-validator@0.9.1':
     resolution: {integrity: sha512-iiv6w0qrIc0arfvCtUqBWsvl4fXjzaTcQcCJTTtCnkawF9HHGE+KjEl0ox3gQJ6rKZEgE3mLExlQCF72M+mNuw==}
     peerDependencies:
-      hono: ^4.13.13
+      hono: '>=4.11.2'
       zod: ^3.25.0 || ^4.0.0
 
   '@isaacs/nonrecursive-glob-match@1.0.3':
@@ -3967,7 +3952,7 @@ packages:
       '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
       '@smithy/hash-node': '>=4.3.0 <5'
       '@smithy/signature-v4': '>=5.4.0 <6'
-      undici: ^8.12.2
+      undici: '>=5 <9'
       ws: ^8.21.0
       zod: ^3.25 || ^4.0
     peerDependenciesMeta:
@@ -5494,11 +5479,6 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@hono/node-server@1.19.17(hono@4.13.17)':
-    dependencies:
-      hono: 4.13.17
-    optional: true
-
   '@hono/node-server@2.1.6(hono@4.13.17)':
     dependencies:
       hono: 4.13.17
@@ -5765,7 +5745,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7)':
     dependencies:
-      '@hono/node-server': 1.19.17(hono@4.13.17)
+      '@hono/node-server': 2.1.6(hono@4.13.17)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5

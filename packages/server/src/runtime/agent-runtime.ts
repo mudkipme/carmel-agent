@@ -43,7 +43,12 @@ import {
 import type { ToolRegistration } from "@earendil-works/pi-durable";
 import { resolveModelContext } from "../services/model-context.ts";
 
-import { type AgentRunEvent, type PromptInput, type Session } from "@carmel-agent/shared";
+import {
+  type AgentRunEvent,
+  type PromptInput,
+  type Session,
+  getMessageReferences,
+} from "@carmel-agent/shared";
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import { createAgentError, resolveServerModelRef } from "./model.ts";
 import { loadAgentResources } from "./resources.ts";
@@ -60,8 +65,7 @@ import {
   shouldGenerateSessionTitle,
 } from "./session-title.ts";
 import { createServerExecution } from "./tools.ts";
-import { dispatchPrompt } from "../effectors/dispatch-prompt.ts";
-import { type PromptDispatch } from "../effectors/dispatch-prompt.ts";
+import { dispatchPrompt, type PromptDispatch } from "../effectors/dispatch-prompt.ts";
 import { createPiSessionLog } from "../effectors/pi-durable/session-log.ts";
 import {
   compactionSettingsForWindow,
@@ -78,7 +82,6 @@ import { runGuardLimits, providerRequestTimeoutMs, RUN_GUARD_POLL_MS } from "./r
 import { errorMessage } from "../errors.ts";
 import { browserControl } from "./browser-control.ts";
 import { resolvePromptReferences, type ResolvedReferences } from "../services/prompt-references.ts";
-import { getMessageReferences } from "@carmel-agent/shared";
 import { browserInstructions } from "./browser-tools.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 import { buildKnowledgeInstructions } from "./knowledge/prompt.ts";

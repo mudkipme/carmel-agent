@@ -20,12 +20,7 @@ export function attachUpdateSocket(server: Server) {
     const host = incomingRequestHost(request);
     if (!request.headers.origin || !isAllowedBrowserOrigin(request.headers.origin, host))
       return reject(403);
-    let token: string | undefined;
-    try {
-      token = readSessionCookie(request.headers.cookie);
-    } catch {
-      return reject(401);
-    }
+    const token = readSessionCookie(request.headers.cookie);
     const user = readAuthenticatedUser(token);
     if (!user) return reject(401);
     wss.handleUpgrade(request, socket, head, (ws) =>

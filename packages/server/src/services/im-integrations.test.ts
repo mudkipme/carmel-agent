@@ -1,5 +1,5 @@
 import { recoverHomeEvents } from "./home-events.ts";
-import { homeEvents } from "../db/schema.ts";
+import { homeEvents, agents, sessions, users } from "../db/schema.ts";
 import { ensureHome } from "./agent-homes.ts";
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
@@ -7,7 +7,6 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db, initialize } from "../db/index.ts";
-import { agents, sessions, users } from "../db/schema.ts";
 import {
   imBindings,
   imCredentials,

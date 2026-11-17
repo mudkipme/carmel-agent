@@ -671,16 +671,11 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                                   })}
                                 </p>
                               ) : null}
-                              {note.sourceQuote || note.legacyRevision ? (
+                              {note.sourceQuote ? (
                                 <details>
                                   <summary className="cursor-pointer text-sm text-muted-foreground">
                                     <Trans>Source</Trans>
                                   </summary>
-                                  {note.legacyRevision ? (
-                                    <p className="mt-2 text-sm">
-                                      <Trans>Imported agent memory</Trans> · {note.contributorId}
-                                    </p>
-                                  ) : null}
                                   <blockquote className="mt-2 border-l-2 pl-3 text-sm">
                                     {note.sourceQuote}
                                   </blockquote>

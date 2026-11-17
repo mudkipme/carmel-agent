@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-export const collaborationCapabilities = ["consult", "createTask", "queueTask"] as const;
 export const collaborationGrantSchema = z
   .object({
     consult: z.boolean().default(false),

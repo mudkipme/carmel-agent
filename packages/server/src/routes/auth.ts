@@ -95,11 +95,12 @@ export function createAuthRoutes() {
       .find((user) => !user.passwordHash);
     const userId = placeholder?.id ?? id("user");
     const timestamp = now();
+    const passwordHash = await hashPassword(password);
     db.insert(users)
       .values({
         id: userId,
         username,
-        passwordHash: await hashPassword(password),
+        passwordHash,
         name: name?.trim() || username,
         email: email?.trim() || `${username}@local`,
         role: "admin",
@@ -110,7 +111,7 @@ export function createAuthRoutes() {
         target: users.id,
         set: {
           username,
-          passwordHash: await hashPassword(password),
+          passwordHash,
           name: name?.trim() || username,
           email: email?.trim() || `${username}@local`,
           role: "admin",

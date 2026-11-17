@@ -409,6 +409,7 @@ export async function drainCollaborationResults() {
   await Promise.allSettled(consultationSettlements);
 }
 export function startCollaborationDispatcher() {
+  if (timer) return;
   db.update(collaborations)
     .set({
       status: "failed",
@@ -416,7 +417,7 @@ export function startCollaborationDispatcher() {
     })
     .where(and(eq(collaborations.kind, "consult"), eq(collaborations.status, "working")))
     .run();
-  timer ??= setInterval(
+  timer = setInterval(
     () =>
       void dispatchCollaborations().catch((error) =>
         console.warn("Collaboration delivery failed:", errorMessage(error)),

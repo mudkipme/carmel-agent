@@ -15,9 +15,6 @@ import type {
   HomeMemoryRevision,
   KnowledgeSettings,
   KnowledgeStatus,
-} from "@carmel-agent/shared";
-import type { Credential, ThinkingLevelMap } from "@earendil-works/pi-ai";
-import type {
   AgentMount,
   AgentIcon,
   AgentColor,
@@ -37,6 +34,7 @@ import type {
   TaskScheduleKind,
   UserRole,
 } from "@carmel-agent/shared";
+import type { Credential, ThinkingLevelMap } from "@earendil-works/pi-ai";
 
 export const users = sqliteTable(
   "users",
@@ -231,7 +229,6 @@ export const agents = sqliteTable(
 );
 
 export const knowledgeConfigs = sqliteTable("knowledge_configs", {
-  memoriesMigrated: integer("memories_migrated", { mode: "boolean" }).notNull().default(false),
   agentId: text("agent_id")
     .primaryKey()
     .references(() => agents.id, { onDelete: "cascade" }),
@@ -252,23 +249,6 @@ export const knowledgeSources = sqliteTable(
     createdAt: integer("created_at").notNull(),
   },
   (table) => [index("knowledge_sources_agent").on(table.agentId)],
-);
-export const knowledgeMemories = sqliteTable(
-  "knowledge_memories",
-  {
-    id: text("id").primaryKey(),
-    agentId: text("agent_id")
-      .notNull()
-      .references(() => agents.id, { onDelete: "cascade" }),
-    title: text("title").notNull(),
-    revision: text("revision").notNull(),
-    contributorId: text("contributor_id").notNull(),
-    pendingContent: text("pending_content"),
-    deletedAt: integer("deleted_at"),
-    createdAt: integer("created_at").notNull(),
-    updatedAt: integer("updated_at").notNull(),
-  },
-  (table) => [index("knowledge_memories_agent").on(table.agentId)],
 );
 
 /**
@@ -629,7 +609,6 @@ export const homeMemories = sqliteTable(
     aliases: text("aliases", { mode: "json" }).$type<string[]>().notNull().default([]),
     title: text("title").notNull().default(""),
     contributorId: text("contributor_id"),
-    legacyRevision: text("legacy_revision"),
     slot: text("slot").notNull().default(""),
     pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
     origin: text("origin").$type<"manual" | "explicit" | "automatic">().notNull(),

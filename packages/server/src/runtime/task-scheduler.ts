@@ -46,7 +46,7 @@ export function startTaskScheduler() {
   // The poll must not wait for a fired run to finish: one long run would stop
   // every other due task from being scheduled until it ended.
   timer = setInterval(() => void tick(now(), { waitForRuns: false }), POLL_INTERVAL_MS);
-  timer.unref?.();
+  timer.unref();
 }
 
 export function stopTaskScheduler() {

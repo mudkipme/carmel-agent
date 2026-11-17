@@ -90,14 +90,14 @@ export function createSessionRoutes() {
 
   // Addressed by entry id, which is immutable, so the responses can be cached for good.
   route.get("/sessions/:id/images/:entryId/:imageIndex", (c) =>
-    serveEntryImage(c, "Image not found", (message) => {
+    serveEntryImage(c, (message) => {
       const imageIndex = parseIndex(c.req.param("imageIndex"));
       return imageIndex === undefined ? undefined : readMessageImage(message, imageIndex);
     }),
   );
 
   route.get("/sessions/:id/tool-result-images/:entryId/:partIndex", (c) =>
-    serveEntryImage(c, "Image not found", (message) => {
+    serveEntryImage(c, (message) => {
       const partIndex = parseIndex(c.req.param("partIndex"));
       return partIndex === undefined ? undefined : readToolResultImage(message, partIndex);
     }),
@@ -188,7 +188,7 @@ export function createSessionRoutes() {
     const patch = c.req.valid("json");
     // Row-only ownership check: nothing here needs the transcript before the commit.
     const current = ownedSessionRecord(c);
-    if (!current) return c.json({ error: "Session not found" }, 404);
+    if (!current) return c.json({ error: "Session not found." }, 404);
     if (current.issueId) return c.json({ error: "Issue attempt history is read-only." }, 409);
     if (patch.archivedAt && sessionHome(current.id))
       return c.json({ error: "Home cannot be archived." }, 409);
@@ -248,7 +248,7 @@ export function createSessionRoutes() {
     const { session: source, conflict } = await guardSessionMutation(c);
     if (!source) return conflict;
     const messageIndex = source.messageEntryIds.indexOf(body.entryId);
-    if (messageIndex < 0) return c.json({ error: "Message not found" }, 404);
+    if (messageIndex < 0) return c.json({ error: "Message not found." }, 404);
     // A fork ends its new branch at `entryId`, so it is the same cut as a
     // truncate and carries the same way of producing an unpromptable session.
     const cut = checkCutPoint(branchOf(source), body.entryId);
@@ -293,7 +293,7 @@ export function createSessionRoutes() {
       const { session: current, conflict } = await guardSessionMutation(c);
       if (!current) return conflict;
       if (!current.messageEntryIds.includes(body.entryId))
-        return c.json({ error: "Message not found" }, 404);
+        return c.json({ error: "Message not found." }, 404);
       const cut = checkCutPoint(branchOf(current), body.entryId);
       if (!cut.ok) {
         return c.json({ error: describeCutPointRejection(cut), safeEntryId: cut.safeEntryId }, 409);
@@ -322,13 +322,13 @@ export function createSessionRoutes() {
       const { session: current, conflict } = await guardSessionMutation(c);
       if (!current) return conflict;
       const messageIndex = current.messageEntryIds.indexOf(entryId);
-      if (messageIndex < 0) return c.json({ error: "Message not found" }, 404);
+      if (messageIndex < 0) return c.json({ error: "Message not found." }, 404);
 
       const target = current.messages[messageIndex];
       const editableUser = isUserMessage(target);
       const editableAssistant = isEditableAssistantMessage(target);
       if (!editableUser && !editableAssistant)
-        return c.json({ error: "Message is not editable" }, 400);
+        return c.json({ error: "Message is not editable." }, 400);
 
       const editedMessage = editableUser
         ? updateUserMessageContent(target, body.content, {
@@ -359,7 +359,7 @@ export function createSessionRoutes() {
 
   route.delete("/sessions/:id", async (c) => {
     const session = ownedSessionRecord(c);
-    if (!session) return c.json({ error: "Session not found" }, 404);
+    if (!session) return c.json({ error: "Session not found." }, 404);
     if (sessionHome(session.id))
       return c.json({ error: "Home cannot be deleted from Sessions." }, 409);
     if (session.issueId)
@@ -423,7 +423,7 @@ async function guardSessionMutation(
   | { session?: undefined; conflict: Response }
 > {
   const session = await ownedSession(c);
-  if (!session) return { conflict: c.json({ error: "Session not found" }, 404) };
+  if (!session) return { conflict: c.json({ error: "Session not found." }, 404) };
   if (session.issueId)
     return { conflict: c.json({ error: "Issue attempt history is read-only." }, 409) };
   const leaseConflict = rejectActiveRunMutation(c, session.id);
@@ -484,14 +484,13 @@ function ownedSessionRecord(c: Context<{ Variables: AuthVariables }>) {
 /** Answer with one image out of the `:entryId` message of a session the caller owns. */
 async function serveEntryImage(
   c: Context<{ Variables: AuthVariables }>,
-  notFound: string,
   pick: (message: AgentMessage | undefined) => { data: string; mimeType: string } | undefined,
 ) {
   const session = ownedSessionRecord(c);
   const entryId = c.req.param("entryId");
   const image =
     session && entryId ? pick(await readPiSessionMessageEntry(session.id, entryId)) : undefined;
-  return image ? imageResponse(image) : c.json({ error: notFound }, 404);
+  return image ? imageResponse(image) : c.json({ error: "Image not found." }, 404);
 }
 
 function parseIndex(value: string | undefined) {

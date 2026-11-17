@@ -26,7 +26,6 @@ const tables: Record<string, StateTopic[]> = {
   issue_notes: ["issues"],
   knowledge_configs: ["knowledge"],
   knowledge_sources: ["knowledge"],
-  knowledge_memories: ["knowledge"],
   im_integrations: ["integrations"],
   im_setup_attempts: ["integrations"],
   im_bindings: ["integrations"],

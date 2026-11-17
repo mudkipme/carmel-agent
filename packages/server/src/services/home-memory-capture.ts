@@ -253,7 +253,7 @@ export function parseHomeCapturePayload(value: unknown) {
       payload = JSON.parse(normalizeCaptureJson(payload));
     } catch (error) {
       throw new HomeCaptureFormatError(
-        `The model did not return JSON (${error instanceof Error ? error.message : String(error)}).`,
+        `The model did not return JSON (${errorMessage(error, String(error))}).`,
         { cause: error },
       );
     }

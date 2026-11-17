@@ -10,12 +10,10 @@ import {
   drainHomeEvents,
   recoverHomeEvents,
 } from "./services/home-events.ts";
-import { migrateAgentMemories } from "./services/home-memory-migration.ts";
 import { startHomeMemoryIndexes, stopHomeMemoryIndexes } from "./services/home-memory-search.ts";
 import { ensureHome } from "./services/agent-homes.ts";
 import { startHomeMemoryCapture, stopHomeMemoryCapture } from "./services/home-memory-capture.ts";
 import { imBindings, imIntegrations } from "./db/im-schema.ts";
-import { db } from "./db/index.ts";
 import { eq } from "drizzle-orm";
 import {
   recoverIssueAttempts,
@@ -26,7 +24,7 @@ import {
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { pruneExpiredAuthSessions } from "./auth.ts";
-import { initialize, seed, sqlite } from "./db/index.ts";
+import { db, initialize, seed, sqlite } from "./db/index.ts";
 import { shutdownActiveRuns } from "./runtime/run-stream.ts";
 import {
   reapManagedContainers,
@@ -72,7 +70,6 @@ pruneExpiredAuthSessions();
 // Finish removing old profile owners before accepting new sandbox requests.
 await reapManagedContainers();
 await reapKnowledgeWorkers();
-await migrateAgentMemories();
 void refreshConfiguredModelCatalogs()
   .then((errors) => {
     for (const [provider, error] of errors) {

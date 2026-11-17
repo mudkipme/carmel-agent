@@ -111,7 +111,11 @@ export function readSessionCookie(header: string | undefined) {
     const separator = part.indexOf("=");
     if (separator <= 0) continue;
     if (part.slice(0, separator).trim() === cookieName) {
-      return decodeURIComponent(part.slice(separator + 1).trim());
+      try {
+        return decodeURIComponent(part.slice(separator + 1).trim());
+      } catch {
+        return undefined;
+      }
     }
   }
   return undefined;

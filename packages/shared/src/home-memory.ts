@@ -68,7 +68,6 @@ export type HomeMemory = z.output<typeof homeMemoryInputSchema> & {
   pinned: boolean;
   origin: "manual" | "explicit" | "automatic";
   contributorId: string | null;
-  legacyRevision: string | null;
   sourceEventId: string | null;
   sourceEntryId: string | null;
   sourceQuote: string | null;

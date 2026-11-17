@@ -28,7 +28,7 @@ Metadata tables, foreign keys, and indexes are declared in `packages/server/src/
 
 The server applies pending migrations through Drizzle's SQLite migrator before seeding or serving requests. `pnpm --filter @carmel-agent/server db:migrate` applies the same startup migrations without starting the server, using `DATABASE_URL` or the configured data directory. Back up deployed data before upgrading.
 
-The initial baseline uses `IF NOT EXISTS` to adopt databases created before migration tracking. `legacy-upgrade.ts` runs once for those databases to preserve older secret scopes and pin pending IM inputs to their original sessions. Future schema changes belong in new generated migrations. Use `db:generate --custom --name=describe_change` for data backfills and SQLite features outside Drizzle's schema model, such as FTS5 and triggers. Pi's per-session databases remain managed by Pi Durable.
+The initial baseline uses `IF NOT EXISTS` to adopt databases created before migration tracking. Future schema changes belong in new generated migrations. Use `db:generate --custom --name=describe_change` for data backfills and SQLite features outside Drizzle's schema model, such as FTS5 and triggers. Pi's per-session databases remain managed by Pi Durable.
 
 ## Test Quality
 

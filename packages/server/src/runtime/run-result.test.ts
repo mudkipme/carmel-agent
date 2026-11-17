@@ -1,7 +1,19 @@
 import { readHelpers } from "./helpers.ts";
 import { resumeHelperHost, shutdownHelperHosts, startHelperHosts } from "./helper-hosts.ts";
 import type { TaskId } from "@earendil-works/pi-durable";
-import { helperHosts, homeEvents } from "../db/schema.ts";
+import {
+  helperHosts,
+  homeEvents,
+  agents,
+  agentTasks,
+  agentHomes,
+  collaborations,
+  knowledgeConfigs,
+  knowledgeSources,
+  modelRefs,
+  sessions,
+  users,
+} from "../db/schema.ts";
 import { ensureHome, readHome } from "../services/agent-homes.ts";
 import { dispatchHome, drainHomeEvents, stopHome } from "../services/home-events.ts";
 import { Hono } from "hono";
@@ -22,17 +34,6 @@ import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import type { AgentRunResult, ReferenceMessage } from "@carmel-agent/shared";
 import { db, initialize, sqlite } from "../db/index.ts";
-import {
-  agents,
-  agentTasks,
-  agentHomes,
-  collaborations,
-  knowledgeConfigs,
-  knowledgeSources,
-  modelRefs,
-  sessions,
-  users,
-} from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { imBindings, imCredentials, imIntegrations, imOutbox } from "../db/im-schema.ts";
 import { encryptIm } from "../services/im-integrations.ts";

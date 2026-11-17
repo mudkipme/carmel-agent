@@ -85,6 +85,8 @@ podman compose up -d --force-recreate
 
 The server restart removes old managed runners; new runners use the updated image while keeping their persistent files. Existing rootless Podman data already belongs to the host user in the usual setup. Data created by a rootful deployment may be root-owned: stop Carmel, back it up, and have the administrator correct ownership of the affected data directories before restarting. Carmel does not recursively chown workspaces or extra mounts.
 
+Upgrades from older deployments no longer run their one-time conversions. A database created before Drizzle migration tracking, or one whose agent memories were never moved to Home, must first start once on image `ghcr.io/mudkipme/carmel-agent:bfe736ac7592bd0c75e23efbb0603fde514946d4` (with the matching runner tag), then upgrade to the current release. Inputs queued under the old IM conversation routing are marked interrupted instead of being run.
+
 For deployments previously using the private registry, replace the server and runner image names with the GHCR defaults while retaining the data directory, UID/GID, and **same encryption key**. Setting a key does not rewrite older plaintext credential rows; re-save provider credentials and agent secrets to encrypt those values.
 
 The runner keeps npm global installs in `/home/agent/.npm-global` and initializes a persistent Python virtual environment at `/home/agent/.venvs/default`. Both plain `pip install` and `npm install -g` work without root when network access is enabled. C/C++ compilers, make, pkg-config, and Python headers are included for native package builds; packages requiring additional system libraries may still need a custom runner image. `apt install` is not available to agent commands. If an image upgrade changes Python's major/minor version, move aside the old virtual environment and reinstall its packages; startup reports this instead of silently deleting it.
@@ -93,7 +95,7 @@ Runner `/tmp` is private scratch storage shared with the agent's file tools. It 
 
 ## Production Checklist
 
-- Set a stable `CARMEL_SECRET_KEY` before adding any provider credentials. It encrypts stored API keys, OAuth credentials, and custom headers; changing it later makes existing secrets unreadable.
+- Set a stable `CARMEL_SECRET_KEY` before adding any provider credentials. It encrypts stored API keys, OAuth credentials, and agent secrets; changing it later makes existing secrets unreadable.
 - Put Carmel behind HTTPS. Session cookies are marked secure when `NODE_ENV=production`.
 - Back up `data/`. It holds the databases, sessions, provider metadata, agent workspaces, and persistent agent homes. Per-agent scratch directories are temporary and can be excluded from backups.
 - Keep the container socket available to the service user (for rootless Podman, `loginctl enable-linger <user>` keeps the user socket alive without an active login session).

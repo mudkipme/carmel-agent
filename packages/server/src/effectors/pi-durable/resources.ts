@@ -3,6 +3,7 @@ import { basename, dirname, join } from "node:path";
 import type { Context } from "@earendil-works/chord";
 import { getOrThrow, type ExecutionEnv } from "@earendil-works/pi-durable/env";
 import { formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
+import { errorMessage } from "../../errors.ts";
 export type Skill = {
   name: string;
   description: string;
@@ -56,7 +57,7 @@ export async function loadSkills(env: ExecutionEnv, directory: string, context: 
         diagnostics.push({
           type: "warning",
           path,
-          message: error instanceof Error ? error.message : String(error),
+          message: errorMessage(error, String(error)),
         });
     }
   }
@@ -81,7 +82,7 @@ export async function loadPromptTemplates(env: ExecutionEnv, directory: string, 
         diagnostics.push({
           type: "warning",
           path,
-          message: error instanceof Error ? error.message : String(error),
+          message: errorMessage(error, String(error)),
         });
       }
     }
@@ -90,7 +91,7 @@ export async function loadPromptTemplates(env: ExecutionEnv, directory: string, 
       diagnostics.push({
         type: "warning",
         path: directory,
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessage(error, String(error)),
       });
   }
   return { promptTemplates, diagnostics };

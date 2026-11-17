@@ -7,6 +7,7 @@ import { now } from "../db/seed.ts";
 import { resolveAgentWorkingDirPath } from "../runtime/resources.ts";
 import { readWorkspaceDotEnvFile, workspaceDotEnvAvailable } from "../runtime/workspace-dotenv.ts";
 import { encryptSubmittedSecret, protectSecret, revealSecret } from "../security.ts";
+import { errorMessage } from "../errors.ts";
 
 type SecretRecord = typeof agentSecrets.$inferSelect;
 
@@ -368,7 +369,7 @@ function decryptSecret(row: SecretRecord) {
     return revealSecret(row.value) ?? "";
   } catch (error) {
     throw new Error(
-      `Cannot decrypt the agent secret "${row.name}": ${error instanceof Error ? error.message : String(error)}`,
+      `Cannot decrypt the agent secret "${row.name}": ${errorMessage(error, String(error))}`,
     );
   }
 }

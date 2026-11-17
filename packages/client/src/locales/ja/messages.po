@@ -216,7 +216,7 @@ msgid "Sign-in with {providerName} failed. Try again, or ask an administrator if
 msgstr "{providerName} でのサインインに失敗しました。もう一度お試しいただくか、問題が続く場合は管理者にお問い合わせください。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:307
+#: src/components/harness/BrowserPanel.tsx:308
 #: src/lib/browser-input.ts:38
 msgid "Enter an HTTP or HTTPS address."
 msgstr "HTTP または HTTPS のアドレスを入力してください。"
@@ -285,7 +285,7 @@ msgid "Urgent"
 msgstr "緊急"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:259
+#: src/components/harness/BrowserPanel.tsx:260
 #: src/lib/labels.ts:27
 msgid "Connecting"
 msgstr "接続中"
@@ -368,7 +368,7 @@ msgid "Ready"
 msgstr "準備完了"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:502
+#: src/components/chat/ChatMessages.tsx:507
 #: src/components/chat/CollaborationActivity.tsx:13
 #: src/components/chat/UserRequestCards.tsx:125
 #: src/lib/labels.ts:41
@@ -376,7 +376,7 @@ msgid "Answered"
 msgstr "回答済み"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:506
+#: src/components/chat/ChatMessages.tsx:511
 #: src/lib/labels.ts:42
 msgid "Expired"
 msgstr "期限切れ"
@@ -1051,7 +1051,7 @@ msgid "Unable to load the latest messages"
 msgstr "最新のメッセージを読み込めません"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:439
+#: src/components/chat/ChatMessages.tsx:444
 #: src/components/PiChat.tsx:411
 msgid "New context"
 msgstr "新しいコンテキスト"
@@ -1452,141 +1452,141 @@ msgid "Saving..."
 msgstr "保存中..."
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:221
+#: src/components/harness/BrowserPanel.tsx:222
 msgid "Paste text into the text entry field, then select Send text."
 msgstr "テキスト入力欄に貼り付けてから「テキストを送信」を選択してください。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:233
+#: src/components/harness/BrowserPanel.tsx:234
 msgid "Select text in the remote page before copying."
 msgstr "コピーする前にリモートページ上のテキストを選択してください。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:240
+#: src/components/harness/BrowserPanel.tsx:241
 msgid "Copied from browser"
 msgstr "ブラウザーからコピーしました"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:246
+#: src/components/harness/BrowserPanel.tsx:247
 msgid "Pasted into browser"
 msgstr "ブラウザーに貼り付けました"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:250
+#: src/components/harness/BrowserPanel.tsx:251
 msgid "Clipboard transfer failed."
 msgstr "クリップボードの転送に失敗しました。"
 
 #. js-lingui-explicit-id
 #: src/components/chat/BrowserRequestCard.tsx:30
-#: src/components/harness/BrowserPanel.tsx:261
+#: src/components/harness/BrowserPanel.tsx:262
 msgid "You have control"
 msgstr "あなたが操作中"
 
 #. js-lingui-explicit-id
 #: src/components/chat/BrowserRequestCard.tsx:32
-#: src/components/harness/BrowserPanel.tsx:263
+#: src/components/harness/BrowserPanel.tsx:264
 msgid "Pausing agent…"
 msgstr "エージェントを一時停止中…"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:265
+#: src/components/harness/BrowserPanel.tsx:266
 msgid "{controllerName} has control"
 msgstr "{controllerName} が操作中"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:267
+#: src/components/harness/BrowserPanel.tsx:268
 msgid "Waiting for help"
 msgstr "操作待ち"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:268
+#: src/components/harness/BrowserPanel.tsx:269
 msgid "Agent has control"
 msgstr "エージェントが操作中"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:281
+#: src/components/harness/BrowserPanel.tsx:282
 msgid "Agent browser"
 msgstr "エージェントブラウザー"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:294
-#: src/components/harness/BrowserPanel.tsx:533
+#: src/components/harness/BrowserPanel.tsx:295
+#: src/components/harness/BrowserPanel.tsx:534
 msgid "Resume agent"
 msgstr "エージェントを再開"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:294
-#: src/components/harness/BrowserPanel.tsx:533
+#: src/components/harness/BrowserPanel.tsx:295
+#: src/components/harness/BrowserPanel.tsx:534
 msgid "Take control"
 msgstr "操作を引き継ぐ"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:315
+#: src/components/harness/BrowserPanel.tsx:316
 msgid "Browser back"
 msgstr "戻る"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:325
+#: src/components/harness/BrowserPanel.tsx:326
 msgid "Browser forward"
 msgstr "進む"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:335
+#: src/components/harness/BrowserPanel.tsx:336
 msgid "Reload browser page"
 msgstr "ページを再読み込み"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:367
+#: src/components/harness/BrowserPanel.tsx:368
 msgid "Browser tab"
 msgstr "ブラウザータブ"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:368
+#: src/components/harness/BrowserPanel.tsx:369
 msgid "Select tab"
 msgstr "タブを選択"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:374
+#: src/components/harness/BrowserPanel.tsx:375
 msgid "Untitled"
 msgstr "無題"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:405
+#: src/components/harness/BrowserPanel.tsx:406
 msgid "Remote browser. Click to focus, then type or use copy and paste shortcuts. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile."
 msgstr "リモートブラウザーです。クリックしてフォーカスし、入力やコピー＆ペーストのショートカットを使用できます。Shift+Escape でリモートブラウザーから抜けます。モバイルで文字入力するには「キーボード」ボタンを使用してください。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:408
+#: src/components/harness/BrowserPanel.tsx:409
 msgid "Live browser preview. Take control to interact."
 msgstr "ライブブラウザープレビュー。操作するには「操作を引き継ぐ」を押してください。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:436
+#: src/components/harness/BrowserPanel.tsx:437
 msgid "Remote browser keyboard input"
 msgstr "リモートブラウザーのキーボード入力"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:446
+#: src/components/harness/BrowserPanel.tsx:447
 msgid "Live page in the agent's browser"
 msgstr "エージェントのブラウザー上のライブページ"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:469
+#: src/components/harness/BrowserPanel.tsx:470
 msgid "Waiting for the page"
 msgstr "ページを待機中"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:470
+#: src/components/harness/BrowserPanel.tsx:471
 msgid "Connecting to the browser"
 msgstr "ブラウザーに接続中"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:542
+#: src/components/harness/BrowserPanel.tsx:543
 msgid "Shared agent · Shared sign-ins"
 msgstr "共有エージェント · 共有サインイン"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:543
+#: src/components/harness/BrowserPanel.tsx:544
 msgid "Agent profile · Sign-ins retained"
 msgstr "エージェントプロファイル · サインイン保持"
 
@@ -1725,32 +1725,32 @@ msgid "Expires {date}"
 msgstr "有効期限: {date}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:790
+#: src/components/harness/HomeMemoryPanel.tsx:785
 msgid "Shared across agents"
 msgstr "エージェント間で共有"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:800
+#: src/components/harness/HomeMemoryPanel.tsx:795
 msgid "About you"
 msgstr "あなたについて"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:844
+#: src/components/harness/HomeMemoryPanel.tsx:839
 msgid "Memory history"
 msgstr "メモリ履歴"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:879
+#: src/components/harness/HomeMemoryPanel.tsx:874
 msgid "Forget all Home memory?"
 msgstr "すべてのホームメモリを忘れますか？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:880
+#: src/components/harness/HomeMemoryPanel.tsx:875
 msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
 msgstr "メモとその変更履歴が削除され、自動学習でもそれらの事実はスキップされます。明示的に再度記憶させることは可能です。ホームの会話自体は残ります。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:883
+#: src/components/harness/HomeMemoryPanel.tsx:878
 msgid "Forget all"
 msgstr "すべて忘れる"
 
@@ -2329,7 +2329,7 @@ msgid "Queued"
 msgstr "待機中"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:305
+#: src/components/chat/ChatMessages.tsx:310
 #: src/components/chat/CollaborationActivity.tsx:12
 #: src/components/harness/tasks/issue-state.ts:24
 msgid "Working"
@@ -3839,75 +3839,75 @@ msgid "Send"
 msgstr "送信"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:274
+#: src/components/chat/ChatMessages.tsx:279
 msgid "{count, plural, one {# tool call} other {# tool calls}}"
 msgstr "{count, plural, other {#回のツール呼び出し}}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:276
+#: src/components/chat/ChatMessages.tsx:281
 msgid "thinking"
 msgstr "思考"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:304
+#: src/components/chat/ChatMessages.tsx:309
 msgid "Working · {currentTool}"
 msgstr "作業中 · {currentTool}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:307
+#: src/components/chat/ChatMessages.tsx:312
 msgid "Hide work"
 msgstr "作業を隠す"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:308
+#: src/components/chat/ChatMessages.tsx:313
 msgid "Show work"
 msgstr "作業を表示"
 
 #. js-lingui-explicit-id
 #: src/components/chat/chat-utils.ts:68
-#: src/components/chat/ChatMessages.tsx:372
-#: src/components/chat/ChatMessages.tsx:586
-#: src/components/chat/ChatMessages.tsx:663
+#: src/components/chat/ChatMessages.tsx:377
+#: src/components/chat/ChatMessages.tsx:591
+#: src/components/chat/ChatMessages.tsx:668
 msgid "Image"
 msgstr "画像"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:494
+#: src/components/chat/ChatMessages.tsx:499
 msgid "Answer sent"
 msgstr "回答を送信しました"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:496
+#: src/components/chat/ChatMessages.tsx:501
 msgid "Question response"
 msgstr "質問への回答"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:501
+#: src/components/chat/ChatMessages.tsx:506
 msgid "Credential provided"
 msgstr "認証情報を提供しました"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:504
+#: src/components/chat/ChatMessages.tsx:509
 msgid "Declined"
 msgstr "拒否"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:507
+#: src/components/chat/ChatMessages.tsx:512
 msgid "Unavailable"
 msgstr "利用不可"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:514
+#: src/components/chat/ChatMessages.tsx:519
 msgid "Saved for reuse across this agent’s sessions."
 msgstr "このエージェントのセッション全体で再利用できるよう保存されました。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:516
+#: src/components/chat/ChatMessages.tsx:521
 msgid "Provided for this session only."
 msgstr "このセッション限りで提供されました。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:519
+#: src/components/chat/ChatMessages.tsx:524
 msgid "This request did not make a credential available to the agent."
 msgstr "このリクエストでは認証情報がエージェントに提供されませんでした。"
 
@@ -4320,7 +4320,7 @@ msgstr "{0} 件選択中"
 msgid "{0}Open"
 msgstr "{0}開く"
 
-#: src/components/chat/ChatMessages.tsx:313
+#: src/components/chat/ChatMessages.tsx:318
 msgid "{failedTools} failed"
 msgstr "{failedTools} 件失敗"
 
@@ -4472,15 +4472,15 @@ msgstr "この実行で使用された概要"
 msgid "Browse"
 msgstr "参照"
 
-#: src/components/harness/BrowserPanel.tsx:287
+#: src/components/harness/BrowserPanel.tsx:288
 msgid "Browser"
 msgstr "ブラウザー"
 
-#: src/components/harness/BrowserPanel.tsx:343
+#: src/components/harness/BrowserPanel.tsx:344
 msgid "Browser address"
 msgstr "ブラウザーアドレス"
 
-#: src/components/harness/BrowserPanel.tsx:386
+#: src/components/harness/BrowserPanel.tsx:387
 msgid "Browser connection"
 msgstr "ブラウザー接続"
 
@@ -4526,7 +4526,7 @@ msgstr "クリア"
 msgid "Clear filter"
 msgstr "フィルターをクリア"
 
-#: src/components/harness/BrowserPanel.tsx:511
+#: src/components/harness/BrowserPanel.tsx:512
 msgid "Clipboard access is blocked. Select this text and copy it using your device’s copy command."
 msgstr "クリップボードへのアクセスがブロックされています。このテキストを選択し、お使いのデバイスのコピー操作でコピーしてください。"
 
@@ -4588,11 +4588,11 @@ msgstr "コピー"
 msgid "Copy command"
 msgstr "コマンドをコピー"
 
-#: src/components/harness/BrowserPanel.tsx:508
+#: src/components/harness/BrowserPanel.tsx:509
 msgid "Copy from browser"
 msgstr "ブラウザーからコピー"
 
-#: src/components/harness/BrowserPanel.tsx:553
+#: src/components/harness/BrowserPanel.tsx:554
 msgid "Copy selection"
 msgstr "選択範囲をコピー"
 
@@ -4683,7 +4683,7 @@ msgstr "削除"
 msgid "Delete agent"
 msgstr "エージェントを削除"
 
-#: src/components/harness/HomeMemoryPanel.tsx:781
+#: src/components/harness/HomeMemoryPanel.tsx:776
 msgid "Delete note"
 msgstr "メモを削除"
 
@@ -4721,7 +4721,7 @@ msgstr "接続解除"
 msgid "Disconnect source"
 msgstr "ソースを切断"
 
-#: src/components/harness/BrowserPanel.tsx:524
+#: src/components/harness/BrowserPanel.tsx:525
 msgid "Dismiss"
 msgstr "閉じる"
 
@@ -4753,7 +4753,7 @@ msgstr "以前のメッセージ"
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:181
 #: src/components/harness/AgentSchedulesPage.tsx:236
 #: src/components/harness/files/FileEditorView.tsx:151
-#: src/components/harness/HomeMemoryPanel.tsx:721
+#: src/components/harness/HomeMemoryPanel.tsx:716
 msgid "Edit"
 msgstr "編集"
 
@@ -4831,12 +4831,12 @@ msgstr "ファイルを取得できません: {error}"
 msgid "Finish connecting {0}: open the bot and send the command below from your private account."
 msgstr "{0} の接続を完了するには、ボットを開き、あなたの個人アカウントから以下のコマンドを送信してください。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:769
-#: src/components/harness/HomeMemoryPanel.tsx:820
+#: src/components/harness/HomeMemoryPanel.tsx:764
+#: src/components/harness/HomeMemoryPanel.tsx:815
 msgid "Forget"
 msgstr "忘れる"
 
-#: src/components/harness/HomeMemoryPanel.tsx:889
+#: src/components/harness/HomeMemoryPanel.tsx:884
 msgid "Forget all memory"
 msgstr "すべてのメモリを忘れる"
 
@@ -4848,13 +4848,13 @@ msgstr "新しい会話"
 msgid "Get this from @BotFather. Carmel stores it encrypted and never shows it again."
 msgstr "@BotFather から取得してください。Carmel はこれを暗号化して保存し、再表示しません。"
 
-#: src/components/harness/BrowserPanel.tsx:357
+#: src/components/harness/BrowserPanel.tsx:358
 msgid "Go"
 msgstr "移動"
 
 #: src/components/harness/AgentSchedulesPage.tsx:210
-#: src/components/harness/HomeMemoryPanel.tsx:757
-#: src/components/harness/HomeMemoryPanel.tsx:846
+#: src/components/harness/HomeMemoryPanel.tsx:752
+#: src/components/harness/HomeMemoryPanel.tsx:841
 msgid "History"
 msgstr "履歴"
 
@@ -4894,15 +4894,11 @@ msgstr "Open WebUI の JSON エクスポートを選択したエージェント�
 msgid "Import Sessions"
 msgstr "セッションをインポート"
 
-#: src/components/harness/HomeMemoryPanel.tsx:681
-msgid "Imported agent memory"
-msgstr "インポートされたエージェントメモリ"
-
 #: src/components/harness/AgentKnowledgePage.tsx:189
 msgid "Index needs attention"
 msgstr "インデックスの確認が必要です"
 
-#: src/components/chat/ChatMessages.tsx:396
+#: src/components/chat/ChatMessages.tsx:401
 msgid "Interrupted"
 msgstr "中断"
 
@@ -4910,7 +4906,7 @@ msgstr "中断"
 msgid "Issue conversation · Read-only history"
 msgstr "イシューの会話 · 読み取り専用履歴"
 
-#: src/components/harness/BrowserPanel.tsx:572
+#: src/components/harness/BrowserPanel.tsx:573
 msgid "Keyboard"
 msgstr "キーボード"
 
@@ -5048,7 +5044,7 @@ msgstr "マウント {0}"
 msgid "Move to sessions"
 msgstr "セッション一覧へ移動"
 
-#: src/components/harness/HomeMemoryPanel.tsx:738
+#: src/components/harness/HomeMemoryPanel.tsx:733
 msgid "Move to topics"
 msgstr "トピックへ移動"
 
@@ -5075,7 +5071,7 @@ msgstr "ネストされたツール呼び出し ({0})"
 msgid "New agent"
 msgstr "新しいエージェント"
 
-#: src/components/chat/ChatMessages.tsx:444
+#: src/components/chat/ChatMessages.tsx:449
 #: src/components/PiChat.tsx:292
 msgid "New context"
 msgstr "新しいコンテキスト"
@@ -5105,7 +5101,7 @@ msgstr "新しいセッション"
 msgid "New task"
 msgstr "新しいタスク"
 
-#: src/components/harness/HomeMemoryPanel.tsx:840
+#: src/components/harness/HomeMemoryPanel.tsx:835
 msgid "Next"
 msgstr "次へ"
 
@@ -5240,7 +5236,7 @@ msgstr "ナレッジを開く"
 msgid "Open login page"
 msgstr "ログインページを開く"
 
-#: src/components/harness/HomeMemoryPanel.tsx:693
+#: src/components/harness/HomeMemoryPanel.tsx:688
 msgid "Open message"
 msgstr "メッセージを開く"
 
@@ -5272,7 +5268,7 @@ msgstr "パスワード"
 msgid "Password must be at least 8 characters."
 msgstr "パスワードは 8 文字以上である必要があります。"
 
-#: src/components/harness/BrowserPanel.tsx:562
+#: src/components/harness/BrowserPanel.tsx:563
 msgid "Paste"
 msgstr "貼り付け"
 
@@ -5284,7 +5280,7 @@ msgstr "ここに貼り付け"
 msgid "People who can run this shared agent can use this credential."
 msgstr "この共有エージェントを実行できるユーザーは、この認証情報を使用できます。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:713
+#: src/components/harness/HomeMemoryPanel.tsx:708
 msgid "Pin"
 msgstr "ピン留め"
 
@@ -5301,7 +5297,7 @@ msgstr "詳細検索を準備"
 msgid "Preview"
 msgstr "プレビュー"
 
-#: src/components/harness/HomeMemoryPanel.tsx:833
+#: src/components/harness/HomeMemoryPanel.tsx:828
 msgid "Previous"
 msgstr "前へ"
 
@@ -5351,11 +5347,11 @@ msgid "Receive and send messages"
 msgstr "メッセージを送受信"
 
 #: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:220
-#: src/components/harness/BrowserPanel.tsx:391
+#: src/components/harness/BrowserPanel.tsx:392
 msgid "Reconnect"
 msgstr "再接続"
 
-#: src/components/harness/BrowserPanel.tsx:474
+#: src/components/harness/BrowserPanel.tsx:475
 msgid "Reconnecting preserves the agent’s browser and saved sign-ins."
 msgstr "再接続してもエージェントのブラウザーと保存済みのサインイン状態は維持されます。"
 
@@ -5401,7 +5397,7 @@ msgstr "認証情報を置き換え"
 msgid "Reply to agent"
 msgstr "エージェントに返信"
 
-#: src/components/chat/ChatMessages.tsx:698
+#: src/components/chat/ChatMessages.tsx:703
 msgid "Request aborted"
 msgstr "リクエストが中止されました"
 
@@ -5418,7 +5414,7 @@ msgid "Restart"
 msgstr "再起動"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
-#: src/components/harness/HomeMemoryPanel.tsx:867
+#: src/components/harness/HomeMemoryPanel.tsx:862
 msgid "Restore"
 msgstr "復元"
 
@@ -5571,7 +5567,7 @@ msgstr "選択中: {0} · {1}"
 msgid "Semantic"
 msgstr "セマンティック"
 
-#: src/components/harness/BrowserPanel.tsx:501
+#: src/components/harness/BrowserPanel.tsx:502
 msgid "Send text"
 msgstr "テキストを送信"
 
@@ -5607,11 +5603,11 @@ msgid "shared"
 msgstr "共有"
 
 #: src/components/harness/HomeMemoryPanel.tsx:655
-#: src/components/harness/HomeMemoryPanel.tsx:802
+#: src/components/harness/HomeMemoryPanel.tsx:797
 msgid "Shared"
 msgstr "共有中"
 
-#: src/components/harness/HomeMemoryPanel.tsx:794
+#: src/components/harness/HomeMemoryPanel.tsx:789
 msgid "Shared across agents"
 msgstr "エージェント間で共有"
 
@@ -5718,7 +5714,7 @@ msgstr "一覧が省略されました。表示されている以外にも変更
 msgid "Theme"
 msgstr "テーマ"
 
-#: src/components/chat/ChatMessages.tsx:723
+#: src/components/chat/ChatMessages.tsx:728
 msgid "Thinking"
 msgstr "思考"
 
@@ -5755,7 +5751,7 @@ msgstr "トピック"
 msgid "Try another phrase or refresh the source index."
 msgstr "別の語句を試すか、ソースのインデックスを更新してください。"
 
-#: src/components/harness/BrowserPanel.tsx:491
+#: src/components/harness/BrowserPanel.tsx:492
 msgid "Type into the focused browser field"
 msgstr "フォーカス中のブラウザー入力欄に入力"
 
@@ -5775,7 +5771,7 @@ msgstr "保存できませんでした。変更内容は保持されています
 msgid "Unable to update integration"
 msgstr "連携設定を更新できません"
 
-#: src/components/harness/HomeMemoryPanel.tsx:713
+#: src/components/harness/HomeMemoryPanel.tsx:708
 msgid "Unpin"
 msgstr "ピン留め解除"
 
@@ -5802,7 +5798,7 @@ msgstr "ファイルをアップロード"
 msgid "Upload folder"
 msgstr "フォルダーをアップロード"
 
-#: src/components/harness/HomeMemoryPanel.tsx:740
+#: src/components/harness/HomeMemoryPanel.tsx:735
 msgid "Use as core"
 msgstr "コアとして使用"
 
@@ -5838,7 +5834,7 @@ msgid "Uses this agent's permitted workspace, shell, network, MCP, and session t
 msgstr "このエージェントに許可されたワークスペース、シェル、ネットワーク、MCP、セッションツールを使用します。既存の権限と MCP ツール許可リストはそのまま適用されます。"
 
 #. placeholder {0}: skill.name
-#: src/components/chat/ChatMessages.tsx:562
+#: src/components/chat/ChatMessages.tsx:567
 msgid "Using skill: {0}"
 msgstr "スキルを使用中: {0}"
 
@@ -5867,7 +5863,7 @@ msgstr "会話を表示"
 msgid "View result"
 msgstr "結果を表示"
 
-#: src/components/chat/ChatMessages.tsx:755
+#: src/components/chat/ChatMessages.tsx:760
 msgid "View subtask result"
 msgstr "サブタスクの結果を表示"
 

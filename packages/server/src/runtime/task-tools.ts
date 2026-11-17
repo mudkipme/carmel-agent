@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { timezoneSchema, type AgentThinkingLevel } from "@carmel-agent/shared";
+import { timezoneSchema, type AgentThinkingLevel, imPlatformSchema } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { users } from "../db/schema.ts";
 import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
@@ -11,7 +11,6 @@ import {
   readAgentTasks,
   updateAgentTask,
 } from "../services/agent-tasks.ts";
-import { imPlatformSchema } from "@carmel-agent/shared";
 
 const scheduleTaskSchema = z
   .object({

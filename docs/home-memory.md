@@ -103,14 +103,6 @@ restriction. **Delete note** removes only the saved copy and allows future learn
 Neither action deletes the original conversation. Expired
 notes remain inspectable but are excluded from recall.
 
-On upgrade, existing agent memories move to the agent owner's Home as manual
-topic notes. Titles, full content, timestamps, contributor attribution, and the
-legacy revision are preserved. Pending writes are recovered; deleted notes are
-not resurrected. Import verifies the new copy before retiring the old row, then
-removes the old files and shared index generations. Repeating migration does not
-create duplicates or overwrite a migrated note. Registered Knowledge documents
-remain registered and shared according to agent access.
-
 The Home database is canonical. Derived Markdown and qmd indexes live under
 `CARMEL_AGENT_DATA_DIR/home-memory/<hashed-user-agent>/`. Forgetting a memory
 purges that Home's derived index generations; rebuilding does not affect another

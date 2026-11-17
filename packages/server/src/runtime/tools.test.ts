@@ -4,12 +4,15 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getOrThrow, withAbortSignal } from "../effectors/pi-durable/index.ts";
+import {
+  getOrThrow,
+  withAbortSignal,
+  formatSkillInvocation,
+} from "../effectors/pi-durable/index.ts";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import { createGrepOperations } from "./search-operations.ts";
 import { createServerExecution, createServerToolDefinitions, remapContainerPath } from "./tools.ts";
 import { loadBuiltinSkills } from "./builtin-skills.ts";
-import { formatSkillInvocation } from "../effectors/pi-durable/index.ts";
 import type { agents } from "../db/schema.ts";
 import { initialize } from "../db/index.ts";
 

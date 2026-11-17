@@ -25,12 +25,7 @@ export function attachBrowserSocket(server: Server, connect = connectBrowser) {
     const origin = request.headers.origin;
     const host = incomingRequestHost(request);
     if (!origin || !isAllowedBrowserOrigin(origin, host)) return reject(403);
-    let token: string | undefined;
-    try {
-      token = readSessionCookie(request.headers.cookie);
-    } catch {
-      return reject(401);
-    }
+    const token = readSessionCookie(request.headers.cookie);
     const user = readAuthenticatedUser(token);
     if (!user) return reject(401);
     const agent = readVisibleAgent(user.id, url.searchParams.get("agent") ?? "");

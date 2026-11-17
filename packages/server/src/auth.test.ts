@@ -108,3 +108,9 @@ test("readSessionCookie ignores absent, empty, and lookalike cookie names", () =
   assert.equal(readSessionCookie("xcarmel_session=abc123"), undefined);
   assert.equal(readSessionCookie("carmel_session_backup=abc123"), undefined);
 });
+
+test("readSessionCookie rejects a malformed escape instead of throwing", () => {
+  // WebSocket upgrades call this outside any request handler, so a throw here
+  // crashed the server on one unauthenticated request.
+  assert.equal(readSessionCookie("carmel_session=%E0%A4%A"), undefined);
+});

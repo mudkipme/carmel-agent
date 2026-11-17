@@ -4,8 +4,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
 import { CollaborationActivity } from "./CollaborationActivity";
-import type { CollaborationSummary } from "@carmel-agent/shared";
-import type { NestedToolSlot } from "@carmel-agent/shared";
+import type { CollaborationSummary, NestedToolSlot } from "@carmel-agent/shared";
 import { getUserRequestReceipt, homeIssueUpdate, collaborationReply } from "@carmel-agent/shared";
 import { CollaborationReplyCard } from "./CollaborationReplyCard";
 import { HomeTaskCard } from "./HomeTaskCard";
@@ -13,7 +12,14 @@ import { Link, useLocation } from "react-router-dom";
 import { subtaskLinkTarget } from "@/lib/subtask-navigation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { KeyRoundIcon, MessageSquareTextIcon } from "lucide-react";
+import {
+  KeyRoundIcon,
+  MessageSquareTextIcon,
+  AlertCircleIcon,
+  BrainIcon,
+  ChevronRightIcon,
+  Loader2Icon,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import type {
@@ -21,7 +27,6 @@ import type {
   ToolCall,
   ToolResultMessage,
 } from "@earendil-works/pi-ai";
-import { AlertCircleIcon, BrainIcon, ChevronRightIcon, Loader2Icon } from "lucide-react";
 import { Fragment, memo, useId, useMemo, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { MessageActions } from "./MessageActions";

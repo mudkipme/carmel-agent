@@ -3484,7 +3484,6 @@ components:
         - content
         - title
         - contributorId
-        - legacyRevision
         - scope
         - kind
         - placement
@@ -3519,9 +3518,6 @@ components:
             - explicit
             - automatic
         contributorId:
-          type: string
-          nullable: true
-        legacyRevision:
           type: string
           nullable: true
         sourceEventId:

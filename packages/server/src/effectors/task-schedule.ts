@@ -1,4 +1,5 @@
 import { CronExpressionParser } from "cron-parser";
+import { errorMessage } from "../errors.ts";
 
 /**
  * When a scheduled task should next run, and whether a due one should fire.
@@ -121,7 +122,7 @@ function computeCronNextRun(schedule: TaskSchedule, from: number): NextRun {
   } catch (error) {
     return {
       ok: false,
-      reason: error instanceof Error ? error.message : "Not a valid cron expression.",
+      reason: errorMessage(error, "Not a valid cron expression."),
     };
   }
 }

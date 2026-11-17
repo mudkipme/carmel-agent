@@ -338,13 +338,13 @@ Users can see:
 - agents they own, and agents marked shared
 - model entries they own, model entries marked shared, and model entries with no provider config behind them
 
-Only owners can edit or delete their own agents and model entries. Provider configs are instance-level and only administrators can change them; their stored API keys, OAuth credentials, and custom headers are never included in API responses.
+Only owners can edit or delete their own agents and model entries. Provider configs are instance-level and only administrators can change them; their stored API keys and OAuth credentials are never included in API responses.
 
 Deleting a model entry or provider config that agents or sessions depend on requires another usable fallback model for the affected users, and is refused while a run using it is in flight.
 
 ## Credentials At Rest
 
-Provider API keys, OAuth credentials, and custom headers are encrypted with `CARMEL_SECRET_KEY` before they are written to the database. Set that key before adding credentials and keep it stable — rotating it makes existing secrets unreadable.
+Provider API keys and OAuth credentials are encrypted with `CARMEL_SECRET_KEY` before they are written to the database. Set that key before adding credentials and keep it stable — rotating it makes existing secrets unreadable.
 
 ## Database Initialization
 

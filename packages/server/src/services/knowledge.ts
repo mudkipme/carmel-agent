@@ -18,7 +18,7 @@ import {
   type KnowledgeSearchResult,
 } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { agents, knowledgeConfigs, knowledgeMemories, knowledgeSources } from "../db/schema.ts";
+import { agents, knowledgeConfigs, knowledgeSources } from "../db/schema.ts";
 import { dataDir } from "../paths.ts";
 import { readVisibleAgent, type AgentRecord } from "./agent-access.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
@@ -32,6 +32,7 @@ import {
 import { knowledgeLock } from "../runtime/knowledge/queue.ts";
 
 import { knowledgeEmbeddingModel, knowledgeModelPlan } from "../runtime/knowledge/models.ts";
+import { errorMessage } from "../errors.ts";
 
 const initialStatus: KnowledgeStatus = {
   state: "idle",
@@ -179,7 +180,6 @@ export async function deleteAgentKnowledge(agentId: string) {
     await rm(knowledgeDir(agentId), { recursive: true, force: true });
     db.delete(knowledgeConfigs).where(eq(knowledgeConfigs.agentId, agentId)).run();
     db.delete(knowledgeSources).where(eq(knowledgeSources.agentId, agentId)).run();
-    db.delete(knowledgeMemories).where(eq(knowledgeMemories.agentId, agentId)).run();
   });
 }
 
@@ -211,7 +211,7 @@ export async function saveKnowledgeSettings(
     const settings = knowledgeSettingsSchema.parse(input);
     await stopKnowledgeWorker(agentId);
     db.insert(knowledgeConfigs)
-      .values({ agentId, settings, status: initialStatus, dirty: true, memoriesMigrated: true })
+      .values({ agentId, settings, status: initialStatus, dirty: true })
       .onConflictDoUpdate({
         target: knowledgeConfigs.agentId,
         set: { settings, status: initialStatus, dirty: true },
@@ -357,12 +357,9 @@ export async function searchKnowledge(
     } catch (error) {
       if (signal?.aborted) throw error;
       if (mode === "fast")
-        throw new KnowledgeError(
-          error instanceof Error ? error.message : "Knowledge runner unavailable.",
-          503,
-        );
+        throw new KnowledgeError(errorMessage(error, "Knowledge runner unavailable."), 503);
       mode = "fast";
-      warning = `Semantic retrieval unavailable; showing keyword results. ${error instanceof Error ? error.message : ""}`;
+      warning = `Semantic retrieval unavailable; showing keyword results. ${errorMessage(error, "")}`;
       try {
         response = workerSearchSchema.parse(
           await callKnowledgeWorker(workerPlan, { ...request, mode }, signal),
@@ -461,7 +458,7 @@ export async function refreshKnowledge(
     } catch (error) {
       setStatus(agentId, {
         state: "error",
-        error: String(error instanceof Error ? error.message : error).slice(0, 2000),
+        error: errorMessage(error, String(error)).slice(0, 2000),
       });
     }
   });
@@ -472,6 +469,7 @@ const jobs = new Map<string, Promise<void>>();
 let maintenance = new AbortController();
 let timer: ReturnType<typeof setInterval> | undefined;
 export function startKnowledgeScheduler() {
+  if (timer) return;
   maintenance = new AbortController();
   for (const row of db.select().from(knowledgeConfigs).all())
     if (row.settings.enabled) setStatus(row.agentId, { state: "idle" }, true);

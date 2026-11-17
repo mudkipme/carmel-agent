@@ -12,8 +12,7 @@ import {
   pendingUserReply,
   readUserRequests,
 } from "../services/user-requests.ts";
-import { readAgentSecretEnv } from "../services/agent-secrets.ts";
-import { storeSessionSecret } from "../services/agent-secrets.ts";
+import { readAgentSecretEnv, storeSessionSecret } from "../services/agent-secrets.ts";
 import { createBashTool, type ExecutionEnv } from "../effectors/pi-durable/index.ts";
 import { createUserRequestTools, guardUserRequests } from "./user-request-tools.ts";
 

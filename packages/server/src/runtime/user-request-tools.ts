@@ -14,6 +14,7 @@ import {
   readAgentSecretEnv,
 } from "../services/agent-secrets.ts";
 import { createSecretRedactor } from "./sandbox/redaction.ts";
+import { errorMessage } from "../errors.ts";
 
 const requestingTools = new Set(["ask_user_question", "request_secret"]);
 const aloneError = {
@@ -230,7 +231,7 @@ export function guardUserRequests(
         );
         return redactValue(result) as typeof result;
       } catch (error) {
-        throw new Error(redact(error instanceof Error ? error.message : "Tool failed."));
+        throw new Error(redact(errorMessage(error, "Tool failed.")));
       } finally {
         const tail = stream.push(decoder.decode()) + stream.flush();
         if (tail) api.output(tail);

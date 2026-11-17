@@ -15,7 +15,7 @@ Carmel Agent reads `.env`, `.env.local`, `packages/server/.env`, and `packages/s
 
 ## Secrets
 
-- `CARMEL_SECRET_KEY` — encrypts stored provider API keys, OAuth credentials, custom headers, agent/session secrets, and IM setup/credentials at rest. IM connections and credentials submitted through session request forms always require this key, including in development.
+- `CARMEL_SECRET_KEY` — encrypts stored provider API keys, OAuth credentials, agent/session secrets, and IM setup/credentials at rest. IM connections and credentials submitted through session request forms always require this key, including in development.
 
 Set it before adding any provider credentials and keep it stable. If it changes, previously encrypted values can no longer be decrypted.
 
@@ -95,9 +95,9 @@ Pocket ID reports `email_verified: false` until a user verifies their email in P
 
 ## Providers And Models
 
-Provider configs are **instance-level and admin-managed**: any administrator can create, edit, or delete them under **Settings → Providers**, and there is one shared set for the whole instance. Each config stores a provider type, label, base URL, authentication method, and optional custom headers. Authentication is either an API key or an OAuth login, when the underlying Pi provider supports OAuth.
+Provider configs are **instance-level and admin-managed**: any administrator can create, edit, or delete them under **Settings → Providers**, and there is one shared set for the whole instance. Each config stores a provider type, label, base URL, and authentication method. Authentication is either an API key or an OAuth login, when the underlying Pi provider supports OAuth.
 
-Stored API keys, OAuth credentials, and custom headers are never returned to any browser — the API only reports whether a credential is present.
+Stored API keys and OAuth credentials are never returned to any browser — the API only reports whether a credential is present.
 
 Model entries ("model refs") are what users pick in agents and sessions. Any user can create them against the instance's provider configs. A model entry belongs to whoever created it and can be marked shared so everyone on the instance can select it; the credentials behind it stay server-side either way.
 
@@ -132,6 +132,13 @@ Authorization: Bearer carmel-...
 Browser clients may call these endpoints from any origin using a bearer key. CORS preflights allow client SDK headers, including `Authorization`, `Content-Type`, and `x-session-id`; cookies do not authenticate these requests. `/v1` remains available as an alias on the server, while `/api/v1` also works through the development client's `/api` proxy.
 
 Keys are stored hashed and shown only once when created. Revoking a key, or deleting its user, takes effect immediately.
+
+## Run Limits
+
+- `CARMEL_AGENT_MAX_TOOL_CALLS` — tool calls one run may finish before it is stopped. Defaults to `250`.
+- `CARMEL_AGENT_STALL_TIMEOUT_MS` — how long a run may go without activity before it is stopped. Defaults to `900000` (15 minutes).
+- `CARMEL_AGENT_REQUEST_TIMEOUT_MS` — deadline for a single provider request. Defaults to `600000` (10 minutes).
+- `CARMEL_AGENT_MAX_CONCURRENT_TASKS` — scheduled task runs allowed at once. Defaults to `2`.
 
 ## Network Tools
 

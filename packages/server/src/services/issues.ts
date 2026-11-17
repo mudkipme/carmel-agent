@@ -1,10 +1,9 @@
 import { assertReceiverAccess, cancelSourceCollaborations } from "./collaborations.ts";
-import { collaborations } from "../db/schema.ts";
+import { collaborations, issues, issueAttempts, issueNotes, sessions } from "../db/schema.ts";
 import { imOutbox, imIntegrations } from "../db/im-schema.ts";
-import { gte } from "drizzle-orm";
+import { gte, and, asc, desc, eq } from "drizzle-orm";
 import { publishHomeEvent } from "./home-events.ts";
 import { InboxDoc, type SubmissionId } from "@earendil-works/pi-durable";
-import { and, asc, desc, eq } from "drizzle-orm";
 import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
 import type {
   Issue,
@@ -16,7 +15,6 @@ import type {
   AgentRunResult,
 } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { issues, issueAttempts, issueNotes, sessions } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { errorMessage } from "../errors.ts";
 import {
@@ -144,8 +142,9 @@ const settling = new Map<string, Promise<unknown>>();
 let queueTimer: ReturnType<typeof setInterval> | undefined;
 
 export function startIssueQueue() {
+  if (queueTimer) return;
   queueEnabled = true;
-  queueTimer ??= setInterval(() => {
+  queueTimer = setInterval(() => {
     for (const row of db
       .select({ agentId: issues.agentId })
       .from(issues)

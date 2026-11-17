@@ -216,7 +216,7 @@ msgid "Sign-in with {providerName} failed. Try again, or ask an administrator if
 msgstr "通过 {providerName} 登录失败。请重试；如果问题持续，请联系管理员。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:307
+#: src/components/harness/BrowserPanel.tsx:308
 #: src/lib/browser-input.ts:38
 msgid "Enter an HTTP or HTTPS address."
 msgstr "请输入 HTTP 或 HTTPS 地址。"
@@ -285,7 +285,7 @@ msgid "Urgent"
 msgstr "紧急"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:259
+#: src/components/harness/BrowserPanel.tsx:260
 #: src/lib/labels.ts:27
 msgid "Connecting"
 msgstr "连接中"
@@ -368,7 +368,7 @@ msgid "Ready"
 msgstr "就绪"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:502
+#: src/components/chat/ChatMessages.tsx:507
 #: src/components/chat/CollaborationActivity.tsx:13
 #: src/components/chat/UserRequestCards.tsx:125
 #: src/lib/labels.ts:41
@@ -376,7 +376,7 @@ msgid "Answered"
 msgstr "已回答"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:506
+#: src/components/chat/ChatMessages.tsx:511
 #: src/lib/labels.ts:42
 msgid "Expired"
 msgstr "已过期"
@@ -1051,7 +1051,7 @@ msgid "Unable to load the latest messages"
 msgstr "无法加载最新消息"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:439
+#: src/components/chat/ChatMessages.tsx:444
 #: src/components/PiChat.tsx:411
 msgid "New context"
 msgstr "新上下文"
@@ -1452,141 +1452,141 @@ msgid "Saving..."
 msgstr "保存中…"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:221
+#: src/components/harness/BrowserPanel.tsx:222
 msgid "Paste text into the text entry field, then select Send text."
 msgstr "将文本粘贴到输入框，然后选择“发送文本”。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:233
+#: src/components/harness/BrowserPanel.tsx:234
 msgid "Select text in the remote page before copying."
 msgstr "请先在远程页面中选中文本，再进行复制。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:240
+#: src/components/harness/BrowserPanel.tsx:241
 msgid "Copied from browser"
 msgstr "已从浏览器复制"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:246
+#: src/components/harness/BrowserPanel.tsx:247
 msgid "Pasted into browser"
 msgstr "已粘贴到浏览器"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:250
+#: src/components/harness/BrowserPanel.tsx:251
 msgid "Clipboard transfer failed."
 msgstr "剪贴板传输失败。"
 
 #. js-lingui-explicit-id
 #: src/components/chat/BrowserRequestCard.tsx:30
-#: src/components/harness/BrowserPanel.tsx:261
+#: src/components/harness/BrowserPanel.tsx:262
 msgid "You have control"
 msgstr "你正在控制"
 
 #. js-lingui-explicit-id
 #: src/components/chat/BrowserRequestCard.tsx:32
-#: src/components/harness/BrowserPanel.tsx:263
+#: src/components/harness/BrowserPanel.tsx:264
 msgid "Pausing agent…"
 msgstr "正在暂停智能体…"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:265
+#: src/components/harness/BrowserPanel.tsx:266
 msgid "{controllerName} has control"
 msgstr "{controllerName} 正在控制"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:267
+#: src/components/harness/BrowserPanel.tsx:268
 msgid "Waiting for help"
 msgstr "等待协助"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:268
+#: src/components/harness/BrowserPanel.tsx:269
 msgid "Agent has control"
 msgstr "智能体正在控制"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:281
+#: src/components/harness/BrowserPanel.tsx:282
 msgid "Agent browser"
 msgstr "智能体浏览器"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:294
-#: src/components/harness/BrowserPanel.tsx:533
+#: src/components/harness/BrowserPanel.tsx:295
+#: src/components/harness/BrowserPanel.tsx:534
 msgid "Resume agent"
 msgstr "恢复智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:294
-#: src/components/harness/BrowserPanel.tsx:533
+#: src/components/harness/BrowserPanel.tsx:295
+#: src/components/harness/BrowserPanel.tsx:534
 msgid "Take control"
 msgstr "接管控制"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:315
+#: src/components/harness/BrowserPanel.tsx:316
 msgid "Browser back"
 msgstr "浏览器后退"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:325
+#: src/components/harness/BrowserPanel.tsx:326
 msgid "Browser forward"
 msgstr "浏览器前进"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:335
+#: src/components/harness/BrowserPanel.tsx:336
 msgid "Reload browser page"
 msgstr "重新加载浏览器页面"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:367
+#: src/components/harness/BrowserPanel.tsx:368
 msgid "Browser tab"
 msgstr "浏览器标签页"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:368
+#: src/components/harness/BrowserPanel.tsx:369
 msgid "Select tab"
 msgstr "选择标签页"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:374
+#: src/components/harness/BrowserPanel.tsx:375
 msgid "Untitled"
 msgstr "无标题"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:405
+#: src/components/harness/BrowserPanel.tsx:406
 msgid "Remote browser. Click to focus, then type or use copy and paste shortcuts. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile."
 msgstr "远程浏览器。点击聚焦后即可输入，或使用复制和粘贴快捷键。按 Shift+Escape 离开远程浏览器。在移动设备上使用“键盘”按钮输入文本。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:408
+#: src/components/harness/BrowserPanel.tsx:409
 msgid "Live browser preview. Take control to interact."
 msgstr "浏览器实时预览。接管控制后即可交互。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:436
+#: src/components/harness/BrowserPanel.tsx:437
 msgid "Remote browser keyboard input"
 msgstr "远程浏览器键盘输入"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:446
+#: src/components/harness/BrowserPanel.tsx:447
 msgid "Live page in the agent's browser"
 msgstr "智能体浏览器中的实时页面"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:469
+#: src/components/harness/BrowserPanel.tsx:470
 msgid "Waiting for the page"
 msgstr "正在等待页面"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:470
+#: src/components/harness/BrowserPanel.tsx:471
 msgid "Connecting to the browser"
 msgstr "正在连接浏览器"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:542
+#: src/components/harness/BrowserPanel.tsx:543
 msgid "Shared agent · Shared sign-ins"
 msgstr "共享智能体 · 共享登录状态"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:543
+#: src/components/harness/BrowserPanel.tsx:544
 msgid "Agent profile · Sign-ins retained"
 msgstr "智能体配置 · 保留登录状态"
 
@@ -1725,32 +1725,32 @@ msgid "Expires {date}"
 msgstr "到期时间：{date}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:790
+#: src/components/harness/HomeMemoryPanel.tsx:785
 msgid "Shared across agents"
 msgstr "跨智能体共享"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:800
+#: src/components/harness/HomeMemoryPanel.tsx:795
 msgid "About you"
 msgstr "关于你"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:844
+#: src/components/harness/HomeMemoryPanel.tsx:839
 msgid "Memory history"
 msgstr "记忆历史"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:879
+#: src/components/harness/HomeMemoryPanel.tsx:874
 msgid "Forget all Home memory?"
 msgstr "忘记主页的所有记忆？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:880
+#: src/components/harness/HomeMemoryPanel.tsx:875
 msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
 msgstr "将删除笔记及其修订历史，自动学习也会跳过这些信息。你可以明确要求重新记住它们。Home 对话会保留。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:883
+#: src/components/harness/HomeMemoryPanel.tsx:878
 msgid "Forget all"
 msgstr "全部忘记"
 
@@ -2329,7 +2329,7 @@ msgid "Queued"
 msgstr "排队中"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:305
+#: src/components/chat/ChatMessages.tsx:310
 #: src/components/chat/CollaborationActivity.tsx:12
 #: src/components/harness/tasks/issue-state.ts:24
 msgid "Working"
@@ -3839,75 +3839,75 @@ msgid "Send"
 msgstr "发送"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:274
+#: src/components/chat/ChatMessages.tsx:279
 msgid "{count, plural, one {# tool call} other {# tool calls}}"
 msgstr "{count, plural, other {# 次工具调用}}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:276
+#: src/components/chat/ChatMessages.tsx:281
 msgid "thinking"
 msgstr "思考中"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:304
+#: src/components/chat/ChatMessages.tsx:309
 msgid "Working · {currentTool}"
 msgstr "工作中 · {currentTool}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:307
+#: src/components/chat/ChatMessages.tsx:312
 msgid "Hide work"
 msgstr "隐藏工作过程"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:308
+#: src/components/chat/ChatMessages.tsx:313
 msgid "Show work"
 msgstr "显示工作过程"
 
 #. js-lingui-explicit-id
 #: src/components/chat/chat-utils.ts:68
-#: src/components/chat/ChatMessages.tsx:372
-#: src/components/chat/ChatMessages.tsx:586
-#: src/components/chat/ChatMessages.tsx:663
+#: src/components/chat/ChatMessages.tsx:377
+#: src/components/chat/ChatMessages.tsx:591
+#: src/components/chat/ChatMessages.tsx:668
 msgid "Image"
 msgstr "图片"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:494
+#: src/components/chat/ChatMessages.tsx:499
 msgid "Answer sent"
 msgstr "回答已发送"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:496
+#: src/components/chat/ChatMessages.tsx:501
 msgid "Question response"
 msgstr "问题回复"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:501
+#: src/components/chat/ChatMessages.tsx:506
 msgid "Credential provided"
 msgstr "已提供凭证"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:504
+#: src/components/chat/ChatMessages.tsx:509
 msgid "Declined"
 msgstr "已拒绝"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:507
+#: src/components/chat/ChatMessages.tsx:512
 msgid "Unavailable"
 msgstr "不可用"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:514
+#: src/components/chat/ChatMessages.tsx:519
 msgid "Saved for reuse across this agent’s sessions."
 msgstr "已保存，可在此智能体的其他会话中重复使用。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:516
+#: src/components/chat/ChatMessages.tsx:521
 msgid "Provided for this session only."
 msgstr "仅供此会话使用。"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:519
+#: src/components/chat/ChatMessages.tsx:524
 msgid "This request did not make a credential available to the agent."
 msgstr "此请求未向智能体提供凭证。"
 
@@ -4320,7 +4320,7 @@ msgstr "已选 {0} 项"
 msgid "{0}Open"
 msgstr "{0}打开"
 
-#: src/components/chat/ChatMessages.tsx:313
+#: src/components/chat/ChatMessages.tsx:318
 msgid "{failedTools} failed"
 msgstr "{failedTools} 次失败"
 
@@ -4472,15 +4472,15 @@ msgstr "此次运行使用的任务说明"
 msgid "Browse"
 msgstr "浏览"
 
-#: src/components/harness/BrowserPanel.tsx:287
+#: src/components/harness/BrowserPanel.tsx:288
 msgid "Browser"
 msgstr "浏览器"
 
-#: src/components/harness/BrowserPanel.tsx:343
+#: src/components/harness/BrowserPanel.tsx:344
 msgid "Browser address"
 msgstr "浏览器地址"
 
-#: src/components/harness/BrowserPanel.tsx:386
+#: src/components/harness/BrowserPanel.tsx:387
 msgid "Browser connection"
 msgstr "浏览器连接"
 
@@ -4526,7 +4526,7 @@ msgstr "清除"
 msgid "Clear filter"
 msgstr "清除筛选"
 
-#: src/components/harness/BrowserPanel.tsx:511
+#: src/components/harness/BrowserPanel.tsx:512
 msgid "Clipboard access is blocked. Select this text and copy it using your device’s copy command."
 msgstr "剪贴板访问被阻止。请选中此文本并使用设备的复制命令。"
 
@@ -4588,11 +4588,11 @@ msgstr "复制"
 msgid "Copy command"
 msgstr "复制命令"
 
-#: src/components/harness/BrowserPanel.tsx:508
+#: src/components/harness/BrowserPanel.tsx:509
 msgid "Copy from browser"
 msgstr "从浏览器复制"
 
-#: src/components/harness/BrowserPanel.tsx:553
+#: src/components/harness/BrowserPanel.tsx:554
 msgid "Copy selection"
 msgstr "复制所选内容"
 
@@ -4683,7 +4683,7 @@ msgstr "删除"
 msgid "Delete agent"
 msgstr "删除智能体"
 
-#: src/components/harness/HomeMemoryPanel.tsx:781
+#: src/components/harness/HomeMemoryPanel.tsx:776
 msgid "Delete note"
 msgstr "删除笔记"
 
@@ -4721,7 +4721,7 @@ msgstr "断开连接"
 msgid "Disconnect source"
 msgstr "断开来源"
 
-#: src/components/harness/BrowserPanel.tsx:524
+#: src/components/harness/BrowserPanel.tsx:525
 msgid "Dismiss"
 msgstr "关闭提示"
 
@@ -4753,7 +4753,7 @@ msgstr "更早的消息"
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:181
 #: src/components/harness/AgentSchedulesPage.tsx:236
 #: src/components/harness/files/FileEditorView.tsx:151
-#: src/components/harness/HomeMemoryPanel.tsx:721
+#: src/components/harness/HomeMemoryPanel.tsx:716
 msgid "Edit"
 msgstr "编辑"
 
@@ -4831,12 +4831,12 @@ msgstr "文件不可用：{error}"
 msgid "Finish connecting {0}: open the bot and send the command below from your private account."
 msgstr "完成连接{0}：打开机器人，从你的个人账号发送以下命令。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:769
-#: src/components/harness/HomeMemoryPanel.tsx:820
+#: src/components/harness/HomeMemoryPanel.tsx:764
+#: src/components/harness/HomeMemoryPanel.tsx:815
 msgid "Forget"
 msgstr "忘记"
 
-#: src/components/harness/HomeMemoryPanel.tsx:889
+#: src/components/harness/HomeMemoryPanel.tsx:884
 msgid "Forget all memory"
 msgstr "忘记所有记忆"
 
@@ -4848,13 +4848,13 @@ msgstr "全新对话"
 msgid "Get this from @BotFather. Carmel stores it encrypted and never shows it again."
 msgstr "从 @BotFather 获取。Carmel 会加密保存，之后不再显示。"
 
-#: src/components/harness/BrowserPanel.tsx:357
+#: src/components/harness/BrowserPanel.tsx:358
 msgid "Go"
 msgstr "前往"
 
 #: src/components/harness/AgentSchedulesPage.tsx:210
-#: src/components/harness/HomeMemoryPanel.tsx:757
-#: src/components/harness/HomeMemoryPanel.tsx:846
+#: src/components/harness/HomeMemoryPanel.tsx:752
+#: src/components/harness/HomeMemoryPanel.tsx:841
 msgid "History"
 msgstr "历史"
 
@@ -4894,15 +4894,11 @@ msgstr "将 Open WebUI JSON 导出文件导入所选智能体。"
 msgid "Import Sessions"
 msgstr "导入会话"
 
-#: src/components/harness/HomeMemoryPanel.tsx:681
-msgid "Imported agent memory"
-msgstr "已迁移的智能体记忆"
-
 #: src/components/harness/AgentKnowledgePage.tsx:189
 msgid "Index needs attention"
 msgstr "索引需要处理"
 
-#: src/components/chat/ChatMessages.tsx:396
+#: src/components/chat/ChatMessages.tsx:401
 msgid "Interrupted"
 msgstr "已中断"
 
@@ -4910,7 +4906,7 @@ msgstr "已中断"
 msgid "Issue conversation · Read-only history"
 msgstr "事项对话 · 只读历史"
 
-#: src/components/harness/BrowserPanel.tsx:572
+#: src/components/harness/BrowserPanel.tsx:573
 msgid "Keyboard"
 msgstr "键盘"
 
@@ -5048,7 +5044,7 @@ msgstr "挂载 {0}"
 msgid "Move to sessions"
 msgstr "移至会话列表"
 
-#: src/components/harness/HomeMemoryPanel.tsx:738
+#: src/components/harness/HomeMemoryPanel.tsx:733
 msgid "Move to topics"
 msgstr "移至主题"
 
@@ -5075,7 +5071,7 @@ msgstr "嵌套工具调用（{0}）"
 msgid "New agent"
 msgstr "新建智能体"
 
-#: src/components/chat/ChatMessages.tsx:444
+#: src/components/chat/ChatMessages.tsx:449
 #: src/components/PiChat.tsx:292
 msgid "New context"
 msgstr "新上下文"
@@ -5105,7 +5101,7 @@ msgstr "新建会话"
 msgid "New task"
 msgstr "新建任务"
 
-#: src/components/harness/HomeMemoryPanel.tsx:840
+#: src/components/harness/HomeMemoryPanel.tsx:835
 msgid "Next"
 msgstr "下一页"
 
@@ -5240,7 +5236,7 @@ msgstr "打开知识库"
 msgid "Open login page"
 msgstr "打开登录页面"
 
-#: src/components/harness/HomeMemoryPanel.tsx:693
+#: src/components/harness/HomeMemoryPanel.tsx:688
 msgid "Open message"
 msgstr "打开消息"
 
@@ -5272,7 +5268,7 @@ msgstr "密码"
 msgid "Password must be at least 8 characters."
 msgstr "密码至少需要 8 个字符。"
 
-#: src/components/harness/BrowserPanel.tsx:562
+#: src/components/harness/BrowserPanel.tsx:563
 msgid "Paste"
 msgstr "粘贴"
 
@@ -5284,7 +5280,7 @@ msgstr "粘贴到此处"
 msgid "People who can run this shared agent can use this credential."
 msgstr "有权运行此共享智能体的人都可以使用此凭证。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:713
+#: src/components/harness/HomeMemoryPanel.tsx:708
 msgid "Pin"
 msgstr "固定"
 
@@ -5301,7 +5297,7 @@ msgstr "准备深入搜索"
 msgid "Preview"
 msgstr "预览"
 
-#: src/components/harness/HomeMemoryPanel.tsx:833
+#: src/components/harness/HomeMemoryPanel.tsx:828
 msgid "Previous"
 msgstr "上一页"
 
@@ -5351,11 +5347,11 @@ msgid "Receive and send messages"
 msgstr "接收和发送消息"
 
 #: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:220
-#: src/components/harness/BrowserPanel.tsx:391
+#: src/components/harness/BrowserPanel.tsx:392
 msgid "Reconnect"
 msgstr "重新连接"
 
-#: src/components/harness/BrowserPanel.tsx:474
+#: src/components/harness/BrowserPanel.tsx:475
 msgid "Reconnecting preserves the agent’s browser and saved sign-ins."
 msgstr "重新连接会保留智能体的浏览器及已保存的登录状态。"
 
@@ -5401,7 +5397,7 @@ msgstr "替换凭证"
 msgid "Reply to agent"
 msgstr "回复智能体"
 
-#: src/components/chat/ChatMessages.tsx:698
+#: src/components/chat/ChatMessages.tsx:703
 msgid "Request aborted"
 msgstr "请求已中止"
 
@@ -5418,7 +5414,7 @@ msgid "Restart"
 msgstr "重新启动"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
-#: src/components/harness/HomeMemoryPanel.tsx:867
+#: src/components/harness/HomeMemoryPanel.tsx:862
 msgid "Restore"
 msgstr "恢复"
 
@@ -5571,7 +5567,7 @@ msgstr "已选择：{0} · {1}"
 msgid "Semantic"
 msgstr "语义"
 
-#: src/components/harness/BrowserPanel.tsx:501
+#: src/components/harness/BrowserPanel.tsx:502
 msgid "Send text"
 msgstr "发送文本"
 
@@ -5607,11 +5603,11 @@ msgid "shared"
 msgstr "已共享"
 
 #: src/components/harness/HomeMemoryPanel.tsx:655
-#: src/components/harness/HomeMemoryPanel.tsx:802
+#: src/components/harness/HomeMemoryPanel.tsx:797
 msgid "Shared"
 msgstr "已共享"
 
-#: src/components/harness/HomeMemoryPanel.tsx:794
+#: src/components/harness/HomeMemoryPanel.tsx:789
 msgid "Shared across agents"
 msgstr "跨智能体共享"
 
@@ -5718,7 +5714,7 @@ msgstr "列表已截断，仍有更多更改未显示。未跟踪的依赖文件
 msgid "Theme"
 msgstr "主题"
 
-#: src/components/chat/ChatMessages.tsx:723
+#: src/components/chat/ChatMessages.tsx:728
 msgid "Thinking"
 msgstr "思考中"
 
@@ -5755,7 +5751,7 @@ msgstr "主题"
 msgid "Try another phrase or refresh the source index."
 msgstr "请尝试其他短语，或刷新来源索引。"
 
-#: src/components/harness/BrowserPanel.tsx:491
+#: src/components/harness/BrowserPanel.tsx:492
 msgid "Type into the focused browser field"
 msgstr "在已聚焦的浏览器输入框中输入"
 
@@ -5775,7 +5771,7 @@ msgstr "无法保存。你的更改仍在，请重试，或取消以继续编辑
 msgid "Unable to update integration"
 msgstr "无法更新集成"
 
-#: src/components/harness/HomeMemoryPanel.tsx:713
+#: src/components/harness/HomeMemoryPanel.tsx:708
 msgid "Unpin"
 msgstr "取消固定"
 
@@ -5802,7 +5798,7 @@ msgstr "上传文件"
 msgid "Upload folder"
 msgstr "上传文件夹"
 
-#: src/components/harness/HomeMemoryPanel.tsx:740
+#: src/components/harness/HomeMemoryPanel.tsx:735
 msgid "Use as core"
 msgstr "设为核心"
 
@@ -5838,7 +5834,7 @@ msgid "Uses this agent's permitted workspace, shell, network, MCP, and session t
 msgstr "使用此智能体获准访问的工作区、Shell、网络、MCP 和会话工具。现有权限和 MCP 工具允许列表仍然适用。"
 
 #. placeholder {0}: skill.name
-#: src/components/chat/ChatMessages.tsx:562
+#: src/components/chat/ChatMessages.tsx:567
 msgid "Using skill: {0}"
 msgstr "正在使用技能：{0}"
 
@@ -5867,7 +5863,7 @@ msgstr "查看对话"
 msgid "View result"
 msgstr "查看结果"
 
-#: src/components/chat/ChatMessages.tsx:755
+#: src/components/chat/ChatMessages.tsx:760
 msgid "View subtask result"
 msgstr "查看子任务结果"
 

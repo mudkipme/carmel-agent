@@ -1,4 +1,3 @@
-import { agentHomes } from "../db/schema.ts";
 import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
 import {
   agentConfigRequestSchema,
@@ -10,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
-import { agents, sessions } from "../db/schema.ts";
+import { agentHomes, agents, homeMemorySettings, sessions } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
 import { loadAgentResources, resolveAgentWorkingDirPath } from "../runtime/resources.ts";
@@ -30,7 +29,6 @@ import { readActiveRunLeaseForAgent } from "../services/active-run-lease.ts";
 import { jsonValidator } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import { deleteAgentSecretsForAgent } from "../services/agent-secrets.ts";
-import { homeMemorySettings } from "../db/schema.ts";
 import { purgeHomeMemoryIndex } from "../services/home-memory-index.ts";
 import { deleteAgentKnowledge } from "../services/knowledge.ts";
 import { deleteAgentTasksForAgent } from "../services/agent-tasks.ts";
@@ -158,7 +156,7 @@ export function createAgentRoutes() {
       .from(agents)
       .where(eq(agents.id, c.req.param("id")))
       .get();
-    if (!agent) return c.json({ error: "Agent not found" }, 404);
+    if (!agent) return c.json({ error: "Agent not found." }, 404);
     if (agent.ownerUserId !== c.get("user").id)
       return c.json({ error: "Agent settings are owner-only." }, 403);
     return c.json(serializeAgentSettings(agent));
@@ -201,7 +199,7 @@ export function createAgentRoutes() {
   route.get("/agents/:id/commands", async (c) => {
     const userId = c.get("user").id;
     const agent = readVisibleAgent(userId, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found" }, 404);
+    if (!agent) return c.json({ error: "Agent not found." }, 404);
     const env = new AgentExecutionEnv(agent);
     let resources: Awaited<ReturnType<typeof loadAgentResources>>;
     try {

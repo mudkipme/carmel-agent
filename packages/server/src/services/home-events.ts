@@ -18,8 +18,7 @@ import { resolveRunModel } from "./model-context.ts";
 import { hasPendingPiSessionWork, withPiSession } from "./pi-session-storage.ts";
 import { readSessionSnapshot } from "./session-snapshot.ts";
 import { blockingUserRequest } from "./user-requests.ts";
-import { enqueueImMessage } from "./im-integrations.ts";
-import { resolveNotificationIntegration } from "./im-integrations.ts";
+import { enqueueImMessage, resolveNotificationIntegration } from "./im-integrations.ts";
 import { defineDoc } from "@earendil-works/pi-durable";
 import { startDetachedAgentRun } from "../runtime/agent-runtime.ts";
 import { recordHomeMemoryInput } from "./home-memory-capture.ts";
@@ -440,7 +439,7 @@ export async function dispatchHome(sessionId: string) {
         db.update(homeEvents)
           .set({
             status: "failed",
-            error: error instanceof Error ? error.message : "Unable to save the reply.",
+            error: errorMessage(error, "Unable to save the reply."),
             finishedAt: now(),
           })
           .where(eq(homeEvents.id, event.id))
@@ -454,7 +453,7 @@ export async function dispatchHome(sessionId: string) {
   } catch (error) {
     await settleHomeEvent(event, {
       outcome: "failed",
-      detail: error instanceof Error ? error.message : "Unable to start the reply.",
+      detail: errorMessage(error, "Unable to start the reply."),
     });
   } finally {
     admitting.delete(sessionId);
@@ -495,8 +494,9 @@ export async function recoverHomeEvents() {
 }
 
 export function startHomeDispatcher() {
+  if (timer) return;
   stopped = false;
-  timer ??= setInterval(() => {
+  timer = setInterval(() => {
     try {
       // Only Homes with pending work need a dispatch; scanning every Home at
       // 2 Hz is wasted work that grows with users × agents.

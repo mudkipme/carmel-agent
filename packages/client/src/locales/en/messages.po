@@ -216,7 +216,7 @@ msgid "Sign-in with {providerName} failed. Try again, or ask an administrator if
 msgstr "Sign-in with {providerName} failed. Try again, or ask an administrator if it keeps happening."
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:307
+#: src/components/harness/BrowserPanel.tsx:308
 #: src/lib/browser-input.ts:38
 msgid "Enter an HTTP or HTTPS address."
 msgstr "Enter an HTTP or HTTPS address."
@@ -285,7 +285,7 @@ msgid "Urgent"
 msgstr "Urgent"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:259
+#: src/components/harness/BrowserPanel.tsx:260
 #: src/lib/labels.ts:27
 msgid "Connecting"
 msgstr "Connecting"
@@ -368,7 +368,7 @@ msgid "Ready"
 msgstr "Ready"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:502
+#: src/components/chat/ChatMessages.tsx:507
 #: src/components/chat/CollaborationActivity.tsx:13
 #: src/components/chat/UserRequestCards.tsx:125
 #: src/lib/labels.ts:41
@@ -376,7 +376,7 @@ msgid "Answered"
 msgstr "Answered"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:506
+#: src/components/chat/ChatMessages.tsx:511
 #: src/lib/labels.ts:42
 msgid "Expired"
 msgstr "Expired"
@@ -1051,7 +1051,7 @@ msgid "Unable to load the latest messages"
 msgstr "Unable to load the latest messages"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:439
+#: src/components/chat/ChatMessages.tsx:444
 #: src/components/PiChat.tsx:411
 msgid "New context"
 msgstr "New context"
@@ -1452,141 +1452,141 @@ msgid "Saving..."
 msgstr "Saving..."
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:221
+#: src/components/harness/BrowserPanel.tsx:222
 msgid "Paste text into the text entry field, then select Send text."
 msgstr "Paste text into the text entry field, then select Send text."
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:233
+#: src/components/harness/BrowserPanel.tsx:234
 msgid "Select text in the remote page before copying."
 msgstr "Select text in the remote page before copying."
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:240
+#: src/components/harness/BrowserPanel.tsx:241
 msgid "Copied from browser"
 msgstr "Copied from browser"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:246
+#: src/components/harness/BrowserPanel.tsx:247
 msgid "Pasted into browser"
 msgstr "Pasted into browser"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:250
+#: src/components/harness/BrowserPanel.tsx:251
 msgid "Clipboard transfer failed."
 msgstr "Clipboard transfer failed."
 
 #. js-lingui-explicit-id
 #: src/components/chat/BrowserRequestCard.tsx:30
-#: src/components/harness/BrowserPanel.tsx:261
+#: src/components/harness/BrowserPanel.tsx:262
 msgid "You have control"
 msgstr "You have control"
 
 #. js-lingui-explicit-id
 #: src/components/chat/BrowserRequestCard.tsx:32
-#: src/components/harness/BrowserPanel.tsx:263
+#: src/components/harness/BrowserPanel.tsx:264
 msgid "Pausing agent…"
 msgstr "Pausing agent…"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:265
+#: src/components/harness/BrowserPanel.tsx:266
 msgid "{controllerName} has control"
 msgstr "{controllerName} has control"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:267
+#: src/components/harness/BrowserPanel.tsx:268
 msgid "Waiting for help"
 msgstr "Waiting for help"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:268
+#: src/components/harness/BrowserPanel.tsx:269
 msgid "Agent has control"
 msgstr "Agent has control"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:281
+#: src/components/harness/BrowserPanel.tsx:282
 msgid "Agent browser"
 msgstr "Agent browser"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:294
-#: src/components/harness/BrowserPanel.tsx:533
+#: src/components/harness/BrowserPanel.tsx:295
+#: src/components/harness/BrowserPanel.tsx:534
 msgid "Resume agent"
 msgstr "Resume agent"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:294
-#: src/components/harness/BrowserPanel.tsx:533
+#: src/components/harness/BrowserPanel.tsx:295
+#: src/components/harness/BrowserPanel.tsx:534
 msgid "Take control"
 msgstr "Take control"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:315
+#: src/components/harness/BrowserPanel.tsx:316
 msgid "Browser back"
 msgstr "Browser back"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:325
+#: src/components/harness/BrowserPanel.tsx:326
 msgid "Browser forward"
 msgstr "Browser forward"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:335
+#: src/components/harness/BrowserPanel.tsx:336
 msgid "Reload browser page"
 msgstr "Reload browser page"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:367
+#: src/components/harness/BrowserPanel.tsx:368
 msgid "Browser tab"
 msgstr "Browser tab"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:368
+#: src/components/harness/BrowserPanel.tsx:369
 msgid "Select tab"
 msgstr "Select tab"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:374
+#: src/components/harness/BrowserPanel.tsx:375
 msgid "Untitled"
 msgstr "Untitled"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:405
+#: src/components/harness/BrowserPanel.tsx:406
 msgid "Remote browser. Click to focus, then type or use copy and paste shortcuts. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile."
 msgstr "Remote browser. Click to focus, then type or use copy and paste shortcuts. Shift+Escape leaves the remote browser. Use the Keyboard button for text entry on mobile."
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:408
+#: src/components/harness/BrowserPanel.tsx:409
 msgid "Live browser preview. Take control to interact."
 msgstr "Live browser preview. Take control to interact."
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:436
+#: src/components/harness/BrowserPanel.tsx:437
 msgid "Remote browser keyboard input"
 msgstr "Remote browser keyboard input"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:446
+#: src/components/harness/BrowserPanel.tsx:447
 msgid "Live page in the agent's browser"
 msgstr "Live page in the agent's browser"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:469
+#: src/components/harness/BrowserPanel.tsx:470
 msgid "Waiting for the page"
 msgstr "Waiting for the page"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:470
+#: src/components/harness/BrowserPanel.tsx:471
 msgid "Connecting to the browser"
 msgstr "Connecting to the browser"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:542
+#: src/components/harness/BrowserPanel.tsx:543
 msgid "Shared agent · Shared sign-ins"
 msgstr "Shared agent · Shared sign-ins"
 
 #. js-lingui-explicit-id
-#: src/components/harness/BrowserPanel.tsx:543
+#: src/components/harness/BrowserPanel.tsx:544
 msgid "Agent profile · Sign-ins retained"
 msgstr "Agent profile · Sign-ins retained"
 
@@ -1725,32 +1725,32 @@ msgid "Expires {date}"
 msgstr "Expires {date}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:790
+#: src/components/harness/HomeMemoryPanel.tsx:785
 msgid "Shared across agents"
 msgstr "Shared across agents"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:800
+#: src/components/harness/HomeMemoryPanel.tsx:795
 msgid "About you"
 msgstr "About you"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:844
+#: src/components/harness/HomeMemoryPanel.tsx:839
 msgid "Memory history"
 msgstr "Memory history"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:879
+#: src/components/harness/HomeMemoryPanel.tsx:874
 msgid "Forget all Home memory?"
 msgstr "Forget all Home memory?"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:880
+#: src/components/harness/HomeMemoryPanel.tsx:875
 msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
 msgstr "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:883
+#: src/components/harness/HomeMemoryPanel.tsx:878
 msgid "Forget all"
 msgstr "Forget all"
 
@@ -2329,7 +2329,7 @@ msgid "Queued"
 msgstr "Queued"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:305
+#: src/components/chat/ChatMessages.tsx:310
 #: src/components/chat/CollaborationActivity.tsx:12
 #: src/components/harness/tasks/issue-state.ts:24
 msgid "Working"
@@ -3839,75 +3839,75 @@ msgid "Send"
 msgstr "Send"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:274
+#: src/components/chat/ChatMessages.tsx:279
 msgid "{count, plural, one {# tool call} other {# tool calls}}"
 msgstr "{count, plural, one {# tool call} other {# tool calls}}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:276
+#: src/components/chat/ChatMessages.tsx:281
 msgid "thinking"
 msgstr "thinking"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:304
+#: src/components/chat/ChatMessages.tsx:309
 msgid "Working · {currentTool}"
 msgstr "Working · {currentTool}"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:307
+#: src/components/chat/ChatMessages.tsx:312
 msgid "Hide work"
 msgstr "Hide work"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:308
+#: src/components/chat/ChatMessages.tsx:313
 msgid "Show work"
 msgstr "Show work"
 
 #. js-lingui-explicit-id
 #: src/components/chat/chat-utils.ts:68
-#: src/components/chat/ChatMessages.tsx:372
-#: src/components/chat/ChatMessages.tsx:586
-#: src/components/chat/ChatMessages.tsx:663
+#: src/components/chat/ChatMessages.tsx:377
+#: src/components/chat/ChatMessages.tsx:591
+#: src/components/chat/ChatMessages.tsx:668
 msgid "Image"
 msgstr "Image"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:494
+#: src/components/chat/ChatMessages.tsx:499
 msgid "Answer sent"
 msgstr "Answer sent"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:496
+#: src/components/chat/ChatMessages.tsx:501
 msgid "Question response"
 msgstr "Question response"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:501
+#: src/components/chat/ChatMessages.tsx:506
 msgid "Credential provided"
 msgstr "Credential provided"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:504
+#: src/components/chat/ChatMessages.tsx:509
 msgid "Declined"
 msgstr "Declined"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:507
+#: src/components/chat/ChatMessages.tsx:512
 msgid "Unavailable"
 msgstr "Unavailable"
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:514
+#: src/components/chat/ChatMessages.tsx:519
 msgid "Saved for reuse across this agent’s sessions."
 msgstr "Saved for reuse across this agent’s sessions."
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:516
+#: src/components/chat/ChatMessages.tsx:521
 msgid "Provided for this session only."
 msgstr "Provided for this session only."
 
 #. js-lingui-explicit-id
-#: src/components/chat/ChatMessages.tsx:519
+#: src/components/chat/ChatMessages.tsx:524
 msgid "This request did not make a credential available to the agent."
 msgstr "This request did not make a credential available to the agent."
 
@@ -4320,7 +4320,7 @@ msgstr "{0} selected"
 msgid "{0}Open"
 msgstr "{0}Open"
 
-#: src/components/chat/ChatMessages.tsx:313
+#: src/components/chat/ChatMessages.tsx:318
 msgid "{failedTools} failed"
 msgstr "{failedTools} failed"
 
@@ -4472,15 +4472,15 @@ msgstr "Brief used for this run"
 msgid "Browse"
 msgstr "Browse"
 
-#: src/components/harness/BrowserPanel.tsx:287
+#: src/components/harness/BrowserPanel.tsx:288
 msgid "Browser"
 msgstr "Browser"
 
-#: src/components/harness/BrowserPanel.tsx:343
+#: src/components/harness/BrowserPanel.tsx:344
 msgid "Browser address"
 msgstr "Browser address"
 
-#: src/components/harness/BrowserPanel.tsx:386
+#: src/components/harness/BrowserPanel.tsx:387
 msgid "Browser connection"
 msgstr "Browser connection"
 
@@ -4526,7 +4526,7 @@ msgstr "Clear"
 msgid "Clear filter"
 msgstr "Clear filter"
 
-#: src/components/harness/BrowserPanel.tsx:511
+#: src/components/harness/BrowserPanel.tsx:512
 msgid "Clipboard access is blocked. Select this text and copy it using your device’s copy command."
 msgstr "Clipboard access is blocked. Select this text and copy it using your device’s copy command."
 
@@ -4588,11 +4588,11 @@ msgstr "Copy"
 msgid "Copy command"
 msgstr "Copy command"
 
-#: src/components/harness/BrowserPanel.tsx:508
+#: src/components/harness/BrowserPanel.tsx:509
 msgid "Copy from browser"
 msgstr "Copy from browser"
 
-#: src/components/harness/BrowserPanel.tsx:553
+#: src/components/harness/BrowserPanel.tsx:554
 msgid "Copy selection"
 msgstr "Copy selection"
 
@@ -4683,7 +4683,7 @@ msgstr "Delete"
 msgid "Delete agent"
 msgstr "Delete agent"
 
-#: src/components/harness/HomeMemoryPanel.tsx:781
+#: src/components/harness/HomeMemoryPanel.tsx:776
 msgid "Delete note"
 msgstr "Delete note"
 
@@ -4721,7 +4721,7 @@ msgstr "Disconnect"
 msgid "Disconnect source"
 msgstr "Disconnect source"
 
-#: src/components/harness/BrowserPanel.tsx:524
+#: src/components/harness/BrowserPanel.tsx:525
 msgid "Dismiss"
 msgstr "Dismiss"
 
@@ -4753,7 +4753,7 @@ msgstr "Earlier messages"
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:181
 #: src/components/harness/AgentSchedulesPage.tsx:236
 #: src/components/harness/files/FileEditorView.tsx:151
-#: src/components/harness/HomeMemoryPanel.tsx:721
+#: src/components/harness/HomeMemoryPanel.tsx:716
 msgid "Edit"
 msgstr "Edit"
 
@@ -4831,12 +4831,12 @@ msgstr "Files unavailable: {error}"
 msgid "Finish connecting {0}: open the bot and send the command below from your private account."
 msgstr "Finish connecting {0}: open the bot and send the command below from your private account."
 
-#: src/components/harness/HomeMemoryPanel.tsx:769
-#: src/components/harness/HomeMemoryPanel.tsx:820
+#: src/components/harness/HomeMemoryPanel.tsx:764
+#: src/components/harness/HomeMemoryPanel.tsx:815
 msgid "Forget"
 msgstr "Forget"
 
-#: src/components/harness/HomeMemoryPanel.tsx:889
+#: src/components/harness/HomeMemoryPanel.tsx:884
 msgid "Forget all memory"
 msgstr "Forget all memory"
 
@@ -4848,13 +4848,13 @@ msgstr "Fresh conversation"
 msgid "Get this from @BotFather. Carmel stores it encrypted and never shows it again."
 msgstr "Get this from @BotFather. Carmel stores it encrypted and never shows it again."
 
-#: src/components/harness/BrowserPanel.tsx:357
+#: src/components/harness/BrowserPanel.tsx:358
 msgid "Go"
 msgstr "Go"
 
 #: src/components/harness/AgentSchedulesPage.tsx:210
-#: src/components/harness/HomeMemoryPanel.tsx:757
-#: src/components/harness/HomeMemoryPanel.tsx:846
+#: src/components/harness/HomeMemoryPanel.tsx:752
+#: src/components/harness/HomeMemoryPanel.tsx:841
 msgid "History"
 msgstr "History"
 
@@ -4894,15 +4894,11 @@ msgstr "Import Open WebUI JSON exports into the selected agent."
 msgid "Import Sessions"
 msgstr "Import Sessions"
 
-#: src/components/harness/HomeMemoryPanel.tsx:681
-msgid "Imported agent memory"
-msgstr "Imported agent memory"
-
 #: src/components/harness/AgentKnowledgePage.tsx:189
 msgid "Index needs attention"
 msgstr "Index needs attention"
 
-#: src/components/chat/ChatMessages.tsx:396
+#: src/components/chat/ChatMessages.tsx:401
 msgid "Interrupted"
 msgstr "Interrupted"
 
@@ -4910,7 +4906,7 @@ msgstr "Interrupted"
 msgid "Issue conversation · Read-only history"
 msgstr "Issue conversation · Read-only history"
 
-#: src/components/harness/BrowserPanel.tsx:572
+#: src/components/harness/BrowserPanel.tsx:573
 msgid "Keyboard"
 msgstr "Keyboard"
 
@@ -5048,7 +5044,7 @@ msgstr "Mount {0}"
 msgid "Move to sessions"
 msgstr "Move to sessions"
 
-#: src/components/harness/HomeMemoryPanel.tsx:738
+#: src/components/harness/HomeMemoryPanel.tsx:733
 msgid "Move to topics"
 msgstr "Move to topics"
 
@@ -5075,7 +5071,7 @@ msgstr "Nested tool calls ({0})"
 msgid "New agent"
 msgstr "New agent"
 
-#: src/components/chat/ChatMessages.tsx:444
+#: src/components/chat/ChatMessages.tsx:449
 #: src/components/PiChat.tsx:292
 msgid "New context"
 msgstr "New context"
@@ -5105,7 +5101,7 @@ msgstr "New session"
 msgid "New task"
 msgstr "New task"
 
-#: src/components/harness/HomeMemoryPanel.tsx:840
+#: src/components/harness/HomeMemoryPanel.tsx:835
 msgid "Next"
 msgstr "Next"
 
@@ -5240,7 +5236,7 @@ msgstr "Open knowledge"
 msgid "Open login page"
 msgstr "Open login page"
 
-#: src/components/harness/HomeMemoryPanel.tsx:693
+#: src/components/harness/HomeMemoryPanel.tsx:688
 msgid "Open message"
 msgstr "Open message"
 
@@ -5272,7 +5268,7 @@ msgstr "Password"
 msgid "Password must be at least 8 characters."
 msgstr "Password must be at least 8 characters."
 
-#: src/components/harness/BrowserPanel.tsx:562
+#: src/components/harness/BrowserPanel.tsx:563
 msgid "Paste"
 msgstr "Paste"
 
@@ -5284,7 +5280,7 @@ msgstr "Paste here"
 msgid "People who can run this shared agent can use this credential."
 msgstr "People who can run this shared agent can use this credential."
 
-#: src/components/harness/HomeMemoryPanel.tsx:713
+#: src/components/harness/HomeMemoryPanel.tsx:708
 msgid "Pin"
 msgstr "Pin"
 
@@ -5301,7 +5297,7 @@ msgstr "Prepare deep search"
 msgid "Preview"
 msgstr "Preview"
 
-#: src/components/harness/HomeMemoryPanel.tsx:833
+#: src/components/harness/HomeMemoryPanel.tsx:828
 msgid "Previous"
 msgstr "Previous"
 
@@ -5351,11 +5347,11 @@ msgid "Receive and send messages"
 msgstr "Receive and send messages"
 
 #: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:220
-#: src/components/harness/BrowserPanel.tsx:391
+#: src/components/harness/BrowserPanel.tsx:392
 msgid "Reconnect"
 msgstr "Reconnect"
 
-#: src/components/harness/BrowserPanel.tsx:474
+#: src/components/harness/BrowserPanel.tsx:475
 msgid "Reconnecting preserves the agent’s browser and saved sign-ins."
 msgstr "Reconnecting preserves the agent’s browser and saved sign-ins."
 
@@ -5401,7 +5397,7 @@ msgstr "Replace credentials"
 msgid "Reply to agent"
 msgstr "Reply to agent"
 
-#: src/components/chat/ChatMessages.tsx:698
+#: src/components/chat/ChatMessages.tsx:703
 msgid "Request aborted"
 msgstr "Request aborted"
 
@@ -5418,7 +5414,7 @@ msgid "Restart"
 msgstr "Restart"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
-#: src/components/harness/HomeMemoryPanel.tsx:867
+#: src/components/harness/HomeMemoryPanel.tsx:862
 msgid "Restore"
 msgstr "Restore"
 
@@ -5571,7 +5567,7 @@ msgstr "Selected: {0} · {1}"
 msgid "Semantic"
 msgstr "Semantic"
 
-#: src/components/harness/BrowserPanel.tsx:501
+#: src/components/harness/BrowserPanel.tsx:502
 msgid "Send text"
 msgstr "Send text"
 
@@ -5607,11 +5603,11 @@ msgid "shared"
 msgstr "shared"
 
 #: src/components/harness/HomeMemoryPanel.tsx:655
-#: src/components/harness/HomeMemoryPanel.tsx:802
+#: src/components/harness/HomeMemoryPanel.tsx:797
 msgid "Shared"
 msgstr "Shared"
 
-#: src/components/harness/HomeMemoryPanel.tsx:794
+#: src/components/harness/HomeMemoryPanel.tsx:789
 msgid "Shared across agents"
 msgstr "Shared across agents"
 
@@ -5718,7 +5714,7 @@ msgstr "The list was cut off; there are more changes than it shows. An untracked
 msgid "Theme"
 msgstr "Theme"
 
-#: src/components/chat/ChatMessages.tsx:723
+#: src/components/chat/ChatMessages.tsx:728
 msgid "Thinking"
 msgstr "Thinking"
 
@@ -5755,7 +5751,7 @@ msgstr "Topic"
 msgid "Try another phrase or refresh the source index."
 msgstr "Try another phrase or refresh the source index."
 
-#: src/components/harness/BrowserPanel.tsx:491
+#: src/components/harness/BrowserPanel.tsx:492
 msgid "Type into the focused browser field"
 msgstr "Type into the focused browser field"
 
@@ -5775,7 +5771,7 @@ msgstr "Unable to save. Your changes are still here. Try again or cancel to keep
 msgid "Unable to update integration"
 msgstr "Unable to update integration"
 
-#: src/components/harness/HomeMemoryPanel.tsx:713
+#: src/components/harness/HomeMemoryPanel.tsx:708
 msgid "Unpin"
 msgstr "Unpin"
 
@@ -5802,7 +5798,7 @@ msgstr "Upload files"
 msgid "Upload folder"
 msgstr "Upload folder"
 
-#: src/components/harness/HomeMemoryPanel.tsx:740
+#: src/components/harness/HomeMemoryPanel.tsx:735
 msgid "Use as core"
 msgstr "Use as core"
 
@@ -5838,7 +5834,7 @@ msgid "Uses this agent's permitted workspace, shell, network, MCP, and session t
 msgstr "Uses this agent's permitted workspace, shell, network, MCP, and session tools. Existing permissions and MCP tool allowlists still apply."
 
 #. placeholder {0}: skill.name
-#: src/components/chat/ChatMessages.tsx:562
+#: src/components/chat/ChatMessages.tsx:567
 msgid "Using skill: {0}"
 msgstr "Using skill: {0}"
 
@@ -5867,7 +5863,7 @@ msgstr "View conversation"
 msgid "View result"
 msgstr "View result"
 
-#: src/components/chat/ChatMessages.tsx:755
+#: src/components/chat/ChatMessages.tsx:760
 msgid "View subtask result"
 msgstr "View subtask result"
 

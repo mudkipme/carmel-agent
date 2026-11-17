@@ -4,7 +4,14 @@ import {
   fauxHarnessModels,
   TEST_CONTEXT,
 } from "../effectors/testing/pi-harness.ts";
-import { recoverHomeEvents } from "./home-events.ts";
+import {
+  recoverHomeEvents,
+  admitHomeInput,
+  queuedHomeInputs,
+  stopHome,
+  publishHomeEvent,
+  dispatchHome,
+} from "./home-events.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
@@ -13,9 +20,7 @@ import { agentHomes, homeEvents, sessions } from "../db/schema.ts";
 import { imBindings, imIntegrations } from "../db/im-schema.ts";
 import { createSession } from "../test-support.ts";
 import { ensureHome, resetHome } from "./agent-homes.ts";
-import { admitHomeInput, queuedHomeInputs, stopHome } from "./home-events.ts";
 import { receiveImMessage } from "../runtime/im-manager.ts";
-import { publishHomeEvent, dispatchHome } from "./home-events.ts";
 import { readSessionSnapshot } from "./session-snapshot.ts";
 
 initialize();

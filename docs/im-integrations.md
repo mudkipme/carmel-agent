@@ -32,7 +32,7 @@ QR provisioning may preconfigure these capabilities, but tenant approval, app pu
 
 Send text or an image in the paired private chat. Telegram, Feishu/Lark, and the web share your private **Home** conversation with this agent. Messages contribute to the same context and appear in Home on the web. Each IM reply returns to its originating integration; ordinary web replies are not broadcast to IM. Replies use the durable output queue; thinking and raw tool output are never sent.
 
-Existing integrations adopt one of their current conversations as Home. Carmel prefers the default notification integration's valid conversation, then the most recently updated valid conversation. Other conversations remain in Sessions. Accepted older inputs retain their original destination; migration does not merge transcripts or resend queued deliveries.
+Existing integrations adopt one of their current conversations as Home. Carmel prefers the default notification integration's valid conversation, then the most recently updated valid conversation. Other conversations remain in Sessions. Adoption does not merge transcripts or resend queued deliveries.
 
 Images are limited to 10 MB each and five per message. Files, voice, video, group conversations, and shared bots are outside this version's scope.
 

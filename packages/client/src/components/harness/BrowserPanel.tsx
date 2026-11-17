@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { useAgentBrowser } from "@/hooks/use-agent-browser";
 import { browserAddress, browserModifiers, browserPoint } from "@/lib/browser-input";
+import { errorMessage } from "@/lib/errors";
 
 export function BrowserPanel({ agent }: { agent: AgentConfig }) {
   const { i18n } = useLingui();
@@ -247,7 +248,7 @@ export function BrowserPanel({ agent }: { agent: AgentConfig }) {
       }
     } catch (error) {
       if (active())
-        toast.error(error instanceof Error ? error.message : i18n._("Clipboard transfer failed."), {
+        toast.error(errorMessage(error, i18n._("Clipboard transfer failed.")), {
           position: "top-center",
         });
     } finally {

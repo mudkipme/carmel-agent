@@ -8,7 +8,6 @@
     "dev": "concurrently -k -n api,web \"pnpm --filter @carmel-agent/server dev\" \"pnpm --filter @carmel-agent/client dev\"",
     "dev:client": "pnpm --filter @carmel-agent/client dev",
     "dev:server": "pnpm --filter @carmel-agent/server dev",
-    "server": "pnpm --filter @carmel-agent/server start",
     "serve": "pnpm --filter @carmel-agent/server start",
     "build": "pnpm -r build",
     "format": "oxfmt --write .",

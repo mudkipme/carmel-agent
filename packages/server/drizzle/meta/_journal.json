@@ -78,6 +78,20 @@
       "when": 1794196466914,
       "tag": "0010_ordinary_skullbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1794925184004,
+      "tag": "0011_home_memory_mode_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794925186647,
+      "tag": "0012_drop_legacy_upgrade_paths",
+      "breakpoints": true
     }
   ]
 }

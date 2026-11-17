@@ -135,8 +135,8 @@ pnpm format:check # check formatting without writing files
 pnpm lint         # run oxlint
 pnpm test         # run server and client tests
 pnpm test:browser # browser regressions (requires agent-browser and its Chromium)
-pnpm check        # check formatting, lint, test, and build
-pnpm serve        # run the built server entrypoint
+pnpm check        # check formatting, lint, migrations, tests, and build
+pnpm serve        # run the API without watching, serving the built client
 ```
 
 If the API runs somewhere other than `http://localhost:8797`, set `CARMEL_SERVER_URL` before `pnpm dev:client`. For LAN hostnames, set `CARMEL_DEV_HOSTS=host1,host2` so the Vite dev server allows them.

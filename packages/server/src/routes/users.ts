@@ -1,9 +1,9 @@
-import { agentHomes } from "../db/schema.ts";
 import { asc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { hashPassword, requireAdmin, type AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import {
+  agentHomes,
   agentTaskRuns,
   agentTasks,
   agents,

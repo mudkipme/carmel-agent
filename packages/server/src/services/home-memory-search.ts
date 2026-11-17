@@ -33,6 +33,7 @@ import {
   knowledgeWorkerStatusSchema as statusSchema,
   type KnowledgeWorkerPlan,
 } from "../runtime/knowledge/worker-client.ts";
+import { errorMessage } from "../errors.ts";
 
 const owner = (userId: string, agentId: string) =>
   and(eq(homeMemorySettings.userId, userId), eq(homeMemorySettings.agentId, agentId));
@@ -190,7 +191,7 @@ export async function searchHomeMemory(
     return {
       memories: keyword(),
       mode: "fast",
-      warning: `Semantic retrieval unavailable; using keyword search. ${error instanceof Error ? error.message : ""}`,
+      warning: `Semantic retrieval unavailable; using keyword search. ${errorMessage(error, "")}`,
     };
   }
 }
@@ -270,7 +271,7 @@ export async function refreshHomeMemoryIndex(
       if (readVisibleAgent(userId, agentId))
         setStatus(userId, agentId, {
           state: "error",
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage(error, String(error)),
         });
     }
   });
@@ -300,6 +301,7 @@ export async function tickHomeMemoryIndexes() {
 }
 
 export function startHomeMemoryIndexes() {
+  if (timer) return;
   controller = new AbortController();
   timer = setInterval(
     () =>

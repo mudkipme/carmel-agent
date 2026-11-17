@@ -190,7 +190,7 @@ export async function resumeHelperHost(sessionId: string) {
       db.update(helperHosts).set({ error: null }).where(eq(helperHosts.sessionId, sessionId)).run();
   } catch (error) {
     db.update(helperHosts)
-      .set({ error: error instanceof Error ? error.message : "Unable to recover helpers." })
+      .set({ error: errorMessage(error, "Unable to recover helpers.") })
       .where(eq(helperHosts.sessionId, sessionId))
       .run();
     await releaseHost(sessionId);
@@ -200,8 +200,9 @@ export async function resumeHelperHost(sessionId: string) {
 }
 
 export function startHelperHosts() {
+  if (timer) return;
   stopped = false;
-  timer ??= setInterval(() => {
+  timer = setInterval(() => {
     try {
       for (const row of db.select().from(helperHosts).all())
         if (!row.error)
