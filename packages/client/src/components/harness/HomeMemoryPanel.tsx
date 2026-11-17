@@ -240,11 +240,21 @@ export function HomeMemoryPanel({ agentId }: { agentId: string }) {
                   <Trans>Last tidy</Trans> {formatRelativeTime(data.lastTidy.at)}
                   {" · "}
                   {[
-                    data.lastTidy.expired ? `${data.lastTidy.expired} expired` : "",
-                    data.lastTidy.duplicates ? `${data.lastTidy.duplicates} merged` : "",
-                    data.lastTidy.superseded ? `${data.lastTidy.superseded} updated` : "",
-                    data.lastTidy.organized ? `${data.lastTidy.organized} organized` : "",
-                    data.lastTidy.coalesced ? `${data.lastTidy.coalesced} coalesced` : "",
+                    data.lastTidy.expired
+                      ? i18n._("{count} expired", { count: data.lastTidy.expired })
+                      : "",
+                    data.lastTidy.duplicates
+                      ? i18n._("{count} merged", { count: data.lastTidy.duplicates })
+                      : "",
+                    data.lastTidy.superseded
+                      ? i18n._("{count} updated", { count: data.lastTidy.superseded })
+                      : "",
+                    data.lastTidy.organized
+                      ? i18n._("{count} organized", { count: data.lastTidy.organized })
+                      : "",
+                    data.lastTidy.coalesced
+                      ? i18n._("{count} coalesced", { count: data.lastTidy.coalesced })
+                      : "",
                   ]
                     .filter(Boolean)
                     .join(", ") || i18n._("clean")}

@@ -459,7 +459,7 @@ msgid "Previous 30 days"
 msgstr "過去 30 日間"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:636
+#: src/components/harness/HomeMemoryPanel.tsx:646
 #: src/lib/session-groups.ts:53
 msgid "Pinned"
 msgstr "ピン留め済み"
@@ -1207,7 +1207,7 @@ msgstr "参照ドキュメントを検索…"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentKnowledgePage.tsx:246
-#: src/components/harness/HomeMemoryPanel.tsx:597
+#: src/components/harness/HomeMemoryPanel.tsx:607
 msgid "Searching…"
 msgstr "検索中…"
 
@@ -1357,7 +1357,7 @@ msgstr "Open WebUI エクスポートをインポート"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentSettingsPage.tsx:36
-#: src/components/harness/HomeMemoryPanel.tsx:629
+#: src/components/harness/HomeMemoryPanel.tsx:639
 msgid "General"
 msgstr "一般"
 
@@ -1654,78 +1654,103 @@ msgid "Memory mode"
 msgstr "メモリモード"
 
 #. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:244
+msgid "{count} expired"
+msgstr "{count} 件期限切れ"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:247
+msgid "{count} merged"
+msgstr "{count} 件統合"
+
+#. js-lingui-explicit-id
 #: src/components/harness/HomeMemoryPanel.tsx:250
+msgid "{count} updated"
+msgstr "{count} 件更新"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:253
+msgid "{count} organized"
+msgstr "{count} 件整理済み"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:256
+msgid "{count} coalesced"
+msgstr "{count} 件集約"
+
+#. js-lingui-explicit-id
+#: src/components/harness/HomeMemoryPanel.tsx:260
 msgid "clean"
 msgstr "変更なし"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:336
+#: src/components/harness/HomeMemoryPanel.tsx:346
 msgid "dinner, restaurants, cuisine"
 msgstr "夕食、レストラン、料理"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:371
+#: src/components/harness/HomeMemoryPanel.tsx:381
 msgid "Memory context"
 msgstr "メモリコンテキスト"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:424
-#: src/components/harness/HomeMemoryPanel.tsx:425
+#: src/components/harness/HomeMemoryPanel.tsx:434
+#: src/components/harness/HomeMemoryPanel.tsx:435
 msgid "Search memory"
 msgstr "メモリを検索"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:439
+#: src/components/harness/HomeMemoryPanel.tsx:449
 msgid "Search mode"
 msgstr "検索モード"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:471
+#: src/components/harness/HomeMemoryPanel.tsx:481
 msgid "Default context: {lines} / {maxLines} lines · {bytes} / {maxBytes} bytes"
 msgstr "既定コンテキスト: {lines} / {maxLines} 行 · {bytes} / {maxBytes} バイト"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:609
+#: src/components/harness/HomeMemoryPanel.tsx:619
 msgid "Default context"
 msgstr "既定コンテキスト"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:613
+#: src/components/harness/HomeMemoryPanel.tsx:623
 msgid "Topics"
 msgstr "トピック"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:659
+#: src/components/harness/HomeMemoryPanel.tsx:669
 msgid "Expires {date}"
 msgstr "有効期限: {date}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:780
+#: src/components/harness/HomeMemoryPanel.tsx:790
 msgid "Shared across agents"
 msgstr "エージェント間で共有"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:790
+#: src/components/harness/HomeMemoryPanel.tsx:800
 msgid "About you"
 msgstr "あなたについて"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:834
+#: src/components/harness/HomeMemoryPanel.tsx:844
 msgid "Memory history"
 msgstr "メモリ履歴"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:869
+#: src/components/harness/HomeMemoryPanel.tsx:879
 msgid "Forget all Home memory?"
 msgstr "すべてのホームメモリを忘れますか？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:870
+#: src/components/harness/HomeMemoryPanel.tsx:880
 msgid "Notes and their revision history will be deleted, and automatic learning will skip those facts. You can explicitly remember them again. Your Home conversation stays."
 msgstr "メモとその変更履歴が削除され、自動学習でもそれらの事実はスキップされます。明示的に再度記憶させることは可能です。ホームの会話自体は残ります。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/HomeMemoryPanel.tsx:873
+#: src/components/harness/HomeMemoryPanel.tsx:883
 msgid "Forget all"
 msgstr "すべて忘れる"
 
@@ -4225,8 +4250,7 @@ msgstr "{fileName} には画像コンテンツがありません。"
 msgid "{value}\n"
 "\n"
 "[Truncated {value2} characters for display]"
-msgstr ""
-"{value}\n"
+msgstr "{value}\n"
 "\n"
 "[表示のため {value2} 文字省略されました]"
 
@@ -4270,7 +4294,7 @@ msgstr "{0} 件の埋め込み待機中"
 #. placeholder {0}: data.indexStatus.documents
 #. placeholder {0}: data.status.documents
 #: src/components/harness/AgentKnowledgePage.tsx:165
-#: src/components/harness/HomeMemoryPanel.tsx:547
+#: src/components/harness/HomeMemoryPanel.tsx:557
 msgid "{0} documents"
 msgstr "{0} 件のドキュメント"
 
@@ -4301,7 +4325,7 @@ msgid "{failedTools} failed"
 msgstr "{failedTools} 件失敗"
 
 #: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:112
-#: src/components/harness/HomeMemoryPanel.tsx:513
+#: src/components/harness/HomeMemoryPanel.tsx:523
 msgid "Acceleration"
 msgstr "アクセラレーション"
 
@@ -4322,7 +4346,7 @@ msgstr "受け入れ基準と優先度"
 msgid "Activity"
 msgstr "アクティビティ"
 
-#: src/components/harness/HomeMemoryPanel.tsx:458
+#: src/components/harness/HomeMemoryPanel.tsx:468
 msgid "Add"
 msgstr "追加"
 
@@ -4358,7 +4382,7 @@ msgstr "テンプレートを追加"
 msgid "Admin"
 msgstr "管理者"
 
-#: src/components/harness/HomeMemoryPanel.tsx:330
+#: src/components/harness/HomeMemoryPanel.tsx:340
 msgid "Aliases"
 msgstr "エイリアス"
 
@@ -4461,7 +4485,7 @@ msgid "Browser connection"
 msgstr "ブラウザー接続"
 
 #: src/components/harness/AgentKnowledgePage.tsx:384
-#: src/components/harness/HomeMemoryPanel.tsx:578
+#: src/components/harness/HomeMemoryPanel.tsx:588
 msgid "Build embeddings"
 msgstr "埋め込みを生成"
 
@@ -4472,7 +4496,7 @@ msgstr "埋め込みを生成"
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:375
 #: src/components/harness/agent-settings/AgentSecretsSettings.tsx:225
 #: src/components/harness/AgentKnowledgePage.tsx:569
-#: src/components/harness/HomeMemoryPanel.tsx:412
+#: src/components/harness/HomeMemoryPanel.tsx:422
 #: src/components/harness/schedules/TaskForm.tsx:234
 #: src/components/harness/settings/ApiKeySettings.tsx:179
 #: src/components/harness/settings/UserSettings.tsx:119
@@ -4542,7 +4566,7 @@ msgstr "共有エージェント上を含め、接続はあなた個人に紐づ
 msgid "Container path"
 msgstr "コンテナーパス"
 
-#: src/components/harness/HomeMemoryPanel.tsx:365
+#: src/components/harness/HomeMemoryPanel.tsx:375
 msgid "Context"
 msgstr "コンテキスト"
 
@@ -4576,11 +4600,11 @@ msgstr "選択範囲をコピー"
 msgid "Copy your new key now — it will not be shown again."
 msgstr "新しいキーを今すぐコピーしてください — 二度と表示されません。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:377
+#: src/components/harness/HomeMemoryPanel.tsx:387
 msgid "Core"
 msgstr "コア"
 
-#: src/components/harness/HomeMemoryPanel.tsx:384
+#: src/components/harness/HomeMemoryPanel.tsx:394
 msgid "Core loads on every Home turn. Topics load when relevant."
 msgstr "コアはホームの毎ターンで読み込まれます。トピックは関連する場合に読み込まれます。"
 
@@ -4620,7 +4644,7 @@ msgstr "切り取り"
 msgid "Dark"
 msgstr "ダーク"
 
-#: src/components/harness/HomeMemoryPanel.tsx:358
+#: src/components/harness/HomeMemoryPanel.tsx:368
 msgid "Decision"
 msgstr "決定事項"
 
@@ -4629,7 +4653,7 @@ msgid "Decline"
 msgstr "拒否"
 
 #: src/components/harness/AgentKnowledgePage.tsx:238
-#: src/components/harness/HomeMemoryPanel.tsx:451
+#: src/components/harness/HomeMemoryPanel.tsx:461
 msgid "Deep"
 msgstr "詳細"
 
@@ -4659,7 +4683,7 @@ msgstr "削除"
 msgid "Delete agent"
 msgstr "エージェントを削除"
 
-#: src/components/harness/HomeMemoryPanel.tsx:771
+#: src/components/harness/HomeMemoryPanel.tsx:781
 msgid "Delete note"
 msgstr "メモを削除"
 
@@ -4729,7 +4753,7 @@ msgstr "以前のメッセージ"
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:181
 #: src/components/harness/AgentSchedulesPage.tsx:236
 #: src/components/harness/files/FileEditorView.tsx:151
-#: src/components/harness/HomeMemoryPanel.tsx:711
+#: src/components/harness/HomeMemoryPanel.tsx:721
 msgid "Edit"
 msgstr "編集"
 
@@ -4764,7 +4788,7 @@ msgstr "有効"
 msgid "Every N minutes"
 msgstr "N 分ごと"
 
-#: src/components/harness/HomeMemoryPanel.tsx:400
+#: src/components/harness/HomeMemoryPanel.tsx:410
 msgid "Expires"
 msgstr "有効期限"
 
@@ -4781,12 +4805,12 @@ msgstr "すべてのツールを公開"
 msgid "Extra runner mounts"
 msgstr "追加ランナーマウント"
 
-#: src/components/harness/HomeMemoryPanel.tsx:352
+#: src/components/harness/HomeMemoryPanel.tsx:362
 msgid "Fact"
 msgstr "事実"
 
 #: src/components/harness/AgentKnowledgePage.tsx:232
-#: src/components/harness/HomeMemoryPanel.tsx:445
+#: src/components/harness/HomeMemoryPanel.tsx:455
 msgid "Fast"
 msgstr "高速"
 
@@ -4807,12 +4831,12 @@ msgstr "ファイルを取得できません: {error}"
 msgid "Finish connecting {0}: open the bot and send the command below from your private account."
 msgstr "{0} の接続を完了するには、ボットを開き、あなたの個人アカウントから以下のコマンドを送信してください。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:759
-#: src/components/harness/HomeMemoryPanel.tsx:810
+#: src/components/harness/HomeMemoryPanel.tsx:769
+#: src/components/harness/HomeMemoryPanel.tsx:820
 msgid "Forget"
 msgstr "忘れる"
 
-#: src/components/harness/HomeMemoryPanel.tsx:879
+#: src/components/harness/HomeMemoryPanel.tsx:889
 msgid "Forget all memory"
 msgstr "すべてのメモリを忘れる"
 
@@ -4829,8 +4853,8 @@ msgid "Go"
 msgstr "移動"
 
 #: src/components/harness/AgentSchedulesPage.tsx:210
-#: src/components/harness/HomeMemoryPanel.tsx:747
-#: src/components/harness/HomeMemoryPanel.tsx:836
+#: src/components/harness/HomeMemoryPanel.tsx:757
+#: src/components/harness/HomeMemoryPanel.tsx:846
 msgid "History"
 msgstr "履歴"
 
@@ -4870,7 +4894,7 @@ msgstr "Open WebUI の JSON エクスポートを選択したエージェント�
 msgid "Import Sessions"
 msgstr "セッションをインポート"
 
-#: src/components/harness/HomeMemoryPanel.tsx:671
+#: src/components/harness/HomeMemoryPanel.tsx:681
 msgid "Imported agent memory"
 msgstr "インポートされたエージェントメモリ"
 
@@ -4890,7 +4914,7 @@ msgstr "イシューの会話 · 読み取り専用履歴"
 msgid "Keyboard"
 msgstr "キーボード"
 
-#: src/components/harness/HomeMemoryPanel.tsx:341
+#: src/components/harness/HomeMemoryPanel.tsx:351
 msgid "Kind"
 msgstr "種類"
 
@@ -4935,7 +4959,7 @@ msgstr "ホームから学習"
 msgid "Learn useful details from future Home messages using your Home model. Background model usage may incur charges."
 msgstr "ホームモデルを使用して、今後のホームメッセージから役立つ情報を学習します。バックグラウンドでのモデル利用には料金が発生する場合があります。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:640
+#: src/components/harness/HomeMemoryPanel.tsx:650
 msgid "Learned"
 msgstr "学習済み"
 
@@ -4990,11 +5014,11 @@ msgid "Manual server folder"
 msgstr "手動サーバーフォルダー"
 
 #: src/components/harness/HomeMemoryPanel.tsx:162
-#: src/components/harness/HomeMemoryPanel.tsx:307
+#: src/components/harness/HomeMemoryPanel.tsx:317
 msgid "Memory"
 msgstr "メモリ"
 
-#: src/components/harness/HomeMemoryPanel.tsx:497
+#: src/components/harness/HomeMemoryPanel.tsx:507
 msgid "Memory indexing"
 msgstr "メモリインデックス"
 
@@ -5024,7 +5048,7 @@ msgstr "マウント {0}"
 msgid "Move to sessions"
 msgstr "セッション一覧へ移動"
 
-#: src/components/harness/HomeMemoryPanel.tsx:728
+#: src/components/harness/HomeMemoryPanel.tsx:738
 msgid "Move to topics"
 msgstr "トピックへ移動"
 
@@ -5081,7 +5105,7 @@ msgstr "新しいセッション"
 msgid "New task"
 msgstr "新しいタスク"
 
-#: src/components/harness/HomeMemoryPanel.tsx:830
+#: src/components/harness/HomeMemoryPanel.tsx:840
 msgid "Next"
 msgstr "次へ"
 
@@ -5113,7 +5137,7 @@ msgstr "一致する結果がありません"
 msgid "No matching references."
 msgstr "一致する参照がありません。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:602
+#: src/components/harness/HomeMemoryPanel.tsx:612
 msgid "No memories"
 msgstr "メモリはありません"
 
@@ -5216,7 +5240,7 @@ msgstr "ナレッジを開く"
 msgid "Open login page"
 msgstr "ログインページを開く"
 
-#: src/components/harness/HomeMemoryPanel.tsx:683
+#: src/components/harness/HomeMemoryPanel.tsx:693
 msgid "Open message"
 msgstr "メッセージを開く"
 
@@ -5260,16 +5284,16 @@ msgstr "ここに貼り付け"
 msgid "People who can run this shared agent can use this credential."
 msgstr "この共有エージェントを実行できるユーザーは、この認証情報を使用できます。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:703
+#: src/components/harness/HomeMemoryPanel.tsx:713
 msgid "Pin"
 msgstr "ピン留め"
 
-#: src/components/harness/HomeMemoryPanel.tsx:355
+#: src/components/harness/HomeMemoryPanel.tsx:365
 msgid "Preference"
 msgstr "好み・設定"
 
 #: src/components/harness/AgentKnowledgePage.tsx:398
-#: src/components/harness/HomeMemoryPanel.tsx:590
+#: src/components/harness/HomeMemoryPanel.tsx:600
 msgid "Prepare deep search"
 msgstr "詳細検索を準備"
 
@@ -5277,7 +5301,7 @@ msgstr "詳細検索を準備"
 msgid "Preview"
 msgstr "プレビュー"
 
-#: src/components/harness/HomeMemoryPanel.tsx:823
+#: src/components/harness/HomeMemoryPanel.tsx:833
 msgid "Previous"
 msgstr "前へ"
 
@@ -5336,7 +5360,7 @@ msgid "Reconnecting preserves the agent’s browser and saved sign-ins."
 msgstr "再接続してもエージェントのブラウザーと保存済みのサインイン状態は維持されます。"
 
 #: src/components/harness/AgentKnowledgePage.tsx:375
-#: src/components/harness/HomeMemoryPanel.tsx:566
+#: src/components/harness/HomeMemoryPanel.tsx:576
 msgid "Refresh index"
 msgstr "インデックスを更新"
 
@@ -5394,7 +5418,7 @@ msgid "Restart"
 msgstr "再起動"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:102
-#: src/components/harness/HomeMemoryPanel.tsx:857
+#: src/components/harness/HomeMemoryPanel.tsx:867
 msgid "Restore"
 msgstr "復元"
 
@@ -5466,7 +5490,7 @@ msgstr "メモとして保存"
 msgid "Save changes"
 msgstr "変更を保存"
 
-#: src/components/harness/HomeMemoryPanel.tsx:415
+#: src/components/harness/HomeMemoryPanel.tsx:425
 msgid "Save memory"
 msgstr "メモリを保存"
 
@@ -5491,7 +5515,7 @@ msgstr "QR コードをスキャン"
 msgid "Scan with the Feishu or Lark mobile app and approve creation of your bot."
 msgstr "Feishu または Lark モバイルアプリでスキャンし、ボットの作成を承認してください。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:319
+#: src/components/harness/HomeMemoryPanel.tsx:329
 msgid "Scope"
 msgstr "スコープ"
 
@@ -5499,7 +5523,7 @@ msgstr "スコープ"
 msgid "Search"
 msgstr "検索"
 
-#: src/components/harness/HomeMemoryPanel.tsx:491
+#: src/components/harness/HomeMemoryPanel.tsx:501
 msgid "Search and indexing"
 msgstr "検索とインデックス"
 
@@ -5543,7 +5567,7 @@ msgid "Selected: {0} · {1}"
 msgstr "選択中: {0} · {1}"
 
 #: src/components/harness/AgentKnowledgePage.tsx:235
-#: src/components/harness/HomeMemoryPanel.tsx:448
+#: src/components/harness/HomeMemoryPanel.tsx:458
 msgid "Semantic"
 msgstr "セマンティック"
 
@@ -5574,7 +5598,7 @@ msgstr "設定"
 msgid "Set {0}"
 msgstr "設定日時: {0}"
 
-#: src/components/harness/HomeMemoryPanel.tsx:390
+#: src/components/harness/HomeMemoryPanel.tsx:400
 msgid "Share across my agents"
 msgstr "自分のエージェント間で共有"
 
@@ -5582,12 +5606,12 @@ msgstr "自分のエージェント間で共有"
 msgid "shared"
 msgstr "共有"
 
-#: src/components/harness/HomeMemoryPanel.tsx:645
-#: src/components/harness/HomeMemoryPanel.tsx:792
+#: src/components/harness/HomeMemoryPanel.tsx:655
+#: src/components/harness/HomeMemoryPanel.tsx:802
 msgid "Shared"
 msgstr "共有中"
 
-#: src/components/harness/HomeMemoryPanel.tsx:784
+#: src/components/harness/HomeMemoryPanel.tsx:794
 msgid "Shared across agents"
 msgstr "エージェント間で共有"
 
@@ -5620,7 +5644,7 @@ msgid "Sort by {0}{1}"
 msgstr "{0}で並べ替え{1}"
 
 #: src/components/chat/MermaidBlock.tsx:50
-#: src/components/harness/HomeMemoryPanel.tsx:667
+#: src/components/harness/HomeMemoryPanel.tsx:677
 msgid "Source"
 msgstr "ソース"
 
@@ -5710,7 +5734,7 @@ msgstr "このエージェントの作業ディレクトリは Git リポジト�
 msgid "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 msgstr "この会話には未完了の作業があります。メッセージを再試行または編集する前に、再開するか停止してください。"
 
-#: src/components/harness/HomeMemoryPanel.tsx:466
+#: src/components/harness/HomeMemoryPanel.tsx:476
 msgid "Tidy"
 msgstr "整理"
 
@@ -5718,12 +5742,12 @@ msgstr "整理"
 msgid "Time zone"
 msgstr "タイムゾーン"
 
-#: src/components/harness/HomeMemoryPanel.tsx:296
+#: src/components/harness/HomeMemoryPanel.tsx:306
 #: src/components/harness/tasks/TaskBriefForm.tsx:68
 msgid "Title"
 msgstr "タイトル"
 
-#: src/components/harness/HomeMemoryPanel.tsx:380
+#: src/components/harness/HomeMemoryPanel.tsx:390
 msgid "Topic"
 msgstr "トピック"
 
@@ -5751,7 +5775,7 @@ msgstr "保存できませんでした。変更内容は保持されています
 msgid "Unable to update integration"
 msgstr "連携設定を更新できません"
 
-#: src/components/harness/HomeMemoryPanel.tsx:703
+#: src/components/harness/HomeMemoryPanel.tsx:713
 msgid "Unpin"
 msgstr "ピン留め解除"
 
@@ -5778,7 +5802,7 @@ msgstr "ファイルをアップロード"
 msgid "Upload folder"
 msgstr "フォルダーをアップロード"
 
-#: src/components/harness/HomeMemoryPanel.tsx:730
+#: src/components/harness/HomeMemoryPanel.tsx:740
 msgid "Use as core"
 msgstr "コアとして使用"
 
