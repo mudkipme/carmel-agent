@@ -2317,7 +2317,7 @@ test("language selection updates settings in place and persists across reload an
 
 test("collaboration settings enable outgoing calls without configuring the receiving agent", () => {
   browser("open", `${fixture.url}${agentPath("settings/collaboration")}`);
-  browser("wait", "--text", "Consultations");
+  browser("wait", 'button[role="switch"]');
   assert.match(snapshot(), /Consultations/);
   evaluate(`document.querySelector('button[role="switch"]').click()`);
   browser(
