@@ -9,14 +9,15 @@ import {
   type McpTransport,
 } from "@earendil-works/pi-mcp";
 import type { agents } from "../db/schema.ts";
-import { readAgentSecretEnv } from "../services/agent-secrets.ts";
+import { readEnvironmentSecretEnv } from "../services/environment-secrets.ts";
 import { errorMessage } from "../errors.ts";
 import { sandboxEnv } from "./sandbox/bash-operations.ts";
 import {
-  ensureAgentContainer,
-  holdAgentContainer,
-  releaseAgentContainer,
+  ensureEnvironmentContainer,
+  holdEnvironmentContainer,
+  releaseEnvironmentContainer,
   toContainerWorkdir,
+  type EnvironmentRecord,
 } from "./sandbox/container-manager.ts";
 import { attachExecStdio } from "./sandbox/runtime-client.ts";
 import { SandboxMcpTransport, sandboxMcpCommand } from "./sandbox/mcp-transport.ts";
@@ -45,7 +46,7 @@ export function expandMcpSecrets(value: string, secrets: readonly Secret[]) {
   const values = new Map(secrets.map((secret) => [secret.name, secret.value]));
   return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_match, name: string) => {
     const secret = values.get(name);
-    if (secret === undefined) throw new Error(`Missing agent secret: ${name}.`);
+    if (secret === undefined) throw new Error(`Missing environment secret: ${name}.`);
     return secret;
   });
 }
@@ -61,13 +62,15 @@ export class AgentMcpTools {
 
   constructor(
     private readonly agent: AgentRecord,
+    private readonly environment: EnvironmentRecord,
     private readonly cwd: string,
     private readonly sessionId?: string,
   ) {}
 
   async connect(options: McpToolConnectionOptions = {}) {
     if (this.closed) throw new Error("MCP connections are closed.");
-    const secrets = options.secrets ?? readAgentSecretEnv(this.agent.id, this.sessionId);
+    const secrets =
+      options.secrets ?? readEnvironmentSecretEnv(this.environment.id, this.sessionId);
     for (const server of this.agent.mcpServers ?? []) {
       if (!server.enabled || server.tools?.length === 0) continue;
       if (server.transport === "http" && !this.agent.permissions.network) continue;
@@ -84,7 +87,9 @@ export class AgentMcpTools {
         roots: [
           {
             uri: pathToFileURL(
-              server.transport === "stdio" ? toContainerWorkdir(this.agent, this.cwd) : this.cwd,
+              server.transport === "stdio"
+                ? toContainerWorkdir(this.environment, this.cwd)
+                : this.cwd,
             ).href,
             name: "workspace",
           },
@@ -200,12 +205,10 @@ export class AgentMcpTools {
     let held = false;
     return new SandboxMcpTransport(
       async () => {
-        const agent = this.agent;
-        const containerId = await ensureAgentContainer(agent, {
-          network: agent.permissions.network,
-        });
+        const environment = this.environment;
+        const containerId = await ensureEnvironmentContainer(environment);
         signal.throwIfAborted();
-        holdAgentContainer(agent.id);
+        holdEnvironmentContainer(environment.id);
         held = true;
         const { socket } = await attachExecStdio(
           containerId,
@@ -214,7 +217,7 @@ export class AgentMcpTools {
               server.command,
               server.args.map((arg) => expandMcpSecrets(arg, secrets)),
             ),
-            workingDir: toContainerWorkdir(agent, this.cwd),
+            workingDir: toContainerWorkdir(environment, this.cwd),
             env: sandboxEnv(expand(server.env), secrets),
           },
           signal,
@@ -224,7 +227,7 @@ export class AgentMcpTools {
       () => {
         if (held) {
           held = false;
-          releaseAgentContainer(this.agent.id);
+          releaseEnvironmentContainer(this.environment.id);
         }
       },
     );

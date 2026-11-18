@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { WebSocketServer, type WebSocket } from "ws";
 import { readAuthenticatedUser, readSessionCookie } from "./auth.ts";
 import { readVisibleAgent } from "./services/agent-access.ts";
+import { readAgentEnvironment } from "./services/environments.ts";
 import { incomingRequestHost, incomingRequestUrl, isAllowedBrowserOrigin } from "./security.ts";
 import { browserControl } from "./runtime/browser-control.ts";
 import { connectBrowser, type BrowserConnection } from "./runtime/sandbox/browser-sessions.ts";
@@ -54,7 +55,18 @@ async function openBrowser(
   connect: typeof connectBrowser,
 ) {
   const id = randomUUID();
-  const control = browserControl(agent.id);
+  const environment = readAgentEnvironment(agent);
+  const control = browserControl(environment.id);
+  // The agent is the viewer's way in: it must stay visible, keep bash, and
+  // remain in the environment whose browser this is.
+  const permitted = () => {
+    const current = readVisibleAgent(userId, agent.id);
+    return (
+      authenticated() &&
+      Boolean(current?.permissions.bash) &&
+      current?.environmentId === environment.id
+    );
+  };
   const controller = new AbortController();
   let bridge: BrowserConnection | undefined;
   let connected = false;
@@ -104,8 +116,7 @@ async function openBrowser(
   // Recheck login and agent visibility throughout long-lived connections, not just on upgrade.
   let alive = true;
   const heartbeat = setInterval(() => {
-    const current = readVisibleAgent(userId, agent.id);
-    if (!alive || !authenticated() || !current?.permissions.bash) {
+    if (!alive || !permitted()) {
       close();
       return;
     }
@@ -121,8 +132,7 @@ async function openBrowser(
   ws.on("message", (raw) => {
     const message = parseBrowserInput(raw.toString());
     if (!message || closed) return;
-    const current = readVisibleAgent(userId, agent.id);
-    if (!authenticated() || !current?.permissions.bash) {
+    if (!permitted()) {
       close();
       return;
     }
@@ -188,12 +198,12 @@ async function openBrowser(
   sendControl();
   try {
     bridge = await connect(
-      agent,
+      environment,
       (message) => {
         if (message.type === "clipboard_result") {
           if (!pendingClipboard.delete(message.requestId) || closed || !control.canInput(id))
             return;
-          if (!authenticated() || !readVisibleAgent(userId, agent.id)?.permissions.bash) {
+          if (!permitted()) {
             close();
             return;
           }

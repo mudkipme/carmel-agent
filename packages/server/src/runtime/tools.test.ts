@@ -13,10 +13,12 @@ import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
 import { createGrepOperations } from "./search-operations.ts";
 import { createServerExecution, createServerToolDefinitions, remapContainerPath } from "./tools.ts";
 import { loadBuiltinSkills } from "./builtin-skills.ts";
-import type { agents } from "../db/schema.ts";
+import type { agents, environments } from "../db/schema.ts";
 import { initialize } from "../db/index.ts";
+import { createUser, insertEnvironment, makeEnvironment } from "../test-support.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
+type EnvironmentRecord = typeof environments.$inferSelect;
 initialize();
 
 test("Durable reads images through the guarded environment", async () => {
@@ -622,8 +624,20 @@ function restoreEnv(name: string, value: string | undefined) {
 }
 
 function makeAgent(
-  overrides: Partial<AgentRecord> & { permissions?: AgentRecord["permissions"] },
+  overrides: Partial<AgentRecord> &
+    Partial<Pick<EnvironmentRecord, "workingDir" | "workingDirMode" | "mounts">> & {
+      permissions?: AgentRecord["permissions"];
+    },
 ): AgentRecord {
+  const {
+    workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-")),
+    workingDirMode = "manual",
+    mounts = [],
+    ...agent
+  } = overrides;
+  const environment = insertEnvironment(
+    makeEnvironment({ ownerUserId: createUser(), workingDir, workingDirMode, mounts }),
+  );
   return {
     id: "agent_1",
     ownerUserId: "user_1",
@@ -634,10 +648,7 @@ function makeAgent(
     description: "",
     mcpServers: [],
     codemodeEnabled: false,
-    workingDirMode: "manual",
-    workingDir: mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-")),
-    defaultWorkingDir: null,
-    mounts: [],
+    environmentId: environment.id,
     systemPrompt: "",
     promptTemplates: [],
     permissions: allPermissions(false),
@@ -645,7 +656,7 @@ function makeAgent(
     defaultThinkingLevel: "off",
     createdAt: 0,
     updatedAt: 0,
-    ...overrides,
+    ...agent,
   };
 }
 

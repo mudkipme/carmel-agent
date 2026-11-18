@@ -31,14 +31,44 @@ An agent stores:
 
 - owner and sharing state
 - name and description
-- workspace mode and path
-- optional extra mounts
+- the environment it runs in
 - system prompt
 - prompt templates
 - default model and thinking level
-- permissions for read, write, edit, bash, and network
-- secrets supplied to its sandbox and configured MCP connections
+- permissions for read, write, edit, bash, and web access
 - MCP server configuration and tool allowlists
+
+An **environment** is where agents run. It stores:
+
+- owner
+- name
+- workspace mode and path
+- optional extra mounts
+- whether its sandbox has network access
+- secrets supplied to its sandbox and the MCP connections its agents configure
+
+The runner container, its persistent `/home/agent`, its `/tmp`, the web
+terminal, and the shared browser all belong to the environment.
+
+### Shared Environments
+
+A new agent gets an environment of its own. In **Agent Settings → Environment**,
+an agent can instead join another of the owner's environments, or move to a new
+one. Agents in one environment share a single runner: the same checkout, tool
+installs, `gh` login, browser sign-ins, and secrets. Each keeps its own prompt,
+model, memory, and permissions, so a read-only reviewer can work beside an agent
+that edits. **New agent in this environment** creates a sibling directly.
+
+- Environments are **owner-only**. Attaching an agent to one hands that agent its
+  credentials, so only their owner can attach agents or change them.
+- Changes to an environment apply to every agent in it, and are refused while any
+  of them has a run in progress.
+- An environment exists for the agents in it. Deleting or moving its last agent
+  deletes the environment and its secrets; workspace and home files stay on disk.
+- Agents in one environment can run at the same time and see each other's files
+  as they change. Carmel does not lock the workspace between them.
+- Stopping a command stops that command and its children only; other agents'
+  commands, terminals, and the browser keep running.
 
 The server runs Pi Durable with its native SQLite backend, streams committed events to the browser over a shared WebSocket at `/api/updates`, and stores conversation history, live progress, and execution checkpoints through Pi. Each Carmel session has its own native storage and tool/credential registry. See [Pi Durable storage](pi-durable.md) for storage and recovery behavior.
 
@@ -90,11 +120,16 @@ Downloads stream from the same guarded roots: a single file is sent as-is, and a
 
 ## Network Access
 
-Network access is explicit per agent.
+Network access is explicit, at two levels.
 
-With the network permission:
+The environment's **Sandbox network access** decides the runner's network. With
+it, the container gets the runtime's default network; without it, the container
+is created with `NetworkMode: none`. Every agent in the environment shares that
+network, since they share one container.
 
-- the sandbox container gets the runtime's default network
+An agent's **Web access** permission decides what the agent itself may do on the
+web. With it:
+
 - `exa_search` is exposed and requires `EXA_API_KEY`
 - `fetch_url` is exposed for URL fetching, and needs no key: it extracts page
   content locally with Defuddle rather than through a third-party API. Defuddle's
@@ -102,22 +137,23 @@ With the network permission:
   transcript, Reddit comments), so a `fetch_url` call is not always exactly one
   request to exactly the host asked for
 
-Without it:
+- HTTP MCP servers connect
+- the built-in `agent-browser` skill is offered when bash is also on
+- knowledge and memory model downloads are allowed
 
-- the sandbox container is created with `NetworkMode: none`
-- no network tools are exposed to the agent
+Without it, none of these are exposed to the agent.
 
 ## Bash Sandboxing
 
-When the bash permission is on, commands run inside a per-agent container instead of the server's host shell.
+When the bash permission is on, commands run inside the environment's container instead of the server's host shell.
 
 Key properties:
 
-- Containers are created lazily on the first command and reused across runs for the same agent.
+- Containers are created lazily on the first command and reused across runs and agents in the same environment.
 - Idle containers are reaped after `CARMEL_BASH_IDLE_MINUTES`.
 - The default workspace is mounted at `/workspace`. Manual workspaces are mounted at their absolute path, so paths match between host file tools and sandbox bash.
-- Each agent gets a private host-backed scratch directory mounted as `/tmp`.
-- Extra mounts can be added per agent with source, optional target, and read-only flag.
+- Each environment gets a private host-backed scratch directory mounted as `/tmp`.
+- Extra mounts can be added per environment with source, optional target, and read-only flag.
 - Bash, terminals, browser processes, and MCP servers run as the configured non-root host UID/GID. The Carmel server uses those same IDs so both sides can edit the mounted files.
 - A private, persistent home is mounted at `/home/agent`. Global npm packages and the default Python virtual environment live there; installs do not need root. System package installation belongs in the runner image.
 - Containers drop all capabilities, run with `no-new-privileges`, and apply memory, CPU, and PID limits.
@@ -132,11 +168,11 @@ If no socket is reachable, bash commands fail with a sandbox unavailable error. 
 
 ## Web Terminal
 
-The agent's runner container can be opened as an interactive shell in the
+The environment's runner container can be opened as an interactive shell in the
 browser, from the terminal button in the session header.
 
 - **Owner only.** A shared agent gives its other users a chat with the agent,
-  not a shell. The terminal hands over the agent's whole environment with none
+  not a shell. The terminal hands over the whole environment with none
   of the redaction that covers agent-run output, so a user of a shared agent
   could otherwise read the owner's secrets with a single `echo`.
 - **Requires the `bash` permission.** With bash off, no terminal is offered.
@@ -145,8 +181,8 @@ browser, from the terminal button in the session header.
   `psql "$DATABASE_URL"`). Terminal output is _not_ redacted: nothing here is
   persisted to a transcript or sent to a model, and rewriting a live PTY stream
   would corrupt the escape sequences the emulator depends on.
-- **One shell per agent per user.** Two browser tabs on the same agent drive the
-  same shell, like two windows on one tmux session.
+- **One shell per environment per user.** Two browser tabs on agents in the same
+  environment drive the same shell, like two windows on one tmux session.
 
 ### Sessions Outlive Tabs
 
@@ -157,9 +193,9 @@ attached to is killed after a two-minute grace period.
 
 While a terminal is attached, its container is exempt from the idle reaper --
 otherwise a shell someone is reading rather than typing into would look exactly
-like an abandoned container. Saving the agent's settings closes its terminals,
-since permissions, mounts, and the working directory are all baked into a
-running shell.
+like an abandoned container. Saving the environment's settings closes its
+terminals, since mounts, network, secrets, and the working directory are all
+baked into a running shell.
 
 ### Transport
 
@@ -185,11 +221,13 @@ surface. Closing the pane does not close Chromium.
 Browser access requires visibility of the agent and its `bash` permission.
 Unlike the owner-only terminal, a shared agent's browser is available to all
 users who can use that agent. Its `carmel` browser session and persistent profile
-at `/home/agent/.agent-browser/profile` belong to the **agent**, not a conversation
-or a user. Signing in grants that agent and its shared users access to the account.
-The agent's network permission still controls the runner's network access.
+at `/home/agent/.agent-browser/profile` belong to the **environment**, not an agent,
+a conversation, or a user. Signing in grants every agent in the environment, and
+their shared users, access to the account. The environment's sandbox network
+still controls the runner's network access.
 
-Control is an agent-wide, server-owned lease for one WebSocket connection.
+Control is an environment-wide, server-owned lease for one WebSocket connection,
+so taking over pauses every agent in the environment.
 Takeover closes admission to new agent tool calls, including entire codemode
 batches, and waits for in-flight calls to finish before accepting human input.
 Other viewers cannot send input or resume the agent. Disconnecting drops the
@@ -209,7 +247,7 @@ CLI use, the shared profile, when to request help, and verification after resume
 The built-in takes precedence over a workspace skill with the same name. Other
 workspace skills continue to load through the agent's normal filesystem authority.
 This discovery rule does not remove the Browser pane or manual takeover for
-agents that use bash to browse local pages without network permission.
+agents that use bash to browse local pages without web access.
 
 The assistance tool waits without a provider call or the normal idle-run timeout, and returns a
 fresh snapshot after the human resumes. Stale tool calls queued across a handoff
@@ -257,7 +295,7 @@ pane, handoff, reload, navigation, and mobile accessibility without a container.
 
 ## Extra Mounts
 
-An agent can declare extra mounts in its settings. Each mount has:
+An environment can declare extra mounts. Each mount has:
 
 - `source` — host path
 - `target` — optional container path; defaults to the source path
@@ -265,13 +303,14 @@ An agent can declare extra mounts in its settings. Each mount has:
 
 Read-only mounts are available to read/search/list tools and to sandbox bash as read-only binds. Writable mounts are also available to write/edit tools.
 
-## Agent Secrets
+## Environment Secrets
 
 Agents can also request session-scoped credentials through a private chat form and promote them for future sessions. See [Questions and session credentials](user-requests.md) for the request lifecycle, encryption requirements, scope controls, and shell trust boundary.
 
-An agent can carry named secrets, which are exported as environment variables
-into its sandbox container — a `GITHUB_TOKEN` for `gh`, a registry password for
-`npm`, a database URL for `psql`.
+An environment can carry named secrets, which are exported as environment
+variables into its sandbox container — a `GITHUB_TOKEN` for `gh`, a registry
+password for `npm`, a database URL for `psql`. Every agent in the environment
+receives them, so a rotated credential is updated once.
 
 Where they go, and where they do not:
 
@@ -301,8 +340,8 @@ container or a configured MCP connection.
 
 ### Secrets On A Shared Agent
 
-Secrets travel with the agent, exactly as its mounts do. If you share an agent
-that has secrets, everyone who can run that agent runs commands with your
+Secrets travel with the environment, exactly as its mounts do. If you share an
+agent whose environment has secrets, everyone who can run that agent runs commands with your
 credentials in their environment — they cannot read the values through carmel,
 but the agent they are driving can use them, and can be asked to print them.
 Share an agent with secrets the way you would hand someone the credential.
@@ -355,8 +394,9 @@ New databases are created with the current schema; existing tables and data are 
 Runtime state lives under `data/` by default:
 
 - the metadata database and Durable storage directory
-- default agent workspaces
+- default environment workspaces and persistent homes, under `environments/`, or
+  under `agents/` for environments that predate shared environments
 - the Pi agent runtime directory
-- per-agent sandbox `/tmp` directories
+- sandbox `/tmp` directories
 
 Back up that directory with the server stopped. See [Pi Durable storage](pi-durable.md) for storage and recovery details.

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { initializeSchema } from "./setup.ts";
 import { seedDatabase } from "./seed.ts";
 
@@ -11,8 +16,51 @@ function database(legacy = false) {
   if (legacy) {
     for (const migration of ["0000_metadata_baseline.sql", "0001_session_search.sql"])
       sqlite.exec(readFileSync(new URL(`../../drizzle/${migration}`, import.meta.url), "utf8"));
-  } else initializeSchema(sqlite);
-  seedDatabase(sqlite);
+    seedAgentOwnedEnvironment(sqlite);
+  } else {
+    initializeSchema(sqlite);
+    seedDatabase(sqlite);
+  }
+  return sqlite;
+}
+
+/** The seed as it was written before environments split from agents. */
+function seedAgentOwnedEnvironment(sqlite: Database.Database) {
+  sqlite.exec(`
+    INSERT INTO users(id,name,email,created_at,updated_at) VALUES ('user_self','Local User','user@local',1,1);
+    INSERT INTO provider_configs(id,user_id,label,provider,created_at,updated_at)
+      VALUES ('provider_default','user_self','Default','anthropic',1,1);
+    INSERT INTO model_refs(id,owner_user_id,label,provider,provider_config_id,model_id,input,created_at,updated_at)
+      VALUES ('model_default','user_self','Model','anthropic','provider_default','model','["text"]',1,1);
+    INSERT INTO agents(id,owner_user_id,name,description,working_dir_mode,working_dir,default_working_dir,
+        system_prompt,prompt_templates,permissions,default_model_ref_id,created_at,updated_at)
+      VALUES ('agent_self','user_self','Local Agent','','default','agents/agent_self/workspace',
+        'agents/agent_self/workspace','','[]',
+        '{"read":true,"write":true,"edit":true,"bash":false,"network":false}','model_default',1,1);
+    INSERT INTO sessions(id,title,user_id,agent_id,model_ref_id,thinking_level,created_at,updated_at)
+      VALUES ('session_initial','Initial session','user_self','agent_self','model_default','off',1,1);
+  `);
+}
+
+/** A database migrated up to, but not including, `tag`. */
+function databaseBefore(tag: string) {
+  const folder = mkdtempSync(join(tmpdir(), "carmel-migrations-"));
+  cpSync(fileURLToPath(new URL("../../drizzle/", import.meta.url)), folder, { recursive: true });
+  const journalPath = join(folder, "meta", "_journal.json");
+  const journal = JSON.parse(readFileSync(journalPath, "utf8")) as {
+    entries: Array<{ idx: number; tag: string }>;
+  };
+  const cutoff = journal.entries.findIndex((entry) => entry.tag === tag);
+  assert.ok(cutoff > 0, `migration ${tag} exists`);
+  journal.entries = journal.entries.slice(0, cutoff);
+  writeFileSync(journalPath, JSON.stringify(journal));
+  const sqlite = new Database(":memory:");
+  try {
+    migrate(drizzle(sqlite), { migrationsFolder: folder });
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+  sqlite.pragma("foreign_keys = ON");
   return sqlite;
 }
 
@@ -166,6 +214,101 @@ test("pre-Home metadata adopts Drizzle migrations while retaining saved data", (
         .count,
       0,
     );
+    assert.deepEqual(sqlite.pragma("foreign_key_check"), []);
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("agents become environments without moving files or losing what references them", () => {
+  const sqlite = databaseBefore("0013_environments");
+  try {
+    seedAgentOwnedEnvironment(sqlite);
+    sqlite.exec(`
+      INSERT INTO agents(id,owner_user_id,name,description,working_dir_mode,working_dir,mounts,
+          system_prompt,prompt_templates,permissions,default_model_ref_id,created_at,updated_at)
+        VALUES ('agent_manual','user_self','Manual','','manual','/srv/project',
+          '[{"source":"/srv/refs","readOnly":true}]','','[]',
+          '{"read":true,"write":true,"edit":true,"bash":true,"network":true}','model_default',2,3);
+      INSERT INTO agent_secrets(id,agent_id,name,value,created_at,updated_at)
+        VALUES ('secret_default','agent_self','TOKEN','enc:v1:kept',1,1);
+      INSERT INTO agent_secrets(id,agent_id,session_id,name,value,created_at,updated_at)
+        VALUES ('secret_session','agent_self','session_initial','TOKEN','enc:v1:session',1,1);
+      INSERT INTO knowledge_configs(agent_id,settings,status)
+        VALUES ('agent_self','{"enabled":true,"acceleration":"auto"}','{}');
+      INSERT INTO home_memory_settings(user_id,agent_id) VALUES ('user_self','agent_self');
+    `);
+    initializeSchema(sqlite);
+
+    assert.deepEqual(
+      sqlite
+        .prepare(
+          "SELECT id,owner_user_id,name,storage_dir,working_dir_mode,working_dir,default_working_dir,mounts,network FROM environments ORDER BY id",
+        )
+        .all(),
+      [
+        {
+          id: "agent_manual",
+          owner_user_id: "user_self",
+          name: "Manual",
+          storage_dir: "agents/agent_manual",
+          working_dir_mode: "manual",
+          working_dir: "/srv/project",
+          default_working_dir: "agents/agent_manual/workspace",
+          mounts: '[{"source":"/srv/refs","readOnly":true}]',
+          network: 1,
+        },
+        {
+          id: "agent_self",
+          owner_user_id: "user_self",
+          name: "Local Agent",
+          storage_dir: "agents/agent_self",
+          working_dir_mode: "default",
+          working_dir: "agents/agent_self/workspace",
+          default_working_dir: "agents/agent_self/workspace",
+          mounts: "[]",
+          network: 0,
+        },
+      ],
+    );
+    assert.deepEqual(sqlite.prepare("SELECT id,environment_id FROM agents ORDER BY id").all(), [
+      { id: "agent_manual", environment_id: "agent_manual" },
+      { id: "agent_self", environment_id: "agent_self" },
+    ]);
+    assert.deepEqual(
+      sqlite
+        .prepare("SELECT id,environment_id,session_id,value FROM environment_secrets ORDER BY id")
+        .all(),
+      [
+        {
+          id: "secret_default",
+          environment_id: "agent_self",
+          session_id: null,
+          value: "enc:v1:kept",
+        },
+        {
+          id: "secret_session",
+          environment_id: "agent_self",
+          session_id: "session_initial",
+          value: "enc:v1:session",
+        },
+      ],
+    );
+    // Rebuilding `agents` must not fire the cascades that point at it.
+    assert.equal(
+      (sqlite.prepare("SELECT count(*) AS count FROM knowledge_configs").get() as { count: number })
+        .count,
+      1,
+    );
+    assert.equal(
+      (
+        sqlite.prepare("SELECT count(*) AS count FROM home_memory_settings").get() as {
+          count: number;
+        }
+      ).count,
+      1,
+    );
+    assert.equal(sqlite.pragma("foreign_keys", { simple: true }), 1);
     assert.deepEqual(sqlite.pragma("foreign_key_check"), []);
   } finally {
     sqlite.close();

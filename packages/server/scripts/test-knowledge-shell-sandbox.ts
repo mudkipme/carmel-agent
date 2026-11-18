@@ -15,9 +15,11 @@ process.env.CARMEL_BASH_MEMORY_MB = "4096";
 process.env.CARMEL_KNOWLEDGE_EMBED_MODEL = process.env.CARMEL_TEST_EMBED_MODEL ?? "";
 const { db, initialize } = await import("../src/db/index.ts");
 const { agents, knowledgeConfigs } = await import("../src/db/schema.ts");
-const { createSession } = await import("../src/test-support.ts");
+const { createSession, setAgentWorkingDir } = await import("../src/test-support.ts");
+const { readAgentEnvironment } = await import("../src/services/environments.ts");
+const { knowledgeShellEnv } = await import("../src/runtime/knowledge/shell.ts");
 const { execSandboxCommand } = await import("../src/runtime/sandbox/bash-operations.ts");
-const { discardAgentContainer, shutdownContainerManager } =
+const { discardEnvironmentContainer, shutdownContainerManager } =
   await import("../src/runtime/sandbox/container-manager.ts");
 const { knowledgeModelPlan } = await import("../src/runtime/knowledge/models.ts");
 initialize();
@@ -26,12 +28,10 @@ const workspace = join(root, "workspace");
 const backend = process.env.CARMEL_TEST_GPU ? "vulkan" : "cpu";
 await mkdir(workspace);
 db.update(agents)
-  .set({
-    workingDir: workspace,
-    permissions: { read: true, write: true, edit: true, bash: true, network: false },
-  })
+  .set({ permissions: { read: true, write: true, edit: true, bash: true, network: false } })
   .where(eq(agents.id, fixture.agentId))
   .run();
+setAgentWorkingDir(fixture.agentId, workspace);
 db.insert(knowledgeConfigs)
   .values({
     agentId: fixture.agentId,
@@ -48,11 +48,13 @@ db.insert(knowledgeConfigs)
   })
   .run();
 const agent = db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!;
+const environment = readAgentEnvironment(agent);
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 async function run(command: string, env?: Record<string, string>) {
   let stdout = "",
     stderr = "";
-  const result = await execSandboxCommand(agent, command, workspace, {
+  const result = await execSandboxCommand(environment, command, workspace, {
+    defaults: knowledgeShellEnv(agent),
     env,
     timeout: 180,
     signal: AbortSignal.timeout(190_000),
@@ -111,7 +113,7 @@ try {
     `Shell qmd defaults, read-only shared cache, independent index, and overrides passed${process.env.CARMEL_TEST_EMBED_MODEL ? `, including embeddings with ${backend} configured` : ""}.`,
   );
 } finally {
-  await discardAgentContainer(agent.id);
+  await discardEnvironmentContainer(environment);
   await shutdownContainerManager();
   await rm(root, { recursive: true, force: true });
 }

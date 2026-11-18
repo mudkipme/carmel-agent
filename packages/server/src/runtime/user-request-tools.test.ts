@@ -3,7 +3,7 @@ import test from "node:test";
 import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import type { ToolRegistration } from "@earendil-works/pi-durable";
 import { initialize } from "../db/index.ts";
-import { createSession } from "../test-support.ts";
+import { agentEnvironmentId, createSession } from "../test-support.ts";
 import { fauxHarnessModels, openTestHarness } from "../effectors/testing/pi-harness.ts";
 import {
   answerQuestion,
@@ -12,14 +12,14 @@ import {
   pendingUserReply,
   readUserRequests,
 } from "../services/user-requests.ts";
-import { readAgentSecretEnv, storeSessionSecret } from "../services/agent-secrets.ts";
+import { readEnvironmentSecretEnv, storeSessionSecret } from "../services/environment-secrets.ts";
 import { createBashTool, type ExecutionEnv } from "../effectors/pi-durable/index.ts";
 import { createUserRequestTools, guardUserRequests } from "./user-request-tools.ts";
 
 initialize();
 function tools(fixture: ReturnType<typeof createSession>, extra: ToolRegistration[] = []) {
   return [...createUserRequestTools({ ...fixture, bash: true }), ...extra].map((tool) =>
-    guardUserRequests(tool, fixture.sessionId, fixture.agentId),
+    guardUserRequests(tool, fixture.sessionId, agentEnvironmentId(fixture.agentId)),
   );
 }
 
@@ -342,7 +342,7 @@ test("secret values never enter provider requests, native entries, streamed deta
     assert.ok(!JSON.stringify(await run.branch()).includes(secret));
     assert.ok(!JSON.stringify(events).includes(secret));
     assert.equal(readUserRequests(fixture.sessionId)[0]?.credential?.scope, "agent");
-    assert.deepEqual(readAgentSecretEnv(fixture.agentId), [
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(fixture.agentId)), [
       { name: "GITHUB_TOKEN", value: secret },
     ]);
   } finally {

@@ -40,10 +40,10 @@ export function createServerExecution(
       permissions: { ...agent.permissions, write: false, edit: false, bash: false, network: false },
     };
   const browserRevision = {
-    revision: agent.permissions.bash ? browserControl(agent.id).state.revision : 0,
+    revision: agent.permissions.bash ? browserControl(agent.environmentId).state.revision : 0,
   };
-  const env = new AgentExecutionEnv(agent, sessionId);
-  const mcp = new AgentMcpTools(agent, env.hostCwd, sessionId);
+  const env = new AgentExecutionEnv(agent, { sessionId });
+  const mcp = new AgentMcpTools(agent, env.environment, env.hostCwd, sessionId);
   const tools = createServerToolDefinitions(agent, env);
   const codemode = agent.codemodeEnabled ? createCarmelCodemode(codemodeHooks) : undefined;
   if (userId) tools.push(...createKnowledgeTools(userId, agent.id));
@@ -83,7 +83,9 @@ export function createServerExecution(
       // Gate the entire codemode batch so its deadline starts after human control ends.
       const resolved = agent.permissions.bash
         ? [
-            ...composed.map((tool) => guardBrowserHandoff(agent.id, tool, browserRevision)),
+            ...composed.map((tool) =>
+              guardBrowserHandoff(agent.environmentId, tool, browserRevision),
+            ),
             browserHelpTool(agent, sessionId),
           ]
         : composed;
@@ -101,7 +103,7 @@ export function createServerExecution(
           }))
         : resolved;
       return sessionId
-        ? checked.map((tool) => guardUserRequests(tool, sessionId, agent.id))
+        ? checked.map((tool) => guardUserRequests(tool, sessionId, agent.environmentId))
         : checked;
     },
     async cleanup(context: Context) {

@@ -4,7 +4,7 @@ Open **Agent settings → Integrations** to connect Telegram, Feishu, or Lark. C
 
 Set a stable `CARMEL_SECRET_KEY` before connecting. IM setup refuses to store credentials without encryption, including in development. Preserve this key with backups. Credentials stay on the server and never enter agent prompts, sandbox environments, or bootstrap responses.
 
-The server receives Telegram updates by long polling and Feishu/Lark events over WebSockets. Only outbound connectivity is required; no public webhook or inbound tunnel is needed. The integrations run in the Carmel server, independently of the agent's sandbox network permission. Run one Carmel server process per database.
+The server receives Telegram updates by long polling and Feishu/Lark events over WebSockets. Only outbound connectivity is required; no public webhook or inbound tunnel is needed. The integrations run in the Carmel server, independently of the environment's sandbox network access. Run one Carmel server process per database.
 
 ## Telegram
 

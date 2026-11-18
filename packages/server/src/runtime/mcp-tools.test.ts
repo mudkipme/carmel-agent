@@ -17,7 +17,7 @@ import {
 } from "@earendil-works/pi-ai/providers/faux";
 import { db, initialize } from "../db/index.ts";
 import { agents } from "../db/schema.ts";
-import { createSession } from "../test-support.ts";
+import { createSession, makeEnvironment } from "../test-support.ts";
 import { startMcpTestServer } from "../test-mcp-server.ts";
 import { openTestHarness } from "../effectors/testing/pi-harness.ts";
 import { AgentMcpTools, expandMcpSecrets, mcpToolName } from "./mcp-tools.ts";
@@ -111,7 +111,7 @@ test("MCP configuration validates transports, IDs, timeouts, and unique server I
       .success,
     false,
   );
-  assert.throws(() => expandMcpSecrets("Bearer ${MISSING}", []), /Missing agent secret/);
+  assert.throws(() => expandMcpSecrets("Bearer ${MISSING}", []), /Missing environment secret/);
   assert.equal(
     expandMcpSecrets("Bearer ${TOKEN}", [{ name: "TOKEN", value: "abc" }]),
     "Bearer abc",
@@ -138,7 +138,7 @@ test("disabled, denied, and empty-allowlist servers never open a transport", asy
     ],
     { read: false, write: false, edit: false, bash: false, network: false },
   );
-  const mcp = new AgentMcpTools(denied, "/tmp/test");
+  const mcp = new AgentMcpTools(denied, makeEnvironment(), "/tmp/test");
   await mcp.connect({
     secrets: [],
     createTransport: () => {
@@ -152,6 +152,7 @@ test("disabled, denied, and empty-allowlist servers never open a transport", asy
       http("https://unused.test", { enabled: false }),
       http("https://unused.test", { id: "empty", tools: [] }),
     ]),
+    makeEnvironment(),
     "/tmp/test",
   );
   await skipped.connect({
@@ -166,7 +167,7 @@ test("disabled, denied, and empty-allowlist servers never open a transport", asy
 test("HTTP MCP tools run inside AgentHarness and persist results through the SQLite session", async () => {
   const remote = await startMcpTestServer();
   const row = agent([http(remote.url, { headers: { Authorization: "Bearer ${TOKEN}" } })]);
-  const mcp = new AgentMcpTools(row, "/tmp/test");
+  const mcp = new AgentMcpTools(row, makeEnvironment(), "/tmp/test");
   try {
     await mcp.connect({ secrets: [{ name: "TOKEN", value: "private-credential" }] });
     const { sessionId } = createSession();
@@ -234,7 +235,7 @@ test("MCP progress, structured content, and tool failure flags survive the adapt
       return undefined;
     },
   });
-  const mcp = new AgentMcpTools(agent([http(remote.url)]), "/tmp/test");
+  const mcp = new AgentMcpTools(agent([http(remote.url)]), makeEnvironment(), "/tmp/test");
   try {
     await mcp.connect({ secrets: [{ name: "TOKEN", value: secret }] });
     const updates: unknown[] = [];
@@ -284,7 +285,7 @@ test("MCP cancellation reaches Pi and server request notifications", async () =>
       if (message.method === "notifications/cancelled") cancelled();
     },
   });
-  const mcp = new AgentMcpTools(agent([http(remote.url)]), "/tmp/test");
+  const mcp = new AgentMcpTools(agent([http(remote.url)]), makeEnvironment(), "/tmp/test");
   try {
     await mcp.connect({ secrets: [] });
     const controller = new AbortController();
@@ -313,6 +314,7 @@ test("missing allowed tools fail setup and release already connected servers", a
       http(remote.url, { id: "first" }),
       http(remote.url, { id: "second", tools: ["missing"] }),
     ]),
+    makeEnvironment(),
     "/tmp/test",
   );
   try {
@@ -330,7 +332,11 @@ test("stopping a run during MCP transport startup returns promptly", async () =>
   const started = new Promise<void>((resolve) => {
     starting = resolve;
   });
-  const mcp = new AgentMcpTools(agent([http("https://unused.test")]), "/tmp/test");
+  const mcp = new AgentMcpTools(
+    agent([http("https://unused.test")]),
+    makeEnvironment(),
+    "/tmp/test",
+  );
   let closed = false;
   const pending = mcp.connect({
     secrets: [],
@@ -385,7 +391,11 @@ test("an allowlist exposes only selected tools and preserves structured and imag
       };
     },
   });
-  const mcp = new AgentMcpTools(agent([http(remote.url, { tools: ["selected"] })]), "/tmp/test");
+  const mcp = new AgentMcpTools(
+    agent([http(remote.url, { tools: ["selected"] })]),
+    makeEnvironment(),
+    "/tmp/test",
+  );
   try {
     await mcp.connect({ secrets: [] });
     assert.deepEqual(
@@ -412,7 +422,7 @@ test("MCP structured results preserve arrays, primitives, and null", async () =>
   const remote = await startMcpTestServer({
     onCall: () => ({ content: [{ type: "text", text: "result" }], structuredContent }),
   });
-  const mcp = new AgentMcpTools(agent([http(remote.url)]), "/tmp/test");
+  const mcp = new AgentMcpTools(agent([http(remote.url)]), makeEnvironment(), "/tmp/test");
   try {
     await mcp.connect({ secrets: [] });
     for (const value of values) {

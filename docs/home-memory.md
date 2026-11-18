@@ -44,7 +44,7 @@ Open **Search and indexing** to enable a private index, select acceleration, and
 refresh keyword indexes, build embeddings, or prepare deep hybrid search. The
 model and runner configuration is shared with [Knowledge](knowledge.md), while
 index files and source mounts are separated by user and agent. Knowledge can
-remain disabled. Model downloads require the agent's network permission.
+remain disabled. Model downloads require the agent's web access permission.
 
 Automatic topic recall uses semantic matches when available and falls back to
 keyword and alias matching. Core notes always load independently of indexing.

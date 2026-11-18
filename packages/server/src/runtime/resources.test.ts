@@ -10,7 +10,7 @@ import { AgentExecutionEnv } from "./execution-env.ts";
 import { loadAgentResources } from "./resources.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 import { initialize } from "../db/index.ts";
-import { createSession } from "../test-support.ts";
+import { createSession, createUser, insertEnvironment, makeEnvironment } from "../test-support.ts";
 import { saveKnowledgeSettings } from "../services/knowledge.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -29,7 +29,7 @@ test("filesystem resources load through AgentExecutionEnv with Pi-native parsing
     "---\ndescription: Summarize this\n---\nSummarize $ARGUMENTS",
   );
   writeFileSync(join(workingDir, "AGENTS.md"), "Project instructions");
-  const env = new AgentExecutionEnv({ ...makeAgent(workingDir), workingDirMode: "default" });
+  const env = new AgentExecutionEnv(makeAgent(workingDir, "default"));
 
   try {
     const resources = await loadAgentResources(env.agent, env);
@@ -110,7 +110,13 @@ test("Pi's text line reader preserves line endings and respects agent read roots
   }
 });
 
-function makeAgent(workingDir: string): AgentRecord {
+function makeAgent(
+  workingDir: string,
+  workingDirMode: "default" | "manual" = "manual",
+): AgentRecord {
+  const environment = insertEnvironment(
+    makeEnvironment({ ownerUserId: createUser(), workingDir, workingDirMode }),
+  );
   return {
     id: "agent_resources",
     ownerUserId: "user_1",
@@ -121,10 +127,7 @@ function makeAgent(workingDir: string): AgentRecord {
     description: "",
     mcpServers: [],
     codemodeEnabled: false,
-    workingDirMode: "manual",
-    workingDir,
-    defaultWorkingDir: null,
-    mounts: [],
+    environmentId: environment.id,
     systemPrompt: "",
     promptTemplates: [],
     permissions: { read: true, write: false, edit: false, bash: false, network: false },

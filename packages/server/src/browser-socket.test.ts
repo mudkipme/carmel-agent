@@ -7,7 +7,7 @@ import { WebSocket } from "ws";
 import { eq } from "drizzle-orm";
 import { db, initialize } from "./db/index.ts";
 import { agents, authSessions } from "./db/schema.ts";
-import { createSession, createUser } from "./test-support.ts";
+import { agentEnvironmentId, createSession, createUser } from "./test-support.ts";
 import { attachBrowserSocket } from "./browser-socket.ts";
 import { browserControl, deleteBrowserControl } from "./runtime/browser-control.ts";
 import type { connectBrowser } from "./runtime/sandbox/browser-sessions.ts";
@@ -49,7 +49,7 @@ test("clipboard transfers require control, return only to their requester, and f
     owner.send({ type: "clipboard", requestId, operation: "copy" });
     owner.send({ type: "resume" });
     await owner.wait((message) => message.type === "error");
-    assert.equal(browserControl(f.agentId).state.phase, "human");
+    assert.equal(browserControl(f.environmentId).state.phase, "human");
     assert.ok(
       forwarded.some((message) => (message as { requestId?: string }).requestId === requestId),
     );
@@ -66,7 +66,7 @@ test("clipboard transfers require control, return only to their requester, and f
   } finally {
     owner.ws.close();
     guest.ws.close();
-    deleteBrowserControl(f.agentId);
+    deleteBrowserControl(f.environmentId);
   }
 });
 
@@ -88,7 +88,7 @@ test("clipboard replies are withheld if the controller's authorization is revoke
     assert.ok(!JSON.stringify(guest.messages).includes("revoked private text"));
   } finally {
     guest.ws.close();
-    deleteBrowserControl(f.agentId);
+    deleteBrowserControl(f.environmentId);
   }
 });
 
@@ -114,7 +114,7 @@ function fixture() {
     })
     .where(eq(agents.id, fixture.agentId))
     .run();
-  return fixture;
+  return { ...fixture, environmentId: agentEnvironmentId(fixture.agentId) };
 }
 async function connect(agentId: string, credential: string, requestOrigin = origin) {
   const ws = new WebSocket(`ws://127.0.0.1:${port}/api/browser?agent=${agentId}`, {
@@ -164,7 +164,7 @@ test("a shared agent exposes one browser to its users, but only its controller c
     guest.ws.close();
     await once(guest.ws, "close");
     await owner.wait((message) => message.type === "control" && message.state.phase === "waiting");
-    assert.equal(browserControl(f.agentId).isPaused, true);
+    assert.equal(browserControl(f.environmentId).isPaused, true);
     owner.send({ type: "take_control" });
     await owner.wait((message) => message.type === "control" && message.hasControl);
     owner.send({ type: "resume" });
@@ -172,7 +172,7 @@ test("a shared agent exposes one browser to its users, but only its controller c
   } finally {
     owner.ws.close();
     guest.ws.close();
-    deleteBrowserControl(f.agentId);
+    deleteBrowserControl(f.environmentId);
   }
 });
 
@@ -204,6 +204,6 @@ test("revoking a shared user's access closes their connection before the next in
     forwarded.some((message) => (message as { text?: string }).text === "revoked"),
     false,
   );
-  assert.equal(browserControl(f.agentId).state.phase, "waiting");
-  deleteBrowserControl(f.agentId);
+  assert.equal(browserControl(f.environmentId).state.phase, "waiting");
+  deleteBrowserControl(f.environmentId);
 });

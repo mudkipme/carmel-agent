@@ -64,7 +64,8 @@ const {
   users,
   collaborations,
 } = await import("../src/db/schema.ts");
-const { createAgent, createSession } = await import("../src/test-support.ts");
+const { agentEnvironmentId, createAgent, createSession, setAgentWorkingDir } =
+  await import("../src/test-support.ts");
 const { hashPassword } = await import("../src/auth.ts");
 const { attachBrowserSocket } = await import("../src/browser-socket.ts");
 const { attachUpdateSocket } = await import("../src/update-socket.ts");
@@ -98,15 +99,13 @@ db.update(users)
 db.update(agents)
   .set({
     name: "Browser test agent",
-    workingDir: workspaceDir,
     permissions: { read: true, write: true, edit: true, bash: true, network: false },
   })
   .where(eq(agents.id, fixture.agentId))
   .run();
-db.update(agents)
-  .set({ name: "Second agent", workingDir: stateDir })
-  .where(eq(agents.id, secondAgentId))
-  .run();
+setAgentWorkingDir(fixture.agentId, workspaceDir);
+db.update(agents).set({ name: "Second agent" }).where(eq(agents.id, secondAgentId)).run();
+setAgentWorkingDir(secondAgentId, stateDir);
 const timestamp = Date.now();
 const { imBindings, imCredentials, imIntegrations, imSetups } =
   await import("../src/db/im-schema.ts");
@@ -797,7 +796,9 @@ const browserSockets = attachBrowserSocket(
     };
   },
 );
-void browserControl(fixture.agentId).requestHelp("Please sign in to the billing portal.");
+void browserControl(agentEnvironmentId(fixture.agentId)).requestHelp(
+  "Please sign in to the billing portal.",
+);
 const stop = () => {
   for (const client of updateSockets.clients) client.terminate();
   updateSockets.close();

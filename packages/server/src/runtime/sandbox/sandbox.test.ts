@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { agents } from "../../db/schema.ts";
+import type { environments } from "../../db/schema.ts";
 import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,25 +11,27 @@ import {
   buildBinds,
   containerSignature,
   containerWorkdir,
-  holdAgentContainer,
-  isAgentContainerHeld,
-  releaseAgentContainer,
-  resolveAgentHomeDirPath,
-  resolveAgentTmpDirPath,
+  holdEnvironmentContainer,
+  isEnvironmentContainerHeld,
+  releaseEnvironmentContainer,
+  resolveEnvironmentHomeDirPath,
+  resolveEnvironmentTmpDirPath,
   resolveContainerWorkspace,
   toContainerWorkdir,
 } from "./container-manager.ts";
 
-type AgentRecord = typeof agents.$inferSelect;
+type EnvironmentRecord = typeof environments.$inferSelect;
 
-function manualAgent(overrides: Partial<AgentRecord> = {}): AgentRecord {
+function manualEnvironment(overrides: Partial<EnvironmentRecord> = {}): EnvironmentRecord {
   return {
-    id: "agent_test",
+    id: "env_test",
+    storageDir: "environments/env_test",
     workingDirMode: "manual",
     workingDir: "/srv/projects/app",
     mounts: [],
+    network: false,
     ...overrides,
-  } as AgentRecord;
+  } as EnvironmentRecord;
 }
 
 test("demuxer reassembles multiplexed docker frames split across chunks", () => {
@@ -116,23 +118,18 @@ test("containerWorkdir preserves an absolute mount path for manual workspaces", 
 });
 
 test("shell working directories follow workspace, tmp, home, and extra mount paths", () => {
-  const agent = manualAgent({
+  const environment = manualEnvironment({
     workingDirMode: "default",
     workingDir: "/data/agents/a/workspace",
     mounts: [{ source: "/srv/shared", target: "/refs" }],
   });
-  assert.equal(toContainerWorkdir(agent, agent.workingDir), "/workspace");
-  assert.equal(toContainerWorkdir(agent, join(agent.workingDir, "src")), "/workspace/src");
-  assert.equal(
-    toContainerWorkdir(agent, join(resolveAgentTmpDirPath(agent), "output")),
-    "/tmp/output",
-  );
-  assert.equal(
-    toContainerWorkdir(agent, join(resolveAgentHomeDirPath(agent), "bin")),
-    "/home/agent/bin",
-  );
-  assert.equal(toContainerWorkdir(agent, "/srv/shared/docs"), "/refs/docs");
-  assert.equal(toContainerWorkdir(agent, "/srv/shared-other"), "/workspace");
+  const workdir = (path: string) => toContainerWorkdir(environment, path);
+  assert.equal(workdir(environment.workingDir), "/workspace");
+  assert.equal(workdir(join(environment.workingDir, "src")), "/workspace/src");
+  assert.equal(workdir(join(resolveEnvironmentTmpDirPath(environment), "output")), "/tmp/output");
+  assert.equal(workdir(join(resolveEnvironmentHomeDirPath(environment), "bin")), "/home/agent/bin");
+  assert.equal(workdir("/srv/shared/docs"), "/refs/docs");
+  assert.equal(workdir("/srv/shared-other"), "/workspace");
 });
 
 test("resolveContainerWorkspace keeps the absolute path for manual workspaces", () => {
@@ -140,34 +137,30 @@ test("resolveContainerWorkspace keeps the absolute path for manual workspaces", 
     resolveContainerWorkspace({
       workingDirMode: "manual",
       workingDir: "/srv/projects/app",
-    } as AgentRecord),
+    } as EnvironmentRecord),
     "/srv/projects/app",
   );
   assert.equal(
     resolveContainerWorkspace({
       workingDirMode: "default",
       workingDir: "agents/a/workspace",
-    } as AgentRecord),
+    } as EnvironmentRecord),
     "/workspace",
   );
 });
 
 test("containerSignature changes when the workspace dir, mounts, or network change", () => {
-  const base = containerSignature(manualAgent(), { network: false });
-  assert.equal(
+  const base = containerSignature(manualEnvironment());
+  assert.equal(base, containerSignature(manualEnvironment()), "stable for identical config");
+  assert.notEqual(
     base,
-    containerSignature(manualAgent(), { network: false }),
-    "stable for identical config",
+    containerSignature(manualEnvironment({ workingDir: "/srv/projects/other" })),
   );
   assert.notEqual(
     base,
-    containerSignature(manualAgent({ workingDir: "/srv/projects/other" }), { network: false }),
+    containerSignature(manualEnvironment({ mounts: [{ source: "/srv/shared" }] })),
   );
-  assert.notEqual(
-    base,
-    containerSignature(manualAgent({ mounts: [{ source: "/srv/shared" }] }), { network: false }),
-  );
-  assert.notEqual(base, containerSignature(manualAgent(), { network: true }));
+  assert.notEqual(base, containerSignature(manualEnvironment({ network: true })));
   const identity = {
     runtime: "podman",
     uid: 1000,
@@ -176,22 +169,18 @@ test("containerSignature changes when the workspace dir, mounts, or network chan
     usernsMode: "keep-id",
     socket: "/run/podman.sock",
   } as const;
-  const withIdentity = containerSignature(manualAgent(), { network: false }, identity);
+  const withIdentity = containerSignature(manualEnvironment(), identity);
   assert.notEqual(
     withIdentity,
-    containerSignature(manualAgent(), { network: false }, { ...identity, usernsMode: "host" }),
+    containerSignature(manualEnvironment(), { ...identity, usernsMode: "host" }),
   );
   assert.notEqual(
     withIdentity,
-    containerSignature(
-      manualAgent(),
-      { network: false },
-      { ...identity, uid: 2000, user: "2000:1000" },
-    ),
+    containerSignature(manualEnvironment(), { ...identity, uid: 2000, user: "2000:1000" }),
   );
   assert.notEqual(
     withIdentity,
-    containerSignature(manualAgent(), { network: false }, { ...identity, socket: "/other.sock" }),
+    containerSignature(manualEnvironment(), { ...identity, socket: "/other.sock" }),
   );
 });
 
@@ -216,15 +205,22 @@ test("buildBinds adds the workspace, /tmp, $HOME, and extra mounts with SELinux 
   ]);
 });
 
-test("the agent home bind is per-agent and independent of the workspace", () => {
-  const home = (agent: AgentRecord) => resolveAgentHomeDirPath(agent);
-  assert.notEqual(home(manualAgent({ id: "agent_a" })), home(manualAgent({ id: "agent_b" })));
+test("the runner home bind is per-environment and independent of the workspace", () => {
+  const home = (environment: EnvironmentRecord) => resolveEnvironmentHomeDirPath(environment);
+  assert.notEqual(
+    home(manualEnvironment({ storageDir: "environments/a" })),
+    home(manualEnvironment({ storageDir: "environments/b" })),
+  );
   // A manual workspace move must not drag $HOME along with it.
   assert.equal(
-    home(manualAgent({ workingDir: "/srv/projects/app" })),
-    home(manualAgent({ workingDir: "/srv/projects/other" })),
+    home(manualEnvironment({ workingDir: "/srv/projects/app" })),
+    home(manualEnvironment({ workingDir: "/srv/projects/other" })),
   );
-  assert.match(home(manualAgent({ id: "agent_a" })), /[/\\]agents[/\\]agent_a[/\\]home$/);
+  // Environments migrated from agents keep their original directory.
+  assert.match(
+    home(manualEnvironment({ storageDir: "agents/agent_a" })),
+    /[/\\]agents[/\\]agent_a[/\\]home$/,
+  );
 });
 
 test("sandbox env starts from a fixed base and never inherits the server environment", () => {
@@ -320,23 +316,23 @@ test("a caller variable wins over .env, and a secret wins over both", () => {
 test("a held container is exempt from the idle reaper until every hold is released", () => {
   // An open terminal is idle by `lastUsedAt` the whole time someone is reading
   // it, so the hold is the only thing standing between them and a reaped shell.
-  const agentId = "agent_hold_test";
-  assert.equal(isAgentContainerHeld(agentId), false);
-  holdAgentContainer(agentId);
-  holdAgentContainer(agentId);
-  assert.equal(isAgentContainerHeld(agentId), true);
-  releaseAgentContainer(agentId);
+  const environmentId = "env_hold_test";
+  assert.equal(isEnvironmentContainerHeld(environmentId), false);
+  holdEnvironmentContainer(environmentId);
+  holdEnvironmentContainer(environmentId);
+  assert.equal(isEnvironmentContainerHeld(environmentId), true);
+  releaseEnvironmentContainer(environmentId);
   assert.equal(
-    isAgentContainerHeld(agentId),
+    isEnvironmentContainerHeld(environmentId),
     true,
     "one tab closing must not release another tab's hold",
   );
-  releaseAgentContainer(agentId);
-  assert.equal(isAgentContainerHeld(agentId), false);
+  releaseEnvironmentContainer(environmentId);
+  assert.equal(isEnvironmentContainerHeld(environmentId), false);
 });
 
 test("releasing a hold that was never taken does not wrap around", () => {
-  const agentId = "agent_unbalanced_release";
-  releaseAgentContainer(agentId);
-  assert.equal(isAgentContainerHeld(agentId), false);
+  const environmentId = "env_unbalanced_release";
+  releaseEnvironmentContainer(environmentId);
+  assert.equal(isEnvironmentContainerHeld(environmentId), false);
 });

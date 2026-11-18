@@ -92,6 +92,13 @@
       "when": 1794925186647,
       "tag": "0012_drop_legacy_upgrade_paths",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1794974816963,
+      "tag": "0013_environments",
+      "breakpoints": true
     }
   ]
 }

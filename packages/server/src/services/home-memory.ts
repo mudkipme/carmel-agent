@@ -16,7 +16,8 @@ import {
   homeMemorySettings,
   homeMemoryRevisions,
   homeMemoryCaptures,
-  agentSecrets,
+  agents,
+  environmentSecrets,
 } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
 import { HomeError } from "./agent-homes.ts";
@@ -190,9 +191,10 @@ export function setHomeMemorySettings(userId: string, agentId: string, input: un
 
 export function rejectHomeMemorySecrets(agentId: string, text: string) {
   const known = db
-    .select({ value: agentSecrets.value })
-    .from(agentSecrets)
-    .where(eq(agentSecrets.agentId, agentId))
+    .select({ value: environmentSecrets.value })
+    .from(environmentSecrets)
+    .innerJoin(agents, eq(agents.environmentId, environmentSecrets.environmentId))
+    .where(eq(agents.id, agentId))
     .all();
   if (
     /-----BEGIN [\w ]*PRIVATE KEY-----|\b(?:sk-(?:proj-)?|gh[pousr]_)[\w-]{16,}|\b(?:password|api[_ -]?key|access[_ -]?token)\s*[:=]\s*\S+/iu.test(

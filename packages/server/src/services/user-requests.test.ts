@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { db, initialize } from "../db/index.ts";
-import { agentSecrets, agents, sessions, userRequests } from "../db/schema.ts";
-import { createSession, createUser } from "../test-support.ts";
+import { environmentSecrets, agents, sessions, userRequests } from "../db/schema.ts";
+import { agentEnvironmentId, createSession, createUser } from "../test-support.ts";
 import { questionInputSchema, secretRequestInputSchema } from "@carmel-agent/shared";
 import {
   answerQuestion,
@@ -17,15 +17,15 @@ import {
   readUserRequests,
 } from "./user-requests.ts";
 import {
-  demoteAgentSecret,
+  demoteEnvironmentSecret,
   promoteSessionSecret,
-  readAgentSecretEnv,
-  readAgentSecrets,
+  readEnvironmentSecretEnv,
+  readEnvironmentSecrets,
   readSessionSecrets,
   revokeSessionSecret,
   storeSessionSecret,
-  writeAgentSecret,
-} from "./agent-secrets.ts";
+  writeEnvironmentSecret,
+} from "./environment-secrets.ts";
 import { revealSecret } from "../security.ts";
 
 initialize();
@@ -121,8 +121,8 @@ test("credentials are encrypted, write-only, session scoped, and idempotent", ()
     assert.ok(!JSON.stringify(db.select().from(userRequests).all()).includes(value));
     const encrypted = db
       .select()
-      .from(agentSecrets)
-      .where(eq(agentSecrets.id, result.credential!.id))
+      .from(environmentSecrets)
+      .where(eq(environmentSecrets.id, result.credential!.id))
       .get()!.value;
     assert.notEqual(encrypted, value);
     assert.equal(revealSecret(encrypted), value);
@@ -139,10 +139,12 @@ test("credentials are encrypted, write-only, session scoped, and idempotent", ()
     assert.ok(!JSON.stringify(reply.receipt).includes(value));
     assert.deepEqual(legacyUserRequestReceipt(sessionId, reply.text), reply.receipt);
     assert.equal(legacyUserRequestReceipt(nextSession, reply.text), undefined);
-    assert.deepEqual(readAgentSecretEnv(agentId), []);
-    assert.deepEqual(readAgentSecretEnv(agentId, nextSession), []);
-    assert.deepEqual(readAgentSecretEnv(agentId, sessionId), [{ name: "GITHUB_TOKEN", value }]);
-    assert.deepEqual(readAgentSecrets(userId, agentId), []);
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(agentId)), []);
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(agentId), nextSession), []);
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(agentId), sessionId), [
+      { name: "GITHUB_TOKEN", value },
+    ]);
+    assert.deepEqual(readEnvironmentSecrets(userId, agentEnvironmentId(agentId)), []);
     assert.deepEqual(
       answerSecretRequest(userId, sessionId, request.id, "different retry value"),
       result,
@@ -165,7 +167,7 @@ test("legacy credential receipts preserve their original scope after promotion o
     const reply = pendingUserReply(sessionId)!;
     promoteSessionSecret(userId, sessionId, answer.credential!.id);
     assert.deepEqual(legacyUserRequestReceipt(sessionId, reply.text), reply.receipt);
-    demoteAgentSecret(userId, sessionId, answer.credential!.id);
+    demoteEnvironmentSecret(userId, sessionId, answer.credential!.id);
     revokeSessionSecret(userId, sessionId, answer.credential!.id);
     assert.deepEqual(legacyUserRequestReceipt(sessionId, reply.text), reply.receipt);
   }));
@@ -182,35 +184,35 @@ test("promotion preserves its reference, reaches future sessions and survives so
     assert.equal(promoted.id, result.credential!.id);
     assert.equal(promoted.scope, "agent");
     assert.deepEqual(promoteSessionSecret(userId, sessionId, promoted.id), promoted);
-    assert.deepEqual(readAgentSecretEnv(agentId, nextSession), [
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(agentId), nextSession), [
       { name: "GITHUB_TOKEN", value: "private-token" },
     ]);
     assert.equal(readUserRequests(sessionId)[0]?.credential?.scope, "agent");
     db.delete(sessions).where(eq(sessions.id, sessionId)).run();
-    assert.equal(readAgentSecrets(userId, agentId).length, 1);
+    assert.equal(readEnvironmentSecrets(userId, agentEnvironmentId(agentId)).length, 1);
     assert.equal(readUserRequests(sessionId).length, 0);
-    const demoted = demoteAgentSecret(userId, nextSession, promoted.id);
-    assert.deepEqual(readAgentSecretEnv(agentId), []);
+    const demoted = demoteEnvironmentSecret(userId, nextSession, promoted.id);
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(agentId)), []);
     assert.equal(readSessionSecrets(userId, nextSession)[0]?.scope, "session");
     assert.deepEqual(readSessionSecrets(userId, nextSession)[0], demoted);
     db.delete(sessions).where(eq(sessions.id, nextSession)).run();
-    assert.deepEqual(readAgentSecretEnv(agentId), []);
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(agentId)), []);
   }));
 
 test("session overrides win and promotion collisions never overwrite the agent default", () =>
   withKey(() => {
     const { sessionId, userId, agentId } = createSession();
-    writeAgentSecret(userId, agentId, "GITHUB_TOKEN", "default-token");
+    writeEnvironmentSecret(userId, agentEnvironmentId(agentId), "GITHUB_TOKEN", "default-token");
     const local = storeSessionSecret(userId, sessionId, "GITHUB_TOKEN", "temporary-account");
-    assert.deepEqual(readAgentSecretEnv(agentId, sessionId), [
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(agentId), sessionId), [
       { name: "GITHUB_TOKEN", value: "temporary-account" },
     ]);
     assert.throws(() => promoteSessionSecret(userId, sessionId, local.id), /not overwritten/);
-    assert.deepEqual(readAgentSecretEnv(agentId), [
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(agentId)), [
       { name: "GITHUB_TOKEN", value: "default-token" },
     ]);
     revokeSessionSecret(userId, sessionId, local.id);
-    assert.deepEqual(readAgentSecretEnv(agentId, sessionId), [
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(agentId), sessionId), [
       { name: "GITHUB_TOKEN", value: "default-token" },
     ]);
   }));
@@ -230,9 +232,9 @@ test("shared agent runners can keep private session credentials but cannot promo
     );
     assert.throws(() => promoteSessionSecret(otherUserId, otherSession, local.id), /owner-only/);
     assert.deepEqual(readSessionSecrets(userId, sessionId), []);
-    assert.deepEqual(readAgentSecretEnv(agentId, sessionId), []);
+    assert.deepEqual(readEnvironmentSecretEnv(agentEnvironmentId(agentId), sessionId), []);
     assert.throws(
-      () => readAgentSecretEnv(createSession().agentId, otherSession),
+      () => readEnvironmentSecretEnv(agentEnvironmentId(createSession().agentId), otherSession),
       /Session not found/,
     );
   }));
@@ -255,8 +257,8 @@ test("new credentials fail closed without encryption and never trust an encrypti
     const answered = answerSecretRequest(userId, sessionId, request.id, "enc:v1:plaintext");
     const row = db
       .select()
-      .from(agentSecrets)
-      .where(eq(agentSecrets.id, answered.credential!.id))
+      .from(environmentSecrets)
+      .where(eq(environmentSecrets.id, answered.credential!.id))
       .get()!;
     assert.equal(revealSecret(row.value), "enc:v1:plaintext");
   });

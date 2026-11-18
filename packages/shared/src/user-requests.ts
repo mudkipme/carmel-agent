@@ -106,6 +106,6 @@ export function userRequestReceiptText(receipt: UserRequestReceipt) {
   if (receipt.status !== "answered")
     return `${receipt.name ?? receipt.question ?? "Request"} · ${receipt.status === "cancelled" ? "Declined" : receipt.status === "expired" ? "Expired" : "Credential unavailable"}`;
   return receipt.kind === "secret"
-    ? `${receipt.name} · Credential provided · ${receipt.scope === "agent" ? "Saved for this agent" : "This session"}`
+    ? `${receipt.name} · Credential provided · ${receipt.scope === "agent" ? "Saved to environment" : "This session"}`
     : `${receipt.question}\n${receipt.answer}`;
 }

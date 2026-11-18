@@ -53,10 +53,8 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
         icon: draft?.icon ?? "bot",
         color: draft?.color,
         description: draft?.description ?? i18n._("Personal agent"),
-        workingDirMode: draft?.workingDirMode ?? "default",
-        workingDir: draft?.workingDir ?? "",
-        defaultWorkingDir: draft?.defaultWorkingDir,
-        mounts: draft?.mounts ?? [],
+        // Empty asks the server for a new environment of the agent's own.
+        environmentId: draft?.environmentId ?? "",
         systemPrompt: draft?.systemPrompt ?? "You are a helpful agent.",
         promptTemplates: draft?.promptTemplates ?? [],
         permissions: draft?.permissions ?? {

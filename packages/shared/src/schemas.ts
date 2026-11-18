@@ -234,10 +234,7 @@ export const agentConfigRequestSchema = z
     icon: agentIconSchema.optional(),
     color: agentColorSchema.optional(),
     description: z.string(),
-    workingDirMode: z.enum(["default", "manual"]).default("default"),
-    workingDir: z.string(),
-    defaultWorkingDir: optionalStringSchema,
-    mounts: z.array(agentMountSchema).default([]),
+    environmentId: optionalStringSchema,
     systemPrompt: z.string(),
     promptTemplates: z.array(promptTemplateSchema),
     permissions: agentPermissionsSchema,
@@ -245,6 +242,15 @@ export const agentConfigRequestSchema = z
     mcpServers: agentMcpServersSchema.default([]),
     defaultModelRefId: z.string(),
     defaultThinkingLevel: thinkingLevelSchema.default("off"),
+  })
+  .strict();
+export const environmentRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    workingDirMode: z.enum(["default", "manual"]).default("default"),
+    workingDir: z.string().default(""),
+    mounts: z.array(agentMountSchema).default([]),
+    network: z.boolean().default(false),
   })
   .strict();
 export const agentTaskScheduleSchema = z.object({
@@ -456,6 +462,7 @@ export type UserUpdateRequest = z.infer<typeof userRequestSchema>;
 export type ModelRefCommand = z.infer<typeof modelRefRequestSchema>;
 export type ProviderConfigCommand = z.infer<typeof providerConfigRequestSchema>;
 export type AgentConfigCommand = z.infer<typeof agentConfigRequestSchema>;
+export type EnvironmentCommand = z.infer<typeof environmentRequestSchema>;
 export type AgentRunRequest = z.infer<typeof agentRunRequestSchema>;
 export type SessionDraft = z.infer<typeof sessionDraftRequestSchema>;
 export type SessionPatch = z.infer<typeof sessionPatchRequestSchema>;

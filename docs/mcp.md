@@ -22,22 +22,22 @@ HTTP headers are a JSON object:
 }
 ```
 
-Create `MCP_TOKEN` in **Agent Settings → Secrets**. Secret references are resolved on the server and secret values are redacted from text results, progress, errors, and structured results. Store credentials in Secrets rather than as literal configuration values: MCP settings are owner-readable JSON, while agent secrets use the existing write-only storage and `CARMEL_SECRET_KEY` encryption setting.
+Create `MCP_TOKEN` in **Agent Settings → Environment → Secrets**. Secret references are resolved on the server and secret values are redacted from text results, progress, errors, and structured results. Store credentials in Secrets rather than as literal configuration values: MCP settings are owner-readable JSON, while environment secrets use the existing write-only storage and `CARMEL_SECRET_KEY` encryption setting.
 
 Remote tools act with the remote service's permissions. Carmel's read, write, and edit switches govern its own workspace tools; they do not constrain a remote MCP service. Use the server's credentials and tool allowlist to choose what the agent can do there.
 
 ### Sandbox stdio
 
-Enable and save **bash** permission. Stdio commands execute inside the existing per-agent runner container, with the agent's workspace, mounts, home, secrets, and network policy. They never execute as host processes.
+Enable and save **bash** permission. Stdio commands execute inside the existing runner container of the agent's environment, with its workspace, mounts, home, secrets, and network policy. They never execute as host processes.
 
 For a filesystem server, configure:
 
 - Command: `npx`
 - Arguments, one per line: `-y`, `@modelcontextprotocol/server-filesystem`, `/workspace`
 
-The command must be available inside the runner. `npx` downloads also require network permission. Default workspaces are mounted at `/workspace`; manually configured workspaces retain their absolute paths. Environment variables are a JSON object and may reference `${SECRET_NAME}`. Arguments may also use secret references; they are passed directly rather than interpreted by a shell.
+The command must be available inside the runner. `npx` downloads also require the environment's sandbox network access. Default workspaces are mounted at `/workspace`; manually configured workspaces retain their absolute paths. Environment variables are a JSON object and may reference `${SECRET_NAME}`. Arguments may also use secret references; they are passed directly rather than interpreted by a shell.
 
-The stdio server is supervised inside the runner. Closing the MCP connection closes stdin and terminates its process group, with a two-second forced termination fallback. It does not kill other commands or terminals sharing the agent's container.
+The stdio server is supervised inside the runner. Closing the MCP connection closes stdin and terminates its process group, with a two-second forced termination fallback. It does not kill other commands or terminals sharing the environment's container.
 
 ## Harness behavior
 

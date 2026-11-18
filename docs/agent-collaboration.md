@@ -1,6 +1,6 @@
 # Agent collaboration
 
-An agent can ask another agent a question or delegate a task to it. Requests run for the same user. Each agent keeps its own workspace, tools, credentials, and sandbox; only the explicit request, messages, and reported result cross the connection.
+An agent can ask another agent a question or delegate a task to it. Requests run for the same user. Each agent keeps its own tools and permissions and runs in its own environment unless it shares one; only the explicit request, messages, and reported result cross the connection.
 
 ## Enable a connection
 
@@ -32,4 +32,4 @@ Conversations show collaboration status, requests, results, and links to the rec
 
 The first version exchanges text. Copy relevant context into the request; file transfer through shared artifact snapshots is a later addition. Up to four outstanding collaborations can originate from one session, and delegation has one level.
 
-Isolation remains per agent. Its sessions share that agent's workspace and browser profile, and configured overlapping mounts remain shared. Deliberately passing information to another agent allows it to use that information through its permitted capabilities. Credentials and histories are never automatically copied between agents.
+Isolation follows the environment. An agent's sessions share its environment's workspace and browser profile, and configured overlapping mounts remain shared. Agents that share an [environment](runtime-and-security.md#shared-environments) also share its files, credentials, and browser, so they can hand work over by path. Deliberately passing information to another agent allows it to use that information through its permitted capabilities. Histories are never copied between agents.

@@ -1,7 +1,7 @@
 import type { ActiveAgentRunSummary } from "@carmel-agent/shared";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.ts";
-import { helperHosts, modelRefs, sessions } from "../db/schema.ts";
+import { agents, helperHosts, modelRefs, sessions } from "../db/schema.ts";
 import { getActiveAgentRunForSessionId } from "../runtime/run-stream.ts";
 
 export function readActiveRunLeaseForSession(sessionId: string) {
@@ -15,6 +15,20 @@ export function readActiveRunLeaseForSession(sessionId: string) {
 export function readActiveRunLeaseForAgent(agentId: string) {
   return readFirstActiveRun(
     db.select({ id: sessions.id }).from(sessions).where(eq(sessions.agentId, agentId)).all(),
+  );
+}
+
+/** Any run of any agent attached to the environment: they all depend on its runner. */
+export function readActiveRunLeaseForEnvironment(environmentId: string) {
+  const agentIds = db
+    .select({ id: agents.id })
+    .from(agents)
+    .where(eq(agents.environmentId, environmentId))
+    .all()
+    .map((agent) => agent.id);
+  if (agentIds.length === 0) return undefined;
+  return readFirstActiveRun(
+    db.select({ id: sessions.id }).from(sessions).where(inArray(sessions.agentId, agentIds)).all(),
   );
 }
 

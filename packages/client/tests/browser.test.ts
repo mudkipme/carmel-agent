@@ -606,10 +606,10 @@ test(
     open(agentPath(`sessions/${fixture.secretSessionId}`));
     browser("wait", "--text", "This session only");
     assert.equal(evaluate(`document.querySelectorAll('textarea[id$="-secret"]').length`), 0);
-    click("button", "Save for this agent");
-    browser("wait", "--text", "Saved for this agent");
+    click("button", "Save to environment");
+    browser("wait", "--text", "Saved to environment");
     open(agentPath(`sessions/${fixture.secretSessionId}`));
-    browser("wait", "--text", "Saved for this agent");
+    browser("wait", "--text", "Saved to environment");
     click("button", "Use in this session only");
     browser("wait", "--text", "This session only");
     click("button", "Revoke credential");
@@ -633,7 +633,7 @@ test("completed credentials stay in chat with their controls after reload", () =
   assert.match(secretCard(), /GH_TOKEN/);
   assert.match(secretCard(), /Credential provided/);
   assert.match(secretCard(), /This session only/);
-  assert.match(secretCard(), /Save for this agent/);
+  assert.match(secretCard(), /Save to environment/);
   assert.equal(
     evaluate<number>(`document.querySelectorAll('[data-agent-request-kind="secret"]').length`),
     1,
@@ -963,8 +963,13 @@ test("agent settings fields have accessible names and navigation protects unsave
   for (const name of ["Name", "Description", "System prompt"]) {
     assert.match(fields, new RegExp(`textbox "${name}"`));
   }
-  for (const name of ["Working dir", "Default model", "Default thinking"]) {
+  for (const name of ["Default model", "Default thinking"]) {
     assert.match(fields, new RegExp(`combobox "${name}"`));
+  }
+  click("link", "Environment");
+  browser("wait", "#agent-environment");
+  for (const name of ["Environment", "Working dir"]) {
+    assert.match(snapshot(), new RegExp(`combobox "${name}"`));
   }
   click("button", "Add mount");
   browser("find", "label", "Host path", "fill", "/tmp/unsaved-mount");

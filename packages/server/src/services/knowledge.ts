@@ -112,7 +112,7 @@ async function sourceRoot(agent: AgentRecord, path: string) {
     );
   }
   // Knowledge never implicitly indexes tool homes, scratch, or the application database.
-  const roots = [env.hostCwd, ...agent.mounts.map((m) => resolve(m.source))];
+  const roots = [env.hostCwd, ...env.environment.mounts.map((m) => resolve(m.source))];
   const canonical = await realpath(result).catch(() => {
     throw new KnowledgeError("Source directory does not exist.");
   });

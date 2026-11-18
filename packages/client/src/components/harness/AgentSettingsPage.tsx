@@ -5,9 +5,9 @@ import {
   ArchiveIcon,
   BookOpenIcon,
   CodeIcon,
+  ContainerIcon,
   FileTextIcon,
   HandshakeIcon,
-  KeyRoundIcon,
   MessageCircleIcon,
   PlugIcon,
   ShieldIcon,
@@ -20,7 +20,7 @@ import { AgentGeneralSettings } from "@/components/harness/agent-settings/AgentG
 import { AgentKnowledgeSettings } from "@/components/harness/agent-settings/AgentKnowledgeSettings";
 import { AgentCollaborationSettings } from "./agent-settings/AgentCollaborationSettings";
 import { AgentPermissionsSettings } from "@/components/harness/agent-settings/AgentPermissionsSettings";
-import { AgentSecretsSettings } from "@/components/harness/agent-settings/AgentSecretsSettings";
+import { AgentEnvironmentSettings } from "@/components/harness/agent-settings/AgentEnvironmentSettings";
 import { AgentIntegrationsSettings } from "@/components/harness/agent-settings/AgentIntegrationsSettings";
 import { AgentTemplatesSettings } from "@/components/harness/agent-settings/AgentTemplatesSettings";
 import { AgentMcpSettings } from "@/components/harness/agent-settings/AgentMcpSettings";
@@ -36,12 +36,12 @@ import { resolveModelRef, type AgentConfig, type AgentThinkingLevel } from "@car
 
 const agentSettingsSections = [
   { id: "general", label: /*i18n*/ "General", icon: SlidersHorizontalIcon },
+  { id: "environment", label: /*i18n*/ "Environment", icon: ContainerIcon },
   { id: "knowledge", label: /*i18n*/ "Knowledge", icon: BookOpenIcon },
   { id: "templates", label: /*i18n*/ "Templates", icon: FileTextIcon },
   { id: "collaboration", label: /*i18n*/ "Collaboration", icon: HandshakeIcon },
   { id: "permissions", label: /*i18n*/ "Permissions", icon: ShieldIcon },
   { id: "codemode", label: /*i18n*/ "Codemode", icon: CodeIcon },
-  { id: "secrets", label: /*i18n*/ "Secrets", icon: KeyRoundIcon },
   { id: "mcp", label: "MCP", icon: PlugIcon },
   { id: "integrations", label: /*i18n*/ "Integrations", icon: MessageCircleIcon },
   { id: "archived", label: /*i18n*/ "Archived", icon: ArchiveIcon },
@@ -104,7 +104,7 @@ export function AgentSettingsPage() {
   }, [agent, navigate]);
 
   /* The list in the store carries only what the sidebar renders; the full
-     record — prompt, mounts, permissions — comes from the settings endpoint. */
+     record — prompt, templates, permissions — comes from the settings endpoint. */
   useEffect(() => {
     if (!agentId || !owned) return;
     let cancelled = false;
@@ -168,6 +168,15 @@ export function AgentSettingsPage() {
     }
   };
 
+  /* Moving is saved on its own, from the last saved settings: unsaved edits in
+     other sections stay a draft rather than riding along. */
+  const moveAgent = async (environmentId: string) => {
+    if (!savedDraft) return;
+    await upsertAgent({ ...savedDraft, environmentId, updatedAt: Date.now() });
+    setSavedDraft((current) => (current ? { ...current, environmentId } : current));
+    setDraft((current) => (current ? { ...current, environmentId } : current));
+  };
+
   const removeAgent = async () => {
     if (!agent) return;
     const confirmed = await confirmAction({
@@ -201,7 +210,7 @@ export function AgentSettingsPage() {
       footer={
         draft &&
         !callerSection &&
-        activeSection !== "secrets" &&
+        activeSection !== "environment" &&
         activeSection !== "knowledge" &&
         activeSection !== "collaboration" ? (
           <footer className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t bg-muted/30 px-4 py-3 pb-[calc(0.75rem+var(--safe-bottom))] sm:px-8">
@@ -242,7 +251,6 @@ export function AgentSettingsPage() {
               draft={draft}
               modelRefs={modelRefs}
               providerConfigs={providerConfigs}
-              canConfigureHostPaths={canConfigureHostPaths}
               thinkingLevels={thinkingLevels}
               selectedThinkingLevel={selectedThinkingLevel}
               onChange={updateDraft}
@@ -266,8 +274,13 @@ export function AgentSettingsPage() {
               onChange={(permissions) => updateDraft({ permissions })}
             />
           ) : null}
-          {activeSection === "secrets" ? (
-            <AgentSecretsSettings key={agent.id} agentId={agent.id} shared={draft.shared} />
+          {activeSection === "environment" && savedDraft ? (
+            <AgentEnvironmentSettings
+              key={agent.id}
+              agent={savedDraft}
+              canConfigureHostPaths={canConfigureHostPaths}
+              onMove={moveAgent}
+            />
           ) : null}
           {activeSection === "knowledge" ? (
             <AgentKnowledgeSettings key={agent.id} agentId={agent.id} />

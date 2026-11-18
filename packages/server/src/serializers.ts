@@ -11,7 +11,6 @@ import type {
 } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { agentHomes, agents, modelRefs, providerConfigs, users } from "./db/schema.ts";
-import { defaultAgentWorkingDir } from "./paths.ts";
 import type { SessionWithMessages } from "./services/session-store.ts";
 import { PENDING_ENTRY_ID_PREFIX } from "./services/pi-session-storage.ts";
 import { resolveServerModelRef } from "./runtime/model.ts";
@@ -42,8 +41,6 @@ export function serializeAgentSettings(agent: typeof agents.$inferSelect): Agent
   return {
     ...agent,
     color: agent.color ?? undefined,
-    workingDirMode: agent.workingDirMode ?? "manual",
-    defaultWorkingDir: agent.defaultWorkingDir ?? defaultAgentWorkingDir(agent.id),
     defaultThinkingLevel: agent.defaultThinkingLevel ?? "off",
   };
 }

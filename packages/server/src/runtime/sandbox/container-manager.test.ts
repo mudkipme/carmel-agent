@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import type { agents } from "../../db/schema.ts";
+import type { agents, environments } from "../../db/schema.ts";
 
 test(
   "container identity, initialization, and replacement fail safely",
@@ -44,7 +44,7 @@ test(
     let execId = 0;
     let browserPreparations = 0;
     const executions = new Map<string, boolean>();
-    const fixtureExecutions = new Map<string, { command: string; cwd: string }>();
+    const fixtureExecutions = new Map<string, { command: string; cwd: string; env: string[] }>();
     const fixtureOutput = `large fixture output from ${directory}\n`;
     const specs: Array<{
       User: string;
@@ -105,14 +105,23 @@ test(
       if (path.endsWith("/exec")) {
         let body = "";
         for await (const chunk of req) body += chunk;
-        const spec = JSON.parse(body) as { Cmd: string[]; User?: string; WorkingDir: string };
+        const spec = JSON.parse(body) as {
+          Cmd: string[];
+          Env: string[];
+          User?: string;
+          WorkingDir: string;
+        };
         assert.equal(spec.User, undefined, "execs inherit the container's non-root identity");
         const initializing = spec.Cmd[2]!.includes("Sandbox user mapping");
         if (!initializing) browserPreparations++;
         const id = `exec-${++execId}`;
         executions.set(id, initializing);
         if (spec.Cmd.at(-1)?.startsWith("fixture-output"))
-          fixtureExecutions.set(id, { command: spec.Cmd.at(-1)!, cwd: spec.WorkingDir });
+          fixtureExecutions.set(id, {
+            command: spec.Cmd.at(-1)!,
+            cwd: spec.WorkingDir,
+            env: spec.Env,
+          });
         return json({ Id: id }, 201);
       }
       if (path.includes("/exec/") && path.endsWith("/json")) {
@@ -143,33 +152,40 @@ test(
     });
     await new Promise<void>((resolve) => server.listen(process.env.CARMEL_PODMAN_SOCKET, resolve));
     const {
-      ensureAgentContainer,
-      killAgentContainer,
+      ensureEnvironmentContainer,
+      killEnvironmentContainer,
       reapManagedContainers,
       shutdownContainerManager,
-      resolveAgentTmpDirPath,
-      resolveAgentHomeDirPath,
+      resolveEnvironmentTmpDirPath,
+      resolveEnvironmentHomeDirPath,
     } = await import("./container-manager.ts");
-    const agent = {
+    const environment: typeof environments.$inferSelect = {
       id: "test-profile-owner",
+      ownerUserId: "user_self",
+      name: "Test",
+      storageDir: "environments/test-profile-owner",
       workingDir: join(directory, "workspace"),
+      defaultWorkingDir: join(directory, "workspace"),
       workingDirMode: "manual",
       mounts: [],
-    } as unknown as typeof agents.$inferSelect;
+      network: false,
+      createdAt: 0,
+      updatedAt: 0,
+    };
     try {
-      assert.equal(await ensureAgentContainer(agent, { network: false }), "container-1");
-      const tmpPath = resolveAgentTmpDirPath(agent);
-      const homePath = resolveAgentHomeDirPath(agent);
+      assert.equal(await ensureEnvironmentContainer(environment), "container-1");
+      const tmpPath = resolveEnvironmentTmpDirPath(environment);
+      const homePath = resolveEnvironmentHomeDirPath(environment);
       const scratch = join(tmpPath, "scratch");
       const savedHome = join(homePath, "saved-profile");
-      const savedWork = join(agent.workingDir, "saved-work");
+      const savedWork = join(environment.workingDir, "saved-work");
       await writeFile(scratch, "temporary");
       await writeFile(savedHome, "persistent home");
       await writeFile(savedWork, "persistent workspace");
-      const stopped = assert.rejects(killAgentContainer(agent.id), /refusing to reuse/);
+      const stopped = assert.rejects(killEnvironmentContainer(environment.id), /refusing to reuse/);
       await deleting;
       const replacement = assert.rejects(
-        ensureAgentContainer(agent, { network: false }),
+        ensureEnvironmentContainer(environment),
         /refusing to reuse/,
       );
       await new Promise((resolve) => setImmediate(resolve));
@@ -183,16 +199,16 @@ test(
         "failed removal must retain the live runner's scratch",
       );
       assert.equal(
-        await ensureAgentContainer(agent, { network: false }),
+        await ensureEnvironmentContainer(environment),
         "container-1",
         "failed removal must keep the original owner tracked",
       );
       holdDelete = false;
-      await killAgentContainer(agent.id);
+      await killEnvironmentContainer(environment.id);
       assert.equal(existsSync(tmpPath), false, "confirmed teardown clears scratch immediately");
       assert.equal(await readFile(savedHome, "utf8"), "persistent home");
       assert.equal(await readFile(savedWork, "utf8"), "persistent workspace");
-      assert.equal(await ensureAgentContainer(agent, { network: false }), "container-2");
+      assert.equal(await ensureEnvironmentContainer(environment), "container-2");
       assert.equal(
         existsSync(scratch),
         false,
@@ -205,7 +221,10 @@ test(
         assert.deepEqual(spec.HostConfig.CapDrop, ["ALL"]);
         assert.deepEqual(spec.HostConfig.SecurityOpt, ["no-new-privileges"]);
         assert.ok(spec.Env.some((value) => value.startsWith("QMD_EMBED_MODEL=")));
-        assert.ok(spec.Env.includes("QMD_LLAMA_GPU=auto"));
+        assert.ok(
+          !spec.Env.some((value) => value.startsWith("QMD_LLAMA_GPU=")),
+          "agent acceleration choices apply per command, not to the shared runner",
+        );
         assert.ok(
           spec.HostConfig.Binds.some((bind) =>
             bind.startsWith(`${directory}/knowledge-models:/home/agent/.cache/qmd/models:ro`),
@@ -220,10 +239,10 @@ test(
         /Listing managed containers failed/,
         "a failed owner lookup cannot count as an empty list",
       );
-      await killAgentContainer(agent.id);
+      await killEnvironmentContainer(environment.id);
       for (const option of ["name=rootless", "name=userns"]) {
         securityOptions = [option];
-        await assert.rejects(ensureAgentContainer(agent, { network: false }), /not supported/);
+        await assert.rejects(ensureEnvironmentContainer(environment), /not supported/);
         assert.equal(creates, 2, "unsupported runtimes never create a runner");
       }
       securityOptions = [];
@@ -232,7 +251,7 @@ test(
       await writeFile(scratch, "failed setup");
       const previousPreparations = browserPreparations;
       await assert.rejects(
-        ensureAgentContainer(agent, { network: false }),
+        ensureEnvironmentContainer(environment),
         /initialize the non-root sandbox/,
       );
       assert.equal(
@@ -247,7 +266,7 @@ test(
       );
       initializeExitCode = 0;
       runtime = "podman";
-      assert.equal(await ensureAgentContainer(agent, { network: false }), "container-4");
+      assert.equal(await ensureEnvironmentContainer(environment), "container-4");
       assert.equal(specs.at(-1)!.HostConfig.UsernsMode, "keep-id");
 
       // Real execution-env spill handling over the mocked daemon: returned paths
@@ -257,11 +276,14 @@ test(
         await import("../../effectors/pi-durable/index.ts");
       const { initialize } = await import("../../db/index.ts");
       initialize();
-      const env = new AgentExecutionEnv({
-        ...agent,
-        workingDirMode: "default",
-        permissions: { read: true, write: true, edit: true, bash: true, network: false },
-      });
+      const env = new AgentExecutionEnv(
+        {
+          id: "test-agent",
+          environmentId: environment.id,
+          permissions: { read: true, write: true, edit: true, bash: true, network: false },
+        } as typeof agents.$inferSelect,
+        { environment: { ...environment, workingDirMode: "default" } },
+      );
       try {
         for (const command of ["fixture-output", "fixture-output-timeout"]) {
           const result = await env.exec(
@@ -281,14 +303,20 @@ test(
             assert.equal(result.ok, false);
             if (!result.ok) assert.equal(result.error.code, "timeout");
           }
-          assert.equal([...fixtureExecutions.values()].at(-1)?.cwd, "/tmp");
-          assert.equal([...fixtureExecutions.values()].at(-1)?.command, command);
+          const execution = [...fixtureExecutions.values()].at(-1);
+          assert.equal(execution?.cwd, "/tmp");
+          assert.equal(execution?.command, command);
+          assert.ok(execution?.env.includes("QMD_LLAMA_GPU=auto"));
+          assert.equal(
+            execution?.env.filter((value) => value.startsWith("CARMEL_EXEC_ID=")).length,
+            1,
+          );
         }
       } finally {
         await env.cleanup(BACKGROUND_CONTEXT);
       }
       await writeFile(scratch, "old network configuration");
-      await ensureAgentContainer(agent, { network: true });
+      await ensureEnvironmentContainer({ ...environment, network: true });
       assert.equal(
         existsSync(scratch),
         false,
@@ -300,13 +328,19 @@ test(
       assert.equal(await readFile(savedHome, "utf8"), "persistent home");
       assert.equal(await readFile(savedWork, "utf8"), "persistent workspace");
 
-      const orphan = { ...agent, id: "orphan-agent" };
-      const orphanTmp = resolveAgentTmpDirPath(orphan);
+      const { insertEnvironment, createUser } = await import("../../test-support.ts");
+      const orphan = insertEnvironment({
+        ...environment,
+        id: "orphan-environment",
+        ownerUserId: createUser(),
+        storageDir: "environments/orphan-environment",
+      });
+      const orphanTmp = resolveEnvironmentTmpDirPath(orphan);
       await mkdir(orphanTmp, { recursive: true });
       await writeFile(join(orphanTmp, "leftover"), "orphan scratch");
       managed = [
-        { Id: "orphan-removed", Created: 0, Labels: { "carmel.agent": orphan.id } },
-        { Id: "orphan-running", Created: 0, Labels: { "carmel.agent": orphan.id } },
+        { Id: "orphan-removed", Created: 0, Labels: { "carmel.environment": orphan.id } },
+        { Id: "orphan-running", Created: 0, Labels: { "carmel.environment": orphan.id } },
       ];
       failedDeletes.add("orphan-running");
       await assert.rejects(reapManagedContainers(), /refusing to reuse/);

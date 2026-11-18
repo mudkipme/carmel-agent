@@ -349,8 +349,8 @@ async function startAgentRun(context: AgentRun) {
     guardTimer = setInterval(() => {
       if (
         agent.permissions.bash &&
-        browserControl(agent.id).isPaused &&
-        !browserControl(agent.id).isDraining
+        browserControl(agent.environmentId).isPaused &&
+        !browserControl(agent.environmentId).isDraining
       ) {
         guard.recordActivity();
         return;
@@ -678,7 +678,7 @@ async function openRunHarness(
                 hooks: [
                   hook(GenerationTask, {
                     async beforeRequest() {
-                      await browserControl(agent.id).wait(context.abort.signal);
+                      await browserControl(agent.environmentId).wait(context.abort.signal);
                     },
                   }),
                 ],

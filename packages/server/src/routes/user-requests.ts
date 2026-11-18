@@ -5,13 +5,13 @@ import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import { userRequests } from "../db/schema.ts";
 import {
-  AgentSecretError,
+  SecretError,
   assertSessionOwner,
-  demoteAgentSecret,
+  demoteEnvironmentSecret,
   promoteSessionSecret,
   readSessionSecrets,
   revokeSessionSecret,
-} from "../services/agent-secrets.ts";
+} from "../services/environment-secrets.ts";
 import {
   answerQuestion,
   answerSecretRequest,
@@ -28,7 +28,7 @@ export function createUserRequestRoutes() {
     respond(c, async () => {
       await writableRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
       const body = secretAnswerSchema.safeParse(await c.req.json().catch(() => undefined));
-      if (!body.success) throw new AgentSecretError("Invalid secret value.", 400);
+      if (!body.success) throw new SecretError("Invalid secret value.", 400);
       return answerSecretRequest(
         c.get("user").id,
         c.req.param("id"),
@@ -70,7 +70,7 @@ export function createUserRequestRoutes() {
   );
   route.post("/sessions/:id/secrets/:secretId/demote", (c) =>
     respond(c, () =>
-      demoteAgentSecret(c.get("user").id, c.req.param("id"), c.req.param("secretId")),
+      demoteEnvironmentSecret(c.get("user").id, c.req.param("id"), c.req.param("secretId")),
     ),
   );
   route.delete("/sessions/:id/secrets/:secretId", (c) =>
@@ -84,19 +84,19 @@ export function createUserRequestRoutes() {
 
 async function writableRequest(userId: string, sessionId: string, requestId: string) {
   const session = assertSessionOwner(userId, sessionId);
-  if (session.issueId) throw new AgentSecretError("Issue attempt history is read-only.", 409);
+  if (session.issueId) throw new SecretError("Issue attempt history is read-only.", 409);
   const request = db
     .select()
     .from(userRequests)
     .where(and(eq(userRequests.id, requestId), eq(userRequests.sessionId, sessionId)))
     .get();
-  if (!request) throw new AgentSecretError("Request not found.", 404);
+  if (!request) throw new SecretError("Request not found.", 404);
   await withPiSession(sessionId, async (pi) => {
     if (request.conversationId !== String(pi.conversation.id))
-      throw new AgentSecretError("This request belongs to an earlier conversation branch.", 409);
+      throw new SecretError("This request belongs to an earlier conversation branch.", 409);
   });
   if (getActiveAgentRunForSession(userId, sessionId))
-    throw new AgentSecretError("Wait for the current run to finish before responding.", 409);
+    throw new SecretError("Wait for the current run to finish before responding.", 409);
 }
 
 async function respond(
@@ -110,7 +110,7 @@ async function respond(
   try {
     return c.json(await action());
   } catch (error) {
-    if (error instanceof AgentSecretError) return c.json({ error: error.message }, error.status);
+    if (error instanceof SecretError) return c.json({ error: error.message }, error.status);
     // Never serialize the exception, but do not disguise a bug or database
     // failure as an unavailable service with no log line either.
     console.error("Unable to handle user request:", error);

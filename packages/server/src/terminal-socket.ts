@@ -6,6 +6,7 @@ import { readAuthenticatedUser, readSessionCookie } from "./auth.ts";
 import { db } from "./db/index.ts";
 import { agents } from "./db/schema.ts";
 import { attachTerminal } from "./runtime/sandbox/terminal-sessions.ts";
+import { readOwnedEnvironment, type EnvironmentRecord } from "./services/environments.ts";
 import { incomingRequestHost, incomingRequestUrl, isAllowedBrowserOrigin } from "./security.ts";
 import { errorMessage } from "./errors.ts";
 
@@ -50,11 +51,15 @@ export function attachTerminalSocket(server: Server) {
     // Owner-only, and deliberately not "anyone who can use a shared agent": a
     // terminal hands over the agent's whole environment, secrets included, with
     // none of the redaction that covers agent-run output.
-    if (!agent || agent.ownerUserId !== user.id) return rejectUpgrade(socket, 404, "Not Found");
+    const environment =
+      agent?.ownerUserId === user.id
+        ? readOwnedEnvironment(user.id, agent.environmentId)
+        : undefined;
+    if (!agent || !environment) return rejectUpgrade(socket, 404, "Not Found");
     if (!agent.permissions.bash) return rejectUpgrade(socket, 403, "Forbidden");
 
     wss.handleUpgrade(request, socket, head, (ws) => {
-      void openTerminal(ws, agent, user.id, {
+      void openTerminal(ws, environment, user.id, {
         rows: positiveInt(url.searchParams.get("rows"), 24),
         cols: positiveInt(url.searchParams.get("cols"), 80),
       });
@@ -66,7 +71,7 @@ export function attachTerminalSocket(server: Server) {
 
 async function openTerminal(
   ws: WebSocket,
-  agent: typeof agents.$inferSelect,
+  environment: EnvironmentRecord,
   userId: string,
   size: { rows: number; cols: number },
 ) {
@@ -77,7 +82,7 @@ async function openTerminal(
   let handle: Awaited<ReturnType<typeof attachTerminal>>;
   try {
     handle = await attachTerminal(
-      agent,
+      environment,
       userId,
       {
         onData: (data) => send({ type: "output", data }),
@@ -95,7 +100,7 @@ async function openTerminal(
   }
 
   // The socket may have gone while the container was starting, which can take
-  // seconds on a cold agent. Detach rather than leaving a subscriber nothing
+  // seconds on a cold environment. Detach rather than leaving a subscriber nothing
   // will ever read from.
   if (ws.readyState !== ws.OPEN) {
     handle.detach();

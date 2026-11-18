@@ -144,7 +144,7 @@ Keys are stored hashed and shown only once when created. Revoking a key, or dele
 
 - `EXA_API_KEY` — enables `exa_search`.
 
-Network tools are only added to a run when the agent has the network permission.
+Network tools are only added to a run when the agent has the web access permission.
 
 `fetch_url` needs no key at all. It fetches the URL directly and, for its default `markdown` format, extracts the page's main content locally with [Defuddle](https://github.com/kepano/defuddle) — the extractor behind Obsidian Web Clipper — dropping navigation, ads, and boilerplate. Non-HTML responses and the `html`/`text` formats return the response body as sent. `exa_search` is the only network tool that reports a missing key.
 
@@ -174,9 +174,9 @@ The runner image defines the toolchain bash agents get. The default `Dockerfile.
 - Development: Node.js/npm, Python/pip/venv, C/C++ compilers, make, pkg-config, and Python development headers for native package builds.
 - Browser and search: Chromium, `agent-browser`, and `qmd`.
 
-Network utilities use the agent's existing network permission. Diagnostic tools run with the same non-root identity and dropped capabilities as other commands.
+Network utilities use the environment's sandbox network access. Diagnostic tools run with the same non-root identity and dropped capabilities as other commands.
 
-Commands run without root, including terminal and MCP commands. npm global installs use the persistent agent home; Python/pip default to a persistent virtual environment there. Custom runner images must provide Node, `/usr/bin/python3`, and working `python3 -m venv`. Startup checks identity, mounted directory access/ownership, and initializes the virtual environment before agent execution.
+Commands run without root, including terminal and MCP commands. npm global installs use the persistent runner home; Python/pip default to a persistent virtual environment there. Custom runner images must provide Node, `/usr/bin/python3`, and working `python3 -m venv`. Startup checks identity, mounted directory access/ownership, and initializes the virtual environment before agent execution.
 
 Compose-only settings: `CARMEL_USERNS_MODE` defaults to `keep-id`; use `host` for rootful runtimes. `CARMEL_RUNTIME_SOCKET` overrides the host socket bind, and `CARMEL_SOCKET_GID` adds its group to the server. These do not override runner runtime detection. See [deployment.md](deployment.md#using-docker).
 

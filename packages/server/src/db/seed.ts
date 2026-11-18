@@ -66,10 +66,7 @@ export const defaultAgent: AgentConfig = {
   shared: false,
   name: "Local Agent",
   description: "Default local coding and research agent",
-  workingDirMode: "default",
-  workingDir: "agents/agent_self/workspace",
-  defaultWorkingDir: "agents/agent_self/workspace",
-  mounts: [],
+  environmentId: "agent_self",
   systemPrompt:
     "You are Carmel, a pragmatic local agent harness. Work carefully, explain tradeoffs concisely, and preserve user intent.",
   promptTemplates: [
@@ -168,11 +165,27 @@ export function seedDatabase(sqlite: BetterSqlite3.Database) {
       );
     sqlite
       .prepare(`
+      INSERT INTO environments
+        (id, owner_user_id, name, storage_dir, working_dir_mode, working_dir, default_working_dir,
+         mounts, network, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'default', ?, ?, '[]', 0, ?, ?)
+    `)
+      .run(
+        defaultAgent.environmentId,
+        defaultAgent.ownerUserId,
+        defaultAgent.name,
+        "agents/agent_self",
+        "agents/agent_self/workspace",
+        "agents/agent_self/workspace",
+        timestamp,
+        timestamp,
+      );
+    sqlite
+      .prepare(`
       INSERT INTO agents
-        (id, owner_user_id, shared, name, description, working_dir_mode, working_dir, default_working_dir,
-         mounts, system_prompt, prompt_templates, permissions, default_model_ref_id, default_thinking_level,
-         created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, owner_user_id, shared, name, description, environment_id, system_prompt, prompt_templates,
+         permissions, default_model_ref_id, default_thinking_level, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
       .run(
         defaultAgent.id,
@@ -180,10 +193,7 @@ export function seedDatabase(sqlite: BetterSqlite3.Database) {
         Number(defaultAgent.shared),
         defaultAgent.name,
         defaultAgent.description,
-        defaultAgent.workingDirMode,
-        defaultAgent.workingDir,
-        defaultAgent.defaultWorkingDir ?? null,
-        JSON.stringify(defaultAgent.mounts),
+        defaultAgent.environmentId,
         defaultAgent.systemPrompt,
         JSON.stringify(defaultAgent.promptTemplates),
         JSON.stringify(defaultAgent.permissions),

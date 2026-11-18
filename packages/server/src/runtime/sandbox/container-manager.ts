@@ -1,9 +1,10 @@
-import { readdirSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { isAbsolute, posix, relative, resolve, sep } from "node:path";
 import type { AgentMount } from "@carmel-agent/shared";
-import { agents } from "../../db/schema.ts";
-import { agentHomeDir, agentTmpDir, dataDir, ensureDir, resolveDataPath } from "../../paths.ts";
-import { resolveAgentWorkingDirPath } from "../resources.ts";
+import { db } from "../../db/index.ts";
+import { environments } from "../../db/schema.ts";
+import { dataDir, ensureDir, resolveDataPath } from "../../paths.ts";
+import { resolveEnvironmentWorkingDirPath } from "../resources.ts";
 import {
   createContainer,
   execInContainer,
@@ -17,6 +18,7 @@ import {
   startContainer,
   type ManagedContainer,
 } from "./runtime-client.ts";
+import { eq } from "drizzle-orm";
 import { errorMessage } from "../../errors.ts";
 import { prepareBrowserProfileScript } from "./browser-profile.ts";
 import { resolveSandboxIdentity, type SandboxIdentity } from "./runtime-identity.ts";
@@ -25,11 +27,11 @@ import { prepareNestedMountpoints } from "./mountpoints.ts";
 import { knowledgeShellResources, type KnowledgeShellResources } from "../knowledge/shell.ts";
 export { containerHome } from "./environment.ts";
 
-type AgentRecord = typeof agents.$inferSelect;
+export type EnvironmentRecord = typeof environments.$inferSelect;
 
 const managedLabel = "carmel.managed";
 const managedLabelValue = "1";
-const agentLabel = "carmel.agent";
+const environmentLabel = "carmel.environment";
 const containerWorkspace = "/workspace";
 const reaperIntervalMs = 60_000;
 
@@ -45,178 +47,181 @@ const config = {
   selinuxRelabel: process.env.CARMEL_BASH_SELINUX_RELABEL !== "false",
 };
 
-type ContainerEntry = { containerId: string; lastUsedAt: number; signature: string };
+type ContainerEntry = {
+  containerId: string;
+  lastUsedAt: number;
+  signature: string;
+  tmpPath: string;
+};
 
+// Keyed by environment id: every agent attached to an environment shares its runner.
 const containers = new Map<string, ContainerEntry>();
-// Agents with something attached that the idle reaper must not interrupt --
-// today, open terminal sessions. Counted rather than boolean: two browser tabs
-// on the same shell are two holds, and the last one to leave releases it.
+// Environments with something attached that the idle reaper must not interrupt
+// -- terminals, browser viewers, MCP servers. Counted rather than boolean: two
+// browser tabs on the same shell are two holds, and the last one to leave releases it.
 const containerHolds = new Map<string, number>();
 const pendingStarts = new Map<string, Promise<string>>();
 const pendingStops = new Map<string, Promise<void>>();
 let imageReady: Promise<void> | undefined;
 let reaper: ReturnType<typeof setInterval> | undefined;
 
-export async function ensureAgentContainer(
-  agent: AgentRecord,
-  options: { network: boolean },
-): Promise<string> {
+export async function ensureEnvironmentContainer(environment: EnvironmentRecord): Promise<string> {
   if (!isSandboxConfigured()) throw new Error(sandboxUnavailableMessage());
-  const stopping = pendingStops.get(agent.id);
+  const stopping = pendingStops.get(environment.id);
   if (stopping) await stopping;
 
   const identity = await resolveSandboxIdentity();
-  const knowledge = await knowledgeShellResources(agent);
-  const signature = containerSignature(agent, options, identity, knowledge);
-  const existing = containers.get(agent.id);
+  const knowledge = await knowledgeShellResources();
+  const signature = containerSignature(environment, identity, knowledge);
+  const existing = containers.get(environment.id);
   if (existing) {
     // Reuse only if the bind configuration still matches; recreate when the
     // workspace dir or extra mounts changed so stale binds are not kept.
     if (existing.signature === signature && (await isContainerRunning(existing.containerId))) {
-      // A reaper/abort may have started teardown while the running check waited.
-      if (pendingStops.has(agent.id) || containers.get(agent.id) !== existing)
-        return ensureAgentContainer(agent, options);
+      // A reaper may have started teardown while the running check waited.
+      if (pendingStops.has(environment.id) || containers.get(environment.id) !== existing)
+        return ensureEnvironmentContainer(environment);
       existing.lastUsedAt = Date.now();
       return existing.containerId;
     }
-    await stopTrackedContainer(agent.id, existing);
+    await stopTrackedContainer(environment.id, existing);
   }
 
-  const pending = pendingStarts.get(agent.id);
+  const pending = pendingStarts.get(environment.id);
   if (pending) {
     await pending;
     // The in-flight creation may have used different mounts or identity.
-    return ensureAgentContainer(agent, options);
+    return ensureEnvironmentContainer(environment);
   }
-  const starting = createAgentContainer(agent, options, identity, knowledge)
+  const tmpPath = resolveEnvironmentTmpDirPath(environment);
+  const starting = createEnvironmentContainer(environment, identity, knowledge)
     .then((containerId) => {
-      containers.set(agent.id, { containerId, lastUsedAt: Date.now(), signature });
+      containers.set(environment.id, {
+        containerId,
+        lastUsedAt: Date.now(),
+        signature,
+        tmpPath,
+      });
       startReaper();
       return containerId;
     })
-    .finally(() => pendingStarts.delete(agent.id));
-  pendingStarts.set(agent.id, starting);
+    .finally(() => pendingStarts.delete(environment.id));
+  pendingStarts.set(environment.id, starting);
   return starting;
 }
 
 // Identifies the bind-relevant inputs of a runner container. When this changes
-// for an agent (workspace dir, mount path, extra mounts, network), the existing
-// container is torn down and recreated on the next command.
+// for an environment (workspace dir, mount path, extra mounts, network), the
+// existing container is torn down and recreated on the next command.
 export function containerSignature(
-  agent: AgentRecord,
-  options: { network: boolean },
+  environment: EnvironmentRecord,
   identity?: SandboxIdentity,
   knowledge?: KnowledgeShellResources,
 ) {
-  const workspaceHostPath = toHostPath(resolveAgentWorkingDirPath(agent));
-  const tmpHostPath = toHostPath(resolveAgentTmpDirPath(agent));
-  const homeHostPath = toHostPath(resolveAgentHomeDirPath(agent));
-  const mountPath = resolveContainerWorkspace(agent);
+  const workspaceHostPath = toHostPath(resolveEnvironmentWorkingDirPath(environment));
+  const tmpHostPath = toHostPath(resolveEnvironmentTmpDirPath(environment));
+  const homeHostPath = toHostPath(resolveEnvironmentHomeDirPath(environment));
+  const mountPath = resolveContainerWorkspace(environment);
   return JSON.stringify({
-    binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, agent.mounts),
-    network: options.network,
+    binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, environment.mounts),
+    network: environment.network,
     identity,
     knowledge,
   });
 }
 
 /**
- * Pin an agent's container against the idle reaper.
+ * Pin an environment's container against the idle reaper.
  *
  * The reaper measures idleness by `lastUsedAt`, which only moves when a command
  * is dispatched. A terminal where someone is reading rather than typing looks
  * exactly like an abandoned container, so it needs to say so explicitly.
  */
-export function holdAgentContainer(agentId: string) {
-  containerHolds.set(agentId, (containerHolds.get(agentId) ?? 0) + 1);
+export function holdEnvironmentContainer(environmentId: string) {
+  containerHolds.set(environmentId, (containerHolds.get(environmentId) ?? 0) + 1);
 }
 
-export function releaseAgentContainer(agentId: string) {
-  const held = (containerHolds.get(agentId) ?? 0) - 1;
-  if (held > 0) containerHolds.set(agentId, held);
-  else containerHolds.delete(agentId);
+export function releaseEnvironmentContainer(environmentId: string) {
+  const held = (containerHolds.get(environmentId) ?? 0) - 1;
+  if (held > 0) containerHolds.set(environmentId, held);
+  else containerHolds.delete(environmentId);
   // Idleness is counted from the release, not from the last command: a session
   // that just ended should buy the full TTL before the container is reclaimed.
-  const entry = containers.get(agentId);
+  const entry = containers.get(environmentId);
   if (entry && held <= 0) entry.lastUsedAt = Date.now();
 }
 
-export function isAgentContainerHeld(agentId: string) {
-  return (containerHolds.get(agentId) ?? 0) > 0;
+export function isEnvironmentContainerHeld(environmentId: string) {
+  return (containerHolds.get(environmentId) ?? 0) > 0;
 }
 
-// Scratch storage has the same lifetime as the runner, including aborts and
-// config changes. Only workspace and home data survive recreation.
-export async function killAgentContainer(agentId: string) {
-  const starting = pendingStarts.get(agentId);
-  if (starting) await starting;
-  const entry = containers.get(agentId);
+// Scratch storage has the same lifetime as the runner, including config
+// changes. Only workspace and home data survive recreation.
+export async function killEnvironmentContainer(environmentId: string) {
+  const starting = pendingStarts.get(environmentId);
+  if (starting) await starting.catch(() => {});
+  const entry = containers.get(environmentId);
   if (!entry) return;
-  await stopTrackedContainer(agentId, entry);
+  await stopTrackedContainer(environmentId, entry);
 }
 
 /** Keep the owner tracked and block replacement until removal is confirmed. */
-function stopTrackedContainer(agentId: string, entry: ContainerEntry): Promise<void> {
-  const pending = pendingStops.get(agentId);
+function stopTrackedContainer(environmentId: string, entry: ContainerEntry): Promise<void> {
+  const pending = pendingStops.get(environmentId);
   if (pending) return pending;
   const stopping = (async () => {
     await removeContainerConfirmed(entry.containerId);
-    if (containers.get(agentId) === entry) {
-      clearAgentTmp(agentId);
-      containers.delete(agentId);
+    if (containers.get(environmentId) === entry) {
+      clearTmp(entry.tmpPath);
+      containers.delete(environmentId);
     }
-  })().finally(() => pendingStops.delete(agentId));
-  pendingStops.set(agentId, stopping);
+  })().finally(() => pendingStops.delete(environmentId));
+  pendingStops.set(environmentId, stopping);
   return stopping;
 }
 
-// Agent deletion also removes scratch written by file tools without a runner.
-export async function discardAgentContainer(agentId: string) {
-  await killAgentContainer(agentId);
-  if (!containers.has(agentId) && !pendingStarts.has(agentId) && !pendingStops.has(agentId))
-    clearAgentTmp(agentId);
+// Environment deletion also removes scratch written by file tools without a runner.
+export async function discardEnvironmentContainer(environment: EnvironmentRecord) {
+  await killEnvironmentContainer(environment.id);
+  if (!hasRunner(environment.id)) clearTmp(resolveEnvironmentTmpDirPath(environment));
 }
 
-function clearAgentTmp(agentId: string) {
-  rmSync(agentTmpDirPath(agentId), { recursive: true, force: true });
+function clearTmp(path: string) {
+  rmSync(path, { recursive: true, force: true });
 }
 
 // Where the workspace is mounted inside the runner. Manual workspaces keep their
 // absolute path so paths line up with the host and the server-side file tools;
-// default per-agent workspaces use a stable /workspace mount point.
-export function resolveContainerWorkspace(agent: AgentRecord) {
-  if (agent.workingDirMode === "manual") return resolveAgentWorkingDirPath(agent);
+// default workspaces use a stable /workspace mount point.
+export function resolveContainerWorkspace(environment: EnvironmentRecord) {
+  if (environment.workingDirMode === "manual") return resolveEnvironmentWorkingDirPath(environment);
   return containerWorkspace;
 }
 
-// Per-agent host directory bind-mounted at /tmp in the runner. Backing it on the
-// host (rather than the container's ephemeral layer) lets the host-side file
-// tools see the same /tmp the sandboxed shell writes to, while keeping it
-// isolated from the host's real /tmp. Removed after the runner is confirmed gone.
-export function resolveAgentTmpDirPath(agent: AgentRecord) {
-  return agentTmpDirPath(agent.id);
+// Host directory bind-mounted at /tmp in the runner. Backing it on the host
+// (rather than the container's ephemeral layer) lets the host-side file tools
+// see the same /tmp the sandboxed shell writes to, while keeping it isolated
+// from the host's real /tmp. Removed after the runner is confirmed gone.
+export function resolveEnvironmentTmpDirPath(environment: EnvironmentRecord) {
+  return resolveDataPath(`${environment.storageDir}/tmp`);
 }
 
-// Per-agent host directory bind-mounted at containerHome. Unlike /tmp this is
-// never reclaimed by the reaper: surviving container recreation is the point,
-// so a `npm install -g` or a git identity set in one session is still there in
-// the next one.
-export function resolveAgentHomeDirPath(agent: AgentRecord) {
-  return resolveDataPath(agentHomeDir(agent.id));
+// Host directory bind-mounted at containerHome. Unlike /tmp this is never
+// reclaimed by the reaper: surviving container recreation is the point, so a
+// `npm install -g` or a git identity set in one session is still there in the
+// next one.
+export function resolveEnvironmentHomeDirPath(environment: EnvironmentRecord) {
+  return resolveDataPath(`${environment.storageDir}/home`);
 }
 
-function agentTmpDirPath(agentId: string) {
-  return resolveDataPath(agentTmpDir(agentId));
-}
-
-export function toContainerWorkdir(agent: AgentRecord, cwd: string) {
-  const workspaceRoot = resolveAgentWorkingDirPath(agent);
-  const mountPath = resolveContainerWorkspace(agent);
+export function toContainerWorkdir(environment: EnvironmentRecord, cwd: string) {
+  const workspaceRoot = resolveEnvironmentWorkingDirPath(environment);
+  const mountPath = resolveContainerWorkspace(environment);
   const mappings = [
     { source: workspaceRoot, target: mountPath },
-    { source: resolveAgentTmpDirPath(agent), target: "/tmp" },
-    { source: resolveAgentHomeDirPath(agent), target: containerHome },
-    ...agent.mounts.flatMap((mount) => {
+    { source: resolveEnvironmentTmpDirPath(environment), target: "/tmp" },
+    { source: resolveEnvironmentHomeDirPath(environment), target: containerHome },
+    ...environment.mounts.flatMap((mount) => {
       const source = mount.source?.trim();
       return source
         ? [{ source: resolve(source), target: resolve(mount.target?.trim() || source) }]
@@ -241,7 +246,7 @@ export function containerWorkdir(workspaceRoot: string, cwd: string, mountPath: 
 }
 
 // Builds the runner bind list: the workspace, a private /tmp, a private $HOME,
-// plus any per-agent extra mounts. Extra mount sources are host paths as the
+// plus any extra environment mounts. Extra mount sources are host paths as the
 // Podman daemon sees them.
 export function buildBinds(
   workspaceHostPath: string,
@@ -272,23 +277,20 @@ export async function reapManagedContainers() {
   await removeUntrackedRunners(stale, stale);
   // Startup also clears scratch left by a crash after the runtime removed its
   // container, or by older versions which kept /tmp across server restarts.
-  let directories;
-  try {
-    directories = readdirSync(resolve(dataDir, "agents"), { withFileTypes: true });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-    throw error;
-  }
-  for (const directory of directories) {
-    if (directory.isDirectory() && !hasRunner(directory.name)) clearAgentTmp(directory.name);
+  for (const environment of db.select().from(environments).all()) {
+    if (!hasRunner(environment.id)) clearTmp(resolveEnvironmentTmpDirPath(environment));
   }
 }
 
-function hasRunner(agentId: string) {
-  return containers.has(agentId) || pendingStarts.has(agentId) || pendingStops.has(agentId);
+function hasRunner(environmentId: string) {
+  return (
+    containers.has(environmentId) ||
+    pendingStarts.has(environmentId) ||
+    pendingStops.has(environmentId)
+  );
 }
 
-/** Clear scratch only when every known runner for that agent was removed. */
+/** Clear scratch only when every known runner for that environment was removed. */
 async function removeUntrackedRunners(managed: ManagedContainer[], stale: ManagedContainer[]) {
   const removed = new Set<string>();
   const results = await Promise.allSettled(
@@ -297,19 +299,26 @@ async function removeUntrackedRunners(managed: ManagedContainer[], stale: Manage
       removed.add(container.Id);
     }),
   );
-  const agentIds = new Set(
+  const environmentIds = new Set(
     stale
-      .map((container) => container.Labels?.[agentLabel])
+      .map((container) => container.Labels?.[environmentLabel])
       .filter((id): id is string => Boolean(id)),
   );
-  for (const agentId of agentIds) {
+  for (const environmentId of environmentIds) {
+    const environment = db
+      .select()
+      .from(environments)
+      .where(eq(environments.id, environmentId))
+      .get();
     if (
-      !hasRunner(agentId) &&
+      environment &&
+      !hasRunner(environmentId) &&
       managed.every(
-        (container) => container.Labels?.[agentLabel] !== agentId || removed.has(container.Id),
+        (container) =>
+          container.Labels?.[environmentLabel] !== environmentId || removed.has(container.Id),
       )
     )
-      clearAgentTmp(agentId);
+      clearTmp(resolveEnvironmentTmpDirPath(environment));
   }
   const failure = results.find((result) => result.status === "rejected");
   if (failure?.status === "rejected") throw failure.reason;
@@ -328,25 +337,24 @@ export async function shutdownContainerManager() {
     reaper = undefined;
   }
   await Promise.all(
-    [...containers].map(([agentId, entry]) => stopTrackedContainer(agentId, entry)),
+    [...containers].map(([environmentId, entry]) => stopTrackedContainer(environmentId, entry)),
   );
 }
 
-async function createAgentContainer(
-  agent: AgentRecord,
-  options: { network: boolean },
+async function createEnvironmentContainer(
+  environment: EnvironmentRecord,
   identity: SandboxIdentity,
   knowledge: KnowledgeShellResources,
 ) {
   await ensureImage();
 
-  const workspacePath = resolveAgentWorkingDirPath(agent);
-  const tmpPath = resolveAgentTmpDirPath(agent);
-  const homePath = resolveAgentHomeDirPath(agent);
+  const workspacePath = resolveEnvironmentWorkingDirPath(environment);
+  const tmpPath = resolveEnvironmentTmpDirPath(environment);
+  const homePath = resolveEnvironmentHomeDirPath(environment);
   ensureDir(workspacePath);
   ensureDir(tmpPath);
   ensureDir(homePath);
-  const mountPath = resolveContainerWorkspace(agent);
+  const mountPath = resolveContainerWorkspace(environment);
   const workspaceHostPath = toHostPath(workspacePath);
   const tmpHostPath = toHostPath(tmpPath);
   const homeHostPath = toHostPath(homePath);
@@ -355,7 +363,7 @@ async function createAgentContainer(
     source: toHostPath(mount.source),
   }));
   // Reject overlapping mounts instead of silently shadowing an operator mount.
-  for (const mount of agent.mounts) {
+  for (const mount of environment.mounts) {
     const target = resolve(mount.target?.trim() || mount.source);
     if (
       knowledgeMounts.some(
@@ -365,7 +373,7 @@ async function createAgentContainer(
           target.startsWith(`${shared.target}/`),
       )
     ) {
-      throw new Error(`Agent mount overlaps the shared qmd model mount: ${target}`);
+      throw new Error(`Environment mount overlaps the shared qmd model mount: ${target}`);
     }
   }
 
@@ -373,7 +381,7 @@ async function createAgentContainer(
     { source: workspacePath, target: mountPath },
     { source: tmpPath, target: "/tmp" },
     { source: homePath, target: containerHome },
-    ...agent.mounts
+    ...environment.mounts
       .filter((mount) => mount.source?.trim())
       .map((mount) => ({
         source: toServerPath(mount.source.trim()),
@@ -383,14 +391,14 @@ async function createAgentContainer(
     ...knowledge.mounts,
   ]);
 
-  const name = `carmel-bash-${sanitizeName(agent.id)}-${Date.now().toString(36)}`;
+  const name = `carmel-bash-${sanitizeName(environment.id)}-${Date.now().toString(36)}`;
   const containerId = await createContainer(name, {
     Image: config.image,
     User: identity.user,
     Entrypoint: [],
     Cmd: ["sleep", "infinity"],
     WorkingDir: mountPath,
-    Labels: { [managedLabel]: managedLabelValue, [agentLabel]: agent.id },
+    Labels: { [managedLabel]: managedLabelValue, [environmentLabel]: environment.id },
     Env: Object.entries({ ...runnerEnvironment, ...knowledge.env }).map(
       ([key, value]) => `${key}=${value}`,
     ),
@@ -399,7 +407,7 @@ async function createAgentContainer(
       Init: true,
       UsernsMode: identity.usernsMode,
       Binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, [
-        ...agent.mounts,
+        ...environment.mounts,
         ...knowledgeMounts,
       ]),
       Memory: config.memoryBytes,
@@ -407,9 +415,9 @@ async function createAgentContainer(
       PidsLimit: config.pidsLimit,
       CapDrop: ["ALL"],
       SecurityOpt: ["no-new-privileges"],
-      // No network unless the agent has the network permission. When allowed we
-      // leave NetworkMode unset so rootless Podman uses its default network.
-      ...(options.network ? {} : { NetworkMode: "none" }),
+      // No network unless the environment allows it. When allowed we leave
+      // NetworkMode unset so rootless Podman uses its default network.
+      ...(environment.network ? {} : { NetworkMode: "none" }),
       // Attach CDI devices (e.g. NVIDIA GPUs) when CARMEL_BASH_GPU is set.
       ...(config.gpuDevices.length > 0
         ? { DeviceRequests: [{ Driver: "cdi", DeviceIDs: config.gpuDevices }] }
@@ -462,7 +470,7 @@ async function createAgentContainer(
       );
     return containerId;
   } catch (error) {
-    if (await removeContainer(containerId)) clearAgentTmp(agent.id);
+    if (await removeContainer(containerId)) clearTmp(tmpPath);
     throw error;
   }
 }
@@ -498,15 +506,15 @@ function startReaper() {
 async function reapIdleContainers() {
   const now = Date.now();
   const stale: Array<[string, ContainerEntry]> = [];
-  for (const [agentId, entry] of containers) {
-    if (containerHolds.has(agentId)) continue;
+  for (const [environmentId, entry] of containers) {
+    if (containerHolds.has(environmentId)) continue;
     if (now - entry.lastUsedAt < config.idleTtlMs) continue;
-    stale.push([agentId, entry]);
+    stale.push([environmentId, entry]);
   }
   await Promise.all(
-    stale.map(async ([agentId, entry]) => {
+    stale.map(async ([environmentId, entry]) => {
       try {
-        await stopTrackedContainer(agentId, entry);
+        await stopTrackedContainer(environmentId, entry);
       } catch (error) {
         console.warn("Failed to reap sandbox container:", errorMessage(error));
       }

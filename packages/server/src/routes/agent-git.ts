@@ -6,6 +6,7 @@ import type { agents } from "../db/schema.ts";
 import { errorMessage } from "../errors.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
 import { isGitRequestError, readGitFileDiff, readGitStatus } from "../runtime/git-workspace.ts";
+import { readAgentEnvironment } from "../services/environments.ts";
 import { isSandboxConfigured } from "../runtime/sandbox/runtime-client.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -29,7 +30,7 @@ export function createAgentGitRoute(readVisibleAgent: ReadVisibleAgent) {
     const refusal = refuse(agent);
     if (refusal) return c.json({ error: refusal.error }, refusal.status);
     try {
-      return c.json(await readGitStatus(agent));
+      return c.json(await readGitStatus(readAgentEnvironment(agent)));
     } catch (error) {
       return c.json({ error: errorMessage(error) }, 502);
     }
@@ -48,7 +49,7 @@ export function createAgentGitRoute(readVisibleAgent: ReadVisibleAgent) {
     const env = new AgentExecutionEnv(agent);
     try {
       return c.json(
-        await readGitFileDiff(agent, env, {
+        await readGitFileDiff(env.environment, env, {
           path,
           area,
           originalPath: c.req.query("originalPath") || undefined,

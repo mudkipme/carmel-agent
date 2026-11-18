@@ -21,7 +21,7 @@ The catalog reads metadata only, with at most 20 sources / 6,000 characters.
 2. Open **Agent Settings → Knowledge** as the agent's owner and turn knowledge on. The **Knowledge settings** button on the Knowledge page opens the same settings section. The agent needs read permission. General bash permission is not required.
 3. Add a source directory inside the agent workspace or an existing configured mount. Relative paths are relative to the workspace; runner mount paths are also accepted. Only Markdown files are indexed. Hidden directories, build output, dependency directories, and symlinks are excluded by the qmd indexer.
 4. Click **Refresh index** for keyword search. Background maintenance checks dirty agents every 30 seconds and reconciles source changes about every five minutes. It performs no model work or conversation ingestion.
-5. For semantic search, configure the global embedding model on the server and click **Build embeddings**. **Prepare deep search** also prepares qmd's default query-expansion and reranking models. Model downloads require the agent's network permission. Retrieval and automatic indexing always run offline and report missing models without waiting for a download.
+5. For semantic search, configure the global embedding model on the server and click **Build embeddings**. **Prepare deep search** also prepares qmd's default query-expansion and reranking models. Model downloads require the agent's web access permission. Retrieval and automatic indexing always run offline and report missing models without waiting for a download.
 
 Set `CARMEL_KNOWLEDGE_EMBED_MODEL` to an `hf:` URI or an absolute GGUF file path on the server. The default is `hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf`. This is an operator setting shared by every agent; Knowledge settings display it read-only. Legacy per-agent model choices are ignored. Local files are mounted read-only with their original filename so model-family-specific formatting is preserved; they do not need to be added to each agent’s mounts. For a containerized server, make the file visible at the same absolute host path, or place it under the mapped application data directory.
 
@@ -54,7 +54,7 @@ State lives under `CARMEL_AGENT_DATA_DIR/knowledge/<sha256-agent-id>/`:
 - `cache/`: per-worker runtime caches, including driver caches.
 - `home/`, `config/`: worker-local tool state.
 
-Downloaded embedding, query-expansion, and reranking weights live once under `CARMEL_AGENT_DATA_DIR/knowledge-models/`, outside all agent directories. Retrieval mounts this shared cache read-only. Explicit model-preparation jobs may write to it when the agent has network permission, and these operations are serialized across agents. Deleting an agent keeps these shared files. Previous per-agent model caches are not moved or deleted automatically.
+Downloaded embedding, query-expansion, and reranking weights live once under `CARMEL_AGENT_DATA_DIR/knowledge-models/`, outside all agent directories. Retrieval mounts this shared cache read-only. Explicit model-preparation jobs may write to it when the agent has web access permission, and these operations are serialized across agents. Deleting an agent keeps these shared files. Previous per-agent model caches are not moved or deleted automatically.
 
 Sharing model files avoids duplicate downloads and disk copies. It does **not** share a loaded inference instance: each active runner has its own RAM/VRAM allocation. A common inference service would be a separate change.
 

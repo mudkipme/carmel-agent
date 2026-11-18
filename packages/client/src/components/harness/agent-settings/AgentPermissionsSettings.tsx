@@ -15,7 +15,7 @@ const permissionLabels = {
   write: /*i18n*/ "Write files",
   edit: /*i18n*/ "Edit files",
   bash: /*i18n*/ "Run commands",
-  network: /*i18n*/ "Network access",
+  network: /*i18n*/ "Web access",
 } as const;
 
 export function AgentPermissionsSettings({

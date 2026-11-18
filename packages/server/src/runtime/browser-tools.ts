@@ -2,19 +2,20 @@ import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
 import type { agents } from "../db/schema.ts";
 import { browserControl } from "./browser-control.ts";
 import { execSandboxCommand } from "./sandbox/bash-operations.ts";
-import { resolveAgentWorkingDirPath } from "./resources.ts";
+import { readAgentEnvironment } from "../services/environments.ts";
+import { resolveEnvironmentWorkingDirPath } from "./resources.ts";
 
 type Tool = ToolRegistration;
 
 export function guardBrowserHandoff(
-  agentId: string,
+  environmentId: string,
   tool: Tool,
   observed: { revision: number },
 ): Tool {
   return {
     ...tool,
     async execute(...args) {
-      const control = browserControl(agentId);
+      const control = browserControl(environmentId);
       const lease = await control.enter(args[2].abortSignal);
       try {
         if (lease.interrupted || observed.revision !== control.state.revision) {
@@ -63,7 +64,8 @@ export function browserHelpTool(agent: typeof agents.$inferSelect, sessionId?: s
       const reason = String((args as { reason: string }).reason).trim();
       if (!reason || reason.length > 1000)
         throw new Error("Give a brief reason for browser assistance.");
-      const control = browserControl(agent.id);
+      const environment = readAgentEnvironment(agent);
+      const control = browserControl(environment.id);
       const waiting = control.requestHelp(reason, context.abortSignal);
       api.output(`Waiting for browser assistance: ${reason}`);
       await waiting;
@@ -71,9 +73,9 @@ export function browserHelpTool(agent: typeof agents.$inferSelect, sessionId?: s
       try {
         let snapshot = "";
         const result = await execSandboxCommand(
-          agent,
+          environment,
           "agent-browser --session carmel snapshot",
-          resolveAgentWorkingDirPath(agent),
+          resolveEnvironmentWorkingDirPath(environment),
           {
             signal: context.abortSignal,
             timeout: 25,

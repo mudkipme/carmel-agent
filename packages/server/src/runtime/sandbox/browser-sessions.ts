@@ -1,34 +1,33 @@
 import { StringDecoder } from "node:string_decoder";
 import type { Duplex } from "node:stream";
-import type { agents } from "../../db/schema.ts";
 import { attachExecStdio, createStreamDemuxer } from "./runtime-client.ts";
 import {
-  ensureAgentContainer,
-  holdAgentContainer,
-  releaseAgentContainer,
+  ensureEnvironmentContainer,
+  holdEnvironmentContainer,
+  releaseEnvironmentContainer,
   toContainerWorkdir,
+  type EnvironmentRecord,
 } from "./container-manager.ts";
-import { resolveAgentWorkingDirPath } from "../resources.ts";
+import { resolveEnvironmentWorkingDirPath } from "../resources.ts";
 import { sandboxEnv } from "./bash-operations.ts";
 import { browserBridgeScript } from "./browser-bridge.ts";
 import { parseBrowserOutput } from "../../browser-protocol.ts";
 
-type AgentRecord = typeof agents.$inferSelect;
 export type BrowserConnection = { send: (message: unknown) => void; close: () => void };
 const connections = new Map<string, Set<BrowserConnection>>();
 const generations = new Map<string, number>();
 
-/** Each viewer gets its own paced stream. All attach to the same agent browser. */
+/** Each viewer gets its own paced stream. All attach to the same environment browser. */
 export async function connectBrowser(
-  agent: AgentRecord,
+  environment: EnvironmentRecord,
   onMessage: (message: NonNullable<ReturnType<typeof parseBrowserOutput>>) => void,
   onClose: () => void,
   signal?: AbortSignal,
 ): Promise<BrowserConnection> {
-  const generation = generations.get(agent.id) ?? 0;
-  const containerId = await ensureAgentContainer(agent, { network: agent.permissions.network });
+  const generation = generations.get(environment.id) ?? 0;
+  const containerId = await ensureEnvironmentContainer(environment);
   signal?.throwIfAborted();
-  holdAgentContainer(agent.id);
+  holdEnvironmentContainer(environment.id);
   let socket: Duplex | undefined;
   let closed = false;
   const connection: BrowserConnection = {
@@ -44,9 +43,9 @@ export async function connectBrowser(
       socket?.end();
       const attached = socket;
       setTimeout(() => attached?.destroy(), 1000).unref();
-      connections.get(agent.id)?.delete(connection);
-      if (!connections.get(agent.id)?.size) connections.delete(agent.id);
-      releaseAgentContainer(agent.id);
+      connections.get(environment.id)?.delete(connection);
+      if (!connections.get(environment.id)?.size) connections.delete(environment.id);
+      releaseEnvironmentContainer(environment.id);
       onClose();
     },
   };
@@ -56,21 +55,21 @@ export async function connectBrowser(
       containerId,
       {
         cmd: ["node", "-e", browserBridgeScript],
-        workingDir: toContainerWorkdir(agent, resolveAgentWorkingDirPath(agent)),
+        workingDir: toContainerWorkdir(environment, resolveEnvironmentWorkingDirPath(environment)),
         env: sandboxEnv({ AGENT_BROWSER_SESSION: "carmel" }),
       },
       signal,
     );
     socket = attached.socket;
-    if (closed || signal?.aborted || (generations.get(agent.id) ?? 0) !== generation) {
+    if (closed || signal?.aborted || (generations.get(environment.id) ?? 0) !== generation) {
       socket.end();
       socket.destroy();
       connection.close();
       throw new Error("Browser connection was cancelled.");
     }
-    const viewers = connections.get(agent.id) ?? new Set();
+    const viewers = connections.get(environment.id) ?? new Set();
     viewers.add(connection);
-    connections.set(agent.id, viewers);
+    connections.set(environment.id, viewers);
     const decoder = new StringDecoder("utf8");
     let pending = "";
     const demux = createStreamDemuxer(
@@ -106,10 +105,10 @@ export async function connectBrowser(
   }
 }
 
-export function closeAgentBrowsers(agentId: string) {
-  generations.set(agentId, (generations.get(agentId) ?? 0) + 1);
-  for (const connection of connections.get(agentId) ?? []) connection.close();
+export function closeEnvironmentBrowsers(environmentId: string) {
+  generations.set(environmentId, (generations.get(environmentId) ?? 0) + 1);
+  for (const connection of connections.get(environmentId) ?? []) connection.close();
 }
 export function shutdownBrowsers() {
-  for (const agentId of connections.keys()) closeAgentBrowsers(agentId);
+  for (const environmentId of connections.keys()) closeEnvironmentBrowsers(environmentId);
 }

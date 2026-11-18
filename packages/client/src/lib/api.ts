@@ -31,7 +31,9 @@ import type {
   AgentFileContent,
   AgentFileEntry,
   AgentFileList,
-  AgentSecret,
+  Environment,
+  EnvironmentCommand,
+  EnvironmentSecret,
   UserRequest,
   QuestionAnswer,
   SessionSecret,
@@ -248,7 +250,7 @@ export const api = {
     request<SessionSecret>(`/api/sessions/${sessionId}/secrets/${secretId}/promote`, {
       method: "POST",
     }),
-  demoteAgentSecret: (sessionId: string, secretId: string) =>
+  demoteEnvironmentSecret: (sessionId: string, secretId: string) =>
     request<SessionSecret>(`/api/sessions/${sessionId}/secrets/${secretId}/demote`, {
       method: "POST",
     }),
@@ -417,23 +419,36 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ path, newPath }),
     }),
-  listAgentSecrets: (agentId: string) => request<AgentSecret[]>(`/api/agents/${agentId}/secrets`),
-  agentWorkspaceDotEnvStatus: (agentId: string) =>
-    request<{ available: boolean }>(`/api/agents/${agentId}/secrets/import-env`),
-  importAgentWorkspaceDotEnv: (agentId: string) =>
+  listEnvironments: (signal?: AbortSignal) =>
+    request<Environment[]>("/api/environments", { signal, cache: "no-store" }),
+  createEnvironment: (input: EnvironmentCommand) =>
+    request<Environment>("/api/environments", { method: "POST", body: JSON.stringify(input) }),
+  updateEnvironment: (environmentId: string, input: EnvironmentCommand) =>
+    request<Environment>(`/api/environments/${environmentId}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  deleteEnvironment: (environmentId: string) =>
+    request<{ ok: true }>(`/api/environments/${environmentId}`, { method: "DELETE" }),
+  listEnvironmentSecrets: (environmentId: string) =>
+    request<EnvironmentSecret[]>(`/api/environments/${environmentId}/secrets`),
+  environmentWorkspaceDotEnvStatus: (environmentId: string) =>
+    request<{ available: boolean }>(`/api/environments/${environmentId}/secrets/import-env`),
+  importEnvironmentWorkspaceDotEnv: (environmentId: string) =>
     request<{ imported: number; skippedExisting: number; skippedInvalid: number }>(
-      `/api/agents/${agentId}/secrets/import-env`,
+      `/api/environments/${environmentId}/secrets/import-env`,
       { method: "POST" },
     ),
-  writeAgentSecret: (agentId: string, name: string, value: string) =>
-    request<AgentSecret>(`/api/agents/${agentId}/secrets/${encodeURIComponent(name)}`, {
-      method: "PUT",
-      body: JSON.stringify({ value }),
-    }),
-  deleteAgentSecret: (agentId: string, name: string) =>
-    request<{ ok: true }>(`/api/agents/${agentId}/secrets/${encodeURIComponent(name)}`, {
-      method: "DELETE",
-    }),
+  writeEnvironmentSecret: (environmentId: string, name: string, value: string) =>
+    request<EnvironmentSecret>(
+      `/api/environments/${environmentId}/secrets/${encodeURIComponent(name)}`,
+      { method: "PUT", body: JSON.stringify({ value }) },
+    ),
+  deleteEnvironmentSecret: (environmentId: string, name: string) =>
+    request<{ ok: true }>(
+      `/api/environments/${environmentId}/secrets/${encodeURIComponent(name)}`,
+      { method: "DELETE" },
+    ),
   listAgentTasks: (agentId: string, signal?: AbortSignal) =>
     request<AgentTask[]>(`/api/agents/${agentId}/tasks`, { signal }),
   knowledge: (agentId: string, signal?: AbortSignal) =>

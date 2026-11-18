@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { agents } from "../src/db/schema.ts";
+import type { environments } from "../src/db/schema.ts";
 
 const image = process.env.CARMEL_SANDBOX_TEST_IMAGE;
 if (!image) throw new Error("Set CARMEL_SANDBOX_TEST_IMAGE to a locally built runner image.");
@@ -16,29 +16,34 @@ process.env.CARMEL_HOST_GID ??= String(process.getgid!());
 process.env.CARMEL_BASH_IMAGE = image;
 process.env.CARMEL_BASH_GPU = "";
 const {
-  ensureAgentContainer,
-  killAgentContainer,
-  discardAgentContainer,
+  ensureEnvironmentContainer,
+  killEnvironmentContainer,
+  discardEnvironmentContainer,
   shutdownContainerManager,
-  resolveAgentHomeDirPath,
-  resolveAgentTmpDirPath,
+  resolveEnvironmentHomeDirPath,
+  resolveEnvironmentTmpDirPath,
 } = await import("../src/runtime/sandbox/container-manager.ts");
+const { initialize } = await import("../src/db/index.ts");
+initialize();
 const { execInContainer, attachExecStdio, attachExecTty, createStreamDemuxer } =
   await import("../src/runtime/sandbox/runtime-client.ts");
-const { sandboxEnv } = await import("../src/runtime/sandbox/bash-operations.ts");
-const agent = {
+const { execSandboxCommand, sandboxEnv } =
+  await import("../src/runtime/sandbox/bash-operations.ts");
+const environment = {
   id: `identity-${Date.now()}`,
+  storageDir: "environments/identity",
   workingDir: join(directory, "workspace"),
   workingDirMode: "manual",
   mounts: [],
-} as unknown as typeof agents.$inferSelect;
+  network: false,
+} as unknown as typeof environments.$inferSelect;
 let container: string;
 const run = async (cmd: string[]) => {
   let stdout = "",
     stderr = "";
   const result = await execInContainer(
     container,
-    { cmd, workingDir: agent.workingDir, env: sandboxEnv() },
+    { cmd, workingDir: environment.workingDir, env: sandboxEnv() },
     {
       onStdout: (chunk) => {
         stdout += chunk;
@@ -55,7 +60,7 @@ const run = async (cmd: string[]) => {
 const checkAttach = async (tty: boolean) => {
   const spec = {
     cmd: ["bash", "-lc", "id -u; id -g; command -v pip; carmel-identity-fixture"],
-    workingDir: agent.workingDir,
+    workingDir: environment.workingDir,
     env: sandboxEnv(),
   };
   const { socket } = tty
@@ -90,8 +95,8 @@ const checkAttach = async (tty: boolean) => {
   }
 };
 try {
-  container = await ensureAgentContainer(agent, { network: false });
-  const packageDir = join(agent.workingDir, "npm-fixture");
+  container = await ensureEnvironmentContainer(environment);
+  const packageDir = join(environment.workingDir, "npm-fixture");
   await mkdir(packageDir);
   await writeFile(
     join(packageDir, "package.json"),
@@ -128,9 +133,9 @@ with zipfile.ZipFile('carmel_identity_fixture-1.0-py3-none-any.whl', 'w') as z:
     "const fs=require('node:fs');for(const dir of [process.cwd(),process.env.HOME,'/tmp'])fs.writeFileSync(dir+'/identity-file','runner')",
   ]);
   for (const dir of [
-    agent.workingDir,
-    resolveAgentHomeDirPath(agent),
-    resolveAgentTmpDirPath(agent),
+    environment.workingDir,
+    resolveEnvironmentHomeDirPath(environment),
+    resolveEnvironmentTmpDirPath(environment),
   ]) {
     const file = join(dir, "identity-file");
     const owner = await stat(file);
@@ -146,16 +151,52 @@ with zipfile.ZipFile('carmel_identity_fixture-1.0-py3-none-any.whl', 'w') as z:
   ]);
   await checkAttach(false);
   await checkAttach(true);
+
+  // Stopping one command, background children included, must leave another
+  // agent's command in the shared runner alone.
+  const siblingOutput: string[] = [];
+  const sibling = execSandboxCommand(
+    environment,
+    "sleep 3 && echo sibling-survived",
+    environment.workingDir,
+    { onStdout: (chunk) => siblingOutput.push(chunk) },
+  );
+  const controller = new AbortController();
+  let aborted = "";
+  const stopped = execSandboxCommand(
+    environment,
+    "(sleep 60 &) ; nohup sleep 60 >/dev/null 2>&1 & echo started; sleep 60",
+    environment.workingDir,
+    {
+      signal: controller.signal,
+      onStdout: (chunk) => {
+        aborted += chunk;
+        if (aborted.includes("started")) controller.abort();
+      },
+    },
+  ).catch(() => undefined);
+  await stopped;
+  // The stop is signalled on abort, not awaited by it.
+  let survivors = "";
+  for (let attempt = 0; attempt < 20; attempt++) {
+    survivors = await run(["sh", "-c", "pgrep -fc '^sleep 60$' || true"]);
+    if (survivors === "0") break;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  assert.equal(survivors, "0", "the stopped command and its background children are gone");
+  assert.equal((await sibling).exitCode, 0);
+  assert.match(siblingOutput.join(""), /sibling-survived/);
+  assert.equal(await ensureEnvironmentContainer(environment), container, "the runner is reused");
   await run([
     "node",
     "-e",
     "const fs=require('node:fs');for(const dir of [process.cwd(),process.env.HOME,'/tmp'])fs.writeFileSync(dir+'/container-lifetime','fixture')",
   ]);
-  await killAgentContainer(agent.id);
-  await assert.rejects(stat(resolveAgentTmpDirPath(agent)), { code: "ENOENT" });
-  await stat(join(agent.workingDir, "container-lifetime"));
-  await stat(join(resolveAgentHomeDirPath(agent), "container-lifetime"));
-  container = await ensureAgentContainer(agent, { network: false });
+  await killEnvironmentContainer(environment.id);
+  await assert.rejects(stat(resolveEnvironmentTmpDirPath(environment)), { code: "ENOENT" });
+  await stat(join(environment.workingDir, "container-lifetime"));
+  await stat(join(resolveEnvironmentHomeDirPath(environment), "container-lifetime"));
+  container = await ensureEnvironmentContainer(environment);
   assert.equal(
     await run([
       "node",
@@ -178,10 +219,10 @@ with zipfile.ZipFile('carmel_identity_fixture-1.0-py3-none-any.whl', 'w') as z:
     /from \/home\/agent\/\.venvs\/default\/lib\/python[\d.]+\/site-packages\/pip/,
   );
   console.log(
-    "PASS: non-root identity, host ownership, server edits, offline pip/npm installs, direct/TTY exec, and persistent workspace/home with fresh tmp after recreation.",
+    "PASS: non-root identity, host ownership, server edits, offline pip/npm installs, direct/TTY exec, per-command stop in a shared runner, and persistent workspace/home with fresh tmp after recreation.",
   );
 } finally {
-  await discardAgentContainer(agent.id);
+  await discardEnvironmentContainer(environment);
   await shutdownContainerManager();
   await rm(directory, { recursive: true, force: true });
 }

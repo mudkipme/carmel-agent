@@ -20,7 +20,7 @@ import {
 } from "@earendil-works/pi-ai/providers/faux";
 import { db, initialize } from "../db/index.ts";
 import { agents } from "../db/schema.ts";
-import { createSession } from "../test-support.ts";
+import { createEnvironment, createSession, createUser, makeEnvironment } from "../test-support.ts";
 import { startMcpTestServer } from "../test-mcp-server.ts";
 import { openTestHarness } from "../effectors/testing/pi-harness.ts";
 import { RunGuard, RunGuardError } from "../effectors/run-guard.ts";
@@ -195,8 +195,7 @@ test("codemode uses permitted native workspace tools and keeps their path bounda
   const root = mkdtempSync(join(tmpdir(), "carmel-codemode-files-"));
   const row = {
     ...agent([]),
-    workingDir: root,
-    workingDirMode: "manual" as const,
+    environmentId: createEnvironment(createUser(), { workingDir: root }),
     permissions: { read: true, write: true, edit: true, bash: false, network: false },
   };
   const execution = createServerExecution(row);
@@ -238,8 +237,7 @@ test("codemode combines MCP, native files, and session tools after session overr
   const remote = await startMcpTestServer();
   const execution = createServerExecution({
     ...agent([serverConfig(remote.url, { tools: ["echo"] })]),
-    workingDir: root,
-    workingDirMode: "manual",
+    environmentId: createEnvironment(createUser(), { workingDir: root }),
     permissions: { read: true, write: true, edit: false, bash: false, network: true },
   });
   const override: Tool = {
@@ -375,7 +373,7 @@ test("script failures keep their error flag and call details in the durable harn
 
 test("nested arguments are validated before MCP execution and denied tools stay unavailable", async () => {
   const remote = await startMcpTestServer();
-  const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), "/tmp/test");
+  const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), makeEnvironment(), "/tmp/test");
   try {
     await mcp.connect({ secrets: [] });
     const name = mcp.tools[0]!.name;
@@ -407,7 +405,7 @@ test("failed nested tools throw into the script and redact credentials", async (
       return { content: [{ type: "text", text: secret }], isError: true };
     },
   });
-  const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), "/tmp/test");
+  const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), makeEnvironment(), "/tmp/test");
   try {
     await mcp.connect({ secrets: [{ name: "TOKEN", value: secret }] });
     const result = await execute(
@@ -443,7 +441,11 @@ test("abort and unawaited calls cancel MCP requests and retain the nested histor
         if (message.method === "notifications/cancelled") cancelled();
       },
     });
-    const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), "/tmp/test");
+    const mcp = new AgentMcpTools(
+      agent([serverConfig(remote.url)]),
+      makeEnvironment(),
+      "/tmp/test",
+    );
     try {
       await mcp.connect({ secrets: [] });
       const controller = new AbortController();
@@ -477,7 +479,7 @@ test("abort and unawaited calls cancel MCP requests and retain the nested histor
 
 test("parallel nested calls cannot bypass the run guard or local batch limit", async () => {
   const remote = await startMcpTestServer();
-  const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), "/tmp/test");
+  const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), makeEnvironment(), "/tmp/test");
   try {
     await mcp.connect({ secrets: [] });
     const guard = new RunGuard({ maxToolCalls: 2, stallTimeoutMs: 60_000 });
@@ -519,7 +521,7 @@ test("parallel nested calls cannot bypass the run guard or local batch limit", a
 
 test("codemode deadlines stop spinning scripts", async () => {
   const remote = await startMcpTestServer();
-  const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), "/tmp/test");
+  const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), makeEnvironment(), "/tmp/test");
   try {
     await mcp.connect({ secrets: [] });
     const timed = await execute(mcp, "while (true) {}", { hooks: { timeoutMs: 100 } });
@@ -581,7 +583,7 @@ test("codemode forwards explicitly selected MCP images and truncates oversized s
       };
     },
   });
-  const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), "/tmp/test");
+  const mcp = new AgentMcpTools(agent([serverConfig(remote.url)]), makeEnvironment(), "/tmp/test");
   try {
     await mcp.connect({ secrets: [] });
     const result = await execute(

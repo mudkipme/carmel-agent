@@ -7,6 +7,7 @@ import {
   agentTaskRuns,
   agentTasks,
   agents,
+  environments,
   apiKeys,
   authSessions,
   issues,
@@ -120,6 +121,10 @@ export function createUserRoutes() {
       tx.update(agents)
         .set({ ownerUserId: adminId, updatedAt: timestamp })
         .where(eq(agents.ownerUserId, targetId))
+        .run();
+      tx.update(environments)
+        .set({ ownerUserId: adminId, updatedAt: timestamp })
+        .where(eq(environments.ownerUserId, targetId))
         .run();
       tx.update(modelRefs)
         .set({ ownerUserId: adminId, updatedAt: timestamp })

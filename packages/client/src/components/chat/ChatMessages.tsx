@@ -516,7 +516,7 @@ const MessageItem = memo(function MessageItem({
               {receipt.kind === "secret" ? (
                 answered ? (
                   receipt.scope === "agent" ? (
-                    i18n._("Saved for reuse across this agent’s sessions.")
+                    i18n._("Saved for reuse across sessions in this environment.")
                   ) : (
                     i18n._("Provided for this session only.")
                   )

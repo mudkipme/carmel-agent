@@ -14,6 +14,7 @@ tags:
   - { name: Models }
   - { name: Providers }
   - { name: Agents }
+  - { name: Environments }
   - { name: Runs }
   - { name: Sessions }
   - { name: Files }
@@ -523,7 +524,7 @@ paths:
       - { $ref: "#/components/parameters/ID" }
       - { name: secretId, in: path, required: true, schema: { type: string } }
     post:
-      operationId: demoteAgentSecret
+      operationId: demoteEnvironmentSecret
       tags: [Sessions]
       responses:
         "200":
@@ -1867,11 +1868,79 @@ paths:
             "503": { $ref: "#/components/responses/Error" },
           },
       }
-  /api/agents/{agentId}/secrets:
-    parameters: [{ $ref: "#/components/parameters/AgentID" }]
+  /api/environments:
     get:
       {
-        operationId: listAgentSecrets,
+        operationId: listEnvironments,
+        tags: [Environments],
+        responses:
+          {
+            "200":
+              {
+                description: The caller's environments,
+                content:
+                  {
+                    application/json:
+                      {
+                        schema:
+                          { type: array, items: { $ref: "#/components/schemas/Environment" } },
+                      },
+                  },
+              },
+          },
+      }
+    post:
+      {
+        operationId: createEnvironment,
+        tags: [Environments],
+        requestBody: { $ref: "#/components/requestBodies/Environment" },
+        responses:
+          {
+            "200":
+              {
+                description: Environment,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/Environment" } } },
+              },
+            "403": { $ref: "#/components/responses/Error" },
+          },
+      }
+  /api/environments/{id}:
+    parameters: [{ $ref: "#/components/parameters/ID" }]
+    put:
+      {
+        operationId: updateEnvironment,
+        tags: [Environments],
+        requestBody: { $ref: "#/components/requestBodies/Environment" },
+        responses:
+          {
+            "200":
+              {
+                description: Environment,
+                content:
+                  { application/json: { schema: { $ref: "#/components/schemas/Environment" } } },
+              },
+            "403": { $ref: "#/components/responses/Error" },
+            "404": { $ref: "#/components/responses/Error" },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
+    delete:
+      {
+        operationId: deleteEnvironment,
+        tags: [Environments],
+        responses:
+          {
+            "200": { $ref: "#/components/responses/JSONSuccess" },
+            "404": { $ref: "#/components/responses/Error" },
+            "409": { $ref: "#/components/responses/Error" },
+          },
+      }
+  /api/environments/{environmentId}/secrets:
+    parameters: [{ $ref: "#/components/parameters/EnvironmentID" }]
+    get:
+      {
+        operationId: listEnvironmentSecrets,
         tags: [Secrets],
         responses:
           {
@@ -1883,18 +1952,21 @@ paths:
                     application/json:
                       {
                         schema:
-                          { type: array, items: { $ref: "#/components/schemas/AgentSecret" } },
+                          {
+                            type: array,
+                            items: { $ref: "#/components/schemas/EnvironmentSecret" },
+                          },
                       },
                   },
               },
             "403": { $ref: "#/components/responses/Error" },
           },
       }
-  /api/agents/{agentId}/secrets/import-env:
-    parameters: [{ $ref: "#/components/parameters/AgentID" }]
+  /api/environments/{environmentId}/secrets/import-env:
+    parameters: [{ $ref: "#/components/parameters/EnvironmentID" }]
     get:
       {
-        operationId: getAgentWorkspaceDotEnvStatus,
+        operationId: getEnvironmentWorkspaceDotEnvStatus,
         tags: [Secrets],
         responses:
           {
@@ -1920,7 +1992,7 @@ paths:
       }
     post:
       {
-        operationId: importAgentWorkspaceDotEnv,
+        operationId: importEnvironmentWorkspaceDotEnv,
         tags: [Secrets],
         responses:
           {
@@ -1949,21 +2021,27 @@ paths:
             "404": { $ref: "#/components/responses/Error" },
           },
       }
-  /api/agents/{agentId}/secrets/{name}:
+  /api/environments/{environmentId}/secrets/{name}:
     parameters:
-      [{ $ref: "#/components/parameters/AgentID" }, { $ref: "#/components/parameters/SecretName" }]
+      [
+        { $ref: "#/components/parameters/EnvironmentID" },
+        { $ref: "#/components/parameters/SecretName" },
+      ]
     put:
       {
-        operationId: writeAgentSecret,
+        operationId: writeEnvironmentSecret,
         tags: [Secrets],
-        requestBody: { $ref: "#/components/requestBodies/AgentSecret" },
+        requestBody: { $ref: "#/components/requestBodies/EnvironmentSecret" },
         responses:
           {
             "200":
               {
                 description: Secret,
                 content:
-                  { application/json: { schema: { $ref: "#/components/schemas/AgentSecret" } } },
+                  {
+                    application/json:
+                      { schema: { $ref: "#/components/schemas/EnvironmentSecret" } },
+                  },
               },
             "400": { $ref: "#/components/responses/Error" },
             "403": { $ref: "#/components/responses/Error" },
@@ -1971,7 +2049,7 @@ paths:
       }
     delete:
       {
-        operationId: deleteAgentSecret,
+        operationId: deleteEnvironmentSecret,
         tags: [Secrets],
         responses:
           {
@@ -3065,6 +3143,7 @@ components:
   parameters:
     ID: { name: id, in: path, required: true, schema: { type: string } }
     AgentID: { name: agentId, in: path, required: true, schema: { type: string } }
+    EnvironmentID: { name: environmentId, in: path, required: true, schema: { type: string } }
     RunID: { name: runId, in: path, required: true, schema: { type: string } }
     TaskID: { name: taskId, in: path, required: true, schema: { type: string } }
     IssueID: { name: issueId, in: path, required: true, schema: { type: string } }
@@ -3382,11 +3461,17 @@ components:
         content:
           { application/json: { schema: { $ref: "#/components/schemas/FileBatchRequest" } } },
       }
-    AgentSecret:
+    EnvironmentSecret:
       {
         required: true,
         content:
           { application/json: { schema: { $ref: "#/components/schemas/AgentSecretRequest" } } },
+      }
+    Environment:
+      {
+        required: true,
+        content:
+          { application/json: { schema: { $ref: "#/components/schemas/EnvironmentRequest" } } },
       }
     ApiKeyCreate:
       {
@@ -4070,9 +4155,6 @@ components:
             shared,
             name,
             description,
-            workingDirMode,
-            workingDir,
-            mounts,
             systemPrompt,
             promptTemplates,
             permissions,
@@ -4105,10 +4187,7 @@ components:
               },
             color: { type: string, enum: [blue, green, orange, purple, cyan, pink] },
             description: { type: string },
-            workingDirMode: { type: string, enum: [default, manual] },
-            workingDir: { type: string },
-            defaultWorkingDir: { type: string },
-            mounts: { type: array, items: { type: object, additionalProperties: true } },
+            environmentId: { type: string },
             systemPrompt: { type: string },
             promptTemplates: { type: array, items: { type: object, additionalProperties: true } },
             permissions: { type: object, additionalProperties: { type: boolean } },
@@ -4129,9 +4208,7 @@ components:
             shared,
             name,
             description,
-            workingDirMode,
-            workingDir,
-            mounts,
+            environmentId,
             systemPrompt,
             promptTemplates,
             permissions,
@@ -4168,10 +4245,7 @@ components:
               },
             color: { type: string, enum: [blue, green, orange, purple, cyan, pink] },
             description: { type: string },
-            workingDirMode: { type: string, enum: [default, manual] },
-            workingDir: { type: string },
-            defaultWorkingDir: { type: string },
-            mounts: { type: array, items: { type: object, additionalProperties: true } },
+            environmentId: { type: string },
             systemPrompt: { type: string },
             promptTemplates: { type: array, items: { type: object, additionalProperties: true } },
             permissions: { type: object, additionalProperties: { type: boolean } },
@@ -4647,13 +4721,82 @@ components:
             key: { type: string },
           },
       }
-    AgentSecret:
+    EnvironmentSecret:
       {
         type: object,
-        required: [agentId, name, updatedAt],
+        required: [environmentId, name, updatedAt],
         additionalProperties: false,
         properties:
-          { agentId: { type: string }, name: { type: string }, updatedAt: { type: number } },
+          { environmentId: { type: string }, name: { type: string }, updatedAt: { type: number } },
+      }
+    EnvironmentRequest:
+      {
+        type: object,
+        required: [name, workingDirMode, workingDir, mounts, network],
+        additionalProperties: false,
+        properties:
+          {
+            name: { type: string, minLength: 1, maxLength: 100 },
+            workingDirMode: { type: string, enum: [default, manual], default: default },
+            workingDir: { type: string, default: "" },
+            mounts:
+              { type: array, default: [], items: { $ref: "#/components/schemas/AgentMount" } },
+            network: { type: boolean, default: false },
+          },
+      }
+    AgentMount:
+      {
+        type: object,
+        required: [source],
+        properties:
+          {
+            source: { type: string, minLength: 1 },
+            target: { type: string },
+            readOnly: { type: boolean },
+          },
+      }
+    Environment:
+      {
+        type: object,
+        required:
+          [
+            id,
+            ownerUserId,
+            name,
+            workingDirMode,
+            workingDir,
+            defaultWorkingDir,
+            mounts,
+            network,
+            agents,
+            createdAt,
+            updatedAt,
+          ],
+        additionalProperties: false,
+        properties:
+          {
+            id: { type: string },
+            ownerUserId: { type: string },
+            name: { type: string },
+            workingDirMode: { type: string, enum: [default, manual] },
+            workingDir: { type: string },
+            defaultWorkingDir: { type: string },
+            mounts: { type: array, items: { $ref: "#/components/schemas/AgentMount" } },
+            network: { type: boolean },
+            agents:
+              {
+                type: array,
+                items:
+                  {
+                    type: object,
+                    required: [id, name],
+                    additionalProperties: false,
+                    properties: { id: { type: string }, name: { type: string } },
+                  },
+              },
+            createdAt: { type: number },
+            updatedAt: { type: number },
+          },
       }
     AgentTask:
       {

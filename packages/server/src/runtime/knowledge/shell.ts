@@ -3,20 +3,14 @@ import { db } from "../../db/index.ts";
 import { agents, knowledgeConfigs } from "../../db/schema.ts";
 import { knowledgeModelPlan } from "./models.ts";
 
-/** Shell qmd keeps its own collections/index; only defaults and weights are shared. */
-export async function knowledgeShellResources(agent: typeof agents.$inferSelect) {
+/**
+ * What every runner needs for shell qmd, whichever agent drives it: the shared
+ * model weights and their default. Shell qmd keeps its own collections/index.
+ */
+export async function knowledgeShellResources() {
   const plan = await knowledgeModelPlan();
-  const settings = agent.permissions?.read
-    ? db.select().from(knowledgeConfigs).where(eq(knowledgeConfigs.agentId, agent.id)).get()
-        ?.settings
-    : undefined;
-  const backend = settings?.acceleration === "cpu" ? "false" : (settings?.acceleration ?? "auto");
   return {
-    env: {
-      QMD_EMBED_MODEL: plan.model?.containerPath ?? plan.embeddingModel,
-      QMD_LLAMA_GPU: backend,
-      NODE_LLAMA_CPP_GPU: backend,
-    },
+    env: { QMD_EMBED_MODEL: plan.model?.containerPath ?? plan.embeddingModel },
     mounts: [
       // qmd 2.8.3 derives its CLI model cache from HOME/XDG_CACHE_HOME.
       // Do not override XDG_CACHE_HOME: that would also move existing indexes.
@@ -30,3 +24,13 @@ export async function knowledgeShellResources(agent: typeof agents.$inferSelect)
 }
 
 export type KnowledgeShellResources = Awaited<ReturnType<typeof knowledgeShellResources>>;
+
+/** The agent's own acceleration choice, applied per command since runners are shared. */
+export function knowledgeShellEnv(agent: typeof agents.$inferSelect) {
+  const settings = agent.permissions?.read
+    ? db.select().from(knowledgeConfigs).where(eq(knowledgeConfigs.agentId, agent.id)).get()
+        ?.settings
+    : undefined;
+  const backend = settings?.acceleration === "cpu" ? "false" : (settings?.acceleration ?? "auto");
+  return { QMD_LLAMA_GPU: backend, NODE_LLAMA_CPP_GPU: backend };
+}

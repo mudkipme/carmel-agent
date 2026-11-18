@@ -3,7 +3,10 @@ import { join } from "node:path";
 import type { BrowserControlState } from "@carmel-agent/shared";
 import { dataDir } from "../paths.ts";
 import { publishStateChange } from "../state-changes.ts";
-import { holdAgentContainer, releaseAgentContainer } from "./sandbox/container-manager.ts";
+import {
+  holdEnvironmentContainer,
+  releaseEnvironmentContainer,
+} from "./sandbox/container-manager.ts";
 
 type SavedState = { paused: boolean; reason?: string; revision: number };
 
@@ -141,32 +144,34 @@ export class BrowserControl {
   }
 }
 
-// Kept outside the agent's mounted directories. No input, pixels, URLs, or cookies are saved here.
+// One control per environment: its agents share one Chromium and profile.
+// Kept outside the mounted directories. No input, pixels, URLs, or cookies are saved here.
 const directory = join(dataDir, "browser-control");
 const controls = new Map<string, BrowserControl>();
-const statePath = (agentId: string) => join(directory, `${encodeURIComponent(agentId)}.json`);
-export function browserControl(agentId: string) {
-  let control = controls.get(agentId);
+const statePath = (environmentId: string) =>
+  join(directory, `${encodeURIComponent(environmentId)}.json`);
+export function browserControl(environmentId: string) {
+  let control = controls.get(environmentId);
   if (!control) {
     let saved: SavedState | undefined;
     try {
-      saved = JSON.parse(readFileSync(statePath(agentId), "utf8"));
+      saved = JSON.parse(readFileSync(statePath(environmentId), "utf8"));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
     control = new BrowserControl(saved, (state) => {
       mkdirSync(directory, { recursive: true, mode: 0o700 });
-      const path = statePath(agentId);
+      const path = statePath(environmentId);
       writeFileSync(`${path}.tmp`, JSON.stringify(state), { mode: 0o600 });
       renameSync(`${path}.tmp`, path);
     });
-    controls.set(agentId, control);
+    controls.set(environmentId, control);
     let held = false;
     const updateHold = () => {
       if (control!.isPaused === held) return;
       held = control!.isPaused;
-      if (held) holdAgentContainer(agentId);
-      else releaseAgentContainer(agentId);
+      if (held) holdEnvironmentContainer(environmentId);
+      else releaseEnvironmentContainer(environmentId);
     };
     control.subscribe(updateHold);
     control.subscribe(() => publishStateChange("browser"));
@@ -175,8 +180,8 @@ export function browserControl(agentId: string) {
   return control;
 }
 
-export function deleteBrowserControl(agentId: string) {
-  if (controls.get(agentId)?.isPaused) releaseAgentContainer(agentId);
-  controls.delete(agentId);
-  rmSync(statePath(agentId), { force: true });
+export function deleteBrowserControl(environmentId: string) {
+  if (controls.get(environmentId)?.isPaused) releaseEnvironmentContainer(environmentId);
+  controls.delete(environmentId);
+  rmSync(statePath(environmentId), { force: true });
 }

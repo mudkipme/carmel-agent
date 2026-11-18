@@ -3,7 +3,7 @@ import { Trans } from "@lingui/react/macro";
 import { useCallback, useEffect, useState } from "react";
 import { FileInputIcon, KeyRoundIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
-import { agentSecretNameError, type AgentSecret } from "@carmel-agent/shared";
+import { agentSecretNameError, type EnvironmentSecret } from "@carmel-agent/shared";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -13,17 +13,22 @@ import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
 
 /**
- * Environment variables for this agent's sandboxed shell.
+ * Environment variables for the sandboxed shell of every agent in an environment.
  *
- * Like tasks, secrets are their own resource rather than fields of the agent
- * draft, so they save immediately instead of waiting for the page's Save --
- * which is also what keeps them out of the agent payload the browser holds.
- * Values are write-only: the server never sends one back, so a stored secret
- * can be replaced here but never read.
+ * Secrets are their own resource rather than fields of the environment form,
+ * so they save immediately -- which is also what keeps them out of any payload
+ * the browser holds. Values are write-only: the server never sends one back,
+ * so a stored secret can be replaced here but never read.
  */
-export function AgentSecretsSettings({ agentId, shared }: { agentId: string; shared: boolean }) {
+export function EnvironmentSecretsSettings({
+  environmentId,
+  shared,
+}: {
+  environmentId: string;
+  shared: boolean;
+}) {
   const { i18n } = useLingui();
-  const [secrets, setSecrets] = useState<AgentSecret[] | undefined>();
+  const [secrets, setSecrets] = useState<EnvironmentSecret[] | undefined>();
   const [canImportEnv, setCanImportEnv] = useState(false);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -32,8 +37,8 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
   const reload = useCallback(async () => {
     try {
       const [secrets, dotEnv] = await Promise.all([
-        api.listAgentSecrets(agentId),
-        api.agentWorkspaceDotEnvStatus(agentId),
+        api.listEnvironmentSecrets(environmentId),
+        api.environmentWorkspaceDotEnvStatus(environmentId),
       ]);
       setSecrets(secrets);
       setCanImportEnv(dotEnv.available);
@@ -41,7 +46,7 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
     } catch (loadError) {
       setError(errorMessage(loadError, i18n._("Unable to load secrets")));
     }
-  }, [agentId, i18n]);
+  }, [environmentId, i18n]);
 
   useEffect(() => {
     void reload();
@@ -85,7 +90,7 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
     }
     if (
       await act(
-        () => api.writeAgentSecret(agentId, name, draft.value),
+        () => api.writeEnvironmentSecret(environmentId, name, draft.value),
         i18n._("Unable to save secret"),
       )
     ) {
@@ -96,18 +101,21 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
   const removeSecret = async (name: string) => {
     const confirmed = await confirmAction({
       title: i18n._("Delete {name}?", { name: name }),
-      description: i18n._("Commands this agent runs will no longer see this variable."),
+      description: i18n._("Commands in this environment will no longer see this variable."),
       actionLabel: i18n._("Delete secret"),
     });
     if (!confirmed) return;
-    await act(() => api.deleteAgentSecret(agentId, name), i18n._("Unable to delete secret"));
+    await act(
+      () => api.deleteEnvironmentSecret(environmentId, name),
+      i18n._("Unable to delete secret"),
+    );
   };
 
   const importEnv = async () => {
-    let result: Awaited<ReturnType<typeof api.importAgentWorkspaceDotEnv>> | undefined;
+    let result: Awaited<ReturnType<typeof api.importEnvironmentWorkspaceDotEnv>> | undefined;
     if (
       await act(async () => {
-        result = await api.importAgentWorkspaceDotEnv(agentId);
+        result = await api.importEnvironmentWorkspaceDotEnv(environmentId);
       }, i18n._("Unable to import .env"))
     ) {
       toast.success(
@@ -138,16 +146,16 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
     <section className="grid gap-4">
       <p className="text-sm text-muted-foreground">
         <Trans>
-          Secrets become environment variables in this agent's shell. Saved values can be replaced
-          but cannot be viewed.
+          Secrets become environment variables in the shell of every agent here. Saved values can be
+          replaced but cannot be viewed.
         </Trans>
       </p>
 
       {shared ? (
         <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
           <Trans>
-            This agent is shared. Anyone who can run it runs commands with these secrets in their
-            environment.
+            A shared agent runs here. Anyone who can run it runs commands with these secrets in
+            their environment.
           </Trans>
         </p>
       ) : null}
@@ -193,11 +201,11 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
       {draft ? (
         <FieldGroup className="gap-3 rounded-md border p-3">
           <Field>
-            <FieldLabel htmlFor="agent-secret-name">
+            <FieldLabel htmlFor="environment-secret-name">
               <Trans>Name</Trans>
             </FieldLabel>
             <Input
-              id="agent-secret-name"
+              id="environment-secret-name"
               autoFocus
               className="font-mono"
               placeholder="GITHUB_TOKEN"
@@ -206,11 +214,11 @@ export function AgentSecretsSettings({ agentId, shared }: { agentId: string; sha
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="agent-secret-value">
+            <FieldLabel htmlFor="environment-secret-value">
               <Trans>Value</Trans>
             </FieldLabel>
             <Textarea
-              id="agent-secret-value"
+              id="environment-secret-value"
               className="max-h-48 font-mono"
               autoComplete="off"
               autoCapitalize="off"

@@ -9,12 +9,13 @@ It runs on your machine or your server. Agents contact the model providers, webs
 - **Chat that keeps working.** Sessions persist and runs continue on the server; reopening a session reconnects to a run in progress.
 - **Answers with the work tucked away.** Thinking, tool calls, and intermediate commentary fold under “Show work,” keeping final answers and errors visible.
 - **Agents you shape.** Each agent has its own appearance, workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
-- **Sandboxed shell.** Bash runs in a per-agent container with CPU, memory, PID, mount, and network limits — not on your host shell.
-- **A terminal in the browser.** Open an interactive shell into an agent's container with the same environment its commands get; reloads reattach to the running shell.
+- **Sandboxed shell.** Bash runs in a container with CPU, memory, PID, mount, and network limits — not on your host shell.
+- **Shared environments.** An agent's workspace, runner, browser, and secrets form an environment that several agents can share, so specialist agents can work on one project.
+- **A terminal in the browser.** Open an interactive shell into an environment's container with the same environment its commands get; reloads reattach to the running shell.
 - **A workspace beside the conversation.** Files, Changes, Terminal, and Browser share a resizable pane, with Markdown previews and source editing, Mermaid diagrams, remembered layout, and a single-pane view on narrow windows.
 - **A shared live browser.** Watch the agent browse, take control to sign in, then resume it in the same browser; the profile belongs to the agent.
 - **Files in the browser.** Browse, edit, upload, download, move, copy, and delete workspace files under the agent's permissions.
-- **Secrets and credentials.** Encrypted per-agent secrets for sandboxes and MCP connections, redacted from tool output, plus private forms for questions or session credentials that can be promoted later. See [Questions and session credentials](docs/user-requests.md).
+- **Secrets and credentials.** Encrypted environment secrets for sandboxes and MCP connections, redacted from tool output, plus private forms for questions or session credentials that can be promoted later. See [Questions and session credentials](docs/user-requests.md).
 - **Tools and MCP.** Connect remote HTTP or sandboxed stdio MCP servers with allowlists and credentials; codemode lets agents script their permitted tools in a sandboxed JavaScript worker. See [MCP tools](docs/mcp.md) and [Codemode](docs/codemode.md).
 - **Private IM integrations.** Connect Telegram or Feishu/Lark, including QR setup, and receive private alerts from scheduled tasks. See [IM integrations](docs/im-integrations.md).
 - **Skills and knowledge.** Skills in `.agents/skills` appear as slash commands, and agents can search and cite Markdown folders with keyword, semantic, or hybrid retrieval. See [Knowledge](docs/knowledge.md).
@@ -153,7 +154,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development and test guidance, and [S
 - `packages/client` — Vite + React UI for chat, files, settings, sessions, and agent management.
 - `packages/shared` — TypeScript types shared by client and server.
 - `Dockerfile` — web/API server image.
-- `Dockerfile.runner` — per-agent bash sandbox image.
+- `Dockerfile.runner` — bash sandbox image.
 - `compose.yaml` — Compose deployment (written for rootless Podman).
 - `data/` — runtime state: SQLite databases, agent workspaces, sandbox scratch space.
 

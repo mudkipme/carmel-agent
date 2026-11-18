@@ -1,13 +1,13 @@
 import type { Duplex } from "node:stream";
-import type { agents } from "../../db/schema.ts";
-import { readAgentSecretEnv } from "../../services/agent-secrets.ts";
+import { readEnvironmentSecretEnv } from "../../services/environment-secrets.ts";
 import { sandboxEnv } from "./bash-operations.ts";
-import { resolveAgentWorkingDirPath } from "../resources.ts";
+import { resolveEnvironmentWorkingDirPath } from "../resources.ts";
 import {
-  ensureAgentContainer,
-  holdAgentContainer,
-  releaseAgentContainer,
+  ensureEnvironmentContainer,
+  holdEnvironmentContainer,
+  releaseEnvironmentContainer,
   toContainerWorkdir,
+  type EnvironmentRecord,
 } from "./container-manager.ts";
 import {
   attachExecTty,
@@ -17,21 +17,19 @@ import {
 } from "./runtime-client.ts";
 import { errorMessage } from "../../errors.ts";
 
-type AgentRecord = typeof agents.$inferSelect;
-
 /**
- * Interactive shells attached to agent runner containers.
+ * Interactive shells attached to environment runner containers.
  *
  * A session outlives the browser tab that opened it, the same way an agent run
  * does: a reload reattaches to the shell that is already there and replays what
  * it missed, instead of dropping the user into a fresh prompt half way through
  * whatever they were doing.
  *
- * Sessions are keyed by agent and user rather than by a random id the client
- * has to keep. Terminals are owner-only, so that key identifies exactly one
- * shell per agent, and reattaching needs nothing but the agent id -- which the
- * client already has. Two tabs on the same agent share one shell, like two
- * windows on one tmux session.
+ * Sessions are keyed by environment and user rather than by a random id the
+ * client has to keep. Terminals are owner-only, so that key identifies exactly
+ * one shell per environment, and reattaching needs nothing but an agent in it
+ * -- which the client already has. Two tabs on agents sharing an environment
+ * share one shell, like two windows on one tmux session.
  */
 
 /** Replayed to a reattaching client. Enough for a screen or two of scrollback. */
@@ -46,7 +44,7 @@ type Subscriber = {
 };
 
 type TerminalSession = {
-  agentId: string;
+  environmentId: string;
   userId: string;
   execId: string;
   socket: Duplex;
@@ -68,29 +66,28 @@ const sessions = new Map<string, TerminalSession>();
 const starting = new Map<string, Promise<TerminalSession>>();
 let sweeper: ReturnType<typeof setInterval> | undefined;
 
-const sessionKey = (agentId: string, userId: string) => `${agentId}\0${userId}`;
+const sessionKey = (environmentId: string, userId: string) => `${environmentId}\0${userId}`;
 
 /**
- * Attach to this user's shell on this agent, starting one if none is running.
+ * Attach to this user's shell in this environment, starting one if none is running.
  *
  * The returned handle is per-subscriber: detaching drops this client, but leaves
  * the shell running for the grace period so a reload can pick it back up.
  */
 export async function attachTerminal(
-  agent: AgentRecord,
+  environment: EnvironmentRecord,
   userId: string,
   subscriber: Subscriber,
   size: { rows: number; cols: number },
 ): Promise<TerminalHandle> {
   if (!isSandboxConfigured()) throw new Error(sandboxUnavailableMessage());
-  if (!agent.permissions.bash) throw new Error("Bash permission is disabled for this agent.");
 
-  const key = sessionKey(agent.id, userId);
+  const key = sessionKey(environment.id, userId);
   let session = sessions.get(key);
   if (!session) {
     let pending = starting.get(key);
     if (!pending) {
-      pending = startSession(agent, userId, key, size).finally(() => starting.delete(key));
+      pending = startSession(environment, userId, key, size).finally(() => starting.delete(key));
       starting.set(key, pending);
     }
     session = await pending;
@@ -118,10 +115,13 @@ export async function attachTerminal(
   };
 }
 
-/** Terminals on an agent that is being deleted or reconfigured out from under them. */
-export function closeAgentTerminals(agentId: string, reason = "The agent was changed.") {
+/** Terminals on an environment that is being deleted or reconfigured out from under them. */
+export function closeEnvironmentTerminals(
+  environmentId: string,
+  reason = "The environment was changed.",
+) {
   for (const [key, session] of sessions) {
-    if (session.agentId === agentId) closeSession(key, session, reason);
+    if (session.environmentId === environmentId) closeSession(key, session, reason);
   }
 }
 
@@ -134,19 +134,19 @@ export function shutdownTerminals() {
 }
 
 async function startSession(
-  agent: AgentRecord,
+  environment: EnvironmentRecord,
   userId: string,
   key: string,
   size: { rows: number; cols: number },
 ): Promise<TerminalSession> {
-  const containerId = await ensureAgentContainer(agent, { network: agent.permissions.network });
-  const workingDir = toContainerWorkdir(agent, resolveAgentWorkingDirPath(agent));
+  const containerId = await ensureEnvironmentContainer(environment);
+  const workingDir = toContainerWorkdir(environment, resolveEnvironmentWorkingDirPath(environment));
   // The same environment the agent's own commands get, secrets included: a
   // terminal that cannot reproduce the agent's environment cannot be used to
   // debug it. Output is not redacted here -- nothing is persisted to a
   // transcript or sent to a model, and rewriting a live PTY stream would
   // corrupt the escape sequences the emulator depends on.
-  const env = sandboxEnv(undefined, readAgentSecretEnv(agent.id));
+  const env = sandboxEnv(undefined, readEnvironmentSecretEnv(environment.id));
 
   const { execId, socket } = await attachExecTty(containerId, {
     cmd: ["bash", "-l"],
@@ -155,7 +155,7 @@ async function startSession(
   });
 
   const session: TerminalSession = {
-    agentId: agent.id,
+    environmentId: environment.id,
     userId,
     execId,
     socket,
@@ -165,7 +165,7 @@ async function startSession(
     closing: false,
   };
   sessions.set(key, session);
-  holdAgentContainer(agent.id);
+  holdEnvironmentContainer(environment.id);
   startSweeper();
 
   socket.on("data", (chunk: Buffer) => {
@@ -186,7 +186,7 @@ function closeSession(key: string, session: TerminalSession, reason: string) {
   if (session.closing) return;
   session.closing = true;
   sessions.delete(key);
-  releaseAgentContainer(session.agentId);
+  releaseEnvironmentContainer(session.environmentId);
   for (const subscriber of session.subscribers) subscriber.onClose(reason);
   session.subscribers.clear();
   session.socket.destroy();

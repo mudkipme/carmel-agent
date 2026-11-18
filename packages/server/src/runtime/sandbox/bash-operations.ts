@@ -1,11 +1,11 @@
-import type { agents } from "../../db/schema.ts";
-import { readAgentSecretEnv } from "../../services/agent-secrets.ts";
-import { resolveAgentWorkingDirPath } from "../resources.ts";
+import { readEnvironmentSecretEnv } from "../../services/environment-secrets.ts";
+import { resolveEnvironmentWorkingDirPath } from "../resources.ts";
 import { readWorkspaceDotEnv } from "../workspace-dotenv.ts";
 import {
-  ensureAgentContainer,
-  killAgentContainer,
+  ensureEnvironmentContainer,
+  killEnvironmentContainer,
   toContainerWorkdir,
+  type EnvironmentRecord,
 } from "./container-manager.ts";
 import { runnerEnvironment } from "./environment.ts";
 import {
@@ -15,19 +15,39 @@ import {
 } from "./runtime-client.ts";
 import { createSecretRedactor } from "./redaction.ts";
 
-type AgentRecord = typeof agents.$inferSelect;
-
 export type SandboxExecOptions = {
   sessionId?: string;
   onStdout?: (chunk: string) => void;
   onStderr?: (chunk: string) => void;
   signal?: AbortSignal;
   timeout?: number;
+  /** Lowest precedence: the workspace `.env`, `env`, and secrets all override it. */
+  defaults?: Record<string, string>;
   env?: Record<string, string>;
 };
 
+/**
+ * Tags every process a command starts, so stopping it can find the whole tree
+ * -- backgrounded and `nohup`ed children included -- without touching what
+ * other agents sharing the runner are doing.
+ */
+const execMarker = "CARMEL_EXEC_ID";
+
+// Repeated because a process can fork between one /proc scan and the next.
+// Exits 1 if anything is still alive after the last pass.
+const killExecScript = `for pass in 1 2 3 4 5; do
+  found=
+  for proc in /proc/[0-9]*; do
+    if grep -qxzF "${execMarker}=$1" "$proc/environ" 2>/dev/null; then
+      kill -KILL "\${proc#/proc/}" 2>/dev/null && found=1
+    fi
+  done
+  [ -n "$found" ] || exit 0
+done
+exit 1`;
+
 export async function execSandboxCommand(
-  agent: AgentRecord,
+  environment: EnvironmentRecord,
   command: string,
   cwd: string,
   options: SandboxExecOptions,
@@ -37,12 +57,13 @@ export async function execSandboxCommand(
   // reused, so baking secrets into the container's Env at creation would both
   // pin a stale value until the reaper came round and put it in `inspect`
   // output. This way a rotated secret takes effect on the next command.
-  const secrets = readAgentSecretEnv(agent.id, options.sessionId);
+  const secrets = readEnvironmentSecretEnv(environment.id, options.sessionId);
   // Same reasoning for the workspace `.env`: editing it takes effect on the
   // next command, with no container restart.
-  const dotEnv = readWorkspaceDotEnv(resolveAgentWorkingDirPath(agent));
-  const containerId = await ensureAgentContainer(agent, { network: agent.permissions.network });
-  const workingDir = toContainerWorkdir(agent, cwd);
+  const dotEnv = readWorkspaceDotEnv(resolveEnvironmentWorkingDirPath(environment));
+  const containerId = await ensureEnvironmentContainer(environment);
+  const workingDir = toContainerWorkdir(environment, cwd);
+  const execId = crypto.randomUUID();
   const hasTimeout = typeof options.timeout === "number" && options.timeout > 0;
   const cmd = hasTimeout
     ? ["timeout", "--signal=KILL", String(Math.ceil(options.timeout!)), "bash", "-lc", command]
@@ -58,7 +79,7 @@ export async function execSandboxCommand(
 
   let timedOut = false;
   let backstop: ReturnType<typeof setTimeout> | undefined;
-  const onAbort = () => void killAgentContainer(agent.id);
+  const onAbort = () => void killSandboxExec(environment.id, containerId, execId);
   options.signal?.addEventListener("abort", onAbort, { once: true });
 
   try {
@@ -66,15 +87,19 @@ export async function execSandboxCommand(
       backstop = setTimeout(
         () => {
           timedOut = true;
-          void killAgentContainer(agent.id);
+          void killSandboxExec(environment.id, containerId, execId);
         },
         (options.timeout! + 5) * 1000,
       );
     }
 
+    const env = sandboxEnv({ ...options.defaults, ...dotEnv, ...options.env }, secrets).filter(
+      (entry) => !entry.startsWith(`${execMarker}=`),
+    );
+    env.push(`${execMarker}=${execId}`);
     const { exitCode } = await execInContainer(
       containerId,
-      { cmd, workingDir, env: sandboxEnv({ ...dotEnv, ...options.env }, secrets) },
+      { cmd, workingDir, env },
       {
         onStdout: (chunk) => emit(options.onStdout, stdoutRedactor.push(chunk.toString("utf8"))),
         onStderr: (chunk) => emit(options.onStderr, stderrRedactor.push(chunk.toString("utf8"))),
@@ -96,12 +121,31 @@ export async function execSandboxCommand(
   }
 }
 
+/**
+ * Stop one command's processes and leave the runner alone: other agents in the
+ * environment, terminals, and the browser keep running. Only if that cannot be
+ * confirmed is the whole runner removed, as the last way to stop the command.
+ */
+async function killSandboxExec(environmentId: string, containerId: string, execId: string) {
+  try {
+    const { exitCode } = await execInContainer(
+      containerId,
+      { cmd: ["sh", "-c", killExecScript, "sh", execId], workingDir: "/", env: [] },
+      { onStdout: () => {}, onStderr: () => {}, signal: AbortSignal.timeout(10_000) },
+    );
+    if (exitCode === 0) return;
+  } catch {
+    // Fall through to removing the runner.
+  }
+  await killEnvironmentContainer(environmentId).catch(() => {});
+}
+
 // Never inherit the server process environment into a container.
 // PATH here is only a floor: commands run through `bash -lc`, and Debian's
 // /etc/profile unconditionally reassigns PATH. Per-agent bin directories under
 // $HOME are prepended by /etc/profile.d/carmel-home.sh in the runner image.
 //
-// Agent secrets are applied last, so a caller-supplied `env` -- or the
+// Environment secrets are applied last, so a caller-supplied `env` -- or the
 // workspace `.env` folded into it -- cannot shadow a configured credential with
 // a value of its own choosing.
 export function sandboxEnv(

@@ -232,10 +232,7 @@ export type AgentConfig = {
   icon?: AgentIcon;
   color?: AgentColor;
   description: string;
-  workingDirMode: AgentWorkingDirMode;
-  workingDir: string;
-  defaultWorkingDir?: string;
-  mounts: AgentMount[];
+  environmentId: string;
   systemPrompt: string;
   promptTemplates: PromptTemplate[];
   permissions: AgentPermissions;
@@ -250,12 +247,30 @@ export type AgentConfig = {
 export type AgentMcpTestResult = { tools: Array<{ name: string; label: string }> };
 
 /**
- * A secret as the browser is allowed to see it: the name and when it changed,
- * never the value. Values are supplied only to the agent's sandbox or its
- * configured MCP connections.
+ * Where agents run: workspace, mounts, runner home and scratch, secrets, and
+ * the sandbox network. Several agents can share one.
  */
-export type AgentSecret = {
-  agentId: string;
+export type Environment = {
+  id: string;
+  ownerUserId: string;
+  name: string;
+  workingDirMode: AgentWorkingDirMode;
+  workingDir: string;
+  defaultWorkingDir: string;
+  mounts: AgentMount[];
+  network: boolean;
+  agents: Array<{ id: string; name: string }>;
+  createdAt: number;
+  updatedAt: number;
+};
+
+/**
+ * A secret as the browser is allowed to see it: the name and when it changed,
+ * never the value. Values are supplied only to the environment's sandbox or the
+ * MCP connections its agents configure.
+ */
+export type EnvironmentSecret = {
+  environmentId: string;
   name: string;
   updatedAt: number;
 };

@@ -129,7 +129,7 @@ try {
   const { eq } = await import("drizzle-orm");
   const { db, initialize } = await import("../src/db/index.ts");
   const { agents } = await import("../src/db/schema.ts");
-  const { createSession, createUser } = await import("../src/test-support.ts");
+  const { createSession, createUser, setAgentWorkingDir } = await import("../src/test-support.ts");
   const service = await import("../src/services/knowledge.ts");
   initialize();
   const fixture = createSession(),
@@ -138,7 +138,6 @@ try {
     db.update(agents)
       .set({
         shared: true,
-        workingDir: sourceDir,
         permissions: {
           read: true,
           write: true,
@@ -149,6 +148,7 @@ try {
       })
       .where(eq(agents.id, fixture.agentId))
       .run();
+    setAgentWorkingDir(fixture.agentId, sourceDir);
     await service.saveKnowledgeSettings(fixture.userId, fixture.agentId, {
       enabled: true,
       acceleration: "cpu",

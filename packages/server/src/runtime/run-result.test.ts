@@ -8,6 +8,7 @@ import {
   agentTasks,
   agentHomes,
   collaborations,
+  environments,
   knowledgeConfigs,
   knowledgeSources,
   modelRefs,
@@ -515,9 +516,10 @@ test("the model sees runner paths for its cwd, project instructions, and workspa
   try {
     const run = await startRun("reply", (sessionId) => {
       const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
-      db.update(agents)
+      const agent = db.select().from(agents).where(eq(agents.id, session.agentId)).get()!;
+      db.update(environments)
         .set({ workingDirMode: "default", workingDir })
-        .where(eq(agents.id, session.agentId))
+        .where(eq(environments.id, agent.environmentId))
         .run();
     });
     assert.equal((await finished(run)).outcome, "succeeded");

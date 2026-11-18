@@ -23,6 +23,7 @@ const requestSchemas = {
   OAuthInputRequest: S.oauthInputRequestSchema,
   AgentRequest: S.agentConfigRequestSchema,
   AgentSecretRequest: S.agentSecretWriteSchema,
+  EnvironmentRequest: S.environmentRequestSchema,
   ImConnectRequest: IM.imConnectSchema,
   ImSettingsRequest: IM.imSettingsSchema,
   ImQrBeginRequest: IM.imQrBeginSchema,

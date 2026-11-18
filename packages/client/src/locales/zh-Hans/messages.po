@@ -55,7 +55,7 @@ msgstr "继续"
 
 #. js-lingui-explicit-id
 #: src/components/harness/ActionDialogs.tsx:105
-#: src/components/harness/AgentSettingsPage.tsx:211
+#: src/components/harness/AgentSettingsPage.tsx:220
 #: src/components/harness/files/FileEditorView.tsx:185
 #: src/components/harness/files/FileEditorView.tsx:191
 #: src/lib/action-dialogs.ts:47
@@ -153,23 +153,23 @@ msgid "Rose"
 msgstr "玫瑰色"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:117
+#: src/lib/api.ts:119
 msgid "Request failed: {status}"
 msgstr "请求失败：{status}"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:160
-#: src/lib/api.ts:192
+#: src/lib/api.ts:162
+#: src/lib/api.ts:194
 msgid "Upload cancelled"
 msgstr "上传已取消"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:184
+#: src/lib/api.ts:186
 msgid "Upload failed: {status}"
 msgstr "上传失败：{status}"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:190
+#: src/lib/api.ts:192
 msgid "Unable to upload {path}"
 msgstr "无法上传 {path}"
 
@@ -1036,28 +1036,28 @@ msgstr "无法关闭错误提示"
 
 #. js-lingui-explicit-id
 #: src/components/harness/TerminalPanel.tsx:107
-#: src/components/PiChat.tsx:326
+#: src/components/PiChat.tsx:328
 msgid "Connection lost."
 msgstr "连接已断开。"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:379
+#: src/components/PiChat.tsx:381
 msgid "Unable to load history"
 msgstr "无法加载历史记录"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:390
+#: src/components/PiChat.tsx:392
 msgid "Unable to load the latest messages"
 msgstr "无法加载最新消息"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatMessages.tsx:444
-#: src/components/PiChat.tsx:426
+#: src/components/PiChat.tsx:428
 msgid "New context"
 msgstr "新上下文"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:433
+#: src/components/PiChat.tsx:435
 msgid "Stop Home"
 msgstr "停止主页"
 
@@ -1174,7 +1174,7 @@ msgstr "知识操作失败"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentKnowledgePage.tsx:123
-#: src/components/harness/AgentSettingsPage.tsx:39
+#: src/components/harness/AgentSettingsPage.tsx:40
 #: src/components/harness/shell/HarnessHeader.tsx:106
 #: src/components/harness/shell/HarnessSidebar.tsx:211
 msgid "Knowledge"
@@ -1362,29 +1362,29 @@ msgid "General"
 msgstr "常规"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:40
+#: src/components/harness/AgentSettingsPage.tsx:39
+msgid "Environment"
+msgstr "环境"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:41
 msgid "Templates"
 msgstr "模板"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:41
+#: src/components/harness/AgentSettingsPage.tsx:42
 msgid "Collaboration"
 msgstr "智能体协作"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:42
+#: src/components/harness/AgentSettingsPage.tsx:43
 msgid "Permissions"
 msgstr "权限"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:43
+#: src/components/harness/AgentSettingsPage.tsx:44
 msgid "Codemode"
 msgstr "代码模式"
-
-#. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:44
-msgid "Secrets"
-msgstr "密钥"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentSettingsPage.tsx:46
@@ -1413,40 +1413,41 @@ msgid "Unable to save agent"
 msgstr "无法保存智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:98
-#: src/components/harness/AgentSettingsPage.tsx:174
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:103
+#: src/components/harness/AgentSettingsPage.tsx:183
 msgid "Delete {name}?"
 msgstr "删除 {name}？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:175
+#: src/components/harness/AgentSettingsPage.tsx:184
 msgid "This permanently deletes the agent and all of its sessions."
 msgstr "这将永久删除智能体及其所有会话。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:176
+#: src/components/harness/AgentSettingsPage.tsx:185
 msgid "Delete agent"
 msgstr "删除智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:183
+#: src/components/harness/AgentSettingsPage.tsx:192
 msgid "Unable to delete agent"
 msgstr "无法删除智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:191
+#: src/components/harness/AgentSettingsPage.tsx:200
 #: src/components/harness/shell/HarnessHeader.tsx:210
 #: src/components/harness/shell/HarnessHeader.tsx:211
 msgid "Agent settings"
 msgstr "智能体设置"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:193
+#: src/components/harness/AgentSettingsPage.tsx:202
 msgid "Back to agent"
 msgstr "返回智能体"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:211
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:366
+#: src/components/harness/AgentSettingsPage.tsx:220
 #: src/components/harness/files/FileEditorView.tsx:107
 #: src/components/harness/files/FileEditorView.tsx:185
 #: src/components/harness/files/FileEditorView.tsx:191
@@ -2482,11 +2483,13 @@ msgid "Open browser"
 msgstr "打开浏览器"
 
 #. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:104
 #: src/components/harness/shell/HarnessSidebar.tsx:82
 msgid "Agent {number}"
 msgstr "智能体 {number}"
 
 #. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:110
 #: src/components/harness/shell/HarnessSidebar.tsx:86
 msgid "Unable to create agent"
 msgstr "无法创建智能体"
@@ -2820,7 +2823,7 @@ msgid "Shared provider"
 msgstr "共享提供商"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:266
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:134
 #: src/components/harness/settings/ModelSettings.tsx:120
 msgid "Shared"
 msgstr "已共享"
@@ -3342,32 +3345,92 @@ msgid "Allow this agent to contact the agents below. Configure calls back on the
 msgstr "允许此智能体联系下方的智能体。如需对方回调，请在对方智能体中配置。咨询为只读；任务使用接收方智能体的权限和凭据。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:125
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:65
+msgid "Move {agent} to {environment}?"
+msgstr "将 {agent} 移到 {environment}？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:69
+msgid "Give {agent} a new environment?"
+msgstr "为 {agent} 创建新环境？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:72
+msgid "No other agent uses {environment}, so it is deleted with its secrets. Its workspace files stay on the server."
+msgstr "没有其他智能体使用 {environment}，因此它会连同其中的密钥一起删除。工作区文件仍保留在服务器上。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:76
+msgid "Conversations keep their history, but files in this workspace stay here."
+msgstr "会话会保留历史记录，但此工作区中的文件会留在这里。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:77
+msgid "Move agent"
+msgstr "移动智能体"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:77
+msgid "Create environment"
+msgstr "创建环境"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:95
+msgid "Unable to move agent"
+msgstr "无法移动智能体"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:171
+msgid "Secrets"
+msgstr "密钥"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:222
+msgid "Environment saved."
+msgstr "环境已保存。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:225
+msgid "Unable to save environment"
+msgstr "无法保存环境"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:273
 msgid "Manual server folder"
 msgstr "手动指定服务器文件夹"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:169
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:317
 msgid "Remove mount"
 msgstr "移除挂载"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:183
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:331
 msgid "Container path (defaults to source)"
 msgstr "容器路径（默认与来源相同）"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:187
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:335
 msgid "Read only"
 msgstr "只读"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:275
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:357
+msgid "Sandbox network access"
+msgstr "沙盒网络访问"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:366
+msgid "Save environment"
+msgstr "保存环境"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:143
 msgid "Danger zone"
 msgstr "危险区域"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:276
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:144
 msgid "Deleting an agent also deletes sessions that belong to it."
 msgstr "删除智能体也会删除其所属会话。"
 
@@ -3599,79 +3662,79 @@ msgstr "运行命令"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:18
-msgid "Network access"
-msgstr "网络访问"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:42
-msgid "Unable to load secrets"
-msgstr "无法加载密钥"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:74
-msgid "A secret value is required."
-msgstr "请输入密钥值。"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:80
-msgid "Replace {name}?"
-msgstr "替换 {name}？"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:81
-msgid "The current value is overwritten and cannot be recovered."
-msgstr "当前值将被覆盖，且无法恢复。"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:82
-msgid "Replace secret"
-msgstr "替换密钥"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:89
-msgid "Unable to save secret"
-msgstr "无法保存密钥"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:99
-msgid "Commands this agent runs will no longer see this variable."
-msgstr "此智能体运行的命令将无法再访问此变量。"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:100
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:183
-msgid "Delete secret"
-msgstr "删除密钥"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:103
-msgid "Unable to delete secret"
-msgstr "无法删除密钥"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:111
-msgid "Unable to import .env"
-msgstr "无法导入 .env"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:114
-msgid "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}"
-msgstr "{count, plural, other {已从 .env 导入 # 个密钥}}"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:122
-msgid "{skippedExisting} already stored"
-msgstr "{skippedExisting} 个已存在"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:126
-msgid "{skippedInvalid} invalid or empty"
-msgstr "{skippedInvalid} 个无效或为空"
+msgid "Web access"
+msgstr "Web 访问"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:53
 msgid "Delete template"
 msgstr "删除模板"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:47
+msgid "Unable to load secrets"
+msgstr "无法加载密钥"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:79
+msgid "A secret value is required."
+msgstr "请输入密钥值。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:85
+msgid "Replace {name}?"
+msgstr "替换 {name}？"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:86
+msgid "The current value is overwritten and cannot be recovered."
+msgstr "当前值将被覆盖，且无法恢复。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:87
+msgid "Replace secret"
+msgstr "替换密钥"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:94
+msgid "Unable to save secret"
+msgstr "无法保存密钥"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:104
+msgid "Commands in this environment will no longer see this variable."
+msgstr "此环境中运行的命令将无法再访问此变量。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:105
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:191
+msgid "Delete secret"
+msgstr "删除密钥"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:110
+msgid "Unable to delete secret"
+msgstr "无法删除密钥"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:119
+msgid "Unable to import .env"
+msgstr "无法导入 .env"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:122
+msgid "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}"
+msgstr "{count, plural, other {已从 .env 导入 # 个密钥}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:130
+msgid "{skippedExisting} already stored"
+msgstr "{skippedExisting} 个已存在"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:134
+msgid "{skippedInvalid} invalid or empty"
+msgstr "{skippedInvalid} 个无效或为空"
 
 #. js-lingui-explicit-id
 #: src/components/chat/AgentRequestCard.tsx:56
@@ -3890,8 +3953,8 @@ msgstr "不可用"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatMessages.tsx:519
-msgid "Saved for reuse across this agent’s sessions."
-msgstr "已保存，可在此智能体的其他会话中重复使用。"
+msgid "Saved for reuse across sessions in this environment."
+msgstr "已保存，可在此环境的其他会话中重复使用。"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatMessages.tsx:521
@@ -4139,8 +4202,8 @@ msgstr "提交回答"
 
 #. js-lingui-explicit-id
 #: src/components/chat/UserRequestCards.tsx:195
-msgid "Save for this agent"
-msgstr "为此智能体保存"
+msgid "Save to environment"
+msgstr "保存到环境"
 
 #. js-lingui-explicit-id
 #: src/components/chat/UserRequestCards.tsx:196
@@ -4160,8 +4223,8 @@ msgstr "已提供凭证 · {value}"
 
 #. js-lingui-explicit-id
 #: src/components/chat/UserRequestCards.tsx:338
-msgid "Saved for this agent"
-msgstr "已为此智能体保存"
+msgid "Saved to environment"
+msgstr "已保存到环境"
 
 #. js-lingui-explicit-id
 #: src/components/chat/UserRequestCards.tsx:339
@@ -4312,6 +4375,10 @@ msgstr "{0}打开"
 msgid "{failedTools} failed"
 msgstr "{failedTools} 次失败"
 
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:156
+msgid "A shared agent runs here. Anyone who can run it runs commands with these secrets in their environment."
+msgstr "有共享的智能体在此运行。任何有权运行它的人，执行命令时都能使用这些环境变量中的密钥。"
+
 #: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:112
 #: src/components/harness/HomeMemoryPanel.tsx:523
 msgid "Acceleration"
@@ -4347,11 +4414,11 @@ msgstr "从此智能体的工作区或挂载目录添加 Markdown 目录。"
 msgid "Add a model in Settings to start chatting."
 msgstr "在设置中添加模型以开始聊天。"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:205
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:351
 msgid "Add mount"
 msgstr "添加挂载"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:241
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:249
 msgid "Add secret"
 msgstr "添加密钥"
 
@@ -4423,7 +4490,7 @@ msgstr "可用于此会话的 Shell。提交的值会单独保存，不会作为
 msgid "Back"
 msgstr "返回"
 
-#: src/components/PiChat.tsx:319
+#: src/components/PiChat.tsx:321
 msgid "Back to issue"
 msgstr "返回事项"
 
@@ -4478,7 +4545,7 @@ msgstr "构建嵌入向量"
 #: src/components/harness/ActionDialogs.tsx:102
 #: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:335
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:375
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:225
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:233
 #: src/components/harness/AgentKnowledgePage.tsx:569
 #: src/components/harness/HomeMemoryPanel.tsx:422
 #: src/components/harness/schedules/TaskForm.tsx:234
@@ -4546,7 +4613,7 @@ msgstr "连接需要处理"
 msgid "Connections belong to you, including on shared agents. Use a dedicated bot for each."
 msgstr "连接归你所有，共享智能体也是如此。请为每个连接使用专用机器人。"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:177
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:325
 msgid "Container path"
 msgstr "容器路径"
 
@@ -4641,7 +4708,11 @@ msgstr "拒绝"
 msgid "Deep"
 msgstr "深入"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:212
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:261
+msgid "Default environment folder"
+msgstr "默认的环境专用文件夹"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:80
 msgid "Default model"
 msgstr "默认模型"
 
@@ -4649,11 +4720,7 @@ msgstr "默认模型"
 msgid "Default notification destination"
 msgstr "默认通知目标"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:113
-msgid "Default per-agent folder"
-msgstr "默认的智能体专用文件夹"
-
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:233
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:101
 msgid "Default thinking"
 msgstr "默认思考深度"
 
@@ -4663,7 +4730,7 @@ msgstr "默认思考深度"
 msgid "Delete"
 msgstr "删除"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:281
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:149
 msgid "Delete agent"
 msgstr "删除智能体"
 
@@ -4675,7 +4742,7 @@ msgstr "删除笔记"
 msgid "Delete task"
 msgstr "删除任务"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:80
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:70
 #: src/components/harness/AgentKnowledgePage.tsx:556
 msgid "Description"
 msgstr "描述"
@@ -4767,6 +4834,10 @@ msgstr "启用机器人，发布应用，并使用长连接订阅消息事件。
 msgid "Enabled"
 msgstr "已启用"
 
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:127
+msgid "Environment"
+msgstr "环境"
+
 #: src/components/harness/schedules/TaskForm.tsx:132
 msgid "Every N minutes"
 msgstr "每 N 分钟"
@@ -4784,7 +4855,7 @@ msgstr "到期时间 {0}"
 msgid "Expose all tools"
 msgstr "开放所有工具"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:136
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:284
 msgid "Extra runner mounts"
 msgstr "额外的运行器挂载"
 
@@ -4849,11 +4920,11 @@ msgstr "主页"
 msgid "Home memory"
 msgstr "主页记忆"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:140
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:288
 msgid "Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the host."
 msgstr "除工作区之外，挂载到 Bash 沙箱中的宿主机目录。来源为宿主机上的路径。"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:153
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:301
 msgid "Host path"
 msgstr "宿主机路径"
 
@@ -4865,7 +4936,7 @@ msgstr "图标"
 msgid "Images"
 msgstr "图片"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:246
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:254
 msgid "Import .env"
 msgstr "导入 .env"
 
@@ -4885,7 +4956,7 @@ msgstr "索引需要处理"
 msgid "Interrupted"
 msgstr "已中断"
 
-#: src/components/PiChat.tsx:315
+#: src/components/PiChat.tsx:317
 msgid "Issue conversation · Read-only history"
 msgstr "事项对话 · 只读历史"
 
@@ -4950,7 +5021,7 @@ msgstr "浅色"
 msgid "Loading {view}…"
 msgstr "正在加载{view}…"
 
-#: src/components/harness/AgentSettingsPage.tsx:235
+#: src/components/harness/AgentSettingsPage.tsx:244
 msgid "Loading agent settings..."
 msgstr "正在加载智能体设置…"
 
@@ -4958,13 +5029,17 @@ msgstr "正在加载智能体设置…"
 msgid "Loading Carmel Agent"
 msgstr "正在加载 Carmel Agent"
 
-#: src/components/PiChat.tsx:457
+#: src/components/PiChat.tsx:459
 msgid "Loading chat..."
 msgstr "正在加载聊天…"
 
 #: src/components/harness/changes/ChangesView.tsx:370
 msgid "Loading diff..."
 msgstr "正在加载差异…"
+
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:118
+msgid "Loading environment..."
+msgstr "正在加载环境…"
 
 #: src/components/harness/files/FileManagerView.tsx:322
 msgid "Loading files..."
@@ -4979,7 +5054,7 @@ msgid "Loading Markdown…"
 msgstr "正在加载 Markdown…"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:68
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:157
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:165
 #: src/components/harness/settings/ApiKeySettings.tsx:108
 msgid "Loading…"
 msgstr "加载中…"
@@ -4988,7 +5063,7 @@ msgstr "加载中…"
 msgid "Login"
 msgstr "登录"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:117
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:265
 msgid "Manual server folder"
 msgstr "手动指定服务器文件夹"
 
@@ -5019,7 +5094,7 @@ msgid "Modified"
 msgstr "修改时间"
 
 #. placeholder {0}: index + 1
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:148
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:296
 msgid "Mount {0}"
 msgstr "挂载 {0}"
 
@@ -5032,8 +5107,9 @@ msgid "Move to topics"
 msgstr "移至主题"
 
 #: src/components/harness/ActionDialogs.tsx:88
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:68
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:197
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:236
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:58
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:205
 #: src/components/harness/AgentKnowledgePage.tsx:531
 #: src/components/harness/files/FileManagerView.tsx:299
 #: src/components/harness/schedules/TaskForm.tsx:82
@@ -5050,10 +5126,18 @@ msgstr "嵌套工具调用（{0}）"
 msgid "New agent"
 msgstr "新建智能体"
 
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:158
+msgid "New agent in this environment"
+msgstr "在此环境中新建智能体"
+
 #: src/components/chat/ChatMessages.tsx:449
 #: src/components/PiChat.tsx:264
 msgid "New context"
 msgstr "新上下文"
+
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:144
+msgid "New environment"
+msgstr "新建环境"
 
 #: src/components/harness/settings/AccountSettings.tsx:99
 msgid "New password (optional)"
@@ -5128,7 +5212,7 @@ msgstr "暂无运行记录。"
 msgid "No schedules"
 msgstr "暂无定时计划"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:161
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:169
 msgid "No secrets yet."
 msgstr "暂无密钥。"
 
@@ -5397,7 +5481,7 @@ msgstr "恢复"
 msgid "Result"
 msgstr "结果"
 
-#: src/components/PiChat.tsx:350
+#: src/components/PiChat.tsx:352
 #: src/components/tasks/TaskSubtasks.tsx:75
 msgid "Resume"
 msgstr "恢复"
@@ -5465,7 +5549,7 @@ msgstr "保存更改"
 msgid "Save memory"
 msgstr "保存记忆"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:228
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:236
 msgid "Save secret"
 msgstr "保存密钥"
 
@@ -5518,9 +5602,9 @@ msgstr "正在搜索…"
 msgid "Secret value"
 msgstr "密钥值"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:140
-msgid "Secrets become environment variables in this agent's shell. Saved values can be replaced but cannot be viewed."
-msgstr "密钥会成为此智能体 Shell 中的环境变量。已保存的值可以替换，但无法查看。"
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:148
+msgid "Secrets become environment variables in the shell of every agent here. Saved values can be replaced but cannot be viewed."
+msgstr "密钥会成为此环境中每个智能体 Shell 里的环境变量。已保存的值可以替换，但无法查看。"
 
 #: src/components/harness/files/FileEditorView.tsx:124
 msgid "Select a file from the sidebar."
@@ -5564,7 +5648,7 @@ msgid "Set"
 msgstr "设置"
 
 #. placeholder {0}: new Date(secret.updatedAt).toLocaleString(i18n.locale)
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:175
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:183
 msgid "Set {0}"
 msgstr "设置于 {0}"
 
@@ -5588,6 +5672,10 @@ msgstr "跨智能体共享"
 #: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:143
 msgid "Shared by all agents. The server administrator configures this model."
 msgstr "所有智能体共用。此模型由服务器管理员配置。"
+
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:152
+msgid "Shared with {sharedWith}. Changes here apply to them too."
+msgstr "与 {sharedWith} 共享。此处的更改也会应用到它们。"
 
 #. placeholder {0}: Math.min(hidden, PAGE_SIZE)
 #: src/components/harness/shell/SessionList.tsx:142
@@ -5622,7 +5710,7 @@ msgstr "源码"
 msgid "Sources"
 msgstr "来源"
 
-#: src/components/PiChat.tsx:353
+#: src/components/PiChat.tsx:355
 msgid "Stop"
 msgstr "停止"
 
@@ -5650,7 +5738,7 @@ msgstr "切换对话"
 msgid "System"
 msgstr "跟随系统"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:257
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:125
 msgid "System prompt"
 msgstr "系统提示词"
 
@@ -5692,15 +5780,11 @@ msgstr "主题"
 msgid "Thinking"
 msgstr "思考中"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:148
-msgid "This agent is shared. Anyone who can run it runs commands with these secrets in their environment."
-msgstr "此智能体已共享。任何有权运行它的人，执行命令时都能使用这些环境变量中的密钥。"
-
 #: src/components/harness/changes/ChangesView.tsx:124
 msgid "This agent's working directory is not a git repository."
 msgstr "此智能体的工作目录不是 Git 仓库。"
 
-#: src/components/PiChat.tsx:344
+#: src/components/PiChat.tsx:346
 msgid "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 msgstr "此对话中有未完成的工作。请先恢复或停止，再重试或编辑消息。"
 
@@ -5812,7 +5896,7 @@ msgstr "使用此智能体获准访问的工作区、Shell、网络、MCP 和会
 msgid "Using skill: {0}"
 msgstr "正在使用技能：{0}"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:210
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:218
 msgid "Value"
 msgstr "值"
 
@@ -5854,7 +5938,7 @@ msgstr "{0} 可以帮你做什么？"
 msgid "Working"
 msgstr "工作中"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:90
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:246
 msgid "Working dir"
 msgstr "工作目录"
 

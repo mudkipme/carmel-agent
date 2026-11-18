@@ -49,8 +49,6 @@ test("MCP settings save and round-trip only through the owner's settings endpoin
   } = serializeAgentSettings(row);
   const input = agentConfigRequestSchema.parse({
     ...settings,
-    workingDirMode: "default",
-    defaultWorkingDir: undefined,
     mcpServers: [server],
     codemodeEnabled: true,
   });
@@ -156,7 +154,6 @@ test("agent appearance is saved publicly and survives updates from clients that 
   } = serializeAgentSettings(row);
   const command = agentConfigRequestSchema.parse({
     ...settings,
-    workingDirMode: "default",
     icon: "orbit",
     color: "purple",
   });

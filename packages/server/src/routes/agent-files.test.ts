@@ -7,9 +7,13 @@ import { join } from "node:path";
 import { Hono } from "hono";
 import { createAgentFilesRoute } from "./agent-files.ts";
 import type { AuthVariables } from "../auth.ts";
-import type { agents } from "../db/schema.ts";
+import { initialize } from "../db/index.ts";
+import type { agents, environments } from "../db/schema.ts";
+import { createUser, insertEnvironment, makeEnvironment } from "../test-support.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
+type EnvironmentRecord = typeof environments.$inferSelect;
+initialize();
 
 test("file routes reject reads when read permission is disabled", async () => {
   const agent = makeAgent({ permissions: { ...allPermissions(false), write: true } });
@@ -399,10 +403,23 @@ function createTestApp(agent: AgentRecord) {
   return app;
 }
 
+/** The agent row, plus its environment's workspace for the assertions. */
 function makeAgent(
-  overrides: Partial<AgentRecord> & { permissions?: AgentRecord["permissions"] },
-): AgentRecord {
+  overrides: Partial<AgentRecord> &
+    Partial<Pick<EnvironmentRecord, "workingDir" | "workingDirMode">> & {
+      permissions?: AgentRecord["permissions"];
+    },
+): AgentRecord & { workingDir: string } {
+  const {
+    workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-files-test-")),
+    workingDirMode = "manual",
+    ...agent
+  } = overrides;
+  const environment = insertEnvironment(
+    makeEnvironment({ ownerUserId: createUser(), workingDir, workingDirMode }),
+  );
   return {
+    workingDir,
     id: "agent_1",
     ownerUserId: "user_1",
     shared: false,
@@ -412,10 +429,7 @@ function makeAgent(
     description: "",
     mcpServers: [],
     codemodeEnabled: false,
-    workingDirMode: "manual",
-    workingDir: mkdtempSync(join(tmpdir(), "carmel-agent-files-test-")),
-    defaultWorkingDir: null,
-    mounts: [],
+    environmentId: environment.id,
     systemPrompt: "",
     promptTemplates: [],
     permissions: allPermissions(false),
@@ -423,7 +437,7 @@ function makeAgent(
     defaultThinkingLevel: "off",
     createdAt: 0,
     updatedAt: 0,
-    ...overrides,
+    ...agent,
   };
 }
 

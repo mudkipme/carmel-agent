@@ -11,8 +11,8 @@ import {
   findAvailableSecret,
   promoteSessionSecret,
   readSessionSecrets,
-  readAgentSecretEnv,
-} from "../services/agent-secrets.ts";
+  readEnvironmentSecretEnv,
+} from "../services/environment-secrets.ts";
 import { createSecretRedactor } from "./sandbox/redaction.ts";
 import { errorMessage } from "../errors.ts";
 
@@ -162,7 +162,7 @@ export function createUserRequestTools(context: {
 export function guardUserRequests(
   tool: ToolRegistration,
   sessionId: string,
-  agentId: string,
+  environmentId: string,
 ): ToolRegistration {
   return {
     ...tool,
@@ -184,7 +184,7 @@ export function guardUserRequests(
           control: { terminate: true },
         };
       }
-      const secrets = readAgentSecretEnv(agentId, sessionId);
+      const secrets = readEnvironmentSecretEnv(environmentId, sessionId);
       if (!secrets.length) return tool.execute(args, api, context);
       // The sandbox already scrubs bash streams before spilling or emitting them.
       // Preserve native retention: bash reads retainedOutput() before returning

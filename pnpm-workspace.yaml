@@ -5,6 +5,7 @@ packages:
 # Keep this patch until its dependency range includes the fixed release.
 overrides:
   "esbuild@<0.24.3": "^0.25.12"
+  "ip-address@<10.7.4": "^10.7.4"
 
 blockExoticSubdeps: false
 

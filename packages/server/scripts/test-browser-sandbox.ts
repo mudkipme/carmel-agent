@@ -17,13 +17,13 @@ process.env.CARMEL_HOST_DATA_DIR = directory;
 process.env.CARMEL_HOST_UID ??= String(process.getuid!());
 process.env.CARMEL_HOST_GID ??= String(process.getgid!());
 const { db, initialize } = await import("../src/db/index.ts");
-const { agents } = await import("../src/db/schema.ts");
-const { createSession } = await import("../src/test-support.ts");
+const { agents, environments } = await import("../src/db/schema.ts");
+const { agentEnvironmentId, createSession } = await import("../src/test-support.ts");
 const { eq } = await import("drizzle-orm");
 const {
-  ensureAgentContainer,
-  killAgentContainer,
-  discardAgentContainer,
+  ensureEnvironmentContainer,
+  killEnvironmentContainer,
+  discardEnvironmentContainer,
   shutdownContainerManager,
 } = await import("../src/runtime/sandbox/container-manager.ts");
 const { attachExecStdio, execInContainer, createStreamDemuxer } =
@@ -33,18 +33,20 @@ const { sandboxEnv } = await import("../src/runtime/sandbox/bash-operations.ts")
 initialize();
 const fixture = createSession();
 db.update(agents)
-  .set({
-    workingDir: directory,
-    permissions: { read: true, write: true, edit: true, bash: true, network: false },
-  })
+  .set({ permissions: { read: true, write: true, edit: true, bash: true, network: false } })
   .where(eq(agents.id, fixture.agentId))
   .run();
-const agent = db.select().from(agents).where(eq(agents.id, fixture.agentId)).get()!;
+const environmentId = agentEnvironmentId(fixture.agentId);
+db.update(environments)
+  .set({ workingDir: directory, network: false })
+  .where(eq(environments.id, environmentId))
+  .run();
+const environment = db.select().from(environments).where(eq(environments.id, environmentId)).get()!;
 let bridge: Awaited<ReturnType<typeof connectBrowser>> | undefined;
 let webServer: Awaited<ReturnType<typeof attachExecStdio>> | undefined;
 const page = `<!doctype html><title>Browser sign-in fixture</title><style>body{font:20px sans-serif}input,button{position:absolute;left:32px;width:300px;height:44px}input{top:80px}button{top:160px}textarea{position:absolute;left:400px;top:80px}</style><h1>Sign in</h1><textarea aria-label="Clipboard fixture" onpaste="window.receivedPaste=true"></textarea><input aria-label="Account"><button onclick="document.cookie='signed_in=yes;path=/;max-age=3600';document.body.innerHTML='<h1>Signed in as '+document.querySelector('input').value+'</h1>'">Sign in</button>`;
 try {
-  let container = await ensureAgentContainer(agent, { network: false });
+  let container = await ensureEnvironmentContainer(environment);
   const cli = async (...args: string[]) => {
     let stdout = "",
       stderr = "";
@@ -96,7 +98,7 @@ try {
   const messages: Array<{ type: string; [key: string]: unknown }> = [];
   const open = async () => {
     const connection = await connectBrowser(
-      agent,
+      environment,
       (message) => {
         messages.push(message);
         if (message.type === "frame") bridge?.send({ type: "ack", seq: message.seq });
@@ -246,8 +248,8 @@ try {
     { onStdout: () => {}, onStderr: () => {}, signal: AbortSignal.timeout(10000) },
   );
   assert.equal(seeded.exitCode, 0);
-  await killAgentContainer(agent.id);
-  container = await ensureAgentContainer(agent, { network: false });
+  await killEnvironmentContainer(environment.id);
+  container = await ensureEnvironmentContainer(environment);
   await startWebServer();
   await cli("open", "http://127.0.0.1:8123");
   await open();
@@ -259,7 +261,7 @@ try {
   bridge?.close();
   webServer?.socket.end();
   webServer?.socket.destroy();
-  await discardAgentContainer(agent.id);
+  await discardEnvironmentContainer(environment);
   await shutdownContainerManager();
   await rm(directory, { recursive: true, force: true });
 }

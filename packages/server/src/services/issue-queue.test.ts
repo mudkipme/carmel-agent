@@ -9,9 +9,14 @@ import { and, eq } from "drizzle-orm";
 import { db, initialize } from "../db/index.ts";
 import { agents, issueAttempts, issues, modelRefs } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
-import { createAgent, createUser } from "../test-support.ts";
+import {
+  agentEnvironmentId,
+  createAgent,
+  createUser,
+  setAgentWorkingDir,
+} from "../test-support.ts";
 import { loadSession } from "./session-store.ts";
-import { writeAgentSecret } from "./agent-secrets.ts";
+import { writeEnvironmentSecret } from "./environment-secrets.ts";
 import { captureIssueWorkspace, compareIssueWorkspace } from "./issue-results.ts";
 import {
   createIssue,
@@ -308,7 +313,12 @@ test("workspace capture honors permission, excludes secrets and symlinks, and pr
     await writeFile(join(f.root, ".env"), "PRIVATE=secret");
     await writeFile(join(outside, "private.txt"), "private data");
     await symlink(join(outside, "private.txt"), join(f.root, "external.txt"));
-    writeAgentSecret(f.userId, f.agentId, "FIXTURE_TOKEN", "captured-secret-value");
+    writeEnvironmentSecret(
+      f.userId,
+      agentEnvironmentId(f.agentId),
+      "FIXTURE_TOKEN",
+      "captured-secret-value",
+    );
     await writeFile(join(f.root, "configuration.txt"), "token=captured-secret-value");
     await writeFile(join(f.root, "oversized.txt"), "x".repeat(300 * 1024));
     const before = await captureIssueWorkspace(agent);
@@ -372,7 +382,7 @@ async function fixture() {
     ownerUserId: userId,
     defaultModelRefId: modelRefId,
   });
-  db.update(agents).set({ workingDir: root }).where(eq(agents.id, agentId)).run();
+  setAgentWorkingDir(agentId, root);
   return {
     root,
     userId,
@@ -575,9 +585,10 @@ test("delegated results resume a waiting source task without accepting the recei
     .where(eq(agents.id, f.agentId))
     .run();
   db.update(agents)
-    .set({ defaultModelRefId: target.defaultModelRefId, workingDir: f.root })
+    .set({ defaultModelRefId: target.defaultModelRefId })
     .where(eq(agents.id, source.agentId))
     .run();
+  setAgentWorkingDir(source.agentId, f.root);
   db.update(sessions)
     .set({ modelRefId: target.defaultModelRefId })
     .where(eq(sessions.id, source.sessionId))
@@ -684,7 +695,7 @@ test("a task yields on ask_agent, releases its slot, and resumes only after the 
     defaultModelRefId: db.select().from(agents).where(eq(agents.id, f.agentId)).get()!
       .defaultModelRefId,
   });
-  db.update(agents).set({ workingDir: f.root }).where(eq(agents.id, target)).run();
+  setAgentWorkingDir(target, f.root);
   saveConnection(f.userId, f.agentId, {
     peerAgentId: target,
     direction: "outgoing",
@@ -723,7 +734,7 @@ test("Home resumes automatically from a pushed collaboration reply after yieldin
     defaultModelRefId: db.select().from(agents).where(eq(agents.id, f.agentId)).get()!
       .defaultModelRefId,
   });
-  db.update(agents).set({ workingDir: f.root }).where(eq(agents.id, target)).run();
+  setAgentWorkingDir(target, f.root);
   saveConnection(f.userId, f.agentId, {
     peerAgentId: target,
     direction: "outgoing",

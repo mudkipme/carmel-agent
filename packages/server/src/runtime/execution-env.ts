@@ -17,13 +17,16 @@ import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path
 import type { AgentMount } from "@carmel-agent/shared";
 import type { agents } from "../db/schema.ts";
 import { ensureDir } from "../paths.ts";
-import { resolveAgentWorkingDirPath } from "./resources.ts";
+import { readAgentEnvironment } from "../services/environments.ts";
+import { knowledgeShellEnv } from "./knowledge/shell.ts";
+import { resolveEnvironmentWorkingDirPath } from "./resources.ts";
 import { execSandboxCommand } from "./sandbox/bash-operations.ts";
 import {
   containerHome,
-  resolveAgentHomeDirPath,
-  resolveAgentTmpDirPath,
   resolveContainerWorkspace,
+  resolveEnvironmentHomeDirPath,
+  resolveEnvironmentTmpDirPath,
+  type EnvironmentRecord,
 } from "./sandbox/container-manager.ts";
 import { isSandboxConfigured, sandboxUnavailableMessage } from "./sandbox/runtime-client.ts";
 import { errorMessage } from "../errors.ts";
@@ -32,7 +35,10 @@ type AgentRecord = typeof agents.$inferSelect;
 type AccessMode = "address" | "read" | "write";
 type PathMapping = { containerPath: string; hostPath: string };
 
-/** Single filesystem and shell authority for an agent. */
+/**
+ * Single filesystem and shell authority for an agent: the agent's permissions
+ * applied to its environment's workspace, mounts, and runner.
+ */
 export class AgentExecutionEnv implements ExecutionEnv {
   readonly id: string;
   /** Runner path used by the model and all agent tools. */
@@ -41,6 +47,7 @@ export class AgentExecutionEnv implements ExecutionEnv {
   readonly hostCwd: string;
   readonly tmpDir: string;
   readonly homeDir: string;
+  readonly sessionId?: string;
   private readonly node: NodeExecutionEnv;
   private readonly readRoots: string[];
   private readonly writeRoots: string[];
@@ -48,24 +55,29 @@ export class AgentExecutionEnv implements ExecutionEnv {
   private readonly reverseMappings: PathMapping[];
   private readonly hostPathPattern: RegExp;
 
+  readonly environment: EnvironmentRecord;
+
   constructor(
     readonly agent: AgentRecord,
-    readonly sessionId?: string,
+    options: { sessionId?: string; environment?: EnvironmentRecord } = {},
   ) {
+    this.sessionId = options.sessionId;
+    const environment = options.environment ?? readAgentEnvironment(agent);
+    this.environment = environment;
     this.id = `carmel:${agent.id}`;
-    this.hostCwd = resolve(resolveAgentWorkingDirPath(agent));
-    this.cwd = resolveContainerWorkspace(agent);
-    this.tmpDir = resolve(resolveAgentTmpDirPath(agent));
-    this.homeDir = resolve(resolveAgentHomeDirPath(agent));
+    this.hostCwd = resolve(resolveEnvironmentWorkingDirPath(environment));
+    this.cwd = resolveContainerWorkspace(environment);
+    this.tmpDir = resolve(resolveEnvironmentTmpDirPath(environment));
+    this.homeDir = resolve(resolveEnvironmentHomeDirPath(environment));
     ensureDir(this.hostCwd);
     ensureDir(this.tmpDir);
     ensureDir(this.homeDir);
     this.node = new NodeExecutionEnv({ cwd: this.hostCwd });
-    const mountSources = agent.mounts.flatMap((mount) => {
+    const mountSources = environment.mounts.flatMap((mount) => {
       const source = mount.source?.trim();
       return source ? [resolve(source)] : [];
     });
-    const writableMountSources = agent.mounts.flatMap((mount) => {
+    const writableMountSources = environment.mounts.flatMap((mount) => {
       const source = mount.source?.trim();
       return source && !mount.readOnly ? [resolve(source)] : [];
     });
@@ -76,7 +88,7 @@ export class AgentExecutionEnv implements ExecutionEnv {
       this.homeDir,
       ...writableMountSources,
     ]);
-    this.mappings = createPathMappings(agent, this.hostCwd, this.tmpDir, this.homeDir);
+    this.mappings = createPathMappings(environment, this.hostCwd, this.tmpDir, this.homeDir);
     this.reverseMappings = this.mappings
       .flatMap(({ hostPath, containerPath }) => {
         const canonical = resolveRealPath(hostPath);
@@ -503,11 +515,12 @@ export class AgentExecutionEnv implements ExecutionEnv {
         typeof command === "string"
           ? command
           : command.map((arg) => "'" + arg.replaceAll("'", "'\"'\"'") + "'").join(" ");
-      const result = await execSandboxCommand(this.agent, shellCommand, cwd, {
+      const result = await execSandboxCommand(this.environment, shellCommand, cwd, {
         onStdout: (chunk) => emit(chunk, "stdout"),
         onStderr: (chunk) => emit(chunk, "stderr"),
         signal: context.abortSignal,
         timeout: options?.timeout,
+        defaults: knowledgeShellEnv(this.agent),
         env: options?.env,
         sessionId: this.sessionId,
       });
@@ -582,17 +595,17 @@ export function remapContainerPath(filePath: string, mappings: PathMapping[]) {
 }
 
 function createPathMappings(
-  agent: AgentRecord,
+  environment: EnvironmentRecord,
   cwd: string,
   tmpDir: string,
   homeDir: string,
 ): PathMapping[] {
   const mappings: PathMapping[] = [
-    { containerPath: resolveContainerWorkspace(agent), hostPath: cwd },
+    { containerPath: resolveContainerWorkspace(environment), hostPath: cwd },
     { containerPath: "/tmp", hostPath: tmpDir },
     { containerPath: containerHome, hostPath: homeDir },
   ];
-  for (const mount of agent.mounts) {
+  for (const mount of environment.mounts) {
     const source = mount.source?.trim();
     if (!source) continue;
     mappings.push({ containerPath: normalizeMountTarget(mount), hostPath: resolve(source) });

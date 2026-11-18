@@ -10,8 +10,8 @@ import {
   createSession,
   createUser,
 } from "../test-support.ts";
+import { assertEnvironmentHostPathAccess } from "./environments.ts";
 import {
-  assertAgentHostPathAccess,
   readUsableModelRef,
   reassignModelReferences,
   readVisibleAgent,
@@ -81,22 +81,25 @@ test("readUsableModelRef enforces ownership/sharing", () => {
 
 test("regular users cannot configure manual host paths or mounts", () => {
   assert.throws(
-    () => assertAgentHostPathAccess("user", { workingDirMode: "manual", mounts: [] }),
+    () => assertEnvironmentHostPathAccess("user", { workingDirMode: "manual", mounts: [] }),
     /Manual working directories are admin-only/,
   );
   assert.throws(
     () =>
-      assertAgentHostPathAccess("user", {
+      assertEnvironmentHostPathAccess("user", {
         workingDirMode: "default",
         mounts: [{ source: "/srv" }],
       }),
     /Host mounts are admin-only/,
   );
   assert.doesNotThrow(() =>
-    assertAgentHostPathAccess("user", { workingDirMode: "default", mounts: [] }),
+    assertEnvironmentHostPathAccess("user", { workingDirMode: "default", mounts: [] }),
   );
   assert.doesNotThrow(() =>
-    assertAgentHostPathAccess("admin", { workingDirMode: "manual", mounts: [{ source: "/srv" }] }),
+    assertEnvironmentHostPathAccess("admin", {
+      workingDirMode: "manual",
+      mounts: [{ source: "/srv" }],
+    }),
   );
 });
 

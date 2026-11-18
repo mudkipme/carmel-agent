@@ -5,7 +5,7 @@ import { relative } from "node:path";
 import type { IssueResultSnapshot } from "@carmel-agent/shared";
 import type { agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
-import { readAgentSecretEnv } from "./agent-secrets.ts";
+import { readEnvironmentSecretEnv } from "./environment-secrets.ts";
 import { createSecretRedactor } from "../runtime/sandbox/redaction.ts";
 
 type FileVersion = { hash: string; text: string | null };
@@ -32,9 +32,9 @@ export async function captureIssueWorkspace(
       warning: "File capture requires the agent's read permission.",
     };
   const env = new AgentExecutionEnv(agent);
-  let secrets: ReturnType<typeof readAgentSecretEnv>;
+  let secrets: ReturnType<typeof readEnvironmentSecretEnv>;
   try {
-    secrets = readAgentSecretEnv(agent.id);
+    secrets = readEnvironmentSecretEnv(agent.environmentId);
   } catch {
     return {
       ...capture,

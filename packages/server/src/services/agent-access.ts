@@ -1,16 +1,9 @@
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
-import type { AgentConfig, AgentThinkingLevel, UserRole } from "@carmel-agent/shared";
+import type { AgentThinkingLevel, UserRole } from "@carmel-agent/shared";
 import { asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agentTasks, agents, modelRefs, providerConfigs, sessions, users } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
-import {
-  defaultAgentWorkingDir,
-  ensureDir,
-  normalizeDataRelativePath,
-  normalizeDataRelativePathStrict,
-  resolveDataPath,
-} from "../paths.ts";
 import { resolveServerModelRef } from "../runtime/model.ts";
 import { serializeModelRef } from "../serializers.ts";
 
@@ -87,56 +80,6 @@ export function resolveSupportedThinkingLevel(
     thinkingLevel,
   ) as AgentThinkingLevel;
 }
-
-export function resolveAgentWorkingDir(
-  agent: Pick<AgentConfig, "workingDirMode" | "workingDir" | "defaultWorkingDir">,
-  agentId: string,
-  current: AgentRecord | undefined,
-  role: UserRole,
-) {
-  const requested =
-    current?.defaultWorkingDir ?? agent.defaultWorkingDir ?? defaultAgentWorkingDir(agentId);
-  // A non-admin cannot name a host path, even in the "default" mode: the value
-  // comes from a browser, and an absolute one would escape the data directory.
-  // Admins keep the permissive normalization they use for host-mounted setups.
-  const defaultWorkingDir =
-    role === "admin"
-      ? normalizeDataRelativePath(requested)
-      : (normalizeDataRelativePathStrict(requested) ?? defaultAgentWorkingDir(agentId));
-  if ((agent.workingDirMode ?? "default") === "default") {
-    ensureDir(resolveDataPath(defaultWorkingDir));
-    return {
-      workingDir: defaultWorkingDir,
-      defaultWorkingDir,
-    };
-  }
-
-  const previousManualWorkingDir =
-    current?.workingDirMode === "manual" && current.workingDir !== defaultWorkingDir
-      ? current.workingDir
-      : "";
-  const workingDir = agent.workingDir.trim() || previousManualWorkingDir;
-  if (!workingDir) return null;
-  return {
-    workingDir,
-    defaultWorkingDir,
-  };
-}
-
-export function assertAgentHostPathAccess(
-  role: UserRole,
-  agent: Pick<AgentConfig, "workingDirMode" | "mounts">,
-) {
-  if (role === "admin") return;
-  if (agent.workingDirMode === "manual") {
-    throw new AgentHostPathAccessError("Manual working directories are admin-only.");
-  }
-  if (agent.mounts.length > 0) {
-    throw new AgentHostPathAccessError("Host mounts are admin-only.");
-  }
-}
-
-export class AgentHostPathAccessError extends Error {}
 
 export function reassignModelReferences(deletedModelIds: Set<string>) {
   const ids = [...deletedModelIds];

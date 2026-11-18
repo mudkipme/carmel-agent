@@ -185,6 +185,35 @@ export const providerKeys = sqliteTable(
   (table) => [primaryKey({ columns: [table.userId, table.provider] })],
 );
 
+/**
+ * Where agents run: the workspace, extra mounts, the runner's persistent home
+ * and scratch under `storageDir`, its secrets, and its network. Several agents
+ * may point at one environment and then share a single runner container.
+ */
+export const environments = sqliteTable(
+  "environments",
+  {
+    id: text("id").primaryKey(),
+    ownerUserId: text("owner_user_id")
+      .notNull()
+      .references(() => users.id),
+    name: text("name").notNull(),
+    /** Data-relative directory holding `home/` and `tmp/`. */
+    storageDir: text("storage_dir").notNull(),
+    workingDirMode: text("working_dir_mode")
+      .$type<AgentWorkingDirMode>()
+      .notNull()
+      .default("default"),
+    workingDir: text("working_dir").notNull(),
+    defaultWorkingDir: text("default_working_dir").notNull(),
+    mounts: text("mounts", { mode: "json" }).$type<AgentMount[]>().notNull().default([]),
+    network: integer("network", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [index("environments_owner_user_id").on(table.ownerUserId)],
+);
+
 export const agents = sqliteTable(
   "agents",
   {
@@ -197,13 +226,9 @@ export const agents = sqliteTable(
     icon: text("icon").$type<AgentIcon>().notNull().default("bot"),
     color: text("color").$type<AgentColor>(),
     description: text("description").notNull(),
-    workingDirMode: text("working_dir_mode")
-      .$type<AgentWorkingDirMode>()
+    environmentId: text("environment_id")
       .notNull()
-      .default("manual"),
-    workingDir: text("working_dir").notNull(),
-    defaultWorkingDir: text("default_working_dir"),
-    mounts: text("mounts", { mode: "json" }).$type<AgentMount[]>().notNull().default([]),
+      .references(() => environments.id),
     systemPrompt: text("system_prompt").notNull(),
     promptTemplates: text("prompt_templates", { mode: "json" }).$type<PromptTemplate[]>().notNull(),
     permissions: text("permissions", { mode: "json" }).$type<AgentPermissions>().notNull(),
@@ -224,6 +249,7 @@ export const agents = sqliteTable(
   },
   (table) => [
     index("agents_default_model_ref_id").on(table.defaultModelRefId),
+    index("agents_environment_id").on(table.environmentId),
     index("agents_owner_user_id").on(table.ownerUserId),
   ],
 );
@@ -252,43 +278,44 @@ export const knowledgeSources = sqliteTable(
 );
 
 /**
- * Environment variables exported into an agent's sandbox container.
+ * Environment variables exported into an environment's sandbox container.
  *
- * A table rather than a column on `agents` for one reason: `serializeAgentSettings`
- * spreads the agent row, so a column here would be a secret one refactor away
- * from the browser. Keeping values in their own table means the agent endpoints
- * cannot leak them even by accident.
+ * A table rather than a column on `environments` for one reason: a serializer
+ * that spreads the row would put a column here one refactor away from the
+ * browser. Keeping values in their own table means those endpoints cannot leak
+ * them even by accident.
  *
- * A null sessionId means an agent default, usable by its runners. A sessionId
- * restricts injection to that session and cascades deletion with it.
+ * A null sessionId means an environment default, usable by every runner of its
+ * agents. A sessionId restricts injection to that session and cascades
+ * deletion with it.
  */
-export const agentSecrets = sqliteTable(
-  "agent_secrets",
+export const environmentSecrets = sqliteTable(
+  "environment_secrets",
   {
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    agentId: text("agent_id")
+    environmentId: text("environment_id")
       .notNull()
-      .references(() => agents.id),
+      .references(() => environments.id),
     sessionId: text("session_id").references(() => sessions.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    /** Session submissions always require encryption; legacy agent settings retain their storage policy. */
+    /** Session submissions always require encryption; legacy settings retain their storage policy. */
     value: text("value").notNull(),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
   (table) => [
-    uniqueIndex("agent_secrets_agent_name")
-      .on(table.agentId, table.name)
+    uniqueIndex("environment_secrets_environment_name")
+      .on(table.environmentId, table.name)
       .where(sql`${table.sessionId} IS NULL`),
-    uniqueIndex("agent_secrets_session_name")
+    uniqueIndex("environment_secrets_session_name")
       .on(table.sessionId, table.name)
       .where(sql`${table.sessionId} IS NOT NULL`),
   ],
 );
 
-/** Requests and safe answer receipts only. Secret values live exclusively in agent_secrets. */
+/** Requests and safe answer receipts only. Secret values live exclusively in environment_secrets. */
 export const userRequests = sqliteTable(
   "user_requests",
   {

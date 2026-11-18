@@ -10,15 +10,15 @@ import {
   type UserRequestReceipt,
 } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
-import { agentSecrets, userRequests } from "../db/schema.ts";
+import { environmentSecrets, userRequests } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import {
-  AgentSecretError,
+  SecretError,
   assertSessionOwner,
   findAvailableSecret,
   serializeCredential,
   storeSessionSecret,
-} from "./agent-secrets.ts";
+} from "./environment-secrets.ts";
 
 type RequestRecord = typeof userRequests.$inferSelect;
 const requestLifetime = 7 * 24 * 60 * 60 * 1000;
@@ -56,8 +56,7 @@ export function createUserRequest(
   const existing = db.select().from(userRequests).where(eq(userRequests.id, id)).get();
   if (existing) return serializeUserRequest(existing);
   const blocked = blockingUserRequest(context.sessionId);
-  if (blocked)
-    throw new AgentSecretError("Answer the existing request before creating another.", 409);
+  if (blocked) throw new SecretError("Answer the existing request before creating another.", 409);
   const timestamp = now();
   const row = {
     ...context,
@@ -122,7 +121,7 @@ function ownedRequest(userId: string, sessionId: string, requestId: string) {
     .from(userRequests)
     .where(and(eq(userRequests.id, requestId), eq(userRequests.sessionId, sessionId)))
     .get();
-  if (!row) throw new AgentSecretError("Request not found.", 404);
+  if (!row) throw new SecretError("Request not found.", 404);
   return row;
 }
 
@@ -134,13 +133,12 @@ export function answerQuestion(
 ): UserRequest {
   const row = ownedRequest(userId, sessionId, requestId);
   if (row.kind !== "question")
-    throw new AgentSecretError("Use the credential form for this request.", 400);
+    throw new SecretError("Use the credential form for this request.", 400);
   // Lost-response retries never change an answer or create a second delivery.
   if (row.status === "answered") return serializeUserRequest(row);
-  if (row.status !== "pending")
-    throw new AgentSecretError("This request is no longer pending.", 409);
+  if (row.status !== "pending") throw new SecretError("This request is no longer pending.", 409);
   const parsed = questionAnswerSchema.safeParse(body);
-  if (!parsed.success) throw new AgentSecretError("Invalid question answer.", 400);
+  if (!parsed.success) throw new SecretError("Invalid question answer.", 400);
   const answer = parsed.data;
   const input = row.input as QuestionInput;
   if (
@@ -150,7 +148,7 @@ export function answerQuestion(
     (!input.allowFreeText && answer.text) ||
     (!answer.selected.length && !answer.text)
   ) {
-    throw new AgentSecretError("Choose an available option or enter an allowed answer.", 400);
+    throw new SecretError("Choose an available option or enter an allowed answer.", 400);
   }
   db.update(userRequests)
     .set({ status: "answered", answer, delivery: "pending" })
@@ -168,10 +166,9 @@ export function answerSecretRequest(
 ): UserRequest {
   return db.transaction(() => {
     const row = ownedRequest(userId, sessionId, requestId);
-    if (row.kind !== "secret") throw new AgentSecretError("This is not a credential request.", 400);
+    if (row.kind !== "secret") throw new SecretError("This is not a credential request.", 400);
     if (row.status === "answered") return serializeUserRequest(row);
-    if (row.status !== "pending")
-      throw new AgentSecretError("This request is no longer pending.", 409);
+    if (row.status !== "pending") throw new SecretError("This request is no longer pending.", 409);
     const input = row.input as SecretRequestInput;
     const credential = storeSessionSecret(userId, sessionId, input.name, value);
     db.update(userRequests)
@@ -193,12 +190,11 @@ export function useAvailableSecret(
   requestId: string,
 ): UserRequest {
   const row = ownedRequest(userId, sessionId, requestId);
-  if (row.kind !== "secret") throw new AgentSecretError("This is not a credential request.", 400);
+  if (row.kind !== "secret") throw new SecretError("This is not a credential request.", 400);
   if (row.status === "answered") return serializeUserRequest(row);
-  if (row.status !== "pending")
-    throw new AgentSecretError("This request is no longer pending.", 409);
+  if (row.status !== "pending") throw new SecretError("This request is no longer pending.", 409);
   const credential = findAvailableSecret(sessionId, (row.input as SecretRequestInput).name);
-  if (!credential) throw new AgentSecretError("Credential not available.", 404);
+  if (!credential) throw new SecretError("Credential not available.", 404);
   db.update(userRequests)
     .set({ status: "answered", secretId: credential.id, delivery: "pending" })
     .where(eq(userRequests.id, row.id))
@@ -215,7 +211,7 @@ export function cancelUserRequest(userId: string, sessionId: string, requestId: 
   const row = ownedRequest(userId, sessionId, requestId);
   if (row.status === "cancelled" || row.status === "expired") return serializeUserRequest(row);
   if (row.status !== "pending")
-    throw new AgentSecretError("This request has already been answered.", 409);
+    throw new SecretError("This request has already been answered.", 409);
   db.update(userRequests)
     .set({ status: "cancelled", delivery: "pending" })
     .where(eq(userRequests.id, row.id))
@@ -320,7 +316,7 @@ export function markUserReplySubmitted(requestId: string) {
 
 function serializeUserRequest(row: RequestRecord): UserRequest {
   const credential = row.secretId
-    ? db.select().from(agentSecrets).where(eq(agentSecrets.id, row.secretId)).get()
+    ? db.select().from(environmentSecrets).where(eq(environmentSecrets.id, row.secretId)).get()
     : undefined;
   return {
     id: row.id,

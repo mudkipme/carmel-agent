@@ -55,7 +55,7 @@ msgstr "Continue"
 
 #. js-lingui-explicit-id
 #: src/components/harness/ActionDialogs.tsx:105
-#: src/components/harness/AgentSettingsPage.tsx:211
+#: src/components/harness/AgentSettingsPage.tsx:220
 #: src/components/harness/files/FileEditorView.tsx:185
 #: src/components/harness/files/FileEditorView.tsx:191
 #: src/lib/action-dialogs.ts:47
@@ -153,23 +153,23 @@ msgid "Rose"
 msgstr "Rose"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:117
+#: src/lib/api.ts:119
 msgid "Request failed: {status}"
 msgstr "Request failed: {status}"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:160
-#: src/lib/api.ts:192
+#: src/lib/api.ts:162
+#: src/lib/api.ts:194
 msgid "Upload cancelled"
 msgstr "Upload cancelled"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:184
+#: src/lib/api.ts:186
 msgid "Upload failed: {status}"
 msgstr "Upload failed: {status}"
 
 #. js-lingui-explicit-id
-#: src/lib/api.ts:190
+#: src/lib/api.ts:192
 msgid "Unable to upload {path}"
 msgstr "Unable to upload {path}"
 
@@ -1036,28 +1036,28 @@ msgstr "Unable to dismiss the error"
 
 #. js-lingui-explicit-id
 #: src/components/harness/TerminalPanel.tsx:107
-#: src/components/PiChat.tsx:326
+#: src/components/PiChat.tsx:328
 msgid "Connection lost."
 msgstr "Connection lost."
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:379
+#: src/components/PiChat.tsx:381
 msgid "Unable to load history"
 msgstr "Unable to load history"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:390
+#: src/components/PiChat.tsx:392
 msgid "Unable to load the latest messages"
 msgstr "Unable to load the latest messages"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatMessages.tsx:444
-#: src/components/PiChat.tsx:426
+#: src/components/PiChat.tsx:428
 msgid "New context"
 msgstr "New context"
 
 #. js-lingui-explicit-id
-#: src/components/PiChat.tsx:433
+#: src/components/PiChat.tsx:435
 msgid "Stop Home"
 msgstr "Stop Home"
 
@@ -1174,7 +1174,7 @@ msgstr "Knowledge action failed"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentKnowledgePage.tsx:123
-#: src/components/harness/AgentSettingsPage.tsx:39
+#: src/components/harness/AgentSettingsPage.tsx:40
 #: src/components/harness/shell/HarnessHeader.tsx:106
 #: src/components/harness/shell/HarnessSidebar.tsx:211
 msgid "Knowledge"
@@ -1362,29 +1362,29 @@ msgid "General"
 msgstr "General"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:40
+#: src/components/harness/AgentSettingsPage.tsx:39
+msgid "Environment"
+msgstr "Environment"
+
+#. js-lingui-explicit-id
+#: src/components/harness/AgentSettingsPage.tsx:41
 msgid "Templates"
 msgstr "Templates"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:41
+#: src/components/harness/AgentSettingsPage.tsx:42
 msgid "Collaboration"
 msgstr "Collaboration"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:42
+#: src/components/harness/AgentSettingsPage.tsx:43
 msgid "Permissions"
 msgstr "Permissions"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:43
+#: src/components/harness/AgentSettingsPage.tsx:44
 msgid "Codemode"
 msgstr "Codemode"
-
-#. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:44
-msgid "Secrets"
-msgstr "Secrets"
 
 #. js-lingui-explicit-id
 #: src/components/harness/AgentSettingsPage.tsx:46
@@ -1413,40 +1413,41 @@ msgid "Unable to save agent"
 msgstr "Unable to save agent"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:98
-#: src/components/harness/AgentSettingsPage.tsx:174
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:103
+#: src/components/harness/AgentSettingsPage.tsx:183
 msgid "Delete {name}?"
 msgstr "Delete {name}?"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:175
+#: src/components/harness/AgentSettingsPage.tsx:184
 msgid "This permanently deletes the agent and all of its sessions."
 msgstr "This permanently deletes the agent and all of its sessions."
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:176
+#: src/components/harness/AgentSettingsPage.tsx:185
 msgid "Delete agent"
 msgstr "Delete agent"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:183
+#: src/components/harness/AgentSettingsPage.tsx:192
 msgid "Unable to delete agent"
 msgstr "Unable to delete agent"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:191
+#: src/components/harness/AgentSettingsPage.tsx:200
 #: src/components/harness/shell/HarnessHeader.tsx:210
 #: src/components/harness/shell/HarnessHeader.tsx:211
 msgid "Agent settings"
 msgstr "Agent settings"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:193
+#: src/components/harness/AgentSettingsPage.tsx:202
 msgid "Back to agent"
 msgstr "Back to agent"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:211
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:366
+#: src/components/harness/AgentSettingsPage.tsx:220
 #: src/components/harness/files/FileEditorView.tsx:107
 #: src/components/harness/files/FileEditorView.tsx:185
 #: src/components/harness/files/FileEditorView.tsx:191
@@ -2482,11 +2483,13 @@ msgid "Open browser"
 msgstr "Open browser"
 
 #. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:104
 #: src/components/harness/shell/HarnessSidebar.tsx:82
 msgid "Agent {number}"
 msgstr "Agent {number}"
 
 #. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:110
 #: src/components/harness/shell/HarnessSidebar.tsx:86
 msgid "Unable to create agent"
 msgstr "Unable to create agent"
@@ -2820,7 +2823,7 @@ msgid "Shared provider"
 msgstr "Shared provider"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:266
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:134
 #: src/components/harness/settings/ModelSettings.tsx:120
 msgid "Shared"
 msgstr "Shared"
@@ -3342,32 +3345,92 @@ msgid "Allow this agent to contact the agents below. Configure calls back on the
 msgstr "Allow this agent to contact the agents below. Configure calls back on the other agent. Consultations are read-only; tasks use the receiving agent's permissions and credentials."
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:125
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:65
+msgid "Move {agent} to {environment}?"
+msgstr "Move {agent} to {environment}?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:69
+msgid "Give {agent} a new environment?"
+msgstr "Give {agent} a new environment?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:72
+msgid "No other agent uses {environment}, so it is deleted with its secrets. Its workspace files stay on the server."
+msgstr "No other agent uses {environment}, so it is deleted with its secrets. Its workspace files stay on the server."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:76
+msgid "Conversations keep their history, but files in this workspace stay here."
+msgstr "Conversations keep their history, but files in this workspace stay here."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:77
+msgid "Move agent"
+msgstr "Move agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:77
+msgid "Create environment"
+msgstr "Create environment"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:95
+msgid "Unable to move agent"
+msgstr "Unable to move agent"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:171
+msgid "Secrets"
+msgstr "Secrets"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:222
+msgid "Environment saved."
+msgstr "Environment saved."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:225
+msgid "Unable to save environment"
+msgstr "Unable to save environment"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:273
 msgid "Manual server folder"
 msgstr "Manual server folder"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:169
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:317
 msgid "Remove mount"
 msgstr "Remove mount"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:183
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:331
 msgid "Container path (defaults to source)"
 msgstr "Container path (defaults to source)"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:187
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:335
 msgid "Read only"
 msgstr "Read only"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:275
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:357
+msgid "Sandbox network access"
+msgstr "Sandbox network access"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:366
+msgid "Save environment"
+msgstr "Save environment"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:143
 msgid "Danger zone"
 msgstr "Danger zone"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:276
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:144
 msgid "Deleting an agent also deletes sessions that belong to it."
 msgstr "Deleting an agent also deletes sessions that belong to it."
 
@@ -3599,79 +3662,79 @@ msgstr "Run commands"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentPermissionsSettings.tsx:18
-msgid "Network access"
-msgstr "Network access"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:42
-msgid "Unable to load secrets"
-msgstr "Unable to load secrets"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:74
-msgid "A secret value is required."
-msgstr "A secret value is required."
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:80
-msgid "Replace {name}?"
-msgstr "Replace {name}?"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:81
-msgid "The current value is overwritten and cannot be recovered."
-msgstr "The current value is overwritten and cannot be recovered."
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:82
-msgid "Replace secret"
-msgstr "Replace secret"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:89
-msgid "Unable to save secret"
-msgstr "Unable to save secret"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:99
-msgid "Commands this agent runs will no longer see this variable."
-msgstr "Commands this agent runs will no longer see this variable."
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:100
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:183
-msgid "Delete secret"
-msgstr "Delete secret"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:103
-msgid "Unable to delete secret"
-msgstr "Unable to delete secret"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:111
-msgid "Unable to import .env"
-msgstr "Unable to import .env"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:114
-msgid "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}"
-msgstr "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:122
-msgid "{skippedExisting} already stored"
-msgstr "{skippedExisting} already stored"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:126
-msgid "{skippedInvalid} invalid or empty"
-msgstr "{skippedInvalid} invalid or empty"
+msgid "Web access"
+msgstr "Web access"
 
 #. js-lingui-explicit-id
 #: src/components/harness/agent-settings/AgentTemplatesSettings.tsx:53
 msgid "Delete template"
 msgstr "Delete template"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:47
+msgid "Unable to load secrets"
+msgstr "Unable to load secrets"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:79
+msgid "A secret value is required."
+msgstr "A secret value is required."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:85
+msgid "Replace {name}?"
+msgstr "Replace {name}?"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:86
+msgid "The current value is overwritten and cannot be recovered."
+msgstr "The current value is overwritten and cannot be recovered."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:87
+msgid "Replace secret"
+msgstr "Replace secret"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:94
+msgid "Unable to save secret"
+msgstr "Unable to save secret"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:104
+msgid "Commands in this environment will no longer see this variable."
+msgstr "Commands in this environment will no longer see this variable."
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:105
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:191
+msgid "Delete secret"
+msgstr "Delete secret"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:110
+msgid "Unable to delete secret"
+msgstr "Unable to delete secret"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:119
+msgid "Unable to import .env"
+msgstr "Unable to import .env"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:122
+msgid "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}"
+msgstr "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:130
+msgid "{skippedExisting} already stored"
+msgstr "{skippedExisting} already stored"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:134
+msgid "{skippedInvalid} invalid or empty"
+msgstr "{skippedInvalid} invalid or empty"
 
 #. js-lingui-explicit-id
 #: src/components/chat/AgentRequestCard.tsx:56
@@ -3890,8 +3953,8 @@ msgstr "Unavailable"
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatMessages.tsx:519
-msgid "Saved for reuse across this agent’s sessions."
-msgstr "Saved for reuse across this agent’s sessions."
+msgid "Saved for reuse across sessions in this environment."
+msgstr "Saved for reuse across sessions in this environment."
 
 #. js-lingui-explicit-id
 #: src/components/chat/ChatMessages.tsx:521
@@ -4139,8 +4202,8 @@ msgstr "Submit answer"
 
 #. js-lingui-explicit-id
 #: src/components/chat/UserRequestCards.tsx:195
-msgid "Save for this agent"
-msgstr "Save for this agent"
+msgid "Save to environment"
+msgstr "Save to environment"
 
 #. js-lingui-explicit-id
 #: src/components/chat/UserRequestCards.tsx:196
@@ -4160,8 +4223,8 @@ msgstr "Credential provided · {value}"
 
 #. js-lingui-explicit-id
 #: src/components/chat/UserRequestCards.tsx:338
-msgid "Saved for this agent"
-msgstr "Saved for this agent"
+msgid "Saved to environment"
+msgstr "Saved to environment"
 
 #. js-lingui-explicit-id
 #: src/components/chat/UserRequestCards.tsx:339
@@ -4312,6 +4375,10 @@ msgstr "{0}Open"
 msgid "{failedTools} failed"
 msgstr "{failedTools} failed"
 
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:156
+msgid "A shared agent runs here. Anyone who can run it runs commands with these secrets in their environment."
+msgstr "A shared agent runs here. Anyone who can run it runs commands with these secrets in their environment."
+
 #: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:112
 #: src/components/harness/HomeMemoryPanel.tsx:523
 msgid "Acceleration"
@@ -4347,11 +4414,11 @@ msgstr "Add a Markdown directory from this agent's workspace or mounts."
 msgid "Add a model in Settings to start chatting."
 msgstr "Add a model in Settings to start chatting."
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:205
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:351
 msgid "Add mount"
 msgstr "Add mount"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:241
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:249
 msgid "Add secret"
 msgstr "Add secret"
 
@@ -4423,7 +4490,7 @@ msgstr "Available to this session’s shell. The submitted value is stored separ
 msgid "Back"
 msgstr "Back"
 
-#: src/components/PiChat.tsx:319
+#: src/components/PiChat.tsx:321
 msgid "Back to issue"
 msgstr "Back to issue"
 
@@ -4478,7 +4545,7 @@ msgstr "Build embeddings"
 #: src/components/harness/ActionDialogs.tsx:102
 #: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:335
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:375
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:225
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:233
 #: src/components/harness/AgentKnowledgePage.tsx:569
 #: src/components/harness/HomeMemoryPanel.tsx:422
 #: src/components/harness/schedules/TaskForm.tsx:234
@@ -4546,7 +4613,7 @@ msgstr "Connection needs attention"
 msgid "Connections belong to you, including on shared agents. Use a dedicated bot for each."
 msgstr "Connections belong to you, including on shared agents. Use a dedicated bot for each."
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:177
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:325
 msgid "Container path"
 msgstr "Container path"
 
@@ -4641,7 +4708,11 @@ msgstr "Decline"
 msgid "Deep"
 msgstr "Deep"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:212
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:261
+msgid "Default environment folder"
+msgstr "Default environment folder"
+
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:80
 msgid "Default model"
 msgstr "Default model"
 
@@ -4649,11 +4720,7 @@ msgstr "Default model"
 msgid "Default notification destination"
 msgstr "Default notification destination"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:113
-msgid "Default per-agent folder"
-msgstr "Default per-agent folder"
-
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:233
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:101
 msgid "Default thinking"
 msgstr "Default thinking"
 
@@ -4663,7 +4730,7 @@ msgstr "Default thinking"
 msgid "Delete"
 msgstr "Delete"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:281
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:149
 msgid "Delete agent"
 msgstr "Delete agent"
 
@@ -4675,7 +4742,7 @@ msgstr "Delete note"
 msgid "Delete task"
 msgstr "Delete task"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:80
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:70
 #: src/components/harness/AgentKnowledgePage.tsx:556
 msgid "Description"
 msgstr "Description"
@@ -4767,6 +4834,10 @@ msgstr "Enable the bot, publish the app, and subscribe to message events using a
 msgid "Enabled"
 msgstr "Enabled"
 
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:127
+msgid "Environment"
+msgstr "Environment"
+
 #: src/components/harness/schedules/TaskForm.tsx:132
 msgid "Every N minutes"
 msgstr "Every N minutes"
@@ -4784,7 +4855,7 @@ msgstr "Expires {0}"
 msgid "Expose all tools"
 msgstr "Expose all tools"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:136
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:284
 msgid "Extra runner mounts"
 msgstr "Extra runner mounts"
 
@@ -4849,11 +4920,11 @@ msgstr "Home"
 msgid "Home memory"
 msgstr "Home memory"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:140
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:288
 msgid "Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the host."
 msgstr "Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the host."
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:153
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:301
 msgid "Host path"
 msgstr "Host path"
 
@@ -4865,7 +4936,7 @@ msgstr "Icon"
 msgid "Images"
 msgstr "Images"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:246
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:254
 msgid "Import .env"
 msgstr "Import .env"
 
@@ -4885,7 +4956,7 @@ msgstr "Index needs attention"
 msgid "Interrupted"
 msgstr "Interrupted"
 
-#: src/components/PiChat.tsx:315
+#: src/components/PiChat.tsx:317
 msgid "Issue conversation · Read-only history"
 msgstr "Issue conversation · Read-only history"
 
@@ -4950,7 +5021,7 @@ msgstr "Light"
 msgid "Loading {view}…"
 msgstr "Loading {view}…"
 
-#: src/components/harness/AgentSettingsPage.tsx:235
+#: src/components/harness/AgentSettingsPage.tsx:244
 msgid "Loading agent settings..."
 msgstr "Loading agent settings..."
 
@@ -4958,13 +5029,17 @@ msgstr "Loading agent settings..."
 msgid "Loading Carmel Agent"
 msgstr "Loading Carmel Agent"
 
-#: src/components/PiChat.tsx:457
+#: src/components/PiChat.tsx:459
 msgid "Loading chat..."
 msgstr "Loading chat..."
 
 #: src/components/harness/changes/ChangesView.tsx:370
 msgid "Loading diff..."
 msgstr "Loading diff..."
+
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:118
+msgid "Loading environment..."
+msgstr "Loading environment..."
 
 #: src/components/harness/files/FileManagerView.tsx:322
 msgid "Loading files..."
@@ -4979,7 +5054,7 @@ msgid "Loading Markdown…"
 msgstr "Loading Markdown…"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:68
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:157
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:165
 #: src/components/harness/settings/ApiKeySettings.tsx:108
 msgid "Loading…"
 msgstr "Loading…"
@@ -4988,7 +5063,7 @@ msgstr "Loading…"
 msgid "Login"
 msgstr "Login"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:117
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:265
 msgid "Manual server folder"
 msgstr "Manual server folder"
 
@@ -5019,7 +5094,7 @@ msgid "Modified"
 msgstr "Modified"
 
 #. placeholder {0}: index + 1
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:148
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:296
 msgid "Mount {0}"
 msgstr "Mount {0}"
 
@@ -5032,8 +5107,9 @@ msgid "Move to topics"
 msgstr "Move to topics"
 
 #: src/components/harness/ActionDialogs.tsx:88
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:68
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:197
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:236
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:58
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:205
 #: src/components/harness/AgentKnowledgePage.tsx:531
 #: src/components/harness/files/FileManagerView.tsx:299
 #: src/components/harness/schedules/TaskForm.tsx:82
@@ -5050,10 +5126,18 @@ msgstr "Nested tool calls ({0})"
 msgid "New agent"
 msgstr "New agent"
 
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:158
+msgid "New agent in this environment"
+msgstr "New agent in this environment"
+
 #: src/components/chat/ChatMessages.tsx:449
 #: src/components/PiChat.tsx:264
 msgid "New context"
 msgstr "New context"
+
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:144
+msgid "New environment"
+msgstr "New environment"
 
 #: src/components/harness/settings/AccountSettings.tsx:99
 msgid "New password (optional)"
@@ -5128,7 +5212,7 @@ msgstr "No runs yet."
 msgid "No schedules"
 msgstr "No schedules"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:161
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:169
 msgid "No secrets yet."
 msgstr "No secrets yet."
 
@@ -5397,7 +5481,7 @@ msgstr "Restore"
 msgid "Result"
 msgstr "Result"
 
-#: src/components/PiChat.tsx:350
+#: src/components/PiChat.tsx:352
 #: src/components/tasks/TaskSubtasks.tsx:75
 msgid "Resume"
 msgstr "Resume"
@@ -5465,7 +5549,7 @@ msgstr "Save changes"
 msgid "Save memory"
 msgstr "Save memory"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:228
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:236
 msgid "Save secret"
 msgstr "Save secret"
 
@@ -5518,9 +5602,9 @@ msgstr "Searching…"
 msgid "Secret value"
 msgstr "Secret value"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:140
-msgid "Secrets become environment variables in this agent's shell. Saved values can be replaced but cannot be viewed."
-msgstr "Secrets become environment variables in this agent's shell. Saved values can be replaced but cannot be viewed."
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:148
+msgid "Secrets become environment variables in the shell of every agent here. Saved values can be replaced but cannot be viewed."
+msgstr "Secrets become environment variables in the shell of every agent here. Saved values can be replaced but cannot be viewed."
 
 #: src/components/harness/files/FileEditorView.tsx:124
 msgid "Select a file from the sidebar."
@@ -5564,7 +5648,7 @@ msgid "Set"
 msgstr "Set"
 
 #. placeholder {0}: new Date(secret.updatedAt).toLocaleString(i18n.locale)
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:175
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:183
 msgid "Set {0}"
 msgstr "Set {0}"
 
@@ -5588,6 +5672,10 @@ msgstr "Shared across agents"
 #: src/components/harness/agent-settings/AgentKnowledgeSettings.tsx:143
 msgid "Shared by all agents. The server administrator configures this model."
 msgstr "Shared by all agents. The server administrator configures this model."
+
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:152
+msgid "Shared with {sharedWith}. Changes here apply to them too."
+msgstr "Shared with {sharedWith}. Changes here apply to them too."
 
 #. placeholder {0}: Math.min(hidden, PAGE_SIZE)
 #: src/components/harness/shell/SessionList.tsx:142
@@ -5622,7 +5710,7 @@ msgstr "Source"
 msgid "Sources"
 msgstr "Sources"
 
-#: src/components/PiChat.tsx:353
+#: src/components/PiChat.tsx:355
 msgid "Stop"
 msgstr "Stop"
 
@@ -5650,7 +5738,7 @@ msgstr "Switch conversation"
 msgid "System"
 msgstr "System"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:257
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:125
 msgid "System prompt"
 msgstr "System prompt"
 
@@ -5692,15 +5780,11 @@ msgstr "Theme"
 msgid "Thinking"
 msgstr "Thinking"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:148
-msgid "This agent is shared. Anyone who can run it runs commands with these secrets in their environment."
-msgstr "This agent is shared. Anyone who can run it runs commands with these secrets in their environment."
-
 #: src/components/harness/changes/ChangesView.tsx:124
 msgid "This agent's working directory is not a git repository."
 msgstr "This agent's working directory is not a git repository."
 
-#: src/components/PiChat.tsx:344
+#: src/components/PiChat.tsx:346
 msgid "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 msgstr "This conversation has unfinished work. Resume or stop it before retrying or editing messages."
 
@@ -5812,7 +5896,7 @@ msgstr "Uses this agent's permitted workspace, shell, network, MCP, and session 
 msgid "Using skill: {0}"
 msgstr "Using skill: {0}"
 
-#: src/components/harness/agent-settings/AgentSecretsSettings.tsx:210
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:218
 msgid "Value"
 msgstr "Value"
 
@@ -5854,7 +5938,7 @@ msgstr "What can {0} help with?"
 msgid "Working"
 msgstr "Working"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:90
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:246
 msgid "Working dir"
 msgstr "Working dir"
 

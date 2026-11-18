@@ -187,12 +187,12 @@ function UserRequestCard({
                       void act(() =>
                         request.credential!.scope === "session"
                           ? api.promoteSessionSecret(request.sessionId, request.credential!.id)
-                          : api.demoteAgentSecret(request.sessionId, request.credential!.id),
+                          : api.demoteEnvironmentSecret(request.sessionId, request.credential!.id),
                       )
                     }
                   >
                     {request.credential.scope === "session"
-                      ? i18n._("Save for this agent")
+                      ? i18n._("Save to environment")
                       : i18n._("Use in this session only")}
                   </Button>
                 ) : null}
@@ -335,7 +335,7 @@ function UserRequestCard({
             ? i18n._("Credential provided · {value}", {
                 value:
                   request.credential.scope === "agent"
-                    ? i18n._("Saved for this agent")
+                    ? i18n._("Saved to environment")
                     : i18n._("This session only"),
               })
             : request.status === "answered"

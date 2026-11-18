@@ -28,6 +28,7 @@ export function toAgentCommand(agent: AgentConfig): AgentConfigCommand {
   } = agent;
   return {
     ...command,
+    environmentId: command.environmentId || undefined,
     codemodeEnabled: command.codemodeEnabled ?? false,
     mcpServers: command.mcpServers ?? [],
   };
