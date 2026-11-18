@@ -4350,6 +4350,13 @@ components:
             modelRefId: { type: string },
             thinkingLevel: { $ref: "#/components/schemas/ThinkingLevel" },
             promptInput: { $ref: "#/components/schemas/PromptInput" },
+            timezone:
+              {
+                type: string,
+                minLength: 1,
+                maxLength: 100,
+                description: IANA time zone of the sender.,
+              },
           },
       }
     SessionDraftRequest:
@@ -4520,13 +4527,76 @@ components:
             runProgress:
               {
                 type: object,
-                required: [pendingToolCalls, nestedTools],
+                description: "Present while a run is active: the progress at activeRun.eventCursor. Apply later live_update ops from /api/updates to `live`.",
                 properties:
                   {
-                    streamingMessage: { type: object, additionalProperties: true },
-                    pendingToolCalls: { type: array, items: { type: string } },
-                    nestedTools:
-                      { type: array, items: { type: object, additionalProperties: true } },
+                    live:
+                      {
+                        type: object,
+                        description: "Pi Durable live state (`pi.live`). Clients render generation.message as the streaming reply, tools as the current round's tool calls, and nestedTools as calls made by running tools.",
+                        additionalProperties: true,
+                        properties:
+                          {
+                            run: { type: object, additionalProperties: true },
+                            generation:
+                              {
+                                type: object,
+                                additionalProperties: true,
+                                properties:
+                                  {
+                                    attempt: { type: integer },
+                                    message: { type: object, additionalProperties: true },
+                                    retry:
+                                      {
+                                        type: object,
+                                        properties:
+                                          { at: { type: number }, error: { type: string } },
+                                      },
+                                    deferred:
+                                      { type: object, properties: { pollAt: { type: number } } },
+                                  },
+                              },
+                            tools:
+                              {
+                                type: array,
+                                items:
+                                  {
+                                    type: object,
+                                    required: [callId, name, status],
+                                    additionalProperties: true,
+                                    properties:
+                                      {
+                                        callId: { type: string },
+                                        name: { type: string },
+                                        status: { type: string, enum: [pending, running, done] },
+                                        output: { type: string },
+                                      },
+                                  },
+                              },
+                            nestedTools:
+                              {
+                                type: array,
+                                items:
+                                  {
+                                    type: object,
+                                    required: [callId, parentCallId, name, status],
+                                    additionalProperties: true,
+                                    properties:
+                                      {
+                                        callId: { type: string },
+                                        parentCallId: { type: string },
+                                        name: { type: string },
+                                        status: { type: string, enum: [pending, running, done] },
+                                        summary: { type: object, additionalProperties: true },
+                                      },
+                                  },
+                              },
+                            compactions:
+                              { type: array, items: { type: object, additionalProperties: true } },
+                            compactionFailure: { type: object, additionalProperties: true },
+                            runFailure: { type: object, additionalProperties: true },
+                          },
+                      },
                     errorMessage: { type: string },
                     contextPressure:
                       {

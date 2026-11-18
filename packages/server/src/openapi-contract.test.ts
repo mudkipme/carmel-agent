@@ -239,7 +239,20 @@ test("representative response fixtures satisfy every response component", async 
       link: "/agents/a1/sessions/s1?entry=durable%3A1",
     } satisfies SessionSearchResult,
     Session: session,
-    SessionConnection: { session, activeRun: null, pendingWork: true },
+    SessionConnection: {
+      session,
+      activeRun: { runId: "r1", sessionId: "s1", eventCursor: 4 },
+      runProgress: {
+        live: {
+          run: { taskId: 2, inputs: [1], turns: 0 },
+          generation: { attempt: 1, message: { role: "assistant", content: [] } },
+          tools: [{ callId: "c1", name: "read", status: "running", taskId: 3 }],
+          nestedTools: [],
+        },
+        contextPressure: { level: "warning", message: "Compacted" },
+      },
+      pendingWork: false,
+    },
     FileEntry: file,
     FileList: { path: "", entries: [file] },
     FileContent: { path: "README.md", content: "hello", updatedAt: 1 },
