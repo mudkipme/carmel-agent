@@ -4,7 +4,7 @@ import { and, asc, eq, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agents, environmentSecrets, environments, sessions } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
-import { resolveEnvironmentWorkingDirPath } from "../runtime/resources.ts";
+import { resolveAgentWorkspace } from "../runtime/sandbox/container-manager.ts";
 import { readWorkspaceDotEnvFile, workspaceDotEnvAvailable } from "../runtime/workspace-dotenv.ts";
 import { encryptSubmittedSecret, protectSecret, revealSecret } from "../security.ts";
 import { errorMessage } from "../errors.ts";
@@ -65,15 +65,33 @@ export function readEnvironmentSecrets(userId: string, environmentId: string): E
     .map(serializeEnvironmentSecret);
 }
 
-export function environmentWorkspaceDotEnvStatus(userId: string, environmentId: string) {
+/** The working folder of one of the environment's agents, which is where a `.env` lives. */
+function agentFolder(userId: string, environmentId: string, agentId: string) {
   const environment = assertEnvironmentOwner(userId, environmentId);
-  return { available: workspaceDotEnvAvailable(resolveEnvironmentWorkingDirPath(environment)) };
+  const agent = db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.environmentId, environmentId)))
+    .get();
+  if (!agent) throw new SecretError("Agent not found in this environment.", 404);
+  return resolveAgentWorkspace(agent, environment).hostPath;
 }
 
-export function importEnvironmentWorkspaceDotEnv(userId: string, environmentId: string) {
-  const environment = assertEnvironmentOwner(userId, environmentId);
-  const entries = readWorkspaceDotEnvFile(resolveEnvironmentWorkingDirPath(environment));
-  if (!entries) throw new SecretError("No readable .env file in the workspace root.", 404);
+export function environmentWorkspaceDotEnvStatus(
+  userId: string,
+  environmentId: string,
+  agentId: string,
+) {
+  return { available: workspaceDotEnvAvailable(agentFolder(userId, environmentId, agentId)) };
+}
+
+export function importEnvironmentWorkspaceDotEnv(
+  userId: string,
+  environmentId: string,
+  agentId: string,
+) {
+  const entries = readWorkspaceDotEnvFile(agentFolder(userId, environmentId, agentId));
+  if (!entries) throw new SecretError("No readable .env file in the working folder.", 404);
 
   return db.transaction(() => {
     let imported = 0;

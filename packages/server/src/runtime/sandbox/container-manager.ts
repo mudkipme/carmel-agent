@@ -3,8 +3,7 @@ import { isAbsolute, posix, relative, resolve, sep } from "node:path";
 import type { AgentMount } from "@carmel-agent/shared";
 import { db } from "../../db/index.ts";
 import { environments } from "../../db/schema.ts";
-import { dataDir, ensureDir, resolveDataPath } from "../../paths.ts";
-import { resolveEnvironmentWorkingDirPath } from "../resources.ts";
+import { agentFolderName, dataDir, ensureDir, resolveDataPath } from "../../paths.ts";
 import {
   createContainer,
   execInContainer,
@@ -32,7 +31,7 @@ export type EnvironmentRecord = typeof environments.$inferSelect;
 const managedLabel = "carmel.managed";
 const managedLabelValue = "1";
 const environmentLabel = "carmel.environment";
-const containerWorkspace = "/workspace";
+export const containerWorkspace = "/workspace";
 const reaperIntervalMs = 60_000;
 
 const config = {
@@ -111,19 +110,25 @@ export async function ensureEnvironmentContainer(environment: EnvironmentRecord)
 }
 
 // Identifies the bind-relevant inputs of a runner container. When this changes
-// for an environment (workspace dir, mount path, extra mounts, network), the
-// existing container is torn down and recreated on the next command.
+// for an environment (extra mounts, network), the existing container is torn
+// down and recreated on the next command. Agents joining or leaving do not
+// change it: their folders all live under the one workspace mount.
 export function containerSignature(
   environment: EnvironmentRecord,
   identity?: SandboxIdentity,
   knowledge?: KnowledgeShellResources,
 ) {
-  const workspaceHostPath = toHostPath(resolveEnvironmentWorkingDirPath(environment));
+  const workspaceHostPath = toHostPath(resolveEnvironmentWorkspacePath(environment));
   const tmpHostPath = toHostPath(resolveEnvironmentTmpDirPath(environment));
   const homeHostPath = toHostPath(resolveEnvironmentHomeDirPath(environment));
-  const mountPath = resolveContainerWorkspace(environment);
   return JSON.stringify({
-    binds: buildBinds(workspaceHostPath, mountPath, tmpHostPath, homeHostPath, environment.mounts),
+    binds: buildBinds(
+      workspaceHostPath,
+      containerWorkspace,
+      tmpHostPath,
+      homeHostPath,
+      environment.mounts,
+    ),
     network: environment.network,
     identity,
     knowledge,
@@ -190,12 +195,59 @@ function clearTmp(path: string) {
   rmSync(path, { recursive: true, force: true });
 }
 
-// Where the workspace is mounted inside the runner. Manual workspaces keep their
-// absolute path so paths line up with the host and the server-side file tools;
-// default workspaces use a stable /workspace mount point.
-export function resolveContainerWorkspace(environment: EnvironmentRecord) {
-  if (environment.workingDirMode === "manual") return resolveEnvironmentWorkingDirPath(environment);
-  return containerWorkspace;
+// Host directory mounted at /workspace. Each agent's default folder is a
+// directory in it, so agents in one environment can reach each other's files.
+export function resolveEnvironmentWorkspacePath(environment: EnvironmentRecord) {
+  return resolveDataPath(`${environment.storageDir}/workspace`);
+}
+
+export type AgentWorkspace = {
+  /** App-side path; only server filesystem consumers should use this. */
+  hostPath: string;
+  /** The same folder in the runner's namespace. */
+  containerPath: string;
+  /** Inside an environment mount rather than the agent's default folder. */
+  mounted: boolean;
+};
+
+/**
+ * Where an agent works: a folder inside one of its environment's mounts, or
+ * its default folder under /workspace. A folder whose mount was removed falls
+ * back to the default; environment saves refuse to strand an agent that way.
+ */
+export function resolveAgentWorkspace(
+  agent: { id: string; workingDir: string },
+  environment: EnvironmentRecord,
+): AgentWorkspace {
+  const mounted = agent.workingDir
+    ? mountedFolder(environment.mounts, agent.workingDir)
+    : undefined;
+  if (mounted) return { ...mounted, mounted: true };
+  const folder = agentFolderName(agent.id);
+  return {
+    hostPath: resolve(resolveEnvironmentWorkspacePath(environment), folder),
+    containerPath: posix.join(containerWorkspace, folder),
+    mounted: false,
+  };
+}
+
+/** The host side of a runner path inside one of `mounts`, the most specific mount first. */
+export function mountedFolder(mounts: AgentMount[], containerPath: string) {
+  if (!posix.isAbsolute(containerPath)) return undefined;
+  const target = posix.resolve(containerPath);
+  const candidates = mounts
+    .filter((mount) => mount.source?.trim())
+    .map((mount) => ({
+      source: resolve(mount.source.trim()),
+      target: posix.resolve(mount.target?.trim() || mount.source.trim()),
+    }))
+    .sort((left, right) => right.target.length - left.target.length);
+  for (const mount of candidates) {
+    const rel = posix.relative(mount.target, target);
+    if (rel === ".." || rel.startsWith("../") || posix.isAbsolute(rel)) continue;
+    return { hostPath: resolve(mount.source, rel), containerPath: target };
+  }
+  return undefined;
 }
 
 // Host directory bind-mounted at /tmp in the runner. Backing it on the host
@@ -215,10 +267,8 @@ export function resolveEnvironmentHomeDirPath(environment: EnvironmentRecord) {
 }
 
 export function toContainerWorkdir(environment: EnvironmentRecord, cwd: string) {
-  const workspaceRoot = resolveEnvironmentWorkingDirPath(environment);
-  const mountPath = resolveContainerWorkspace(environment);
   const mappings = [
-    { source: workspaceRoot, target: mountPath },
+    { source: resolveEnvironmentWorkspacePath(environment), target: containerWorkspace },
     { source: resolveEnvironmentTmpDirPath(environment), target: "/tmp" },
     { source: resolveEnvironmentHomeDirPath(environment), target: containerHome },
     ...environment.mounts.flatMap((mount) => {
@@ -234,7 +284,7 @@ export function toContainerWorkdir(environment: EnvironmentRecord, cwd: string) 
       return containerWorkdir(source, cwd, target);
     }
   }
-  return mountPath;
+  return containerWorkspace;
 }
 
 // Maps a host-side absolute working directory onto the workspace mount point
@@ -348,13 +398,13 @@ async function createEnvironmentContainer(
 ) {
   await ensureImage();
 
-  const workspacePath = resolveEnvironmentWorkingDirPath(environment);
+  const workspacePath = resolveEnvironmentWorkspacePath(environment);
   const tmpPath = resolveEnvironmentTmpDirPath(environment);
   const homePath = resolveEnvironmentHomeDirPath(environment);
   ensureDir(workspacePath);
   ensureDir(tmpPath);
   ensureDir(homePath);
-  const mountPath = resolveContainerWorkspace(environment);
+  const mountPath = containerWorkspace;
   const workspaceHostPath = toHostPath(workspacePath);
   const tmpHostPath = toHostPath(tmpPath);
   const homeHostPath = toHostPath(homePath);

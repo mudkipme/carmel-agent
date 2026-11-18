@@ -196,6 +196,7 @@ test("codemode uses permitted native workspace tools and keeps their path bounda
   const row = {
     ...agent([]),
     environmentId: createEnvironment(createUser(), { workingDir: root }),
+    workingDir: root,
     permissions: { read: true, write: true, edit: true, bash: false, network: false },
   };
   const execution = createServerExecution(row);
@@ -238,6 +239,7 @@ test("codemode combines MCP, native files, and session tools after session overr
   const execution = createServerExecution({
     ...agent([serverConfig(remote.url, { tools: ["echo"] })]),
     environmentId: createEnvironment(createUser(), { workingDir: root }),
+    workingDir: root,
     permissions: { read: true, write: true, edit: false, bash: false, network: true },
   });
   const override: Tool = {

@@ -5,10 +5,9 @@ import {
   ensureEnvironmentContainer,
   holdEnvironmentContainer,
   releaseEnvironmentContainer,
-  toContainerWorkdir,
+  containerWorkspace,
   type EnvironmentRecord,
 } from "./container-manager.ts";
-import { resolveEnvironmentWorkingDirPath } from "../resources.ts";
 import { sandboxEnv } from "./bash-operations.ts";
 import { browserBridgeScript } from "./browser-bridge.ts";
 import { parseBrowserOutput } from "../../browser-protocol.ts";
@@ -55,7 +54,7 @@ export async function connectBrowser(
       containerId,
       {
         cmd: ["node", "-e", browserBridgeScript],
-        workingDir: toContainerWorkdir(environment, resolveEnvironmentWorkingDirPath(environment)),
+        workingDir: containerWorkspace,
         env: sandboxEnv({ AGENT_BROWSER_SESSION: "carmel" }),
       },
       signal,

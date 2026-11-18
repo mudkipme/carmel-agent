@@ -79,27 +79,14 @@ test("readUsableModelRef enforces ownership/sharing", () => {
   assert.equal(readUsableModelRef(bob, "missing"), undefined);
 });
 
-test("regular users cannot configure manual host paths or mounts", () => {
+test("regular users cannot configure host mounts", () => {
   assert.throws(
-    () => assertEnvironmentHostPathAccess("user", { workingDirMode: "manual", mounts: [] }),
-    /Manual working directories are admin-only/,
-  );
-  assert.throws(
-    () =>
-      assertEnvironmentHostPathAccess("user", {
-        workingDirMode: "default",
-        mounts: [{ source: "/srv" }],
-      }),
+    () => assertEnvironmentHostPathAccess("user", { mounts: [{ source: "/srv" }] }),
     /Host mounts are admin-only/,
   );
+  assert.doesNotThrow(() => assertEnvironmentHostPathAccess("user", { mounts: [] }));
   assert.doesNotThrow(() =>
-    assertEnvironmentHostPathAccess("user", { workingDirMode: "default", mounts: [] }),
-  );
-  assert.doesNotThrow(() =>
-    assertEnvironmentHostPathAccess("admin", {
-      workingDirMode: "manual",
-      mounts: [{ source: "/srv" }],
-    }),
+    assertEnvironmentHostPathAccess("admin", { mounts: [{ source: "/srv" }] }),
   );
 });
 

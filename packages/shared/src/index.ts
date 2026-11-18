@@ -114,8 +114,6 @@ export type OidcLoginErrorCode =
   | "denied"
   | "failed";
 
-export type AgentWorkingDirMode = "default" | "manual";
-
 /**
  * How a run ended.
  *
@@ -233,6 +231,8 @@ export type AgentConfig = {
   color?: AgentColor;
   description: string;
   environmentId: string;
+  /** A folder inside one of the environment's mounts; empty for the agent's default folder. */
+  workingDir: string;
   systemPrompt: string;
   promptTemplates: PromptTemplate[];
   permissions: AgentPermissions;
@@ -247,16 +247,13 @@ export type AgentConfig = {
 export type AgentMcpTestResult = { tools: Array<{ name: string; label: string }> };
 
 /**
- * Where agents run: workspace, mounts, runner home and scratch, secrets, and
- * the sandbox network. Several agents can share one.
+ * Where agents run, like a machine they share: runner home and scratch, mounts,
+ * secrets, and the sandbox network. Each agent keeps its own working folder.
  */
 export type Environment = {
   id: string;
   ownerUserId: string;
   name: string;
-  workingDirMode: AgentWorkingDirMode;
-  workingDir: string;
-  defaultWorkingDir: string;
   mounts: AgentMount[];
   network: boolean;
   agents: Array<{ id: string; name: string }>;

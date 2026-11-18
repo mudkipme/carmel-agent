@@ -10,7 +10,7 @@ It runs on your machine or your server. Agents contact the model providers, webs
 - **Answers with the work tucked away.** Thinking, tool calls, and intermediate commentary fold under “Show work,” keeping final answers and errors visible.
 - **Agents you shape.** Each agent has its own appearance, workspace, system prompt, prompt templates, default model, thinking level, and permissions for read, write, edit, bash, and network.
 - **Sandboxed shell.** Bash runs in a container with CPU, memory, PID, mount, and network limits — not on your host shell.
-- **Shared environments.** An agent's workspace, runner, browser, and secrets form an environment that several agents can share, so specialist agents can work on one project.
+- **Shared environments.** A runner with its workspace, mounts, browser, and secrets forms an environment that several agents can share. Each agent keeps its own working folder and can reach the others', so specialist agents can work on one project.
 - **A terminal in the browser.** Open an interactive shell into an environment's container with the same environment its commands get; reloads reattach to the running shell.
 - **A workspace beside the conversation.** Files, Changes, Terminal, and Browser share a resizable pane, with Markdown previews and source editing, Mermaid diagrams, remembered layout, and a single-pane view on narrow windows.
 - **A shared live browser.** Watch the agent browse, take control to sign in, then resume it in the same browser; the profile belongs to the agent.

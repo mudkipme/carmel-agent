@@ -3,10 +3,15 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { eq } from "drizzle-orm";
 import { db, initialize } from "../db/index.ts";
-import { environmentSecrets, environments } from "../db/schema.ts";
-import { createAgent, createEnvironment, createModelRef, createUser } from "../test-support.ts";
+import { environmentSecrets } from "../db/schema.ts";
+import {
+  agentEnvironmentId,
+  createAgent,
+  createEnvironment,
+  createModelRef,
+  createUser,
+} from "../test-support.ts";
 import {
   SecretError,
   deleteEnvironmentSecret,
@@ -42,24 +47,26 @@ test("writing the same name twice rotates the value instead of duplicating it", 
   assert.deepEqual(readEnvironmentSecretEnv(environmentId), [{ name: "TOKEN", value: "second" }]);
 });
 
-test("workspace .env import adds valid secrets without replacing stored values", () => {
-  const { ownerUserId, environmentId } = fixture();
+test("an agent's .env import adds valid secrets without replacing stored values", () => {
+  const ownerUserId = createUser();
   const directory = mkdtempSync(join(tmpdir(), "carmel-secret-import-"));
+  const agentId = createAgent({
+    ownerUserId,
+    defaultModelRefId: createModelRef({ ownerUserId }),
+    workingDir: directory,
+  });
+  const environmentId = agentEnvironmentId(agentId);
   try {
-    db.update(environments)
-      .set({ workingDir: directory })
-      .where(eq(environments.id, environmentId))
-      .run();
     writeFileSync(
       join(directory, ".env"),
       "EXISTING=from-file\nNEW_TOKEN=from-file\nEMPTY=\nPATH=/invalid\n",
     );
     writeEnvironmentSecret(ownerUserId, environmentId, "EXISTING", "stored-value");
 
-    assert.deepEqual(environmentWorkspaceDotEnvStatus(ownerUserId, environmentId), {
+    assert.deepEqual(environmentWorkspaceDotEnvStatus(ownerUserId, environmentId, agentId), {
       available: true,
     });
-    assert.deepEqual(importEnvironmentWorkspaceDotEnv(ownerUserId, environmentId), {
+    assert.deepEqual(importEnvironmentWorkspaceDotEnv(ownerUserId, environmentId, agentId), {
       imported: 1,
       skippedExisting: 1,
       skippedInvalid: 2,
@@ -68,24 +75,24 @@ test("workspace .env import adds valid secrets without replacing stored values",
       { name: "EXISTING", value: "stored-value" },
       { name: "NEW_TOKEN", value: "from-file" },
     ]);
-    assert.deepEqual(importEnvironmentWorkspaceDotEnv(ownerUserId, environmentId), {
+    assert.deepEqual(importEnvironmentWorkspaceDotEnv(ownerUserId, environmentId, agentId), {
       imported: 0,
       skippedExisting: 2,
       skippedInvalid: 2,
     });
     assert.throws(
-      () => importEnvironmentWorkspaceDotEnv(createUser(), environmentId),
+      () => importEnvironmentWorkspaceDotEnv(createUser(), environmentId, agentId),
       (error: unknown) => error instanceof SecretError && error.status === 403,
     );
 
     rmSync(join(directory, ".env"));
     writeFileSync(join(directory, "outside.env"), "HOST_SECRET=leaked\n");
     symlinkSync(join(directory, "outside.env"), join(directory, ".env"));
-    assert.deepEqual(environmentWorkspaceDotEnvStatus(ownerUserId, environmentId), {
+    assert.deepEqual(environmentWorkspaceDotEnvStatus(ownerUserId, environmentId, agentId), {
       available: false,
     });
     assert.throws(
-      () => importEnvironmentWorkspaceDotEnv(ownerUserId, environmentId),
+      () => importEnvironmentWorkspaceDotEnv(ownerUserId, environmentId, agentId),
       (error: unknown) => error instanceof SecretError && error.status === 404,
     );
   } finally {

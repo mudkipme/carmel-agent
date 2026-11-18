@@ -1963,7 +1963,17 @@ paths:
           },
       }
   /api/environments/{environmentId}/secrets/import-env:
-    parameters: [{ $ref: "#/components/parameters/EnvironmentID" }]
+    parameters:
+      [
+        { $ref: "#/components/parameters/EnvironmentID" },
+        {
+          name: agent,
+          in: query,
+          required: true,
+          description: The agent whose working folder holds the .env file,
+          schema: { type: string },
+        },
+      ]
     get:
       {
         operationId: getEnvironmentWorkspaceDotEnvStatus,
@@ -4188,6 +4198,7 @@ components:
             color: { type: string, enum: [blue, green, orange, purple, cyan, pink] },
             description: { type: string },
             environmentId: { type: string },
+            workingDir: { type: string, maxLength: 1000, default: "" },
             systemPrompt: { type: string },
             promptTemplates: { type: array, items: { type: object, additionalProperties: true } },
             permissions: { type: object, additionalProperties: { type: boolean } },
@@ -4209,6 +4220,7 @@ components:
             name,
             description,
             environmentId,
+            workingDir,
             systemPrompt,
             promptTemplates,
             permissions,
@@ -4246,6 +4258,7 @@ components:
             color: { type: string, enum: [blue, green, orange, purple, cyan, pink] },
             description: { type: string },
             environmentId: { type: string },
+            workingDir: { type: string },
             systemPrompt: { type: string },
             promptTemplates: { type: array, items: { type: object, additionalProperties: true } },
             permissions: { type: object, additionalProperties: { type: boolean } },
@@ -4732,13 +4745,11 @@ components:
     EnvironmentRequest:
       {
         type: object,
-        required: [name, workingDirMode, workingDir, mounts, network],
+        required: [name, mounts, network],
         additionalProperties: false,
         properties:
           {
             name: { type: string, minLength: 1, maxLength: 100 },
-            workingDirMode: { type: string, enum: [default, manual], default: default },
-            workingDir: { type: string, default: "" },
             mounts:
               { type: array, default: [], items: { $ref: "#/components/schemas/AgentMount" } },
             network: { type: boolean, default: false },
@@ -4758,29 +4769,13 @@ components:
     Environment:
       {
         type: object,
-        required:
-          [
-            id,
-            ownerUserId,
-            name,
-            workingDirMode,
-            workingDir,
-            defaultWorkingDir,
-            mounts,
-            network,
-            agents,
-            createdAt,
-            updatedAt,
-          ],
+        required: [id, ownerUserId, name, mounts, network, agents, createdAt, updatedAt],
         additionalProperties: false,
         properties:
           {
             id: { type: string },
             ownerUserId: { type: string },
             name: { type: string },
-            workingDirMode: { type: string, enum: [default, manual] },
-            workingDir: { type: string },
-            defaultWorkingDir: { type: string },
             mounts: { type: array, items: { $ref: "#/components/schemas/AgentMount" } },
             network: { type: boolean },
             agents:

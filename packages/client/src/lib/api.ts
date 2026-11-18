@@ -432,11 +432,13 @@ export const api = {
     request<{ ok: true }>(`/api/environments/${environmentId}`, { method: "DELETE" }),
   listEnvironmentSecrets: (environmentId: string) =>
     request<EnvironmentSecret[]>(`/api/environments/${environmentId}/secrets`),
-  environmentWorkspaceDotEnvStatus: (environmentId: string) =>
-    request<{ available: boolean }>(`/api/environments/${environmentId}/secrets/import-env`),
-  importEnvironmentWorkspaceDotEnv: (environmentId: string) =>
+  environmentWorkspaceDotEnvStatus: (environmentId: string, agentId: string) =>
+    request<{ available: boolean }>(
+      `/api/environments/${environmentId}/secrets/import-env?agent=${encodeURIComponent(agentId)}`,
+    ),
+  importEnvironmentWorkspaceDotEnv: (environmentId: string, agentId: string) =>
     request<{ imported: number; skippedExisting: number; skippedInvalid: number }>(
-      `/api/environments/${environmentId}/secrets/import-env`,
+      `/api/environments/${environmentId}/secrets/import-env?agent=${encodeURIComponent(agentId)}`,
       { method: "POST" },
     ),
   writeEnvironmentSecret: (environmentId: string, name: string, value: string) =>

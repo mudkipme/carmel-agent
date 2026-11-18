@@ -8,9 +8,14 @@ const defaultDataUrl = new URL("../../../data/", import.meta.url);
 
 export const dataDir = resolve(process.env.CARMEL_AGENT_DATA_DIR ?? fileURLToPath(defaultDataUrl));
 
-/** Data-relative root of a new environment's runner home, scratch, and default workspace. */
+/** Data-relative root of a new environment's workspace, runner home, and scratch. */
 export function environmentStorageDir(environmentId: string) {
   return `environments/${safePathSegment(environmentId)}`;
+}
+
+/** An agent's default folder name under its environment's `/workspace`. */
+export function agentFolderName(agentId: string) {
+  return safePathSegment(agentId);
 }
 
 export function resolveDataPath(path: string) {

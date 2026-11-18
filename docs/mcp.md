@@ -33,9 +33,9 @@ Enable and save **bash** permission. Stdio commands execute inside the existing 
 For a filesystem server, configure:
 
 - Command: `npx`
-- Arguments, one per line: `-y`, `@modelcontextprotocol/server-filesystem`, `/workspace`
+- Arguments, one per line: `-y`, `@modelcontextprotocol/server-filesystem`, `.`
 
-The command must be available inside the runner. `npx` downloads also require the environment's sandbox network access. Default workspaces are mounted at `/workspace`; manually configured workspaces retain their absolute paths. Environment variables are a JSON object and may reference `${SECRET_NAME}`. Arguments may also use secret references; they are passed directly rather than interpreted by a shell.
+The command must be available inside the runner. `npx` downloads also require the environment's sandbox network access. Servers start in the agent's working folder: `/workspace/<agent id>` by default, or the folder it uses inside a runner mount. Environment variables are a JSON object and may reference `${SECRET_NAME}`. Arguments may also use secret references; they are passed directly rather than interpreted by a shell.
 
 The stdio server is supervised inside the runner. Closing the MCP connection closes stdin and terminates its process group, with a two-second forced termination fallback. It does not kill other commands or terminals sharing the environment's container.
 

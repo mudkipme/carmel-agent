@@ -2,8 +2,8 @@ import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
 import type { agents } from "../db/schema.ts";
 import { browserControl } from "./browser-control.ts";
 import { execSandboxCommand } from "./sandbox/bash-operations.ts";
+import { resolveAgentWorkspace } from "./sandbox/container-manager.ts";
 import { readAgentEnvironment } from "../services/environments.ts";
-import { resolveEnvironmentWorkingDirPath } from "./resources.ts";
 
 type Tool = ToolRegistration;
 
@@ -72,11 +72,13 @@ export function browserHelpTool(agent: typeof agents.$inferSelect, sessionId?: s
       const lease = await control.enter(context.abortSignal);
       try {
         let snapshot = "";
+        const workspace = resolveAgentWorkspace(agent, environment).hostPath;
         const result = await execSandboxCommand(
           environment,
           "agent-browser --session carmel snapshot",
-          resolveEnvironmentWorkingDirPath(environment),
+          workspace,
           {
+            dotEnvDir: workspace,
             signal: context.abortSignal,
             timeout: 25,
             sessionId,

@@ -14,20 +14,19 @@ import {
   holdEnvironmentContainer,
   isEnvironmentContainerHeld,
   releaseEnvironmentContainer,
+  resolveAgentWorkspace,
   resolveEnvironmentHomeDirPath,
   resolveEnvironmentTmpDirPath,
-  resolveContainerWorkspace,
+  resolveEnvironmentWorkspacePath,
   toContainerWorkdir,
 } from "./container-manager.ts";
 
 type EnvironmentRecord = typeof environments.$inferSelect;
 
-function manualEnvironment(overrides: Partial<EnvironmentRecord> = {}): EnvironmentRecord {
+function makeEnvironment(overrides: Partial<EnvironmentRecord> = {}): EnvironmentRecord {
   return {
     id: "env_test",
     storageDir: "environments/env_test",
-    workingDirMode: "manual",
-    workingDir: "/srv/projects/app",
     mounts: [],
     network: false,
     ...overrides,
@@ -110,7 +109,7 @@ test("containerWorkdir falls back to the mount root for outside paths", () => {
   );
 });
 
-test("containerWorkdir preserves an absolute mount path for manual workspaces", () => {
+test("containerWorkdir preserves the path of a folder mounted where it is on the host", () => {
   assert.equal(
     containerWorkdir("/srv/projects/app", "/srv/projects/app/src", "/srv/projects/app"),
     "/srv/projects/app/src",
@@ -118,49 +117,53 @@ test("containerWorkdir preserves an absolute mount path for manual workspaces", 
 });
 
 test("shell working directories follow workspace, tmp, home, and extra mount paths", () => {
-  const environment = manualEnvironment({
-    workingDirMode: "default",
-    workingDir: "/data/agents/a/workspace",
+  const environment = makeEnvironment({
+    storageDir: "/data/environments/a",
     mounts: [{ source: "/srv/shared", target: "/refs" }],
   });
+  const workspace = resolveEnvironmentWorkspacePath(environment);
   const workdir = (path: string) => toContainerWorkdir(environment, path);
-  assert.equal(workdir(environment.workingDir), "/workspace");
-  assert.equal(workdir(join(environment.workingDir, "src")), "/workspace/src");
+  assert.equal(workdir(workspace), "/workspace");
+  assert.equal(workdir(join(workspace, "agent_a", "src")), "/workspace/agent_a/src");
   assert.equal(workdir(join(resolveEnvironmentTmpDirPath(environment), "output")), "/tmp/output");
   assert.equal(workdir(join(resolveEnvironmentHomeDirPath(environment), "bin")), "/home/agent/bin");
   assert.equal(workdir("/srv/shared/docs"), "/refs/docs");
   assert.equal(workdir("/srv/shared-other"), "/workspace");
 });
 
-test("resolveContainerWorkspace keeps the absolute path for manual workspaces", () => {
-  assert.equal(
-    resolveContainerWorkspace({
-      workingDirMode: "manual",
-      workingDir: "/srv/projects/app",
-    } as EnvironmentRecord),
-    "/srv/projects/app",
-  );
-  assert.equal(
-    resolveContainerWorkspace({
-      workingDirMode: "default",
-      workingDir: "agents/a/workspace",
-    } as EnvironmentRecord),
-    "/workspace",
-  );
+test("an agent works in its own folder under /workspace or in a folder inside a mount", () => {
+  const environment = makeEnvironment({
+    storageDir: "/data/environments/a",
+    mounts: [
+      { source: "/srv/projects", target: "/projects" },
+      { source: "/srv/app-cache", target: "/projects/app/cache" },
+    ],
+  });
+  const workspace = (workingDir: string) =>
+    resolveAgentWorkspace({ id: "agent_a", workingDir }, environment);
+  assert.deepEqual(workspace(""), {
+    hostPath: "/data/environments/a/workspace/agent_a",
+    containerPath: "/workspace/agent_a",
+    mounted: false,
+  });
+  assert.deepEqual(workspace("/projects/app/"), {
+    hostPath: "/srv/projects/app",
+    containerPath: "/projects/app",
+    mounted: true,
+  });
+  assert.equal(workspace("/projects/app/cache/x").hostPath, "/srv/app-cache/x");
+  assert.equal(workspace("/elsewhere").containerPath, "/workspace/agent_a");
 });
 
-test("containerSignature changes when the workspace dir, mounts, or network change", () => {
-  const base = containerSignature(manualEnvironment());
-  assert.equal(base, containerSignature(manualEnvironment()), "stable for identical config");
+test("containerSignature changes when the storage dir, mounts, or network change", () => {
+  const base = containerSignature(makeEnvironment());
+  assert.equal(base, containerSignature(makeEnvironment()), "stable for identical config");
+  assert.notEqual(base, containerSignature(makeEnvironment({ storageDir: "environments/other" })));
   assert.notEqual(
     base,
-    containerSignature(manualEnvironment({ workingDir: "/srv/projects/other" })),
+    containerSignature(makeEnvironment({ mounts: [{ source: "/srv/shared" }] })),
   );
-  assert.notEqual(
-    base,
-    containerSignature(manualEnvironment({ mounts: [{ source: "/srv/shared" }] })),
-  );
-  assert.notEqual(base, containerSignature(manualEnvironment({ network: true })));
+  assert.notEqual(base, containerSignature(makeEnvironment({ network: true })));
   const identity = {
     runtime: "podman",
     uid: 1000,
@@ -169,18 +172,18 @@ test("containerSignature changes when the workspace dir, mounts, or network chan
     usernsMode: "keep-id",
     socket: "/run/podman.sock",
   } as const;
-  const withIdentity = containerSignature(manualEnvironment(), identity);
+  const withIdentity = containerSignature(makeEnvironment(), identity);
   assert.notEqual(
     withIdentity,
-    containerSignature(manualEnvironment(), { ...identity, usernsMode: "host" }),
+    containerSignature(makeEnvironment(), { ...identity, usernsMode: "host" }),
   );
   assert.notEqual(
     withIdentity,
-    containerSignature(manualEnvironment(), { ...identity, uid: 2000, user: "2000:1000" }),
+    containerSignature(makeEnvironment(), { ...identity, uid: 2000, user: "2000:1000" }),
   );
   assert.notEqual(
     withIdentity,
-    containerSignature(manualEnvironment(), { ...identity, socket: "/other.sock" }),
+    containerSignature(makeEnvironment(), { ...identity, socket: "/other.sock" }),
   );
 });
 
@@ -208,17 +211,12 @@ test("buildBinds adds the workspace, /tmp, $HOME, and extra mounts with SELinux 
 test("the runner home bind is per-environment and independent of the workspace", () => {
   const home = (environment: EnvironmentRecord) => resolveEnvironmentHomeDirPath(environment);
   assert.notEqual(
-    home(manualEnvironment({ storageDir: "environments/a" })),
-    home(manualEnvironment({ storageDir: "environments/b" })),
-  );
-  // A manual workspace move must not drag $HOME along with it.
-  assert.equal(
-    home(manualEnvironment({ workingDir: "/srv/projects/app" })),
-    home(manualEnvironment({ workingDir: "/srv/projects/other" })),
+    home(makeEnvironment({ storageDir: "environments/a" })),
+    home(makeEnvironment({ storageDir: "environments/b" })),
   );
   // Environments migrated from agents keep their original directory.
   assert.match(
-    home(manualEnvironment({ storageDir: "agents/agent_a" })),
+    home(makeEnvironment({ storageDir: "agents/agent_a" })),
     /[/\\]agents[/\\]agent_a[/\\]home$/,
   );
 });

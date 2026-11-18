@@ -28,11 +28,23 @@ export function createEnvironmentSecretRoutes() {
   );
 
   route.get("/environments/:environmentId/secrets/import-env", (c) =>
-    c.json(environmentWorkspaceDotEnvStatus(c.get("user").id, c.req.param("environmentId"))),
+    c.json(
+      environmentWorkspaceDotEnvStatus(
+        c.get("user").id,
+        c.req.param("environmentId"),
+        c.req.query("agent") ?? "",
+      ),
+    ),
   );
 
   route.post("/environments/:environmentId/secrets/import-env", (c) =>
-    c.json(importEnvironmentWorkspaceDotEnv(c.get("user").id, c.req.param("environmentId"))),
+    c.json(
+      importEnvironmentWorkspaceDotEnv(
+        c.get("user").id,
+        c.req.param("environmentId"),
+        c.req.query("agent") ?? "",
+      ),
+    ),
   );
 
   route.put(

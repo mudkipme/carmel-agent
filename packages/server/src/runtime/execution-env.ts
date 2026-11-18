@@ -19,13 +19,14 @@ import type { agents } from "../db/schema.ts";
 import { ensureDir } from "../paths.ts";
 import { readAgentEnvironment } from "../services/environments.ts";
 import { knowledgeShellEnv } from "./knowledge/shell.ts";
-import { resolveEnvironmentWorkingDirPath } from "./resources.ts";
 import { execSandboxCommand } from "./sandbox/bash-operations.ts";
 import {
   containerHome,
-  resolveContainerWorkspace,
+  containerWorkspace,
+  resolveAgentWorkspace,
   resolveEnvironmentHomeDirPath,
   resolveEnvironmentTmpDirPath,
+  resolveEnvironmentWorkspacePath,
   type EnvironmentRecord,
 } from "./sandbox/container-manager.ts";
 import { isSandboxConfigured, sandboxUnavailableMessage } from "./sandbox/runtime-client.ts";
@@ -37,7 +38,8 @@ type PathMapping = { containerPath: string; hostPath: string };
 
 /**
  * Single filesystem and shell authority for an agent: the agent's permissions
- * applied to its environment's workspace, mounts, and runner.
+ * applied to its environment's workspace, mounts, and runner. Its working
+ * folder is where it starts; the rest of the environment stays reachable.
  */
 export class AgentExecutionEnv implements ExecutionEnv {
   readonly id: string;
@@ -45,6 +47,8 @@ export class AgentExecutionEnv implements ExecutionEnv {
   readonly cwd: string;
   /** App-side storage path; only server filesystem consumers should use this. */
   readonly hostCwd: string;
+  /** App-side path of the environment's /workspace, which holds every agent's default folder. */
+  readonly workspaceDir: string;
   readonly tmpDir: string;
   readonly homeDir: string;
   readonly sessionId?: string;
@@ -65,11 +69,13 @@ export class AgentExecutionEnv implements ExecutionEnv {
     const environment = options.environment ?? readAgentEnvironment(agent);
     this.environment = environment;
     this.id = `carmel:${agent.id}`;
-    this.hostCwd = resolve(resolveEnvironmentWorkingDirPath(environment));
-    this.cwd = resolveContainerWorkspace(environment);
+    const workspace = resolveAgentWorkspace(agent, environment);
+    this.hostCwd = workspace.hostPath;
+    this.cwd = workspace.containerPath;
+    this.workspaceDir = resolve(resolveEnvironmentWorkspacePath(environment));
     this.tmpDir = resolve(resolveEnvironmentTmpDirPath(environment));
     this.homeDir = resolve(resolveEnvironmentHomeDirPath(environment));
-    ensureDir(this.hostCwd);
+    if (!workspace.mounted) ensureDir(this.hostCwd);
     ensureDir(this.tmpDir);
     ensureDir(this.homeDir);
     this.node = new NodeExecutionEnv({ cwd: this.hostCwd });
@@ -81,14 +87,14 @@ export class AgentExecutionEnv implements ExecutionEnv {
       const source = mount.source?.trim();
       return source && !mount.readOnly ? [resolve(source)] : [];
     });
-    this.readRoots = uniquePaths([this.hostCwd, this.tmpDir, this.homeDir, ...mountSources]);
+    this.readRoots = uniquePaths([this.workspaceDir, this.tmpDir, this.homeDir, ...mountSources]);
     this.writeRoots = uniquePaths([
-      this.hostCwd,
+      this.workspaceDir,
       this.tmpDir,
       this.homeDir,
       ...writableMountSources,
     ]);
-    this.mappings = createPathMappings(environment, this.hostCwd, this.tmpDir, this.homeDir);
+    this.mappings = createPathMappings(environment, this.workspaceDir, this.tmpDir, this.homeDir);
     this.reverseMappings = this.mappings
       .flatMap(({ hostPath, containerPath }) => {
         const canonical = resolveRealPath(hostPath);
@@ -521,6 +527,7 @@ export class AgentExecutionEnv implements ExecutionEnv {
         signal: context.abortSignal,
         timeout: options?.timeout,
         defaults: knowledgeShellEnv(this.agent),
+        dotEnvDir: this.hostCwd,
         env: options?.env,
         sessionId: this.sessionId,
       });
@@ -596,12 +603,12 @@ export function remapContainerPath(filePath: string, mappings: PathMapping[]) {
 
 function createPathMappings(
   environment: EnvironmentRecord,
-  cwd: string,
+  workspaceDir: string,
   tmpDir: string,
   homeDir: string,
 ): PathMapping[] {
   const mappings: PathMapping[] = [
-    { containerPath: resolveContainerWorkspace(environment), hostPath: cwd },
+    { containerPath: containerWorkspace, hostPath: workspaceDir },
     { containerPath: "/tmp", hostPath: tmpDir },
     { containerPath: containerHome, hostPath: homeDir },
   ];

@@ -235,6 +235,7 @@ export const agentConfigRequestSchema = z
     color: agentColorSchema.optional(),
     description: z.string(),
     environmentId: optionalStringSchema,
+    workingDir: z.string().trim().max(1000).default(""),
     systemPrompt: z.string(),
     promptTemplates: z.array(promptTemplateSchema),
     permissions: agentPermissionsSchema,
@@ -247,8 +248,6 @@ export const agentConfigRequestSchema = z
 export const environmentRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
-    workingDirMode: z.enum(["default", "manual"]).default("default"),
-    workingDir: z.string().default(""),
     mounts: z.array(agentMountSchema).default([]),
     network: z.boolean().default(false),
   })

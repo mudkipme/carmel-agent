@@ -8,16 +8,15 @@ import { Hono } from "hono";
 import { createAgentFilesRoute } from "./agent-files.ts";
 import type { AuthVariables } from "../auth.ts";
 import { initialize } from "../db/index.ts";
-import type { agents, environments } from "../db/schema.ts";
-import { createUser, insertEnvironment, makeEnvironment } from "../test-support.ts";
+import type { agents } from "../db/schema.ts";
+import { createUser, insertWorkspaceEnvironment } from "../test-support.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
-type EnvironmentRecord = typeof environments.$inferSelect;
 initialize();
 
 test("file routes reject reads when read permission is disabled", async () => {
   const agent = makeAgent({ permissions: { ...allPermissions(false), write: true } });
-  writeFileSync(join(agent.workingDir, "note.txt"), "secret");
+  writeFileSync(join(agent.folder, "note.txt"), "secret");
   const app = createTestApp(agent);
 
   const response = await app.request("/agent_1/files");
@@ -45,7 +44,7 @@ test("file routes reject path traversal outside the working directory", async ()
 test("file routes allow edit-only content updates but still reject file creation", async () => {
   const agent = makeAgent({ permissions: { ...allPermissions(false), edit: true } });
   const app = createTestApp(agent);
-  const target = join(agent.workingDir, "note.txt");
+  const target = join(agent.folder, "note.txt");
   await writeFile(target, "before");
 
   const updateResponse = await app.request("/agent_1/files/content", {
@@ -89,7 +88,7 @@ test("file routes do not create files outside the working directory", async () =
 
 test("write-only file routes can create and rename inside the workspace", async () => {
   const agent = makeAgent({
-    workingDirMode: "default",
+    defaultFolder: true,
     permissions: { ...allPermissions(false), write: true },
   });
   const app = createTestApp(agent);
@@ -100,7 +99,7 @@ test("write-only file routes can create and rename inside the workspace", async 
     body: JSON.stringify({ path: "created.txt", type: "file" }),
   });
   assert.equal(createResponse.status, 201);
-  assert.equal(existsSync(join(agent.workingDir, "created.txt")), true);
+  assert.equal(existsSync(join(agent.folder, "created.txt")), true);
 
   const renameResponse = await app.request("/agent_1/files", {
     method: "PATCH",
@@ -108,8 +107,8 @@ test("write-only file routes can create and rename inside the workspace", async 
     body: JSON.stringify({ path: "created.txt", newPath: "renamed.txt" }),
   });
   assert.equal(renameResponse.status, 200);
-  assert.equal(existsSync(join(agent.workingDir, "created.txt")), false);
-  assert.equal(existsSync(join(agent.workingDir, "renamed.txt")), true);
+  assert.equal(existsSync(join(agent.folder, "created.txt")), false);
+  assert.equal(existsSync(join(agent.folder, "renamed.txt")), true);
 });
 
 test("file routes reject reads through symlinks outside the working directory", async () => {
@@ -194,7 +193,7 @@ test("file routes omit symlinks outside the working directory from listings", as
 
 test("file routes reject deleting the working directory root", async () => {
   const agent = makeAgent({
-    workingDirMode: "default",
+    defaultFolder: true,
     permissions: { ...allPermissions(false), write: true },
   });
   const app = createTestApp(agent);
@@ -203,12 +202,12 @@ test("file routes reject deleting the working directory root", async () => {
 
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: "The working directory cannot be deleted." });
-  assert.equal(existsSync(agent.workingDir), true);
+  assert.equal(existsSync(agent.folder), true);
 });
 
 test("file routes stream a single file as a download attachment", async () => {
   const agent = makeAgent({ permissions: { ...allPermissions(false), read: true } });
-  await writeFile(join(agent.workingDir, "notes déjà.txt"), "downloaded");
+  await writeFile(join(agent.folder, "notes déjà.txt"), "downloaded");
   const app = createTestApp(agent);
 
   const response = await app.request(
@@ -226,9 +225,9 @@ test("file routes stream a single file as a download attachment", async () => {
 
 test("file routes stream a directory selection as a zip archive", async () => {
   const agent = makeAgent({ permissions: { ...allPermissions(false), read: true } });
-  await mkdir(join(agent.workingDir, "src"));
-  await writeFile(join(agent.workingDir, "src", "index.ts"), "export {};");
-  await writeFile(join(agent.workingDir, "src", ".hidden"), "kept");
+  await mkdir(join(agent.folder, "src"));
+  await writeFile(join(agent.folder, "src", "index.ts"), "export {};");
+  await writeFile(join(agent.folder, "src", ".hidden"), "kept");
   const app = createTestApp(agent);
 
   const response = await app.request("/agent_1/files/download?path=src");
@@ -277,21 +276,21 @@ test("uploads create nested files and refuse to clobber without overwrite", asyn
     updatedAt: entry.updatedAt,
     hidden: false,
   });
-  assert.equal(await readFile(join(agent.workingDir, "assets", "logo.txt"), "utf-8"), "first");
+  assert.equal(await readFile(join(agent.folder, "assets", "logo.txt"), "utf-8"), "first");
 
   const conflict = await app.request("/agent_1/files/upload?path=assets/logo.txt", {
     method: "PUT",
     body: "second",
   });
   assert.equal(conflict.status, 409);
-  assert.equal(await readFile(join(agent.workingDir, "assets", "logo.txt"), "utf-8"), "first");
+  assert.equal(await readFile(join(agent.folder, "assets", "logo.txt"), "utf-8"), "first");
 
   const replaced = await app.request("/agent_1/files/upload?path=assets/logo.txt&overwrite=true", {
     method: "PUT",
     body: "second",
   });
   assert.equal(replaced.status, 201);
-  assert.equal(await readFile(join(agent.workingDir, "assets", "logo.txt"), "utf-8"), "second");
+  assert.equal(await readFile(join(agent.folder, "assets", "logo.txt"), "utf-8"), "second");
 });
 
 test("uploads stay inside the working directory", async () => {
@@ -313,9 +312,9 @@ test("uploads stay inside the working directory", async () => {
 
 test("batch delete reports each path it could not remove", async () => {
   const agent = makeAgent({ permissions: { ...allPermissions(false), write: true } });
-  await mkdir(join(agent.workingDir, "logs"));
-  await writeFile(join(agent.workingDir, "logs", "run.log"), "log");
-  await writeFile(join(agent.workingDir, "keep.txt"), "keep");
+  await mkdir(join(agent.folder, "logs"));
+  await writeFile(join(agent.folder, "logs", "run.log"), "log");
+  await writeFile(join(agent.folder, "keep.txt"), "keep");
   const app = createTestApp(agent);
 
   const response = await app.request("/agent_1/files/batch", {
@@ -331,15 +330,15 @@ test("batch delete reports each path it could not remove", async () => {
     result.failed.map((failure: { path: string }) => failure.path),
     ["missing.txt"],
   );
-  assert.equal(existsSync(join(agent.workingDir, "logs")), false);
-  assert.equal(existsSync(join(agent.workingDir, "keep.txt")), true);
+  assert.equal(existsSync(join(agent.folder, "logs")), false);
+  assert.equal(existsSync(join(agent.folder, "keep.txt")), true);
 });
 
 test("batch move and copy place entries in the destination directory", async () => {
   const agent = makeAgent({ permissions: { ...allPermissions(false), write: true } });
-  await mkdir(join(agent.workingDir, "target"));
-  await writeFile(join(agent.workingDir, "moved.txt"), "moved");
-  await writeFile(join(agent.workingDir, "copied.txt"), "copied");
+  await mkdir(join(agent.folder, "target"));
+  await writeFile(join(agent.folder, "moved.txt"), "moved");
+  await writeFile(join(agent.folder, "copied.txt"), "copied");
   const app = createTestApp(agent);
 
   const moved = await app.request("/agent_1/files/batch", {
@@ -348,8 +347,8 @@ test("batch move and copy place entries in the destination directory", async () 
     body: JSON.stringify({ operation: "move", paths: ["moved.txt"], destination: "target" }),
   });
   assert.deepEqual((await moved.json()).completed, ["moved.txt"]);
-  assert.equal(existsSync(join(agent.workingDir, "moved.txt")), false);
-  assert.equal(await readFile(join(agent.workingDir, "target", "moved.txt"), "utf-8"), "moved");
+  assert.equal(existsSync(join(agent.folder, "moved.txt")), false);
+  assert.equal(await readFile(join(agent.folder, "target", "moved.txt"), "utf-8"), "moved");
 
   const copied = await app.request("/agent_1/files/batch", {
     method: "POST",
@@ -357,13 +356,13 @@ test("batch move and copy place entries in the destination directory", async () 
     body: JSON.stringify({ operation: "copy", paths: ["copied.txt"], destination: "target" }),
   });
   assert.deepEqual((await copied.json()).completed, ["copied.txt"]);
-  assert.equal(await readFile(join(agent.workingDir, "copied.txt"), "utf-8"), "copied");
-  assert.equal(await readFile(join(agent.workingDir, "target", "copied.txt"), "utf-8"), "copied");
+  assert.equal(await readFile(join(agent.folder, "copied.txt"), "utf-8"), "copied");
+  assert.equal(await readFile(join(agent.folder, "target", "copied.txt"), "utf-8"), "copied");
 });
 
 test("batch move refuses to place a directory inside itself", async () => {
   const agent = makeAgent({ permissions: { ...allPermissions(false), write: true } });
-  await mkdir(join(agent.workingDir, "project", "nested"), { recursive: true });
+  await mkdir(join(agent.folder, "project", "nested"), { recursive: true });
   const app = createTestApp(agent);
 
   const response = await app.request("/agent_1/files/batch", {
@@ -375,7 +374,7 @@ test("batch move refuses to place a directory inside itself", async () => {
   const result = await response.json();
   assert.deepEqual(result.completed, []);
   assert.match(result.failed[0].error, /cannot be placed inside itself/);
-  assert.equal(existsSync(join(agent.workingDir, "project", "nested")), true);
+  assert.equal(existsSync(join(agent.folder, "project", "nested")), true);
 });
 
 function createTestApp(agent: AgentRecord) {
@@ -405,21 +404,18 @@ function createTestApp(agent: AgentRecord) {
 
 /** The agent row, plus its environment's workspace for the assertions. */
 function makeAgent(
-  overrides: Partial<AgentRecord> &
-    Partial<Pick<EnvironmentRecord, "workingDir" | "workingDirMode">> & {
-      permissions?: AgentRecord["permissions"];
-    },
-): AgentRecord & { workingDir: string } {
-  const {
-    workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-files-test-")),
-    workingDirMode = "manual",
-    ...agent
-  } = overrides;
-  const environment = insertEnvironment(
-    makeEnvironment({ ownerUserId: createUser(), workingDir, workingDirMode }),
-  );
+  overrides: Partial<AgentRecord> & {
+    defaultFolder?: boolean;
+    permissions?: AgentRecord["permissions"];
+  },
+): AgentRecord & { folder: string } {
+  const { workingDir: folder, defaultFolder, ...agent } = overrides;
+  const { environment, workingDir, agentWorkingDir } = insertWorkspaceEnvironment("agent_1", {
+    ownerUserId: createUser(),
+    workingDir: folder,
+    defaultFolder,
+  });
   return {
-    workingDir,
     id: "agent_1",
     ownerUserId: "user_1",
     shared: false,
@@ -430,6 +426,7 @@ function makeAgent(
     mcpServers: [],
     codemodeEnabled: false,
     environmentId: environment.id,
+    workingDir: agentWorkingDir,
     systemPrompt: "",
     promptTemplates: [],
     permissions: allPermissions(false),
@@ -438,6 +435,7 @@ function makeAgent(
     createdAt: 0,
     updatedAt: 0,
     ...agent,
+    folder: workingDir,
   };
 }
 

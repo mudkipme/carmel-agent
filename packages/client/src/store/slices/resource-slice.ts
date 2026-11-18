@@ -55,6 +55,7 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
         description: draft?.description ?? i18n._("Personal agent"),
         // Empty asks the server for a new environment of the agent's own.
         environmentId: draft?.environmentId ?? "",
+        workingDir: draft?.workingDir ?? "",
         systemPrompt: draft?.systemPrompt ?? "You are a helpful agent.",
         promptTemplates: draft?.promptTemplates ?? [],
         permissions: draft?.permissions ?? {

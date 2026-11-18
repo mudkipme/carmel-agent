@@ -34,7 +34,7 @@ Only the session owner can provide its credentials. Promotion, demotion, and man
 
 ## Shell trust boundary
 
-Session scope controls selection and injection, not operating-system isolation. Containers, workspaces and browsers remain shared per agent. Arbitrary shell code receiving a key can print, encode, copy or transmit it through files or background processes.
+Session scope controls selection and injection, not operating-system isolation. Containers, workspaces and browsers remain shared per environment. Arbitrary shell code receiving a key can print, encode, copy or transmit it through files or background processes.
 
 Shell output is redacted before streaming and spill-file persistence. Session tools also redact known values from text results, structured results, details, diagnostics and errors before Durable commits them. This prevents common accidental disclosures, including chunked output, but cannot guarantee secrecy against transformations, binary output or deliberate exfiltration. Values shorter than four characters retain the existing redaction policy and are not matched.
 

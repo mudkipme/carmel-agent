@@ -12,8 +12,8 @@ import {
   updateUserMessageContent,
 } from "@carmel-agent/shared";
 import { db, initialize } from "../db/index.ts";
-import { agents, environments, sessions } from "../db/schema.ts";
-import { createSession, userMessage } from "../test-support.ts";
+import { agents, sessions } from "../db/schema.ts";
+import { createSession, setAgentWorkingDir, userMessage } from "../test-support.ts";
 import { attachTestHarness, fauxHarnessModels } from "../effectors/testing/pi-harness.ts";
 import { prepareAgentRunPrompt } from "../runtime/agent-runtime.ts";
 import {
@@ -91,10 +91,7 @@ test("file references enforce read access, workspace paths, symlink boundaries, 
   await writeFile(join(workspace, "a file.md"), "FILE_CONTENT_IS_NOT_INLINED");
   await writeFile(join(directory, "private.txt"), "private");
   await symlink(join(directory, "private.txt"), join(workspace, "escape"));
-  db.update(environments)
-    .set({ workingDir: workspace })
-    .where(eq(environments.id, readAgent(current.agentId).environmentId))
-    .run();
+  setAgentWorkingDir(current.agentId, workspace);
   const agent = readAgent(current.agentId);
   try {
     const result = await resolvePromptReferences(current.userId, agent, current.sessionId, [

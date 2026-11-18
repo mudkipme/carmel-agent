@@ -125,7 +125,7 @@ test("server filesystem tools accept runner paths across workspace, tmp, home, a
     makeAgent({
       id: `agent_paths_${crypto.randomUUID()}`,
       workingDir,
-      workingDirMode: "default",
+      mountedAt: "/project",
       mounts: [{ source: references, target: "/refs", readOnly: true }],
       permissions: { ...allPermissions(true), bash: false, network: false },
     }),
@@ -140,10 +140,10 @@ test("server filesystem tools accept runner paths across workspace, tmp, home, a
       execution.env,
     );
   try {
-    assert.equal(env.cwd, "/workspace");
+    assert.equal(env.cwd, "/project");
     assert.equal(env.hostCwd, workingDir);
     for (const [root, storage] of [
-      ["/workspace", workingDir],
+      ["/project", workingDir],
       ["/tmp", env.tmpDir],
       ["/home/agent", env.homeDir],
       ["/refs", references],
@@ -186,9 +186,9 @@ test("server filesystem tools accept runner paths across workspace, tmp, home, a
       );
     }
     assert.match(readToolText(await call("read", { path: "src/notes.txt" })), /^needle/);
-    await call("write", { path: "/workspace/new.txt", content: "before" });
+    await call("write", { path: "/project/new.txt", content: "before" });
     await call("edit", {
-      path: "/workspace/new.txt",
+      path: "/project/new.txt",
       edits: [{ oldText: "before", newText: "after" }],
     });
     assert.equal(readFileSync(join(workingDir, "new.txt"), "utf8"), "after");
@@ -198,14 +198,14 @@ test("server filesystem tools accept runner paths across workspace, tmp, home, a
     );
     for (const name of ["read", "ls", "find", "grep", "write"]) {
       await assert.rejects(
-        call(name, { path: "/workspace/../etc/passwd", pattern: "needle", content: "denied" }),
+        call(name, { path: "/project/../etc/passwd", pattern: "needle", content: "denied" }),
         /outside the agent working directory/,
       );
     }
     const png =
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==";
     writeFileSync(join(workingDir, "pixel.png"), Buffer.from(png, "base64"));
-    const image = (await call("read", { path: "/workspace/pixel.png" })) as {
+    const image = (await call("read", { path: "/project/pixel.png" })) as {
       output: Array<{ type: string }>;
     };
     assert.ok(image.output.some((part) => part.type === "image"));
@@ -214,7 +214,6 @@ test("server filesystem tools accept runner paths across workspace, tmp, home, a
       makeAgent({
         id: `agent_nested_${crypto.randomUUID()}`,
         workingDir,
-        workingDirMode: "manual",
         mounts: [{ source: references, target: join(workingDir, "refs"), readOnly: true }],
         permissions: { ...allPermissions(false), read: true, write: true },
       }),
@@ -243,7 +242,7 @@ test("generated paths and filesystem errors use runner paths", async () => {
     makeAgent({
       id: `agent_output_${crypto.randomUUID()}`,
       workingDir,
-      workingDirMode: "default",
+      mountedAt: "/project",
       permissions: { ...allPermissions(true), bash: false, network: false },
     }),
   );
@@ -263,20 +262,20 @@ test("generated paths and filesystem errors use runner paths", async () => {
     assert.equal(closed.ok, false);
     if (!closed.ok) assert.equal(closed.error.path, file);
     writeFileSync(join(workingDir, "file.txt"), "data");
-    const listing = getOrThrow(await env.openDirReader("/workspace", TEST_CONTEXT));
+    const listing = getOrThrow(await env.openDirReader("/project", TEST_CONTEXT));
     try {
       assert.equal(
         getOrThrow(await listing.next(10, TEST_CONTEXT)).entries[0]?.path,
-        "/workspace/file.txt",
+        "/project/file.txt",
       );
     } finally {
       await listing.close(TEST_CONTEXT);
     }
-    const missing = await env.readTextFile("/workspace/missing.txt", TEST_CONTEXT);
+    const missing = await env.readTextFile("/project/missing.txt", TEST_CONTEXT);
     assert.equal(missing.ok, false);
     if (!missing.ok) {
-      assert.equal(missing.error.path, "/workspace/missing.txt");
-      assert.ok(missing.error.message.includes("/workspace/missing.txt"));
+      assert.equal(missing.error.path, "/project/missing.txt");
+      assert.ok(missing.error.message.includes("/project/missing.txt"));
       assert.ok(!missing.error.message.includes(workingDir));
     }
     for (const name of ["grep", "find"]) {
@@ -285,13 +284,13 @@ test("generated paths and filesystem errors use runner paths", async () => {
         executeTool(
           tool,
           "missing",
-          { path: "/workspace/missing", pattern: "needle" },
+          { path: "/project/missing", pattern: "needle" },
           new AbortController().signal,
           execution.env,
         ),
         (error) => {
           assert.ok(error instanceof Error);
-          assert.ok(error.message.includes("/workspace/missing"), error.message);
+          assert.ok(error.message.includes("/project/missing"), error.message);
           assert.ok(!error.message.includes(workingDir), error.message);
           return true;
         },
@@ -623,20 +622,25 @@ function restoreEnv(name: string, value: string | undefined) {
   else process.env[name] = value;
 }
 
+/** An agent working in a host folder mounted at `mountedAt`, the same path by default. */
 function makeAgent(
   overrides: Partial<AgentRecord> &
-    Partial<Pick<EnvironmentRecord, "workingDir" | "workingDirMode" | "mounts">> & {
+    Partial<Pick<EnvironmentRecord, "mounts">> & {
+      mountedAt?: string;
       permissions?: AgentRecord["permissions"];
     },
 ): AgentRecord {
   const {
     workingDir = mkdtempSync(join(tmpdir(), "carmel-agent-runtime-test-")),
-    workingDirMode = "manual",
+    mountedAt = workingDir,
     mounts = [],
     ...agent
   } = overrides;
   const environment = insertEnvironment(
-    makeEnvironment({ ownerUserId: createUser(), workingDir, workingDirMode, mounts }),
+    makeEnvironment({
+      ownerUserId: createUser(),
+      mounts: [{ source: workingDir, target: mountedAt }, ...mounts],
+    }),
   );
   return {
     id: "agent_1",
@@ -652,6 +656,7 @@ function makeAgent(
     systemPrompt: "",
     promptTemplates: [],
     permissions: allPermissions(false),
+    workingDir: mountedAt,
     defaultModelRefId: "model_1",
     defaultThinkingLevel: "off",
     createdAt: 0,

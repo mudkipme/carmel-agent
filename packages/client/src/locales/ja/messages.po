@@ -8,6 +8,17 @@ msgstr ""
 "Language: ja\n"
 
 #. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:81
+msgid "Conversations keep their history, but the agent's files stay in this environment."
+msgstr "会話の履歴は保持されますが、エージェントのファイルはこの環境に残ります。"
+
+#. js-lingui-explicit-id
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:229
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:235
+msgid "Subfolder"
+msgstr "サブフォルダー"
+
+#. js-lingui-explicit-id
 #: src/App.tsx:100
 msgid "Can't reach Carmel Agent"
 msgstr "Carmel Agent に接続できません"
@@ -55,7 +66,7 @@ msgstr "続行"
 
 #. js-lingui-explicit-id
 #: src/components/harness/ActionDialogs.tsx:105
-#: src/components/harness/AgentSettingsPage.tsx:220
+#: src/components/harness/AgentSettingsPage.tsx:222
 #: src/components/harness/files/FileEditorView.tsx:185
 #: src/components/harness/files/FileEditorView.tsx:191
 #: src/lib/action-dialogs.ts:47
@@ -1413,41 +1424,41 @@ msgid "Unable to save agent"
 msgstr "エージェントを保存できません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:103
-#: src/components/harness/AgentSettingsPage.tsx:183
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:106
+#: src/components/harness/AgentSettingsPage.tsx:185
 msgid "Delete {name}?"
 msgstr "「{name}」を削除しますか？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:184
+#: src/components/harness/AgentSettingsPage.tsx:186
 msgid "This permanently deletes the agent and all of its sessions."
 msgstr "エージェントとすべてのセッションが完全に削除されます。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:185
+#: src/components/harness/AgentSettingsPage.tsx:187
 msgid "Delete agent"
 msgstr "エージェントを削除"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:192
+#: src/components/harness/AgentSettingsPage.tsx:194
 msgid "Unable to delete agent"
 msgstr "エージェントを削除できません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:200
+#: src/components/harness/AgentSettingsPage.tsx:202
 #: src/components/harness/shell/HarnessHeader.tsx:210
 #: src/components/harness/shell/HarnessHeader.tsx:211
 msgid "Agent settings"
 msgstr "エージェント設定"
 
 #. js-lingui-explicit-id
-#: src/components/harness/AgentSettingsPage.tsx:202
+#: src/components/harness/AgentSettingsPage.tsx:204
 msgid "Back to agent"
 msgstr "エージェントに戻る"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:366
-#: src/components/harness/AgentSettingsPage.tsx:220
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:327
+#: src/components/harness/AgentSettingsPage.tsx:222
 #: src/components/harness/files/FileEditorView.tsx:107
 #: src/components/harness/files/FileEditorView.tsx:185
 #: src/components/harness/files/FileEditorView.tsx:191
@@ -2483,13 +2494,13 @@ msgid "Open browser"
 msgstr "ブラウザーを開く"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:104
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:103
 #: src/components/harness/shell/HarnessSidebar.tsx:82
 msgid "Agent {number}"
 msgstr "エージェント {number}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:110
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:109
 #: src/components/harness/shell/HarnessSidebar.tsx:86
 msgid "Unable to create agent"
 msgstr "エージェントを作成できません"
@@ -2823,7 +2834,7 @@ msgid "Shared provider"
 msgstr "共有プロバイダー"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:134
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:146
 #: src/components/harness/settings/ModelSettings.tsx:120
 msgid "Shared"
 msgstr "共有中"
@@ -3345,92 +3356,82 @@ msgid "Allow this agent to contact the agents below. Configure calls back on the
 msgstr "このエージェントから以下のエージェントへの呼び出しを許可します。逆方向の呼び出しは相手のエージェント側で設定してください。相談は読み取り専用で、タスクでは受信側エージェントの権限と認証情報が使用されます。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:65
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:70
 msgid "Move {agent} to {environment}?"
 msgstr "{agent} を {environment} に移動しますか？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:69
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:74
 msgid "Give {agent} a new environment?"
 msgstr "{agent} に新しい環境を割り当てますか？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:72
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:77
 msgid "No other agent uses {environment}, so it is deleted with its secrets. Its workspace files stay on the server."
 msgstr "{environment} を使うエージェントは他にないため、シークレットと共に削除されます。ワークスペースのファイルはサーバーに残ります。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:76
-msgid "Conversations keep their history, but files in this workspace stay here."
-msgstr "会話の履歴は残りますが、このワークスペースのファイルはここに残ります。"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:77
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:82
 msgid "Move agent"
 msgstr "エージェントを移動"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:77
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:82
 msgid "Create environment"
 msgstr "環境を作成"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:95
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:94
 msgid "Unable to move agent"
 msgstr "エージェントを移動できません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:171
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:170
 msgid "Secrets"
 msgstr "シークレット"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:222
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:220
 msgid "Environment saved."
 msgstr "環境を保存しました。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:225
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:223
 msgid "Unable to save environment"
 msgstr "環境を保存できません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:273
-msgid "Manual server folder"
-msgstr "手動サーバーフォルダー"
-
-#. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:317
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:278
 msgid "Remove mount"
 msgstr "マウントを削除"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:331
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:292
 msgid "Container path (defaults to source)"
 msgstr "コンテナーパス（既定はホストパスと同じ）"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:335
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:296
 msgid "Read only"
 msgstr "読み取り専用"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:357
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:318
 msgid "Sandbox network access"
 msgstr "サンドボックスのネットワークアクセス"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:366
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:327
 msgid "Save environment"
 msgstr "環境を保存"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:143
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:155
 msgid "Danger zone"
 msgstr "危険な操作"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:144
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:156
 msgid "Deleting an agent also deletes sessions that belong to it."
 msgstr "エージェントを削除すると、そのエージェントに属するセッションも削除されます。"
 
@@ -3671,68 +3672,68 @@ msgid "Delete template"
 msgstr "テンプレートを削除"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:47
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:50
 msgid "Unable to load secrets"
 msgstr "シークレットを読み込めません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:79
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:82
 msgid "A secret value is required."
 msgstr "シークレットの値は必須です。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:85
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:88
 msgid "Replace {name}?"
 msgstr "「{name}」を置き換えますか？"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:86
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:89
 msgid "The current value is overwritten and cannot be recovered."
 msgstr "現在の値は上書きされ、復元できなくなります。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:87
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:90
 msgid "Replace secret"
 msgstr "シークレットを置き換え"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:94
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:97
 msgid "Unable to save secret"
 msgstr "シークレットを保存できません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:104
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:107
 msgid "Commands in this environment will no longer see this variable."
 msgstr "この環境で実行されるコマンドからこの変数は参照できなくなります。"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:105
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:191
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:108
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:194
 msgid "Delete secret"
 msgstr "シークレットを削除"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:110
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:113
 msgid "Unable to delete secret"
 msgstr "シークレットを削除できません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:119
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:122
 msgid "Unable to import .env"
 msgstr ".env をインポートできません"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:122
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:125
 msgid "{count, plural, one {Imported # secret from .env} other {Imported # secrets from .env}}"
 msgstr "{count, plural, other {.env から #件のシークレットをインポートしました}}"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:130
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:133
 msgid "{skippedExisting} already stored"
 msgstr "{skippedExisting} 件は登録済み"
 
 #. js-lingui-explicit-id
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:134
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:137
 msgid "{skippedInvalid} invalid or empty"
 msgstr "{skippedInvalid} 件は無効または空"
 
@@ -4375,7 +4376,7 @@ msgstr "{0}開く"
 msgid "{failedTools} failed"
 msgstr "{failedTools} 件失敗"
 
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:156
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:159
 msgid "A shared agent runs here. Anyone who can run it runs commands with these secrets in their environment."
 msgstr "共有エージェントがこの環境で動作しています。実行権限のあるユーザーは、これらのシークレットを環境変数に含めた状態でコマンドを実行できます。"
 
@@ -4414,11 +4415,11 @@ msgstr "このエージェントのワークスペースまたはマウントか
 msgid "Add a model in Settings to start chatting."
 msgstr "チャットを始めるには、設定からモデルを追加してください。"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:351
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:312
 msgid "Add mount"
 msgstr "マウントを追加"
 
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:249
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:252
 msgid "Add secret"
 msgstr "シークレットを追加"
 
@@ -4545,7 +4546,7 @@ msgstr "埋め込みを生成"
 #: src/components/harness/ActionDialogs.tsx:102
 #: src/components/harness/agent-settings/AgentIntegrationsSettings.tsx:335
 #: src/components/harness/agent-settings/AgentMcpSettings.tsx:375
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:233
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:236
 #: src/components/harness/AgentKnowledgePage.tsx:569
 #: src/components/harness/HomeMemoryPanel.tsx:422
 #: src/components/harness/schedules/TaskForm.tsx:234
@@ -4613,7 +4614,7 @@ msgstr "接続に確認が必要です"
 msgid "Connections belong to you, including on shared agents. Use a dedicated bot for each."
 msgstr "共有エージェント上を含め、接続はあなた個人に紐づきます。それぞれ専用のボットを使用してください。"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:325
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:286
 msgid "Container path"
 msgstr "コンテナーパス"
 
@@ -4708,11 +4709,11 @@ msgstr "拒否"
 msgid "Deep"
 msgstr "詳細"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:261
-msgid "Default environment folder"
-msgstr "環境ごとの既定フォルダー"
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:217
+msgid "Default folder"
+msgstr "既定のフォルダー"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:80
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:92
 msgid "Default model"
 msgstr "既定のモデル"
 
@@ -4720,7 +4721,7 @@ msgstr "既定のモデル"
 msgid "Default notification destination"
 msgstr "既定の通知先"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:101
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:113
 msgid "Default thinking"
 msgstr "既定の思考レベル"
 
@@ -4730,7 +4731,7 @@ msgstr "既定の思考レベル"
 msgid "Delete"
 msgstr "削除"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:149
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:161
 msgid "Delete agent"
 msgstr "エージェントを削除"
 
@@ -4742,7 +4743,7 @@ msgstr "メモを削除"
 msgid "Delete task"
 msgstr "タスクを削除"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:70
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:76
 #: src/components/harness/AgentKnowledgePage.tsx:556
 msgid "Description"
 msgstr "説明"
@@ -4834,7 +4835,7 @@ msgstr "ボットを有効にしてアプリを公開し、ロングコネクシ
 msgid "Enabled"
 msgstr "有効"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:127
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:126
 msgid "Environment"
 msgstr "環境"
 
@@ -4855,7 +4856,7 @@ msgstr "有効期限: {0}"
 msgid "Expose all tools"
 msgstr "すべてのツールを公開"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:284
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:245
 msgid "Extra runner mounts"
 msgstr "追加ランナーマウント"
 
@@ -4920,11 +4921,11 @@ msgstr "ホーム"
 msgid "Home memory"
 msgstr "ホームメモリ"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:288
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:249
 msgid "Host directories mounted into the bash sandbox in addition to the workspace. Source is a path on the host."
 msgstr "ワークスペースに加えて bash サンドボックス内にマウントされるホストディレクトリです。ホストパスにはホスト側のパスを指定します。"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:301
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:262
 msgid "Host path"
 msgstr "ホストパス"
 
@@ -4936,7 +4937,7 @@ msgstr "アイコン"
 msgid "Images"
 msgstr "画像"
 
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:254
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:257
 msgid "Import .env"
 msgstr ".env をインポート"
 
@@ -5021,7 +5022,7 @@ msgstr "ライト"
 msgid "Loading {view}…"
 msgstr "{view} を読み込み中…"
 
-#: src/components/harness/AgentSettingsPage.tsx:244
+#: src/components/harness/AgentSettingsPage.tsx:246
 msgid "Loading agent settings..."
 msgstr "エージェント設定を読み込み中..."
 
@@ -5037,7 +5038,7 @@ msgstr "チャットを読み込み中..."
 msgid "Loading diff..."
 msgstr "差分を読み込み中..."
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:118
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:117
 msgid "Loading environment..."
 msgstr "環境を読み込み中..."
 
@@ -5054,7 +5055,7 @@ msgid "Loading Markdown…"
 msgstr "Markdown を読み込み中…"
 
 #: src/components/harness/agent-settings/AgentArchivedSessionsSettings.tsx:68
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:165
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:168
 #: src/components/harness/settings/ApiKeySettings.tsx:108
 msgid "Loading…"
 msgstr "読み込み中…"
@@ -5062,10 +5063,6 @@ msgstr "読み込み中…"
 #: src/components/harness/settings/ProviderSettings.tsx:206
 msgid "Login"
 msgstr "ログイン"
-
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:265
-msgid "Manual server folder"
-msgstr "手動サーバーフォルダー"
 
 #: src/components/harness/HomeMemoryPanel.tsx:162
 #: src/components/harness/HomeMemoryPanel.tsx:317
@@ -5094,7 +5091,7 @@ msgid "Modified"
 msgstr "更新日時"
 
 #. placeholder {0}: index + 1
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:296
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:257
 msgid "Mount {0}"
 msgstr "マウント {0}"
 
@@ -5107,9 +5104,9 @@ msgid "Move to topics"
 msgstr "トピックへ移動"
 
 #: src/components/harness/ActionDialogs.tsx:88
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:236
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:58
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:205
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:234
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:64
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:208
 #: src/components/harness/AgentKnowledgePage.tsx:531
 #: src/components/harness/files/FileManagerView.tsx:299
 #: src/components/harness/schedules/TaskForm.tsx:82
@@ -5126,7 +5123,7 @@ msgstr "ネストされたツール呼び出し ({0})"
 msgid "New agent"
 msgstr "新しいエージェント"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:158
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:157
 msgid "New agent in this environment"
 msgstr "この環境に新しいエージェント"
 
@@ -5135,7 +5132,7 @@ msgstr "この環境に新しいエージェント"
 msgid "New context"
 msgstr "新しいコンテキスト"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:144
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:143
 msgid "New environment"
 msgstr "新しい環境"
 
@@ -5212,7 +5209,7 @@ msgstr "まだ実行履歴はありません。"
 msgid "No schedules"
 msgstr "スケジュールはありません"
 
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:169
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:172
 msgid "No secrets yet."
 msgstr "シークレットはまだありません。"
 
@@ -5549,7 +5546,7 @@ msgstr "変更を保存"
 msgid "Save memory"
 msgstr "メモリを保存"
 
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:236
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:239
 msgid "Save secret"
 msgstr "シークレットを保存"
 
@@ -5602,7 +5599,7 @@ msgstr "検索中…"
 msgid "Secret value"
 msgstr "シークレットの値"
 
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:148
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:151
 msgid "Secrets become environment variables in the shell of every agent here. Saved values can be replaced but cannot be viewed."
 msgstr "シークレットはこの環境のすべてのエージェントのシェル内で環境変数になります。保存済みの値は置き換え可能ですが、閲覧はできません。"
 
@@ -5648,7 +5645,7 @@ msgid "Set"
 msgstr "設定"
 
 #. placeholder {0}: new Date(secret.updatedAt).toLocaleString(i18n.locale)
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:183
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:186
 msgid "Set {0}"
 msgstr "設定日時: {0}"
 
@@ -5673,7 +5670,7 @@ msgstr "エージェント間で共有"
 msgid "Shared by all agents. The server administrator configures this model."
 msgstr "すべてのエージェントで共有されます。このモデルはサーバー管理者が設定します。"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:152
+#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:151
 msgid "Shared with {sharedWith}. Changes here apply to them too."
 msgstr "{sharedWith} と共有しています。ここでの変更はそれらにも適用されます。"
 
@@ -5738,7 +5735,7 @@ msgstr "会話を切り替え"
 msgid "System"
 msgstr "システム"
 
-#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:125
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:137
 msgid "System prompt"
 msgstr "システムプロンプト"
 
@@ -5896,7 +5893,7 @@ msgstr "このエージェントに許可されたワークスペース、シェ
 msgid "Using skill: {0}"
 msgstr "スキルを使用中: {0}"
 
-#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:218
+#: src/components/harness/agent-settings/EnvironmentSecretsSettings.tsx:221
 msgid "Value"
 msgstr "値"
 
@@ -5938,9 +5935,9 @@ msgstr "{0} がお手伝いできることはありますか？"
 msgid "Working"
 msgstr "作業中"
 
-#: src/components/harness/agent-settings/AgentEnvironmentSettings.tsx:246
-msgid "Working dir"
-msgstr "作業ディレクトリ"
+#: src/components/harness/agent-settings/AgentGeneralSettings.tsx:204
+msgid "Working folder"
+msgstr "作業フォルダー"
 
 #: src/components/harness/UnsavedChangesDialog.tsx:77
 msgid "You have unsaved changes. Save them before leaving, discard them, or cancel to keep editing."

@@ -10,9 +10,13 @@ import type {
   GitStatus,
 } from "@carmel-agent/shared";
 import type { AgentExecutionEnv } from "./execution-env.ts";
-import { resolveEnvironmentWorkingDirPath } from "./resources.ts";
 import { execSandboxCommand } from "./sandbox/bash-operations.ts";
-import { resolveContainerWorkspace, type EnvironmentRecord } from "./sandbox/container-manager.ts";
+import type { EnvironmentRecord } from "./sandbox/container-manager.ts";
+
+/** The agent's working folder in both namespaces, and the runner it lives in. */
+type GitWorkspace = Pick<AgentExecutionEnv, "cwd" | "hostCwd"> & {
+  environment: EnvironmentRecord;
+};
 
 /**
  * Read-only git for the Changes view.
@@ -37,9 +41,9 @@ const GIT = "git --no-optional-locks -c core.quotePath=false";
 
 export class GitRequestError extends Error {}
 
-export async function readGitStatus(environment: EnvironmentRecord): Promise<GitStatus> {
+export async function readGitStatus(workspace: GitWorkspace): Promise<GitStatus> {
   const result = await runGit(
-    environment,
+    workspace,
     `top=$(${GIT} rev-parse --show-toplevel 2>/dev/null) || exit 3
 printf '%s\\0' "$top"
 ${GIT} status --porcelain=v2 --branch -z --untracked-files=all | head -c ${MAX_STATUS_BYTES + 1}`,
@@ -54,7 +58,7 @@ ${GIT} status --porcelain=v2 --branch -z --untracked-files=all | head -c ${MAX_S
   const listing = result.stdout.slice(separator + 1);
   const truncated = Buffer.byteLength(listing) > MAX_STATUS_BYTES;
   const parsed = parsePorcelainV2(listing, { truncated });
-  const prefix = workspacePrefix(environment, toplevel);
+  const prefix = workspacePrefix(workspace, toplevel);
   return {
     repository: true,
     ...parsed.branch,
@@ -76,7 +80,6 @@ ${GIT} status --porcelain=v2 --branch -z --untracked-files=all | head -c ${MAX_S
  * | conflicted | index stage 2 (ours) | working tree     |
  */
 export async function readGitFileDiff(
-  environment: EnvironmentRecord,
   env: AgentExecutionEnv,
   request: { path: string; originalPath?: string; area: GitChangeArea },
 ): Promise<GitFileDiff> {
@@ -92,13 +95,13 @@ export async function readGitFileDiff(
         : area === "conflicted"
           ? `:2:${path}`
           : undefined;
-  const first = await readBlob(environment, originalSpec);
+  const first = await readBlob(env, originalSpec);
   if (!first.repository) throw new GitRequestError("This workspace is not a git repository.");
 
   const modified =
     area === "staged"
-      ? await readIndexSide(environment, path)
-      : await readWorktreeSide(env, workspacePrefix(environment, first.toplevel), path);
+      ? await readIndexSide(env, path)
+      : await readWorktreeSide(env, workspacePrefix(env, first.toplevel), path);
   return { path, originalPath, area, original: first.side, modified };
 }
 
@@ -202,19 +205,19 @@ function changeKind(status: string): GitChangeKind {
 }
 
 /** The repository root relative to the workspace, or undefined when it is outside it. */
-function workspacePrefix(environment: EnvironmentRecord, toplevel: string) {
-  const relative = posix.relative(resolveContainerWorkspace(environment), toplevel);
+function workspacePrefix(workspace: GitWorkspace, toplevel: string) {
+  const relative = posix.relative(workspace.cwd, toplevel);
   return relative.startsWith("..") || posix.isAbsolute(relative) ? undefined : relative;
 }
 
 async function readBlob(
-  environment: EnvironmentRecord,
+  workspace: GitWorkspace,
   spec: string | undefined,
 ): Promise<{ repository: false } | { repository: true; toplevel: string; side: GitDiffSide }> {
   // The spec rides in the environment rather than the script, so no path can
   // change what the shell runs.
   const result = await runGit(
-    environment,
+    workspace,
     `top=$(${GIT} rev-parse --show-toplevel 2>/dev/null) || exit 3
 printf '%s\\0' "$top"
 [ -n "$CARMEL_GIT_SPEC" ] || { printf 'absent'; exit 0; }
@@ -239,8 +242,8 @@ ${GIT} cat-file blob "$CARMEL_GIT_SPEC"`,
   return { repository: true, toplevel, side };
 }
 
-async function readIndexSide(environment: EnvironmentRecord, path: string): Promise<GitDiffSide> {
-  const blob = await readBlob(environment, `:0:${path}`);
+async function readIndexSide(workspace: GitWorkspace, path: string): Promise<GitDiffSide> {
+  const blob = await readBlob(workspace, `:0:${path}`);
   if (!blob.repository) throw new GitRequestError("This workspace is not a git repository.");
   return blob.side;
 }
@@ -291,7 +294,7 @@ export function setGitExecutorForTests(executor: GitExecutor | undefined) {
 }
 
 async function runGit(
-  environment: EnvironmentRecord,
+  workspace: GitWorkspace,
   script: string,
   env: Record<string, string>,
   maxBytes: number,
@@ -299,23 +302,19 @@ async function runGit(
   let stdout = "";
   let stdoutBytes = 0;
   let stderr = "";
-  const { exitCode } = await executeGit(
-    environment,
-    script,
-    resolveEnvironmentWorkingDirPath(environment),
-    {
-      timeout: GIT_TIMEOUT_SECONDS,
-      env: { ...env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" },
-      onStdout: (chunk) => {
-        if (stdoutBytes >= maxBytes) return;
-        stdoutBytes += Buffer.byteLength(chunk);
-        stdout += chunk;
-      },
-      onStderr: (chunk) => {
-        if (stderr.length < 4096) stderr += chunk;
-      },
+  const { exitCode } = await executeGit(workspace.environment, script, workspace.hostCwd, {
+    dotEnvDir: workspace.hostCwd,
+    timeout: GIT_TIMEOUT_SECONDS,
+    env: { ...env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" },
+    onStdout: (chunk) => {
+      if (stdoutBytes >= maxBytes) return;
+      stdoutBytes += Buffer.byteLength(chunk);
+      stdout += chunk;
     },
-  );
+    onStderr: (chunk) => {
+      if (stderr.length < 4096) stderr += chunk;
+    },
+  });
   return { exitCode, stdout, stderr };
 }
 

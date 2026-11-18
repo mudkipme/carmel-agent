@@ -12,6 +12,7 @@ import type {
   User,
 } from "@carmel-agent/shared";
 import type BetterSqlite3 from "better-sqlite3";
+import { environmentStorageDir } from "../paths.ts";
 
 export const now = () => Date.now();
 export const id = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
@@ -67,6 +68,7 @@ export const defaultAgent: AgentConfig = {
   name: "Local Agent",
   description: "Default local coding and research agent",
   environmentId: "agent_self",
+  workingDir: "",
   systemPrompt:
     "You are Carmel, a pragmatic local agent harness. Work carefully, explain tradeoffs concisely, and preserve user intent.",
   promptTemplates: [
@@ -166,17 +168,14 @@ export function seedDatabase(sqlite: BetterSqlite3.Database) {
     sqlite
       .prepare(`
       INSERT INTO environments
-        (id, owner_user_id, name, storage_dir, working_dir_mode, working_dir, default_working_dir,
-         mounts, network, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'default', ?, ?, '[]', 0, ?, ?)
+        (id, owner_user_id, name, storage_dir, mounts, network, created_at, updated_at)
+      VALUES (?, ?, ?, ?, '[]', 0, ?, ?)
     `)
       .run(
         defaultAgent.environmentId,
         defaultAgent.ownerUserId,
         defaultAgent.name,
-        "agents/agent_self",
-        "agents/agent_self/workspace",
-        "agents/agent_self/workspace",
+        environmentStorageDir(defaultAgent.environmentId),
         timestamp,
         timestamp,
       );

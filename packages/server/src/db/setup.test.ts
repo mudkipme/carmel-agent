@@ -1,14 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { initializeSchema } from "./setup.ts";
 import { seedDatabase } from "./seed.ts";
+
+// Migrations move workspace files; keep them away from the real data directory.
+const dataDir = mkdtempSync(join(tmpdir(), "carmel-setup-data-"));
+const dataPath = (path: string) => (isAbsolute(path) ? resolve(path) : resolve(dataDir, path));
 
 function database(legacy = false) {
   const sqlite = new Database(":memory:");
@@ -18,7 +30,7 @@ function database(legacy = false) {
       sqlite.exec(readFileSync(new URL(`../../drizzle/${migration}`, import.meta.url), "utf8"));
     seedAgentOwnedEnvironment(sqlite);
   } else {
-    initializeSchema(sqlite);
+    initializeSchema(sqlite, dataPath);
     seedDatabase(sqlite);
   }
   return sqlite;
@@ -75,7 +87,7 @@ test("initialization and seeding preserve existing data on repeated startup", ()
       .all() as Array<{ name: string }>;
     const snapshot = () => tables.map(({ name }) => sqlite.prepare(`SELECT * FROM ${name}`).all());
     const before = snapshot();
-    initializeSchema(sqlite);
+    initializeSchema(sqlite, dataPath);
     seedDatabase(sqlite);
     assert.deepEqual(snapshot(), before);
     assert.equal(
@@ -169,7 +181,7 @@ test("pre-Home metadata adopts Drizzle migrations while retaining saved data", (
           ('running','integration','event-running','{"text":"Started input"}','running',2),
           ('completed','integration','event-completed','{"text":"Completed input"}','done',3);
     `);
-    initializeSchema(sqlite);
+    initializeSchema(sqlite, dataPath);
     assert.equal(
       (sqlite.prepare("SELECT prompt FROM im_inbox WHERE id='pending'").get() as { prompt: string })
         .prompt,
@@ -204,7 +216,7 @@ test("pre-Home metadata adopts Drizzle migrations while retaining saved data", (
       ).count,
       1,
     );
-    initializeSchema(sqlite);
+    initializeSchema(sqlite, dataPath);
     assert.deepEqual(sqlite.prepare("SELECT * FROM __drizzle_migrations").all(), migrations);
     sqlite.exec(
       "UPDATE im_bindings SET session_id=NULL; DELETE FROM sessions WHERE id='session_initial'",
@@ -220,8 +232,11 @@ test("pre-Home metadata adopts Drizzle migrations while retaining saved data", (
   }
 });
 
-test("agents become environments without moving files or losing what references them", () => {
+test("agents become environments and keep their files and what references them", () => {
   const sqlite = databaseBefore("0013_environments");
+  const workspace = dataPath("agents/agent_self/workspace");
+  mkdirSync(join(workspace, "docs"), { recursive: true });
+  writeFileSync(join(workspace, "notes.md"), "kept");
   try {
     seedAgentOwnedEnvironment(sqlite);
     sqlite.exec(`
@@ -236,14 +251,19 @@ test("agents become environments without moving files or losing what references 
         VALUES ('secret_session','agent_self','session_initial','TOKEN','enc:v1:session',1,1);
       INSERT INTO knowledge_configs(agent_id,settings,status)
         VALUES ('agent_self','{"enabled":true,"acceleration":"auto"}','{}');
+      INSERT INTO knowledge_sources(id,agent_id,name,path,description,created_at) VALUES
+        ('relative','agent_self','Docs','docs','',1),
+        ('runner','agent_self','Docs','/workspace/docs','',1),
+        ('host','agent_self','Docs','${join(workspace, "docs")}','',1),
+        ('mounted','agent_manual','Refs','/srv/refs','',1);
       INSERT INTO home_memory_settings(user_id,agent_id) VALUES ('user_self','agent_self');
     `);
-    initializeSchema(sqlite);
+    initializeSchema(sqlite, dataPath);
 
     assert.deepEqual(
       sqlite
         .prepare(
-          "SELECT id,owner_user_id,name,storage_dir,working_dir_mode,working_dir,default_working_dir,mounts,network FROM environments ORDER BY id",
+          "SELECT id,owner_user_id,name,storage_dir,mounts,network FROM environments ORDER BY id",
         )
         .all(),
       [
@@ -252,10 +272,10 @@ test("agents become environments without moving files or losing what references 
           owner_user_id: "user_self",
           name: "Manual",
           storage_dir: "agents/agent_manual",
-          working_dir_mode: "manual",
-          working_dir: "/srv/project",
-          default_working_dir: "agents/agent_manual/workspace",
-          mounts: '[{"source":"/srv/refs","readOnly":true}]',
+          mounts: JSON.stringify([
+            { source: "/srv/refs", readOnly: true },
+            { source: "/srv/project", target: "/srv/project" },
+          ]),
           network: 1,
         },
         {
@@ -263,17 +283,26 @@ test("agents become environments without moving files or losing what references 
           owner_user_id: "user_self",
           name: "Local Agent",
           storage_dir: "agents/agent_self",
-          working_dir_mode: "default",
-          working_dir: "agents/agent_self/workspace",
-          default_working_dir: "agents/agent_self/workspace",
           mounts: "[]",
           network: 0,
         },
       ],
     );
-    assert.deepEqual(sqlite.prepare("SELECT id,environment_id FROM agents ORDER BY id").all(), [
-      { id: "agent_manual", environment_id: "agent_manual" },
-      { id: "agent_self", environment_id: "agent_self" },
+    assert.deepEqual(
+      sqlite.prepare("SELECT id,environment_id,working_dir FROM agents ORDER BY id").all(),
+      [
+        { id: "agent_manual", environment_id: "agent_manual", working_dir: "/srv/project" },
+        { id: "agent_self", environment_id: "agent_self", working_dir: "" },
+      ],
+    );
+    // The default workspace becomes its agent's folder under /workspace.
+    assert.equal(readFileSync(join(workspace, "agent_self", "notes.md"), "utf8"), "kept");
+    assert.equal(existsSync(join(workspace, "notes.md")), false);
+    assert.deepEqual(sqlite.prepare("SELECT id,path FROM knowledge_sources ORDER BY id").all(), [
+      { id: "host", path: join(workspace, "agent_self", "docs") },
+      { id: "mounted", path: "/srv/refs" },
+      { id: "relative", path: "docs" },
+      { id: "runner", path: "/workspace/agent_self/docs" },
     ]);
     assert.deepEqual(
       sqlite
@@ -308,9 +337,50 @@ test("agents become environments without moving files or losing what references 
       ).count,
       1,
     );
+    assert.equal(
+      sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE name = 'legacy_environment_workspaces'")
+        .get(),
+      undefined,
+    );
     assert.equal(sqlite.pragma("foreign_keys", { simple: true }), 1);
     assert.deepEqual(sqlite.pragma("foreign_key_check"), []);
   } finally {
     sqlite.close();
+    rmSync(dataPath("agents"), { recursive: true, force: true });
+  }
+});
+
+test("a shared workspace moves to the agent it started with, and the others' sources follow", () => {
+  const sqlite = databaseBefore("0014_agent_working_dirs");
+  const workspace = dataPath("environments/env_shared/workspace");
+  mkdirSync(workspace, { recursive: true });
+  writeFileSync(join(workspace, "plan.md"), "shared");
+  try {
+    sqlite.exec(`
+      INSERT INTO users(id,name,email,created_at,updated_at) VALUES ('user_self','Local User','user@local',1,1);
+      INSERT INTO model_refs(id,owner_user_id,label,provider,model_id,input,created_at,updated_at)
+        VALUES ('model_default','user_self','Model','anthropic','model','["text"]',1,1);
+      INSERT INTO environments(id,owner_user_id,name,storage_dir,working_dir_mode,working_dir,
+          default_working_dir,mounts,network,created_at,updated_at)
+        VALUES ('env_shared','user_self','Shared','environments/env_shared','default',
+          'environments/env_shared/workspace','environments/env_shared/workspace','[]',0,1,1);
+      INSERT INTO agents(id,owner_user_id,name,description,environment_id,system_prompt,
+          prompt_templates,permissions,default_model_ref_id,created_at,updated_at) VALUES
+        ('agent_later','user_self','Later','','env_shared','','[]','{}','model_default',2,2),
+        ('agent_first','user_self','First','','env_shared','','[]','{}','model_default',1,1);
+      INSERT INTO knowledge_sources(id,agent_id,name,path,description,created_at) VALUES
+        ('first','agent_first','Plan','.','',1),
+        ('later','agent_later','Plan','.','',1);
+    `);
+    initializeSchema(sqlite, dataPath);
+    assert.equal(readFileSync(join(workspace, "agent_first", "plan.md"), "utf8"), "shared");
+    assert.deepEqual(sqlite.prepare("SELECT id,path FROM knowledge_sources ORDER BY id").all(), [
+      { id: "first", path: "." },
+      { id: "later", path: "/workspace/agent_first" },
+    ]);
+  } finally {
+    sqlite.close();
+    rmSync(dataPath("environments"), { recursive: true, force: true });
   }
 });

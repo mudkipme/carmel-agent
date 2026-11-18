@@ -7,8 +7,8 @@ import { join } from "node:path";
 import { BACKGROUND_CONTEXT } from "../effectors/pi-durable/index.ts";
 import { eq } from "drizzle-orm";
 import { db, initialize } from "../db/index.ts";
-import { agents, environments } from "../db/schema.ts";
-import { createAgent, createEnvironment, createModelRef, createUser } from "../test-support.ts";
+import { agents } from "../db/schema.ts";
+import { createAgent, createModelRef, createUser } from "../test-support.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import {
   normalizeRepoPath,
@@ -142,8 +142,8 @@ test("status and every kind of diff side come back from a real repository", asyn
     writeFileSync(join(repo, "notes.md"), "# new\n");
     writeFileSync(join(repo, "logo.bin"), Buffer.from([0x89, 0x50, 0x00, 0x02]));
 
-    const { agent, environment } = repoAgent(repo);
-    const status = await readGitStatus(environment);
+    const env = new AgentExecutionEnv(repoAgent(repo));
+    const status = await readGitStatus(env);
     assert.ok(status.repository);
     assert.equal(status.branch, "main");
     const keys = status.changes.map((change) => `${change.area}:${change.workspacePath}`).sort();
@@ -154,9 +154,8 @@ test("status and every kind of diff side come back from a real repository", asyn
       "untracked:notes.md",
     ]);
 
-    const env = new AgentExecutionEnv(agent);
     try {
-      const staged = await readGitFileDiff(environment, env, { path: "app.ts", area: "staged" });
+      const staged = await readGitFileDiff(env, { path: "app.ts", area: "staged" });
       assert.deepEqual(
         [staged.original, staged.modified],
         [
@@ -164,7 +163,7 @@ test("status and every kind of diff side come back from a real repository", asyn
           { kind: "text", text: "export const a = 2;\n" },
         ],
       );
-      const unstaged = await readGitFileDiff(environment, env, {
+      const unstaged = await readGitFileDiff(env, {
         path: "app.ts",
         area: "unstaged",
       });
@@ -175,7 +174,7 @@ test("status and every kind of diff side come back from a real repository", asyn
           { kind: "text", text: "export const a = 3;\n" },
         ],
       );
-      const untracked = await readGitFileDiff(environment, env, {
+      const untracked = await readGitFileDiff(env, {
         path: "notes.md",
         area: "untracked",
       });
@@ -183,7 +182,7 @@ test("status and every kind of diff side come back from a real repository", asyn
         [untracked.original, untracked.modified],
         [{ kind: "absent" }, { kind: "text", text: "# new\n" }],
       );
-      const binary = await readGitFileDiff(environment, env, {
+      const binary = await readGitFileDiff(env, {
         path: "logo.bin",
         area: "unstaged",
       });
@@ -202,7 +201,12 @@ test("a workspace that is not a repository says so rather than failing", async (
   setGitExecutorForTests(localBash);
   try {
     // GIT_CEILING_DIRECTORIES keeps git from finding a repository above the temp dir.
-    assert.deepEqual(await readGitStatus(repoAgent(plain).environment), { repository: false });
+    const env = new AgentExecutionEnv(repoAgent(plain));
+    try {
+      assert.deepEqual(await readGitStatus(env), { repository: false });
+    } finally {
+      await env.cleanup(BACKGROUND_CONTEXT);
+    }
   } finally {
     setGitExecutorForTests(undefined);
     rmSync(plain, { recursive: true, force: true });
@@ -211,17 +215,12 @@ test("a workspace that is not a repository says so rather than failing", async (
 
 function repoAgent(workingDir: string) {
   const owner = createUser();
-  const environmentId = createEnvironment(owner, { workingDir });
   const agentId = createAgent({
     ownerUserId: owner,
     defaultModelRefId: createModelRef({ ownerUserId: owner }),
-    environmentId,
+    workingDir,
   });
-  const agent = db.select().from(agents).where(eq(agents.id, agentId)).get()!;
-  return {
-    agent,
-    environment: db.select().from(environments).where(eq(environments.id, environmentId)).get()!,
-  };
+  return db.select().from(agents).where(eq(agents.id, agentId)).get()!;
 }
 
 const localBash: Parameters<typeof setGitExecutorForTests>[0] = async (

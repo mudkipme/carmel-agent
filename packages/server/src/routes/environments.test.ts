@@ -1,12 +1,19 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import type { AgentConfig, AgentConfigCommand, Environment } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
 import { db, initialize } from "../db/index.ts";
-import { environmentSecrets, environments, sessions, users } from "../db/schema.ts";
+import { agents, environmentSecrets, environments, sessions, users } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
+import { BACKGROUND_CONTEXT, getOrThrow } from "../effectors/pi-durable/index.ts";
+import { agentFolderName } from "../paths.ts";
+import { AgentExecutionEnv } from "../runtime/execution-env.ts";
+import { readEnvironment } from "../services/environments.ts";
 import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
 import { readEnvironmentSecretEnv, storeSessionSecret } from "../services/environment-secrets.ts";
 import { createModelRef, createUser } from "../test-support.ts";
@@ -55,6 +62,10 @@ function agentCommand(name: string, modelRefId: string, environmentId?: string) 
 async function putAgent(app: Hono<{ Variables: AuthVariables }>, id: string, body: unknown) {
   const response = await app.request(`/agents/${id}`, json("PUT", body));
   return { status: response.status, body: (await response.json()) as AgentConfig };
+}
+
+function readAgent(agentId: string) {
+  return db.select().from(agents).where(eq(agents.id, agentId)).get()!;
 }
 
 async function listEnvironments(app: Hono<{ Variables: AuthVariables }>) {
@@ -116,18 +127,70 @@ test("environments are owner-only to attach, read, and change", async () => {
   assert.equal((await bob.app.request(`/environments/${environmentId}/secrets`)).status, 403);
 });
 
-test("regular users cannot point an environment at a host path", async () => {
+test("regular users cannot mount host paths", async () => {
   const { app } = owner();
-  const manual = await app.request(
-    "/environments",
-    json("POST", { name: "Host", workingDirMode: "manual", workingDir: "/srv" }),
-  );
-  assert.equal(manual.status, 403);
   const mounted = await app.request(
     "/environments",
     json("POST", { name: "Host", mounts: [{ source: "/srv" }] }),
   );
   assert.equal(mounted.status, 403);
+});
+
+test("an agent works in its own folder or in a folder inside one of the environment's mounts", async () => {
+  const { app, userId, modelRefId } = owner();
+  db.update(users).set({ role: "admin" }).where(eq(users.id, userId)).run();
+  const project = mkdtempSync(join(tmpdir(), "carmel-environment-mount-"));
+  mkdirSync(join(project, "docs"));
+  try {
+    const builder = await putAgent(app, crypto.randomUUID(), agentCommand("Builder", modelRefId));
+    const environmentId = builder.body.environmentId;
+    assert.equal(builder.body.workingDir, "");
+    const mounts = [{ source: project, target: "/srv/project" }];
+    await app.request(
+      `/environments/${environmentId}`,
+      json("PUT", { name: "Builder", mounts, network: false }),
+    );
+
+    const writer = await putAgent(app, crypto.randomUUID(), {
+      ...agentCommand("Writer", modelRefId, environmentId),
+      workingDir: "/srv/project/docs/",
+    });
+    assert.equal(writer.status, 200);
+    assert.equal(writer.body.workingDir, "/srv/project/docs");
+    for (const workingDir of ["/srv/elsewhere", "/srv/project/missing"]) {
+      const refused = await putAgent(app, crypto.randomUUID(), {
+        ...agentCommand("Lost", modelRefId, environmentId),
+        workingDir,
+      });
+      assert.equal(refused.status, 400, workingDir);
+    }
+
+    const unmounted = await app.request(
+      `/environments/${environmentId}`,
+      json("PUT", { name: "Builder", mounts: [], network: false }),
+    );
+    assert.equal(unmounted.status, 409);
+    assert.match(((await unmounted.json()) as { error: string }).error, /Writer/);
+
+    const environment = readEnvironment(environmentId)!;
+    const builderEnv = new AgentExecutionEnv(readAgent(builder.body.id), { environment });
+    const writerEnv = new AgentExecutionEnv(readAgent(writer.body.id), { environment });
+    try {
+      assert.equal(builderEnv.cwd, `/workspace/${agentFolderName(builder.body.id)}`);
+      assert.equal(writerEnv.hostCwd, join(project, "docs"));
+      // Agents in one environment reach each other's folders by path.
+      writeFileSync(join(builderEnv.hostCwd, "plan.md"), "from builder");
+      assert.equal(
+        getOrThrow(await writerEnv.readTextFile(`${builderEnv.cwd}/plan.md`, BACKGROUND_CONTEXT)),
+        "from builder",
+      );
+    } finally {
+      await builderEnv.cleanup(BACKGROUND_CONTEXT);
+      await writerEnv.cleanup(BACKGROUND_CONTEXT);
+    }
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
 });
 
 test("an environment cannot change under any agent's active run", async () => {

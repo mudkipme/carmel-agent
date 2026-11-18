@@ -5,6 +5,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { readAuthenticatedUser, readSessionCookie } from "./auth.ts";
 import { db } from "./db/index.ts";
 import { agents } from "./db/schema.ts";
+import { resolveAgentWorkspace } from "./runtime/sandbox/container-manager.ts";
 import { attachTerminal } from "./runtime/sandbox/terminal-sessions.ts";
 import { readOwnedEnvironment, type EnvironmentRecord } from "./services/environments.ts";
 import { incomingRequestHost, incomingRequestUrl, isAllowedBrowserOrigin } from "./security.ts";
@@ -59,7 +60,8 @@ export function attachTerminalSocket(server: Server) {
     if (!agent.permissions.bash) return rejectUpgrade(socket, 403, "Forbidden");
 
     wss.handleUpgrade(request, socket, head, (ws) => {
-      void openTerminal(ws, environment, user.id, {
+      const { containerPath } = resolveAgentWorkspace(agent, environment);
+      void openTerminal(ws, environment, user.id, containerPath, {
         rows: positiveInt(url.searchParams.get("rows"), 24),
         cols: positiveInt(url.searchParams.get("cols"), 80),
       });
@@ -73,6 +75,7 @@ async function openTerminal(
   ws: WebSocket,
   environment: EnvironmentRecord,
   userId: string,
+  workingDir: string,
   size: { rows: number; cols: number },
 ) {
   const send = (message: unknown) => {
@@ -84,6 +87,7 @@ async function openTerminal(
     handle = await attachTerminal(
       environment,
       userId,
+      workingDir,
       {
         onData: (data) => send({ type: "output", data }),
         onClose: (reason) => {

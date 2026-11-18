@@ -32,7 +32,7 @@ import { EnvironmentSecretsSettings } from "./EnvironmentSecretsSettings";
 const newEnvironment = "__new__";
 
 /**
- * Where the agent runs: its workspace, runner, network, and secrets. Several
+ * Where the agent runs: its runner, mounts, network, and secrets. Several
  * agents can share one, so this section saves on its own rather than with the
  * agent draft, and says who else a change reaches.
  */
@@ -78,7 +78,9 @@ export function AgentEnvironmentSettings({
               "No other agent uses {environment}, so it is deleted with its secrets. Its workspace files stay on the server.",
               { environment: environment.name },
             )
-          : i18n._("Conversations keep their history, but files in this workspace stay here."),
+          : i18n._(
+              "Conversations keep their history, but the agent's files stay in this environment.",
+            ),
       actionLabel: destination ? i18n._("Move agent") : i18n._("Create environment"),
     });
     if (!confirmed) return;
@@ -86,13 +88,7 @@ export function AgentEnvironmentSettings({
     let created: Environment | undefined;
     try {
       if (!destination)
-        created = await api.createEnvironment({
-          name: agent.name,
-          workingDirMode: "default",
-          workingDir: "",
-          mounts: [],
-          network: false,
-        });
+        created = await api.createEnvironment({ name: agent.name, mounts: [], network: false });
       await onMove(created?.id ?? target);
       await environments.refresh();
     } catch (error) {
@@ -177,6 +173,7 @@ export function AgentEnvironmentSettings({
         <EnvironmentSecretsSettings
           key={environment.id}
           environmentId={environment.id}
+          agentId={agent.id}
           shared={shared}
         />
       </section>
@@ -197,8 +194,6 @@ function EnvironmentForm({
   const fieldId = useId();
   const initial: EnvironmentCommand = {
     name: environment.name,
-    workingDirMode: environment.workingDirMode,
-    workingDir: environment.workingDirMode === "manual" ? environment.workingDir : "",
     mounts: environment.mounts,
     network: environment.network,
   };
@@ -245,43 +240,6 @@ function EnvironmentForm({
             value={draft.name}
             onChange={(event) => update({ name: event.target.value })}
           />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${fieldId}-working-dir-mode`}>
-            <Trans>Working dir</Trans>
-          </FieldLabel>
-          <div className="grid gap-2">
-            <Select
-              value={draft.workingDirMode}
-              onValueChange={(workingDirMode: EnvironmentCommand["workingDirMode"]) =>
-                update({ workingDirMode })
-              }
-            >
-              <SelectTrigger id={`${fieldId}-working-dir-mode`} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="default">
-                    <Trans>Default environment folder</Trans>
-                  </SelectItem>
-                  {canConfigureHostPaths ? (
-                    <SelectItem value="manual">
-                      <Trans>Manual server folder</Trans>
-                    </SelectItem>
-                  ) : null}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {canConfigureHostPaths && draft.workingDirMode === "manual" ? (
-              <Input
-                aria-label={i18n._("Manual server folder")}
-                value={draft.workingDir}
-                onChange={(event) => update({ workingDir: event.target.value })}
-                placeholder="/path/on/server"
-              />
-            ) : null}
-          </div>
         </Field>
         {canConfigureHostPaths ? (
           <FieldSet>

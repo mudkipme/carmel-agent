@@ -1,7 +1,7 @@
 # Knowledge
 
 Knowledge is the agent-wide reference-document feature. Register Markdown
-directories in the agent's workspace or mounts, then use `knowledge_search` and
+directories in the agent's working folder or mounts, then use `knowledge_search` and
 `knowledge_read` to find and verify passages. All users who can use a shared
 agent can use its registered Knowledge, subject to the agent's read permission.
 
@@ -19,7 +19,7 @@ The catalog reads metadata only, with at most 20 sources / 6,000 characters.
 
 1. Pull the runner image containing `@tobilu/qmd@2.8.3`, and configure the existing Podman or Docker socket and non-root runner identity.
 2. Open **Agent Settings → Knowledge** as the agent's owner and turn knowledge on. The **Knowledge settings** button on the Knowledge page opens the same settings section. The agent needs read permission. General bash permission is not required.
-3. Add a source directory inside the agent workspace or an existing configured mount. Relative paths are relative to the workspace; runner mount paths are also accepted. Only Markdown files are indexed. Hidden directories, build output, dependency directories, and symlinks are excluded by the qmd indexer.
+3. Add a source directory inside the agent's working folder or an existing runner mount. Relative paths are relative to the working folder; runner paths are also accepted. Only Markdown files are indexed. Hidden directories, build output, dependency directories, and symlinks are excluded by the qmd indexer.
 4. Click **Refresh index** for keyword search. Background maintenance checks dirty agents every 30 seconds and reconciles source changes about every five minutes. It performs no model work or conversation ingestion.
 5. For semantic search, configure the global embedding model on the server and click **Build embeddings**. **Prepare deep search** also prepares qmd's default query-expansion and reranking models. Model downloads require the agent's web access permission. Retrieval and automatic indexing always run offline and report missing models without waiting for a download.
 
@@ -68,7 +68,7 @@ The shared weights directory is mounted read-only at `/home/agent/.cache/qmd/mod
 
 Native qmd 2.8.3 `vsearch` also uses query expansion, so it needs the generation model prepared; `query` additionally needs reranking weights. Unlike the built-in tools, the CLI may attempt downloads or wait on retries when those models are missing. Prepare them before offline use.
 
-These are defaults, not forced overrides. Workspace `.env`, explicit shell exports, and qmd YAML model settings can override them; qmd's YAML model selection takes precedence over `QMD_EMBED_MODEL` and may retain a model selected on an earlier invocation. A custom `HOME` or `XDG_CACHE_HOME` selects its own cache. Carmel deliberately does not set `XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `QMD_CONFIG_DIR`, or `INDEX_PATH`, so LifeOS's wrapper and other custom indexes retain their existing locations. Custom cache users can reference the shared weights through `/home/agent/.cache/qmd/models` using an explicit model path.
+These are defaults, not forced overrides. The working folder's `.env`, explicit shell exports, and qmd YAML model settings can override them; qmd's YAML model selection takes precedence over `QMD_EMBED_MODEL` and may retain a model selected on an earlier invocation. A custom `HOME` or `XDG_CACHE_HOME` selects its own cache. Carmel deliberately does not set `XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `QMD_CONFIG_DIR`, or `INDEX_PATH`, so LifeOS's wrapper and other custom indexes retain their existing locations. Custom cache users can reference the shared weights through `/home/agent/.cache/qmd/models` using an explicit model path.
 
 Changed global model mounts or agent acceleration settings recreate the bash runner on its next use. Existing attached terminals should be reopened after changing those settings. CLI operations use their own qmd process and do not participate in Carmel's knowledge-worker GPU queue or canonical-source verification; use the built-in tools for managed memories and verified citations.
 

@@ -18,7 +18,8 @@ process.env.CARMEL_HOST_UID ??= String(process.getuid!());
 process.env.CARMEL_HOST_GID ??= String(process.getgid!());
 const { db, initialize } = await import("../src/db/index.ts");
 const { agents, environments } = await import("../src/db/schema.ts");
-const { agentEnvironmentId, createSession } = await import("../src/test-support.ts");
+const { agentEnvironmentId, createSession, setAgentWorkingDir } =
+  await import("../src/test-support.ts");
 const { eq } = await import("drizzle-orm");
 const {
   ensureEnvironmentContainer,
@@ -37,10 +38,7 @@ db.update(agents)
   .where(eq(agents.id, fixture.agentId))
   .run();
 const environmentId = agentEnvironmentId(fixture.agentId);
-db.update(environments)
-  .set({ workingDir: directory, network: false })
-  .where(eq(environments.id, environmentId))
-  .run();
+setAgentWorkingDir(fixture.agentId, directory);
 const environment = db.select().from(environments).where(eq(environments.id, environmentId)).get()!;
 let bridge: Awaited<ReturnType<typeof connectBrowser>> | undefined;
 let webServer: Awaited<ReturnType<typeof attachExecStdio>> | undefined;

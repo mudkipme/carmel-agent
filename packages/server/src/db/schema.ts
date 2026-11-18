@@ -26,7 +26,6 @@ import type {
   AgentTaskStatus,
   AgentRunOutcome,
   AgentThinkingLevel,
-  AgentWorkingDirMode,
   IssueStatus,
   IssueVerdict,
   PromptTemplate,
@@ -186,9 +185,10 @@ export const providerKeys = sqliteTable(
 );
 
 /**
- * Where agents run: the workspace, extra mounts, the runner's persistent home
- * and scratch under `storageDir`, its secrets, and its network. Several agents
- * may point at one environment and then share a single runner container.
+ * Where agents run, like a machine they share: a `/workspace` holding each
+ * agent's default folder, extra mounts, the runner's persistent home and
+ * scratch under `storageDir`, its secrets, and its network. All of its agents
+ * share a single runner container.
  */
 export const environments = sqliteTable(
   "environments",
@@ -198,14 +198,8 @@ export const environments = sqliteTable(
       .notNull()
       .references(() => users.id),
     name: text("name").notNull(),
-    /** Data-relative directory holding `home/` and `tmp/`. */
+    /** Data-relative directory holding `workspace/`, `home/` and `tmp/`. */
     storageDir: text("storage_dir").notNull(),
-    workingDirMode: text("working_dir_mode")
-      .$type<AgentWorkingDirMode>()
-      .notNull()
-      .default("default"),
-    workingDir: text("working_dir").notNull(),
-    defaultWorkingDir: text("default_working_dir").notNull(),
     mounts: text("mounts", { mode: "json" }).$type<AgentMount[]>().notNull().default([]),
     network: integer("network", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at").notNull(),
@@ -229,6 +223,8 @@ export const agents = sqliteTable(
     environmentId: text("environment_id")
       .notNull()
       .references(() => environments.id),
+    /** Runner path inside one of the environment's mounts; empty for the default folder. */
+    workingDir: text("working_dir").notNull().default(""),
     systemPrompt: text("system_prompt").notNull(),
     promptTemplates: text("prompt_templates", { mode: "json" }).$type<PromptTemplate[]>().notNull(),
     permissions: text("permissions", { mode: "json" }).$type<AgentPermissions>().notNull(),

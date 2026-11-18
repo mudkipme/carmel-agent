@@ -1,5 +1,4 @@
 import { readEnvironmentSecretEnv } from "../../services/environment-secrets.ts";
-import { resolveEnvironmentWorkingDirPath } from "../resources.ts";
 import { readWorkspaceDotEnv } from "../workspace-dotenv.ts";
 import {
   ensureEnvironmentContainer,
@@ -23,6 +22,8 @@ export type SandboxExecOptions = {
   timeout?: number;
   /** Lowest precedence: the workspace `.env`, `env`, and secrets all override it. */
   defaults?: Record<string, string>;
+  /** The agent working folder whose `.env` the command loads. */
+  dotEnvDir?: string;
   env?: Record<string, string>;
 };
 
@@ -60,7 +61,7 @@ export async function execSandboxCommand(
   const secrets = readEnvironmentSecretEnv(environment.id, options.sessionId);
   // Same reasoning for the workspace `.env`: editing it takes effect on the
   // next command, with no container restart.
-  const dotEnv = readWorkspaceDotEnv(resolveEnvironmentWorkingDirPath(environment));
+  const dotEnv = options.dotEnvDir ? readWorkspaceDotEnv(options.dotEnvDir) : {};
   const containerId = await ensureEnvironmentContainer(environment);
   const workingDir = toContainerWorkdir(environment, cwd);
   const execId = crypto.randomUUID();

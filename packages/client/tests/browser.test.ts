@@ -963,14 +963,13 @@ test("agent settings fields have accessible names and navigation protects unsave
   for (const name of ["Name", "Description", "System prompt"]) {
     assert.match(fields, new RegExp(`textbox "${name}"`));
   }
-  for (const name of ["Default model", "Default thinking"]) {
+  for (const name of ["Working folder", "Default model", "Default thinking"]) {
     assert.match(fields, new RegExp(`combobox "${name}"`));
   }
+  assert.match(fields, /textbox "Subfolder"/);
   click("link", "Environment");
   browser("wait", "#agent-environment");
-  for (const name of ["Environment", "Working dir"]) {
-    assert.match(snapshot(), new RegExp(`combobox "${name}"`));
-  }
+  assert.match(snapshot(), /combobox "Environment"/);
   click("button", "Add mount");
   browser("find", "label", "Host path", "fill", "/tmp/unsaved-mount");
   browser("find", "label", "Container path", "fill", "/mount");

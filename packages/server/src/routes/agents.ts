@@ -18,7 +18,8 @@ import {
 } from "../db/schema.ts";
 import { now } from "../db/seed.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
-import { loadAgentResources, resolveEnvironmentWorkingDirPath } from "../runtime/resources.ts";
+import { loadAgentResources } from "../runtime/resources.ts";
+import { resolveAgentWorkspace } from "../runtime/sandbox/container-manager.ts";
 import { serializeAgentSettings, serializePublicAgent } from "../serializers.ts";
 import { deletePiSessions } from "../services/pi-session-storage.ts";
 import {
@@ -30,12 +31,14 @@ import { readActiveRunLeaseForAgent } from "../services/active-run-lease.ts";
 import { jsonValidator } from "../validation.ts";
 import { activeRunConflictResponse } from "./active-run-conflict.ts";
 import {
+  EnvironmentError,
   deleteEnvironment,
   environmentAgents,
   readAgentEnvironment,
   readEnvironment,
   readOwnedEnvironment,
   releaseUnusedBrowserControl,
+  resolveAgentWorkingDir,
   writeEnvironment,
 } from "../services/environments.ts";
 import { purgeHomeMemoryIndex } from "../services/home-memory-index.ts";
@@ -52,6 +55,10 @@ import { isSandboxConfigured } from "../runtime/sandbox/runtime-client.ts";
 
 export function createAgentRoutes() {
   const route = new Hono<{ Variables: AuthVariables }>();
+  route.onError((error, c) => {
+    if (error instanceof EnvironmentError) return c.json({ error: error.message }, error.status);
+    throw error;
+  });
 
   route.put("/agents/:id", jsonValidator(agentConfigRequestSchema), async (c) => {
     const currentUser = c.get("user");
@@ -63,8 +70,15 @@ export function createAgentRoutes() {
       return c.json({ error: "Agent not found." }, 404);
     const activeRun = current ? readActiveRunLeaseForAgent(agentId) : undefined;
     if (activeRun) return activeRunConflictResponse(c, activeRun);
-    if (agent.environmentId && !readOwnedEnvironment(currentUserId, agent.environmentId))
+    const chosenEnvironment = agent.environmentId
+      ? readOwnedEnvironment(currentUserId, agent.environmentId)
+      : undefined;
+    if (agent.environmentId && !chosenEnvironment)
       return c.json({ error: "Environment not found." }, 404);
+    const workingDir = resolveAgentWorkingDir(
+      chosenEnvironment ?? (current ? readEnvironment(current.environmentId) : undefined),
+      agent.workingDir,
+    );
     const defaultModelRef = readUsableModelRef(currentUserId, agent.defaultModelRefId);
     if (!defaultModelRef) {
       return c.json({ error: "Model not found." }, 404);
@@ -81,8 +95,6 @@ export function createAgentRoutes() {
         current?.environmentId ??
         writeEnvironment(currentUser, {
           name: agent.name,
-          workingDirMode: "default",
-          workingDir: "",
           mounts: [],
           network: false,
         }).id;
@@ -92,6 +104,7 @@ export function createAgentRoutes() {
           id: agentId,
           ownerUserId: currentUserId,
           environmentId,
+          workingDir,
           defaultThinkingLevel,
           createdAt: current?.createdAt ?? timestamp,
           updatedAt: timestamp,
@@ -106,6 +119,7 @@ export function createAgentRoutes() {
             color: agent.color ?? current?.color ?? null,
             description: agent.description,
             environmentId,
+            workingDir,
             systemPrompt: agent.systemPrompt,
             promptTemplates: agent.promptTemplates,
             permissions: agent.permissions,
@@ -222,7 +236,7 @@ export function createAgentRoutes() {
     const mcp = new AgentMcpTools(
       { ...agent, mcpServers: [{ ...server, enabled: true, tools: undefined }] },
       environment,
-      resolveEnvironmentWorkingDirPath(environment),
+      resolveAgentWorkspace(agent, environment).hostPath,
     );
     try {
       await mcp.connect({ signal: c.req.raw.signal });

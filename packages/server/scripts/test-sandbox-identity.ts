@@ -29,12 +29,12 @@ const { execInContainer, attachExecStdio, attachExecTty, createStreamDemuxer } =
   await import("../src/runtime/sandbox/runtime-client.ts");
 const { execSandboxCommand, sandboxEnv } =
   await import("../src/runtime/sandbox/bash-operations.ts");
+const workspace = join(directory, "workspace");
+await mkdir(workspace, { recursive: true });
 const environment = {
   id: `identity-${Date.now()}`,
   storageDir: "environments/identity",
-  workingDir: join(directory, "workspace"),
-  workingDirMode: "manual",
-  mounts: [],
+  mounts: [{ source: workspace }],
   network: false,
 } as unknown as typeof environments.$inferSelect;
 let container: string;
@@ -43,7 +43,7 @@ const run = async (cmd: string[]) => {
     stderr = "";
   const result = await execInContainer(
     container,
-    { cmd, workingDir: environment.workingDir, env: sandboxEnv() },
+    { cmd, workingDir: workspace, env: sandboxEnv() },
     {
       onStdout: (chunk) => {
         stdout += chunk;
@@ -60,7 +60,7 @@ const run = async (cmd: string[]) => {
 const checkAttach = async (tty: boolean) => {
   const spec = {
     cmd: ["bash", "-lc", "id -u; id -g; command -v pip; carmel-identity-fixture"],
-    workingDir: environment.workingDir,
+    workingDir: workspace,
     env: sandboxEnv(),
   };
   const { socket } = tty
@@ -96,7 +96,7 @@ const checkAttach = async (tty: boolean) => {
 };
 try {
   container = await ensureEnvironmentContainer(environment);
-  const packageDir = join(environment.workingDir, "npm-fixture");
+  const packageDir = join(workspace, "npm-fixture");
   await mkdir(packageDir);
   await writeFile(
     join(packageDir, "package.json"),
@@ -133,7 +133,7 @@ with zipfile.ZipFile('carmel_identity_fixture-1.0-py3-none-any.whl', 'w') as z:
     "const fs=require('node:fs');for(const dir of [process.cwd(),process.env.HOME,'/tmp'])fs.writeFileSync(dir+'/identity-file','runner')",
   ]);
   for (const dir of [
-    environment.workingDir,
+    workspace,
     resolveEnvironmentHomeDirPath(environment),
     resolveEnvironmentTmpDirPath(environment),
   ]) {
@@ -155,18 +155,15 @@ with zipfile.ZipFile('carmel_identity_fixture-1.0-py3-none-any.whl', 'w') as z:
   // Stopping one command, background children included, must leave another
   // agent's command in the shared runner alone.
   const siblingOutput: string[] = [];
-  const sibling = execSandboxCommand(
-    environment,
-    "sleep 3 && echo sibling-survived",
-    environment.workingDir,
-    { onStdout: (chunk) => siblingOutput.push(chunk) },
-  );
+  const sibling = execSandboxCommand(environment, "sleep 3 && echo sibling-survived", workspace, {
+    onStdout: (chunk) => siblingOutput.push(chunk),
+  });
   const controller = new AbortController();
   let aborted = "";
   const stopped = execSandboxCommand(
     environment,
     "(sleep 60 &) ; nohup sleep 60 >/dev/null 2>&1 & echo started; sleep 60",
-    environment.workingDir,
+    workspace,
     {
       signal: controller.signal,
       onStdout: (chunk) => {
@@ -194,7 +191,7 @@ with zipfile.ZipFile('carmel_identity_fixture-1.0-py3-none-any.whl', 'w') as z:
   ]);
   await killEnvironmentContainer(environment.id);
   await assert.rejects(stat(resolveEnvironmentTmpDirPath(environment)), { code: "ENOENT" });
-  await stat(join(environment.workingDir, "container-lifetime"));
+  await stat(join(workspace, "container-lifetime"));
   await stat(join(resolveEnvironmentHomeDirPath(environment), "container-lifetime"));
   container = await ensureEnvironmentContainer(environment);
   assert.equal(

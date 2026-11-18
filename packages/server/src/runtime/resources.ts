@@ -9,8 +9,7 @@ import {
   type SkillDiagnostic,
 } from "../effectors/pi-durable/index.ts";
 import { resolve } from "node:path";
-import { agents, environments } from "../db/schema.ts";
-import { resolveDataPath } from "../paths.ts";
+import { agents } from "../db/schema.ts";
 import { loadBuiltinSkills } from "./builtin-skills.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
@@ -71,10 +70,6 @@ function sortByName<T extends { name: string }>(items: T[]): T[] {
   return [...items].sort((left, right) =>
     left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
   );
-}
-
-export function resolveEnvironmentWorkingDirPath(environment: typeof environments.$inferSelect) {
-  return resolveDataPath(environment.workingDir || process.cwd());
 }
 
 async function loadWorkspaceContext(

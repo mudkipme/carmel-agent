@@ -31,24 +31,41 @@ An agent stores:
 
 - owner and sharing state
 - name and description
-- the environment it runs in
+- the environment it runs in, and its working folder there
 - system prompt
 - prompt templates
 - default model and thinking level
 - permissions for read, write, edit, bash, and web access
 - MCP server configuration and tool allowlists
 
-An **environment** is where agents run. It stores:
+An **environment** is where agents run, like a machine they share. It stores:
 
 - owner
 - name
-- workspace mode and path
-- optional extra mounts
+- optional runner mounts (host folders, configured by an administrator)
 - whether its sandbox has network access
 - secrets supplied to its sandbox and the MCP connections its agents configure
 
-The runner container, its persistent `/home/agent`, its `/tmp`, the web
-terminal, and the shared browser all belong to the environment.
+The runner container, its `/workspace`, its persistent `/home/agent`, its
+`/tmp`, the web terminal, and the shared browser all belong to the environment.
+
+### Working Folders
+
+Each agent has its own working folder in its environment, chosen under
+**Agent Settings → General**:
+
+- **Default folder**: `/workspace/<agent id>`, which Carmel creates. Every
+  agent's default folder sits under the environment's one `/workspace`, so an
+  agent can reach another agent's files by path.
+- **A runner mount**: a mount, or a folder inside it. The folder must exist. Any
+  owner can choose one, since an administrator already decided what the mount
+  exposes. Saving the environment is refused while removing a mount would leave
+  an agent's folder unmounted.
+
+The working folder is where commands, terminals, file tools, the file manager,
+and the Changes view start, and where its `.env`, `AGENTS.md`, skills, and
+prompt files are read. Moving an agent to another environment resets it to the
+default folder there; its files stay in the old environment.
 
 ### Shared Environments
 
@@ -65,6 +82,7 @@ that edits. **New agent in this environment** creates a sibling directly.
   of them has a run in progress.
 - An environment exists for the agents in it. Deleting or moving its last agent
   deletes the environment and its secrets; workspace and home files stay on disk.
+  Adding or removing agents never restarts its runner.
 - Agents in one environment can run at the same time and see each other's files
   as they change. Carmel does not lock the workspace between them.
 - Stopping a command stops that command and its children only; other agents'
@@ -110,9 +128,9 @@ Agent permissions decide which file tools exist for a run:
 - `write` enables file creation/replacement, and create/upload/move/copy/delete in the web UI.
 - `edit` enables patch-style edits, and edit/rename in the web UI.
 
-The browser file manager is scoped to the selected agent's working directory and respects the same permissions.
+The browser file manager is scoped to the selected agent's working folder and respects the same permissions.
 
-Server-side file tools run on the host, but path access is guarded. The allowed roots are the workspace, the agent's private `/tmp`, and any configured extra mounts. Container paths such as `/workspace`, `/tmp`, and mount targets are translated back to host paths before the server touches them.
+Server-side file tools run on the host, but path access is guarded. The allowed roots are the environment's `/workspace`, its `/tmp` and `/home/agent`, and its mounts. Container paths such as `/workspace`, `/tmp`, and mount targets are translated back to host paths before the server touches them.
 
 The file API blocks absolute-path escapes from the workspace. Text files larger than 4 MiB are not opened for editing; image previews are capped at 32 MiB.
 
@@ -151,9 +169,9 @@ Key properties:
 
 - Containers are created lazily on the first command and reused across runs and agents in the same environment.
 - Idle containers are reaped after `CARMEL_BASH_IDLE_MINUTES`.
-- The default workspace is mounted at `/workspace`. Manual workspaces are mounted at their absolute path, so paths match between host file tools and sandbox bash.
+- The environment's workspace is mounted at `/workspace`; each agent's default folder is a directory in it.
 - Each environment gets a private host-backed scratch directory mounted as `/tmp`.
-- Extra mounts can be added per environment with source, optional target, and read-only flag.
+- Runner mounts can be added per environment with source, optional target, and read-only flag. A mount without a target keeps its host path, so paths match between host file tools and sandbox bash.
 - Bash, terminals, browser processes, and MCP servers run as the configured non-root host UID/GID. The Carmel server uses those same IDs so both sides can edit the mounted files.
 - A private, persistent home is mounted at `/home/agent`. Global npm packages and the default Python virtual environment live there; installs do not need root. System package installation belongs in the runner image.
 - Containers drop all capabilities, run with `no-new-privileges`, and apply memory, CPU, and PID limits.
@@ -182,7 +200,8 @@ browser, from the terminal button in the session header.
   persisted to a transcript or sent to a model, and rewriting a live PTY stream
   would corrupt the escape sequences the emulator depends on.
 - **One shell per environment per user.** Two browser tabs on agents in the same
-  environment drive the same shell, like two windows on one tmux session.
+  environment drive the same shell, like two windows on one tmux session. A new
+  shell starts in the working folder of the agent it was opened from.
 
 ### Sessions Outlive Tabs
 
@@ -194,8 +213,8 @@ attached to is killed after a two-minute grace period.
 While a terminal is attached, its container is exempt from the idle reaper --
 otherwise a shell someone is reading rather than typing into would look exactly
 like an abandoned container. Saving the environment's settings closes its
-terminals, since mounts, network, secrets, and the working directory are all
-baked into a running shell.
+terminals, since mounts, network, and secrets are all baked into a running
+shell.
 
 ### Transport
 
@@ -394,8 +413,9 @@ New databases are created with the current schema; existing tables and data are 
 Runtime state lives under `data/` by default:
 
 - the metadata database and Durable storage directory
-- default environment workspaces and persistent homes, under `environments/`, or
-  under `agents/` for environments that predate shared environments
+- environment workspaces (holding each agent's default folder) and persistent
+  homes, under `environments/`, or under `agents/` for environments that predate
+  shared environments
 - the Pi agent runtime directory
 - sandbox `/tmp` directories
 

@@ -29,7 +29,7 @@ test("filesystem resources load through AgentExecutionEnv with Pi-native parsing
     "---\ndescription: Summarize this\n---\nSummarize $ARGUMENTS",
   );
   writeFileSync(join(workingDir, "AGENTS.md"), "Project instructions");
-  const env = new AgentExecutionEnv(makeAgent(workingDir, "default"));
+  const env = new AgentExecutionEnv(makeAgent(workingDir, "/project"));
 
   try {
     const resources = await loadAgentResources(env.agent, env);
@@ -41,10 +41,10 @@ test("filesystem resources load through AgentExecutionEnv with Pi-native parsing
       { name: "summarize", description: "Summarize this", content: "Summarize $ARGUMENTS" },
     ]);
     assert.equal(resources.contextFiles[0]?.content, "Project instructions");
-    assert.equal(resources.contextFiles[0]?.path, "/workspace/AGENTS.md");
-    assert.equal(resources.skills[0]?.filePath, "/workspace/.agents/skills/review/SKILL.md");
+    assert.equal(resources.contextFiles[0]?.path, "/project/AGENTS.md");
+    assert.equal(resources.skills[0]?.filePath, "/project/.agents/skills/review/SKILL.md");
     const invocation = formatSkillInvocation(resources.skills[0]!);
-    assert.ok(invocation.includes("Base directory: /workspace/.agents/skills/review"));
+    assert.ok(invocation.includes("Base directory: /project/.agents/skills/review"));
     assert.ok(!invocation.includes(workingDir));
   } finally {
     await env.cleanup(TEST_CONTEXT);
@@ -110,12 +110,10 @@ test("Pi's text line reader preserves line endings and respects agent read roots
   }
 });
 
-function makeAgent(
-  workingDir: string,
-  workingDirMode: "default" | "manual" = "manual",
-): AgentRecord {
+/** An agent working in `workingDir`, mounted at `target` in the runner. */
+function makeAgent(workingDir: string, target = workingDir): AgentRecord {
   const environment = insertEnvironment(
-    makeEnvironment({ ownerUserId: createUser(), workingDir, workingDirMode }),
+    makeEnvironment({ ownerUserId: createUser(), mounts: [{ source: workingDir, target }] }),
   );
   return {
     id: "agent_resources",
@@ -128,6 +126,7 @@ function makeAgent(
     mcpServers: [],
     codemodeEnabled: false,
     environmentId: environment.id,
+    workingDir: target,
     systemPrompt: "",
     promptTemplates: [],
     permissions: { read: true, write: false, edit: false, bash: false, network: false },

@@ -22,9 +22,12 @@ import { errorMessage } from "@/lib/errors";
  */
 export function EnvironmentSecretsSettings({
   environmentId,
+  agentId,
   shared,
 }: {
   environmentId: string;
+  /** Whose working folder a `.env` is imported from. */
+  agentId: string;
   shared: boolean;
 }) {
   const { i18n } = useLingui();
@@ -38,7 +41,7 @@ export function EnvironmentSecretsSettings({
     try {
       const [secrets, dotEnv] = await Promise.all([
         api.listEnvironmentSecrets(environmentId),
-        api.environmentWorkspaceDotEnvStatus(environmentId),
+        api.environmentWorkspaceDotEnvStatus(environmentId, agentId),
       ]);
       setSecrets(secrets);
       setCanImportEnv(dotEnv.available);
@@ -46,7 +49,7 @@ export function EnvironmentSecretsSettings({
     } catch (loadError) {
       setError(errorMessage(loadError, i18n._("Unable to load secrets")));
     }
-  }, [environmentId, i18n]);
+  }, [environmentId, agentId, i18n]);
 
   useEffect(() => {
     void reload();
@@ -115,7 +118,7 @@ export function EnvironmentSecretsSettings({
     let result: Awaited<ReturnType<typeof api.importEnvironmentWorkspaceDotEnv>> | undefined;
     if (
       await act(async () => {
-        result = await api.importEnvironmentWorkspaceDotEnv(environmentId);
+        result = await api.importEnvironmentWorkspaceDotEnv(environmentId, agentId);
       }, i18n._("Unable to import .env"))
     ) {
       toast.success(

@@ -172,9 +172,11 @@ export function AgentSettingsPage() {
      other sections stay a draft rather than riding along. */
   const moveAgent = async (environmentId: string) => {
     if (!savedDraft) return;
-    await upsertAgent({ ...savedDraft, environmentId, updatedAt: Date.now() });
-    setSavedDraft((current) => (current ? { ...current, environmentId } : current));
-    setDraft((current) => (current ? { ...current, environmentId } : current));
+    // A folder inside the old environment's mounts means nothing in the new one.
+    const moved = { environmentId, workingDir: "" };
+    await upsertAgent({ ...savedDraft, ...moved, updatedAt: Date.now() });
+    setSavedDraft((current) => (current ? { ...current, ...moved } : current));
+    setDraft((current) => (current ? { ...current, ...moved } : current));
   };
 
   const removeAgent = async () => {

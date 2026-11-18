@@ -1,9 +1,13 @@
+import { mkdirSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMount } from "@carmel-agent/shared";
 import { eq } from "drizzle-orm";
 import { db } from "./db/index.ts";
-import type { AgentMount } from "@carmel-agent/shared";
 import { agents, environments, modelRefs, providerConfigs, sessions, users } from "./db/schema.ts";
 import { id, now } from "./db/seed.ts";
+import { agentFolderName } from "./paths.ts";
 
 // Insert helpers for DB-backed tests. The test runner points DATABASE_URL at an
 // in-memory database, so these never touch real data.
@@ -67,26 +71,57 @@ export function createModelRef(options: {
 
 type EnvironmentRecord = typeof environments.$inferSelect;
 
-/** An environment row, unsaved. Pass to `insertEnvironment` when the database must see it. */
+/**
+ * An environment row, unsaved. Pass to `insertEnvironment` when the database
+ * must see it. `workingDir` mounts that host folder at the same runner path, so
+ * an agent with the same `workingDir` works directly in it.
+ */
 export function makeEnvironment(
-  options: Partial<EnvironmentRecord> & { workingDir?: string; mounts?: AgentMount[] } = {},
+  options: Partial<EnvironmentRecord> & { workingDir?: string } = {},
 ): EnvironmentRecord {
-  const environmentId = options.id ?? id("env");
-  const workingDir = options.workingDir ?? "/tmp/test";
+  const { workingDir, ...environment } = options;
+  const environmentId = environment.id ?? id("env");
   return {
     id: environmentId,
     ownerUserId: "user_self",
     name: "Test",
     storageDir: `environments/${environmentId}`,
-    workingDirMode: "manual",
-    defaultWorkingDir: workingDir,
-    mounts: [],
     network: false,
     createdAt: 0,
     updatedAt: 0,
-    ...options,
-    workingDir,
+    ...environment,
+    mounts: [...(workingDir ? [{ source: workingDir }] : []), ...(environment.mounts ?? [])],
   };
+}
+
+/**
+ * A saved environment and a host folder for `agentId` to work in. By default
+ * the folder is mounted at the same runner path and the agent's `workingDir`
+ * names it; with `defaultFolder` it is the agent's own folder under /workspace.
+ */
+export function insertWorkspaceEnvironment(
+  agentId: string,
+  options: {
+    ownerUserId: string;
+    workingDir?: string;
+    defaultFolder?: boolean;
+    mounts?: AgentMount[];
+  },
+) {
+  if (options.defaultFolder) {
+    const storageDir = mkdtempSync(join(tmpdir(), "carmel-environment-"));
+    const workingDir = join(storageDir, "workspace", agentFolderName(agentId));
+    mkdirSync(workingDir, { recursive: true });
+    const environment = insertEnvironment(
+      makeEnvironment({ ownerUserId: options.ownerUserId, storageDir, mounts: options.mounts }),
+    );
+    return { environment, workingDir, agentWorkingDir: "" };
+  }
+  const workingDir = options.workingDir ?? mkdtempSync(join(tmpdir(), "carmel-workspace-"));
+  const environment = insertEnvironment(
+    makeEnvironment({ ownerUserId: options.ownerUserId, workingDir, mounts: options.mounts }),
+  );
+  return { environment, workingDir, agentWorkingDir: workingDir };
 }
 
 export function insertEnvironment(environment: EnvironmentRecord) {
@@ -106,6 +141,7 @@ export function createAgent(options: {
   shared?: boolean;
   defaultModelRefId: string;
   environmentId?: string;
+  workingDir?: string;
 }) {
   const agentId = id("agent");
   const timestamp = now();
@@ -116,7 +152,10 @@ export function createAgent(options: {
       shared: options.shared ?? false,
       name: "Test",
       description: "",
-      environmentId: options.environmentId ?? createEnvironment(options.ownerUserId),
+      environmentId:
+        options.environmentId ??
+        createEnvironment(options.ownerUserId, { workingDir: options.workingDir }),
+      workingDir: options.workingDir ?? "",
       systemPrompt: "",
       promptTemplates: [],
       permissions: { read: true, write: false, edit: false, bash: false, network: false },
@@ -158,10 +197,18 @@ export function agentEnvironmentId(agentId: string) {
   return db.select().from(agents).where(eq(agents.id, agentId)).get()!.environmentId;
 }
 
-/** Point the agent's environment at a workspace directory. */
+/** Mount a host folder into the agent's environment and have the agent work in it. */
 export function setAgentWorkingDir(agentId: string, workingDir: string) {
-  db.update(environments)
-    .set({ workingDir })
-    .where(eq(environments.id, agentEnvironmentId(agentId)))
-    .run();
+  const environmentId = agentEnvironmentId(agentId);
+  const { mounts } = db
+    .select()
+    .from(environments)
+    .where(eq(environments.id, environmentId))
+    .get()!;
+  if (!mounts.some((mount) => mount.source === workingDir))
+    db.update(environments)
+      .set({ mounts: [...mounts, { source: workingDir }] })
+      .where(eq(environments.id, environmentId))
+      .run();
+  db.update(agents).set({ workingDir }).where(eq(agents.id, agentId)).run();
 }

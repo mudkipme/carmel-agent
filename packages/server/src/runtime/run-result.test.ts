@@ -36,6 +36,7 @@ import { eq } from "drizzle-orm";
 import type { AgentRunResult, ReferenceMessage } from "@carmel-agent/shared";
 import { db, initialize, sqlite } from "../db/index.ts";
 import { id, now } from "../db/seed.ts";
+import { agentFolderName } from "../paths.ts";
 import { imBindings, imCredentials, imIntegrations, imOutbox } from "../db/im-schema.ts";
 import { encryptIm } from "../services/im-integrations.ts";
 import { createAgentTask, readAgentTask, readTaskRuns } from "../services/agent-tasks.ts";
@@ -505,34 +506,37 @@ test("ordinary and Codemode chat calls persist a scheduled reminder and return i
 });
 
 test("the model sees runner paths for its cwd, project instructions, and workspace skills", async () => {
-  const workingDir = mkdtempSync(join(tmpdir(), "carmel-run-paths-"));
-  mkdirSync(join(workingDir, ".agents", "skills", "review"), { recursive: true });
-  writeFileSync(join(workingDir, "AGENTS.md"), "Review the project.");
-  writeFileSync(
-    join(workingDir, ".agents", "skills", "review", "SKILL.md"),
-    "---\nname: review\ndescription: Review changes\n---\nRead the source.",
-  );
+  const storageDir = mkdtempSync(join(tmpdir(), "carmel-run-paths-"));
   const firstRequest = provider.systemPrompts.length;
+  let folder = "";
   try {
     const run = await startRun("reply", (sessionId) => {
       const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get()!;
       const agent = db.select().from(agents).where(eq(agents.id, session.agentId)).get()!;
       db.update(environments)
-        .set({ workingDirMode: "default", workingDir })
+        .set({ storageDir })
         .where(eq(environments.id, agent.environmentId))
         .run();
+      folder = agentFolderName(agent.id);
+      const workingDir = join(storageDir, "workspace", folder);
+      mkdirSync(join(workingDir, ".agents", "skills", "review"), { recursive: true });
+      writeFileSync(join(workingDir, "AGENTS.md"), "Review the project.");
+      writeFileSync(
+        join(workingDir, ".agents", "skills", "review", "SKILL.md"),
+        "---\nname: review\ndescription: Review changes\n---\nRead the source.",
+      );
     });
     assert.equal((await finished(run)).outcome, "succeeded");
     const prompt = provider.systemPrompts
       .slice(firstRequest)
       .find((text) => text.includes("Current working directory:"));
     assert.ok(prompt);
-    assert.ok(prompt.includes("Current working directory: /workspace"));
-    assert.ok(prompt.includes('path="/workspace/AGENTS.md"'));
-    assert.ok(prompt.includes("/workspace/.agents/skills/review/SKILL.md"));
-    assert.ok(!prompt.includes(workingDir));
+    assert.ok(prompt.includes(`Current working directory: /workspace/${folder}`));
+    assert.ok(prompt.includes(`path="/workspace/${folder}/AGENTS.md"`));
+    assert.ok(prompt.includes(`/workspace/${folder}/.agents/skills/review/SKILL.md`));
+    assert.ok(!prompt.includes(storageDir));
   } finally {
-    rmSync(workingDir, { recursive: true, force: true });
+    rmSync(storageDir, { recursive: true, force: true });
   }
 });
 

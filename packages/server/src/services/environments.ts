@@ -1,13 +1,15 @@
 import type { Environment, EnvironmentCommand, UserRole } from "@carmel-agent/shared";
+import { statSync } from "node:fs";
 import { asc, eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agents, environmentSecrets, environments } from "../db/schema.ts";
 import { id, now } from "../db/seed.ts";
-import { ensureDir, environmentStorageDir, resolveDataPath } from "../paths.ts";
+import { environmentStorageDir } from "../paths.ts";
 import { deleteBrowserControl } from "../runtime/browser-control.ts";
 import { closeEnvironmentBrowsers } from "../runtime/sandbox/browser-sessions.ts";
 import {
   discardEnvironmentContainer,
+  mountedFolder,
   type EnvironmentRecord,
 } from "../runtime/sandbox/container-manager.ts";
 import { closeEnvironmentTerminals } from "../runtime/sandbox/terminal-sessions.ts";
@@ -54,7 +56,12 @@ export function readOwnedEnvironments(userId: string) {
 
 export function environmentAgents(environmentId: string) {
   return db
-    .select({ id: agents.id, name: agents.name, permissions: agents.permissions })
+    .select({
+      id: agents.id,
+      name: agents.name,
+      permissions: agents.permissions,
+      workingDir: agents.workingDir,
+    })
     .from(agents)
     .where(eq(agents.environmentId, environmentId))
     .orderBy(asc(agents.createdAt))
@@ -66,9 +73,6 @@ export function serializeEnvironment(environment: EnvironmentRecord): Environmen
     id: environment.id,
     ownerUserId: environment.ownerUserId,
     name: environment.name,
-    workingDirMode: environment.workingDirMode,
-    workingDir: environment.workingDir,
-    defaultWorkingDir: environment.defaultWorkingDir,
     mounts: environment.mounts,
     network: environment.network,
     agents: environmentAgents(environment.id).map(({ id, name }) => ({ id, name })),
@@ -79,12 +83,31 @@ export function serializeEnvironment(environment: EnvironmentRecord): Environmen
 
 export function assertEnvironmentHostPathAccess(
   role: UserRole,
-  command: Pick<EnvironmentCommand, "workingDirMode" | "mounts">,
+  command: Pick<EnvironmentCommand, "mounts">,
 ) {
-  if (role === "admin") return;
-  if (command.workingDirMode === "manual")
-    throw new EnvironmentError("Manual working directories are admin-only.", 403);
-  if (command.mounts.length > 0) throw new EnvironmentError("Host mounts are admin-only.", 403);
+  if (role !== "admin" && command.mounts.length > 0)
+    throw new EnvironmentError("Host mounts are admin-only.", 403);
+}
+
+/**
+ * The runner path an agent may work in: empty for its default folder, or an
+ * existing folder inside one of the environment's mounts. An admin already
+ * chose what the mounts expose, so picking a folder in one needs no more.
+ */
+export function resolveAgentWorkingDir(
+  environment: Pick<EnvironmentRecord, "mounts"> | undefined,
+  workingDir: string,
+) {
+  if (!workingDir) return "";
+  const folder = environment && mountedFolder(environment.mounts, workingDir);
+  if (!folder)
+    throw new EnvironmentError(
+      "The working folder must be inside one of the environment's mounts.",
+      400,
+    );
+  if (!statSync(folder.hostPath, { throwIfNoEntry: false })?.isDirectory())
+    throw new EnvironmentError(`Folder not found: ${folder.containerPath}`, 400);
+  return folder.containerPath;
 }
 
 /** Create or replace an environment's configuration. Callers check ownership and active runs. */
@@ -94,23 +117,20 @@ export function writeEnvironment(
   current?: EnvironmentRecord,
 ): EnvironmentRecord {
   assertEnvironmentHostPathAccess(user.role, command);
+  if (current) {
+    const stranded = environmentAgents(current.id).find(
+      (agent) => agent.workingDir && !mountedFolder(command.mounts, agent.workingDir),
+    );
+    if (stranded)
+      throw new EnvironmentError(
+        `${stranded.name} works in ${stranded.workingDir}, which would no longer be mounted.`,
+        409,
+      );
+  }
   const environmentId = current?.id ?? id("env");
-  const storageDir = current?.storageDir ?? environmentStorageDir(environmentId);
-  const defaultWorkingDir = current?.defaultWorkingDir ?? `${storageDir}/workspace`;
-  let workingDir = defaultWorkingDir;
-  if (command.workingDirMode === "manual") {
-    const previous =
-      current?.workingDirMode === "manual" && current.workingDir !== defaultWorkingDir
-        ? current.workingDir
-        : "";
-    workingDir = command.workingDir.trim() || previous;
-    if (!workingDir) throw new EnvironmentError("Manual working directory is required.", 400);
-  } else ensureDir(resolveDataPath(defaultWorkingDir));
   const timestamp = now();
   const fields = {
     name: command.name,
-    workingDirMode: command.workingDirMode,
-    workingDir,
     mounts: command.mounts,
     network: command.network,
     updatedAt: timestamp,
@@ -122,8 +142,7 @@ export function writeEnvironment(
         ...fields,
         id: environmentId,
         ownerUserId: user.id,
-        storageDir,
-        defaultWorkingDir,
+        storageDir: environmentStorageDir(environmentId),
         createdAt: timestamp,
       })
       .run();

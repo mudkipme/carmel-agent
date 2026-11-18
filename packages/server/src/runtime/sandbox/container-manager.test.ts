@@ -158,15 +158,13 @@ test(
       shutdownContainerManager,
       resolveEnvironmentTmpDirPath,
       resolveEnvironmentHomeDirPath,
+      resolveEnvironmentWorkspacePath,
     } = await import("./container-manager.ts");
     const environment: typeof environments.$inferSelect = {
       id: "test-profile-owner",
       ownerUserId: "user_self",
       name: "Test",
       storageDir: "environments/test-profile-owner",
-      workingDir: join(directory, "workspace"),
-      defaultWorkingDir: join(directory, "workspace"),
-      workingDirMode: "manual",
       mounts: [],
       network: false,
       createdAt: 0,
@@ -178,7 +176,7 @@ test(
       const homePath = resolveEnvironmentHomeDirPath(environment);
       const scratch = join(tmpPath, "scratch");
       const savedHome = join(homePath, "saved-profile");
-      const savedWork = join(environment.workingDir, "saved-work");
+      const savedWork = join(resolveEnvironmentWorkspacePath(environment), "saved-work");
       await writeFile(scratch, "temporary");
       await writeFile(savedHome, "persistent home");
       await writeFile(savedWork, "persistent workspace");
@@ -280,9 +278,10 @@ test(
         {
           id: "test-agent",
           environmentId: environment.id,
+          workingDir: "",
           permissions: { read: true, write: true, edit: true, bash: true, network: false },
         } as typeof agents.$inferSelect,
-        { environment: { ...environment, workingDirMode: "default" } },
+        { environment },
       );
       try {
         for (const command of ["fixture-output", "fixture-output-timeout"]) {

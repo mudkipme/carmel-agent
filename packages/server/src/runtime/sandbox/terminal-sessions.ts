@@ -1,12 +1,10 @@
 import type { Duplex } from "node:stream";
 import { readEnvironmentSecretEnv } from "../../services/environment-secrets.ts";
 import { sandboxEnv } from "./bash-operations.ts";
-import { resolveEnvironmentWorkingDirPath } from "../resources.ts";
 import {
   ensureEnvironmentContainer,
   holdEnvironmentContainer,
   releaseEnvironmentContainer,
-  toContainerWorkdir,
   type EnvironmentRecord,
 } from "./container-manager.ts";
 import {
@@ -69,7 +67,8 @@ let sweeper: ReturnType<typeof setInterval> | undefined;
 const sessionKey = (environmentId: string, userId: string) => `${environmentId}\0${userId}`;
 
 /**
- * Attach to this user's shell in this environment, starting one if none is running.
+ * Attach to this user's shell in this environment, starting one in `workingDir`
+ * (a runner path) if none is running.
  *
  * The returned handle is per-subscriber: detaching drops this client, but leaves
  * the shell running for the grace period so a reload can pick it back up.
@@ -77,6 +76,7 @@ const sessionKey = (environmentId: string, userId: string) => `${environmentId}\
 export async function attachTerminal(
   environment: EnvironmentRecord,
   userId: string,
+  workingDir: string,
   subscriber: Subscriber,
   size: { rows: number; cols: number },
 ): Promise<TerminalHandle> {
@@ -87,7 +87,9 @@ export async function attachTerminal(
   if (!session) {
     let pending = starting.get(key);
     if (!pending) {
-      pending = startSession(environment, userId, key, size).finally(() => starting.delete(key));
+      pending = startSession(environment, userId, key, workingDir, size).finally(() =>
+        starting.delete(key),
+      );
       starting.set(key, pending);
     }
     session = await pending;
@@ -137,10 +139,10 @@ async function startSession(
   environment: EnvironmentRecord,
   userId: string,
   key: string,
+  workingDir: string,
   size: { rows: number; cols: number },
 ): Promise<TerminalSession> {
   const containerId = await ensureEnvironmentContainer(environment);
-  const workingDir = toContainerWorkdir(environment, resolveEnvironmentWorkingDirPath(environment));
   // The same environment the agent's own commands get, secrets included: a
   // terminal that cannot reproduce the agent's environment cannot be used to
   // debug it. Output is not redacted here -- nothing is persisted to a
