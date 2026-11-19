@@ -21,7 +21,7 @@ import { blockingUserRequest } from "./user-requests.ts";
 import { enqueueImMessage, resolveNotificationIntegration } from "./im-integrations.ts";
 import { defineDoc } from "@earendil-works/pi-durable";
 import { startDetachedAgentRun } from "../runtime/agent-runtime.ts";
-import { recordHomeMemoryInput } from "./home-memory-capture.ts";
+import { recordHomeMemoryInput } from "../home-memory/capture.ts";
 import {
   abortAgentRun,
   getActiveAgentRunForSession,

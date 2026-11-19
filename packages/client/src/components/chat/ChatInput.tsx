@@ -1,8 +1,12 @@
 import { thinkingLevelLabel } from "@/lib/labels";
 import { useLingui } from "@lingui/react";
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
-import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
+import {
+  getSupportedThinkingLevels,
+  type Api,
+  type ImageContent,
+  type Model,
+  type ThinkingLevel,
+} from "@carmel-agent/shared/pi";
 import {
   referenceKey,
   referenceLabel,

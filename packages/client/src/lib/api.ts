@@ -1,4 +1,5 @@
 import { i18n } from "@lingui/core";
+import { apiRoutes, type ApiOperations } from "@carmel-agent/shared/api";
 import { updateConnection } from "./update-connection.ts";
 import type {
   HomeMemory,
@@ -132,6 +133,49 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return result;
 }
 
+type Operation = keyof ApiOperations;
+type Query = Record<string, string | number | boolean | readonly string[] | undefined>;
+type Fields<O extends Operation> = ([ApiOperations[O]["path"]] extends [never]
+  ? unknown
+  : { path: ApiOperations[O]["path"] }) &
+  ([ApiOperations[O]["query"]] extends [never]
+    ? unknown
+    : object extends ApiOperations[O]["query"]
+      ? { query?: ApiOperations[O]["query"] }
+      : { query: ApiOperations[O]["query"] }) &
+  ([ApiOperations[O]["body"]] extends [never] ? unknown : { body: ApiOperations[O]["body"] });
+type CallOptions<O extends Operation> = Fields<O> & Omit<RequestInit, "body" | "method">;
+
+/** The URL of an operation, with its path parameters encoded and its query appended. */
+export function apiUrl(path: string, params: Record<string, string> = {}, query: Query = {}) {
+  const url = path.replace(/\{(\w+)\}/g, (_, name: string) => encodeURIComponent(params[name]!));
+  const search = new URLSearchParams();
+  for (const [name, value] of Object.entries(query)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) for (const item of value) search.append(name, item);
+    else search.append(name, String(value));
+  }
+  return search.size ? `${url}?${search}` : url;
+}
+
+/** Call an operation of the generated API contract; its path, query, body, and result are typed. */
+export function call<O extends Operation>(
+  operation: O,
+  ...[options]: object extends Fields<O> ? [CallOptions<O>?] : [CallOptions<O>]
+): Promise<ApiOperations[O]["response"]> {
+  const { path, query, body, ...init } = (options ?? {}) as {
+    path?: Record<string, string>;
+    query?: Query;
+    body?: unknown;
+  } & RequestInit;
+  const route = apiRoutes[operation];
+  return request(apiUrl(route.path, path, query), {
+    ...init,
+    method: route.method,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+}
+
 function readErrorMessage(body: string) {
   if (!body) return "";
   try {
@@ -154,16 +198,20 @@ export type UploadOptions = {
  * and a file manager without a progress bar feels broken on anything large.
  */
 function uploadAgentFile(agentId: string, path: string, file: Blob, options: UploadOptions) {
-  const query = new URLSearchParams({ path });
-  if (options.overwrite) query.set("overwrite", "true");
-
   return new Promise<AgentFileEntry>((resolve, reject) => {
     if (options.signal?.aborted) {
       reject(new ApiError(i18n._("Upload cancelled"), 0));
       return;
     }
     const xhr = new XMLHttpRequest();
-    xhr.open("PUT", `/api/agents/${agentId}/files/upload?${query}`);
+    xhr.open(
+      apiRoutes.uploadAgentFile.method,
+      apiUrl(
+        apiRoutes.uploadAgentFile.path,
+        { id: agentId },
+        { path, overwrite: options.overwrite || undefined },
+      ),
+    );
     xhr.withCredentials = true;
     xhr.setRequestHeader("content-type", "application/octet-stream");
     xhr.upload.addEventListener("progress", (event) => {
@@ -202,545 +250,448 @@ function uploadAgentFile(agentId: string, path: string, file: Blob, options: Upl
 }
 
 export const api = {
-  getCollaborators: (agentId: string, signal?: AbortSignal) =>
-    request<import("@carmel-agent/shared").Collaborator[]>(`/api/agents/${agentId}/collaborators`, {
-      signal,
-    }),
-  getCollaborations: (agentId: string, signal?: AbortSignal) =>
-    request<import("@carmel-agent/shared").CollaborationSummary[]>(
-      `/api/agents/${agentId}/collaborations`,
-      { signal },
-    ),
+  getCollaborators: (
+    agentId: string,
+    signal?: AbortSignal,
+  ): Promise<import("@carmel-agent/shared").Collaborator[]> =>
+    call("getCollaborators", { path: { agentId }, signal }),
+  getCollaborations: (
+    agentId: string,
+    signal?: AbortSignal,
+  ): Promise<import("@carmel-agent/shared").CollaborationSummary[]> =>
+    call("getCollaborations", { path: { agentId }, signal }),
   cancelCollaboration: (agentId: string, id: string) =>
-    request(`/api/agents/${agentId}/collaborations/${id}/cancel`, { method: "POST" }),
-  getCollaborationConnections: (agentId: string) =>
-    request<import("@carmel-agent/shared").CollaborationConnection[]>(
-      `/api/agents/${agentId}/collaboration-connections`,
-    ),
+    call("cancelCollaboration", { path: { agentId, id } }),
+  getCollaborationConnections: (
+    agentId: string,
+  ): Promise<import("@carmel-agent/shared").CollaborationConnection[]> =>
+    call("getCollaborationConnections", { path: { agentId } }),
   saveCollaborationConnection: (
     agentId: string,
     input: import("@carmel-agent/shared").CollaborationConnection,
-  ) =>
-    request<import("@carmel-agent/shared").CollaborationConnection[]>(
-      `/api/agents/${agentId}/collaboration-connections`,
-      { method: "PUT", body: JSON.stringify(input) },
-    ),
-  answerQuestion: (sessionId: string, requestId: string, answer: QuestionAnswer) =>
-    request<UserRequest>(`/api/sessions/${sessionId}/requests/${requestId}/answer`, {
-      method: "POST",
-      body: JSON.stringify(answer),
-    }),
-  provideRequestedSecret: (sessionId: string, requestId: string, value: string) =>
-    request<UserRequest>(`/api/sessions/${sessionId}/requests/${requestId}/secret`, {
-      method: "POST",
-      body: JSON.stringify({ value }),
+  ): Promise<import("@carmel-agent/shared").CollaborationConnection[]> =>
+    call("saveCollaborationConnection", { path: { agentId }, body: input }),
+  answerQuestion: (
+    sessionId: string,
+    requestId: string,
+    answer: QuestionAnswer,
+  ): Promise<UserRequest> =>
+    call("answerUserQuestion", { path: { id: sessionId, requestId }, body: answer }),
+  provideRequestedSecret: (
+    sessionId: string,
+    requestId: string,
+    value: string,
+  ): Promise<UserRequest> =>
+    call("provideRequestedSecret", {
+      path: { id: sessionId, requestId },
+      body: { value },
       cache: "no-store",
     }),
-  useRequestedSecret: (sessionId: string, requestId: string) =>
-    request<UserRequest>(`/api/sessions/${sessionId}/requests/${requestId}/use-existing`, {
-      method: "POST",
-    }),
-  cancelUserRequest: (sessionId: string, requestId: string) =>
-    request<UserRequest>(`/api/sessions/${sessionId}/requests/${requestId}/cancel`, {
-      method: "POST",
-    }),
-  listSessionSecrets: (sessionId: string) =>
-    request<SessionSecret[]>(`/api/sessions/${sessionId}/secrets`, { cache: "no-store" }),
-  promoteSessionSecret: (sessionId: string, secretId: string) =>
-    request<SessionSecret>(`/api/sessions/${sessionId}/secrets/${secretId}/promote`, {
-      method: "POST",
-    }),
-  demoteEnvironmentSecret: (sessionId: string, secretId: string) =>
-    request<SessionSecret>(`/api/sessions/${sessionId}/secrets/${secretId}/demote`, {
-      method: "POST",
-    }),
-  revokeSessionSecret: (sessionId: string, secretId: string) =>
-    request<{ ok: true }>(`/api/sessions/${sessionId}/secrets/${secretId}`, { method: "DELETE" }),
-  listImIntegrations: (agentId: string, signal?: AbortSignal) =>
-    request<ImIntegration[]>(`/api/agents/${agentId}/integrations`, { signal }),
-  listImSetups: (agentId: string, signal?: AbortSignal) =>
-    request<ImSetup[]>(`/api/agents/${agentId}/integrations/setups`, { signal }),
-  listImDeliveries: (agentId: string, signal?: AbortSignal) =>
-    request<ImDelivery[]>(`/api/agents/${agentId}/integrations/deliveries`, { signal }),
+  useRequestedSecret: (sessionId: string, requestId: string): Promise<UserRequest> =>
+    call("useRequestedSecret", { path: { id: sessionId, requestId } }),
+  cancelUserRequest: (sessionId: string, requestId: string): Promise<UserRequest> =>
+    call("cancelUserRequest", { path: { id: sessionId, requestId } }),
+  listSessionSecrets: (sessionId: string): Promise<SessionSecret[]> =>
+    call("listSessionSecrets", { path: { id: sessionId }, cache: "no-store" }),
+  promoteSessionSecret: (sessionId: string, secretId: string): Promise<SessionSecret> =>
+    call("promoteSessionSecret", { path: { id: sessionId, secretId } }),
+  demoteEnvironmentSecret: (sessionId: string, secretId: string): Promise<SessionSecret> =>
+    call("demoteEnvironmentSecret", { path: { id: sessionId, secretId } }),
+  revokeSessionSecret: (sessionId: string, secretId: string): Promise<{ ok: boolean }> =>
+    call("revokeSessionSecret", { path: { id: sessionId, secretId } }),
+  listImIntegrations: (agentId: string, signal?: AbortSignal): Promise<ImIntegration[]> =>
+    call("listImIntegrations", { path: { agentId }, signal }),
+  listImSetups: (agentId: string, signal?: AbortSignal): Promise<ImSetup[]> =>
+    call("listImSetups", { path: { agentId }, signal }),
+  listImDeliveries: (agentId: string, signal?: AbortSignal): Promise<ImDelivery[]> =>
+    call("listImDeliveries", { path: { agentId }, signal }),
   connectIm: (
     agentId: string,
     input: { platform: ImPlatform; token?: string; appId?: string; appSecret?: string },
-  ) =>
-    request<ImSetup>(`/api/agents/${agentId}/integrations/connect`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  beginImQr: (agentId: string, platform: "feishu" | "lark") =>
-    request<ImSetup>(`/api/agents/${agentId}/integrations/qr`, {
-      method: "POST",
-      body: JSON.stringify({ platform }),
-    }),
-  cancelImSetup: (agentId: string, setupId: string) =>
-    request<{ ok: true }>(`/api/agents/${agentId}/integrations/setup/${setupId}`, {
-      method: "DELETE",
-    }),
+  ): Promise<ImSetup> => call("connectIm", { path: { agentId }, body: input }),
+  beginImQr: (agentId: string, platform: "feishu" | "lark"): Promise<ImSetup> =>
+    call("beginImQr", { path: { agentId }, body: { platform } }),
+  cancelImSetup: (agentId: string, setupId: string): Promise<{ ok: boolean }> =>
+    call("cancelImSetup", { path: { agentId, setupId } }),
   updateIm: (
     agentId: string,
     integrationId: string,
     patch: { enabled?: boolean; proactive?: boolean; notificationDefault?: boolean },
-  ) =>
-    request<{ ok: true }>(`/api/agents/${agentId}/integrations/${integrationId}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch),
+  ): Promise<{ ok: boolean }> =>
+    call("updateIm", { path: { agentId, integrationId }, body: patch }),
+  disconnectIm: (agentId: string, integrationId: string): Promise<{ ok: boolean }> =>
+    call("disconnectIm", { path: { agentId, integrationId } }),
+  browserStatus: (
+    agentId: string,
+    signal?: AbortSignal,
+  ): Promise<{ control: BrowserControlState; available: boolean }> =>
+    call("getAgentBrowserStatus", { path: { id: agentId }, signal }),
+  searchSessions: (query: string, signal?: AbortSignal): Promise<SessionSearchResult[]> =>
+    call("searchSessions", { query: { q: query }, signal, cache: "no-store" }),
+  bootstrap: (): Promise<BootstrapPayload> => call("getBootstrap"),
+  listSessions: (signal?: AbortSignal): Promise<SessionMetadata[]> =>
+    call("listSessions", { signal }),
+  login: (username: string, password: string): Promise<BootstrapPayload> =>
+    call("login", { body: { username, password } }),
+  logout: (): Promise<{ ok: boolean }> => call("logout"),
+  setupStatus: (): Promise<SetupStatus> => call("getAuthStatus"),
+  setup: (input: {
+    username: string;
+    password: string;
+    email?: string;
+    name?: string;
+  }): Promise<BootstrapPayload> => call("setup", { body: input }),
+  listUsers: (): Promise<User[]> => call("listUsers"),
+  createUser: (input: CreateUserRequest): Promise<User> => call("createUser", { body: input }),
+  updateUserRole: (userId: string, role: UserRole): Promise<User> =>
+    call("updateUserRole", { path: { id: userId }, body: { role } }),
+  resetUserPassword: (userId: string, password: string): Promise<{ ok: boolean }> =>
+    call("resetUserPassword", { path: { id: userId }, body: { password } }),
+  deleteUser: (userId: string): Promise<{ ok: boolean }> =>
+    call("deleteUser", { path: { id: userId } }),
+  updateAccount: (currentPassword: string, email: string, newPassword?: string): Promise<User> =>
+    call("updateAccount", { body: { currentPassword, email, newPassword } }),
+  listApiKeys: (): Promise<ApiKey[]> => call("listApiKeys"),
+  createApiKey: (name: string): Promise<ApiKeyCreated> => call("createApiKey", { body: { name } }),
+  deleteApiKey: (apiKeyId: string): Promise<{ ok: boolean }> =>
+    call("deleteApiKey", { path: { id: apiKeyId } }),
+  upsertUser: (userId: string, input: UserUpdateRequest): Promise<User> =>
+    call("updateUserProfile", { path: { id: userId }, body: input }),
+  upsertModelRef: (modelId: string, input: ModelRefCommand): Promise<ModelRef> =>
+    call("upsertModel", { path: { id: modelId }, body: input }),
+  deleteModelRef: (modelRefId: string): Promise<BootstrapPayload> =>
+    call("deleteModel", { path: { id: modelRefId } }),
+  upsertProviderConfig: (
+    providerConfigId: string,
+    input: ProviderConfigCommand,
+  ): Promise<ProviderConfig> =>
+    call("upsertProviderConfig", { path: { id: providerConfigId }, body: input }),
+  deleteProviderConfig: (providerConfigId: string): Promise<BootstrapPayload> =>
+    call("deleteProviderConfig", { path: { id: providerConfigId } }),
+  listProviderModels: (
+    providerConfigId: string,
+    options: { refresh?: boolean } = {},
+  ): Promise<ProviderModelSummary[]> =>
+    call("listProviderModels", {
+      path: { id: providerConfigId },
+      query: { refresh: options.refresh || undefined },
     }),
-  disconnectIm: (agentId: string, integrationId: string) =>
-    request<{ ok: true }>(`/api/agents/${agentId}/integrations/${integrationId}`, {
-      method: "DELETE",
+  upsertAgent: (agentId: string, input: AgentConfigCommand): Promise<AgentConfig> =>
+    call("upsertAgent", { path: { id: agentId }, body: input }),
+  getAgentSettings: (agentId: string): Promise<AgentConfig> =>
+    call("getAgentSettings", { path: { id: agentId } }),
+  testAgentMcpServer: (
+    agentId: string,
+    server: import("@carmel-agent/shared").AgentMcpServer,
+  ): Promise<import("@carmel-agent/shared").AgentMcpTestResult> =>
+    call("testAgentMcpServer", { path: { id: agentId }, body: server }),
+  getOAuthProviders: (): Promise<OAuthProviderSummary[]> => call("listOAuthProviders"),
+  startProviderOAuthLogin: (providerConfigId: string): Promise<OAuthLoginFlowState> =>
+    call("startProviderOAuth", { path: { id: providerConfigId } }),
+  getOAuthLoginFlow: (flowId: string): Promise<OAuthLoginFlowState> =>
+    call("getOAuthFlow", { path: { id: flowId } }),
+  submitOAuthLoginFlowInput: (flowId: string, value: string): Promise<OAuthLoginFlowState> =>
+    call("submitOAuthInput", { path: { id: flowId }, body: { value } }),
+  getAgentCommands: (agentId: string): Promise<AgentCommandPayload> =>
+    call("getAgentCommands", { path: { id: agentId } }),
+  listAgentFiles: (agentId: string, path = "", showHidden = false): Promise<AgentFileList> =>
+    call("listAgentFiles", {
+      path: { id: agentId },
+      query: { path, showHidden },
     }),
-  browserStatus: (agentId: string, signal?: AbortSignal) =>
-    request<{ control: BrowserControlState; available: boolean }>(
-      `/api/agents/${encodeURIComponent(agentId)}/browser`,
-      { signal },
-    ),
-  searchSessions: (query: string, signal?: AbortSignal) =>
-    request<SessionSearchResult[]>(`/api/sessions/search?${new URLSearchParams({ q: query })}`, {
-      signal,
-      cache: "no-store",
-    }),
-  bootstrap: () => request<BootstrapPayload>("/api/bootstrap"),
-  login: (username: string, password: string) =>
-    request<BootstrapPayload>("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ username, password }),
-    }),
-  logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
-  setupStatus: () => request<SetupStatus>("/api/auth/status"),
-  setup: (input: { username: string; password: string; email?: string; name?: string }) =>
-    request<BootstrapPayload>("/api/auth/setup", { method: "POST", body: JSON.stringify(input) }),
-  listUsers: () => request<User[]>("/api/users"),
-  createUser: (input: CreateUserRequest) =>
-    request<User>("/api/users", { method: "POST", body: JSON.stringify(input) }),
-  updateUserRole: (userId: string, role: UserRole) =>
-    request<User>(`/api/users/${userId}`, { method: "PATCH", body: JSON.stringify({ role }) }),
-  resetUserPassword: (userId: string, password: string) =>
-    request<{ ok: true }>(`/api/users/${userId}/password`, {
-      method: "POST",
-      body: JSON.stringify({ password }),
-    }),
-  deleteUser: (userId: string) =>
-    request<{ ok: true }>(`/api/users/${userId}`, { method: "DELETE" }),
-  updateAccount: (currentPassword: string, email: string, newPassword?: string) =>
-    request<User>("/api/auth/account", {
-      method: "POST",
-      body: JSON.stringify({ currentPassword, email, newPassword }),
-    }),
-  listApiKeys: () => request<ApiKey[]>("/api/api-keys"),
-  createApiKey: (name: string) =>
-    request<ApiKeyCreated>("/api/api-keys", { method: "POST", body: JSON.stringify({ name }) }),
-  deleteApiKey: (apiKeyId: string) =>
-    request<{ ok: true }>(`/api/api-keys/${apiKeyId}`, { method: "DELETE" }),
-  upsertUser: (userId: string, input: UserUpdateRequest) =>
-    request<User>(`/api/users/${userId}`, { method: "PUT", body: JSON.stringify(input) }),
-  upsertModelRef: (modelId: string, input: ModelRefCommand) =>
-    request<ModelRef>(`/api/models/${modelId}`, { method: "PUT", body: JSON.stringify(input) }),
-  deleteModelRef: (modelRefId: string) =>
-    request<BootstrapPayload>(`/api/models/${modelRefId}`, { method: "DELETE" }),
-  upsertProviderConfig: (providerConfigId: string, input: ProviderConfigCommand) =>
-    request<ProviderConfig>(`/api/provider-configs/${providerConfigId}`, {
-      method: "PUT",
-      body: JSON.stringify(input),
-    }),
-  deleteProviderConfig: (providerConfigId: string) =>
-    request<BootstrapPayload>(`/api/provider-configs/${providerConfigId}`, { method: "DELETE" }),
-  listProviderModels: (providerConfigId: string, options: { refresh?: boolean } = {}) =>
-    request<ProviderModelSummary[]>(
-      `/api/provider-configs/${providerConfigId}/models${options.refresh ? "?refresh=true" : ""}`,
-    ),
-  upsertAgent: (agentId: string, input: AgentConfigCommand) =>
-    request<AgentConfig>(`/api/agents/${agentId}`, { method: "PUT", body: JSON.stringify(input) }),
-  getAgentSettings: (agentId: string) => request<AgentConfig>(`/api/agents/${agentId}/settings`),
-  testAgentMcpServer: (agentId: string, server: import("@carmel-agent/shared").AgentMcpServer) =>
-    request<import("@carmel-agent/shared").AgentMcpTestResult>(`/api/agents/${agentId}/mcp/test`, {
-      method: "POST",
-      body: JSON.stringify(server),
-    }),
-  getOAuthProviders: () => request<OAuthProviderSummary[]>("/api/oauth/providers"),
-  startProviderOAuthLogin: (providerConfigId: string) =>
-    request<OAuthLoginFlowState>(`/api/provider-configs/${providerConfigId}/oauth/login`, {
-      method: "POST",
-    }),
-  getOAuthLoginFlow: (flowId: string) => request<OAuthLoginFlowState>(`/api/oauth/flows/${flowId}`),
-  submitOAuthLoginFlowInput: (flowId: string, value: string) =>
-    request<OAuthLoginFlowState>(`/api/oauth/flows/${flowId}/input`, {
-      method: "POST",
-      body: JSON.stringify({ value }),
-    }),
-  getAgentCommands: (agentId: string) =>
-    request<AgentCommandPayload>(`/api/agents/${agentId}/commands`),
-  listAgentFiles: (agentId: string, path = "", showHidden = false) =>
-    request<AgentFileList>(
-      `/api/agents/${agentId}/files?${new URLSearchParams({ path, showHidden: String(showHidden) })}`,
-    ),
-  getAgentGitStatus: (agentId: string) => request<GitStatus>(`/api/agents/${agentId}/git/status`),
+  getAgentGitStatus: (agentId: string): Promise<GitStatus> =>
+    call("getAgentGitStatus", { path: { id: agentId } }),
   getAgentGitDiff: (
     agentId: string,
     change: { path: string; area: GitChangeArea; originalPath?: string },
-  ) =>
-    request<GitFileDiff>(
-      `/api/agents/${agentId}/git/diff?${new URLSearchParams({
+  ): Promise<GitFileDiff> =>
+    call("getAgentGitDiff", {
+      path: { id: agentId },
+      query: {
         path: change.path,
         area: change.area,
         ...(change.originalPath ? { originalPath: change.originalPath } : {}),
-      })}`,
-    ),
-  readAgentFile: (agentId: string, path: string) =>
-    request<AgentFileContent>(
-      `/api/agents/${agentId}/files/content?${new URLSearchParams({ path })}`,
-    ),
+      },
+    }),
+  readAgentFile: (agentId: string, path: string): Promise<AgentFileContent> =>
+    call("getAgentFileContent", { path: { id: agentId }, query: { path } }),
   getAgentFileRawUrl: (agentId: string, path: string) =>
-    `/api/agents/${agentId}/files/raw?${new URLSearchParams({ path })}`,
+    apiUrl(apiRoutes.getAgentFileImage.path, { id: agentId }, { path }),
   /** One path downloads that file; a directory or several paths download a zip. */
   getAgentFileDownloadUrl: (agentId: string, paths: string[]) =>
-    `/api/agents/${agentId}/files/download?${new URLSearchParams(paths.map((path) => ["path", path]))}`,
+    apiUrl(apiRoutes.downloadAgentFiles.path, { id: agentId }, { path: paths }),
   uploadAgentFile: (agentId: string, path: string, file: Blob, options: UploadOptions = {}) =>
     uploadAgentFile(agentId, path, file, options),
-  batchAgentFiles: (agentId: string, input: AgentFileBatchCommand) =>
-    request<AgentFileBatchResult>(`/api/agents/${agentId}/files/batch`, {
-      method: "POST",
-      body: JSON.stringify(input),
+  batchAgentFiles: (agentId: string, input: AgentFileBatchCommand): Promise<AgentFileBatchResult> =>
+    call("batchAgentFileOperation", { path: { id: agentId }, body: input }),
+  saveAgentFile: (agentId: string, path: string, content: string): Promise<AgentFileContent> =>
+    call("putAgentFileContent", { path: { id: agentId }, body: { path, content } }),
+  createAgentFileEntry: (
+    agentId: string,
+    path: string,
+    type: AgentFileEntry["type"],
+  ): Promise<AgentFileEntry> =>
+    call("createAgentFile", { path: { id: agentId }, body: { path, type } }),
+  renameAgentFileEntry: (agentId: string, path: string, newPath: string): Promise<AgentFileEntry> =>
+    call("renameAgentFile", { path: { id: agentId }, body: { path, newPath } }),
+  listEnvironments: (signal?: AbortSignal): Promise<Environment[]> =>
+    call("listEnvironments", { signal, cache: "no-store" }),
+  createEnvironment: (input: EnvironmentCommand): Promise<Environment> =>
+    call("createEnvironment", { body: input }),
+  updateEnvironment: (environmentId: string, input: EnvironmentCommand): Promise<Environment> =>
+    call("updateEnvironment", { path: { id: environmentId }, body: input }),
+  deleteEnvironment: (environmentId: string): Promise<{ ok: boolean }> =>
+    call("deleteEnvironment", { path: { id: environmentId } }),
+  listEnvironmentSecrets: (environmentId: string): Promise<EnvironmentSecret[]> =>
+    call("listEnvironmentSecrets", { path: { environmentId } }),
+  environmentWorkspaceDotEnvStatus: (
+    environmentId: string,
+    agentId: string,
+  ): Promise<{ available: boolean }> =>
+    call("getEnvironmentWorkspaceDotEnvStatus", {
+      path: { environmentId },
+      query: { agent: agentId },
     }),
-  saveAgentFile: (agentId: string, path: string, content: string) =>
-    request<AgentFileContent>(`/api/agents/${agentId}/files/content`, {
-      method: "PUT",
-      body: JSON.stringify({ path, content }),
+  importEnvironmentWorkspaceDotEnv: (
+    environmentId: string,
+    agentId: string,
+  ): Promise<{ imported: number; skippedExisting: number; skippedInvalid: number }> =>
+    call("importEnvironmentWorkspaceDotEnv", {
+      path: { environmentId },
+      query: { agent: agentId },
     }),
-  createAgentFileEntry: (agentId: string, path: string, type: AgentFileEntry["type"]) =>
-    request<AgentFileEntry>(`/api/agents/${agentId}/files`, {
-      method: "POST",
-      body: JSON.stringify({ path, type }),
-    }),
-  renameAgentFileEntry: (agentId: string, path: string, newPath: string) =>
-    request<AgentFileEntry>(`/api/agents/${agentId}/files`, {
-      method: "PATCH",
-      body: JSON.stringify({ path, newPath }),
-    }),
-  listEnvironments: (signal?: AbortSignal) =>
-    request<Environment[]>("/api/environments", { signal, cache: "no-store" }),
-  createEnvironment: (input: EnvironmentCommand) =>
-    request<Environment>("/api/environments", { method: "POST", body: JSON.stringify(input) }),
-  updateEnvironment: (environmentId: string, input: EnvironmentCommand) =>
-    request<Environment>(`/api/environments/${environmentId}`, {
-      method: "PUT",
-      body: JSON.stringify(input),
-    }),
-  deleteEnvironment: (environmentId: string) =>
-    request<{ ok: true }>(`/api/environments/${environmentId}`, { method: "DELETE" }),
-  listEnvironmentSecrets: (environmentId: string) =>
-    request<EnvironmentSecret[]>(`/api/environments/${environmentId}/secrets`),
-  environmentWorkspaceDotEnvStatus: (environmentId: string, agentId: string) =>
-    request<{ available: boolean }>(
-      `/api/environments/${environmentId}/secrets/import-env?agent=${encodeURIComponent(agentId)}`,
-    ),
-  importEnvironmentWorkspaceDotEnv: (environmentId: string, agentId: string) =>
-    request<{ imported: number; skippedExisting: number; skippedInvalid: number }>(
-      `/api/environments/${environmentId}/secrets/import-env?agent=${encodeURIComponent(agentId)}`,
-      { method: "POST" },
-    ),
-  writeEnvironmentSecret: (environmentId: string, name: string, value: string) =>
-    request<EnvironmentSecret>(
-      `/api/environments/${environmentId}/secrets/${encodeURIComponent(name)}`,
-      { method: "PUT", body: JSON.stringify({ value }) },
-    ),
-  deleteEnvironmentSecret: (environmentId: string, name: string) =>
-    request<{ ok: true }>(
-      `/api/environments/${environmentId}/secrets/${encodeURIComponent(name)}`,
-      { method: "DELETE" },
-    ),
-  listAgentTasks: (agentId: string, signal?: AbortSignal) =>
-    request<AgentTask[]>(`/api/agents/${agentId}/tasks`, { signal }),
-  knowledge: (agentId: string, signal?: AbortSignal) =>
-    request<KnowledgeOverview>(`/api/agents/${agentId}/knowledge`, { signal }),
-  knowledgeSettings: (agentId: string, signal?: AbortSignal) =>
-    request<KnowledgeSettings>(`/api/agents/${agentId}/knowledge/settings`, { signal }),
-  saveKnowledgeSettings: (agentId: string, settings: KnowledgeSettings) =>
-    request<KnowledgeSettings>(`/api/agents/${agentId}/knowledge/settings`, {
-      method: "PUT",
-      body: JSON.stringify(settings),
-    }),
-  addKnowledgeSource: (agentId: string, input: KnowledgeSourceInput) =>
-    request<KnowledgeSource>(`/api/agents/${agentId}/knowledge/sources`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
+  writeEnvironmentSecret: (
+    environmentId: string,
+    name: string,
+    value: string,
+  ): Promise<EnvironmentSecret> =>
+    call("writeEnvironmentSecret", { path: { environmentId, name }, body: { value } }),
+  deleteEnvironmentSecret: (environmentId: string, name: string): Promise<{ ok: boolean }> =>
+    call("deleteEnvironmentSecret", { path: { environmentId, name } }),
+  listAgentTasks: (agentId: string, signal?: AbortSignal): Promise<AgentTask[]> =>
+    call("listAgentTasks", { path: { agentId }, signal }),
+  knowledge: (agentId: string, signal?: AbortSignal): Promise<KnowledgeOverview> =>
+    call("getKnowledge", { path: { agentId }, signal }),
+  knowledgeSettings: (agentId: string, signal?: AbortSignal): Promise<KnowledgeSettings> =>
+    call("getKnowledgeSettings", { path: { agentId }, signal }),
+  saveKnowledgeSettings: (
+    agentId: string,
+    settings: KnowledgeSettings,
+  ): Promise<KnowledgeSettings> =>
+    call("saveKnowledgeSettings", { path: { agentId }, body: settings }),
+  addKnowledgeSource: (agentId: string, input: KnowledgeSourceInput): Promise<KnowledgeSource> =>
+    call("addKnowledgeSource", { path: { agentId }, body: input }),
   deleteKnowledgeSource: (agentId: string, sourceId: string) =>
-    request(`/api/agents/${agentId}/knowledge/sources/${sourceId}`, { method: "DELETE" }),
-  searchKnowledge: (agentId: string, input: KnowledgeSearchInput, signal?: AbortSignal) =>
-    request<KnowledgeSearchResult>(`/api/agents/${agentId}/knowledge/search`, {
-      method: "POST",
-      body: JSON.stringify(input),
-      signal,
-    }),
-  readKnowledge: (agentId: string, input: KnowledgeReadInput, signal?: AbortSignal) =>
-    request<KnowledgeDocument>(`/api/agents/${agentId}/knowledge/read`, {
-      method: "POST",
-      body: JSON.stringify(input),
-      signal,
-    }),
+    call("disconnectKnowledgeSource", { path: { agentId, sourceId } }),
+  searchKnowledge: (
+    agentId: string,
+    input: KnowledgeSearchInput,
+    signal?: AbortSignal,
+  ): Promise<KnowledgeSearchResult> =>
+    call("searchKnowledge", { path: { agentId }, body: input, signal }),
+  readKnowledge: (
+    agentId: string,
+    input: KnowledgeReadInput,
+    signal?: AbortSignal,
+  ): Promise<KnowledgeDocument> =>
+    call("readKnowledge", { path: { agentId }, body: input, signal }),
   refreshKnowledge: (agentId: string, embed = false, allowDownloads = false, deep = false) =>
-    request(`/api/agents/${agentId}/knowledge/refresh`, {
-      method: "POST",
-      body: JSON.stringify({ embed, allowDownloads, deep }),
-    }),
-  createAgentTask: (agentId: string, input: AgentTaskCreateCommand) =>
-    request<AgentTask>(`/api/agents/${agentId}/tasks`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  updateAgentTask: (agentId: string, taskId: string, patch: AgentTaskPatchCommand) =>
-    request<AgentTask>(`/api/agents/${agentId}/tasks/${taskId}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    }),
-  deleteAgentTask: (agentId: string, taskId: string) =>
-    request<{ ok: true }>(`/api/agents/${agentId}/tasks/${taskId}`, { method: "DELETE" }),
-  runAgentTaskNow: (agentId: string, taskId: string) =>
-    request<{ outcome: string; detail?: string; sessionId?: string }>(
-      `/api/agents/${agentId}/tasks/${taskId}/run`,
-      {
-        method: "POST",
-      },
-    ),
-  listAgentTaskRuns: (agentId: string, taskId: string, signal?: AbortSignal) =>
-    request<AgentTaskRun[]>(`/api/agents/${agentId}/tasks/${taskId}/runs`, { signal }),
-  runIssue: (agentId: string, issueId: string, input: IssueRunCommand) =>
-    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/runs`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  addIssueNote: (agentId: string, issueId: string, body: string) =>
-    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/notes`, {
-      method: "POST",
-      body: JSON.stringify({ body }),
-    }),
-  sendIssueUpdate: (agentId: string, issueId: string, body: string) =>
-    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/updates`, {
-      method: "POST",
-      body: JSON.stringify({ body }),
-    }),
-  removeIssueFromQueue: (agentId: string, issueId: string) =>
-    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/queue`, {
-      method: "DELETE",
-    }),
-  moveQueuedIssue: (agentId: string, issueId: string, direction: "up" | "down") =>
-    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/queue/move`, {
-      method: "POST",
-      body: JSON.stringify({ direction }),
-    }),
-  acceptIssue: (agentId: string, issueId: string) =>
-    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/accept`, { method: "POST" }),
-  reopenIssue: (agentId: string, issueId: string) =>
-    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}/reopen`, { method: "POST" }),
-  listIssues: (agentId: string, signal?: AbortSignal) =>
-    request<Issue[]>(`/api/agents/${agentId}/issues`, { signal }),
-  getIssue: (agentId: string, issueId: string, signal?: AbortSignal) =>
-    request<IssueDetail>(`/api/agents/${agentId}/issues/${issueId}`, { signal }),
-  createIssue: (agentId: string, input: IssueCreateCommand) =>
-    request<Issue>(`/api/agents/${agentId}/issues`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  updateIssue: (agentId: string, issueId: string, patch: IssuePatchCommand) =>
-    request<Issue>(`/api/agents/${agentId}/issues/${issueId}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    }),
-  interruptIssue: (agentId: string, issueId: string) =>
-    request<Issue>(`/api/agents/${agentId}/issues/${issueId}/interrupt`, { method: "POST" }),
-  cancelIssue: (agentId: string, issueId: string) =>
-    request<Issue>(`/api/agents/${agentId}/issues/${issueId}/cancel`, { method: "POST" }),
-  deleteIssue: (agentId: string, issueId: string) =>
-    request<{ ok: true }>(`/api/agents/${agentId}/issues/${issueId}`, { method: "DELETE" }),
-  deleteAgent: (agentId: string) =>
-    request<{ ok: true }>(`/api/agents/${agentId}`, { method: "DELETE" }),
-  sessionSubtasks: (sessionId: string, signal?: AbortSignal) =>
-    request<import("@carmel-agent/shared").HelpersState>(
-      `/api/sessions/${encodeURIComponent(sessionId)}/helpers`,
-      { signal },
-    ),
-  getSubtask: (sessionId: string, helperId: number, before?: string, signal?: AbortSignal) =>
-    request<{ helper: import("@carmel-agent/shared").HelperSummary; session: Session }>(
-      `/api/sessions/${encodeURIComponent(sessionId)}/helpers/${helperId}${before ? `?before=${encodeURIComponent(before)}` : ""}`,
-      { signal },
-    ),
-  stopSubtask: (sessionId: string, helperId: number) =>
-    request<{ ok: true }>(
-      `/api/sessions/${encodeURIComponent(sessionId)}/helpers/${helperId}/stop`,
-      { method: "POST" },
-    ),
-  resumeSubtasks: (sessionId: string) =>
-    request<{ ok: true }>(`/api/sessions/${encodeURIComponent(sessionId)}/helpers/resume`, {
-      method: "POST",
-    }),
-  homeSummaries: (signal?: AbortSignal) =>
-    request<
-      Array<{
-        agentId: string;
-        sessionId: string;
-        unread: boolean;
-        working: boolean;
-        needsAttention: boolean;
-      }>
-    >("/api/homes", { signal }),
-  readHome: (agentId: string, readAt: number) =>
-    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/read`, {
-      method: "PATCH",
-      body: JSON.stringify({ readAt }),
-    }),
-  resumeHome: (agentId: string) =>
-    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/resume`, {
-      method: "POST",
-    }),
-  homeStatus: (agentId: string, signal?: AbortSignal) =>
-    request<{
-      home: { sessionId: string; paused: boolean; activityAt: number; lastReadAt: number } | null;
-      deliveries: Array<{ id: string; status: string; error?: string; eventId?: string }>;
-      events: Array<{
-        id: string;
-        status: string;
-        kind: string;
-        error?: string;
-        createdAt: number;
-      }>;
-    }>(`/api/agents/${encodeURIComponent(agentId)}/home`, { signal }),
-  dismissHomeError: (agentId: string, eventId: string) =>
-    request<{ ok: true }>(
-      `/api/agents/${encodeURIComponent(agentId)}/home/events/${encodeURIComponent(eventId)}/dismiss`,
-      { method: "POST" },
-    ),
-  stopHome: (agentId: string) =>
-    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/stop`, {
-      method: "POST",
-    }),
-  ensureHome: (agentId: string) =>
-    request<{ home: { sessionId: string }; session: Session }>(
-      `/api/agents/${encodeURIComponent(agentId)}/home`,
-      { method: "POST" },
-    ),
-  resetHome: (agentId: string) =>
-    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/reset`, {
-      method: "POST",
-    }),
-  homeMemory: (agentId: string, query = "", offset = 0, signal?: AbortSignal) =>
-    request<HomeMemoryOverview>(
-      `/api/agents/${encodeURIComponent(agentId)}/home/memory?q=${encodeURIComponent(query)}&offset=${offset}`,
-      { signal },
-    ),
-  setHomeMemoryMode: (agentId: string, mode: HomeMemoryMode) =>
-    request<{ mode: HomeMemoryMode }>(
-      `/api/agents/${encodeURIComponent(agentId)}/home/memory/settings`,
-      { method: "PATCH", body: JSON.stringify({ mode }) },
-    ),
-  setHomeMemoryRetrieval: (agentId: string, retrieval: KnowledgeSettings) =>
-    request(`/api/agents/${encodeURIComponent(agentId)}/home/memory/settings`, {
-      method: "PATCH",
-      body: JSON.stringify({ retrieval }),
-    }),
-  searchHomeMemory: (agentId: string, input: HomeMemorySearchInput, signal?: AbortSignal) =>
-    request<HomeMemorySearchResult>(
-      `/api/agents/${encodeURIComponent(agentId)}/home/memory/search`,
-      { method: "POST", body: JSON.stringify(input), signal },
-    ),
-  refreshHomeMemory: (agentId: string, embed = false, allowDownloads = false, deep = false) =>
-    request(`/api/agents/${encodeURIComponent(agentId)}/home/memory/refresh`, {
-      method: "POST",
-      body: JSON.stringify({ embed, allowDownloads, deep }),
-    }),
-  tidyHomeMemory: (agentId: string, dream = false) =>
-    request<{ tidy: HomeMemoryTidyReport; dream: HomeMemoryDreamReport | null }>(
-      `/api/agents/${encodeURIComponent(agentId)}/home/memory/tidy`,
-      { method: "POST", body: JSON.stringify({ dream }) },
-    ),
-  saveHomeMemory: (agentId: string, input: HomeMemoryInput) =>
-    request<HomeMemory>(`/api/agents/${encodeURIComponent(agentId)}/home/memory`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  editHomeMemory: (agentId: string, id: string, input: HomeMemoryPatch) =>
-    request<HomeMemory>(
-      `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}`,
-      { method: "PATCH", body: JSON.stringify(input) },
-    ),
-  forgetHomeMemory: (agentId: string, id: string, revision: number, preventLearning = true) =>
-    request<{ ok: true }>(
-      `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}?revision=${revision}&preventLearning=${preventLearning}`,
-      { method: "DELETE" },
-    ),
-  clearHomeMemory: (agentId: string) =>
-    request<{ ok: true }>(`/api/agents/${encodeURIComponent(agentId)}/home/memory`, {
-      method: "DELETE",
-    }),
-  homeMemoryHistory: (agentId: string, id: string) =>
-    request<HomeMemoryRevision[]>(
-      `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}/history`,
-    ),
-  restoreHomeMemory: (agentId: string, id: string, revision: number, expectedRevision: number) =>
-    request<HomeMemory>(
-      `/api/agents/${encodeURIComponent(agentId)}/home/memory/${encodeURIComponent(id)}/restore`,
-      { method: "POST", body: JSON.stringify({ revision, expectedRevision }) },
-    ),
-  getSessionHistory: (sessionId: string, before: string, around?: string) =>
-    request<Session>(
-      `/api/sessions/${encodeURIComponent(sessionId)}/history?before=${encodeURIComponent(before)}${around ? `&around=${encodeURIComponent(around)}` : ""}`,
-    ),
-  createSession: (draft: SessionDraft & { title?: string }) =>
-    request<Session>("/api/sessions", { method: "POST", body: JSON.stringify(draft) }),
-  importOpenWebuiSessions: (draft: SessionDraft & { source: unknown }) =>
-    request<SessionImportResult>("/api/sessions/import/open-webui", {
-      method: "POST",
-      body: JSON.stringify(draft),
-    }),
-  getSessionConnection: (sessionId: string, signal?: AbortSignal) =>
-    request<SessionConnection>(`/api/sessions/${encodeURIComponent(sessionId)}/connection`, {
+    call("refreshKnowledge", { path: { agentId }, body: { embed, allowDownloads, deep } }),
+  createAgentTask: (agentId: string, input: AgentTaskCreateCommand): Promise<AgentTask> =>
+    call("createAgentTask", { path: { agentId }, body: input }),
+  updateAgentTask: (
+    agentId: string,
+    taskId: string,
+    patch: AgentTaskPatchCommand,
+  ): Promise<AgentTask> => call("updateAgentTask", { path: { agentId, taskId }, body: patch }),
+  deleteAgentTask: (agentId: string, taskId: string): Promise<{ ok: boolean }> =>
+    call("deleteAgentTask", { path: { agentId, taskId } }),
+  runAgentTaskNow: (
+    agentId: string,
+    taskId: string,
+  ): Promise<{ outcome: string; detail?: string; sessionId?: string }> =>
+    call("runAgentTask", { path: { agentId, taskId } }),
+  listAgentTaskRuns: (
+    agentId: string,
+    taskId: string,
+    signal?: AbortSignal,
+  ): Promise<AgentTaskRun[]> => call("listAgentTaskRuns", { path: { agentId, taskId }, signal }),
+  runIssue: (agentId: string, issueId: string, input: IssueRunCommand): Promise<IssueDetail> =>
+    call("runIssue", { path: { agentId, issueId }, body: input }),
+  addIssueNote: (agentId: string, issueId: string, body: string): Promise<IssueDetail> =>
+    call("addIssueNote", { path: { agentId, issueId }, body: { body } }),
+  sendIssueUpdate: (agentId: string, issueId: string, body: string): Promise<IssueDetail> =>
+    call("sendIssueUpdate", { path: { agentId, issueId }, body: { body } }),
+  removeIssueFromQueue: (agentId: string, issueId: string): Promise<IssueDetail> =>
+    call("removeIssueFromQueue", { path: { agentId, issueId } }),
+  moveQueuedIssue: (
+    agentId: string,
+    issueId: string,
+    direction: "up" | "down",
+  ): Promise<IssueDetail> =>
+    call("moveQueuedIssue", { path: { agentId, issueId }, body: { direction } }),
+  acceptIssue: (agentId: string, issueId: string): Promise<IssueDetail> =>
+    call("acceptIssue", { path: { agentId, issueId } }),
+  reopenIssue: (agentId: string, issueId: string): Promise<IssueDetail> =>
+    call("reopenIssue", { path: { agentId, issueId } }),
+  listIssues: (agentId: string, signal?: AbortSignal): Promise<Issue[]> =>
+    call("listIssues", { path: { agentId }, signal }),
+  getIssue: (agentId: string, issueId: string, signal?: AbortSignal): Promise<IssueDetail> =>
+    call("getIssue", { path: { agentId, issueId }, signal }),
+  createIssue: (agentId: string, input: IssueCreateCommand): Promise<Issue> =>
+    call("createIssue", { path: { agentId }, body: input }),
+  updateIssue: (agentId: string, issueId: string, patch: IssuePatchCommand): Promise<Issue> =>
+    call("updateIssue", { path: { agentId, issueId }, body: patch }),
+  interruptIssue: (agentId: string, issueId: string): Promise<Issue> =>
+    call("interruptIssue", { path: { agentId, issueId } }),
+  cancelIssue: (agentId: string, issueId: string): Promise<Issue> =>
+    call("cancelIssue", { path: { agentId, issueId } }),
+  deleteIssue: (agentId: string, issueId: string): Promise<{ ok: boolean }> =>
+    call("deleteIssue", { path: { agentId, issueId } }),
+  deleteAgent: (agentId: string): Promise<{ ok: boolean }> =>
+    call("deleteAgent", { path: { id: agentId } }),
+  sessionSubtasks: (
+    sessionId: string,
+    signal?: AbortSignal,
+  ): Promise<import("@carmel-agent/shared").HelpersState> =>
+    call("getSessionHelpers", { path: { id: sessionId }, signal }),
+  getSubtask: (
+    sessionId: string,
+    helperId: number,
+    before?: string,
+    signal?: AbortSignal,
+  ): Promise<{ helper: import("@carmel-agent/shared").HelperSummary; session: Session }> =>
+    call("getSessionHelper", {
+      path: { id: sessionId, helperId: String(helperId) },
+      query: { before },
       signal,
     }),
-  listActiveSessions: (agentId: string, signal?: AbortSignal) =>
-    request<{ sessionIds: string[] }>(
-      `/api/agents/${encodeURIComponent(agentId)}/active-sessions`,
-      { signal },
-    ),
-  abortAgentRun: (runId: string) =>
-    request<unknown>(`/api/agent-runs/${encodeURIComponent(runId)}/abort`, { method: "POST" }),
-  updateSession: (sessionId: string, patch: SessionPatch) =>
-    request<Session>(`/api/sessions/${sessionId}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    }),
+  stopSubtask: (sessionId: string, helperId: number): Promise<{ ok: boolean }> =>
+    call("stopSessionHelper", { path: { id: sessionId, helperId: String(helperId) } }),
+  resumeSubtasks: (sessionId: string): Promise<{ ok: boolean }> =>
+    call("resumeSessionHelpers", { path: { id: sessionId } }),
+  homeSummaries: (
+    signal?: AbortSignal,
+  ): Promise<
+    Array<{
+      agentId: string;
+      sessionId: string;
+      unread: boolean;
+      working: boolean;
+      needsAttention: boolean;
+    }>
+  > => call("listHomeSummaries", { signal }),
+  readHome: (agentId: string, readAt: number): Promise<{ ok: boolean }> =>
+    call("readAgentHome", { path: { agentId }, body: { readAt } }),
+  resumeHome: (agentId: string): Promise<{ ok: boolean }> =>
+    call("resumeAgentHome", { path: { agentId } }),
+  homeStatus: (
+    agentId: string,
+    signal?: AbortSignal,
+  ): Promise<{
+    home: { sessionId: string; paused: boolean; activityAt: number; lastReadAt: number } | null;
+    deliveries: Array<{
+      id: string;
+      status: string;
+      error?: string | null;
+      eventId?: string | null;
+    }>;
+    events: Array<{
+      id: string;
+      status: string;
+      kind: string;
+      error?: string | null;
+      createdAt: number;
+    }>;
+  }> => call("getAgentHome", { path: { agentId }, signal }),
+  dismissHomeError: (agentId: string, eventId: string): Promise<{ ok: boolean }> =>
+    call("dismissAgentHomeError", { path: { agentId, eventId } }),
+  stopHome: (agentId: string): Promise<{ ok: boolean }> =>
+    call("stopAgentHome", { path: { agentId } }),
+  ensureHome: (agentId: string): Promise<{ home: { sessionId: string }; session: Session }> =>
+    call("ensureAgentHome", { path: { agentId } }),
+  resetHome: (agentId: string): Promise<{ ok: boolean }> =>
+    call("resetAgentHome", { path: { agentId } }),
+  homeMemory: (
+    agentId: string,
+    query = "",
+    offset = 0,
+    signal?: AbortSignal,
+  ): Promise<HomeMemoryOverview> =>
+    call("getHomeMemory", { path: { agentId }, query: { q: query, offset }, signal }),
+  setHomeMemoryMode: (agentId: string, mode: HomeMemoryMode): Promise<{ mode: HomeMemoryMode }> =>
+    call("setHomeMemorySettings", { path: { agentId }, body: { mode } }),
+  setHomeMemoryRetrieval: (agentId: string, retrieval: KnowledgeSettings) =>
+    call("setHomeMemorySettings", { path: { agentId }, body: { retrieval } }),
+  searchHomeMemory: (
+    agentId: string,
+    input: HomeMemorySearchInput,
+    signal?: AbortSignal,
+  ): Promise<HomeMemorySearchResult> =>
+    call("searchHomeMemory", { path: { agentId }, body: input, signal }),
+  refreshHomeMemory: (agentId: string, embed = false, allowDownloads = false, deep = false) =>
+    call("refreshHomeMemoryIndex", { path: { agentId }, body: { embed, allowDownloads, deep } }),
+  tidyHomeMemory: (
+    agentId: string,
+    dream = false,
+  ): Promise<{ tidy: HomeMemoryTidyReport; dream: HomeMemoryDreamReport | null }> =>
+    call("tidyHomeMemory", { path: { agentId }, body: { dream } }),
+  saveHomeMemory: (agentId: string, input: HomeMemoryInput): Promise<HomeMemory> =>
+    call("createHomeMemory", { path: { agentId }, body: input }),
+  editHomeMemory: (agentId: string, id: string, input: HomeMemoryPatch): Promise<HomeMemory> =>
+    call("editHomeMemory", { path: { agentId, id }, body: input }),
+  forgetHomeMemory: (
+    agentId: string,
+    id: string,
+    revision: number,
+    preventLearning = true,
+  ): Promise<{ ok: boolean }> =>
+    call("forgetHomeMemory", { path: { agentId, id }, query: { revision, preventLearning } }),
+  clearHomeMemory: (agentId: string): Promise<{ ok: boolean }> =>
+    call("clearHomeMemory", { path: { agentId } }),
+  homeMemoryHistory: (agentId: string, id: string): Promise<HomeMemoryRevision[]> =>
+    call("getHomeMemoryHistory", { path: { agentId, id } }),
+  restoreHomeMemory: (
+    agentId: string,
+    id: string,
+    revision: number,
+    expectedRevision: number,
+  ): Promise<HomeMemory> =>
+    call("restoreHomeMemory", { path: { agentId, id }, body: { revision, expectedRevision } }),
+  getSessionHistory: (sessionId: string, before: string, around?: string): Promise<Session> =>
+    call("readSessionHistory", { path: { id: sessionId }, query: { before, around } }),
+  createSession: (draft: SessionDraft & { title?: string }): Promise<Session> =>
+    call("createSession", { body: draft }),
+  importOpenWebuiSessions: (
+    draft: SessionDraft & { source: unknown },
+  ): Promise<SessionImportResult> => call("importOpenWebUISessions", { body: draft }),
+  getSessionConnection: (sessionId: string, signal?: AbortSignal): Promise<SessionConnection> =>
+    call("getSessionConnection", { path: { id: sessionId }, signal }),
+  listActiveSessions: (agentId: string, signal?: AbortSignal): Promise<{ sessionIds: string[] }> =>
+    call("listActiveSessions", { path: { id: agentId }, signal }),
+  abortAgentRun: (runId: string): Promise<unknown> => call("abortAgentRun", { path: { runId } }),
+  updateSession: (sessionId: string, patch: SessionPatch): Promise<Session> =>
+    call("patchSession", { path: { id: sessionId }, body: patch }),
 
-  abortSession: (sessionId: string) =>
-    request<{ ok: true }>(`/api/sessions/${encodeURIComponent(sessionId)}/abort`, {
-      method: "POST",
-    }),
+  abortSession: (sessionId: string): Promise<{ ok: boolean }> =>
+    call("abortSession", { path: { id: sessionId } }),
   truncateSessionMessages: (
     sessionId: string,
     entryId: string,
     thinkingLevel?: Session["thinkingLevel"],
-  ) =>
-    request<Session>(`/api/sessions/${sessionId}/messages/truncate`, {
-      method: "POST",
-      body: JSON.stringify({ entryId, thinkingLevel }),
-    }),
+  ): Promise<Session> =>
+    call("truncateSession", { path: { id: sessionId }, body: { entryId, thinkingLevel } }),
   editSessionMessage: (
     sessionId: string,
     entryId: string,
     content: string,
     options?: EditSessionMessageOptions,
-  ) =>
-    request<Session>(`/api/sessions/${sessionId}/messages/${encodeURIComponent(entryId)}`, {
-      method: "PATCH",
-      body: JSON.stringify({ content, ...options }),
-    }),
-  forkSession: (sessionId: string, entryId: string) =>
-    request<Session>(`/api/sessions/${sessionId}/fork`, {
-      method: "POST",
-      body: JSON.stringify({ entryId }),
-    }),
-  listArchivedSessions: (agentId: string) =>
-    request<SessionMetadata[]>(`/api/agents/${agentId}/archived-sessions`),
-  deleteSession: (sessionId: string) =>
-    request<{ ok: true }>(`/api/sessions/${sessionId}`, { method: "DELETE" }),
+  ): Promise<Session> =>
+    call("editSessionMessage", { path: { id: sessionId, entryId }, body: { content, ...options } }),
+  forkSession: (sessionId: string, entryId: string): Promise<Session> =>
+    call("forkSession", { path: { id: sessionId }, body: { entryId } }),
+  listArchivedSessions: (agentId: string): Promise<SessionMetadata[]> =>
+    call("listArchivedSessions", { path: { agentId } }),
+  deleteSession: (sessionId: string): Promise<{ ok: boolean }> =>
+    call("deleteSession", { path: { id: sessionId } }),
 };

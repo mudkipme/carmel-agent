@@ -18,7 +18,7 @@ import type { AgentMount } from "@carmel-agent/shared";
 import type { agents } from "../db/schema.ts";
 import { ensureDir } from "../paths.ts";
 import { readAgentEnvironment } from "../services/environments.ts";
-import { knowledgeShellEnv } from "./knowledge/shell.ts";
+import { knowledgeShellEnv } from "../knowledge/shell.ts";
 import { execSandboxCommand } from "./sandbox/bash-operations.ts";
 import {
   containerHome,

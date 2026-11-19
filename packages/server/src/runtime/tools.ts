@@ -1,4 +1,4 @@
-import { receiverCollaboration, assertReceiverAccess } from "../services/collaborations.ts";
+import { receiverCollaboration, assertReceiverAccess } from "../collaborations/service.ts";
 import { db } from "../db/index.ts";
 import { sessions, agents } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
@@ -10,7 +10,7 @@ import { createCarmelCodemode, type CodemodeHooks } from "./codemode-tool.ts";
 import { browserHelpTool, guardBrowserHandoff } from "./browser-tools.ts";
 import { browserControl } from "./browser-control.ts";
 import { availableBuiltinSkillNames, builtinSkillTool } from "./builtin-skills.ts";
-import { createKnowledgeTools } from "./knowledge/tools.ts";
+import { createKnowledgeTools } from "../knowledge/tools.ts";
 import { guardUserRequests } from "./user-request-tools.ts";
 import {
   collectAgentTools,

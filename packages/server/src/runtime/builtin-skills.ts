@@ -8,7 +8,7 @@ import {
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { fileURLToPath } from "node:url";
 import type { AgentPermissions } from "@carmel-agent/shared";
-import { knowledgeEnabled } from "../services/knowledge.ts";
+import { knowledgeEnabled } from "../knowledge/service.ts";
 import { readVisibleAgent } from "../services/agent-access.ts";
 
 const directory = fileURLToPath(new URL("../../skills/", import.meta.url));

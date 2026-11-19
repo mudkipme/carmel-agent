@@ -1,6 +1,8 @@
+import { createRoute } from "@hono/zod-openapi";
+import { createRouter, error } from "../openapi/routes.ts";
 import { randomBytes } from "node:crypto";
 import type { OidcLoginErrorCode } from "@carmel-agent/shared";
-import { Hono, type Context } from "hono";
+import { type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { AuthorizationResponseError } from "openid-client";
 import { createAuthSession, type AuthVariables } from "../auth.ts";
@@ -31,65 +33,92 @@ const maxPendingFlows = 1000;
 const pendingFlows = new Map<string, PendingOidcLogin & { expiresAt: number }>();
 
 export function createOidcAuthRoutes() {
-  const route = new Hono<{ Variables: AuthVariables }>();
+  const route = createRouter<{ Variables: AuthVariables }>();
 
-  route.get("/login", async (c) => {
-    const config = readOidcConfig();
-    if (!config) return c.json({ error: "Single sign-on is not configured." }, 404);
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/login",
+      operationId: "startOidcLogin",
+      tags: ["Auth"],
+      security: [],
+      description:
+        "Browser navigation only. Redirects to the configured OpenID Connect provider and sets a short-lived flow cookie.",
+      responses: { 302: { description: "Redirect to the provider" }, 404: error },
+    }),
+    async (c) => {
+      const config = readOidcConfig();
+      if (!config) return c.json({ error: "Single sign-on is not configured." }, 404);
 
-    let authorization: Awaited<ReturnType<typeof buildOidcAuthorizationUrl>>;
-    try {
-      authorization = await buildOidcAuthorizationUrl(config);
-    } catch (error) {
-      console.error(`OIDC: could not start sign-in with ${config.providerName}:`, error);
-      return redirectWithError(c, "failed");
-    }
-
-    const flowId = randomBytes(32).toString("base64url");
-    rememberFlow(flowId, authorization.login);
-    setCookie(c, flowCookieName, flowId, {
-      httpOnly: true,
-      // Lax, not Strict: the callback is a cross-site top-level navigation from
-      // the provider, and Strict would withhold the cookie on exactly that hop.
-      sameSite: "Lax",
-      secure: process.env.NODE_ENV === "production",
-      path: flowCookiePath,
-      maxAge: Math.floor(flowTtlMs / 1000),
-    });
-    return c.redirect(authorization.url.href, 302);
-  });
-
-  route.get("/callback", async (c) => {
-    const config = readOidcConfig();
-    if (!config) return c.json({ error: "Single sign-on is not configured." }, 404);
-
-    const flowId = getCookie(c, flowCookieName);
-    deleteCookie(c, flowCookieName, { path: flowCookiePath });
-    const login = flowId ? takeFlow(flowId) : undefined;
-    if (!login) return redirectWithError(c, "expired");
-
-    try {
-      const claims = await completeOidcLogin(config, new URL(c.req.url).search, login);
-      const profile = readOidcProfile(config, await discoveredIssuer(config), claims);
-      const user = resolveOidcUser(config, profile);
-      await createAuthSession(c, user.id);
-      return c.redirect("/", 302);
-    } catch (error) {
-      if (error instanceof OidcLoginError) {
-        console.warn(`OIDC: refused sign-in: ${error.message}`);
-        return redirectWithError(c, error.code);
+      let authorization: Awaited<ReturnType<typeof buildOidcAuthorizationUrl>>;
+      try {
+        authorization = await buildOidcAuthorizationUrl(config);
+      } catch (error) {
+        console.error(`OIDC: could not start sign-in with ${config.providerName}:`, error);
+        return redirectWithError(c, "failed");
       }
-      if (error instanceof AuthorizationResponseError) {
-        // The provider sent the person back with error=... (cancelled, denied).
-        console.warn(
-          `OIDC: ${config.providerName} returned ${error.error}: ${error.error_description ?? ""}`,
-        );
-        return redirectWithError(c, error.error === "access_denied" ? "denied" : "failed");
+
+      const flowId = randomBytes(32).toString("base64url");
+      rememberFlow(flowId, authorization.login);
+      setCookie(c, flowCookieName, flowId, {
+        httpOnly: true,
+        // Lax, not Strict: the callback is a cross-site top-level navigation from
+        // the provider, and Strict would withhold the cookie on exactly that hop.
+        sameSite: "Lax",
+        secure: process.env.NODE_ENV === "production",
+        path: flowCookiePath,
+        maxAge: Math.floor(flowTtlMs / 1000),
+      });
+      return c.redirect(authorization.url.href, 302);
+    },
+  );
+
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/callback",
+      operationId: "completeOidcLogin",
+      tags: ["Auth"],
+      security: [],
+      description: "Provider redirect target. Signs the browser in and redirects to /",
+      parameters: [
+        { name: "code", in: "query", schema: { type: "string" } },
+        { name: "state", in: "query", schema: { type: "string" } },
+      ],
+      responses: { 302: { description: "Redirect into the app" }, 404: error },
+    }),
+    async (c) => {
+      const config = readOidcConfig();
+      if (!config) return c.json({ error: "Single sign-on is not configured." }, 404);
+
+      const flowId = getCookie(c, flowCookieName);
+      deleteCookie(c, flowCookieName, { path: flowCookiePath });
+      const login = flowId ? takeFlow(flowId) : undefined;
+      if (!login) return redirectWithError(c, "expired");
+
+      try {
+        const claims = await completeOidcLogin(config, new URL(c.req.url).search, login);
+        const profile = readOidcProfile(config, await discoveredIssuer(config), claims);
+        const user = resolveOidcUser(config, profile);
+        await createAuthSession(c, user.id);
+        return c.redirect("/", 302);
+      } catch (error) {
+        if (error instanceof OidcLoginError) {
+          console.warn(`OIDC: refused sign-in: ${error.message}`);
+          return redirectWithError(c, error.code);
+        }
+        if (error instanceof AuthorizationResponseError) {
+          // The provider sent the person back with error=... (cancelled, denied).
+          console.warn(
+            `OIDC: ${config.providerName} returned ${error.error}: ${error.error_description ?? ""}`,
+          );
+          return redirectWithError(c, error.error === "access_denied" ? "denied" : "failed");
+        }
+        console.error(`OIDC: sign-in with ${config.providerName} failed:`, error);
+        return redirectWithError(c, "failed");
       }
-      console.error(`OIDC: sign-in with ${config.providerName} failed:`, error);
-      return redirectWithError(c, "failed");
-    }
-  });
+    },
+  );
 
   return route;
 }

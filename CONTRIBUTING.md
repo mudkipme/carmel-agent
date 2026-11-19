@@ -16,6 +16,16 @@ Tests use Node's test runner. Prefer the smallest focused command while iteratin
 
 The client uses ordinary React hooks without React Compiler. Lint keeps the compiler diagnostics for refs, manual memoization, and synchronous state synchronization off; hook ordering and effect dependencies remain checked.
 
+## HTTP API
+
+Each route is registered with `route.openapi(createRoute({ ... }), handler)`, so its path, parameters, request body, and responses are declared where it is handled. The body is validated against its schema, and the handler's responses are type-checked against the declared statuses and shapes. Shared response schemas live in `packages/server/src/openapi/schemas.ts`.
+
+After changing a route, run `pnpm openapi`. It regenerates `packages/shared/openapi.yaml` and the typed operation table in `packages/shared/src/api.ts`, which the web client calls through `call("operationId", ...)`. The contract test fails while either file is stale. Do not edit them by hand.
+
+## One Process Per Data Directory
+
+The server assumes it is the only process using its data directory. Active runs and their replay buffers, session leases, update-socket revisions, and the per-connection SQLite triggers that publish state changes all live in memory, and every background worker in `packages/server/src/index.ts` polls the shared database on its own. Keep new features within that model: coordinate through the database and the in-process registries rather than adding a second process, and register long-running work as a worker so shutdown stops, drains, and closes it in order.
+
 ## Localization
 
 The client uses Lingui with English source messages and Japanese (`ja`), Simplified Chinese (`zh-Hans`), and Traditional Chinese (`zh-Hant`) catalogs. Mark interface text with `<Trans>` from `@lingui/react/macro` or `i18n._()` from `useLingui()`. Translate static label tables when rendering them so they follow language changes. Keep protocol values, user content, and model prompts unchanged.
@@ -38,7 +48,7 @@ Avoid source-code greps, fixture inventories, assertion-free probes, expected va
 
 ## Dependencies And Licensing
 
-Keep Pi packages on one coordinated version; adapter and storage changes need their integration tests. Transitive security overrides live in `pnpm-workspace.yaml`; remove them when upstream dependency ranges include the fixed versions. Run `pnpm audit` after dependency changes.
+Keep Pi packages on one coordinated version, set once in the `catalog` of `pnpm-workspace.yaml`; adapter and storage changes need their integration tests. The client reaches Pi only through `@carmel-agent/shared/pi`, so a Pi type change surfaces in one place. Transitive security overrides live in `pnpm-workspace.yaml`; remove them when upstream dependency ranges include the fixed versions. Run `pnpm audit` after dependency changes.
 
 UI components and the original shadcn 4.7.0 Tailwind utilities are committed as source, with the upstream license in `packages/client/SHADCN_LICENSE`; the shadcn CLI is not a runtime or build dependency. Run `pnpm dlx shadcn@latest` from `packages/client` when deliberately adding or updating components, and review the generated changes.
 

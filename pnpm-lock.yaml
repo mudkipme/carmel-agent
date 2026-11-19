@@ -4,6 +4,45 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@earendil-works/chord':
+      specifier: 1.5.0
+      version: 1.5.0
+    '@earendil-works/pi-agent-core':
+      specifier: 1.5.0
+      version: 1.5.0
+    '@earendil-works/pi-ai':
+      specifier: 1.5.0
+      version: 1.5.0
+    '@earendil-works/pi-codemode':
+      specifier: 1.5.0
+      version: 1.5.0
+    '@earendil-works/pi-coding-agent':
+      specifier: 1.5.0
+      version: 1.5.0
+    '@earendil-works/pi-durable':
+      specifier: 1.5.0
+      version: 1.5.0
+    '@earendil-works/pi-mcp':
+      specifier: 1.5.0
+      version: 1.5.0
+    '@earendil-works/pi-schema':
+      specifier: 1.5.0
+      version: 1.5.0
+    '@types/node':
+      specifier: ^26.6.6
+      version: 26.6.6
+    tsx:
+      specifier: ^4.23.15
+      version: 4.23.15
+    typescript:
+      specifier: ^7.0.2
+      version: 7.0.2
+    zod:
+      specifier: ^4.6.7
+      version: 4.6.7
+
 overrides:
   esbuild@<0.24.3: ^0.25.12
   ip-address@<10.7.4: ^10.7.4
@@ -22,7 +61,7 @@ importers:
         specifier: ^1.92.0
         version: 1.92.0
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
 
   packages/client:
@@ -75,12 +114,6 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.15
         version: 6.43.15
-      '@earendil-works/pi-agent-core':
-        specifier: 1.5.0
-        version: 1.5.0(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7)
-      '@earendil-works/pi-ai':
-        specifier: 1.5.0
-        version: 1.5.0(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7)
       '@lezer/highlight':
         specifier: ^1.2.5
         version: 1.2.5
@@ -151,6 +184,9 @@ importers:
         specifier: ^5.1.0
         version: 5.1.0(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))
     devDependencies:
+      '@earendil-works/pi-ai':
+        specifier: 'catalog:'
+        version: 1.5.0(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7)
       '@lingui/cli':
         specifier: ^6.12.0
         version: 6.12.0(esbuild@0.28.2)(rolldown@1.2.16)(supports-color@10.2.2)
@@ -158,7 +194,7 @@ importers:
         specifier: ^6.12.0
         version: 6.12.0(@babel/core@7.29.13(supports-color@10.2.2))(@lingui/babel-plugin-lingui-macro@6.12.0(@babel/core@7.29.13(supports-color@10.2.2)))(esbuild@0.28.2)(rolldown@1.2.16)(supports-color@10.2.2)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       '@types/node':
-        specifier: ^26.6.6
+        specifier: 'catalog:'
         version: 26.6.6
       '@types/react':
         specifier: ^19.3.0
@@ -170,10 +206,10 @@ importers:
         specifier: ^6.2.1
         version: 6.2.1(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       tsx:
-        specifier: ^4.23.15
+        specifier: 'catalog:'
         version: 4.23.15
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       vite:
         specifier: ^8.3.6
@@ -181,36 +217,42 @@ importers:
 
   packages/server:
     dependencies:
+      '@asteasolutions/zod-to-openapi':
+        specifier: ^9.1.0
+        version: 9.1.0(zod@4.6.7)
       '@carmel-agent/shared':
         specifier: workspace:*
         version: link:../shared
       '@earendil-works/chord':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0(esbuild@0.28.2)(ws@8.22.2)
       '@earendil-works/pi-agent-core':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7)
       '@earendil-works/pi-ai':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7)
       '@earendil-works/pi-codemode':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0
       '@earendil-works/pi-coding-agent':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(ws@8.22.2)(zod@4.6.7)
       '@earendil-works/pi-durable':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7)
       '@earendil-works/pi-mcp':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0
       '@earendil-works/pi-schema':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0
       '@hono/node-server':
         specifier: ^2.1.6
         version: 2.1.6(hono@4.13.17)
+      '@hono/zod-openapi':
+        specifier: ^1.6.3
+        version: 1.6.3(hono@4.13.17)(zod@4.6.7)
       '@hono/zod-validator':
         specifier: ^0.9.1
         version: 0.9.1(hono@4.13.17)(zod@4.6.7)
@@ -242,7 +284,7 @@ importers:
         specifier: ^1.5.4
         version: 1.5.4
       tsx:
-        specifier: ^4.23.15
+        specifier: 'catalog:'
         version: 4.23.15
       ws:
         specifier: ^8.22.2
@@ -251,14 +293,14 @@ importers:
         specifier: ^2.9.1
         version: 2.9.1
       zod:
-        specifier: ^4.6.7
+        specifier: 'catalog:'
         version: 4.6.7
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0
       '@types/node':
-        specifier: ^26.6.6
+        specifier: 'catalog:'
         version: 26.6.6
       '@types/qrcode':
         specifier: ^1.5.6
@@ -273,32 +315,32 @@ importers:
         specifier: 0.31.11
         version: 0.31.11
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
 
   packages/shared:
     dependencies:
       '@earendil-works/chord':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0(esbuild@0.28.2)(ws@8.22.2)
       '@earendil-works/pi-agent-core':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7)
       '@earendil-works/pi-ai':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7)
       '@earendil-works/pi-durable':
-        specifier: 1.5.0
+        specifier: 'catalog:'
         version: 1.5.0(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(esbuild@0.28.2)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.2)(zod@4.6.7)
       zod:
-        specifier: ^4.6.7
+        specifier: 'catalog:'
         version: 4.6.7
     devDependencies:
       tsx:
-        specifier: ^4.23.15
+        specifier: 'catalog:'
         version: 4.23.15
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
 
 packages:
@@ -311,6 +353,11 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
+
+  '@asteasolutions/zod-to-openapi@9.1.0':
+    resolution: {integrity: sha512-pLMeRgRYS7/vZIgAAkOe2P6+XGTifR1MT9pqDoxZ11EmcJJ+DPmdPqLN8ZZF4U8R9KHCCQCS9c2wtuE8wSrfkw==}
+    peerDependencies:
+      zod: ^4.0.0
 
   '@aws-sdk/client-bedrock-runtime@3.1127.0':
     resolution: {integrity: sha512-IDl/lrPb90aH+pZFHGNDmgH9nAUQj5PlZH1sJ3w7RikctyjHSnY3oNjZhrLoaBoQn/rNK0zsP6OHEqEhj2tdLA==}
@@ -920,6 +967,13 @@ packages:
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4 || ^5.0.0-0
+
+  '@hono/zod-openapi@1.6.3':
+    resolution: {integrity: sha512-VYR82Y60plu8g3pN60OUXMVKpmxh3R04Qs++3DY9vtwZ9/sA/BRY0PcRIR+Z37/3itWtM7pYwT9bKiH9JhqV6Q==}
+    engines: {node: '>=16.0.0'}
+    peerDependencies:
+      hono: '>=4.10.0'
+      zod: ^4.0.0
 
   '@hono/zod-validator@0.9.1':
     resolution: {integrity: sha512-iiv6w0qrIc0arfvCtUqBWsvl4fXjzaTcQcCJTTtCnkawF9HHGE+KjEl0ox3gQJ6rKZEgE3mLExlQCF72M+mNuw==}
@@ -3970,6 +4024,9 @@ packages:
       zod:
         optional: true
 
+  openapi3-ts@4.6.2:
+    resolution: {integrity: sha512-gyyil3DweqhXiEhTqtAs9wwRLfWHmetwhI4kmM5Rn0d6gtmK863Ki7qqbQnp9+Wwlqoe3B1LFWj7kMp5ctE4rQ==}
+
   openid-client@6.8.9:
     resolution: {integrity: sha512-6mXMRNJxDOf6BflEWLXul1UwzLFz++9Ofz1PYwPwwsJsyXBsbfkO+Jo255SW1qnFNLYz4EJWHz42X4OJJrya/g==}
 
@@ -4623,18 +4680,6 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  ws@8.22.1:
-    resolution: {integrity: sha512-oyL6OPYme/CmiFvNuGzeoxCJ4nOrZE2O1FwM9MWM1AsGri6nLXB2pg+lNA8aLeXMSav0J6eIVS1j6vUPzUtK9g==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-
   ws@8.22.2:
     resolution: {integrity: sha512-/rEZ2ejown2N5gxVTHUu9bVVC7ttu0/Tgzf5hbTOixR3Fs7mbbXgn2DbdbcKgJOmpQMtrIUWivtYuVMnp/W/yA==}
     engines: {node: '>=10.0.0'}
@@ -4739,6 +4784,11 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
+  '@asteasolutions/zod-to-openapi@9.1.0(zod@4.6.7)':
+    dependencies:
+      openapi3-ts: 4.6.2
+      zod: 4.6.7
+
   '@aws-sdk/client-bedrock-runtime@3.1127.0':
     dependencies:
       '@aws-sdk/core': 3.978.1
@@ -4752,7 +4802,7 @@ snapshots:
       '@smithy/fetch-http-handler': 5.8.0
       '@smithy/node-http-handler': 4.12.1
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/core@3.978.1':
     dependencies:
@@ -4854,14 +4904,14 @@ snapshots:
       '@aws-sdk/types': 3.974.6
       '@smithy/core': 3.35.1
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/middleware-eventstream@3.972.30':
     dependencies:
       '@aws-sdk/types': 3.974.6
       '@smithy/core': 3.35.1
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/middleware-websocket@3.972.54':
     dependencies:
@@ -4871,7 +4921,7 @@ snapshots:
       '@smithy/fetch-http-handler': 5.8.0
       '@smithy/signature-v4': 5.7.4
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/nested-clients@3.997.46':
     dependencies:
@@ -4898,7 +4948,7 @@ snapshots:
       '@aws-sdk/types': 3.974.6
       '@smithy/core': 3.35.1
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@aws-sdk/token-providers@3.1138.0':
     dependencies:
@@ -5472,7 +5522,7 @@ snapshots:
       google-auth-library: 10.9.1(supports-color@10.2.2)
       p-retry: 4.6.2
       protobufjs: 7.6.6
-      ws: 8.22.1
+      ws: 8.22.2
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.32.1(supports-color@10.2.2)(zod@4.6.7)
     transitivePeerDependencies:
@@ -5483,6 +5533,14 @@ snapshots:
   '@hono/node-server@2.1.6(hono@4.13.17)':
     dependencies:
       hono: 4.13.17
+
+  '@hono/zod-openapi@1.6.3(hono@4.13.17)(zod@4.6.7)':
+    dependencies:
+      '@asteasolutions/zod-to-openapi': 9.1.0(zod@4.6.7)
+      '@hono/zod-validator': 0.9.1(hono@4.13.17)(zod@4.6.7)
+      hono: 4.13.17
+      openapi3-ts: 4.6.2
+      zod: 4.6.7
 
   '@hono/zod-validator@0.9.1(hono@4.13.17)(zod@4.6.7)':
     dependencies:
@@ -6836,7 +6894,7 @@ snapshots:
     dependencies:
       '@smithy/core': 3.35.1
       '@smithy/types': 4.19.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@smithy/signature-v4@5.7.4':
     dependencies:
@@ -8467,6 +8525,10 @@ snapshots:
       ws: 8.22.2
       zod: 4.6.7
 
+  openapi3-ts@4.6.2:
+    dependencies:
+      yaml: 2.9.1
+
   openid-client@6.8.9:
     dependencies:
       jose: 6.2.15
@@ -8745,7 +8807,7 @@ snapshots:
     dependencies:
       react: 19.3.1
       react-style-singleton: 2.2.3(@types/react@19.3.0)(react@19.3.1)
-      tslib: 2.8.1
+      tslib: 2.9.1
     optionalDependencies:
       '@types/react': 19.3.0
 
@@ -8778,7 +8840,7 @@ snapshots:
     dependencies:
       get-nonce: 1.0.1
       react: 19.3.1
-      tslib: 2.8.1
+      tslib: 2.9.1
     optionalDependencies:
       '@types/react': 19.3.0
 
@@ -9163,7 +9225,7 @@ snapshots:
   use-callback-ref@1.3.3(@types/react@19.3.0)(react@19.3.1):
     dependencies:
       react: 19.3.1
-      tslib: 2.8.1
+      tslib: 2.9.1
     optionalDependencies:
       '@types/react': 19.3.0
 
@@ -9171,7 +9233,7 @@ snapshots:
     dependencies:
       detect-node-es: 1.1.0
       react: 19.3.1
-      tslib: 2.8.1
+      tslib: 2.9.1
     optionalDependencies:
       '@types/react': 19.3.0
 
@@ -9231,8 +9293,6 @@ snapshots:
 
   wrappy@1.0.2:
     optional: true
-
-  ws@8.22.1: {}
 
   ws@8.22.2: {}
 

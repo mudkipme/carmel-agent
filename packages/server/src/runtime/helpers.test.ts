@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
 import { db, initialize } from "../db/index.ts";
 import { agents, homeEvents, users, issues, issueAttempts, sessions } from "../db/schema.ts";
-import { createIssue, issueRunAddons } from "../services/issues.ts";
+import { createIssue, issueRunAddons } from "../issues/service.ts";
 import { createSession, createUser } from "../test-support.ts";
 import {
   fauxHarnessModels,

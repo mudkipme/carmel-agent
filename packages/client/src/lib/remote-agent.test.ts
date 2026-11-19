@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { Api, AssistantMessage, Model } from "@earendil-works/pi-ai";
+import type { AgentMessage, Api, AssistantMessage, Model } from "@carmel-agent/shared/pi";
 import type {
   AgentRunEvent,
   AgentRunEventEnvelope,

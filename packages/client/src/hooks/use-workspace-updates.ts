@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { api, ApiError } from "@/lib/api";
 import { createResourceLoader } from "@/lib/resource-loader";
 import { updateConnection } from "@/lib/update-connection";
-import { resolveBootstrapState, resetState } from "@/store/harness-state";
+import { resolveBootstrapState, resolveSessionList, resetState } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";
 
 export function useWorkspaceUpdates() {
@@ -10,30 +10,48 @@ export function useWorkspaceUpdates() {
   const userId = useHarnessStore((state) => state.activeUserId);
   useEffect(() => {
     if (status !== "ready") return;
-    const loader = createResourceLoader(
+    const current = () => {
+      const state = useHarnessStore.getState();
+      return state.activeUserId === userId && state.status === "ready" ? state : undefined;
+    };
+    const signedOut = (error: unknown) => {
+      if (!(error instanceof ApiError && error.status === 401)) return;
+      useHarnessStore.setState((state) => resetState({ status: "unauthenticated" }, state));
+    };
+    const workspace = createResourceLoader(
       () => api.bootstrap(),
       (result) => {
-        const state = useHarnessStore.getState();
-        if (state.activeUserId !== userId || state.status !== "ready") return;
-        if ("error" in result) {
-          if (result.error instanceof ApiError && result.error.status === 401)
-            useHarnessStore.setState((state) => resetState({ status: "unauthenticated" }, state));
-          return;
-        }
-        useHarnessStore.setState(resolveBootstrapState(result.data, state));
+        const state = current();
+        if (!state) return;
+        if ("error" in result) signedOut(result.error);
+        else useHarnessStore.setState(resolveBootstrapState(result.data, state));
       },
     );
-    const unsubscribe = updateConnection.subscribe(["workspace", "sessions"], () =>
-      loader.invalidate(),
+    const sessions = createResourceLoader(
+      (signal) => api.listSessions(signal),
+      (result) => {
+        const state = current();
+        if (!state) return;
+        if ("error" in result) signedOut(result.error);
+        else useHarnessStore.setState(resolveSessionList(result.data, state));
+      },
+    );
+    const unsubscribeWorkspace = updateConnection.subscribe(["workspace"], () =>
+      workspace.invalidate(),
+    );
+    const unsubscribeSessions = updateConnection.subscribe(["sessions"], () =>
+      sessions.invalidate(),
     );
     const refresh = () => {
-      if (!document.hidden) void loader.refresh(true);
+      if (!document.hidden) void workspace.refresh(true);
     };
     window.addEventListener("online", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
-      unsubscribe();
-      loader.dispose();
+      unsubscribeWorkspace();
+      unsubscribeSessions();
+      workspace.dispose();
+      sessions.dispose();
       window.removeEventListener("online", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };

@@ -1,7 +1,6 @@
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { clampThinkingLevel, type ImageContent } from "@earendil-works/pi-ai";
+import { clampThinkingLevel, type ImageContent, type ThinkingLevel } from "@carmel-agent/shared/pi";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { AgentRequestArea } from "@/components/chat/AgentRequestCard";
 import { useNavigate } from "react-router-dom";

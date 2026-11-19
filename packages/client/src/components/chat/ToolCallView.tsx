@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
-import type { ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
+import type { ToolCall, ToolResultMessage } from "@carmel-agent/shared/pi";
 import type { NestedToolSlot, CodemodeToolDetails, CodemodeNestedCall } from "@carmel-agent/shared";
 import {
   CheckIcon,

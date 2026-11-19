@@ -70,7 +70,7 @@ const { hashPassword } = await import("../src/auth.ts");
 const { attachBrowserSocket } = await import("../src/browser-socket.ts");
 const { attachUpdateSocket } = await import("../src/update-socket.ts");
 const { browserControl } = await import("../src/runtime/browser-control.ts");
-const { createIssue, stopIssueQueue } = await import("../src/services/issues.ts");
+const { createIssue, stopIssueQueue } = await import("../src/issues/service.ts");
 stopIssueQueue();
 initialize();
 const fixture = createSession();

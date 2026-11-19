@@ -11,7 +11,7 @@ import {
   homeMemoryQueryTerms,
   memoryQueryEffectiveLength,
   sameMemoryWord,
-} from "./home-memory.ts";
+} from "../home-memory/service.ts";
 
 export const RECENT_WORK_WINDOW_MS = 48 * 3_600_000;
 export const RECENT_WORK_MAX_LINES = 10;

@@ -208,7 +208,7 @@ test("native referenced inputs keep display metadata separate from model context
 test("agent references resolve only permitted collaborators with canonical names and capabilities", async () => {
   const current = createSession();
   const peer = createSession({ userId: current.userId });
-  const { saveConnection } = await import("./collaborations.ts");
+  const { saveConnection } = await import("../collaborations/service.ts");
   const reference = { kind: "agent" as const, agentId: peer.agentId, label: "Untrusted name" };
   await assert.rejects(
     resolvePromptReferences(current.userId, readAgent(current.agentId), current.sessionId, [

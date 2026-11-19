@@ -24,7 +24,7 @@ import {
   createCollaboration,
   dispatchCollaborations,
   saveConnection,
-} from "../services/collaborations.ts";
+} from "../collaborations/service.ts";
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";

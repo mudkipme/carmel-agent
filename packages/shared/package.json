@@ -5,22 +5,23 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./api": "./src/api.ts",
+    "./pi": "./src/pi.ts"
   },
   "types": "./src/index.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "openapi:components": "node --import tsx scripts/emit-openapi-components.ts"
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@earendil-works/chord": "1.5.0",
-    "@earendil-works/pi-agent-core": "1.5.0",
-    "@earendil-works/pi-ai": "1.5.0",
-    "@earendil-works/pi-durable": "1.5.0",
-    "zod": "^4.6.7"
+    "@earendil-works/chord": "catalog:",
+    "@earendil-works/pi-agent-core": "catalog:",
+    "@earendil-works/pi-ai": "catalog:",
+    "@earendil-works/pi-durable": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "tsx": "catalog:",
+    "typescript": "catalog:"
   }
 }

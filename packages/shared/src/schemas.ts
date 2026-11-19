@@ -385,7 +385,10 @@ export const sessionPatchRequestSchema = z
     pinnedAt: z.number().finite().nullable().optional(),
     archivedAt: z.number().finite().nullable().optional(),
     /** Only ever cleared: moves a task run's session into the session list. */
-    taskId: z.null().optional(),
+    taskId: z
+      .null()
+      .optional()
+      .meta({ type: "string", nullable: true, enum: [null] }),
   })
   .strict();
 export const forkSessionRequestSchema = z.object({ entryId: z.string().min(1) }).strict();

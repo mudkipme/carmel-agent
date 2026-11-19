@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { sessions, type agents } from "../db/schema.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
-import { listCollaborators } from "./collaborations.ts";
+import { listCollaborators } from "../collaborations/service.ts";
 import { readVisibleAgent } from "./agent-access.ts";
 import { displayEntries, withPiSession } from "./pi-session-storage.ts";
 

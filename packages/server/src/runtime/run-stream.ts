@@ -1,7 +1,7 @@
 import type { AgentRunEvent, AgentRunEventEnvelope, AgentRunResult } from "@carmel-agent/shared";
 import { applyRunProgress, type RunProgress } from "@carmel-agent/shared";
 import { INTERRUPTED_DETAIL, type RunAbortReason } from "../effectors/run-outcome.ts";
-import { publishStateChange } from "../state-changes.ts";
+import { publishUserStateChange } from "../state-changes.ts";
 
 const maxReplayEvents = 1_000;
 
@@ -56,7 +56,7 @@ export function createActiveAgentRun(input: {
   activeAgentRuns.set(run.runId, run);
   activeSessionRuns.set(run.sessionId, run.runId);
   advanceSessionRun(run.sessionId);
-  publishStateChange("sessions", "homes", "tasks", "issues");
+  publishUserStateChange(run.userId, "sessions", "homes", "tasks", "issues");
   return run;
 }
 
@@ -146,7 +146,7 @@ export function finishAgentRun(run: ActiveAgentRun, result?: AgentRunResult) {
   activeAgentRuns.delete(run.runId);
   activeSessionRuns.delete(run.sessionId);
   advanceSessionRun(run.sessionId);
-  publishStateChange("sessions", "homes", "tasks", "issues");
+  publishUserStateChange(run.userId, "sessions", "homes", "tasks", "issues");
   for (const subscriber of run.subscribers) subscriber.close();
   run.subscribers.clear();
   const listeners = run.finishListeners ?? [];
@@ -217,7 +217,7 @@ function subscribeRunEvents(run: ActiveAgentRun, afterSequence: number, subscrib
 export function emitRunEvent(run: ActiveAgentRun, event: RunEvent) {
   advanceSessionRun(run.sessionId);
   run.progress = applyRunProgress(run.progress, event);
-  if (event.type === "live_update") publishStateChange("subtasks");
+  if (event.type === "live_update") publishUserStateChange(run.userId, "subtasks");
   const envelope: AgentRunEventEnvelope = { sequence: run.nextSequence++, event };
 
   run.events.push(envelope);

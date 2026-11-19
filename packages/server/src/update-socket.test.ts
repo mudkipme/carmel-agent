@@ -7,7 +7,7 @@ import { WebSocket } from "ws";
 import { eq } from "drizzle-orm";
 import type { UpdateServerMessage } from "@carmel-agent/shared";
 import { db, initialize } from "./db/index.ts";
-import { authSessions, sessions } from "./db/schema.ts";
+import { agents, authSessions, sessions } from "./db/schema.ts";
 import { createSession, createUser } from "./test-support.ts";
 import { attachUpdateSocket } from "./update-socket.ts";
 import { createActiveAgentRun, emitRunEvent, finishAgentRun } from "./runtime/run-stream.ts";
@@ -87,6 +87,30 @@ test("one connection multiplexes runs and two clients receive the same committed
     first.ws.close();
     second.ws.close();
     for (const run of runs) if (!run.finished) finishAgentRun(run);
+  }
+});
+
+test("a user's private changes reach only that user, while shared changes reach everyone", async () => {
+  const fixture = createSession();
+  const strangerCredential = cookie(createUser());
+  const owner = await connect(cookie(fixture.userId));
+  const stranger = await connect(strangerCredential);
+  try {
+    db.update(sessions).set({ title: "private" }).where(eq(sessions.id, fixture.sessionId)).run();
+    db.update(agents).set({ name: "renamed" }).where(eq(agents.id, fixture.agentId)).run();
+    const [own, shared] = await Promise.all([
+      owner.wait((m) => m.type === "state_changed"),
+      stranger.wait((m) => m.type === "state_changed"),
+    ]);
+    assert.deepEqual(own.type === "state_changed" && [...own.topics].sort(), [
+      "homes",
+      "sessions",
+      "workspace",
+    ]);
+    assert.deepEqual(shared, { type: "state_changed", revision: 1, topics: ["workspace"] });
+  } finally {
+    owner.ws.close();
+    stranger.ws.close();
   }
 });
 

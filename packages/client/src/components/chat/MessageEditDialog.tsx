@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@carmel-agent/shared/pi";
 import type { UserMessageEditOptions } from "@carmel-agent/shared";
 import { XIcon } from "lucide-react";
 import type { EditableUserImage } from "@/components/chat/chat-utils";

@@ -97,6 +97,7 @@ Runner `/tmp` is private scratch storage shared with the agent's file tools. It 
 
 - Set a stable `CARMEL_SECRET_KEY` before adding any provider credentials. It encrypts stored API keys, OAuth credentials, and environment secrets; changing it later makes existing secrets unreadable.
 - Put Carmel behind HTTPS. Session cookies are marked secure when `NODE_ENV=production`.
+- Run one Carmel server per `data/` directory. Do not scale the service to several replicas or point two servers at the same data: each server runs its own schedulers and would fire scheduled tasks and queued work twice.
 - Back up `data/`. It holds the databases, sessions, provider metadata, environment workspaces, and persistent runner homes. Sandbox scratch directories are temporary and can be excluded from backups.
 - Keep the container socket available to the service user (for rootless Podman, `loginctl enable-linger <user>` keeps the user socket alive without an active login session).
 - Prefer rootless Podman over a rootful Docker socket.

@@ -20,7 +20,7 @@ import {
   moveQueuedIssue,
   interruptIssue,
   removeIssueFromQueue,
-} from "../services/issues.ts";
+} from "../issues/service.ts";
 
 const taskId = z.object({ taskId: z.string().min(1) }).strict();
 export function createHomeTools(userId: string, agentId: string): ToolRegistration[] {

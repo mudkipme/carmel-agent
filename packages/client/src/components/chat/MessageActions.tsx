@@ -1,5 +1,5 @@
 import { useLingui } from "@lingui/react";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@carmel-agent/shared/pi";
 import { CheckIcon, CopyIcon, GitForkIcon, PencilIcon, RotateCcwIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

@@ -1,12 +1,19 @@
+import { createRoute } from "@hono/zod-openapi";
+import { z } from "zod";
+import {
+  createRouter,
+  activeRunConflict,
+  error,
+  json,
+  jsonBody,
+  success,
+} from "../openapi/routes.ts";
+import { AgentRunRequestSchema, SessionConnectionSchema } from "../openapi/schemas.ts";
 import { HomeError, sessionHome } from "../services/agent-homes.ts";
 import { admitHomeInput, dispatchHome, stopHome } from "../services/home-events.ts";
-import {
-  type ActiveAgentRunSummary,
-  agentRunRequestSchema,
-  type PromptInput,
-} from "@carmel-agent/shared";
+import { type ActiveAgentRunSummary, type PromptInput } from "@carmel-agent/shared";
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { Hono, type Context } from "hono";
+import { type Context } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import { agentHomes, collaborations, sessions } from "../db/schema.ts";
@@ -24,7 +31,6 @@ import {
 import { readVisibleAgent } from "../services/agent-access.ts";
 import { NO_PROVIDER_AUTH_MESSAGE, resolveRunModel } from "../services/model-context.ts";
 import { readSessionConnection, SessionSnapshotError } from "../services/session-snapshot.ts";
-import { jsonValidator } from "../validation.ts";
 import { errorMessage } from "../errors.ts";
 import { withPiSession } from "../services/pi-session-storage.ts";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -32,7 +38,7 @@ import { resolvePromptReferences, type ResolvedReferences } from "../services/pr
 import { blockingUserRequest } from "../services/user-requests.ts";
 
 export function createAgentRunRoutes() {
-  const route = new Hono<{ Variables: AuthVariables }>();
+  const route = createRouter<{ Variables: AuthVariables }>();
   route.onError((error, c) => {
     if (error instanceof HomeError) return c.json({ error: error.message }, error.status);
     if (error instanceof SessionSnapshotError)
@@ -40,185 +46,252 @@ export function createAgentRunRoutes() {
     throw error;
   });
 
-  route.get("/agents/:id/active-sessions", (c) => {
-    const userId = c.get("user").id;
-    const agent = readVisibleAgent(userId, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    const activeSessionIds = getActiveSessionIdsForUser(userId);
-    if (activeSessionIds.length === 0) return c.json({ sessionIds: [] });
-    const listed = db
-      .select({ id: sessions.id })
-      .from(sessions)
-      .where(
-        and(
-          inArray(sessions.id, activeSessionIds),
-          eq(sessions.userId, userId),
-          eq(sessions.agentId, agent.id),
-          isNull(sessions.archivedAt),
-          isNull(sessions.taskId),
-          isNull(sessions.issueId),
-        ),
-      )
-      .all();
-    return c.json({ sessionIds: listed.map((session) => session.id) });
-  });
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/agents/{id}/active-sessions",
+      operationId: "listActiveSessions",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string() }) },
+      responses: {
+        200: json(z.object({ sessionIds: z.array(z.string()) }), "Active listed session IDs"),
+        404: error,
+      },
+    }),
+    (c) => {
+      const userId = c.get("user").id;
+      const agent = readVisibleAgent(userId, c.req.param("id"));
+      if (!agent) return c.json({ error: "Agent not found." }, 404);
+      const activeSessionIds = getActiveSessionIdsForUser(userId);
+      if (activeSessionIds.length === 0) return c.json({ sessionIds: [] }, 200);
+      const listed = db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(
+          and(
+            inArray(sessions.id, activeSessionIds),
+            eq(sessions.userId, userId),
+            eq(sessions.agentId, agent.id),
+            isNull(sessions.archivedAt),
+            isNull(sessions.taskId),
+            isNull(sessions.issueId),
+          ),
+        )
+        .all();
+      return c.json({ sessionIds: listed.map((session) => session.id) }, 200);
+    },
+  );
 
-  route.post("/agent-runs/:runId/abort", (c) => {
-    const aborted = abortAgentRun(c.get("user").id, c.req.param("runId"));
-    if (!aborted) return c.json({ error: "Agent run not found." }, 404);
-    return c.json({ ok: true });
-  });
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/agent-runs/{runId}/abort",
+      operationId: "abortAgentRun",
+      tags: ["Runs"],
+      request: { params: z.object({ runId: z.string() }) },
+      responses: { 200: success, 404: error },
+    }),
+    (c) => {
+      const aborted = abortAgentRun(c.get("user").id, c.req.param("runId"));
+      if (!aborted) return c.json({ error: "Agent run not found." }, 404);
+      return c.json({ ok: true }, 200);
+    },
+  );
 
-  route.get("/sessions/:id/connection", async (c) => {
-    const connection = await readSessionConnection(c.get("user").id, c.req.param("id"));
-    return connection ? c.json(connection) : c.json({ error: "Session not found." }, 404);
-  });
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/sessions/{id}/connection",
+      operationId: "getSessionConnection",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 404: error, 200: json(SessionConnectionSchema, "Transcript") },
+    }),
+    async (c) => {
+      const connection = await readSessionConnection(c.get("user").id, c.req.param("id"));
+      return connection ? c.json(connection, 200) : c.json({ error: "Session not found." }, 404);
+    },
+  );
 
-  route.post("/sessions/:id/abort", async (c) => {
-    const userId = c.get("user").id;
-    const sessionId = c.req.param("id");
-    const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-    if (!session || session.userId !== userId) return c.json({ error: "Session not found." }, 404);
-    if (session.issueId) return c.json({ error: "Stop the attempt from the issue." }, 409);
-    db.update(collaborations)
-      .set({ waiting: false })
-      .where(eq(collaborations.sourceSessionId, sessionId))
-      .run();
-    const home = sessionHome(sessionId);
-    if (home) {
-      await stopHome(userId, home.agentId);
-      return c.json({ ok: true });
-    }
-    await withPiSession(sessionId, async (pi) => {
-      // Opening storage can yield to a newly admitted run. Let its runtime own
-      // cancellation and finalization if it acquired the session meanwhile.
-      const active = getActiveAgentRunForSession(userId, sessionId);
-      if (active) abortAgentRun(userId, active.runId);
-      else {
-        // Keep retries, edits and new runs out while Durable settles the stop.
-        const stopping = createActiveAgentRun({
-          runId: crypto.randomUUID(),
-          userId,
-          sessionId,
-          abort: () => {},
-        });
-        try {
-          await pi.conversation.abort(BACKGROUND_CONTEXT, { background: true });
-        } finally {
-          finishAgentRun(stopping);
-        }
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions/{id}/abort",
+      operationId: "abortSession",
+      tags: ["Sessions"],
+      description: "Stop an active run or settle saved Durable work after a restart.",
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 200: success, 404: error, 409: error },
+    }),
+    async (c) => {
+      const userId = c.get("user").id;
+      const sessionId = c.req.param("id");
+      const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+      if (!session || session.userId !== userId)
+        return c.json({ error: "Session not found." }, 404);
+      if (session.issueId) return c.json({ error: "Stop the attempt from the issue." }, 409);
+      db.update(collaborations)
+        .set({ waiting: false })
+        .where(eq(collaborations.sourceSessionId, sessionId))
+        .run();
+      const home = sessionHome(sessionId);
+      if (home) {
+        await stopHome(userId, home.agentId);
+        return c.json({ ok: true }, 200);
       }
-    });
-    return c.json({ ok: true });
-  });
+      await withPiSession(sessionId, async (pi) => {
+        // Opening storage can yield to a newly admitted run. Let its runtime own
+        // cancellation and finalization if it acquired the session meanwhile.
+        const active = getActiveAgentRunForSession(userId, sessionId);
+        if (active) abortAgentRun(userId, active.runId);
+        else {
+          // Keep retries, edits and new runs out while Durable settles the stop.
+          const stopping = createActiveAgentRun({
+            runId: crypto.randomUUID(),
+            userId,
+            sessionId,
+            abort: () => {},
+          });
+          try {
+            await pi.conversation.abort(BACKGROUND_CONTEXT, { background: true });
+          } finally {
+            finishAgentRun(stopping);
+          }
+        }
+      });
+      return c.json({ ok: true }, 200);
+    },
+  );
 
-  route.post("/agents/:id/run", jsonValidator(agentRunRequestSchema), async (c) => {
-    const currentUserId = c.get("user").id;
-    const agent = readVisibleAgent(currentUserId, c.req.param("id"));
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/agents/{id}/run",
+      operationId: "startAgentRun",
+      tags: ["Runs"],
+      request: { params: z.object({ id: z.string() }), body: jsonBody(AgentRunRequestSchema) },
+      responses: {
+        400: error,
+        404: error,
+        200: json(
+          z.object({ runId: z.string() }),
+          "Run admitted. Subscribe to its events through /api/updates.",
+        ),
+        202: json(
+          z.object({ eventId: z.string(), runId: z.string().optional() }),
+          "Home input queued.",
+        ),
+        409: activeRunConflict,
+      },
+    }),
+    async (c) => {
+      const currentUserId = c.get("user").id;
+      const agent = readVisibleAgent(currentUserId, c.req.param("id"));
+      if (!agent) return c.json({ error: "Agent not found." }, 404);
 
-    const body = c.req.valid("json");
-    const session = body.sessionId
-      ? db.select().from(sessions).where(eq(sessions.id, body.sessionId)).get()
-      : undefined;
-    if (!session || session.userId !== currentUserId || session.agentId !== agent.id) {
-      return c.json({ error: "Session not found." }, 404);
-    }
-    if (session.issueId) return c.json({ error: "Start a new attempt from the issue." }, 409);
-    if (sessionHome(session.id) && body.promptInput) {
-      const event = admitHomeInput(currentUserId, agent.id, {
-        sourceKey: `web:${crypto.randomUUID()}`,
-        origin: "web",
-        prompt: body.promptInput,
-        modelRefId: body.modelRefId,
-        thinkingLevel: body.thinkingLevel,
+      const body = c.req.valid("json");
+      const session = body.sessionId
+        ? db.select().from(sessions).where(eq(sessions.id, body.sessionId)).get()
+        : undefined;
+      if (!session || session.userId !== currentUserId || session.agentId !== agent.id) {
+        return c.json({ error: "Session not found." }, 404);
+      }
+      if (session.issueId) return c.json({ error: "Start a new attempt from the issue." }, 409);
+      if (sessionHome(session.id) && body.promptInput) {
+        const event = admitHomeInput(currentUserId, agent.id, {
+          sourceKey: `web:${crypto.randomUUID()}`,
+          origin: "web",
+          prompt: body.promptInput,
+          modelRefId: body.modelRefId,
+          thinkingLevel: body.thinkingLevel,
+          timezone: body.timezone,
+        });
+        const run = await dispatchHome(event.sessionId);
+        return c.json({ eventId: event.id, runId: run?.runId }, 202);
+      }
+      const activeRun = getActiveAgentRunForSession(currentUserId, session.id);
+      if (activeRun) return alreadyRunning(c, activeRun);
+      const waiting = blockingUserRequest(session.id);
+      if (waiting && (waiting.status === "pending" || body.promptInput))
+        return c.json(
+          { error: "Respond to the pending request before sending another message." },
+          409,
+        );
+
+      // The thinking level is clamped to the model: the run commits it back onto
+      // the session, so an unsupported one would otherwise stick.
+      const model = await resolveRunModel(
+        currentUserId,
+        body.modelRefId ?? session.modelRefId,
+        body.thinkingLevel ?? session.thinkingLevel,
+      );
+      if (!model.ok) {
+        return model.reason === "not_found"
+          ? c.json({ error: "Model not found." }, 404)
+          : c.json({ error: NO_PROVIDER_AUTH_MESSAGE }, 400);
+      }
+      const { modelRef, providerConfig, modelRuntime, thinkingLevel } = model.value;
+
+      let promptInput: PromptInput | undefined;
+      let resolvedReferences: ResolvedReferences | undefined;
+      try {
+        promptInput = normalizePromptInput(body.promptInput);
+        if (promptInput?.references?.length)
+          resolvedReferences = await resolvePromptReferences(
+            currentUserId,
+            agent,
+            session.id,
+            promptInput.references,
+          );
+      } catch (error) {
+        return c.json({ error: errorMessage(error) }, 400);
+      }
+
+      // Model/auth resolution can yield to other requests. Revalidate the session
+      // lease immediately before synchronously registering the active run.
+      const currentSession = db.select().from(sessions).where(eq(sessions.id, session.id)).get();
+      if (
+        !currentSession ||
+        currentSession.userId !== currentUserId ||
+        currentSession.agentId !== agent.id
+      ) {
+        return c.json({ error: "Session not found." }, 404);
+      }
+      const currentActiveRun = getActiveAgentRunForSession(currentUserId, currentSession.id);
+      if (currentActiveRun) return alreadyRunning(c, currentActiveRun);
+      const currentWaiting = blockingUserRequest(currentSession.id);
+      if (currentWaiting && (currentWaiting.status === "pending" || body.promptInput))
+        return c.json(
+          { error: "Respond to the pending request before sending another message." },
+          409,
+        );
+      if (currentSession.revision !== session.revision) {
+        return c.json(
+          { error: "Session changed while preparing the agent run. Retry the request." },
+          409,
+        );
+      }
+
+      const run = admitAgentRun({
+        agent,
+        session: currentSession,
+        modelRef,
+        providerConfig,
+        modelRuntime,
+        thinkingLevel,
+        promptInput,
+        resolvedReferences,
         timezone: body.timezone,
       });
-      const run = await dispatchHome(event.sessionId);
-      return c.json({ eventId: event.id, runId: run?.runId }, 202);
-    }
-    const activeRun = getActiveAgentRunForSession(currentUserId, session.id);
-    if (activeRun) return alreadyRunning(c, activeRun);
-    const waiting = blockingUserRequest(session.id);
-    if (waiting && (waiting.status === "pending" || body.promptInput))
-      return c.json(
-        { error: "Respond to the pending request before sending another message." },
-        409,
-      );
-
-    // The thinking level is clamped to the model: the run commits it back onto
-    // the session, so an unsupported one would otherwise stick.
-    const model = await resolveRunModel(
-      currentUserId,
-      body.modelRefId ?? session.modelRefId,
-      body.thinkingLevel ?? session.thinkingLevel,
-    );
-    if (!model.ok) {
-      return model.reason === "not_found"
-        ? c.json({ error: "Model not found." }, 404)
-        : c.json({ error: NO_PROVIDER_AUTH_MESSAGE }, 400);
-    }
-    const { modelRef, providerConfig, modelRuntime, thinkingLevel } = model.value;
-
-    let promptInput: PromptInput | undefined;
-    let resolvedReferences: ResolvedReferences | undefined;
-    try {
-      promptInput = normalizePromptInput(body.promptInput);
-      if (promptInput?.references?.length)
-        resolvedReferences = await resolvePromptReferences(
-          currentUserId,
-          agent,
-          session.id,
-          promptInput.references,
-        );
-    } catch (error) {
-      return c.json({ error: errorMessage(error) }, 400);
-    }
-
-    // Model/auth resolution can yield to other requests. Revalidate the session
-    // lease immediately before synchronously registering the active run.
-    const currentSession = db.select().from(sessions).where(eq(sessions.id, session.id)).get();
-    if (
-      !currentSession ||
-      currentSession.userId !== currentUserId ||
-      currentSession.agentId !== agent.id
-    ) {
-      return c.json({ error: "Session not found." }, 404);
-    }
-    const currentActiveRun = getActiveAgentRunForSession(currentUserId, currentSession.id);
-    if (currentActiveRun) return alreadyRunning(c, currentActiveRun);
-    const currentWaiting = blockingUserRequest(currentSession.id);
-    if (currentWaiting && (currentWaiting.status === "pending" || body.promptInput))
-      return c.json(
-        { error: "Respond to the pending request before sending another message." },
-        409,
-      );
-    if (currentSession.revision !== session.revision) {
-      return c.json(
-        { error: "Session changed while preparing the agent run. Retry the request." },
-        409,
-      );
-    }
-
-    const run = admitAgentRun({
-      agent,
-      session: currentSession,
-      modelRef,
-      providerConfig,
-      modelRuntime,
-      thinkingLevel,
-      promptInput,
-      resolvedReferences,
-      timezone: body.timezone,
-    });
-    if (sessionHome(currentSession.id))
-      db.update(agentHomes)
-        .set({ paused: false })
-        .where(eq(agentHomes.sessionId, currentSession.id))
-        .run();
-    c.header("x-agent-run-id", run.runId);
-    return c.json({ runId: run.runId });
-  });
+      if (sessionHome(currentSession.id))
+        db.update(agentHomes)
+          .set({ paused: false })
+          .where(eq(agentHomes.sessionId, currentSession.id))
+          .run();
+      c.header("x-agent-run-id", run.runId);
+      return c.json({ runId: run.runId }, 200);
+    },
+  );
 
   return route;
 }

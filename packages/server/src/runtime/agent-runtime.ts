@@ -1,5 +1,8 @@
-import { receiverCollaboration, assertReceiverAccess } from "../services/collaborations.ts";
-import { buildCollaborationInstructions, createCollaborationTools } from "./collaboration-tools.ts";
+import { receiverCollaboration, assertReceiverAccess } from "../collaborations/service.ts";
+import {
+  buildCollaborationInstructions,
+  createCollaborationTools,
+} from "../collaborations/tools.ts";
 import { createHelperExtension, helperTasks } from "./helpers.ts";
 import { retainHelperHost } from "./helper-hosts.ts";
 import { createHomeTools, buildHomeInstructions, configureHomeCompaction } from "./home-tools.ts";
@@ -84,13 +87,13 @@ import { browserControl } from "./browser-control.ts";
 import { resolvePromptReferences, type ResolvedReferences } from "../services/prompt-references.ts";
 import { browserInstructions } from "./browser-tools.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
-import { buildKnowledgeInstructions } from "./knowledge/prompt.ts";
+import { buildKnowledgeInstructions } from "../knowledge/prompt.ts";
 import {
   createHomeMemoryTools,
   buildHomeMemorySections,
   humanHomeMemoryEvent,
-} from "./home-memory-tools.ts";
-import { recallHomeMemories } from "../services/home-memory-search.ts";
+} from "../home-memory/tools.ts";
+import { recallHomeMemories } from "../home-memory/search.ts";
 import { buildHomeRecentWorkBrief, recallHomeConversations } from "../services/session-search.ts";
 import { createSchedulingTools, buildSchedulingInstructions } from "./task-tools.ts";
 import { createUserRequestTools, userRequestInstructions } from "./user-request-tools.ts";

@@ -13,6 +13,7 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint .",
+    "openapi": "pnpm --filter @carmel-agent/server openapi",
     "test": "pnpm --filter @carmel-agent/server test && pnpm --filter @carmel-agent/client test",
     "test:browser": "pnpm --filter @carmel-agent/client test:browser",
     "check": "pnpm format:check && pnpm lint && pnpm --filter @carmel-agent/server db:check && pnpm test && pnpm build",
@@ -22,7 +23,7 @@
     "concurrently": "^10.0.7",
     "oxfmt": "^0.77.0",
     "oxlint": "^1.92.0",
-    "typescript": "^7.0.2"
+    "typescript": "catalog:"
   },
   "packageManager": "pnpm@11.20.0"
 }

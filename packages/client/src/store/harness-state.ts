@@ -93,9 +93,24 @@ export function resolveBootstrapState(
   current: Pick<HarnessState, "sessionDetails">,
 ) {
   const activeUserId = payload.users[0]?.id ?? "";
-  const listed = payload.sessions.filter((session) => session.userId === activeUserId);
+  const agents = payload.agents.filter((agent) => canUserSeeAgent(agent, activeUserId));
+  return {
+    ...payload,
+    ...resolveSessionList(payload.sessions, { ...current, activeUserId }),
+    agents,
+    activeUserId,
+    status: "ready" as const,
+  };
+}
+
+export function resolveSessionList(
+  payload: SessionMetadata[],
+  current: Pick<HarnessState, "sessionDetails" | "activeUserId">,
+) {
+  const { activeUserId } = current;
+  const listed = payload.filter((session) => session.userId === activeUserId);
   const listedIds = new Set(listed.map((session) => session.id));
-  // Bootstrap never carries a task run's, an issue's, or an archived session:
+  // The list never carries a task run's, an issue's, or an archived session:
   // the shell fetches one only when the route names it. Keeping that open
   // session here means an unrelated refresh cannot unmount the conversation.
   const unlisted = Object.values(current.sessionDetails).filter(
@@ -103,21 +118,13 @@ export function resolveBootstrapState(
       session.userId === activeUserId && !isListedSession(session) && !listedIds.has(session.id),
   );
   const sessions = [...listed, ...unlisted.map(toSessionMetadata)];
-  const agents = payload.agents.filter((agent) => canUserSeeAgent(agent, activeUserId));
   const sessionDetails = Object.fromEntries(
     sessions.flatMap((metadata) => {
       const detail = current.sessionDetails[metadata.id];
       return detail ? [[metadata.id, mergeSessionMetadata(detail, metadata)] as const] : [];
     }),
   );
-  return {
-    ...payload,
-    agents,
-    sessions,
-    sessionDetails,
-    activeUserId,
-    status: "ready" as const,
-  };
+  return { sessions, sessionDetails };
 }
 
 export function canUserSeeAgent(agent: AgentConfig, userId: string) {

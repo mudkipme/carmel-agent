@@ -1,4 +1,4 @@
-import type { ImageContent } from "@earendil-works/pi-ai";
+import type { ImageContent } from "@carmel-agent/shared/pi";
 import type { MessageReference } from "@carmel-agent/shared";
 
 export type PendingPrompt = {

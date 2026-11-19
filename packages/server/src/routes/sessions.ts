@@ -1,6 +1,28 @@
+import { createRoute } from "@hono/zod-openapi";
+import { z } from "zod";
+import {
+  createRouter,
+  activeRunConflict,
+  error,
+  image,
+  json,
+  jsonBody,
+  safeEntryConflict,
+  success,
+} from "../openapi/routes.ts";
+import {
+  MessageEditRequestSchema,
+  SessionDraftRequestSchema,
+  SessionImportResultSchema,
+  SessionMetadataSchema,
+  SessionPatchRequestSchema,
+  SessionSchema,
+  SessionSearchResultSchema,
+} from "../openapi/schemas.ts";
 import { searchGlobalSessions } from "../services/session-search.ts";
+import { readSessionMetadataForUser } from "../services/bootstrap.ts";
 import { sessionHome } from "../services/agent-homes.ts";
-import { invalidateHomeMemorySources } from "../services/home-memory.ts";
+import { invalidateHomeMemorySources } from "../home-memory/service.ts";
 import { readSessionSnapshot } from "../services/session-snapshot.ts";
 import {
   forkSessionRequestSchema,
@@ -9,11 +31,8 @@ import {
   isUserMessage,
   openWebuiImportRequestSchema,
   type Session,
-  sessionDraftRequestSchema,
   type SessionImportResult,
-  sessionMessageEditRequestSchema,
   type SessionPatch,
-  sessionPatchRequestSchema,
   sessionTruncateRequestSchema,
   toSessionRow,
   updateAssistantMessageContent,
@@ -21,8 +40,7 @@ import {
 } from "@carmel-agent/shared";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
-import { Hono } from "hono";
-import type { Context } from "hono";
+import type { Context, TypedResponse } from "hono";
 import type { AuthVariables } from "../auth.ts";
 import { db } from "../db/index.ts";
 import { modelRefs, sessions } from "../db/schema.ts";
@@ -56,76 +74,153 @@ import {
   describeCutPointRejection,
   type BranchMessage,
 } from "../effectors/branch-integrity.ts";
-import { jsonValidator } from "../validation.ts";
 import { blockingUserRequest } from "../services/user-requests.ts";
 
 export function createSessionRoutes() {
-  const route = new Hono<{ Variables: AuthVariables }>();
+  const route = createRouter<{ Variables: AuthVariables }>();
 
-  route.get("/sessions/search", async (c) => {
-    const query = c.req.query("q") ?? "";
-    if (query.length > 500) return c.json({ error: "Search query is too long." }, 400);
-    return c.json(await searchGlobalSessions(c.get("user").id, query));
-  });
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/sessions",
+      operationId: "listSessions",
+      tags: ["Sessions"],
+      description: "The caller's listed sessions, as in the bootstrap payload.",
+      responses: { 200: json(z.array(SessionMetadataSchema), "Session list") },
+    }),
+    (c) => c.json(readSessionMetadataForUser(c.get("user").id), 200),
+  );
+
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/sessions/search",
+      operationId: "searchSessions",
+      tags: ["Sessions"],
+      description:
+        "Search the caller's session titles and user/assistant message text across visible agents, including archived sessions. Thinking, tool calls, and tool results are excluded. Matches literal substrings and returns title matches first, then message matches, ordered by session activity. Identical full message text appears once, linked to the most recently active matching session, before applying the result limit. An empty or whitespace-only query returns an empty array.",
+      parameters: [
+        { name: "q", in: "query", schema: { type: "string", maxLength: 500, default: "" } },
+      ],
+      responses: {
+        200: json(
+          z.array(SessionSearchResultSchema).max(50),
+          "Matching session titles and message excerpts",
+        ),
+        400: error,
+      },
+    }),
+    async (c) => {
+      const query = c.req.query("q") ?? "";
+      if (query.length > 500) return c.json({ error: "Search query is too long." }, 400);
+      return c.json(await searchGlobalSessions(c.get("user").id, query), 200);
+    },
+  );
 
   // Archived sessions are left out of bootstrap, so agent settings reads them here.
-  route.get("/agents/:agentId/archived-sessions", (c) => {
-    const currentUserId = c.get("user").id;
-    const agent = readVisibleAgent(currentUserId, c.req.param("agentId"));
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    const archived = db
-      .select()
-      .from(sessions)
-      .where(
-        and(
-          eq(sessions.userId, currentUserId),
-          eq(sessions.agentId, agent.id),
-          isNotNull(sessions.archivedAt),
-        ),
-      )
-      .orderBy(desc(sessions.archivedAt))
-      .all();
-    return c.json(archived.map(sessionMetadataSerializer(currentUserId)));
-  });
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/agents/{agentId}/archived-sessions",
+      operationId: "listArchivedSessions",
+      tags: ["Sessions"],
+      request: { params: z.object({ agentId: z.string() }) },
+      responses: { 200: json(z.array(SessionMetadataSchema), "Archived sessions"), 404: error },
+    }),
+    (c) => {
+      const currentUserId = c.get("user").id;
+      const agent = readVisibleAgent(currentUserId, c.req.param("agentId"));
+      if (!agent) return c.json({ error: "Agent not found." }, 404);
+      const archived = db
+        .select()
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.userId, currentUserId),
+            eq(sessions.agentId, agent.id),
+            isNotNull(sessions.archivedAt),
+          ),
+        )
+        .orderBy(desc(sessions.archivedAt))
+        .all();
+      return c.json(archived.map(sessionMetadataSerializer(currentUserId)), 200);
+    },
+  );
 
   // Addressed by entry id, which is immutable, so the responses can be cached for good.
-  route.get("/sessions/:id/images/:entryId/:imageIndex", (c) =>
-    serveEntryImage(c, (message) => {
-      const imageIndex = parseIndex(c.req.param("imageIndex"));
-      return imageIndex === undefined ? undefined : readMessageImage(message, imageIndex);
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/sessions/{id}/images/{entryId}/{imageIndex}",
+      operationId: "getSessionImage",
+      tags: ["Sessions"],
+      request: {
+        params: z.object({ id: z.string(), entryId: z.string(), imageIndex: z.string() }),
+      },
+      responses: { 200: image },
     }),
+    (c) =>
+      serveEntryImage(c, (message) => {
+        const imageIndex = parseIndex(c.req.param("imageIndex"));
+        return imageIndex === undefined ? undefined : readMessageImage(message, imageIndex);
+      }),
   );
 
-  route.get("/sessions/:id/tool-result-images/:entryId/:partIndex", (c) =>
-    serveEntryImage(c, (message) => {
-      const partIndex = parseIndex(c.req.param("partIndex"));
-      return partIndex === undefined ? undefined : readToolResultImage(message, partIndex);
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/sessions/{id}/tool-result-images/{entryId}/{partIndex}",
+      operationId: "getToolResultImage",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string(), entryId: z.string(), partIndex: z.string() }) },
+      responses: { 200: image },
     }),
+    (c) =>
+      serveEntryImage(c, (message) => {
+        const partIndex = parseIndex(c.req.param("partIndex"));
+        return partIndex === undefined ? undefined : readToolResultImage(message, partIndex);
+      }),
   );
 
-  route.post("/sessions", jsonValidator(sessionDraftRequestSchema), async (c) => {
-    const currentUserId = c.get("user").id;
-    const draft = c.req.valid("json");
-    const agent = readVisibleAgent(currentUserId, draft.agentId);
-    if (!agent) return c.json({ error: "Agent not found." }, 404);
-    const modelRef = readUsableModelRef(currentUserId, draft.modelRefId);
-    if (!modelRef) return c.json({ error: "Model not found." }, 404);
-    const session = insertSession({
-      title: draft.title ?? "Untitled session",
-      userId: currentUserId,
-      agentId: agent.id,
-      modelRefId: modelRef.id,
-      thinkingLevel: resolveSupportedThinkingLevel(
-        modelRef,
-        draft.thinkingLevel ?? agent.defaultThinkingLevel ?? "off",
-      ),
-    });
-    return c.json(serializeSession({ ...session, messages: [], messageEntryIds: [] }), 201);
-  });
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions",
+      operationId: "createSession",
+      tags: ["Sessions"],
+      request: { body: jsonBody(SessionDraftRequestSchema) },
+      responses: { 404: error, 201: json(SessionSchema, "Session") },
+    }),
+    async (c) => {
+      const currentUserId = c.get("user").id;
+      const draft = c.req.valid("json");
+      const agent = readVisibleAgent(currentUserId, draft.agentId);
+      if (!agent) return c.json({ error: "Agent not found." }, 404);
+      const modelRef = readUsableModelRef(currentUserId, draft.modelRefId);
+      if (!modelRef) return c.json({ error: "Model not found." }, 404);
+      const session = insertSession({
+        title: draft.title ?? "Untitled session",
+        userId: currentUserId,
+        agentId: agent.id,
+        modelRefId: modelRef.id,
+        thinkingLevel: resolveSupportedThinkingLevel(
+          modelRef,
+          draft.thinkingLevel ?? agent.defaultThinkingLevel ?? "off",
+        ),
+      });
+      return c.json(serializeSession({ ...session, messages: [], messageEntryIds: [] }), 201);
+    },
+  );
 
-  route.post(
-    "/sessions/import/open-webui",
-    jsonValidator(openWebuiImportRequestSchema),
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions/import/open-webui",
+      operationId: "importOpenWebUISessions",
+      tags: ["Sessions"],
+      request: { body: jsonBody(openWebuiImportRequestSchema) },
+      responses: { 400: error, 404: error, 201: json(SessionImportResultSchema, "Import result") },
+    }),
     async (c) => {
       const currentUserId = c.get("user").id;
       const body = c.req.valid("json");
@@ -184,110 +279,140 @@ export function createSessionRoutes() {
     },
   );
 
-  route.patch("/sessions/:id", jsonValidator(sessionPatchRequestSchema), async (c) => {
-    const patch = c.req.valid("json");
-    // Row-only ownership check: nothing here needs the transcript before the commit.
-    const current = ownedSessionRecord(c);
-    if (!current) return c.json({ error: "Session not found." }, 404);
-    if (current.issueId) return c.json({ error: "Issue attempt history is read-only." }, 409);
-    if (patch.archivedAt && sessionHome(current.id))
-      return c.json({ error: "Home cannot be archived." }, 409);
+  route.openapi(
+    createRoute({
+      method: "patch",
+      path: "/sessions/{id}",
+      operationId: "patchSession",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string() }), body: jsonBody(SessionPatchRequestSchema) },
+      responses: { 404: error, 200: json(SessionSchema, "Session"), 409: activeRunConflict },
+    }),
+    async (c) => {
+      const patch = c.req.valid("json");
+      // Row-only ownership check: nothing here needs the transcript before the commit.
+      const current = ownedSessionRecord(c);
+      if (!current) return c.json({ error: "Session not found." }, 404);
+      if (current.issueId) return c.json({ error: "Issue attempt history is read-only." }, 409);
+      if (patch.archivedAt && sessionHome(current.id))
+        return c.json({ error: "Home cannot be archived." }, 409);
 
-    // Pin, archive, and leaving the task list only move the session around the
-    // sidebar. A run never writes them, so they go through while one is active,
-    // and without a revision bump -- that would make the run's own commit stale.
-    if (isPlacementOnlyPatch(patch)) {
-      db.update(sessions)
-        .set({
-          ...(patch.pinnedAt !== undefined ? { pinnedAt: patch.pinnedAt } : {}),
-          ...(patch.archivedAt !== undefined ? { archivedAt: patch.archivedAt } : {}),
-          ...(patch.taskId === null ? { taskId: null } : {}),
-        })
-        .where(eq(sessions.id, current.id))
-        .run();
-      return c.json(serializeSession((await loadSession(current.id))!));
-    }
+      // Pin, archive, and leaving the task list only move the session around the
+      // sidebar. A run never writes them, so they go through while one is active,
+      // and without a revision bump -- that would make the run's own commit stale.
+      if (isPlacementOnlyPatch(patch)) {
+        db.update(sessions)
+          .set({
+            ...(patch.pinnedAt !== undefined ? { pinnedAt: patch.pinnedAt } : {}),
+            ...(patch.archivedAt !== undefined ? { archivedAt: patch.archivedAt } : {}),
+            ...(patch.taskId === null ? { taskId: null } : {}),
+          })
+          .where(eq(sessions.id, current.id))
+          .run();
+        return c.json(serializeSession((await loadSession(current.id))!), 200);
+      }
 
-    const leaseConflict = rejectActiveRunMutation(c, current.id);
-    if (leaseConflict) return leaseConflict;
-    const nextModelRef = patch.modelRefId
-      ? readUsableModelRef(c.get("user").id, patch.modelRefId)
-      : undefined;
-    if (patch.modelRefId && !nextModelRef) return c.json({ error: "Model not found." }, 404);
-    // Clamp the thinking level to what the (possibly newly selected) model supports,
-    // matching the create/import write paths so PATCH can't persist an unsupported level.
-    let thinkingLevel = patch.thinkingLevel ?? current.thinkingLevel;
-    if (patch.thinkingLevel !== undefined || nextModelRef) {
-      const modelRef =
-        nextModelRef ??
-        db.select().from(modelRefs).where(eq(modelRefs.id, current.modelRefId)).get();
-      if (modelRef) thinkingLevel = resolveSupportedThinkingLevel(modelRef, thinkingLevel);
-    }
-    // Switching model, thinking level, pin, or archive state are preferences and must not
-    // affect the session's update time or its sort order. Only a rename counts as
-    // a meaningful edit here; conversation activity touches updatedAt elsewhere.
-    const titleChanged = patch.title !== undefined && patch.title !== current.title;
-    return c.json(
-      await commitSessionChange(current.id, {
-        title: patch.title ?? current.title,
-        modelRefId: patch.modelRefId ?? current.modelRefId,
-        thinkingLevel,
-        forkedFrom: current.forkedFrom,
-        pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
-        archivedAt:
-          patch.archivedAt === null ? null : (patch.archivedAt ?? current.archivedAt ?? null),
-        taskId: patch.taskId === null ? null : current.taskId,
-        updatedAt: titleChanged ? now() : current.updatedAt,
-      }),
-    );
-  });
+      const leaseConflict = rejectActiveRunMutation(c, current.id);
+      if (leaseConflict) return leaseConflict;
+      const nextModelRef = patch.modelRefId
+        ? readUsableModelRef(c.get("user").id, patch.modelRefId)
+        : undefined;
+      if (patch.modelRefId && !nextModelRef) return c.json({ error: "Model not found." }, 404);
+      // Clamp the thinking level to what the (possibly newly selected) model supports,
+      // matching the create/import write paths so PATCH can't persist an unsupported level.
+      let thinkingLevel = patch.thinkingLevel ?? current.thinkingLevel;
+      if (patch.thinkingLevel !== undefined || nextModelRef) {
+        const modelRef =
+          nextModelRef ??
+          db.select().from(modelRefs).where(eq(modelRefs.id, current.modelRefId)).get();
+        if (modelRef) thinkingLevel = resolveSupportedThinkingLevel(modelRef, thinkingLevel);
+      }
+      // Switching model, thinking level, pin, or archive state are preferences and must not
+      // affect the session's update time or its sort order. Only a rename counts as
+      // a meaningful edit here; conversation activity touches updatedAt elsewhere.
+      const titleChanged = patch.title !== undefined && patch.title !== current.title;
+      return c.json(
+        await commitSessionChange(current.id, {
+          title: patch.title ?? current.title,
+          modelRefId: patch.modelRefId ?? current.modelRefId,
+          thinkingLevel,
+          forkedFrom: current.forkedFrom,
+          pinnedAt: patch.pinnedAt === null ? null : (patch.pinnedAt ?? current.pinnedAt ?? null),
+          archivedAt:
+            patch.archivedAt === null ? null : (patch.archivedAt ?? current.archivedAt ?? null),
+          taskId: patch.taskId === null ? null : current.taskId,
+          updatedAt: titleChanged ? now() : current.updatedAt,
+        }),
+        200,
+      );
+    },
+  );
 
-  route.post("/sessions/:id/fork", jsonValidator(forkSessionRequestSchema), async (c) => {
-    const sessionId = c.req.param("id");
-    const body = c.req.valid("json");
-    const { session: source, conflict } = await guardSessionMutation(c);
-    if (!source) return conflict;
-    const messageIndex = source.messageEntryIds.indexOf(body.entryId);
-    if (messageIndex < 0) return c.json({ error: "Message not found." }, 404);
-    // A fork ends its new branch at `entryId`, so it is the same cut as a
-    // truncate and carries the same way of producing an unpromptable session.
-    const cut = checkCutPoint(branchOf(source), body.entryId);
-    if (!cut.ok) {
-      return c.json({ error: describeCutPointRejection(cut), safeEntryId: cut.safeEntryId }, 409);
-    }
-    const timestamp = now();
-    const fork: Session = {
-      ...source,
-      id: id("session"),
-      title: `${source.title} fork`,
-      messages: source.messages.slice(0, messageIndex + 1),
-      messageEntryIds: source.messageEntryIds.slice(0, messageIndex + 1),
-      forkedFrom: { sessionId, entryId: body.entryId },
-      pinnedAt: undefined,
-      archivedAt: undefined,
-      // A fork is something you chose to continue, so it joins the session
-      // list even when it comes from a task run.
-      taskId: undefined,
-      issueId: undefined,
-      collaborationId: source.collaborationId ?? undefined,
-      revision: 0,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
-    db.insert(sessions).values(toSessionRow(fork)).run();
-    try {
-      await forkPiSession(source.id, fork.id, body.entryId);
-    } catch (error) {
-      await deletePiSession(toSessionRow(fork)).catch(() => undefined);
-      db.delete(sessions).where(eq(sessions.id, fork.id)).run();
-      throw error;
-    }
-    return c.json(serializeSession((await loadSession(fork.id))!), 201);
-  });
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions/{id}/fork",
+      operationId: "forkSession",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string() }), body: jsonBody(forkSessionRequestSchema) },
+      responses: { 404: error, 201: json(SessionSchema, "Forked session"), 409: safeEntryConflict },
+    }),
+    async (c) => {
+      const sessionId = c.req.param("id");
+      const body = c.req.valid("json");
+      const { session: source, conflict } = await guardSessionMutation(c);
+      if (!source) return conflict;
+      const messageIndex = source.messageEntryIds.indexOf(body.entryId);
+      if (messageIndex < 0) return c.json({ error: "Message not found." }, 404);
+      // A fork ends its new branch at `entryId`, so it is the same cut as a
+      // truncate and carries the same way of producing an unpromptable session.
+      const cut = checkCutPoint(branchOf(source), body.entryId);
+      if (!cut.ok) {
+        return c.json({ error: describeCutPointRejection(cut), safeEntryId: cut.safeEntryId }, 409);
+      }
+      const timestamp = now();
+      const fork: Session = {
+        ...source,
+        id: id("session"),
+        title: `${source.title} fork`,
+        messages: source.messages.slice(0, messageIndex + 1),
+        messageEntryIds: source.messageEntryIds.slice(0, messageIndex + 1),
+        forkedFrom: { sessionId, entryId: body.entryId },
+        pinnedAt: undefined,
+        archivedAt: undefined,
+        // A fork is something you chose to continue, so it joins the session
+        // list even when it comes from a task run.
+        taskId: undefined,
+        issueId: undefined,
+        collaborationId: source.collaborationId ?? undefined,
+        revision: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      db.insert(sessions).values(toSessionRow(fork)).run();
+      try {
+        await forkPiSession(source.id, fork.id, body.entryId);
+      } catch (error) {
+        await deletePiSession(toSessionRow(fork)).catch(() => undefined);
+        db.delete(sessions).where(eq(sessions.id, fork.id)).run();
+        throw error;
+      }
+      return c.json(serializeSession((await loadSession(fork.id))!), 201);
+    },
+  );
 
-  route.post(
-    "/sessions/:id/messages/truncate",
-    jsonValidator(sessionTruncateRequestSchema),
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions/{id}/messages/truncate",
+      operationId: "truncateSession",
+      tags: ["Sessions"],
+      request: {
+        params: z.object({ id: z.string() }),
+        body: jsonBody(sessionTruncateRequestSchema),
+      },
+      responses: { 404: error, 200: json(SessionSchema, "Session"), 409: safeEntryConflict },
+    }),
     async (c) => {
       const body = c.req.valid("json");
       const { session: current, conflict } = await guardSessionMutation(c);
@@ -309,13 +434,23 @@ export function createSessionRoutes() {
           thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
           updatedAt: now(),
         }),
+        200,
       );
     },
   );
 
-  route.patch(
-    "/sessions/:id/messages/:entryId",
-    jsonValidator(sessionMessageEditRequestSchema),
+  route.openapi(
+    createRoute({
+      method: "patch",
+      path: "/sessions/{id}/messages/{entryId}",
+      operationId: "editSessionMessage",
+      tags: ["Sessions"],
+      request: {
+        params: z.object({ id: z.string(), entryId: z.string() }),
+        body: jsonBody(MessageEditRequestSchema),
+      },
+      responses: { 400: error, 404: error, 409: error, 200: json(SessionSchema, "Session") },
+    }),
     async (c) => {
       const entryId = c.req.param("entryId");
       const body = c.req.valid("json");
@@ -353,37 +488,63 @@ export function createSessionRoutes() {
           thinkingLevel: body.thinkingLevel ?? current.thinkingLevel,
           updatedAt: now(),
         }),
+        200,
       );
     },
   );
 
-  route.delete("/sessions/:id", async (c) => {
-    const session = ownedSessionRecord(c);
-    if (!session) return c.json({ error: "Session not found." }, 404);
-    if (sessionHome(session.id))
-      return c.json({ error: "Home cannot be deleted from Sessions." }, 409);
-    if (session.issueId)
-      return c.json({ error: "Delete the issue to remove its attempt history." }, 409);
-    const leaseConflict = rejectActiveRunMutation(c, session.id);
-    if (leaseConflict) return leaseConflict;
-    await deletePiSession(session);
-    db.delete(sessions).where(eq(sessions.id, session.id)).run();
-    return c.json({ ok: true });
-  });
+  route.openapi(
+    createRoute({
+      method: "delete",
+      path: "/sessions/{id}",
+      operationId: "deleteSession",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 404: error, 200: success, 409: activeRunConflict },
+    }),
+    async (c) => {
+      const session = ownedSessionRecord(c);
+      if (!session) return c.json({ error: "Session not found." }, 404);
+      if (sessionHome(session.id))
+        return c.json({ error: "Home cannot be deleted from Sessions." }, 409);
+      if (session.issueId)
+        return c.json({ error: "Delete the issue to remove its attempt history." }, 409);
+      const leaseConflict = rejectActiveRunMutation(c, session.id);
+      if (leaseConflict) return leaseConflict;
+      await deletePiSession(session);
+      db.delete(sessions).where(eq(sessions.id, session.id)).run();
+      return c.json({ ok: true }, 200);
+    },
+  );
 
-  route.get("/sessions/:id/history", async (c) => {
-    try {
-      const page = await readSessionSnapshot(
-        c.get("user").id,
-        c.req.param("id"),
-        c.req.query("before"),
-        c.req.query("around"),
-      );
-      return page ? c.json(page) : c.json({ error: "Session not found." }, 404);
-    } catch {
-      return c.json({ error: "Conversation changed. Reload its history." }, 409);
-    }
-  });
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/sessions/{id}/history",
+      operationId: "readSessionHistory",
+      tags: ["Agents"],
+      summary: "Read a bounded history page or a page around an entry",
+      parameters: [
+        { name: "before", in: "query", schema: { type: "string" } },
+        { name: "around", in: "query", schema: { type: "string" } },
+      ],
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 200: json(SessionSchema), 400: error, 404: error, 409: error },
+    }),
+    async (c) => {
+      try {
+        const page = await readSessionSnapshot(
+          c.get("user").id,
+          c.req.param("id"),
+          c.req.query("before"),
+          c.req.query("around"),
+        );
+        return page ? c.json(page, 200) : c.json({ error: "Session not found." }, 404);
+      } catch {
+        return c.json({ error: "Conversation changed. Reload its history." }, 409);
+      }
+    },
+  );
   return route;
 }
 
@@ -420,7 +581,7 @@ async function guardSessionMutation(
   c: Context<{ Variables: AuthVariables }>,
 ): Promise<
   | { session: SessionWithMessages; conflict?: undefined }
-  | { session?: undefined; conflict: Response }
+  | { session?: undefined; conflict: TypedResponse<{ error: string }, 404 | 409, "json"> }
 > {
   const session = await ownedSession(c);
   if (!session) return { conflict: c.json({ error: "Session not found." }, 404) };

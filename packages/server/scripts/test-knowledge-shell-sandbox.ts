@@ -17,11 +17,11 @@ const { db, initialize } = await import("../src/db/index.ts");
 const { agents, knowledgeConfigs } = await import("../src/db/schema.ts");
 const { createSession, setAgentWorkingDir } = await import("../src/test-support.ts");
 const { readAgentEnvironment } = await import("../src/services/environments.ts");
-const { knowledgeShellEnv } = await import("../src/runtime/knowledge/shell.ts");
+const { knowledgeShellEnv } = await import("../src/knowledge/shell.ts");
 const { execSandboxCommand } = await import("../src/runtime/sandbox/bash-operations.ts");
 const { discardEnvironmentContainer, shutdownContainerManager } =
   await import("../src/runtime/sandbox/container-manager.ts");
-const { knowledgeModelPlan } = await import("../src/runtime/knowledge/models.ts");
+const { knowledgeModelPlan } = await import("../src/knowledge/models.ts");
 initialize();
 const fixture = createSession();
 const workspace = join(root, "workspace");

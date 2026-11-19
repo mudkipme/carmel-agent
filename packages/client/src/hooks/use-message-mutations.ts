@@ -1,5 +1,5 @@
 import { useLingui } from "@lingui/react";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@carmel-agent/shared/pi";
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {

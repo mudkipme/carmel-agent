@@ -23,7 +23,7 @@ import { prepareBrowserProfileScript } from "./browser-profile.ts";
 import { resolveSandboxIdentity, type SandboxIdentity } from "./runtime-identity.ts";
 import { containerHome, prepareRunnerScript, runnerEnvironment } from "./environment.ts";
 import { prepareNestedMountpoints } from "./mountpoints.ts";
-import { knowledgeShellResources, type KnowledgeShellResources } from "../knowledge/shell.ts";
+import { knowledgeShellResources, type KnowledgeShellResources } from "../../knowledge/shell.ts";
 export { containerHome } from "./environment.ts";
 
 export type EnvironmentRecord = typeof environments.$inferSelect;

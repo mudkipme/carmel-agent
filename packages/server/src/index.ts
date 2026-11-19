@@ -2,7 +2,7 @@ import {
   startCollaborationDispatcher,
   drainCollaborationResults,
   stopCollaborationDispatcher,
-} from "./services/collaborations.ts";
+} from "./collaborations/service.ts";
 import { startHelperHosts, pauseHelperHosts, shutdownHelperHosts } from "./runtime/helper-hosts.ts";
 import {
   startHomeDispatcher,
@@ -10,9 +10,9 @@ import {
   drainHomeEvents,
   recoverHomeEvents,
 } from "./services/home-events.ts";
-import { startHomeMemoryIndexes, stopHomeMemoryIndexes } from "./services/home-memory-search.ts";
+import { startHomeMemoryIndexes, stopHomeMemoryIndexes } from "./home-memory/search.ts";
 import { ensureHome } from "./services/agent-homes.ts";
-import { startHomeMemoryCapture, stopHomeMemoryCapture } from "./services/home-memory-capture.ts";
+import { startHomeMemoryCapture, stopHomeMemoryCapture } from "./home-memory/capture.ts";
 import { imBindings, imIntegrations } from "./db/im-schema.ts";
 import { eq } from "drizzle-orm";
 import {
@@ -20,7 +20,7 @@ import {
   startIssueQueue,
   stopIssueQueue,
   drainIssueResults,
-} from "./services/issues.ts";
+} from "./issues/service.ts";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { pruneExpiredAuthSessions } from "./auth.ts";
@@ -39,12 +39,10 @@ import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
 import { startTaskScheduler, stopTaskScheduler } from "./runtime/task-scheduler.ts";
 import { startImManager, stopImManager, drainImManager } from "./runtime/im-manager.ts";
 import { errorMessage } from "./errors.ts";
+import { startWorkers, stopWorkers, type Worker } from "./workers.ts";
 import { assertOidcConfig } from "./oidc/config.ts";
-import { startKnowledgeScheduler, stopKnowledgeScheduler } from "./services/knowledge.ts";
-import {
-  reapKnowledgeWorkers,
-  shutdownKnowledgeWorkers,
-} from "./runtime/knowledge/worker-client.ts";
+import { startKnowledgeScheduler, stopKnowledgeScheduler } from "./knowledge/service.ts";
+import { reapKnowledgeWorkers, shutdownKnowledgeWorkers } from "./knowledge/worker-client.ts";
 
 // Before anything else: a mistyped auth variable should stop the boot, not
 // surface later as a sign-in button that fails for everyone.
@@ -66,10 +64,6 @@ initialize();
 recoverIssueAttempts();
 seed();
 pruneExpiredAuthSessions();
-// Remove any sandbox containers left behind by a previous process.
-// Finish removing old profile owners before accepting new sandbox requests.
-await reapManagedContainers();
-await reapKnowledgeWorkers();
 void refreshConfiguredModelCatalogs()
   .then((errors) => {
     for (const [provider, error] of errors) {
@@ -80,27 +74,67 @@ void refreshConfiguredModelCatalogs()
     console.warn("Failed to refresh configured model catalogs:", errorMessage(error));
   });
 
-for (const { integration } of db
-  .select({ integration: imIntegrations })
-  .from(imIntegrations)
-  .innerJoin(imBindings, eq(imBindings.integrationId, imIntegrations.id))
-  .all()) {
-  try {
-    ensureHome(integration.userId, integration.agentId);
-  } catch {
-    /* Unconfigured or revoked agents remain unavailable. */
+function ensureImHomes() {
+  for (const { integration } of db
+    .select({ integration: imIntegrations })
+    .from(imIntegrations)
+    .innerJoin(imBindings, eq(imBindings.integrationId, imIntegrations.id))
+    .all()) {
+    try {
+      ensureHome(integration.userId, integration.agentId);
+    } catch {
+      /* Unconfigured or revoked agents remain unavailable. */
+    }
   }
 }
-await recoverHomeEvents();
-startHelperHosts();
-startHomeDispatcher();
-startHomeMemoryCapture();
-startHomeMemoryIndexes();
-startTaskScheduler();
-startImManager();
-startKnowledgeScheduler();
-startIssueQueue();
-startCollaborationDispatcher();
+
+const workers: Worker[] = [
+  // Remove sandbox containers and profile owners left by a previous process
+  // before accepting new sandbox requests.
+  { name: "sandbox containers", start: reapManagedContainers, close: shutdownContainerManager },
+  { name: "knowledge workers", start: reapKnowledgeWorkers, close: shutdownKnowledgeWorkers },
+  // Each open shell holds its container against teardown, so these close first.
+  { name: "terminals", close: shutdownTerminals },
+  { name: "browsers", close: shutdownBrowsers },
+  { name: "agent runs", drain: () => shutdownActiveRuns() },
+  {
+    name: "home events",
+    start: async () => {
+      ensureImHomes();
+      await recoverHomeEvents();
+    },
+  },
+  {
+    name: "helper hosts",
+    start: startHelperHosts,
+    stop: pauseHelperHosts,
+    drain: shutdownHelperHosts,
+  },
+  {
+    name: "home dispatcher",
+    start: startHomeDispatcher,
+    stop: stopHomeDispatcher,
+    drain: drainHomeEvents,
+  },
+  { name: "home memory capture", start: startHomeMemoryCapture, stop: stopHomeMemoryCapture },
+  { name: "home memory indexes", start: startHomeMemoryIndexes, close: stopHomeMemoryIndexes },
+  { name: "task scheduler", start: startTaskScheduler, stop: stopTaskScheduler },
+  { name: "IM manager", start: startImManager, stop: stopImManager, drain: drainImManager },
+  { name: "knowledge scheduler", start: startKnowledgeScheduler, close: stopKnowledgeScheduler },
+  {
+    name: "issue queue",
+    start: startIssueQueue,
+    stop: stopIssueQueue,
+    drain: drainIssueResults,
+  },
+  {
+    name: "collaborations",
+    start: startCollaborationDispatcher,
+    stop: stopCollaborationDispatcher,
+    drain: drainCollaborationResults,
+  },
+];
+await startWorkers(workers);
 
 const app = createApp();
 const port = Number(process.env.PORT ?? 8797);
@@ -119,40 +153,8 @@ let shuttingDown = false;
 async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
-  pauseHelperHosts();
-  stopHomeDispatcher();
-  await stopHomeMemoryCapture();
-  stopIssueQueue();
-  stopTaskScheduler();
-  stopCollaborationDispatcher();
-  stopImManager();
   console.log(`Received ${signal}, draining active runs...`);
-  try {
-    await shutdownActiveRuns();
-    await shutdownHelperHosts();
-    await drainHomeEvents();
-    await drainImManager();
-    await drainIssueResults();
-    await drainCollaborationResults();
-  } catch (error) {
-    console.warn("Failed to drain active runs:", errorMessage(error));
-  }
-  // Terminals before containers: each open shell holds its container against
-  // teardown, so releasing them first lets the container manager actually stop.
-  try {
-    shutdownTerminals();
-    shutdownBrowsers();
-  } catch (error) {
-    console.warn("Failed to close terminal sessions:", errorMessage(error));
-  }
-  try {
-    await stopKnowledgeScheduler();
-    await stopHomeMemoryIndexes();
-    await shutdownKnowledgeWorkers();
-    await shutdownContainerManager();
-  } catch (error) {
-    console.warn("Failed to stop sandbox containers:", errorMessage(error));
-  }
+  await stopWorkers(workers);
   server.close();
   for (const client of updateSockets.clients) client.close(1001, "Server shutting down");
   try {

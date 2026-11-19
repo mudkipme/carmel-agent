@@ -1,6 +1,5 @@
 import { useLingui } from "@lingui/react";
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { clampThinkingLevel } from "@earendil-works/pi-ai";
+import { clampThinkingLevel, type ThinkingLevel } from "@carmel-agent/shared/pi";
 import { useEffect } from "react";
 import { showError } from "@/lib/errors";
 import type { AgentSnapshot, RemoteAgent } from "@/lib/remote-agent";

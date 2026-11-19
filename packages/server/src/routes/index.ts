@@ -1,15 +1,15 @@
-import { createCollaborationRoutes } from "./collaborations.ts";
+import { createCollaborationRoutes } from "../collaborations/routes.ts";
 import { createHelperRoutes } from "./helpers.ts";
 import { createHomeRoutes } from "./agent-homes.ts";
-import { createHomeMemoryRoutes } from "./home-memory.ts";
-import { Hono } from "hono";
+import { createHomeMemoryRoutes } from "../home-memory/routes.ts";
+import { createRouter } from "../openapi/routes.ts";
 import type { AuthVariables } from "../auth.ts";
 import { createApiKeyRoutes } from "./api-keys.ts";
 import { createEnvironmentSecretRoutes } from "./environment-secrets.ts";
 import { createEnvironmentRoutes } from "./environments.ts";
-import { createKnowledgeRoutes } from "./knowledge.ts";
+import { createKnowledgeRoutes } from "../knowledge/routes.ts";
 import { createAgentTaskRoutes } from "./agent-tasks.ts";
-import { createIssueRoutes } from "./issues.ts";
+import { createIssueRoutes } from "../issues/routes.ts";
 import { createAgentRoutes } from "./agents.ts";
 import { createAgentRunRoutes } from "./agent-runs.ts";
 import { createAuthRoutes } from "./auth.ts";
@@ -22,7 +22,7 @@ import { createImIntegrationRoutes } from "./im-integrations.ts";
 import { createUserRequestRoutes } from "./user-requests.ts";
 
 export function createApiRoutes() {
-  const api = new Hono<{ Variables: AuthVariables }>();
+  const api = createRouter<{ Variables: AuthVariables }>();
 
   api.route("/", createSystemRoutes());
   api.route("/auth", createAuthRoutes());

@@ -25,7 +25,7 @@ export function readBootstrapPayload(userId: string) {
 // Session rows only: bootstrap never needs a transcript, so it must not open a
 // Pi session per row to read one. Archived sessions, task runs, and issues stay
 // out of the session list; each is listed where it belongs.
-function readSessionMetadataForUser(userId: string) {
+export function readSessionMetadataForUser(userId: string) {
   return db
     .select()
     .from(sessions)

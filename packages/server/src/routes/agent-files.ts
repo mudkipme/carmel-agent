@@ -1,4 +1,22 @@
-import { Hono, type Context, type Next } from "hono";
+import { createRoute } from "@hono/zod-openapi";
+import { z } from "zod";
+import {
+  createRouter,
+  download,
+  error,
+  image,
+  json,
+  jsonBody,
+  success,
+} from "../openapi/routes.ts";
+import {
+  FileBatchRequestSchema,
+  FileBatchResultSchema,
+  FileContentSchema,
+  FileEntrySchema,
+  FileListSchema,
+} from "../openapi/schemas.ts";
+import { type Context, type Next } from "hono";
 import { createReadStream, createWriteStream } from "node:fs";
 import { cp, mkdir, rename as renameFile, rm } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, relative } from "node:path";
@@ -12,7 +30,6 @@ import {
   type AgentFileList,
   type AgentPermissions,
   createFileEntryRequestSchema,
-  fileBatchRequestSchema,
   fileContentRequestSchema,
   renameFileEntryRequestSchema,
 } from "@carmel-agent/shared";
@@ -22,7 +39,6 @@ import type { AuthVariables } from "../auth.ts";
 import { errorMessage } from "../errors.ts";
 import { AgentExecutionEnv } from "../runtime/execution-env.ts";
 import { zipArchive, type ZipEntry } from "../runtime/zip.ts";
-import { jsonValidator } from "../validation.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 
@@ -47,7 +63,7 @@ const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_ARCHIVE_ENTRIES = 20_000;
 
 export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
-  const route = new Hono<AgentFilesEnv>();
+  const route = createRouter<AgentFilesEnv>();
 
   // Scoped to this sub-app, so filesystem failures map to a status once instead
   // of in every handler. Hono's `route()` preserves a sub-app's own onError.
@@ -55,58 +71,109 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
   route.use("/:id/files", agentFileContext(readVisibleAgent));
   route.use("/:id/files/*", agentFileContext(readVisibleAgent));
 
-  route.get("/:id/files", requireRead, async (c) => {
-    const env = c.get("agentEnv");
-    const directoryPath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
-    const directory = unwrap(await env.fileInfo(directoryPath, fsCtx));
-    if (directory.kind !== "directory") return c.json({ error: "Path is not a directory." }, 400);
-    const entries = await readDirectoryEntries(
-      env,
-      directoryPath,
-      c.req.query("showHidden") === "true",
-    );
-    return c.json({
-      path: env.toWorkspaceRelativePath(directoryPath),
-      entries,
-    } satisfies AgentFileList);
-  });
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/{id}/files",
+      operationId: "listAgentFiles",
+      tags: ["Files"],
+      middleware: [requireRead] as const,
+      parameters: [
+        { name: "path", in: "query", schema: { type: "string" } },
+        { name: "showHidden", in: "query", schema: { type: "boolean" } },
+      ],
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 400: error, 200: json(FileListSchema, "Files") },
+    }),
+    async (c) => {
+      const env = c.get("agentEnv");
+      const directoryPath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
+      const directory = unwrap(await env.fileInfo(directoryPath, fsCtx));
+      if (directory.kind !== "directory") return c.json({ error: "Path is not a directory." }, 400);
+      const entries = await readDirectoryEntries(
+        env,
+        directoryPath,
+        c.req.query("showHidden") === "true",
+      );
+      return c.json(
+        {
+          path: env.toWorkspaceRelativePath(directoryPath),
+          entries,
+        } satisfies AgentFileList,
+        200,
+      );
+    },
+  );
 
-  route.get("/:id/files/content", requireRead, async (c) => {
-    const env = c.get("agentEnv");
-    const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
-    const file = unwrap(await env.fileInfo(filePath, fsCtx));
-    if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
-    if (file.size > MAX_TEXT_FILE_BYTES)
-      return c.json({ error: "File is too large to edit." }, 413);
-    const bytes = unwrap(await env.readBinaryFile(filePath, fsCtx));
-    if (bytes.includes(0))
-      throw new FileError("invalid", "Binary files cannot be edited.", filePath);
-    return c.json({
-      path: env.toWorkspaceRelativePath(filePath),
-      content: new TextDecoder().decode(bytes),
-      updatedAt: file.mtimeMs,
-    } satisfies AgentFileContent);
-  });
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/{id}/files/content",
+      operationId: "getAgentFileContent",
+      tags: ["Files"],
+      middleware: [requireRead] as const,
+      parameters: [{ name: "path", in: "query", required: true, schema: { type: "string" } }],
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 400: error, 413: error, 200: json(FileContentSchema, "Content") },
+    }),
+    async (c) => {
+      const env = c.get("agentEnv");
+      const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
+      const file = unwrap(await env.fileInfo(filePath, fsCtx));
+      if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
+      if (file.size > MAX_TEXT_FILE_BYTES)
+        return c.json({ error: "File is too large to edit." }, 413);
+      const bytes = unwrap(await env.readBinaryFile(filePath, fsCtx));
+      if (bytes.includes(0))
+        throw new FileError("invalid", "Binary files cannot be edited.", filePath);
+      return c.json(
+        {
+          path: env.toWorkspaceRelativePath(filePath),
+          content: new TextDecoder().decode(bytes),
+          updatedAt: file.mtimeMs,
+        } satisfies AgentFileContent,
+        200,
+      );
+    },
+  );
 
-  route.get("/:id/files/raw", requireRead, async (c) => {
-    const env = c.get("agentEnv");
-    const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
-    const file = unwrap(await env.fileInfo(filePath, fsCtx));
-    if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
-    if (file.size > MAX_IMAGE_FILE_BYTES)
-      return c.json({ error: "File is too large to preview." }, 413);
-    const contentType = imageContentType(filePath);
-    if (!contentType) return c.json({ error: "File is not a supported image." }, 415);
-    return c.body(unwrap(await env.readBinaryFile(filePath, fsCtx)).buffer as ArrayBuffer, 200, {
-      "content-type": contentType,
-      "cache-control": "no-store",
-    });
-  });
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/{id}/files/raw",
+      operationId: "getAgentFileImage",
+      tags: ["Files"],
+      middleware: [requireRead] as const,
+      parameters: [{ name: "path", in: "query", required: true, schema: { type: "string" } }],
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 400: error, 413: error, 415: error, 200: image },
+    }),
+    async (c) => {
+      const env = c.get("agentEnv");
+      const filePath = env.resolveBrowserPath(c.req.query("path") ?? "", "read");
+      const file = unwrap(await env.fileInfo(filePath, fsCtx));
+      if (file.kind !== "file") return c.json({ error: "Path is not a file." }, 400);
+      if (file.size > MAX_IMAGE_FILE_BYTES)
+        return c.json({ error: "File is too large to preview." }, 413);
+      const contentType = imageContentType(filePath);
+      if (!contentType) return c.json({ error: "File is not a supported image." }, 415);
+      return c.body(unwrap(await env.readBinaryFile(filePath, fsCtx)).buffer as ArrayBuffer, 200, {
+        "content-type": contentType,
+        "cache-control": "no-store",
+      });
+    },
+  );
 
-  route.put(
-    "/:id/files/content",
-    requireWriteOrEdit,
-    jsonValidator(fileContentRequestSchema),
+  route.openapi(
+    createRoute({
+      method: "put",
+      path: "/{id}/files/content",
+      operationId: "putAgentFileContent",
+      tags: ["Files"],
+      middleware: [requireWriteOrEdit] as const,
+      request: { params: z.object({ id: z.string() }), body: jsonBody(fileContentRequestSchema) },
+      responses: { 400: error, 200: json(FileContentSchema, "Content") },
+    }),
     async (c) => {
       const body = c.req.valid("json");
       if (!body.path || typeof body.content !== "string")
@@ -116,36 +183,62 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
       const filePath = env.resolveBrowserPath(body.path, "write");
       unwrap(await env.writeFile(filePath, body.content, fsCtx));
       const file = unwrap(await env.fileInfo(filePath, fsCtx));
-      return c.json({
-        path: env.toWorkspaceRelativePath(filePath),
-        content: body.content,
-        updatedAt: file.mtimeMs,
-      } satisfies AgentFileContent);
+      return c.json(
+        {
+          path: env.toWorkspaceRelativePath(filePath),
+          content: body.content,
+          updatedAt: file.mtimeMs,
+        } satisfies AgentFileContent,
+        200,
+      );
     },
   );
 
-  route.post("/:id/files", requireWrite, jsonValidator(createFileEntryRequestSchema), async (c) => {
-    const body = c.req.valid("json");
-    if (!body.path || (body.type !== "file" && body.type !== "directory")) {
-      return c.json({ error: "Path and type are required." }, 400);
-    }
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/{id}/files",
+      operationId: "createAgentFile",
+      tags: ["Files"],
+      middleware: [requireWrite] as const,
+      request: {
+        params: z.object({ id: z.string() }),
+        body: jsonBody(createFileEntryRequestSchema),
+      },
+      responses: { 400: error, 409: error, 201: json(FileEntrySchema, "Entry") },
+    }),
+    async (c) => {
+      const body = c.req.valid("json");
+      if (!body.path || (body.type !== "file" && body.type !== "directory")) {
+        return c.json({ error: "Path and type are required." }, 400);
+      }
 
-    const env = c.get("agentEnv");
-    const targetPath = env.resolveBrowserPath(body.path, "write");
-    if (unwrap(await env.exists(targetPath, fsCtx)))
-      return c.json({ error: "Path already exists." }, 409);
-    if (body.type === "directory") {
-      unwrap(await env.createDir(targetPath, { recursive: false }, fsCtx));
-    } else {
-      unwrap(await env.createFileExclusive(body.path, true));
-    }
-    return c.json(await toFileEntry(env, targetPath), 201);
-  });
+      const env = c.get("agentEnv");
+      const targetPath = env.resolveBrowserPath(body.path, "write");
+      if (unwrap(await env.exists(targetPath, fsCtx)))
+        return c.json({ error: "Path already exists." }, 409);
+      if (body.type === "directory") {
+        unwrap(await env.createDir(targetPath, { recursive: false }, fsCtx));
+      } else {
+        unwrap(await env.createFileExclusive(body.path, true));
+      }
+      return c.json(await toFileEntry(env, targetPath), 201);
+    },
+  );
 
-  route.patch(
-    "/:id/files",
-    requireWriteOrEdit,
-    jsonValidator(renameFileEntryRequestSchema),
+  route.openapi(
+    createRoute({
+      method: "patch",
+      path: "/{id}/files",
+      operationId: "renameAgentFile",
+      tags: ["Files"],
+      middleware: [requireWriteOrEdit] as const,
+      request: {
+        params: z.object({ id: z.string() }),
+        body: jsonBody(renameFileEntryRequestSchema),
+      },
+      responses: { 400: error, 409: error, 200: json(FileEntrySchema, "Entry") },
+    }),
     async (c) => {
       const body = c.req.valid("json");
       if (!body.path || !body.newPath)
@@ -156,111 +249,179 @@ export function createAgentFilesRoute(readVisibleAgent: ReadVisibleAgent) {
       if (unwrap(await env.exists(nextPath, fsCtx)))
         return c.json({ error: "Path already exists." }, 409);
       unwrap(await env.rename(body.path, body.newPath, true));
-      return c.json(await toFileEntry(env, nextPath));
+      return c.json(await toFileEntry(env, nextPath), 200);
     },
   );
 
-  route.delete("/:id/files", requireWrite, async (c) => {
-    const env = c.get("agentEnv");
-    const targetPath = env.resolveBrowserPath(c.req.query("path") ?? "", "write");
-    if (targetPath === env.hostCwd)
-      return c.json({ error: "The working directory cannot be deleted." }, 400);
-    unwrap(await env.remove(targetPath, { recursive: true }, fsCtx));
-    return c.json({ ok: true });
-  });
+  route.openapi(
+    createRoute({
+      method: "delete",
+      path: "/{id}/files",
+      operationId: "deleteAgentFile",
+      tags: ["Files"],
+      middleware: [requireWrite] as const,
+      parameters: [{ name: "path", in: "query", required: true, schema: { type: "string" } }],
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 400: error, 200: success },
+    }),
+    async (c) => {
+      const env = c.get("agentEnv");
+      const targetPath = env.resolveBrowserPath(c.req.query("path") ?? "", "write");
+      if (targetPath === env.hostCwd)
+        return c.json({ error: "The working directory cannot be deleted." }, 400);
+      unwrap(await env.remove(targetPath, { recursive: true }, fsCtx));
+      return c.json({ ok: true }, 200);
+    },
+  );
 
   // One endpoint for every download shape the file manager offers: a single
   // file streams as-is, anything else (a folder, a multi-select) streams as a
   // zip built on the fly.
-  route.get("/:id/files/download", requireRead, async (c) => {
-    const env = c.get("agentEnv");
-    const requested = (c.req.queries("path") ?? []).map((path) => path.trim()).filter(Boolean);
-    if (requested.length === 0) return c.json({ error: "At least one path is required." }, 400);
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/{id}/files/download",
+      operationId: "downloadAgentFiles",
+      tags: ["Files"],
+      description: "One file streams as-is; a directory or several paths stream as a zip archive.",
+      middleware: [requireRead] as const,
+      parameters: [
+        {
+          name: "path",
+          in: "query",
+          required: true,
+          explode: true,
+          schema: { type: "array", items: { type: "string" } },
+        },
+      ],
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 200: download, 400: error, 404: error },
+    }),
+    async (c) => {
+      const env = c.get("agentEnv");
+      const requested = (c.req.queries("path") ?? []).map((path) => path.trim()).filter(Boolean);
+      if (requested.length === 0) return c.json({ error: "At least one path is required." }, 400);
 
-    const targets = [];
-    for (const path of requested) {
-      const absolutePath = env.resolveBrowserPath(path, "read");
-      targets.push({ absolutePath, info: unwrap(await env.fileInfo(absolutePath, fsCtx)) });
-    }
+      const targets = [];
+      for (const path of requested) {
+        const absolutePath = env.resolveBrowserPath(path, "read");
+        targets.push({ absolutePath, info: unwrap(await env.fileInfo(absolutePath, fsCtx)) });
+      }
 
-    const single = targets.length === 1 ? targets[0] : undefined;
-    if (single && single.info.kind === "file") {
-      return c.body(toWebStream(createReadStream(single.absolutePath)), 200, {
-        "content-type": "application/octet-stream",
-        "content-length": String(single.info.size),
-        "content-disposition": contentDisposition(basename(single.absolutePath)),
+      const single = targets.length === 1 ? targets[0] : undefined;
+      if (single && single.info.kind === "file") {
+        return c.body(toWebStream(createReadStream(single.absolutePath)), 200, {
+          "content-type": "application/octet-stream",
+          "content-length": String(single.info.size),
+          "content-disposition": contentDisposition(basename(single.absolutePath)),
+          "cache-control": "no-store",
+        });
+      }
+
+      const entries = await collectArchiveEntries(
+        env,
+        targets.map((target) => target.absolutePath),
+      );
+      const archiveName = single
+        ? `${single.absolutePath === env.hostCwd ? "workspace" : basename(single.absolutePath)}.zip`
+        : "files.zip";
+      return c.body(toWebStream(Readable.from(zipArchive(entries))), 200, {
+        "content-type": "application/zip",
+        "content-disposition": contentDisposition(archiveName),
         "cache-control": "no-store",
       });
-    }
-
-    const entries = await collectArchiveEntries(
-      env,
-      targets.map((target) => target.absolutePath),
-    );
-    const archiveName = single
-      ? `${single.absolutePath === env.hostCwd ? "workspace" : basename(single.absolutePath)}.zip`
-      : "files.zip";
-    return c.body(toWebStream(Readable.from(zipArchive(entries))), 200, {
-      "content-type": "application/zip",
-      "content-disposition": contentDisposition(archiveName),
-      "cache-control": "no-store",
-    });
-  });
+    },
+  );
 
   // Raw body rather than multipart: the browser uploads one file per request,
   // which keeps large files off the server heap and gives the client a real
   // per-file progress bar.
-  route.put("/:id/files/upload", requireWrite, async (c) => {
-    const requestedPath = (c.req.query("path") ?? "").trim();
-    if (!requestedPath || requestedPath.endsWith("/"))
-      return c.json({ error: "A file path is required." }, 400);
-    const declaredSize = Number(c.req.header("content-length"));
-    if (Number.isFinite(declaredSize) && declaredSize > MAX_UPLOAD_BYTES) {
-      return c.json({ error: "File is too large to upload." }, 413);
-    }
+  route.openapi(
+    createRoute({
+      method: "put",
+      path: "/{id}/files/upload",
+      operationId: "uploadAgentFile",
+      tags: ["Files"],
+      middleware: [requireWrite] as const,
+      parameters: [
+        { name: "path", in: "query", required: true, schema: { type: "string" } },
+        { name: "overwrite", in: "query", schema: { type: "boolean" } },
+      ],
+      requestBody: {
+        required: true,
+        content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } },
+      },
+      request: { params: z.object({ id: z.string() }) },
+      responses: { 400: error, 201: json(FileEntrySchema, "Entry"), 409: error, 413: error },
+    }),
+    async (c) => {
+      const requestedPath = (c.req.query("path") ?? "").trim();
+      if (!requestedPath || requestedPath.endsWith("/"))
+        return c.json({ error: "A file path is required." }, 400);
+      const declaredSize = Number(c.req.header("content-length"));
+      if (Number.isFinite(declaredSize) && declaredSize > MAX_UPLOAD_BYTES) {
+        return c.json({ error: "File is too large to upload." }, 413);
+      }
 
-    const env = c.get("agentEnv");
-    const targetPath = env.resolveBrowserPath(requestedPath, "write");
-    if (targetPath === env.hostCwd) return c.json({ error: "A file path is required." }, 400);
-    if (unwrap(await env.exists(targetPath, fsCtx))) {
-      if (c.req.query("overwrite") !== "true")
-        return c.json({ error: "Path already exists." }, 409);
-      if (unwrap(await env.fileInfo(targetPath, fsCtx)).kind !== "file")
-        return c.json({ error: "Path is not a file." }, 400);
-    }
+      const env = c.get("agentEnv");
+      const targetPath = env.resolveBrowserPath(requestedPath, "write");
+      if (targetPath === env.hostCwd) return c.json({ error: "A file path is required." }, 400);
+      if (unwrap(await env.exists(targetPath, fsCtx))) {
+        if (c.req.query("overwrite") !== "true")
+          return c.json({ error: "Path already exists." }, 409);
+        if (unwrap(await env.fileInfo(targetPath, fsCtx)).kind !== "file")
+          return c.json({ error: "Path is not a file." }, 400);
+      }
 
-    // Folder uploads arrive as files carrying their relative path, so the
-    // directories on the way to one are created as needed.
-    await mkdir(env.resolveBrowserPath(dirname(requestedPath), "write"), { recursive: true });
-    await streamUpload(c.req.raw.body, targetPath);
-    return c.json(await toFileEntry(env, targetPath), 201);
-  });
+      // Folder uploads arrive as files carrying their relative path, so the
+      // directories on the way to one are created as needed.
+      await mkdir(env.resolveBrowserPath(dirname(requestedPath), "write"), { recursive: true });
+      await streamUpload(c.req.raw.body, targetPath);
+      return c.json(await toFileEntry(env, targetPath), 201);
+    },
+  );
 
   // Batch delete / cut-paste / copy-paste. Each path is attempted on its own so
   // one failure inside a selection does not strand the rest.
-  route.post("/:id/files/batch", requireWrite, jsonValidator(fileBatchRequestSchema), async (c) => {
-    const { operation, paths, destination } = c.req.valid("json");
-    const env = c.get("agentEnv");
-    const destinationPath =
-      operation === "delete" ? "" : env.resolveBrowserPath(destination ?? "", "write");
-    if (
-      destinationPath &&
-      unwrap(await env.fileInfo(destinationPath, fsCtx)).kind !== "directory"
-    ) {
-      return c.json({ error: "Destination is not a directory." }, 400);
-    }
-
-    const result: AgentFileBatchResult = { completed: [], failed: [] };
-    for (const path of paths) {
-      try {
-        await applyBatchOperation(env, operation, path, destinationPath);
-        result.completed.push(path);
-      } catch (error) {
-        result.failed.push({ path, error: errorMessage(error) });
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/{id}/files/batch",
+      operationId: "batchAgentFileOperation",
+      tags: ["Files"],
+      middleware: [requireWrite] as const,
+      request: { params: z.object({ id: z.string() }), body: jsonBody(FileBatchRequestSchema) },
+      responses: {
+        403: error,
+        404: error,
+        200: json(FileBatchResultSchema, "Per-path outcome"),
+        400: error,
+      },
+    }),
+    async (c) => {
+      const { operation, paths, destination } = c.req.valid("json");
+      const env = c.get("agentEnv");
+      const destinationPath =
+        operation === "delete" ? "" : env.resolveBrowserPath(destination ?? "", "write");
+      if (
+        destinationPath &&
+        unwrap(await env.fileInfo(destinationPath, fsCtx)).kind !== "directory"
+      ) {
+        return c.json({ error: "Destination is not a directory." }, 400);
       }
-    }
-    return c.json(result satisfies AgentFileBatchResult);
-  });
+
+      const result: AgentFileBatchResult = { completed: [], failed: [] };
+      for (const path of paths) {
+        try {
+          await applyBatchOperation(env, operation, path, destinationPath);
+          result.completed.push(path);
+        } catch (error) {
+          result.failed.push({ path, error: errorMessage(error) });
+        }
+      }
+      return c.json(result satisfies AgentFileBatchResult, 200);
+    },
+  );
 
   return route;
 }

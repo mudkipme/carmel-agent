@@ -43,7 +43,7 @@ import { sessions } from "../db/schema.ts";
 import { legacyUserRequestReceipt } from "./user-requests.ts";
 import { dataDir } from "../paths.ts";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
-import { publishStateChange } from "../state-changes.ts";
+import { publishUserStateChange } from "../state-changes.ts";
 
 const ctx = BACKGROUND_CONTEXT;
 export const PENDING_ENTRY_ID_PREFIX = "pending:";
@@ -112,6 +112,11 @@ export async function openPiSession(sessionId: string): Promise<PiSession> {
 }
 async function openNative(id: string): Promise<PiSession> {
   const path = durableSessionPath(id);
+  const owner = db
+    .select({ userId: sessions.userId })
+    .from(sessions)
+    .where(eq(sessions.id, id))
+    .get()?.userId;
   const registry = createRegistry();
   const state = {
     models: createModels() as Models,
@@ -163,7 +168,7 @@ async function openNative(id: string): Promise<PiSession> {
       : root;
     native.observeCommits({
       advance(publication) {
-        if (publication.changes.length) publishStateChange("subtasks");
+        if (publication.changes.length) publishUserStateChange(owner, "subtasks");
       },
       end() {},
     });

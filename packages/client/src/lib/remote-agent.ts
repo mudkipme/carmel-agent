@@ -1,6 +1,11 @@
 import { i18n } from "@lingui/core";
-import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
+import type {
+  AgentMessage,
+  Api,
+  ImageContent,
+  Model,
+  ThinkingLevel,
+} from "@carmel-agent/shared/pi";
 import type {
   ActiveAgentRunSummary,
   AgentRunEvent,
@@ -13,7 +18,8 @@ import type {
 } from "@carmel-agent/shared";
 import { applyRunProgress, type RunProgress } from "@carmel-agent/shared";
 
-import { api, ApiError, apiError, apiFetch } from "@/lib/api";
+import { api, ApiError, apiError, apiFetch, apiUrl } from "@/lib/api";
+import { apiRoutes } from "@carmel-agent/shared/api";
 import { errorMessage } from "@/lib/errors";
 import { openRunEventStream, type RunEventStream } from "./update-connection.ts";
 
@@ -293,7 +299,7 @@ export class RemoteAgent {
     if (this.config.home && promptInput) {
       try {
         const response = await apiFetch(
-          `/api/agents/${encodeURIComponent(this.config.agentId)}/home/messages`,
+          apiUrl(apiRoutes.sendHomeMessage.path, { agentId: this.config.agentId }),
           {
             method: "POST",
             body: JSON.stringify({
@@ -333,17 +339,20 @@ export class RemoteAgent {
     try {
       let response: Response;
       try {
-        response = await apiFetch(`/api/agents/${encodeURIComponent(this.config.agentId)}/run`, {
-          method: "POST",
-          body: JSON.stringify({
-            sessionId: this.config.sessionId,
-            modelRefId: this.config.modelRefId,
-            thinkingLevel: this.thinkingLevel,
-            promptInput,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          }),
-          signal: controller.signal,
-        });
+        response = await apiFetch(
+          apiUrl(apiRoutes.startAgentRun.path, { id: this.config.agentId }),
+          {
+            method: "POST",
+            body: JSON.stringify({
+              sessionId: this.config.sessionId,
+              modelRefId: this.config.modelRefId,
+              thinkingLevel: this.thinkingLevel,
+              promptInput,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            }),
+            signal: controller.signal,
+          },
+        );
       } catch (error) {
         if (controller.signal.aborted) throw error;
         this.markReconnecting(error);

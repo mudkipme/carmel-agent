@@ -2,7 +2,7 @@ import { useLingui } from "@lingui/react";
 import { i18n } from "@lingui/core";
 import { useLayoutEffect, useRef, type ComponentProps } from "react";
 import type { AgentConfig, IssueNote, ModelRef, Session } from "@carmel-agent/shared";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@carmel-agent/shared/pi";
 import { api } from "@/lib/api";
 import { useHarnessStore } from "@/store/harness-store";
 import { useSessionAgent } from "@/hooks/use-session-agent";

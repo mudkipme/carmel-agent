@@ -303,8 +303,8 @@ test("Pi storage provisions an empty session on first open", async () => {
   }
 });
 
-async function allMessages(session: import("../services/pi-session-storage.ts").PiSession) {
-  const { scanEntries } = await import("../services/pi-session-storage.ts");
+async function allMessages(session: import("./pi-session-storage.ts").PiSession) {
+  const { scanEntries } = await import("./pi-session-storage.ts");
   return session.native.commit(async (tx) => {
     const conversations = await tx.scanConversations({}, 100, undefined);
     const entries = new Map();

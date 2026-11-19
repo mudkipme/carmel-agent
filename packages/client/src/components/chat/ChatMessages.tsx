@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@carmel-agent/shared/pi";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
 import { CollaborationActivity } from "./CollaborationActivity";
@@ -26,7 +26,7 @@ import type {
   AssistantMessage as AssistantMessageType,
   ToolCall,
   ToolResultMessage,
-} from "@earendil-works/pi-ai";
+} from "@carmel-agent/shared/pi";
 import { Fragment, memo, useId, useMemo, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { MessageActions } from "./MessageActions";

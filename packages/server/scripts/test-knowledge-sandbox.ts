@@ -13,8 +13,8 @@ process.env.CARMEL_CONTAINERIZED = "0";
 process.env.CARMEL_KNOWLEDGE_EMBED_MODEL = process.env.CARMEL_TEST_EMBED_MODEL ?? "";
 process.env.CARMEL_KNOWLEDGE_GPU = process.env.CARMEL_TEST_GPU ?? "";
 const { callKnowledgeWorker, stopKnowledgeWorker, shutdownKnowledgeWorkers } =
-  await import("../src/runtime/knowledge/worker-client.ts");
-const { knowledgeModelPlan } = await import("../src/runtime/knowledge/models.ts");
+  await import("../src/knowledge/worker-client.ts");
+const { knowledgeModelPlan } = await import("../src/knowledge/models.ts");
 const agentId = `test-${randomUUID()}`;
 const stateDir = join(root, "state"),
   sourceDir = join(root, "source");
@@ -130,7 +130,7 @@ try {
   const { db, initialize } = await import("../src/db/index.ts");
   const { agents } = await import("../src/db/schema.ts");
   const { createSession, createUser, setAgentWorkingDir } = await import("../src/test-support.ts");
-  const service = await import("../src/services/knowledge.ts");
+  const service = await import("../src/knowledge/service.ts");
   initialize();
   const fixture = createSession(),
     member = createUser();
@@ -199,8 +199,8 @@ try {
     console.log(
       "Shared retrieval, citations, stale-hit rejection, offline fallback, and source deletion passed.",
     );
-    const memory = await import("../src/services/home-memory.ts");
-    const homeSearch = await import("../src/services/home-memory-search.ts");
+    const memory = await import("../src/home-memory/service.ts");
+    const homeSearch = await import("../src/home-memory/search.ts");
     const privateNote = memory.saveHomeMemory(fixture.userId, fixture.agentId, {
       title: "Private preference",
       content: "I prefer saffron risotto.",

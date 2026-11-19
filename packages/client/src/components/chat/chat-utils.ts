@@ -1,12 +1,12 @@
 import { i18n } from "@lingui/core";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@carmel-agent/shared/pi";
 import type {
   AssistantMessage,
   ImageContent,
   TextContent,
   ToolResultMessage,
   Usage,
-} from "@earendil-works/pi-ai";
+} from "@carmel-agent/shared/pi";
 import { type ChatAttachment, isUserMessage } from "@carmel-agent/shared";
 
 type DisplayImageContent = ImageContent & {

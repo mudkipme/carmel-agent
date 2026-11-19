@@ -1,4 +1,8 @@
-import { Hono } from "hono";
+import type { Context } from "hono";
+import { createRoute } from "@hono/zod-openapi";
+import { z } from "zod";
+import { createRouter, error, json } from "../openapi/routes.ts";
+import { OKSchema, SessionSecretSchema, UserRequestSchema } from "../openapi/schemas.ts";
 import { and, eq } from "drizzle-orm";
 import { secretAnswerSchema } from "@carmel-agent/shared";
 import type { AuthVariables } from "../auth.ts";
@@ -22,62 +26,209 @@ import { withPiSession } from "../services/pi-session-storage.ts";
 import { getActiveAgentRunForSession } from "../runtime/run-stream.ts";
 
 export function createUserRequestRoutes() {
-  const route = new Hono<{ Variables: AuthVariables }>();
+  const route = createRouter<{ Variables: AuthVariables }>();
   // The credential body is deliberately outside generic validators/loggers.
-  route.post("/sessions/:id/requests/:requestId/secret", async (c) =>
-    respond(c, async () => {
-      await writableRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
-      const body = secretAnswerSchema.safeParse(await c.req.json().catch(() => undefined));
-      if (!body.success) throw new SecretError("Invalid secret value.", 400);
-      return answerSecretRequest(
-        c.get("user").id,
-        c.req.param("id"),
-        c.req.param("requestId"),
-        body.data.value,
-      );
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions/{id}/requests/{requestId}/secret",
+      operationId: "provideRequestedSecret",
+      tags: ["Sessions"],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: { $ref: "#/components/schemas/SecretAnswerRequest" } },
+        },
+      },
+      request: { params: z.object({ id: z.string(), requestId: z.string() }) },
+      responses: {
+        403: error,
+        500: error,
+        200: json(UserRequestSchema, "Safe request receipt. Credential values are never returned."),
+        400: error,
+        404: error,
+        409: error,
+        503: error,
+      },
     }),
+    async (c) =>
+      respond(c, async () => {
+        await writableRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
+        const body = secretAnswerSchema.safeParse(await c.req.json().catch(() => undefined));
+        if (!body.success) throw new SecretError("Invalid secret value.", 400);
+        return answerSecretRequest(
+          c.get("user").id,
+          c.req.param("id"),
+          c.req.param("requestId"),
+          body.data.value,
+        );
+      }),
   );
-  route.post("/sessions/:id/requests/:requestId/answer", async (c) =>
-    respond(c, async () => {
-      await writableRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
-      return answerQuestion(
-        c.get("user").id,
-        c.req.param("id"),
-        c.req.param("requestId"),
-        await c.req.json().catch(() => undefined),
-      );
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions/{id}/requests/{requestId}/answer",
+      operationId: "answerUserQuestion",
+      tags: ["Sessions"],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: { $ref: "#/components/schemas/QuestionAnswerRequest" } },
+        },
+      },
+      request: { params: z.object({ id: z.string(), requestId: z.string() }) },
+      responses: {
+        403: error,
+        500: error,
+        200: json(UserRequestSchema, "Safe request receipt. Credential values are never returned."),
+        400: error,
+        404: error,
+        409: error,
+        503: error,
+      },
     }),
+    async (c) =>
+      respond(c, async () => {
+        await writableRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
+        return answerQuestion(
+          c.get("user").id,
+          c.req.param("id"),
+          c.req.param("requestId"),
+          await c.req.json().catch(() => undefined),
+        );
+      }),
   );
-  route.post("/sessions/:id/requests/:requestId/cancel", async (c) =>
-    respond(c, async () => {
-      await writableRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
-      return cancelUserRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions/{id}/requests/{requestId}/cancel",
+      operationId: "cancelUserRequest",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string(), requestId: z.string() }) },
+      responses: {
+        403: error,
+        500: error,
+        200: json(UserRequestSchema, "Safe request receipt. Credential values are never returned."),
+        400: error,
+        404: error,
+        409: error,
+        503: error,
+      },
     }),
+    async (c) =>
+      respond(c, async () => {
+        await writableRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
+        return cancelUserRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
+      }),
   );
-  route.post("/sessions/:id/requests/:requestId/use-existing", async (c) =>
-    respond(c, async () => {
-      await writableRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
-      return useAvailableSecret(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions/{id}/requests/{requestId}/use-existing",
+      operationId: "useRequestedSecret",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string(), requestId: z.string() }) },
+      responses: {
+        403: error,
+        500: error,
+        200: json(UserRequestSchema, "Safe request receipt. Credential values are never returned."),
+        400: error,
+        404: error,
+        409: error,
+        503: error,
+      },
     }),
+    async (c) =>
+      respond(c, async () => {
+        await writableRequest(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
+        return useAvailableSecret(c.get("user").id, c.req.param("id"), c.req.param("requestId"));
+      }),
   );
-  route.get("/sessions/:id/secrets", (c) =>
-    respond(c, () => readSessionSecrets(c.get("user").id, c.req.param("id"))),
-  );
-  route.post("/sessions/:id/secrets/:secretId/promote", (c) =>
-    respond(c, () =>
-      promoteSessionSecret(c.get("user").id, c.req.param("id"), c.req.param("secretId")),
-    ),
-  );
-  route.post("/sessions/:id/secrets/:secretId/demote", (c) =>
-    respond(c, () =>
-      demoteEnvironmentSecret(c.get("user").id, c.req.param("id"), c.req.param("secretId")),
-    ),
-  );
-  route.delete("/sessions/:id/secrets/:secretId", (c) =>
-    respond(c, () => {
-      revokeSessionSecret(c.get("user").id, c.req.param("id"), c.req.param("secretId"));
-      return { ok: true };
+  route.openapi(
+    createRoute({
+      method: "get",
+      path: "/sessions/{id}/secrets",
+      operationId: "listSessionSecrets",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string() }) },
+      responses: {
+        400: error,
+        403: error,
+        409: error,
+        500: error,
+        503: error,
+        200: json(z.array(SessionSecretSchema), "Effective credential metadata, without values."),
+        404: error,
+      },
     }),
+    (c) => respond(c, () => readSessionSecrets(c.get("user").id, c.req.param("id"))),
+  );
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions/{id}/secrets/{secretId}/promote",
+      operationId: "promoteSessionSecret",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string(), secretId: z.string() }) },
+      responses: {
+        400: error,
+        500: error,
+        503: error,
+        200: json(SessionSecretSchema, "Credential scope updated or credential revoked."),
+        403: error,
+        404: error,
+        409: error,
+      },
+    }),
+    (c) =>
+      respond(c, () =>
+        promoteSessionSecret(c.get("user").id, c.req.param("id"), c.req.param("secretId")),
+      ),
+  );
+  route.openapi(
+    createRoute({
+      method: "post",
+      path: "/sessions/{id}/secrets/{secretId}/demote",
+      operationId: "demoteEnvironmentSecret",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string(), secretId: z.string() }) },
+      responses: {
+        400: error,
+        500: error,
+        503: error,
+        200: json(SessionSecretSchema, "Credential scope updated or credential revoked."),
+        403: error,
+        404: error,
+        409: error,
+      },
+    }),
+    (c) =>
+      respond(c, () =>
+        demoteEnvironmentSecret(c.get("user").id, c.req.param("id"), c.req.param("secretId")),
+      ),
+  );
+  route.openapi(
+    createRoute({
+      method: "delete",
+      path: "/sessions/{id}/secrets/{secretId}",
+      operationId: "revokeSessionSecret",
+      tags: ["Sessions"],
+      request: { params: z.object({ id: z.string(), secretId: z.string() }) },
+      responses: {
+        400: error,
+        503: error,
+        500: error,
+        200: json(OKSchema, "Credential scope updated or credential revoked."),
+        403: error,
+        404: error,
+        409: error,
+      },
+    }),
+    (c) =>
+      respond(c, () => {
+        revokeSessionSecret(c.get("user").id, c.req.param("id"), c.req.param("secretId"));
+        return { ok: true };
+      }),
   );
   return route;
 }
@@ -99,16 +250,10 @@ async function writableRequest(userId: string, sessionId: string, requestId: str
     throw new SecretError("Wait for the current run to finish before responding.", 409);
 }
 
-async function respond(
-  c: {
-    header: (name: string, value: string) => void;
-    json: (body: unknown, status?: 200 | 400 | 403 | 404 | 409 | 500 | 503) => Response;
-  },
-  action: () => unknown,
-) {
+async function respond<T>(c: Context, action: () => T | Promise<T>) {
   c.header("cache-control", "no-store");
   try {
-    return c.json(await action());
+    return c.json(await action(), 200);
   } catch (error) {
     if (error instanceof SecretError) return c.json({ error: error.message }, error.status);
     // Never serialize the exception, but do not disguise a bug or database

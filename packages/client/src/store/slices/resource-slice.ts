@@ -1,5 +1,5 @@
 import { i18n } from "@lingui/core";
-import { clampThinkingLevel } from "@earendil-works/pi-ai";
+import { clampThinkingLevel } from "@carmel-agent/shared/pi";
 import type { StoreApi } from "zustand";
 import { api } from "@/lib/api";
 import { createClientId } from "@/lib/id";

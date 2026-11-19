@@ -2,8 +2,13 @@ import { Trans } from "@lingui/react/macro";
 import { useHarnessStore } from "@/store/harness-store";
 import { cn } from "@/lib/utils";
 import { draftStorageKey } from "@/lib/session-draft";
-import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
+import type {
+  AgentMessage,
+  Api,
+  ImageContent,
+  Model,
+  ThinkingLevel,
+} from "@carmel-agent/shared/pi";
 import type { NestedToolSlot, MessageReference } from "@carmel-agent/shared";
 import {
   useCallback,

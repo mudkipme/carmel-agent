@@ -11,7 +11,7 @@ import { loadAgentResources } from "./resources.ts";
 import { formatBuiltinSkillsForSystemPrompt, isBuiltinSkill } from "./builtin-skills.ts";
 import { initialize } from "../db/index.ts";
 import { createSession, createUser, insertEnvironment, makeEnvironment } from "../test-support.ts";
-import { saveKnowledgeSettings } from "../services/knowledge.ts";
+import { saveKnowledgeSettings } from "../knowledge/service.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
 initialize();

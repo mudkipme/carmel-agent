@@ -1,6 +1,10 @@
 import { useLingui } from "@lingui/react";
-import { clampThinkingLevel } from "@earendil-works/pi-ai";
-import type { Api, ImageContent, Model } from "@earendil-works/pi-ai";
+import {
+  clampThinkingLevel,
+  type Api,
+  type ImageContent,
+  type Model,
+} from "@carmel-agent/shared/pi";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type AgentSnapshot, type PromptOutcome, RemoteAgent } from "@/lib/remote-agent";
 import { useHarnessStore } from "@/store/harness-store";

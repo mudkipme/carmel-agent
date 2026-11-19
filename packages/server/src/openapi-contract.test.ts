@@ -5,6 +5,8 @@ import { Ajv } from "ajv/dist/ajv.js";
 import { parse } from "yaml";
 import type { SessionSearchResult } from "@carmel-agent/shared";
 import { createApiRoutes } from "./routes/index.ts";
+import { createApiDocument, renderApiDocument } from "./openapi/document.ts";
+import { renderApiTypes } from "./openapi/typescript.ts";
 
 type OpenAPIDocument = {
   paths: Record<string, Record<string, unknown>>;
@@ -22,7 +24,20 @@ function normalizeRoutePath(path: string) {
   return `/api${path === "/" ? "" : path}`.replace(/:([^/]+)/g, "{$1}");
 }
 
-test("OpenAPI operations exactly cover the registered API router", async () => {
+test("the committed OpenAPI document and client types are generated from the route definitions", async () => {
+  assert.equal(
+    await readFile(specPath, "utf8"),
+    renderApiDocument(),
+    "openapi.yaml is stale: run `pnpm openapi`",
+  );
+  assert.equal(
+    await readFile(new URL("../../shared/src/api.ts", import.meta.url), "utf8"),
+    renderApiTypes(createApiDocument()),
+    "shared/src/api.ts is stale: run `pnpm openapi`",
+  );
+});
+
+test("every registered API route is documented", async () => {
   const spec = await loadSpec();
   const documented = new Set(
     Object.entries(spec.paths).flatMap(([path, item]) =>
@@ -40,12 +55,35 @@ test("OpenAPI operations exactly cover the registered API router", async () => {
   assert.deepEqual([...documented].sort(), [...registered].sort());
 });
 
+/** OpenAPI 3.0 adds null to a reference with `{ nullable: true }` beside it; Ajv wants JSON Schema. */
+function jsonSchema(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(jsonSchema);
+  if (!value || typeof value !== "object") return value;
+  const object = value as Record<string, unknown>;
+  const nullOnly = (part: unknown) =>
+    !!part && typeof part === "object" && Object.keys(part).join() === "nullable";
+  const allOf = object.allOf as unknown[] | undefined;
+  if (allOf?.some(nullOnly)) {
+    const { allOf: _, ...rest } = object;
+    const parts = allOf.filter((part) => !nullOnly(part)).map(jsonSchema);
+    return { ...rest, anyOf: [parts.length === 1 ? parts[0] : { allOf: parts }, { type: "null" }] };
+  }
+  return Object.fromEntries(
+    Object.entries(object).map(([key, child]) => [
+      key,
+      key === "anyOf" || key === "oneOf"
+        ? (child as unknown[]).map((part) => (nullOnly(part) ? { type: "null" } : jsonSchema(part)))
+        : jsonSchema(child),
+    ]),
+  );
+}
+
 test("representative response fixtures satisfy every response component", async () => {
   const spec = await loadSpec();
   const ajv = new Ajv({ strict: false, allErrors: true });
   const schema = (name: string) => ({
     $ref: `#/components/schemas/${name}`,
-    components: spec.components,
+    components: jsonSchema(spec.components),
   });
   const user = {
     id: "u1",
@@ -197,6 +235,7 @@ test("representative response fixtures satisfy every response component", async 
       coreMaxLines: 200,
       coreMaxBytes: 24000,
       lastCaptureAt: null,
+      lastCapture: null,
       error: null,
     },
     SessionSecret: { id: "secret1", name: "GITHUB_TOKEN", scope: "session", updatedAt: 1 },

@@ -3,7 +3,7 @@ import { AtSignIcon } from "lucide-react";
 import { useContext } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { getMessageReferences, referenceKey, referenceLabel } from "@carmel-agent/shared";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@carmel-agent/shared/pi";
 import { Badge } from "@/components/ui/badge";
 import { agentFilesPath } from "@/lib/file-links";
 import { workspaceChatPath } from "@/lib/workspace-layout";

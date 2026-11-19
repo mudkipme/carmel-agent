@@ -4,7 +4,7 @@ import type { UpdateServerMessage } from "@carmel-agent/shared";
 import { readAuthenticatedUser, readSessionCookie } from "./auth.ts";
 import { incomingRequestHost, incomingRequestUrl, isAllowedBrowserOrigin } from "./security.ts";
 import { agentRunSubscription } from "./runtime/run-stream.ts";
-import { stateEpoch, stateRevision, subscribeStateChanges } from "./state-changes.ts";
+import { stateEpoch, subscribeStateChanges, topicsFor } from "./state-changes.ts";
 
 export function attachUpdateSocket(server: Server) {
   const wss = new WebSocketServer({
@@ -24,7 +24,7 @@ export function attachUpdateSocket(server: Server) {
     const user = readAuthenticatedUser(token);
     if (!user) return reject(401);
     wss.handleUpgrade(request, socket, head, (ws) =>
-      openUpdates(ws, user.id, () => Boolean(readAuthenticatedUser(token))),
+      openUpdates(ws, user, () => Boolean(readAuthenticatedUser(token))),
     );
   });
   const shutdown = () => {
@@ -35,7 +35,12 @@ export function attachUpdateSocket(server: Server) {
   return wss;
 }
 
-function openUpdates(ws: WebSocket, userId: string, authenticated: () => boolean) {
+function openUpdates(
+  ws: WebSocket,
+  user: { id: string; role: string },
+  authenticated: () => boolean,
+) {
+  const userId = user.id;
   const runs = new Map<string, () => void>();
   const send = (message: UpdateServerMessage) => {
     if (ws.readyState !== ws.OPEN) return false;
@@ -50,9 +55,12 @@ function openUpdates(ws: WebSocket, userId: string, authenticated: () => boolean
     ws.send(JSON.stringify(message));
     return true;
   };
-  const unsubscribe = subscribeStateChanges((revision, topics) =>
-    send({ type: "state_changed", revision, topics }),
-  );
+  // Per-connection, so a change that is filtered out never reads as a gap.
+  let revision = 0;
+  const unsubscribe = subscribeStateChanges((changes) => {
+    const topics = topicsFor(changes, user);
+    if (topics.length) send({ type: "state_changed", revision: ++revision, topics });
+  });
   let alive = true;
   const heartbeat = setInterval(() => {
     if (!authenticated()) {
@@ -123,5 +131,5 @@ function openUpdates(ws: WebSocket, userId: string, authenticated: () => boolean
     if (ws.readyState === ws.OPEN) runs.set(id, stop);
     else stop();
   });
-  send({ type: "ready", epoch: stateEpoch, revision: stateRevision() });
+  send({ type: "ready", epoch: stateEpoch, revision });
 }
