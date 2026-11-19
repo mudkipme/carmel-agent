@@ -27,6 +27,7 @@ export class UpdateConnection {
   private retryDelay = 250;
   private retry?: ReturnType<typeof setTimeout>;
   private listeners = new Map<() => void, readonly StateTopic[]>();
+  private invalidationObservers = new Set<(topics: readonly StateTopic[]) => void>();
   private readers = new Map<string, RunReader>();
 
   constructor(
@@ -49,6 +50,14 @@ export class UpdateConnection {
 
   refreshState(topics: readonly StateTopic[]) {
     this.invalidate(topics);
+  }
+
+  /** Passively observe invalidations without retaining the socket connection. */
+  observeInvalidations(listener: (topics: readonly StateTopic[]) => void) {
+    this.invalidationObservers.add(listener);
+    return () => {
+      this.invalidationObservers.delete(listener);
+    };
   }
 
   openRunStream(runId: string, after: number, signal: AbortSignal): Promise<RunEventStream> {
@@ -171,6 +180,7 @@ export class UpdateConnection {
 
   private invalidate(topics: readonly StateTopic[]) {
     if (topics.includes("workspace")) topics = stateTopics;
+    for (const observer of this.invalidationObservers) observer(topics);
     for (const [listener, watched] of this.listeners) {
       if (watched.some((topic) => topics.includes(topic))) listener();
     }

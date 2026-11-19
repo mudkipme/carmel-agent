@@ -94,10 +94,8 @@ export function createResourceSlice(set: SetState, get: GetState): ResourceActio
             ([id, detail]) => !deletedSessionIds.has(id) && detail.agentId !== agentId,
           ),
         );
-        // Task sessions are not in `sessions`, but their details and tasks are.
-        const issues = state.issues.filter((item) => item.agentId !== agentId);
         const lastAgentId = state.lastAgentId === agentId ? "" : state.lastAgentId;
-        return { agents, sessions, sessionDetails, issues, lastAgentId };
+        return { agents, sessions, sessionDetails, lastAgentId };
       });
     },
     upsertProviderConfig: async (providerConfig) => {

@@ -12,6 +12,8 @@ ensureParentDir(databasePath);
 
 export const sqlite = new Database(databasePath);
 sqlite.pragma("journal_mode = WAL");
+sqlite.pragma("synchronous = NORMAL");
+sqlite.pragma("busy_timeout = 5000");
 sqlite.pragma("foreign_keys = ON");
 
 export const db = drizzle(sqlite);

@@ -9,6 +9,7 @@ import type {
 import { homeIssueUpdate } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { errorMessage } from "../errors.ts";
+import { startWakeLoop, type WakeLoop } from "../wake-loop.ts";
 import { agentHomes, collaborations, homeEvents, sessions } from "../db/schema.ts";
 import { imInbox, imIntegrations } from "../db/im-schema.ts";
 import { id, now } from "../db/seed.ts";
@@ -18,10 +19,10 @@ import { resolveRunModel } from "./model-context.ts";
 import { hasPendingPiSessionWork, withPiSession } from "./pi-session-storage.ts";
 import { readSessionSnapshot } from "./session-snapshot.ts";
 import { blockingUserRequest } from "./user-requests.ts";
-import { enqueueImMessage, resolveNotificationIntegration } from "./im-integrations.ts";
+import { enqueueImMessage, resolveNotificationIntegration } from "../im/service.ts";
 import { defineDoc } from "@earendil-works/pi-durable";
 import { startDetachedAgentRun } from "../runtime/agent-runtime.ts";
-import { recordHomeMemoryInput } from "../home-memory/capture.ts";
+import { recordHomeMemoryInput } from "../home-memory/index.ts";
 import {
   abortAgentRun,
   getActiveAgentRunForSession,
@@ -31,7 +32,7 @@ import {
 export type HomeEvent = typeof homeEvents.$inferSelect;
 const admitting = new Set<string>();
 const jobs = new Set<Promise<unknown>>();
-let timer: ReturnType<typeof setInterval> | undefined;
+let dispatcherLoop: WakeLoop | undefined;
 let stopped = false;
 
 const HomePublications = defineDoc({
@@ -494,12 +495,12 @@ export async function recoverHomeEvents() {
 }
 
 export function startHomeDispatcher() {
-  if (timer) return;
+  if (dispatcherLoop) return;
   stopped = false;
-  timer = setInterval(() => {
-    try {
-      // Only Homes with pending work need a dispatch; scanning every Home at
-      // 2 Hz is wasted work that grows with users × agents.
+  dispatcherLoop = startWakeLoop({
+    topics: ["homes", "sessions"],
+    sweepMs: 60_000,
+    run() {
       const pending = db
         .selectDistinct({ sessionId: homeEvents.sessionId })
         .from(homeEvents)
@@ -509,16 +510,14 @@ export function startHomeDispatcher() {
         void dispatchHome(sessionId).catch((error) =>
           console.warn("Home dispatch failed:", errorMessage(error)),
         );
-    } catch (error) {
-      console.warn("Home dispatcher tick failed:", errorMessage(error));
-    }
-  }, 500);
-  timer.unref();
+    },
+    onError: (error) => console.warn("Home dispatcher tick failed:", errorMessage(error)),
+  });
 }
 export function stopHomeDispatcher() {
   stopped = true;
-  if (timer) clearInterval(timer);
-  timer = undefined;
+  dispatcherLoop?.stop();
+  dispatcherLoop = undefined;
 }
 export async function drainHomeEvents() {
   await Promise.allSettled(jobs);

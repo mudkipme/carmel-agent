@@ -673,7 +673,16 @@ export class SessionEntryNotFoundError extends Error {
 function resolvePiStorageDirectory() {
   const configured = process.env.CARMEL_PI_SESSION_DIR;
   if (configured && configured !== ":memory:") return resolve(configured);
-  if (process.env.DATABASE_URL === ":memory:" || configured === ":memory:")
-    return mkdtempSync(join(tmpdir(), "carmel-pi-sessions-"));
+  if (process.env.DATABASE_URL === ":memory:" || configured === ":memory:") {
+    const ephemeral = mkdtempSync(join(tmpdir(), "carmel-pi-sessions-"));
+    process.once("exit", () => {
+      try {
+        rmSync(ephemeral, { recursive: true, force: true });
+      } catch {
+        /* Best effort cleanup of ephemeral test sessions. */
+      }
+    });
+    return ephemeral;
+  }
   return join(dataDir, "pi-sessions.sqlite.durable");
 }

@@ -1,7 +1,7 @@
 import { createCollaborationRoutes } from "../collaborations/routes.ts";
 import { createHelperRoutes } from "./helpers.ts";
 import { createHomeRoutes } from "./agent-homes.ts";
-import { createHomeMemoryRoutes } from "../home-memory/routes.ts";
+import { createHomeMemoryRoutes } from "../home-memory/index.ts";
 import { createRouter } from "../openapi/routes.ts";
 import type { AuthVariables } from "../auth.ts";
 import { createApiKeyRoutes } from "./api-keys.ts";
@@ -18,7 +18,7 @@ import { createProviderConfigRoutes } from "./provider-configs.ts";
 import { createSessionRoutes } from "./sessions.ts";
 import { createSystemRoutes } from "./system.ts";
 import { createUserRoutes } from "./users.ts";
-import { createImIntegrationRoutes } from "./im-integrations.ts";
+import { createImIntegrationRoutes } from "../im/routes.ts";
 import { createUserRequestRoutes } from "./user-requests.ts";
 
 export function createApiRoutes() {

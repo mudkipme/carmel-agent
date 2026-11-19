@@ -4,14 +4,21 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Cursor } from "@earendil-works/pi-durable";
 import { db, sqlite } from "../db/index.ts";
 import { agents, issueAttempts, issues, sessions } from "../db/schema.ts";
+import { errorMessage } from "../errors.ts";
 import { readVisibleAgent } from "./agent-access.ts";
-import { displayEntries, withPiSession, resolveEntryId } from "./pi-session-storage.ts";
 import {
+  displayEntries,
+  SessionEntryNotFoundError,
+  withPiSession,
+  resolveEntryId,
+} from "./pi-session-storage.ts";
+import { startWakeLoop, type WakeLoop } from "../wake-loop.ts";
+import {
+  extractSearchTerms,
   hasCjk,
-  homeMemoryQueryTerms,
-  memoryQueryEffectiveLength,
-  sameMemoryWord,
-} from "../home-memory/service.ts";
+  queryEffectiveLength,
+  sameSearchWord,
+} from "../text-search.ts";
 
 export const RECENT_WORK_WINDOW_MS = 48 * 3_600_000;
 export const RECENT_WORK_MAX_LINES = 10;
@@ -40,38 +47,134 @@ function textOf(entry: ReturnType<typeof displayEntries>[number]) {
         .join("\n");
 }
 
-async function indexSessions(owned: (typeof sessions.$inferSelect)[]) {
-  for (const session of owned) {
-    const indexed = sqlite
-      .prepare("SELECT revision FROM session_search_state WHERE session_id = ?")
-      .get(session.id) as { revision: number } | undefined;
-    if (indexed?.revision === session.revision) continue;
-    sqlite.prepare("DELETE FROM session_search WHERE session_id = ?").run(session.id);
-    await withPiSession(session.id, async (pi) => {
-      let cursor: Cursor | undefined;
-      do {
-        const page = await pi.conversation.entries(
-          { order: "ascending" },
-          250,
-          cursor,
-          BACKGROUND_CONTEXT,
-        );
-        sqlite.transaction(() => {
-          const insert = sqlite.prepare(
-            "INSERT INTO session_search(session_id, entry_id, text) VALUES (?, ?, ?)",
-          );
-          for (const entry of displayEntries(page.items, session.id)) {
-            const text = textOf(entry);
-            if (text) insert.run(session.id, entry.id, text);
-          }
-        })();
-        cursor = page.next;
-      } while (cursor);
-    });
-    sqlite
-      .prepare("INSERT OR REPLACE INTO session_search_state(session_id, revision) VALUES (?, ?)")
-      .run(session.id, session.revision);
+const BACKGROUND_INDEX_BATCH = 10;
+const QUERY_CATCHUP_LIMIT = 8;
+const inFlightIndexes = new Map<string, Promise<void>>();
+let indexerLoop: WakeLoop | undefined;
+let indexerBatch: Promise<unknown> | undefined;
+let indexerStopped = false;
+
+function indexedRevision(sessionId: string) {
+  const row = sqlite
+    .prepare("SELECT revision FROM session_search_state WHERE session_id = ?")
+    .get(sessionId) as { revision: number } | undefined;
+  return row?.revision;
+}
+
+async function indexSession(sessionId: string, revision: number): Promise<void> {
+  if (indexedRevision(sessionId) === revision) return;
+  const active = inFlightIndexes.get(sessionId);
+  if (active) {
+    await active;
+    if (indexedRevision(sessionId) === revision) return;
   }
+  const task = (async () => {
+    if (indexedRevision(sessionId) === revision) return;
+    const entries: Array<{ entryId: string; text: string }> = [];
+    try {
+      await withPiSession(sessionId, async (pi) => {
+        let cursor: Cursor | undefined;
+        do {
+          const page = await pi.conversation.entries(
+            { order: "ascending" },
+            250,
+            cursor,
+            BACKGROUND_CONTEXT,
+          );
+          for (const entry of displayEntries(page.items, sessionId)) {
+            const text = textOf(entry);
+            if (text) entries.push({ entryId: entry.id, text });
+          }
+          cursor = page.next;
+        } while (cursor);
+      });
+    } catch (error) {
+      if (error instanceof SessionEntryNotFoundError) return;
+      throw error;
+    }
+    sqlite.transaction(() => {
+      const current = db
+        .select({ revision: sessions.revision })
+        .from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .get();
+      if (!current) return;
+      sqlite.prepare("DELETE FROM session_search WHERE session_id = ?").run(sessionId);
+      const insert = sqlite.prepare(
+        "INSERT INTO session_search(session_id, entry_id, text) VALUES (?, ?, ?)",
+      );
+      for (const entry of entries) insert.run(sessionId, entry.entryId, entry.text);
+      sqlite
+        .prepare("INSERT OR REPLACE INTO session_search_state(session_id, revision) VALUES (?, ?)")
+        .run(sessionId, revision);
+    })();
+  })().finally(() => {
+    if (inFlightIndexes.get(sessionId) === task) inFlightIndexes.delete(sessionId);
+  });
+  inFlightIndexes.set(sessionId, task);
+  await task;
+}
+
+async function indexStaleSessionsBatch(): Promise<number | undefined> {
+  const stale = sqlite
+    .prepare(
+      `SELECT s.id, s.revision
+       FROM sessions s
+       LEFT JOIN session_search_state st ON st.session_id = s.id
+       WHERE st.revision IS NULL OR st.revision != s.revision
+       ORDER BY s.updated_at DESC
+       LIMIT ?`,
+    )
+    .all(BACKGROUND_INDEX_BATCH) as Array<{ id: string; revision: number }>;
+  let indexed = 0;
+  for (const row of stale) {
+    if (indexerStopped) return undefined;
+    try {
+      await indexSession(row.id, row.revision);
+      indexed++;
+    } catch (error) {
+      console.warn(`Session search indexing failed for ${row.id}:`, errorMessage(error));
+    }
+  }
+  return stale.length === BACKGROUND_INDEX_BATCH && indexed > 0 ? Date.now() + 50 : undefined;
+}
+
+export function startSessionSearchIndexer() {
+  if (indexerLoop) return;
+  indexerStopped = false;
+  indexerLoop = startWakeLoop({
+    topics: ["sessions"],
+    sweepMs: 60_000,
+    debounceMs: 150,
+    run() {
+      const batch = indexStaleSessionsBatch().finally(() => {
+        if (indexerBatch === batch) indexerBatch = undefined;
+      });
+      indexerBatch = batch;
+      return batch;
+    },
+    onError: (error) => console.warn("Session search indexer failed:", errorMessage(error)),
+  });
+}
+
+export function stopSessionSearchIndexer() {
+  indexerStopped = true;
+  indexerLoop?.stop();
+  indexerLoop = undefined;
+}
+
+export async function drainSessionSearchIndexer() {
+  await Promise.allSettled([indexerBatch, ...inFlightIndexes.values()]);
+}
+
+async function indexSessions(owned: (typeof sessions.$inferSelect)[]) {
+  const stale = owned.filter((session) => indexedRevision(session.id) !== session.revision);
+  if (!stale.length) return;
+  const targets = indexerLoop
+    ? [...stale].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, QUERY_CATCHUP_LIMIT)
+    : stale;
+  for (const session of targets) await indexSession(session.id, session.revision);
+  if (indexerLoop && stale.length > targets.length) indexerLoop.wake();
 }
 
 export function parseSessionTimeBound(
@@ -128,7 +231,7 @@ function textMatchedTerms(text: string, terms: readonly string[]) {
   for (const term of terms) {
     if (hasCjk(term) || !/^[\p{L}\p{N}_-]+$/u.test(term)) {
       if (lower.includes(term)) matched++;
-    } else if (words.some((word) => sameMemoryWord(term, word)) || lower.includes(term)) {
+    } else if (words.some((word) => sameSearchWord(term, word)) || lower.includes(term)) {
       matched++;
     }
   }
@@ -274,7 +377,7 @@ export async function searchSessions(
     return results;
   }
 
-  let terms = homeMemoryQueryTerms(trimmed);
+  let terms = extractSearchTerms(trimmed);
   if (!terms.length) {
     terms = (trimmed.toLowerCase().match(/[^\s]+/gu) ?? []).slice(0, 8);
   }
@@ -387,7 +490,7 @@ export async function recallHomeConversations(
   limit = 4,
 ) {
   const recallQuery = query.trim().slice(0, 500);
-  if (memoryQueryEffectiveLength(recallQuery) < 8) return [];
+  if (queryEffectiveLength(recallQuery) < 8) return [];
   return searchSessions(userId, agentId, recallQuery, false, {
     excludeSessionId: homeSessionId,
     limit,

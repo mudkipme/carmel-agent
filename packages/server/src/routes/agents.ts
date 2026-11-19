@@ -50,7 +50,7 @@ import {
   resolveAgentWorkingDir,
   writeEnvironment,
 } from "../services/environments.ts";
-import { purgeHomeMemoryIndex } from "../home-memory/search-index.ts";
+import { purgeHomeMemoryIndex } from "../home-memory/index.ts";
 import { deleteAgentKnowledge } from "../knowledge/service.ts";
 import { deleteAgentTasksForAgent } from "../services/agent-tasks.ts";
 import { deleteIssuesForAgent } from "../issues/service.ts";

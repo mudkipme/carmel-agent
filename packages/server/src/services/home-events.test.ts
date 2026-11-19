@@ -20,7 +20,7 @@ import { agentHomes, homeEvents, sessions } from "../db/schema.ts";
 import { imBindings, imIntegrations } from "../db/im-schema.ts";
 import { createSession } from "../test-support.ts";
 import { ensureHome, resetHome } from "./agent-homes.ts";
-import { receiveImMessage } from "../runtime/im-manager.ts";
+import { receiveImMessage } from "../im/manager.ts";
 import { readSessionSnapshot } from "./session-snapshot.ts";
 
 initialize();

@@ -1,12 +1,7 @@
-import { and, eq, inArray, or } from "drizzle-orm";
-import type {
-  CollaborationConnection,
-  CollaborationGrant,
-  IssueCreateCommand,
-} from "@carmel-agent/shared";
+import { and, eq, inArray } from "drizzle-orm";
+import type { CollaborationConnection, IssueCreateCommand } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import {
-  agents,
   sessions,
   issues,
   issueAttempts,
@@ -35,11 +30,31 @@ import {
 import { readSessionMessages } from "../services/session-store.ts";
 import { publishHomeEvent } from "../services/home-events.ts";
 import { errorMessage } from "../errors.ts";
+import { startWakeLoop, type WakeLoop } from "../wake-loop.ts";
+import {
+  assertReceiverAccess,
+  authorizeCollaboration,
+  cancelSourceCollaborations as cancelSourceCollaborationsWith,
+  collaborationDenied as denied,
+  CollaborationError,
+  listCollaborators,
+  readCollaborators,
+  receiverCollaboration,
+  requireCollaborationSource as requireSource,
+  type Collaboration,
+  type CollaborationOwner,
+} from "./access.ts";
 
-export type Collaboration = typeof collaborations.$inferSelect;
-export type CollaborationOwner = { userId: string; agentId: string; sessionId: string };
-export class CollaborationError extends Error {}
-const denied = () => new CollaborationError("Collaboration is unavailable or not permitted.");
+export {
+  assertReceiverAccess,
+  authorizeCollaboration,
+  CollaborationError,
+  listCollaborators,
+  readCollaborators,
+  receiverCollaboration,
+  type Collaboration,
+  type CollaborationOwner,
+};
 
 export function readConnections(userId: string, agentId: string) {
   if (readVisibleAgent(userId, agentId)?.ownerUserId !== userId) throw denied();
@@ -69,89 +84,6 @@ export function saveConnection(userId: string, agentId: string, input: Collabora
     })
     .run();
   return readConnections(userId, agentId);
-}
-export function authorizeCollaboration(
-  userId: string,
-  source: string,
-  target: string,
-  capability: keyof CollaborationGrant,
-) {
-  if (source === target || !readVisibleAgent(userId, source) || !readVisibleAgent(userId, target))
-    throw denied();
-  const outgoing = db
-    .select()
-    .from(connections)
-    .where(
-      and(
-        eq(connections.agentId, source),
-        eq(connections.peerAgentId, target),
-        eq(connections.direction, "outgoing"),
-      ),
-    )
-    .get();
-  if (!outgoing?.capabilities[capability]) throw denied();
-}
-function requireSource(owner: CollaborationOwner) {
-  const session = db.select().from(sessions).where(eq(sessions.id, owner.sessionId)).get();
-  if (
-    !session ||
-    session.userId !== owner.userId ||
-    session.agentId !== owner.agentId ||
-    receiverCollaboration(session.id, session.issueId)
-  )
-    throw denied();
-  return session;
-}
-export function listCollaborators(owner: CollaborationOwner) {
-  requireSource(owner);
-  return readCollaborators(owner.userId, owner.agentId);
-}
-export function readCollaborators(userId: string, agentId: string) {
-  if (!readVisibleAgent(userId, agentId)) throw denied();
-  return db
-    .select({
-      agentId: agents.id,
-      name: agents.name,
-      description: agents.description,
-      capabilities: connections.capabilities,
-    })
-    .from(connections)
-    .innerJoin(agents, eq(agents.id, connections.peerAgentId))
-    .where(
-      and(
-        eq(connections.agentId, agentId),
-        eq(connections.direction, "outgoing"),
-        or(eq(agents.ownerUserId, userId), eq(agents.shared, true)),
-      ),
-    )
-    .all()
-    .flatMap((row) => {
-      if (row.agentId === agentId) return [];
-      const capabilities = {
-        consult: Boolean(row.capabilities.consult),
-        createTask: Boolean(row.capabilities.createTask),
-        queueTask: Boolean(row.capabilities.queueTask),
-      };
-      return Object.values(capabilities).some(Boolean) ? [{ ...row, capabilities }] : [];
-    });
-}
-export function receiverCollaboration(sessionId: string, issueId?: string | null) {
-  const session = sessionId
-    ? db.select().from(sessions).where(eq(sessions.id, sessionId)).get()
-    : undefined;
-  const issue = issueId ? db.select().from(issues).where(eq(issues.id, issueId)).get() : undefined;
-  const scopeId = session?.collaborationId ?? issue?.collaborationId;
-  if (scopeId) return db.select().from(collaborations).where(eq(collaborations.id, scopeId)).get();
-  return db
-    .select()
-    .from(collaborations)
-    .where(
-      or(
-        eq(collaborations.targetSessionId, sessionId),
-        ...(issueId ? [eq(collaborations.targetIssueId, issueId)] : []),
-      ),
-    )
-    .get();
 }
 export function readCollaboration(owner: CollaborationOwner, collaborationId: string) {
   const row = db.select().from(collaborations).where(eq(collaborations.id, collaborationId)).get();
@@ -373,54 +305,17 @@ export function waitForCollaboration(owner: CollaborationOwner, collaborationId:
   };
 }
 export function cancelSourceCollaborations(sessionId: string) {
-  for (const row of db
-    .select()
-    .from(collaborations)
-    .where(
-      and(
-        eq(collaborations.sourceSessionId, sessionId),
-        inArray(collaborations.status, ["queued", "working"]),
-      ),
-    )
-    .all()) {
-    db.update(collaborations)
-      .set({ waiting: false, status: "cancelled" })
-      .where(eq(collaborations.id, row.id))
-      .run();
-    if (row.targetIssueId) cancelIssue(row.userId, row.targetAgentId, row.targetIssueId);
-    if (row.targetSessionId) {
-      const run = getActiveAgentRunForSessionId(row.targetSessionId);
-      if (run) abortAgentRun(row.userId, run.runId);
-    }
-  }
-}
-export function assertReceiverAccess(sessionId: string, issueId?: string | null) {
-  const row = receiverCollaboration(sessionId, issueId);
-  const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-  const issue = issueId ? db.select().from(issues).where(eq(issues.id, issueId)).get() : undefined;
-  if (!row) {
-    if (session?.collaborationId || issue?.collaborationId) throw denied();
-    return;
-  }
-  if (row.status === "cancelled") throw denied();
-  if (row.kind === "task")
-    authorizeCollaboration(row.userId, row.sourceAgentId, row.targetAgentId, "createTask");
-  authorizeCollaboration(
-    row.userId,
-    row.sourceAgentId,
-    row.targetAgentId,
-    row.kind === "consult" ? "consult" : "queueTask",
-  );
+  cancelSourceCollaborationsWith(sessionId, cancelIssue);
 }
 
-let timer: ReturnType<typeof setInterval> | undefined;
+let dispatcherLoop: WakeLoop | undefined;
 let pumping = false;
 const consultationSettlements = new Set<Promise<void>>();
 export async function drainCollaborationResults() {
   await Promise.allSettled(consultationSettlements);
 }
 export function startCollaborationDispatcher() {
-  if (timer) return;
+  if (dispatcherLoop) return;
   db.update(collaborations)
     .set({
       status: "failed",
@@ -428,18 +323,16 @@ export function startCollaborationDispatcher() {
     })
     .where(and(eq(collaborations.kind, "consult"), eq(collaborations.status, "working")))
     .run();
-  timer = setInterval(
-    () =>
-      void dispatchCollaborations().catch((error) =>
-        console.warn("Collaboration delivery failed:", errorMessage(error)),
-      ),
-    2000,
-  );
-  timer.unref();
+  dispatcherLoop = startWakeLoop({
+    topics: ["issues", "sessions"],
+    sweepMs: 60_000,
+    run: () => dispatchCollaborations(),
+    onError: (error) => console.warn("Collaboration delivery failed:", errorMessage(error)),
+  });
 }
 export function stopCollaborationDispatcher() {
-  if (timer) clearInterval(timer);
-  timer = undefined;
+  dispatcherLoop?.stop();
+  dispatcherLoop = undefined;
 }
 export async function dispatchCollaborations() {
   if (pumping) return;

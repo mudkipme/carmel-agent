@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import type { StateTopic } from "@carmel-agent/shared";
-import { publishUserStateChange } from "../state-changes.ts";
+import { notifyAuthChanged, publishUserStateChange } from "../state-changes.ts";
 
 type Row = "new" | "old";
 type ObservedTable = { topics: StateTopic[]; owner?: (row: Row) => string };
@@ -54,6 +54,9 @@ export function observeDatabaseChanges(sqlite: Database.Database) {
     // Deliver after the synchronous statement or transaction has committed.
     publishUserStateChange(owner, ...tables[table].topics);
   });
+  sqlite.function("carmel_auth_changed", () => {
+    notifyAuthChanged();
+  });
   for (const [table, { owner }] of Object.entries(tables)) {
     const columns = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
     const changed = columns.map(({ name }) => `old."${name}" IS NOT new."${name}"`).join(" OR ");
@@ -67,4 +70,25 @@ export function observeDatabaseChanges(sqlite: Database.Database) {
       `);
     }
   }
+  sqlite.exec(`
+    CREATE TEMP TRIGGER IF NOT EXISTS carmel_auth_sessions_DELETE
+    AFTER DELETE ON main.auth_sessions
+    BEGIN SELECT carmel_auth_changed(); END;
+
+    CREATE TEMP TRIGGER IF NOT EXISTS carmel_auth_sessions_UPDATE
+    AFTER UPDATE ON main.auth_sessions
+    WHEN old.expires_at IS NOT new.expires_at
+      OR old.token_hash IS NOT new.token_hash
+      OR old.user_id IS NOT new.user_id
+    BEGIN SELECT carmel_auth_changed(); END;
+
+    CREATE TEMP TRIGGER IF NOT EXISTS carmel_auth_users_DELETE
+    AFTER DELETE ON main.users
+    BEGIN SELECT carmel_auth_changed(); END;
+
+    CREATE TEMP TRIGGER IF NOT EXISTS carmel_auth_users_UPDATE_role
+    AFTER UPDATE ON main.users
+    WHEN old.role IS NOT new.role
+    BEGIN SELECT carmel_auth_changed(); END;
+  `);
 }

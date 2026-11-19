@@ -1,6 +1,6 @@
-import { recoverHomeEvents } from "./home-events.ts";
+import { recoverHomeEvents } from "../services/home-events.ts";
 import { homeEvents, agents, sessions, users } from "../db/schema.ts";
-import { ensureHome } from "./agent-homes.ts";
+import { ensureHome } from "../services/agent-homes.ts";
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 import { eq } from "drizzle-orm";
@@ -31,13 +31,13 @@ import {
   serializeImSetup,
   setupState,
   updateImIntegration,
-} from "./im-integrations.ts";
-import { createImIntegrationRoutes } from "../routes/im-integrations.ts";
-import { ImManager, receiveImMessage, recoverImWork } from "../runtime/im-manager.ts";
-import { ImProviderError, type ImTransport } from "../im/platform.ts";
+} from "./service.ts";
+import { createImIntegrationRoutes } from "./routes.ts";
+import { ImManager, receiveImMessage, recoverImWork } from "./manager.ts";
+import { ImProviderError, type ImTransport } from "./platform.ts";
 import { createActiveAgentRun, finishAgentRun } from "../runtime/run-stream.ts";
-import { createAgentTask, readAgentTask } from "./agent-tasks.ts";
-import { createSendUserMessageTool } from "../runtime/im-tools.ts";
+import { createAgentTask, readAgentTask } from "../services/agent-tasks.ts";
+import { createSendUserMessageTool } from "./tools.ts";
 import { executeNativeTool } from "../effectors/testing/tools.ts";
 
 initialize();

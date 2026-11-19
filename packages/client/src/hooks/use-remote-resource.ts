@@ -1,11 +1,8 @@
 import { useLingui } from "@lingui/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createResourceLoader } from "@/lib/resource-loader";
-import { errorMessage } from "@/lib/errors";
 import type { StateTopic } from "@carmel-agent/shared";
-import { updateConnection } from "@/lib/update-connection";
-
-type ResourceState<T> = { key: string; data?: T; error?: string };
+import { errorMessage } from "@/lib/errors";
+import { getResourceSnapshot, retainResource, type ResourceSnapshot } from "@/lib/resource-cache";
 
 export function useRemoteResource<T>({
   key,
@@ -22,55 +19,37 @@ export function useRemoteResource<T>({
 }) {
   const { i18n } = useLingui();
   const topicKey = topics?.join(",") ?? "";
-  const [state, setState] = useState<ResourceState<T>>({ key });
-  const options = useRef({ load });
-  options.current = { load };
-  const loader = useRef<ReturnType<typeof createResourceLoader<T>> | undefined>(undefined);
-  const refresh = useCallback(
-    () => loader.current?.refresh(true) ?? Promise.resolve(undefined),
-    [],
-  );
+  const [state, setState] = useState<{ key: string; snapshot: ResourceSnapshot<T> }>(() => ({
+    key,
+    snapshot: getResourceSnapshot<T>(key),
+  }));
+  const options = useRef({ load, i18n });
+  options.current = { load, i18n };
+  const handle = useRef<ReturnType<typeof retainResource<T>> | undefined>(undefined);
+  const refresh = useCallback(() => handle.current?.refresh() ?? Promise.resolve(undefined), []);
 
   useEffect(() => {
     if (!enabled) return;
-    const request = createResourceLoader<T>(
-      (signal) => options.current.load(signal),
-      (result) => {
-        if ("error" in result) {
-          setState((previous) => ({
-            key,
-            data: previous.key === key ? previous.data : undefined,
-            error: errorMessage(result.error, i18n._("Unable to load data")),
-          }));
-        } else {
-          setState({ key, data: result.data });
-        }
-      },
-    );
-    loader.current = request;
-    const reconnect = () => {
-      if (!document.hidden) void request.refresh(true);
-    };
-    const unsubscribe = topicKey
-      ? updateConnection.subscribe(topicKey.split(",") as StateTopic[], () => request.invalidate())
-      : undefined;
-    void request.refresh();
-    window.addEventListener("online", reconnect);
-    document.addEventListener("visibilitychange", reconnect);
+    setState({ key, snapshot: getResourceSnapshot<T>(key) });
+    const retained = retainResource<T>({
+      key,
+      load: (signal) => options.current.load(signal),
+      formatError: (error) => errorMessage(error, options.current.i18n._("Unable to load data")),
+      topicKey,
+      onChange: () => setState({ key, snapshot: getResourceSnapshot<T>(key) }),
+    });
+    handle.current = retained;
     return () => {
-      unsubscribe?.();
-      request.dispose();
-      if (loader.current === request) loader.current = undefined;
-      window.removeEventListener("online", reconnect);
-      document.removeEventListener("visibilitychange", reconnect);
+      retained.release();
+      if (handle.current === retained) handle.current = undefined;
     };
-  }, [enabled, key, refreshKey, i18n, topicKey]);
+  }, [enabled, key, refreshKey, topicKey]);
 
-  const current = state.key === key ? state : undefined;
+  const current = state.key === key ? state.snapshot : getResourceSnapshot<T>(key);
   return {
-    data: current?.data,
-    error: current?.error,
-    loading: enabled && current?.data === undefined && !current?.error,
+    data: current.data,
+    error: current.error,
+    loading: enabled && current.data === undefined && !current.error,
     refresh,
   };
 }

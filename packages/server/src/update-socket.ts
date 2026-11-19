@@ -1,10 +1,16 @@
 import type { Server } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import type { UpdateServerMessage } from "@carmel-agent/shared";
-import { readAuthenticatedUser, readSessionCookie } from "./auth.ts";
+import { readAuthenticatedSession, readSessionCookie } from "./auth.ts";
 import { incomingRequestHost, incomingRequestUrl, isAllowedBrowserOrigin } from "./security.ts";
 import { agentRunSubscription } from "./runtime/run-stream.ts";
-import { stateEpoch, subscribeStateChanges, topicsFor } from "./state-changes.ts";
+import {
+  authRevision,
+  stateEpoch,
+  subscribeAuthChanges,
+  subscribeStateChanges,
+  topicsFor,
+} from "./state-changes.ts";
 
 export function attachUpdateSocket(server: Server) {
   const wss = new WebSocketServer({
@@ -21,10 +27,10 @@ export function attachUpdateSocket(server: Server) {
     if (!request.headers.origin || !isAllowedBrowserOrigin(request.headers.origin, host))
       return reject(403);
     const token = readSessionCookie(request.headers.cookie);
-    const user = readAuthenticatedUser(token);
-    if (!user) return reject(401);
+    const session = readAuthenticatedSession(token);
+    if (!session) return reject(401);
     wss.handleUpgrade(request, socket, head, (ws) =>
-      openUpdates(ws, user, () => Boolean(readAuthenticatedUser(token))),
+      openUpdates(ws, session, () => readAuthenticatedSession(token)),
     );
   });
   const shutdown = () => {
@@ -35,12 +41,30 @@ export function attachUpdateSocket(server: Server) {
   return wss;
 }
 
+type AuthenticatedSession = {
+  user: { id: string; role: string };
+  expiresAt: number;
+};
+
 function openUpdates(
   ws: WebSocket,
-  user: { id: string; role: string },
-  authenticated: () => boolean,
+  initial: AuthenticatedSession,
+  refresh: () => AuthenticatedSession | undefined,
 ) {
+  let user = initial.user;
   const userId = user.id;
+  let checkedRevision = authRevision();
+  let expiresAt = initial.expiresAt;
+  const authenticated = () => {
+    const current = authRevision();
+    if (checkedRevision === current && Date.now() < expiresAt) return true;
+    const refreshed = refresh();
+    if (!refreshed) return false;
+    user = refreshed.user;
+    checkedRevision = current;
+    expiresAt = refreshed.expiresAt;
+    return true;
+  };
   const runs = new Map<string, () => void>();
   const send = (message: UpdateServerMessage) => {
     if (ws.readyState !== ws.OPEN) return false;
@@ -60,6 +84,9 @@ function openUpdates(
   const unsubscribe = subscribeStateChanges((changes) => {
     const topics = topicsFor(changes, user);
     if (topics.length) send({ type: "state_changed", revision: ++revision, topics });
+  });
+  const unsubscribeAuth = subscribeAuthChanges(() => {
+    if (ws.readyState === ws.OPEN && !authenticated()) ws.close(1008, "Authentication required");
   });
   let alive = true;
   const heartbeat = setInterval(() => {
@@ -81,6 +108,7 @@ function openUpdates(
   ws.on("close", () => {
     clearInterval(heartbeat);
     unsubscribe();
+    unsubscribeAuth();
     for (const stop of runs.values()) stop();
     runs.clear();
   });

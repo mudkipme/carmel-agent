@@ -3,6 +3,7 @@ import type { StoreApi } from "zustand";
 import { ApiError, api } from "@/lib/api";
 import { oidcErrorMessage, takeOidcErrorCode } from "@/lib/auth-errors";
 import { errorMessage } from "@/lib/errors";
+import { clearResourceCache } from "@/lib/resource-cache";
 import { resetState, resolveBootstrapState, upsertById } from "@/store/harness-state";
 import type { HarnessState } from "@/store/harness-types";
 
@@ -24,6 +25,7 @@ export function createAuthSlice(
         set(resolveBootstrapState(await api.bootstrap(), get()));
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
+          clearResourceCache();
           const authOptions = await api.setupStatus().catch(() => undefined);
           set((state) => ({
             ...resetState({ status: authOptions?.needsSetup ? "setup" : "unauthenticated" }, state),
@@ -41,6 +43,7 @@ export function createAuthSlice(
       }
     },
     setup: async (input) => {
+      clearResourceCache();
       set({ status: "loading", error: undefined });
       try {
         set(resolveBootstrapState(await api.setup(input), get()));
@@ -52,6 +55,7 @@ export function createAuthSlice(
       }
     },
     login: async (username, password) => {
+      clearResourceCache();
       set({ status: "loading", error: undefined });
       try {
         set(resolveBootstrapState(await api.login(username, password), get()));
@@ -63,6 +67,7 @@ export function createAuthSlice(
       }
     },
     logout: async () => {
+      clearResourceCache();
       await api.logout();
       const authOptions = await api.setupStatus().catch(() => undefined);
       set((state) => ({

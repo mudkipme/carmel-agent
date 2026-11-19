@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { api, ApiError } from "@/lib/api";
+import { clearResourceCache } from "@/lib/resource-cache";
 import { createResourceLoader } from "@/lib/resource-loader";
 import { updateConnection } from "@/lib/update-connection";
 import { resolveBootstrapState, resolveSessionList, resetState } from "@/store/harness-state";
@@ -16,6 +17,7 @@ export function useWorkspaceUpdates() {
     };
     const signedOut = (error: unknown) => {
       if (!(error instanceof ApiError && error.status === 401)) return;
+      clearResourceCache();
       useHarnessStore.setState((state) => resetState({ status: "unauthenticated" }, state));
     };
     const workspace = createResourceLoader(

@@ -1,4 +1,4 @@
-import { receiverCollaboration, assertReceiverAccess } from "../collaborations/service.ts";
+import { receiverCollaboration, assertReceiverAccess } from "../collaborations/access.ts";
 import { db } from "../db/index.ts";
 import { sessions, agents } from "../db/schema.ts";
 import { eq } from "drizzle-orm";

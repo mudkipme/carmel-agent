@@ -2,7 +2,10 @@ import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import type { AgentConfig, IssueCreateCommand } from "@carmel-agent/shared";
+import type { AgentConfig, Issue, IssueCreateCommand } from "@carmel-agent/shared";
+import { api } from "@/lib/api";
+import { setResourceData } from "@/lib/resource-cache";
+import { upsertById } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";
 import { draftStorageKey, clearSessionDraft } from "@/lib/session-draft";
 import { issueListSearch } from "@/lib/issue-navigation";
@@ -16,12 +19,12 @@ export function NewTaskView({ agent }: { agent: AgentConfig }) {
   const listPath = `/agents/${agent.id}/tasks${search}`;
   const userId = useHarnessStore((s) => s.activeUserId);
   const draftKey = draftStorageKey(userId, agent.id, "new-issue");
-  const createIssue = useHarnessStore((s) => s.createIssue);
   const [busy, setBusy] = useState(false);
   const save = async (draft: IssueCreateCommand) => {
     setBusy(true);
     try {
-      const issue = await createIssue(agent.id, draft);
+      const issue = await api.createIssue(agent.id, draft);
+      setResourceData<Issue[]>(`issues:${agent.id}`, (current) => upsertById(current ?? [], issue));
       clearSessionDraft(draftKey);
       navigate(`/agents/${agent.id}/tasks/${issue.id}${search}`);
     } catch (error) {

@@ -10,9 +10,13 @@ import {
   drainHomeEvents,
   recoverHomeEvents,
 } from "./services/home-events.ts";
-import { startHomeMemoryIndexes, stopHomeMemoryIndexes } from "./home-memory/search.ts";
+import {
+  startHomeMemoryCapture,
+  startHomeMemoryIndexes,
+  stopHomeMemoryCapture,
+  stopHomeMemoryIndexes,
+} from "./home-memory/index.ts";
 import { ensureHome } from "./services/agent-homes.ts";
-import { startHomeMemoryCapture, stopHomeMemoryCapture } from "./home-memory/capture.ts";
 import { imBindings, imIntegrations } from "./db/im-schema.ts";
 import { eq } from "drizzle-orm";
 import {
@@ -37,12 +41,18 @@ import { attachUpdateSocket } from "./update-socket.ts";
 import { shutdownBrowsers } from "./runtime/sandbox/browser-sessions.ts";
 import { refreshConfiguredModelCatalogs } from "./services/model-catalog.ts";
 import { startTaskScheduler, stopTaskScheduler } from "./runtime/task-scheduler.ts";
-import { startImManager, stopImManager, drainImManager } from "./runtime/im-manager.ts";
+import { startImManager, stopImManager, drainImManager } from "./im/manager.ts";
 import { errorMessage } from "./errors.ts";
 import { startWorkers, stopWorkers, type Worker } from "./workers.ts";
 import { assertOidcConfig } from "./oidc/config.ts";
 import { startKnowledgeScheduler, stopKnowledgeScheduler } from "./knowledge/service.ts";
 import { reapKnowledgeWorkers, shutdownKnowledgeWorkers } from "./knowledge/worker-client.ts";
+import { ensureDefaultRunContributors } from "./runtime/compose.ts";
+import {
+  drainSessionSearchIndexer,
+  startSessionSearchIndexer,
+  stopSessionSearchIndexer,
+} from "./services/session-search.ts";
 
 // Before anything else: a mistyped auth variable should stop the boot, not
 // surface later as a sign-in button that fails for everyone.
@@ -61,6 +71,7 @@ if (oidcConfig) {
 }
 
 initialize();
+ensureDefaultRunContributors();
 recoverIssueAttempts();
 seed();
 pruneExpiredAuthSessions();
@@ -115,6 +126,12 @@ const workers: Worker[] = [
     start: startHomeDispatcher,
     stop: stopHomeDispatcher,
     drain: drainHomeEvents,
+  },
+  {
+    name: "session search",
+    start: startSessionSearchIndexer,
+    stop: stopSessionSearchIndexer,
+    drain: drainSessionSearchIndexer,
   },
   { name: "home memory capture", start: startHomeMemoryCapture, stop: stopHomeMemoryCapture },
   { name: "home memory indexes", start: startHomeMemoryIndexes, close: stopHomeMemoryIndexes },

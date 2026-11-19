@@ -109,7 +109,7 @@ setAgentWorkingDir(secondAgentId, stateDir);
 const timestamp = Date.now();
 const { imBindings, imCredentials, imIntegrations, imSetups } =
   await import("../src/db/im-schema.ts");
-const { encryptIm } = await import("../src/services/im-integrations.ts");
+const { encryptIm } = await import("../src/im/service.ts");
 const QRCode = (await import("qrcode")).default;
 const fixtureIntegrationId = "browser-telegram-integration";
 db.insert(imIntegrations)

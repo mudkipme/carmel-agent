@@ -1,5 +1,5 @@
 import { homeEvents, users } from "../db/schema.ts";
-import { readHome } from "./agent-homes.ts";
+import { readHome } from "../services/agent-homes.ts";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import QRCode from "qrcode";
@@ -15,13 +15,13 @@ import {
 } from "../db/im-schema.ts";
 import { id, now } from "../db/seed.ts";
 import { protectSecret, revealSecret } from "../security.ts";
-import { readVisibleAgent } from "./agent-access.ts";
+import { readVisibleAgent } from "../services/agent-access.ts";
 import {
   validateImCredential,
   type BotIdentity,
   type ImCredential,
   type ImIncoming,
-} from "../im/platform.ts";
+} from "./platform.ts";
 
 export type IntegrationRecord = typeof imIntegrations.$inferSelect;
 export type SetupRecord = typeof imSetups.$inferSelect;

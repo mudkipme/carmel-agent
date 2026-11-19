@@ -1,70 +1,30 @@
 import { useLingui } from "@lingui/react";
-import { Trans } from "@lingui/react/macro";
-import { AgentSessionsPage } from "./AgentSessionsPage";
-import { ConversationSwitcher } from "./shell/ConversationSwitcher";
-import { TasksOverview } from "./tasks/TasksOverview";
-import { AgentSchedulesPage } from "./AgentSchedulesPage";
-import { AgentKnowledgePage } from "./AgentKnowledgePage";
-import { useRemoteResource } from "@/hooks/use-remote-resource";
-import { ResourceError } from "./ResourceFeedback";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Outlet,
+  useLocation,
+  useMatches,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { AgentRequestArea } from "@/components/chat/AgentRequestCard";
 import { BrowserRequestCard } from "@/components/chat/BrowserRequestCard";
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { PiChat } from "@/components/PiChat";
-import { NewSessionView } from "@/components/harness/NewSessionView";
-import { TaskView } from "@/components/harness/tasks/TaskView";
-import { NewTaskView } from "@/components/harness/tasks/NewTaskView";
-
-const FileEditorView = lazy(() =>
-  import("@/components/harness/files/FileEditorView").then((module) => ({
-    default: module.FileEditorView,
-  })),
-);
-const FileManagerView = lazy(() =>
-  import("@/components/harness/files/FileManagerView").then((module) => ({
-    default: module.FileManagerView,
-  })),
-);
-const ChangesView = lazy(() =>
-  import("@/components/harness/changes/ChangesView").then((module) => ({
-    default: module.ChangesView,
-  })),
-);
-const TerminalPanel = lazy(() =>
-  import("@/components/harness/TerminalPanel").then((module) => ({
-    default: module.TerminalPanel,
-  })),
-);
-const BrowserPanel = lazy(() =>
-  import("./BrowserPanel").then((module) => ({ default: module.BrowserPanel })),
-);
-import { GlobalSearch } from "@/components/harness/shell/GlobalSearch";
-import { HarnessSidebar } from "@/components/harness/shell/HarnessSidebar";
-import { HarnessHeader } from "@/components/harness/shell/HarnessHeader";
-import { ImportSessionsDialog } from "@/components/harness/shell/ImportSessionsDialog";
-import { TaskRunBanner } from "@/components/harness/shell/TaskRunBanner";
-import { WorkspaceLayout } from "@/components/harness/shell/WorkspaceLayout";
-import {
-  clampSidebarWidth,
-  DESKTOP_SIDEBAR_QUERY,
-  getDefaultSidebarOpen,
-  getDefaultSidebarWidth,
-  resetSidebarWidth,
-  SIDEBAR_WIDTH_STORAGE_KEY,
-} from "@/components/harness/shell/sidebar-utils";
-import { agentChangesPath, agentFilesPath } from "@/lib/file-links";
-import { isWorkspaceView, workspaceChatPath, type WorkspaceView } from "@/lib/workspace-layout";
+import { ResourceError } from "./ResourceFeedback";
+import { ConversationSwitcher } from "./shell/ConversationSwitcher";
+import { GlobalSearch } from "./shell/GlobalSearch";
+import { HarnessHeader } from "./shell/HarnessHeader";
+import { HarnessSidebar } from "./shell/HarnessSidebar";
+import { ImportSessionsDialog } from "./shell/ImportSessionsDialog";
+import { HarnessShellContext, type ShellRouteHandle } from "./shell/shell-context";
+import { ShellChatView } from "./shell/ShellViews";
+import { TaskRunBanner } from "./shell/TaskRunBanner";
+import { useSidebarLayout } from "./shell/use-sidebar-layout";
+import { WorkspaceLayout } from "./shell/WorkspaceLayout";
+import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
+import { showError } from "@/lib/errors";
+import { agentChangesPath, agentFilesPath } from "@/lib/file-links";
 import { sortSessions } from "@/lib/session-groups";
 import {
   canOpenTerminal as canUserOpenTerminal,
@@ -72,10 +32,9 @@ import {
   type ContentView,
 } from "@/lib/shell-route";
 import { cn } from "@/lib/utils";
-import { showError } from "@/lib/errors";
+import { isWorkspaceView, workspaceChatPath, type WorkspaceView } from "@/lib/workspace-layout";
 import { canUserSeeAgent, isListedSession } from "@/store/harness-state";
 import { useHarnessStore } from "@/store/harness-store";
-import type { GitChangeArea } from "@carmel-agent/shared";
 
 /**
  * The chat path each agent was last on, so leaving for files or the terminal
@@ -85,23 +44,21 @@ import type { GitChangeArea } from "@carmel-agent/shared";
 const lastChatPathByAgent = new Map<string, string>();
 const lastWorkspacePaths = new Map<string, Partial<Record<WorkspaceView, string>>>();
 
-export function HarnessShell({
-  view = "chat",
-  homeView = false,
-}: {
-  view?: ContentView;
-  homeView?: boolean;
-}) {
+export function HarnessShell() {
   const { i18n } = useLingui();
   const navigate = useNavigate();
   const location = useLocation();
+  const matches = useMatches();
   const [searchParams, setSearchParams] = useSearchParams();
-  const {
-    agentId: routeAgentId,
-    sessionId: pathSessionId,
-    issueId: routeIssueId,
-    "*": routeFilePath,
-  } = useParams();
+  const { agentId: routeAgentId, sessionId: pathSessionId, issueId: routeIssueId } = useParams();
+
+  const routeHandle = [...matches]
+    .reverse()
+    .map((match) => match.handle as ShellRouteHandle | undefined)
+    .find((handle) => handle?.view !== undefined || handle?.homeView !== undefined);
+  const view: ContentView = routeHandle?.view ?? "chat";
+  const homeView = Boolean(routeHandle?.homeView);
+
   // One selector per field: the shell re-renders when what it shows changes,
   // not on every store write.
   const userId = useHarnessStore((state) => state.activeUserId);
@@ -111,14 +68,7 @@ export function HarnessShell({
     enabled: Boolean(homeView && routeAgentId),
     load: () => api.ensureHome(routeAgentId!),
   });
-  useEffect(() => {
-    const session = homeResource.data?.session;
-    if (!session) return;
-    useHarnessStore.setState((state) => ({
-      sessions: [...state.sessions.filter((item) => item.id !== session.id), session],
-      sessionDetails: { ...state.sessionDetails, [session.id]: session },
-    }));
-  }, [homeResource.data]);
+  const homeSession = homeView ? homeResource.data?.session : undefined;
   const workspaceKey = `${userId}:${routeAgentId}`;
   const rememberedChatPath = lastChatPathByAgent.get(workspaceKey);
   const backgroundSessionId =
@@ -136,7 +86,6 @@ export function HarnessShell({
   );
   const agents = useHarnessStore((state) => state.agents);
   const sessions = useHarnessStore((state) => state.sessions);
-  const issues = useHarnessStore((state) => state.issues);
   const modelRefs = useHarnessStore((state) => state.modelRefs);
   const providerConfigs = useHarnessStore((state) => state.providerConfigs);
   const lastAgentId = useHarnessStore((state) => state.lastAgentId);
@@ -145,13 +94,12 @@ export function HarnessShell({
   );
   const rememberAgent = useHarnessStore((state) => state.rememberAgent);
   const loadUnlistedSession = useHarnessStore((state) => state.loadUnlistedSession);
-  const loadIssues = useHarnessStore((state) => state.loadIssues);
+
+  const sidebar = useSidebarLayout();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(getDefaultSidebarOpen);
   const [taskHeaderTarget, setTaskHeaderTarget] = useState<HTMLDivElement | null>(null);
   const [headerActionsTarget, setHeaderActionsTarget] = useState<HTMLDivElement | null>(null);
-  const [sidebarWidth, setSidebarWidth] = useState(getDefaultSidebarWidth);
-  const [sidebarResizing, setSidebarResizing] = useState(false);
+  const [issueTitle, setIssueTitle] = useState<string | undefined>(undefined);
   const [workspaceSplit, setWorkspaceSplit] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [lookedUpSessionId, setLookedUpSessionId] = useState<string>();
@@ -166,7 +114,8 @@ export function HarnessShell({
     [agents, userId],
   );
   const routeSession = routeSessionId
-    ? sessions.find((session) => session.id === routeSessionId && session.userId === userId)
+    ? (sessions.find((session) => session.id === routeSessionId && session.userId === userId) ??
+      (homeSession?.id === routeSessionId ? homeSession : undefined))
     : undefined;
   const route = resolveShellRoute({
     view,
@@ -183,9 +132,12 @@ export function HarnessShell({
   const activeSession = useMemo(
     () =>
       activeSessionMetadata
-        ? (sessionDetail ?? { ...activeSessionMetadata, messages: [], messageEntryIds: [] })
+        ? (sessionDetail ??
+          (homeSession?.id === activeSessionMetadata.id
+            ? homeSession
+            : { ...activeSessionMetadata, messages: [], messageEntryIds: [] }))
         : undefined,
-    [activeSessionMetadata, sessionDetail],
+    [activeSessionMetadata, homeSession, sessionDetail],
   );
   const activeModel = modelRefs.find((model) => model.id === activeSessionMetadata?.modelRefId);
   const onNewSessionPage =
@@ -195,9 +147,6 @@ export function HarnessShell({
       (isWorkspaceView(view) &&
         !activeSession &&
         (Boolean(routeSession) || lookedUpSessionId === routeSessionId)));
-  /* The open file rides in the route, so a reload — or a shared link — comes
-     back to the same file rather than to the top of the workspace. */
-  const selectedFilePath = routeFilePath ?? "";
   /* Shown as "not offered" rather than "offered then refused". */
   const canOpenTerminal = Boolean(activeAgent && canUserOpenTerminal(activeAgent, userId));
   const visibleSessions = useMemo(
@@ -212,12 +161,7 @@ export function HarnessShell({
         .sort(sortSessions),
     [activeAgent?.id, sessions, userId],
   );
-  const visibleIssues = useMemo(
-    () => issues.filter((issue) => issue.agentId === activeAgent?.id && issue.userId === userId),
-    [activeAgent?.id, issues, userId],
-  );
   const activeIssueId = view === "tasks" ? routeIssueId : undefined;
-  const activeIssue = visibleIssues.find((issue) => issue.id === activeIssueId);
   const chatPath = activeSession?.home
     ? `/agents/${activeSession.agentId}/home`
     : activeAgent
@@ -360,125 +304,126 @@ export function HarnessShell({
     };
   }, [loadUnlistedSession, lookedUpSessionId, routeSession, routeSessionId]);
 
-  const issueList = useRemoteResource({
-    key: `issues:${activeAgentId}`,
-    enabled: Boolean(activeAgentId),
-    load: (signal) => loadIssues(activeAgentId!, signal),
-    refreshKey: view,
-    topics: ["issues"],
-  });
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(DESKTOP_SIDEBAR_QUERY);
-    const syncSidebarDefault = () => setSidebarOpen(mediaQuery.matches);
-    syncSidebarDefault();
-    mediaQuery.addEventListener("change", syncSidebarDefault);
-    return () => mediaQuery.removeEventListener("change", syncSidebarDefault);
-  }, []);
-
-  const closeSidebarOnMobile = () => {
-    if (!window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches) setSidebarOpen(false);
-  };
-
   /* Tool routes remain addressable; chat names the companion conversation. */
-  const showContentView = (next: ContentView) => {
-    if (!activeAgent || next === "chat") {
-      navigate(chatPath);
-      return;
-    }
-    const path = isWorkspaceView(next)
-      ? (lastWorkspacePaths.get(workspaceKey)?.[next] ?? `/agents/${activeAgent.id}/${next}`)
-      : `/agents/${activeAgent.id}/${next}`;
-    navigate(isWorkspaceView(next) ? workspaceChatPath(path, activeSession?.id) : path);
-  };
+  const showContentView = useCallback(
+    (next: ContentView) => {
+      if (!activeAgent || next === "chat") {
+        navigate(chatPath);
+        return;
+      }
+      const path = isWorkspaceView(next)
+        ? (lastWorkspacePaths.get(workspaceKey)?.[next] ?? `/agents/${activeAgent.id}/${next}`)
+        : `/agents/${activeAgent.id}/${next}`;
+      navigate(isWorkspaceView(next) ? workspaceChatPath(path, activeSession?.id) : path);
+    },
+    [activeAgent, activeSession?.id, chatPath, navigate, workspaceKey],
+  );
 
-  const browserRequest =
-    browserNeedsHelp && !browserOpen && browserStatus.data ? (
-      <BrowserRequestCard
-        control={browserStatus.data.control}
-        onAction={() => showContentView("browser")}
-      />
-    ) : undefined;
+  const browserRequest = useMemo(
+    () =>
+      browserNeedsHelp && !browserOpen && browserStatus.data ? (
+        <BrowserRequestCard
+          control={browserStatus.data.control}
+          onAction={() => showContentView("browser")}
+        />
+      ) : undefined,
+    [browserNeedsHelp, browserOpen, browserStatus.data, showContentView],
+  );
   const hasChatRequests =
     (view === "chat" || isWorkspaceView(view)) &&
     (onNewSessionPage || Boolean(activeSession && activeAgent && activeModel));
 
-  const openFile = (path: string) => {
-    if (!activeAgent) return;
-    navigate(workspaceChatPath(agentFilesPath(activeAgent.id, path), activeSession?.id));
-  };
+  const openFile = useCallback(
+    (path: string) => {
+      if (!activeAgent) return;
+      navigate(workspaceChatPath(agentFilesPath(activeAgent.id, path), activeSession?.id));
+    },
+    [activeAgent, activeSession?.id, navigate],
+  );
 
-  const openChange = (change?: { path: string; area: string }) => {
-    if (!activeAgent) return;
-    navigate(workspaceChatPath(agentChangesPath(activeAgent.id, change), activeSession?.id));
-  };
+  const openChange = useCallback(
+    (change?: { path: string; area: string }) => {
+      if (!activeAgent) return;
+      navigate(workspaceChatPath(agentChangesPath(activeAgent.id, change), activeSession?.id));
+    },
+    [activeAgent, activeSession?.id, navigate],
+  );
 
-  const endSidebarResize = useRef<(() => void) | null>(null);
-  // A drag that outlives the component would keep calling setState from window
-  // listeners, so the unmount cleanup removes them and restores the cursor.
-  useEffect(() => () => endSidebarResize.current?.(), []);
+  const openImportDialog = useCallback(() => setImportDialogOpen(true), []);
 
-  const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (!window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches) return;
-    event.preventDefault();
-    endSidebarResize.current?.();
-    const startX = event.clientX;
-    const startWidth = sidebarWidth;
-    let width = startWidth;
-    const originalCursor = document.body.style.cursor;
-    const originalUserSelect = document.body.style.userSelect;
-    setSidebarResizing(true);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
+  const shellContext = useMemo(
+    () => ({
+      view,
+      homeView,
+      route,
+      activeAgent,
+      activeSession,
+      activeModel,
+      onNewSessionPage,
+      canOpenTerminal,
+      browserOpen,
+      modelRefs,
+      providerConfigs,
+      visibleSessions,
+      runningSessionIds: serverRunningSessionIds,
+      runOverrides,
+      browserRequest,
+      headerActionsTarget,
+      taskHeaderTarget,
+      setIssueTitle,
+      onActiveSessionStreamingChange,
+      onOpenImport: openImportDialog,
+      openFile,
+      openChange,
+    }),
+    [
+      activeAgent,
+      activeModel,
+      activeSession,
+      browserOpen,
+      browserRequest,
+      canOpenTerminal,
+      headerActionsTarget,
+      homeView,
+      modelRefs,
+      onActiveSessionStreamingChange,
+      onNewSessionPage,
+      openChange,
+      openFile,
+      openImportDialog,
+      providerConfigs,
+      route,
+      runOverrides,
+      serverRunningSessionIds,
+      taskHeaderTarget,
+      view,
+      visibleSessions,
+    ],
+  );
 
-    const finishResize = () => {
-      endSidebarResize.current = null;
-      setSidebarResizing(false);
-      document.body.style.cursor = originalCursor;
-      document.body.style.userSelect = originalUserSelect;
-      // Saved once, when the drag ends, rather than on every pointer move.
-      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
-      window.removeEventListener("pointermove", resize);
-      window.removeEventListener("pointerup", finishResize);
-      window.removeEventListener("pointercancel", finishResize);
-    };
-    const resize = (moveEvent: PointerEvent) => {
-      width = clampSidebarWidth(startWidth + moveEvent.clientX - startX);
-      setSidebarWidth(width);
-    };
-
-    endSidebarResize.current = () => {
-      document.body.style.cursor = originalCursor;
-      document.body.style.userSelect = originalUserSelect;
-      window.removeEventListener("pointermove", resize);
-      window.removeEventListener("pointerup", finishResize);
-      window.removeEventListener("pointercancel", finishResize);
-    };
-    window.addEventListener("pointermove", resize);
-    window.addEventListener("pointerup", finishResize);
-    window.addEventListener("pointercancel", finishResize);
-  };
+  const workspaceRoute = isWorkspaceView(view);
+  const chatPrimary = view === "chat" || workspaceRoute;
 
   return (
     <main className="relative flex h-[100dvh] min-h-0 overflow-hidden bg-background text-foreground">
       <button
         type="button"
         aria-label={i18n._("Close sidebar")}
-        inert={!sidebarOpen}
+        inert={!sidebar.sidebarOpen}
         className={cn(
           /* visibility rides the same transition so the scrim fades out fully
              before it stops painting its blur. */
           "fixed inset-0 z-20 bg-background/80 backdrop-blur-sm transition-[opacity,visibility] duration-200 motion-reduce:transition-none lg:hidden",
-          sidebarOpen ? "visible opacity-100" : "invisible opacity-0",
+          sidebar.sidebarOpen ? "visible opacity-100" : "invisible opacity-0",
         )}
-        onClick={() => setSidebarOpen(false)}
+        onClick={() => sidebar.setSidebarOpen(false)}
       />
       <GlobalSearch
         key={userId}
         open={searchOpen}
         onOpenChange={setSearchOpen}
         agents={visibleAgents}
-        onNavigate={closeSidebarOnMobile}
+        onNavigate={sidebar.closeSidebarOnMobile}
       />
       <HarnessSidebar
         activeUser={activeUser}
@@ -486,34 +431,31 @@ export function HarnessShell({
         contentView={view}
         homeView={Boolean(homeView || activeSessionMetadata?.home)}
         visibleAgents={visibleAgents}
-        sidebarOpen={sidebarOpen}
-        sidebarWidth={sidebarWidth}
-        sidebarResizing={sidebarResizing}
-        onClose={() => setSidebarOpen(false)}
-        onOpenSession={closeSidebarOnMobile}
-        onStartResize={startSidebarResize}
-        onResetWidth={() => resetSidebarWidth(setSidebarWidth)}
-        onResizeWidth={(width) => {
-          setSidebarWidth(width);
-          window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
-        }}
+        sidebarOpen={sidebar.sidebarOpen}
+        sidebarWidth={sidebar.sidebarWidth}
+        sidebarResizing={sidebar.sidebarResizing}
+        onClose={() => sidebar.setSidebarOpen(false)}
+        onOpenSession={sidebar.closeSidebarOnMobile}
+        onStartResize={sidebar.startSidebarResize}
+        onResetWidth={sidebar.onResetWidth}
+        onResizeWidth={sidebar.onResizeWidth}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenSettings={() => navigate("/settings/models")}
       />
 
       <section className="flex min-w-0 flex-1 flex-col pr-[var(--safe-right)]">
         <HarnessHeader
-          sidebarOpen={sidebarOpen}
+          sidebarOpen={sidebar.sidebarOpen}
           activeAgent={activeAgent}
           activeSession={activeSessionMetadata}
-          issueTitle={activeIssueId === "new" ? i18n._("New task") : activeIssue?.title}
+          issueTitle={view === "tasks" ? issueTitle : undefined}
           taskHeaderRef={activeIssueId && activeIssueId !== "new" ? setTaskHeaderTarget : undefined}
           actionsRef={setHeaderActionsTarget}
           contentView={view}
           homeView={homeView}
-          companionVisible={isWorkspaceView(view) && workspaceSplit}
+          companionVisible={workspaceRoute && workspaceSplit}
           conversationSwitcher={
-            isWorkspaceView(view) && workspaceSplit ? (
+            workspaceRoute && workspaceSplit ? (
               <ConversationSwitcher
                 sessions={visibleSessions}
                 activeSessionId={activeSessionMetadata?.id}
@@ -548,7 +490,7 @@ export function HarnessShell({
           browserOpen={browserOpen}
           browserNeedsHelp={browserNeedsHelp}
           onToggleBrowser={() => showContentView(browserOpen ? "chat" : "browser")}
-          onToggleSidebar={() => setSidebarOpen((open) => !open)}
+          onToggleSidebar={() => sidebar.setSidebarOpen((open) => !open)}
           onOpenSearch={() => setSearchOpen(true)}
           onContentViewChange={showContentView}
           onOpenAgentSettings={() => {
@@ -564,7 +506,7 @@ export function HarnessShell({
             onRetry={homeResource.refresh}
           />
         ) : null}
-        {(view === "chat" || isWorkspaceView(view)) && activity.error ? (
+        {(view === "chat" || workspaceRoute) && activity.error ? (
           <div className="p-3">
             <ResourceError
               error={activity.error}
@@ -574,124 +516,17 @@ export function HarnessShell({
           </div>
         ) : null}
         {activeSessionMetadata?.taskId ? <TaskRunBanner session={activeSessionMetadata} /> : null}
-        <WorkspaceLayout
-          onSplitChange={setWorkspaceSplit}
-          view={isWorkspaceView(view) && activeAgent ? view : undefined}
-          legacyMode={legacyBrowser === "full" ? "full" : legacyBrowser ? "split" : undefined}
-          onClose={() => showContentView("chat")}
-          primary={
-            view === "sessions" && activeAgent ? (
-              <AgentSessionsPage
-                key={activeAgent.id}
-                agent={activeAgent}
-                modelRefs={modelRefs}
-                providerConfigs={providerConfigs}
-                sessions={visibleSessions}
-                runningSessionIds={serverRunningSessionIds}
-                runOverrides={runOverrides}
-                onSelectSession={(session) =>
-                  navigate(`/agents/${session.agentId}/sessions/${session.id}`)
-                }
-                onOpenImport={() => setImportDialogOpen(true)}
-              />
-            ) : view === "knowledge" && activeAgent ? (
-              <AgentKnowledgePage key={activeAgent.id} agent={activeAgent} />
-            ) : view === "schedules" && activeAgent ? (
-              <AgentSchedulesPage key={activeAgent.id} agent={activeAgent} />
-            ) : view === "tasks" && activeAgent ? (
-              activeIssueId === "new" ? (
-                <NewTaskView key={activeAgent.id} agent={activeAgent} />
-              ) : activeIssueId ? (
-                <TaskView
-                  key={activeIssueId}
-                  agent={activeAgent}
-                  issueId={activeIssueId}
-                  headerTarget={taskHeaderTarget}
-                  onIssuesChanged={issueList.refresh}
-                />
-              ) : (
-                <TasksOverview
-                  key={activeAgent.id}
-                  agent={activeAgent}
-                  issues={visibleIssues}
-                  loading={issueList.loading}
-                  error={issueList.error}
-                  onRefresh={issueList.refresh}
-                />
-              )
-            ) : onNewSessionPage && activeAgent ? (
-              <NewSessionView
-                key={activeAgent.id}
-                agent={activeAgent}
-                browserRequest={browserRequest}
-                modelRefs={modelRefs}
-                providerConfigs={providerConfigs}
-                onOpenSession={(sessionId) => {
-                  navigate(
-                    isWorkspaceView(view)
-                      ? workspaceChatPath(`${location.pathname}${location.search}`, sessionId)
-                      : `/agents/${activeAgent.id}/sessions/${sessionId}`,
-                  );
-                }}
-              />
-            ) : activeSession && activeAgent && activeModel ? (
-              <PiChat
-                key={activeSession.id}
-                agentConfig={activeAgent}
-                browserRequest={browserRequest}
-                headerActionsTarget={headerActionsTarget}
-                session={activeSession}
-                modelRef={activeModel}
-                modelRefs={modelRefs}
-                providerConfigs={providerConfigs}
-                onStreamingChange={onActiveSessionStreamingChange}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-                {route.kind === "empty"
-                  ? i18n._("Create an agent to start chatting.")
-                  : i18n._("Loading session...")}
-              </div>
-            )
-          }
-        >
-          <Suspense
-            fallback={
-              <div className="p-6 text-sm text-muted-foreground">
-                <Trans>Loading {view}…</Trans>
-              </div>
-            }
+        <HarnessShellContext.Provider value={shellContext}>
+          <WorkspaceLayout
+            onSplitChange={setWorkspaceSplit}
+            view={workspaceRoute && activeAgent ? view : undefined}
+            legacyMode={legacyBrowser === "full" ? "full" : legacyBrowser ? "split" : undefined}
+            onClose={() => showContentView("chat")}
+            primary={chatPrimary ? <ShellChatView /> : <Outlet />}
           >
-            {view === "terminal" && canOpenTerminal && activeAgent ? (
-              <TerminalPanel key={activeAgent.id} agent={activeAgent} />
-            ) : view === "changes" && activeAgent ? (
-              <ChangesView
-                key={activeAgent.id}
-                agent={activeAgent}
-                changePath={routeFilePath || undefined}
-                area={changeArea(searchParams.get("area"))}
-                onOpenChange={openChange}
-                onOpenFile={openFile}
-              />
-            ) : view === "files" && activeAgent ? (
-              <>
-                <div className={cn("h-full", selectedFilePath && "hidden")}>
-                  <FileManagerView key={activeAgent.id} agent={activeAgent} onOpenFile={openFile} />
-                </div>
-                {selectedFilePath ? (
-                  <FileEditorView
-                    key={`${activeAgent.id}:${selectedFilePath}`}
-                    agent={activeAgent}
-                    filePath={selectedFilePath}
-                    onClose={() => openFile("")}
-                  />
-                ) : null}
-              </>
-            ) : browserOpen && activeAgent ? (
-              <BrowserPanel key={activeAgent.id} agent={activeAgent} />
-            ) : null}
-          </Suspense>
-        </WorkspaceLayout>
+            {workspaceRoute ? <Outlet /> : null}
+          </WorkspaceLayout>
+        </HarnessShellContext.Provider>
         {!hasChatRequests ? <AgentRequestArea>{browserRequest}</AgentRequestArea> : null}
       </section>
       <ImportSessionsDialog
@@ -699,17 +534,8 @@ export function HarnessShell({
         activeAgent={activeAgent}
         modelRefs={modelRefs}
         onOpenChange={setImportDialogOpen}
-        onAfterImport={closeSidebarOnMobile}
+        onAfterImport={sidebar.closeSidebarOnMobile}
       />
     </main>
   );
-}
-
-function changeArea(value: string | null): GitChangeArea | undefined {
-  return value === "staged" ||
-    value === "unstaged" ||
-    value === "untracked" ||
-    value === "conflicted"
-    ? value
-    : undefined;
 }

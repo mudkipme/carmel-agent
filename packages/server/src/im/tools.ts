@@ -3,11 +3,7 @@ import { sessionHome } from "../services/agent-homes.ts";
 import { z } from "zod";
 import { imPlatformSchema, type ImPlatform } from "@carmel-agent/shared";
 import type { ToolRegistration } from "../effectors/pi-durable/index.ts";
-import {
-  enqueueImMessage,
-  listImIntegrations,
-  resolveNotificationIntegration,
-} from "../services/im-integrations.ts";
+import { enqueueImMessage, listImIntegrations, resolveNotificationIntegration } from "./service.ts";
 
 export function notificationPlatforms(userId: string, agentId: string): ImPlatform[] {
   try {

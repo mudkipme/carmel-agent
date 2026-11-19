@@ -11,10 +11,12 @@ import { secureHeaders } from "hono/secure-headers";
 import { requireAuth, type AuthVariables } from "./auth.ts";
 import { createApiRoutes } from "./routes/index.ts";
 import { createOpenAIRoutes } from "./routes/openai.ts";
+import { ensureDefaultRunContributors } from "./runtime/compose.ts";
 import { allowedCorsOrigin, rejectCrossOriginMutations, requestHost } from "./security.ts";
 import { isValidationError, validationErrorMessage } from "./validation.ts";
 
 export function createApp() {
+  ensureDefaultRunContributors();
   const app = new Hono<{ Variables: AuthVariables }>();
 
   app.onError((error, c) => {

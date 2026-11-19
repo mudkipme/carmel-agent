@@ -1,8 +1,6 @@
 import type { EditSessionMessageOptions } from "@/lib/api";
 import type {
   AgentConfig,
-  Issue,
-  IssueCreateCommand,
   ModelRef,
   ModelCatalog,
   ProviderConfig,
@@ -36,8 +34,6 @@ export type HarnessState = {
   modelCatalog: ModelCatalog;
   sessions: SessionMetadata[];
   sessionDetails: Record<string, Session>;
-  /** Issues of the agents whose issue lists have been loaded; not part of bootstrap. */
-  issues: Issue[];
   bootstrap: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
   setup: (input: {
@@ -79,8 +75,6 @@ export type HarnessState = {
   /** Bring a session that is not in the session list -- a task run's -- into the store so it can be opened. */
   loadUnlistedSession: (sessionId: string) => Promise<void>;
   moveSessionToList: (sessionId: string) => Promise<void>;
-  loadIssues: (agentId: string, signal?: AbortSignal) => Promise<Issue[]>;
-  createIssue: (agentId: string, input: IssueCreateCommand) => Promise<Issue>;
 };
 
 export type HarnessPersistedState = Pick<HarnessState, "lastAgentId">;

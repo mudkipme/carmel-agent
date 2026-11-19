@@ -13,6 +13,16 @@ import {
 import { AgentSettingsPage } from "@/components/harness/AgentSettingsPage";
 import { HarnessShell } from "@/components/harness/HarnessShell";
 import { HarnessSkeleton } from "@/components/harness/shell/HarnessSkeleton";
+import {
+  ShellBrowserView,
+  ShellChangesView,
+  ShellFilesView,
+  ShellKnowledgeView,
+  ShellSchedulesView,
+  ShellSessionsView,
+  ShellTasksView,
+  ShellTerminalView,
+} from "@/components/harness/shell/ShellViews";
 import { LoginScreen } from "@/components/harness/LoginScreen";
 import { SetupScreen } from "@/components/harness/SetupScreen";
 import { SettingsPage } from "@/components/harness/SettingsPage";
@@ -50,7 +60,7 @@ function TasksRoute() {
   const { agentId } = useParams();
   if (new URLSearchParams(location.search).has("task"))
     return <Navigate to={`/agents/${agentId}/schedules${location.search}`} replace />;
-  return <HarnessShell view="tasks" />;
+  return <ShellTasksView />;
 }
 
 export default function App() {
@@ -122,31 +132,73 @@ export default function App() {
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
-      <Route path="/" element={<HarnessShell />} />
+      <Route element={<HarnessShell />}>
+        <Route path="/" handle={{ view: "chat" }} element={null} />
+        <Route
+          path="/agents/:agentId/home"
+          handle={{ view: "chat", homeView: true }}
+          element={null}
+        />
+        {/* The splat carries the file being edited, and matches the bare
+            /files path too, so the manager and the editor share one route. */}
+        <Route
+          path="/agents/:agentId/files/*"
+          handle={{ view: "files" }}
+          element={<ShellFilesView />}
+        />
+        {/* Like files, the splat is the open file: here, the one whose diff shows. */}
+        <Route
+          path="/agents/:agentId/changes/*"
+          handle={{ view: "changes" }}
+          element={<ShellChangesView />}
+        />
+        <Route
+          path="/agents/:agentId/terminal"
+          handle={{ view: "terminal" }}
+          element={<ShellTerminalView />}
+        />
+        <Route
+          path="/agents/:agentId/browser"
+          handle={{ view: "browser" }}
+          element={<ShellBrowserView />}
+        />
+        <Route
+          path="/agents/:agentId/sessions"
+          handle={{ view: "sessions" }}
+          element={<ShellSessionsView />}
+        />
+        <Route path="/agents/:agentId/sessions/new" handle={{ view: "chat" }} element={null} />
+        <Route
+          path="/agents/:agentId/sessions/:sessionId"
+          handle={{ view: "chat" }}
+          element={null}
+        />
+        <Route
+          path="/agents/:agentId/schedules"
+          handle={{ view: "schedules" }}
+          element={<ShellSchedulesView />}
+        />
+        <Route
+          path="/agents/:agentId/knowledge"
+          handle={{ view: "knowledge" }}
+          element={<ShellKnowledgeView />}
+        />
+        <Route path="/agents/:agentId/tasks" handle={{ view: "tasks" }} element={<TasksRoute />} />
+        <Route
+          path="/agents/:agentId/tasks/:issueId"
+          handle={{ view: "tasks" }}
+          element={<ShellTasksView />}
+        />
+      </Route>
       <Route path="/agents/:agentId" element={<AgentHomeRedirect />} />
-      <Route path="/agents/:agentId/home" element={<HarnessShell homeView />} />
       <Route path="/agents/:agentId/settings" element={<AgentSettingsRedirect />} />
       <Route path="/agents/:agentId/settings/schedules" element={<AgentTasksRedirect />} />
       <Route path="/agents/:agentId/settings/tasks" element={<AgentTasksRedirect />} />
       <Route path="/agents/:agentId/settings/:section" element={<AgentSettingsPage />} />
-      {/* The splat carries the file being edited, and matches the bare
-            /files path too, so the manager and the editor share one route. */}
-      <Route path="/agents/:agentId/files/*" element={<HarnessShell view="files" />} />
-      {/* Like files, the splat is the open file: here, the one whose diff shows. */}
-      <Route path="/agents/:agentId/changes/*" element={<HarnessShell view="changes" />} />
-      <Route path="/agents/:agentId/terminal" element={<HarnessShell view="terminal" />} />
-      <Route path="/agents/:agentId/browser" element={<HarnessShell view="browser" />} />
-      <Route path="/agents/:agentId/sessions" element={<HarnessShell view="sessions" />} />
-      <Route path="/agents/:agentId/sessions/new" element={<HarnessShell />} />
-      <Route path="/agents/:agentId/sessions/:sessionId" element={<HarnessShell />} />
       <Route
         path="/agents/:agentId/sessions/:sessionId/helpers/:helperId"
         element={<SubtaskRedirect />}
       />
-      <Route path="/agents/:agentId/schedules" element={<HarnessShell view="schedules" />} />
-      <Route path="/agents/:agentId/knowledge" element={<HarnessShell view="knowledge" />} />
-      <Route path="/agents/:agentId/tasks" element={<TasksRoute />} />
-      <Route path="/agents/:agentId/tasks/:issueId" element={<HarnessShell view="tasks" />} />
       <Route path="/agents/:agentId/issues" element={<LegacyIssueRedirect />} />
       <Route path="/agents/:agentId/issues/:issueId" element={<LegacyIssueRedirect />} />
       <Route path="/settings" element={<Navigate to="/settings/models" replace />} />

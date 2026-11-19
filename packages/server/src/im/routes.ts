@@ -23,8 +23,8 @@ import {
   ownedSetup,
   serializeImSetup,
   updateImIntegration,
-} from "../services/im-integrations.ts";
-import { ImProviderError } from "../im/platform.ts";
+} from "./service.ts";
+import { ImProviderError } from "./platform.ts";
 
 export function createImIntegrationRoutes() {
   const route = createRouter<{ Variables: AuthVariables }>();

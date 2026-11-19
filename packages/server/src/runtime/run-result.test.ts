@@ -38,10 +38,10 @@ import { db, initialize, sqlite } from "../db/index.ts";
 import { id, now } from "../db/seed.ts";
 import { agentFolderName } from "../paths.ts";
 import { imBindings, imCredentials, imIntegrations, imOutbox } from "../db/im-schema.ts";
-import { encryptIm } from "../services/im-integrations.ts";
+import { encryptIm } from "../im/service.ts";
 import { createAgentTask, readAgentTask, readTaskRuns } from "../services/agent-tasks.ts";
 import { runTaskNow } from "./task-scheduler.ts";
-import { ImManager, receiveImMessage } from "./im-manager.ts";
+import { ImManager, receiveImMessage } from "../im/manager.ts";
 import { resolveModelContext } from "../services/model-context.ts";
 import { loadSession } from "../services/session-store.ts";
 import {

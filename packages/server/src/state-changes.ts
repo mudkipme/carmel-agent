@@ -37,6 +37,29 @@ export function subscribeStateChanges(listener: (changes: StateChange[]) => void
   return () => listeners.delete(listener);
 }
 
+let currentAuthRevision = 0;
+let authChangeQueued = false;
+const authChangeListeners = new Set<() => void>();
+
+export function authRevision() {
+  return currentAuthRevision;
+}
+
+export function notifyAuthChanged() {
+  currentAuthRevision++;
+  if (authChangeQueued) return;
+  authChangeQueued = true;
+  queueMicrotask(() => {
+    authChangeQueued = false;
+    for (const listener of authChangeListeners) listener();
+  });
+}
+
+export function subscribeAuthChanges(listener: () => void) {
+  authChangeListeners.add(listener);
+  return () => authChangeListeners.delete(listener);
+}
+
 /** Admins can list every user's scheduled tasks, so those changes reach them too. */
 const adminTopics: ReadonlySet<StateTopic> = new Set(["tasks"]);
 

@@ -1,4 +1,5 @@
 import { i18n } from "@lingui/core";
+import { apiRoutes } from "@carmel-agent/shared/api";
 import type {
   AgentMessage,
   Api,
@@ -8,92 +9,47 @@ import type {
 } from "@carmel-agent/shared/pi";
 import type {
   ActiveAgentRunSummary,
-  AgentRunEvent,
   AgentRunEventEnvelope,
   PromptInput,
-  ReferenceMessage,
+  RunProgress,
+  Session,
   SessionConnection,
-  NestedToolSlot,
   UserRequest,
 } from "@carmel-agent/shared";
-import { applyRunProgress, type RunProgress } from "@carmel-agent/shared";
-
 import { api, ApiError, apiError, apiFetch, apiUrl } from "@/lib/api";
-import { apiRoutes } from "@carmel-agent/shared/api";
 import { errorMessage } from "@/lib/errors";
+import {
+  applyConnectionToState,
+  applyHistoryEntryPage,
+  applyLiveProgress,
+  applyRunEvent,
+  buildAgentSnapshot,
+  confirmPendingMessage,
+  createTranscriptState,
+  normalizePromptInput,
+  prependOlderHistoryPage,
+  type AgentConnection,
+  type AgentSnapshot,
+  type ContextPressure,
+  type PendingMessage,
+  type PromptOutcome,
+  type TranscriptState,
+} from "./remote-agent-state.ts";
 import { openRunEventStream, type RunEventStream } from "./update-connection.ts";
 
-export type AgentConnection = { status: "connected" } | { status: "reconnecting"; message: string };
-
-/**
- * Immutable view of the agent's observable state, and the only way to read it.
- * Its identity changes only when `notify()` runs, so React's useSyncExternalStore
- * can compare references cheaply, and imperative callers outside render read the
- * same object rather than a second, separately-mutated copy.
- */
-export type AgentSnapshot = {
-  messages: AgentMessage[];
-  olderCursor?: string;
-  loadedEarlier?: boolean;
-  historyOnly?: boolean;
-  streamingMessage?: AgentMessage;
-  pendingToolCalls: Set<string>;
-  nestedTools?: readonly NestedToolSlot[];
-  isStreaming: boolean;
-  hasPendingWork: boolean;
-  connection: AgentConnection;
-  userRequests: UserRequest[];
-  model: Model<Api>;
-  thinkingLevel: ThinkingLevel;
-  errorMessage?: string;
-  /** Set when compaction could not keep the session inside its context budget. */
-  contextPressure?: ContextPressure;
-};
-
-export type ContextPressure = NonNullable<RunProgress["contextPressure"]>;
-
-/**
- * What happened to a submission, which is a different question from how the run
- * ended: an admitted run that fails reports its failure as persisted messages,
- * and its prompt must never be handed back to the composer as unsent.
- *
- * `unknown` is the honest answer when the request left this client and no server
- * run can be found for it: it may still have been received, so the caller has to
- * report it without resending or restoring the draft behind the user's back.
- */
-export type PromptOutcome =
-  | { status: "accepted" }
-  | { status: "rejected"; error: string }
-  | { status: "unknown"; error: string };
-
-type PendingMessage = { message: ReferenceMessage; eventId?: string };
+export type { AgentConnection, AgentSnapshot, ContextPressure, PromptOutcome };
 
 export class RemoteAgent {
   private storeListeners = new Set<() => void>();
+  private state: TranscriptState;
   private snapshotValue: AgentSnapshot;
   private abortController?: AbortController;
-  private messages: AgentMessage[];
-  private pendingMessages: PendingMessage[] = [];
-  private messageEntryIds: string[];
-  private loadedEarlier = false;
-  private olderCursor?: string;
-  private historyOnly = false;
-  private streamingMessage?: AgentMessage;
-  private pendingToolCalls = new Set<string>();
-  private nestedTools = [] as readonly NestedToolSlot[];
   private isStreaming = false;
-  private hasPendingWork = false;
   private reconnectError?: string;
-  private userRequests: UserRequest[] = [];
-  private model: Model<Api>;
-  private thinkingLevel: ThinkingLevel;
-  private errorMessage?: string;
-  private contextPressure?: ContextPressure;
   private runId?: string;
   private lastSequence = 0;
   private runFinished = false;
   private detachRequested = false;
-  private replaceNextUserMessage = false;
   /**
    * A stop can arrive while admission is still in flight. The id comes back
    * before the model is called, and this is sent as soon as that id exists.
@@ -114,21 +70,15 @@ export class RemoteAgent {
       home?: boolean;
       olderCursor?: string;
       onConnection?: (connection: SessionConnection) => void;
-      onHistoryPage?: (page: import("@carmel-agent/shared").Session) => void;
+      onHistoryPage?: (page: Session) => void;
       pendingWork?: boolean;
       userRequests?: UserRequest[];
       onRunComplete?: () => Promise<void> | void;
       openRunStream?: typeof openRunEventStream;
     },
   ) {
-    this.messages = [...config.messages];
-    this.messageEntryIds = [...(config.messageEntryIds ?? [])];
-    this.olderCursor = config.olderCursor;
-    this.hasPendingWork = config.pendingWork ?? false;
-    this.userRequests = config.userRequests ?? [];
-    this.model = config.model;
-    this.thinkingLevel = config.thinkingLevel;
-    this.snapshotValue = this.buildSnapshot();
+    this.state = createTranscriptState(config);
+    this.snapshotValue = buildAgentSnapshot(this.state, this.isStreaming, this.reconnectError);
   }
 
   /** Subscribe to any observable state change (for React's useSyncExternalStore). */
@@ -144,55 +94,31 @@ export class RemoteAgent {
 
   /** Replace the message list (e.g. an optimistic edit/retry) and notify subscribers. */
   setMessages(messages: AgentMessage[], messageEntryIds: string[] = []) {
-    this.messages = [...messages];
-    for (const message of messages) this.confirmPendingMessage(message);
-    this.messageEntryIds = [...messageEntryIds];
-    this.loadedEarlier = false;
+    this.state.messages = [...messages];
+    for (const message of messages)
+      confirmPendingMessage(this.state, message, Boolean(this.config.home));
+    this.state.messageEntryIds = [...messageEntryIds];
+    this.state.loadedEarlier = false;
     this.notify();
   }
 
   /** Entry ids aligned with the snapshot's messages, for optimistic rollback. */
   getMessageEntryIds(): string[] {
-    return [...this.messageEntryIds];
+    return [...this.state.messageEntryIds];
   }
 
   setThinkingLevel(thinkingLevel: ThinkingLevel) {
-    this.thinkingLevel = thinkingLevel;
+    this.state.thinkingLevel = thinkingLevel;
     this.notify();
   }
 
-  private buildSnapshot(): AgentSnapshot {
-    return {
-      messages: this.pendingMessages.length
-        ? [...this.messages, ...this.pendingMessages.map((pending) => pending.message)]
-        : this.messages,
-      olderCursor: this.olderCursor,
-      loadedEarlier: this.loadedEarlier,
-      historyOnly: this.historyOnly,
-      streamingMessage: this.streamingMessage,
-      pendingToolCalls: this.pendingToolCalls,
-      nestedTools: this.nestedTools,
-      isStreaming: this.isStreaming,
-      hasPendingWork: this.hasPendingWork,
-      connection:
-        this.reconnectError === undefined
-          ? { status: "connected" }
-          : { status: "reconnecting", message: this.reconnectError },
-      userRequests: this.userRequests,
-      model: this.model,
-      thinkingLevel: this.thinkingLevel,
-      errorMessage: this.errorMessage,
-      contextPressure: this.contextPressure,
-    };
-  }
-
   private notify() {
-    this.snapshotValue = this.buildSnapshot();
+    this.snapshotValue = buildAgentSnapshot(this.state, this.isStreaming, this.reconnectError);
     for (const onChange of this.storeListeners) onChange();
   }
 
   private fail(error: unknown) {
-    this.errorMessage = errorMessage(error);
+    this.state.errorMessage = errorMessage(error);
     this.notify();
   }
 
@@ -204,7 +130,7 @@ export class RemoteAgent {
     if (this.config.home) {
       try {
         await api.stopHome(this.config.agentId);
-        this.pendingMessages = [];
+        this.state.pendingMessages = [];
         this.notify();
         if (!this.isStreaming) await this.refreshConnection();
       } catch (error) {
@@ -221,7 +147,7 @@ export class RemoteAgent {
         this.stopRequested = true;
         return;
       }
-      if (!this.hasPendingWork) return;
+      if (!this.state.hasPendingWork) return;
       const controller = this.beginRun();
       try {
         await api.abortSession(this.config.sessionId);
@@ -253,8 +179,8 @@ export class RemoteAgent {
     if (this.isStreaming) return;
     this.config.modelRefId = modelRefId;
     this.config.model = model;
-    this.model = model;
-    if (thinkingLevel) this.thinkingLevel = thinkingLevel;
+    this.state.model = model;
+    if (thinkingLevel) this.state.thinkingLevel = thinkingLevel;
     this.notify();
   }
 
@@ -281,12 +207,14 @@ export class RemoteAgent {
         }
       : undefined;
     if (pendingMessage) {
-      this.pendingMessages = [...this.pendingMessages, pendingMessage];
+      this.state.pendingMessages = [...this.state.pendingMessages, pendingMessage];
       this.notify();
     }
     const outcome = await this.submitPrompt(promptInput, pendingMessage);
     if (outcome.status === "rejected" && pendingMessage) {
-      this.pendingMessages = this.pendingMessages.filter((message) => message !== pendingMessage);
+      this.state.pendingMessages = this.state.pendingMessages.filter(
+        (message) => message !== pendingMessage,
+      );
       this.notify();
     }
     return outcome;
@@ -306,7 +234,7 @@ export class RemoteAgent {
               requestId: crypto.randomUUID(),
               promptInput,
               modelRefId: this.config.modelRefId,
-              thinkingLevel: this.thinkingLevel,
+              thinkingLevel: this.state.thinkingLevel,
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             }),
           },
@@ -318,8 +246,8 @@ export class RemoteAgent {
         }
         const admission = (await response.json()) as { eventId: string };
         if (pendingMessage) pendingMessage.eventId = admission.eventId;
-        for (const message of this.messages) this.confirmPendingMessage(message);
-        this.errorMessage = undefined;
+        for (const message of this.state.messages) confirmPendingMessage(this.state, message, true);
+        this.state.errorMessage = undefined;
         this.notify();
         void this.refreshHome();
         return { status: "accepted" };
@@ -346,7 +274,7 @@ export class RemoteAgent {
             body: JSON.stringify({
               sessionId: this.config.sessionId,
               modelRefId: this.config.modelRefId,
-              thinkingLevel: this.thinkingLevel,
+              thinkingLevel: this.state.thinkingLevel,
               promptInput,
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             }),
@@ -366,7 +294,7 @@ export class RemoteAgent {
         throw error;
       }
       if (response.status === 409) {
-        this.pendingMessages = [];
+        this.state.pendingMessages = [];
         const summary = (await response.json().catch(() => undefined)) as
           | Partial<ActiveAgentRunSummary>
           | undefined;
@@ -385,7 +313,7 @@ export class RemoteAgent {
           this.lastSequence = connection.activeRun.eventCursor;
           await this.watchRun(activeRunId, controller.signal);
         }
-        this.errorMessage = rejection;
+        this.state.errorMessage = rejection;
         await this.notifyRunComplete();
         return { status: "rejected", error: rejection };
       }
@@ -407,13 +335,13 @@ export class RemoteAgent {
       if (!runId) throw new Error(i18n._("Agent response did not identify its server run."));
       this.rememberRun(runId);
       admitted = true;
-      this.hasPendingWork = false;
+      this.state.hasPendingWork = false;
       await this.watchRun(runId, controller.signal);
       await this.notifyRunComplete();
       return { status: "accepted" };
     } catch (error) {
       if (!(this.detachRequested && controller.signal.aborted)) {
-        this.errorMessage = errorMessage(error);
+        this.state.errorMessage = errorMessage(error);
         await this.notifyRunComplete();
       }
       if (admitted) return { status: "accepted" };
@@ -432,7 +360,7 @@ export class RemoteAgent {
     progress?: RunProgress,
   ) {
     if (this.abortController) throw new Error(i18n._("Agent is already processing."));
-    if (baseMessages) this.messages = [...baseMessages];
+    if (baseMessages) this.state.messages = [...baseMessages];
     const controller = this.beginRun(afterSequence, progress);
     this.runId = runId;
 
@@ -441,7 +369,7 @@ export class RemoteAgent {
       await this.notifyRunComplete();
     } catch (error) {
       if (!(this.detachRequested && controller.signal.aborted)) {
-        this.errorMessage = errorMessage(error);
+        this.state.errorMessage = errorMessage(error);
         await this.notifyRunComplete();
       }
     } finally {
@@ -450,11 +378,11 @@ export class RemoteAgent {
   }
 
   async continue() {
-    const lastMessage = this.messages[this.messages.length - 1];
+    const lastMessage = this.state.messages[this.state.messages.length - 1];
     if (!lastMessage || lastMessage.role !== "user") {
       throw new Error(i18n._("Cannot continue from current message state."));
     }
-    this.replaceNextUserMessage = true;
+    this.state.replaceNextUserMessage = true;
     return this.prompt([]);
   }
 
@@ -465,8 +393,8 @@ export class RemoteAgent {
 
   /** Dismiss the visible run error. */
   dismissError() {
-    if (this.errorMessage === undefined) return;
-    this.errorMessage = undefined;
+    if (this.state.errorMessage === undefined) return;
+    this.state.errorMessage = undefined;
     this.notify();
   }
 
@@ -483,11 +411,11 @@ export class RemoteAgent {
     const controller = new AbortController();
     this.abortController = controller;
     this.isStreaming = true;
-    this.applyLive(progress?.live);
-    this.errorMessage = progress?.errorMessage;
+    applyLiveProgress(this.state, progress?.live);
+    this.state.errorMessage = progress?.errorMessage;
     // Re-derived by every run: the new one may be on a different model, which is
     // the usual way this condition gets fixed.
-    this.contextPressure = progress?.contextPressure;
+    this.state.contextPressure = progress?.contextPressure;
     this.runId = undefined;
     this.lastSequence = afterSequence;
     this.runFinished = false;
@@ -501,15 +429,15 @@ export class RemoteAgent {
   private finishObservation() {
     const refresh = this.refreshWhenIdle && !this.detachRequested;
     this.refreshWhenIdle = false;
-    if (!this.config.home) this.pendingMessages = [];
+    if (!this.config.home) this.state.pendingMessages = [];
     this.isStreaming = false;
-    this.streamingMessage = undefined;
-    this.pendingToolCalls = new Set();
-    this.nestedTools = [];
+    this.state.streamingMessage = undefined;
+    this.state.pendingToolCalls = new Set();
+    this.state.nestedTools = [];
     this.abortController = undefined;
     this.runId = undefined;
     this.detachRequested = false;
-    this.replaceNextUserMessage = false;
+    this.state.replaceNextUserMessage = false;
     this.stopRequested = false;
     this.reconnectError = undefined;
     this.notify();
@@ -612,72 +540,27 @@ export class RemoteAgent {
 
   applyConnectionSnapshot(connection: SessionConnection, preserveHistory = true) {
     this.reconnectError = undefined;
-    const recent = connection.session;
-    const overlap =
-      preserveHistory && this.loadedEarlier && !this.historyOnly
-        ? this.messageEntryIds.indexOf(recent.messageEntryIds[0] ?? "")
-        : -1;
-    this.historyOnly = false;
-    if (overlap >= 0) {
-      const messages = [...this.messages.slice(0, overlap), ...recent.messages];
-      const messageEntryIds = [
-        ...this.messageEntryIds.slice(0, overlap),
-        ...recent.messageEntryIds,
-      ];
-      this.historyOnly = messages.length > 500;
-      connection = {
-        ...connection,
-        session: {
-          ...recent,
-          messages: messages.slice(0, 500),
-          messageEntryIds: messageEntryIds.slice(0, 500),
-          olderCursor: this.olderCursor,
-        },
-      };
-    } else this.loadedEarlier = false;
-    const conversationChanged =
-      connection.session.messageEntryIds.at(-1) !== this.messageEntryIds.at(-1);
-    this.config.onConnection?.(connection);
-    this.messages = [...connection.session.messages];
-    for (const message of this.messages) this.confirmPendingMessage(message);
-    this.messageEntryIds = [...connection.session.messageEntryIds];
-    this.olderCursor = connection.session.olderCursor;
-    this.hasPendingWork = connection.pendingWork ?? false;
-    this.userRequests = connection.userRequests ?? [];
-    this.thinkingLevel = connection.session.thinkingLevel;
-    this.applyLive(connection.runProgress?.live);
-    if (connection.runProgress) {
-      this.errorMessage = connection.runProgress.errorMessage;
-      this.contextPressure = connection.runProgress.contextPressure;
-    } else if (conversationChanged && !this.abortController) {
-      const last = this.messages.at(-1);
-      this.errorMessage =
-        last?.role === "assistant" && last.stopReason === "error" ? last.errorMessage : undefined;
-    }
+    const merged = applyConnectionToState(this.state, connection, {
+      preserveHistory,
+      isObserving: Boolean(this.abortController),
+      home: Boolean(this.config.home),
+    });
+    this.config.onConnection?.(merged);
     this.notify();
   }
 
   async openEntry(entryId: string) {
     if (this.isStreaming) return;
     const page = await api.getSessionHistory(this.config.sessionId, "", entryId);
-    this.messages = page.messages;
-    this.messageEntryIds = page.messageEntryIds;
-    this.loadedEarlier = false;
-    this.olderCursor = page.olderCursor;
-    this.historyOnly = true;
+    applyHistoryEntryPage(this.state, page);
     this.config.onConnection?.({ session: page, activeRun: null });
     this.notify();
   }
 
   async loadOlder() {
-    if (!this.olderCursor || this.isStreaming) return;
-    const page = await api.getSessionHistory(this.config.sessionId, this.olderCursor);
-    const combined = [...page.messages, ...this.messages];
-    this.historyOnly = this.historyOnly || combined.length > 500;
-    this.messages = combined.slice(0, 500);
-    this.messageEntryIds = [...page.messageEntryIds, ...this.messageEntryIds].slice(0, 500);
-    this.loadedEarlier = true;
-    this.olderCursor = page.olderCursor;
+    if (!this.state.olderCursor || this.isStreaming) return;
+    const page = await api.getSessionHistory(this.config.sessionId, this.state.olderCursor);
+    prependOlderHistoryPage(this.state, page);
     this.config.onHistoryPage?.(page);
     this.notify();
   }
@@ -687,21 +570,21 @@ export class RemoteAgent {
       this.refreshWhenIdle = true;
       return;
     }
-    if (this.historyOnly) return;
+    if (this.state.historyOnly) return;
     const refresh = ++this.connectionRefresh;
     const connection = await api.getSessionConnection(this.config.sessionId);
     if (
       refresh !== this.connectionRefresh ||
       this.abortController ||
-      this.historyOnly ||
+      this.state.historyOnly ||
       this.detachRequested
     )
       return;
     this.applyConnectionSnapshot(connection);
-    if (connection.activeRun && !this.historyOnly)
+    if (connection.activeRun && !this.state.historyOnly)
       void this.attachToRun(
         connection.activeRun.runId,
-        this.messages,
+        this.state.messages,
         connection.activeRun.eventCursor,
         connection.runProgress,
       );
@@ -739,7 +622,9 @@ export class RemoteAgent {
       );
     }
     this.lastSequence = envelope.sequence;
-    this.processEvent(envelope.event);
+    const result = applyRunEvent(this.state, envelope.event, Boolean(this.config.home));
+    if (result.runFinished) this.runFinished = true;
+    this.notify();
   }
 
   private markReconnecting(error: unknown) {
@@ -752,115 +637,6 @@ export class RemoteAgent {
     this.reconnectError = undefined;
     this.notify();
   }
-
-  private live: RunProgress["live"];
-
-  private applyLive(live: RunProgress["live"]) {
-    this.live = live;
-    this.streamingMessage = live?.generation?.message as AgentMessage | undefined;
-    this.pendingToolCalls = new Set(
-      live?.tools?.filter((call) => call.status !== "done").map((call) => call.callId),
-    );
-    this.nestedTools = live?.nestedTools ?? [];
-  }
-
-  private processEvent(event: AgentRunEvent) {
-    const progress = applyRunProgress(
-      {
-        live: this.live,
-        errorMessage: this.errorMessage,
-        contextPressure: this.contextPressure,
-      },
-      event,
-    );
-    if (event.type === "live_update" || event.type === "run_finished")
-      this.applyLive(progress.live);
-    switch (event.type) {
-      case "live_update":
-        break;
-      case "message_end":
-        this.streamingMessage = undefined;
-        this.confirmPendingMessage(event.message);
-        if (this.replaceNextUserMessage && event.message.role === "user") {
-          this.messages = [...this.messages.slice(0, -1), event.message];
-          this.replaceNextUserMessage = false;
-        } else {
-          this.messages = [...this.messages, event.message];
-        }
-        break;
-      case "turn_end":
-        if (event.errorMessage) this.errorMessage = event.errorMessage;
-        break;
-      case "run_recovered":
-        // The failing turn_end already set an error the user can see. It was
-        // true when it was sent and is not any more, so clearing it is part of
-        // reporting the recovery honestly.
-        this.errorMessage = undefined;
-        this.contextPressure = { level: "warning", message: event.message };
-        break;
-      case "context_pressure":
-        // Survives `run_finished`: the condition it reports is a property of the
-        // session, so clearing it when the run ends would hide it exactly when
-        // the user is reading the result.
-        this.contextPressure = { level: event.level, message: event.message };
-        break;
-      case "agent_end":
-        // The native conversation has stopped producing messages, but server persistence and
-        // title generation still follow, so this is not terminal authority.
-        this.streamingMessage = undefined;
-        break;
-      case "run_finished":
-        this.runFinished = true;
-        this.streamingMessage = undefined;
-        this.pendingToolCalls = new Set();
-        // The server's verdict on the whole run. A failed turn has usually said
-        // so already, and its wording is the more specific; this covers what no
-        // turn reports -- a result that could not be saved, or a shutdown.
-        if (
-          (event.result.outcome === "failed" || event.result.outcome === "interrupted") &&
-          !this.errorMessage
-        ) {
-          this.errorMessage =
-            event.result.detail ?? i18n._("This run did not finish successfully.");
-        }
-        break;
-    }
-    this.notify();
-  }
-
-  private confirmPendingMessage(message: AgentMessage) {
-    if (message.role !== "user") return;
-    const eventId = (message as AgentMessage & { homeEventId?: string }).homeEventId;
-    const index = this.config.home
-      ? this.pendingMessages.findIndex((pending) => eventId && pending.eventId === eventId)
-      : 0;
-    if (index >= 0) this.pendingMessages = this.pendingMessages.filter((_, item) => item !== index);
-  }
-}
-
-function normalizePromptInput(
-  input: string | AgentMessage | AgentMessage[],
-  images?: ImageContent[],
-): PromptInput | undefined {
-  if (typeof input === "string")
-    return { text: input, images: images?.length ? images : undefined };
-  const messages = Array.isArray(input) ? input : [input];
-  const textParts: string[] = [];
-  const imageParts: ImageContent[] = [];
-
-  for (const message of messages) {
-    if (message.role !== "user" || !Array.isArray(message.content)) continue;
-    for (const part of message.content) {
-      if (part.type === "text") textParts.push(part.text);
-      if (part.type === "image") imageParts.push(part);
-    }
-  }
-
-  if (textParts.length === 0 && imageParts.length === 0) return undefined;
-  return {
-    text: textParts.join("\n\n"),
-    images: imageParts.length > 0 ? imageParts : undefined,
-  };
 }
 
 function nextReconnectDelay(currentMs: number) {

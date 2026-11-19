@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { showError } from "@/lib/errors";
+import { updateConnection } from "@/lib/update-connection";
 import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { ResourceError, ResourceLoading } from "../ResourceFeedback";
 
@@ -32,6 +33,7 @@ export function AgentKnowledgeSettings({ agentId }: { agentId: string }) {
     setBusy(true);
     try {
       await api.saveKnowledgeSettings(agentId, settings);
+      updateConnection.refreshState(["knowledge"]);
       await overview.refresh();
       toast.success(i18n._("Knowledge settings saved."));
     } catch (error) {

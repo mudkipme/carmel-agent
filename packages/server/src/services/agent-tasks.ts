@@ -8,7 +8,7 @@ import { INTERRUPTED_DETAIL } from "../effectors/run-outcome.ts";
 import { readActiveRunLeaseForSession } from "./active-run-lease.ts";
 import { readTaskAgent, readUsableModelRef, readVisibleAgent } from "./agent-access.ts";
 import { deletePiSession } from "./pi-session-storage.ts";
-import { ImError, listImDeliveries, resolveNotificationIntegration } from "./im-integrations.ts";
+import { ImError, listImDeliveries, resolveNotificationIntegration } from "../im/service.ts";
 
 type TaskRecord = typeof agentTasks.$inferSelect;
 

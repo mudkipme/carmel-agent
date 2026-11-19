@@ -1,4 +1,4 @@
-import { assertReceiverAccess, cancelSourceCollaborations } from "../collaborations/service.ts";
+import { assertReceiverAccess, cancelSourceCollaborations } from "../collaborations/access.ts";
 import { collaborations, issues, issueAttempts, issueNotes, sessions } from "../db/schema.ts";
 import { imOutbox, imIntegrations } from "../db/im-schema.ts";
 import { gte, and, asc, desc, eq } from "drizzle-orm";
@@ -17,6 +17,7 @@ import type {
 import { db } from "../db/index.ts";
 import { id, now } from "../db/seed.ts";
 import { errorMessage } from "../errors.ts";
+import { startWakeLoop, type WakeLoop } from "../wake-loop.ts";
 import {
   startDetachedAgentRun,
   steerAgentRun,
@@ -139,28 +140,31 @@ export function addIssueNote(
 const launching = new Set<string>();
 let queueEnabled = true;
 const settling = new Map<string, Promise<unknown>>();
-let queueTimer: ReturnType<typeof setInterval> | undefined;
+let queueLoop: WakeLoop | undefined;
 
 export function startIssueQueue() {
-  if (queueTimer) return;
+  if (queueLoop) return;
   queueEnabled = true;
-  queueTimer = setInterval(() => {
-    for (const row of db
-      .select({ agentId: issues.agentId })
-      .from(issues)
-      .where(eq(issues.status, "queued"))
-      .all())
-      wakeQueue(row.agentId);
-  }, 2000);
-  queueTimer.unref();
+  queueLoop = startWakeLoop({
+    topics: ["issues", "sessions"],
+    sweepMs: 60_000,
+    run() {
+      for (const row of db
+        .selectDistinct({ agentId: issues.agentId })
+        .from(issues)
+        .where(eq(issues.status, "queued"))
+        .all())
+        wakeQueue(row.agentId);
+    },
+  });
 }
 export async function drainIssueResults() {
   await Promise.allSettled(settling.values());
 }
 export function stopIssueQueue() {
   queueEnabled = false;
-  if (queueTimer) clearInterval(queueTimer);
-  queueTimer = undefined;
+  queueLoop?.stop();
+  queueLoop = undefined;
 }
 function wakeQueue(agentId: string) {
   if (!queueEnabled) return;
@@ -724,7 +728,7 @@ export function reopenIssue(userId: string, agentId: string, issueId: string): I
 export function interruptIssue(userId: string, agentId: string, issueId: string): IssueDetail {
   const issue = readIssue(userId, agentId, issueId);
   if (issue.sessionId) {
-    cancelSourceCollaborations(issue.sessionId);
+    cancelSourceCollaborations(issue.sessionId, cancelIssue);
     db.update(collaborations)
       .set({ waiting: false })
       .where(eq(collaborations.sourceSessionId, issue.sessionId))

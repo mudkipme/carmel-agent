@@ -1,12 +1,30 @@
 import "./env.ts";
 import { createHash } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const defaultDataUrl = new URL("../../../data/", import.meta.url);
 
-export const dataDir = resolve(process.env.CARMEL_AGENT_DATA_DIR ?? fileURLToPath(defaultDataUrl));
+function resolveDataDir() {
+  const configured = process.env.CARMEL_AGENT_DATA_DIR;
+  if (configured) return resolve(configured);
+  if (process.env.DATABASE_URL === ":memory:") {
+    const ephemeral = mkdtempSync(join(tmpdir(), "carmel-data-"));
+    process.once("exit", () => {
+      try {
+        rmSync(ephemeral, { recursive: true, force: true });
+      } catch {
+        /* Best effort cleanup of ephemeral test data. */
+      }
+    });
+    return ephemeral;
+  }
+  return resolve(fileURLToPath(defaultDataUrl));
+}
+
+export const dataDir = resolveDataDir();
 
 /** Data-relative root of a new environment's workspace, runner home, and scratch. */
 export function environmentStorageDir(environmentId: string) {

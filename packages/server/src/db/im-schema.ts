@@ -1,6 +1,6 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { ImPlatform, ImSetup, PromptInput } from "@carmel-agent/shared";
-import { agents, users } from "./schema.ts";
+import { agents, users } from "./core-schema.ts";
 
 export const imIntegrations = sqliteTable(
   "im_integrations",

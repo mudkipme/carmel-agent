@@ -12,6 +12,7 @@ import {
 } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { homeMemorySettings } from "../db/schema.ts";
+import { startWakeLoop, type WakeLoop } from "../wake-loop.ts";
 import { HomeError } from "../services/agent-homes.ts";
 import { readVisibleAgent } from "../services/agent-access.ts";
 import {
@@ -211,7 +212,7 @@ export async function recallHomeMemories(userId: string, agentId: string, query:
 
 const jobs = new Map<string, Promise<void>>();
 let controller = new AbortController();
-let timer: ReturnType<typeof setInterval> | undefined;
+let indexLoop: WakeLoop | undefined;
 const retries = new Map<string, number>();
 
 export async function refreshHomeMemoryIndex(
@@ -272,44 +273,60 @@ export async function refreshHomeMemoryIndex(
     }
   });
   jobs.set(key, job);
-  void job.finally(() => jobs.delete(key)).catch(() => {});
+  void job
+    .finally(() => {
+      jobs.delete(key);
+      if (jobs.size === 0) indexLoop?.wake();
+    })
+    .catch(() => {});
 }
 
 export async function waitHomeMemoryIndexJob(userId: string, agentId: string) {
   await jobs.get(homeMemoryIndexKey(userId, agentId));
 }
 
-export async function tickHomeMemoryIndexes() {
-  if (jobs.size || controller.signal.aborted) return;
+export async function tickHomeMemoryIndexes(): Promise<number | undefined> {
+  if (jobs.size || controller.signal.aborted) return undefined;
+  const nowMs = Date.now();
+  let nextDueAt: number | undefined;
+  const trackDue = (at: number) => {
+    if (nextDueAt === undefined || at < nextDueAt) nextDueAt = at;
+  };
   for (const row of db.select().from(homeMemorySettings).all()) {
     if (row.mode === "off" || !row.retrieval.enabled || !readVisibleAgent(row.userId, row.agentId))
       continue;
-    if (!row.indexDirty && Date.now() - (row.indexStatus?.lastUpdatedAt ?? 0) < 5 * 60_000)
-      continue;
+    const staleAt = (row.indexStatus?.lastUpdatedAt ?? 0) + 5 * 60_000;
+    if (!row.indexDirty && nowMs < staleAt) continue;
     const key = homeMemoryIndexKey(row.userId, row.agentId);
-    if (Date.now() - (retries.get(key) ?? 0) < 5 * 60_000) continue;
-    retries.set(key, Date.now());
+    const retryAt = (retries.get(key) ?? 0) + 5 * 60_000;
+    if (nowMs < retryAt) {
+      trackDue(retryAt);
+      continue;
+    }
+    retries.set(key, nowMs);
     await refreshHomeMemoryIndex(row.userId, row.agentId, {
       embed: Boolean(row.indexStatus?.backend),
     });
-    break;
+    return nextDueAt;
   }
+  return nextDueAt;
 }
 
 export function startHomeMemoryIndexes() {
-  if (timer) return;
+  if (indexLoop) return;
   controller = new AbortController();
-  timer = setInterval(
-    () =>
-      void tickHomeMemoryIndexes().catch((error) => console.error("Memory indexing failed", error)),
-    30_000,
-  );
-  timer.unref();
+  indexLoop = startWakeLoop({
+    topics: ["homes"],
+    sweepMs: 5 * 60_000,
+    debounceMs: 250,
+    run: () => tickHomeMemoryIndexes(),
+    onError: (error) => console.error("Memory indexing failed", error),
+  });
 }
 
 export async function stopHomeMemoryIndexes() {
-  if (timer) clearInterval(timer);
-  timer = undefined;
+  indexLoop?.stop();
+  indexLoop = undefined;
   controller.abort();
   await Promise.allSettled(jobs.values());
 }

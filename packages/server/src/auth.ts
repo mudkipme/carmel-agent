@@ -87,7 +87,7 @@ export function pruneExpiredAuthSessions(timestamp = now()) {
  * implementation on purpose: an authentication check that exists twice is an
  * authentication check that will eventually disagree with itself.
  */
-export function readAuthenticatedUser(token: string | undefined) {
+export function readAuthenticatedSession(token: string | undefined) {
   if (!token) return undefined;
 
   const session = db
@@ -102,7 +102,11 @@ export function readAuthenticatedUser(token: string | undefined) {
     db.delete(authSessions).where(eq(authSessions.id, session.id)).run();
     return undefined;
   }
-  return user;
+  return { user, expiresAt: session.expiresAt };
+}
+
+export function readAuthenticatedUser(token: string | undefined) {
+  return readAuthenticatedSession(token)?.user;
 }
 
 /** Read the session cookie out of a raw `Cookie` header. */

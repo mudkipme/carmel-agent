@@ -22,7 +22,7 @@ import {
 import { searchGlobalSessions } from "../services/session-search.ts";
 import { readSessionMetadataForUser } from "../services/bootstrap.ts";
 import { sessionHome } from "../services/agent-homes.ts";
-import { invalidateHomeMemorySources } from "../home-memory/service.ts";
+import { invalidateHomeMemorySources } from "../home-memory/index.ts";
 import { readSessionSnapshot } from "../services/session-snapshot.ts";
 import {
   forkSessionRequestSchema,

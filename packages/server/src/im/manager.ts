@@ -6,19 +6,20 @@ import {
   stopHome,
 } from "../services/home-events.ts";
 import { homeEvents, issues } from "../db/schema.ts";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { resolveCarmelLinks } from "@carmel-agent/shared";
 import { db } from "../db/index.ts";
 import { imBindings, imInbox, imIntegrations, imOutbox, imSetups } from "../db/im-schema.ts";
 import { id, now } from "../db/seed.ts";
 import { errorMessage } from "../errors.ts";
+import { startWakeLoop, type WakeLoop } from "../wake-loop.ts";
 import {
   createImTransport,
   ImProviderError,
   splitImText,
   type ImIncoming,
   type ImTransport,
-} from "../im/platform.ts";
+} from "./platform.ts";
 import {
   assertImAccess,
   completeImPair,
@@ -29,9 +30,9 @@ import {
   pollImQr,
   setupState,
   type IntegrationRecord,
-} from "../services/im-integrations.ts";
-import { carmelPublicBaseUrl } from "./carmel-links.ts";
-import { abortAgentRun, getActiveAgentRunForSession } from "./run-stream.ts";
+} from "./service.ts";
+import { carmelPublicBaseUrl } from "../runtime/carmel-links.ts";
+import { abortAgentRun, getActiveAgentRunForSession } from "../runtime/run-stream.ts";
 
 type Connection = { version: string; transport: ImTransport };
 export function imSessionLink(agentId: string, sessionId?: string) {
@@ -207,23 +208,25 @@ export class ImManager {
   private connections = new Map<string, Connection>();
   private working = new Set<string>();
   private jobs = new Set<Promise<unknown>>();
-  private timer?: ReturnType<typeof setInterval>;
+  private loop?: WakeLoop;
   private ticking = false;
   private stopped = false;
   constructor(private transportFactory = createImTransport) {}
   start() {
-    if (this.timer) return;
+    if (this.loop) return;
     this.stopped = false;
     recoverImWork();
-    // A rejected tick would be an unhandled rejection and exit the process.
-    this.timer = setInterval(() => this.runTick(), 1000);
-    this.timer.unref();
-    this.runTick();
+    this.loop = startWakeLoop({
+      topics: ["integrations", "workspace", "homes"],
+      sweepMs: 60_000,
+      run: () => this.tick(),
+      onError: (error) => console.warn("IM manager tick failed:", errorMessage(error)),
+    });
   }
   stop() {
     this.stopped = true;
-    if (this.timer) clearInterval(this.timer);
-    this.timer = undefined;
+    this.loop?.stop();
+    this.loop = undefined;
     for (const connection of this.connections.values()) connection.transport.stop();
     this.connections.clear();
   }
@@ -243,20 +246,22 @@ export class ImManager {
       });
     this.jobs.add(pending);
   }
-  private runTick() {
-    void this.tick().catch((error) => console.warn("IM manager tick failed:", errorMessage(error)));
-  }
-  async tick() {
-    if (this.ticking || this.stopped) return;
+  async tick(): Promise<number | undefined> {
+    if (this.ticking || this.stopped) return undefined;
     this.ticking = true;
+    let nextDueAt: number | undefined;
+    const trackDue = (at: number) => {
+      if (nextDueAt === undefined || at < nextDueAt) nextDueAt = at;
+    };
     try {
+      const currentNow = now();
       const desired = new Set<string>();
       for (const setup of db
         .select()
         .from(imSetups)
         .where(inArray(imSetups.status, ["authorizing", "pairing"]))
         .all()) {
-        if (setup.expiresAt <= now()) {
+        if (setup.expiresAt <= currentNow) {
           finishSetup(setup.id, "expired");
           continue;
         }
@@ -266,8 +271,9 @@ export class ImManager {
           finishSetup(setup.id, "cancelled");
           continue;
         }
+        trackDue(setup.expiresAt);
         if (setup.status === "authorizing") {
-          if (setup.nextPollAt <= now())
+          if (setup.nextPollAt <= currentNow)
             this.launch(`qr:${setup.id}`, async () => {
               try {
                 await pollImQr(setup);
@@ -279,6 +285,7 @@ export class ImManager {
                 );
               }
             });
+          else trackDue(setup.nextPollAt);
           continue;
         }
         const key = `setup:${setup.id}`;
@@ -369,6 +376,13 @@ export class ImManager {
           connection.transport.stop();
           this.connections.delete(key);
         }
+      const nextOutbox = db
+        .select({ nextAttemptAt: sql<number | null>`min(${imOutbox.nextAttemptAt})` })
+        .from(imOutbox)
+        .where(and(eq(imOutbox.status, "pending"), gt(imOutbox.nextAttemptAt, currentNow)))
+        .get();
+      if (nextOutbox?.nextAttemptAt) trackDue(nextOutbox.nextAttemptAt);
+      return nextDueAt;
     } finally {
       this.ticking = false;
     }

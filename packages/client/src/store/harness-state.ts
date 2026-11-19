@@ -83,7 +83,6 @@ export function resetState(
     modelCatalog: { providers: [] },
     sessions: [],
     sessionDetails: {},
-    issues: [],
   };
 }
 
