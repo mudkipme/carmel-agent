@@ -99,9 +99,9 @@ function createAuthorizedFindTool(env: AgentExecutionEnv): ServerToolDefinition 
   });
 }
 
-// GrepOperations protects metadata and context reads, but Pi still passes the
-// original search path to its host rg process. Resolve it first so container
-// mount aliases are remapped and rg never receives an unauthorized host path.
+// GrepOperations guards the directory check, but Pi passes the search path to
+// its host rg process, which also reads context lines. Resolve it first so
+// container mount aliases are remapped and rg never receives an unauthorized host path.
 function createAuthorizedGrepTool(env: AgentExecutionEnv): ServerToolDefinition {
   const tool = createPiGrepTool(env.hostCwd, { operations: createGrepOperations(env) });
   return asDurableTool({

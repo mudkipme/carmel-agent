@@ -33,7 +33,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
-import type { AgentRunResult, ReferenceMessage } from "@carmel-agent/shared";
+import {
+  getUserRequestReceipt,
+  type AgentRunResult,
+  type ReferenceMessage,
+} from "@carmel-agent/shared";
 import { db, initialize, sqlite } from "../db/index.ts";
 import { id, now } from "../db/seed.ts";
 import { agentFolderName } from "../paths.ts";
@@ -220,7 +224,7 @@ test("a background helper survives parent finalization and server host reopen wi
   }
 });
 
-test("the server runtime ends for a question and delivers its saved answer on the next run", async () => {
+test("the server runtime parks a question and wakes it with the saved answer on the next run", async () => {
   const run = await startRun("question");
   assert.deepEqual(await finished(run), { outcome: "succeeded" });
   const snapshot = await readSessionConnection(run.userId, run.sessionId);
@@ -244,8 +248,10 @@ test("the server runtime ends for a question and delivers its saved answer on th
   assert.deepEqual(await finished(resumed), { outcome: "succeeded" });
   assert.equal(readUserRequests(session.id)[0]?.delivery, "submitted");
   const messages = (await loadSession(session.id))!.messages;
-  assert.equal(messages.filter((message) => message.role === "user").length, 2);
-  assert.match(JSON.stringify(messages), /Main/);
+  assert.equal(messages.filter((message) => message.role === "user").length, 1);
+  const answer = messages.find((message) => message.role === "toolResult");
+  assert.equal(getUserRequestReceipt(answer!)?.answer, "Main");
+  assert.equal((await readSessionConnection(run.userId, run.sessionId))?.pendingWork, false);
   assert.match(JSON.stringify(provider.requests.at(-1)), /Main/);
 });
 

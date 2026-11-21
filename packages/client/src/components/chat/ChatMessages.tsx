@@ -5,7 +5,14 @@ import { useRemoteResource } from "@/hooks/use-remote-resource";
 import { api } from "@/lib/api";
 import { CollaborationActivity } from "./CollaborationActivity";
 import type { CollaborationSummary, NestedToolSlot } from "@carmel-agent/shared";
-import { getUserRequestReceipt, homeIssueUpdate, collaborationReply } from "@carmel-agent/shared";
+import {
+  getUserRequestReceipt,
+  homeIssueUpdate,
+  collaborationReply,
+  type UserRequestReceipt,
+} from "@carmel-agent/shared";
+
+const userRequestTools = new Set(["ask_user_question", "request_secret"]);
 import { CollaborationReplyCard } from "./CollaborationReplyCard";
 import { HomeTaskCard } from "./HomeTaskCard";
 import { Link, useLocation } from "react-router-dom";
@@ -474,6 +481,7 @@ const MessageItem = memo(function MessageItem({
           hidePendingToolCalls={hidePendingToolCalls}
           hideAnswer={hideAnswer}
           hideRunEnding={hideRunEnding}
+          renderCompletedSecret={renderCompletedSecret}
           onEditMessage={onEditMessage}
           onForkMessage={onForkMessage}
         />
@@ -483,57 +491,10 @@ const MessageItem = memo(function MessageItem({
 
   if (message.role === "user") {
     const receipt = getUserRequestReceipt(message);
-    if (receipt) {
-      const completedSecret =
-        receipt.kind === "secret" ? renderCompletedSecret?.(receipt.requestId) : null;
-      if (completedSecret) return <div className="px-3">{completedSecret}</div>;
-      const answered = receipt.status === "answered";
+    if (receipt)
       return (
-        <div className="px-3" data-testid="user-request-receipt">
-          <Alert>
-            {receipt.kind === "secret" ? <KeyRoundIcon /> : <MessageSquareTextIcon />}
-            <AlertTitle className="flex flex-wrap items-center gap-2">
-              {receipt.kind === "secret" ? (
-                <code>{receipt.name}</code>
-              ) : answered ? (
-                i18n._("Answer sent")
-              ) : (
-                i18n._("Question response")
-              )}
-              <Badge variant="secondary">
-                {answered
-                  ? receipt.kind === "secret"
-                    ? i18n._("Credential provided")
-                    : i18n._("Answered")
-                  : receipt.status === "cancelled"
-                    ? i18n._("Declined")
-                    : receipt.status === "expired"
-                      ? i18n._("Expired")
-                      : i18n._("Unavailable")}
-              </Badge>
-            </AlertTitle>
-            <AlertDescription>
-              {receipt.kind === "secret" ? (
-                answered ? (
-                  receipt.scope === "agent" ? (
-                    i18n._("Saved for reuse across sessions in this environment.")
-                  ) : (
-                    i18n._("Provided for this session only.")
-                  )
-                ) : (
-                  i18n._("This request did not make a credential available to the agent.")
-                )
-              ) : (
-                <>
-                  <span>{receipt.question}</span>
-                  {answered ? <span className="whitespace-pre-wrap">{receipt.answer}</span> : null}
-                </>
-              )}
-            </AlertDescription>
-          </Alert>
-        </div>
+        <UserRequestReceiptView receipt={receipt} renderCompletedSecret={renderCompletedSecret} />
       );
-    }
     return (
       <div className="group flex min-w-0 flex-col gap-1">
         <UserMessage message={message} />
@@ -551,6 +512,66 @@ const MessageItem = memo(function MessageItem({
 
   return null;
 });
+
+/** How a question or credential request ended, shown where the agent received the response. */
+function UserRequestReceiptView({
+  receipt,
+  renderCompletedSecret,
+}: {
+  receipt: UserRequestReceipt;
+  renderCompletedSecret?: (requestId: string) => ReactNode;
+}) {
+  const { i18n } = useLingui();
+  const completedSecret =
+    receipt.kind === "secret" ? renderCompletedSecret?.(receipt.requestId) : null;
+  if (completedSecret) return <div className="px-3">{completedSecret}</div>;
+  const answered = receipt.status === "answered";
+  return (
+    <div className="px-3" data-testid="user-request-receipt">
+      <Alert>
+        {receipt.kind === "secret" ? <KeyRoundIcon /> : <MessageSquareTextIcon />}
+        <AlertTitle className="flex flex-wrap items-center gap-2">
+          {receipt.kind === "secret" ? (
+            <code>{receipt.name}</code>
+          ) : answered ? (
+            i18n._("Answer sent")
+          ) : (
+            i18n._("Question response")
+          )}
+          <Badge variant="secondary">
+            {answered
+              ? receipt.kind === "secret"
+                ? i18n._("Credential provided")
+                : i18n._("Answered")
+              : receipt.status === "cancelled"
+                ? i18n._("Declined")
+                : receipt.status === "expired"
+                  ? i18n._("Expired")
+                  : i18n._("Unavailable")}
+          </Badge>
+        </AlertTitle>
+        <AlertDescription>
+          {receipt.kind === "secret" ? (
+            answered ? (
+              receipt.scope === "agent" ? (
+                i18n._("Saved for reuse across sessions in this environment.")
+              ) : (
+                i18n._("Provided for this session only.")
+              )
+            ) : (
+              i18n._("This request did not make a credential available to the agent.")
+            )
+          ) : (
+            <>
+              <span>{receipt.question}</span>
+              {answered ? <span className="whitespace-pre-wrap">{receipt.answer}</span> : null}
+            </>
+          )}
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+}
 
 function UserMessage({ message }: { message: AgentMessage }) {
   const { i18n } = useLingui();
@@ -608,6 +629,7 @@ function AssistantMessage({
   hidePendingToolCalls,
   hideAnswer = false,
   hideRunEnding = false,
+  renderCompletedSecret,
   onEditMessage,
   onForkMessage,
 }: {
@@ -620,6 +642,7 @@ function AssistantMessage({
   hidePendingToolCalls: boolean;
   hideAnswer?: boolean;
   hideRunEnding?: boolean;
+  renderCompletedSecret?: (requestId: string) => ReactNode;
   onEditMessage?: (message: AgentMessage) => void;
   onForkMessage?: (message: AgentMessage) => void;
 }) {
@@ -677,6 +700,17 @@ function AssistantMessage({
         const pending = pendingToolCalls.has(toolCall.id);
         const result = toolResultsById.get(toolCall.id);
         if (hidePendingToolCalls && pending && !result) return null;
+        const receipt = result && getUserRequestReceipt(result);
+        if (receipt)
+          return (
+            <UserRequestReceiptView
+              key={toolCall.id}
+              receipt={receipt}
+              renderCompletedSecret={renderCompletedSecret}
+            />
+          );
+        // The request card at the composer stands for a call waiting on the user.
+        if (!result && userRequestTools.has(toolCall.name)) return null;
         return (
           <ToolCallView
             key={toolCall.id}

@@ -99,7 +99,11 @@ export type UserRequestReceiptMessage = Extract<AgentMessage, { role: "user" }> 
   userRequestReceipt: UserRequestReceipt;
   userRequestContext: string;
 };
-export function getUserRequestReceipt(message: AgentMessage) {
+/** A request's outcome: the result of its parked tool call, or a reply message from before calls parked. */
+export function getUserRequestReceipt(message: AgentMessage): UserRequestReceipt | undefined {
+  if (message.role === "toolResult")
+    return (message.details as { userRequestReceipt?: UserRequestReceipt } | undefined)
+      ?.userRequestReceipt;
   return (message as Partial<UserRequestReceiptMessage>).userRequestReceipt;
 }
 export function userRequestReceiptText(receipt: UserRequestReceipt) {

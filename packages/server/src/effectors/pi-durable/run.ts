@@ -1,5 +1,7 @@
 import type { Op } from "@earendil-works/chord/delta";
-import type { WatchHandle, Context, JsonValue } from "@earendil-works/chord";
+import { withAbortSignal, type Context } from "@earendil-works/chord/context";
+import type { JsonValue } from "@earendil-works/chord/json";
+import type { WatchHandle } from "@earendil-works/chord/watch";
 import type { ResolvedReferences } from "../../services/prompt-references.ts";
 import type { UserRequestReceipt } from "@carmel-agent/shared";
 import type { ImageContent, Models } from "@earendil-works/pi-ai";
@@ -16,15 +18,25 @@ import {
   type LiveState,
   type Extension,
   type HarnessSettings,
+  type ToolNamespace,
   type ToolRegistration,
 } from "@earendil-works/pi-durable";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
+import { fitImages } from "@earendil-works/pi-durable/images/fit";
+import { imageLimits } from "@earendil-works/pi-durable/tools";
+import { imageProcessor } from "./tools.ts";
 import type { PiSession } from "../../services/pi-session-storage.ts";
 
 export type PiRunOptions = {
   models: Models;
   agent: AgentChange;
   tools?: ToolRegistration[];
+  /** Codemode groups for some of `tools`, each brought by its own extension. */
+  namespaces?: readonly {
+    extension: string;
+    namespace: ToolNamespace;
+    tools: readonly string[];
+  }[];
   env?: ExecutionEnv;
   extensions?: Extension[];
   sections?: Record<string, string | undefined>;
@@ -49,16 +61,25 @@ export class PiRun {
     session.models = options.models;
     session.env = options.env;
 
-    for (const extension of options.extensions ?? []) session.registry.install(extension);
+    const tools = options.tools ?? [];
+    const grouped = new Set(options.namespaces?.flatMap((group) => group.tools));
+    const namespaced = (options.namespaces ?? []).map(({ extension, namespace, tools: names }) =>
+      defineExtension({
+        name: extension,
+        namespace,
+        tools: tools.filter((tool) => names.includes(tool.name)),
+      }),
+    );
     const carmel = defineExtension({
       name: "carmel",
-      tools: options.tools ?? [],
+      tools: tools.filter((tool) => !grouped.has(tool.name)),
       sections: Object.entries(options.sections ?? {}).map(([key, text]) =>
         section(key, () => text, { tag: false }),
       ),
     });
-    session.registry.install(carmel);
-    session.settings = { ...options.settings, extensions: [...(options.extensions ?? []), carmel] };
+    const extensions = [...(options.extensions ?? []), ...namespaced, carmel];
+    for (const extension of extensions) session.registry.install(extension);
+    session.settings = { ...options.settings, extensions };
     if (!(await session.native.snapshot(AgentDoc, session.conversation.id, context))?.model)
       await session.conversation.configure(options.agent, context);
     const run = new PiRun(session, context);
@@ -145,11 +166,54 @@ export class PiRun {
     );
   }
 
+  /**
+   * Resolves once the run is parked: it is still open, a tool call sleeps or waits (a question for the user), and
+   * nothing can run. Pi keeps the parked run without a process, so Carmel's run can end and release its resources.
+   */
+  private whenParked() {
+    let resolve!: () => void;
+    const promise = new Promise<void>((done) => (resolve = done));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = () => {
+      const live = this.stream.value.docs["pi.live"] as LiveState | undefined;
+      if (!live?.run || !live.tools?.some((slot) => ["sleeping", "waiting"].includes(slot.status)))
+        return;
+      // The park is committed before the scheduler lets go of the run; look again once it has.
+      if (this.session.native.wake().active)
+        timer ??= setTimeout(() => ((timer = undefined), check()), 50);
+      else resolve();
+    };
+    const unsubscribe = this.observe((event) => {
+      if (event.type === "state") check();
+    });
+    check();
+    const cancel = () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
+    return { promise: promise.finally(cancel), cancel };
+  }
+
+  /** `wait`'s value, or undefined when the run parks first. */
+  private async unlessParked<T>(wait: (context: Context) => Promise<T>, context: Context) {
+    const parked = this.whenParked();
+    const stop = new AbortController();
+    try {
+      return await Promise.race([
+        wait(withAbortSignal(stop.signal, context)).then((value) => ({ value })),
+        parked.promise.then(() => undefined),
+      ]);
+    } finally {
+      parked.cancel();
+      stop.abort();
+    }
+  }
+
   async resume(context: Context) {
     if (!(await this.hasPending(context))) return;
     const delivered = this.nextRunEnd();
-    await this.session.conversation.waitForIdle(context);
-    await delivered;
+    if (await this.unlessParked((ctx) => this.session.conversation.waitForIdle(ctx), context))
+      await delivered;
   }
 
   async prompt(
@@ -165,16 +229,20 @@ export class PiRun {
     },
   ) {
     await this.resume(context);
+    const fitted = images?.length ? await this.fitImages(images, context) : undefined;
+    if (fitted) images = fitted.images;
+    // Model-only, like reference excerpts: the transcript shows the user's own text.
+    const hidden = [resolved?.context, fitted?.notes].filter(Boolean).join("\n\n");
     const delivered = this.nextRunEnd();
     const submission = await this.session.conversation.submit(
       {
         type: "input",
         ...(delivery ? { requestId: delivery.requestId } : {}),
         content:
-          resolved?.context || images?.length
+          hidden || images?.length
             ? [
                 { type: "text", text },
-                ...(resolved?.context ? [{ type: "text" as const, text: resolved.context }] : []),
+                ...(hidden ? [{ type: "text" as const, text: hidden }] : []),
                 ...(images ?? []),
               ]
             : text,
@@ -185,13 +253,13 @@ export class PiRun {
                 data: { carmelUserRequestReceipt: delivery.receipt } as unknown as JsonValue,
               },
             }
-          : resolved?.references.length
+          : resolved?.references.length || (fitted?.notes && !delivery?.source)
             ? {
                 entry: {
                   kind: "carmel.referenced-input",
                   data: {
                     carmelDisplayText: text,
-                    carmelReferences: resolved.references,
+                    carmelReferences: resolved?.references ?? [],
                     ...delivery?.source,
                   } as unknown as JsonValue,
                 },
@@ -216,12 +284,28 @@ export class PiRun {
     delivery?.onSubmitted?.(
       admitted?.status === "placed" ? `durable:${admitted.entry}` : undefined,
     );
-    const settled = await submission.wait(context);
+    const answer = await this.unlessParked((ctx) => submission.wait(ctx), context);
+    if (!answer) return;
+    const settled = answer.value;
     if (!admitted || admitted.status === "queued" || admitted.status === "placed") await delivered;
     if (settled.status === "unanswered" && !["aborted", "model_error"].includes(settled.reason))
       throw new Error(
         `Pi Durable could not answer the input: ${settled.reason}${settled.detail ? ` (${JSON.stringify(settled.detail)})` : ""}`,
       );
+  }
+
+  /** Attachments get the treatment `read` gives image files: fitted to the model's limits before they are stored. */
+  private async fitImages(images: ImageContent[], context: Context) {
+    const ref = (
+      await this.session.native.snapshot(AgentDoc, this.session.conversation.id, context)
+    )?.model;
+    const model = ref && this.session.models.getModel(ref.provider, ref.modelId);
+    const fitted = await fitImages(images, imageLimits(model), imageProcessor);
+    if (fitted.kind === "unchanged") return undefined;
+    return {
+      images: fitted.content.filter((part) => part.type === "image"),
+      notes: fitted.notes.join(" "),
+    };
   }
 
   async close() {

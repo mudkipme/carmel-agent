@@ -1,16 +1,18 @@
 # Questions and session credentials
 
-Interactive session agents have two direct tools: `ask_user_question` and, when bash is enabled, `request_secret`. They run outside Codemode and must be the only tool call in their turn. If a model combines a request with other tools, those tools are skipped and the model is told to retry the request alone. Issue attempts keep their existing `report_issue` / `needs_input` workflow instead.
+Interactive session agents have two direct tools: `ask_user_question` and, when bash is enabled, `request_secret`. They run outside Codemode. Both are sequential, so in a round with other calls, the calls before the request run first and the calls after it wait for the response. Issue attempts keep their existing `report_issue` / `needs_input` workflow instead.
 
-`ask_user_question` accepts a question, up to seven choices with stable IDs and optional descriptions, single or multiple selection, and optional free text. Validated answers enter the transcript and model context as a response associated with the request ID. Declines and expiry produce an explicit receipt. Agents are instructed not to repeat declined requests without a new user instruction.
+`ask_user_question` accepts a question, up to seven choices with stable IDs and optional descriptions, single or multiple selection, and optional free text. A validated answer becomes the result of the tool call that asked, and the chat shows it there as a receipt. Declines and expiry produce the same kind of result. Agents are instructed not to repeat declined requests without a new user instruction.
 
 ## Waiting and continuation
 
-Requests live in metadata storage with their session, native conversation and tool-call identities. Tool replay finds the same request. The request tool returns a safe receipt and Durable's termination control; the run ends and releases its resources while the human considers the form.
+Requests live in metadata storage with their session, native conversation and tool-call identities. Tool replay finds the same request. The tool call parks on Durable's `carmel.user-request` signal, with the request's expiry as its deadline. A parked call holds no process, so Carmel's run ends and releases its resources while the human considers the form; the native run stays open and the chat shows the request card instead of Resume.
 
 Requests survive refreshes and server restarts. A pending request gates new prompts and transcript edits/forks so its answer cannot be attached to a different branch. Requests expire after seven days; session credentials do not expire with their request.
 
-Answering stores the answer and a pending delivery receipt before attempting continuation. The client starts a run without a new prompt. Carmel submits the saved receipt using the stable native request ID `user-request:<request-id>` and acknowledges delivery after native admission. A crash between those writes retries the same submission instead of creating another turn. If continuation cannot start, the card retains **Continue agent**. Read-only reconnects never start work automatically.
+Answering stores the answer and marks its delivery pending before attempting continuation. The client starts a run without a new prompt. Carmel delivers the signal to the parked call and resumes the conversation; the call reads the response from the request record, returns it as its result, and marks delivery submitted. The signal carries only how the request ended, never an answer or credential. A crash after the signal is kept delivers it again as a duplicate, and an early signal wakes a call whose park was not stored yet. If continuation cannot start, the card retains **Continue agent**. Read-only reconnects never start work automatically.
+
+Stopping a parked run cancels the call, which declines its request; nothing is left to deliver. An expired request wakes its call at the deadline the next time the conversation runs. Requests made before calls parked had ended their run; their response is still submitted as a new input with the request ID `user-request:<request-id>`.
 
 ## Secret submission
 

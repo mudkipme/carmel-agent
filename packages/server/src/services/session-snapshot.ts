@@ -87,7 +87,12 @@ export async function readSessionConnection(
     return {
       session,
       ...run,
-      pendingWork,
+      // A run parked on the user continues from the request card, not Resume.
+      pendingWork:
+        pendingWork &&
+        !userRequests.some(
+          (request) => request.status === "pending" || request.delivery === "pending",
+        ),
       userRequests,
     };
   }

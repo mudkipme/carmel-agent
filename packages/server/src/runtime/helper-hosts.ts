@@ -25,6 +25,7 @@ import {
 } from "./helpers.ts";
 import { getActiveAgentRunForSessionId } from "./run-stream.ts";
 import { compactionSettingsForWindow } from "../effectors/compaction-policy.ts";
+import { fitToolImages } from "../effectors/pi-durable/index.ts";
 
 type Execution = ReturnType<typeof createServerExecution>;
 type HeldHost = {
@@ -96,13 +97,16 @@ async function configureHost(host: HeldHost) {
       userId: row.userId,
       agentId: row.agentId,
     });
+    const guards = execution.guards(tools);
+    host.session.registry.install(fitToolImages);
+    host.session.registry.install(guards);
     host.session.registry.install(carmel);
     host.session.registry.install(helperTasks);
     host.session.registry.install(extension);
     host.session.models = model.value.modelRuntime;
     host.session.env = execution.env;
     host.session.settings = {
-      extensions: [carmel, helperTasks, extension],
+      extensions: [fitToolImages, guards, carmel, helperTasks, extension],
       retry: { maxRetries: 2 },
       compaction: compactionSettingsForWindow(model.value.model.contextWindow),
     };

@@ -1,10 +1,14 @@
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import type { AgentMcpServer } from "@carmel-agent/shared";
+import type { ToolNamespace } from "@earendil-works/pi-durable";
 import type { ToolRegistration, JsonValue } from "../effectors/pi-durable/index.ts";
 import {
   McpClient,
   StreamableHttpTransport,
+  mcpNamespace,
+  mcpServerSummary,
+  normalizeMcpInputSchema,
   toLlmContent,
   type McpTransport,
 } from "@earendil-works/pi-mcp";
@@ -26,6 +30,7 @@ import { createSecretRedactor } from "./sandbox/redaction.ts";
 type AgentRecord = typeof agents.$inferSelect;
 type Tool = ToolRegistration;
 type Secret = { name: string; value: string };
+export type McpNamespace = { extension: string; namespace: ToolNamespace; tools: string[] };
 export type McpToolConnectionOptions = {
   signal?: AbortSignal;
   secrets?: Secret[];
@@ -55,6 +60,8 @@ export function expandMcpSecrets(value: string, secrets: readonly Secret[]) {
 export class AgentMcpTools {
   readonly tools: Tool[] = [];
   readonly discoveredTools: Array<{ name: string; label: string }> = [];
+  /** One Codemode namespace per server, so scripts see each server's tools and instructions grouped. */
+  readonly namespaces: McpNamespace[] = [];
   private readonly clients: McpClient[] = [];
   private readonly pendingCloses: Promise<void>[] = [];
   private closing?: Promise<void>;
@@ -125,6 +132,17 @@ export class AgentMcpTools {
         for (const selected of server.tools ?? []) {
           if (!names.has(selected)) throw new Error(`MCP tool '${selected}' is unavailable.`);
         }
+        const instructions = client.instructions && redact(client.instructions, secrets);
+        const namespace: McpNamespace = {
+          extension: `carmel.mcp.${server.id}`,
+          namespace: {
+            name: mcpNamespace(server.id),
+            description: mcpServerSummary(undefined, instructions) || `MCP server ${server.id}`,
+            ...(instructions ? { instructions } : {}),
+          },
+          tools: [],
+        };
+        this.namespaces.push(namespace);
         for (const definition of definitions) {
           if (server.tools && !server.tools.includes(definition.name)) continue;
           const tool: Tool = {
@@ -133,12 +151,7 @@ export class AgentMcpTools {
               `MCP server ${server.id}: ${definition.description ?? definition.name}`,
               secrets,
             ),
-            // Pi accepts a JSON schema; keep the server's schema rather than rebuilding it.
-            parameters: {
-              ...definition.inputSchema,
-              type: "object",
-              properties: definition.inputSchema.properties ?? {},
-            } as Tool["parameters"],
+            parameters: normalizeMcpInputSchema(definition.inputSchema) as Tool["parameters"],
             structuredOutputSchema: definition.outputSchema as Tool["structuredOutputSchema"],
             async execute(params, api, context) {
               try {
@@ -180,6 +193,7 @@ export class AgentMcpTools {
             },
           };
           this.tools.push(tool);
+          namespace.tools.push(tool.name);
         }
       } catch (error) {
         await this.close();

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { issueCreateSchema, issuePatchSchema, issueRunSchema } from "@carmel-agent/shared";
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
 import { estimateMessageTokens } from "@earendil-works/pi-ai/utils/estimate";
 import { getCurrentSystemMessage, toToolDeclaration } from "@earendil-works/pi-ai/utils/transcript";
 import type { ToolRegistration } from "../effectors/pi-durable/index.ts";

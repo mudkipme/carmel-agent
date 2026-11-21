@@ -871,7 +871,7 @@ export const SessionConnectionSchema = z
                 z.object({
                   callId: z.string(),
                   name: z.string(),
-                  status: z.enum(["pending", "running", "done"]),
+                  status: z.enum(["pending", "running", "sleeping", "waiting", "done"]),
                   output: z.string().optional(),
                 }),
               )
@@ -882,7 +882,7 @@ export const SessionConnectionSchema = z
                   callId: z.string(),
                   parentCallId: z.string(),
                   name: z.string(),
-                  status: z.enum(["pending", "running", "done"]),
+                  status: z.enum(["pending", "running", "sleeping", "waiting", "done"]),
                   summary: z.object({}).optional(),
                 }),
               )

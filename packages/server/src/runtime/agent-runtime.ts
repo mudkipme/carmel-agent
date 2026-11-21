@@ -1,6 +1,7 @@
 import {
   CompactionEntry,
   type Extension,
+  type TaskId,
   type LiveState,
   type InboxState,
   type ToolRegistration,
@@ -8,6 +9,7 @@ import {
 import {
   PiRun,
   BACKGROUND_CONTEXT,
+  fitToolImages,
   formatSkillsForSystemPrompt,
   type Conversation,
   type Context as PiContext,
@@ -70,6 +72,7 @@ import {
   markUserReplySubmitted,
   pendingUserReply,
 } from "../services/user-requests.ts";
+import { USER_REQUEST_SIGNAL_KEY, UserRequestResponse } from "./user-request-tools.ts";
 import {
   getRunContributors,
   hasRunContributors,
@@ -129,7 +132,7 @@ export type AgentRunInput = {
   promptDelivery?: {
     requestId: string;
     onSubmitted?: (entryId?: string) => void;
-    source: Record<string, import("@earendil-works/chord").JsonValue>;
+    source: Record<string, import("@earendil-works/chord/json").JsonValue>;
   };
   resolvedReferences?: ResolvedReferences;
   /** Browser time zone for interpreting local reminder times. */
@@ -386,11 +389,23 @@ async function startAgentRun(context: AgentRun) {
     if (userReply) {
       if (userReply.conversationId !== String(conversation.id))
         throw new Error("The request belongs to an earlier conversation branch.");
-      await harness.prompt(userReply.text, undefined, runContext, undefined, {
-        requestId: userReply.requestId,
-        receipt: userReply.receipt,
-        onSubmitted: () => markUserReplySubmitted(userReply.id),
-      });
+      // Wakes the parked request call, which reads the response and marks it delivered.
+      const signalled = await piSession.native.signal(
+        Number(userReply.taskId) as TaskId,
+        UserRequestResponse,
+        USER_REQUEST_SIGNAL_KEY,
+        { status: userReply.status as "answered" | "cancelled" | "expired" },
+        runContext,
+      );
+      if (signalled === "delivered" || signalled === "duplicate") await harness.resume(runContext);
+      else if (signalled === "invalid") throw new Error("The request response was rejected.");
+      // Requests from before calls parked ended their run; the response starts the next turn.
+      else
+        await harness.prompt(userReply.text, undefined, runContext, undefined, {
+          requestId: userReply.requestId,
+          receipt: userReply.receipt,
+          onSubmitted: () => markUserReplySubmitted(userReply.id),
+        });
     } else if (!promptInput && (await harness.hasPending(runContext))) {
       // A restart continues Durable's checkpoint instead of rewinding and resubmitting the user input.
       await harness.resume(runContext);
@@ -588,8 +603,11 @@ async function openRunHarness(
         issue: sessionAddons?.instructions,
       },
       tools,
+      namespaces: execution.namespaces,
       env: execution.env,
       extensions: [
+        fitToolImages,
+        execution.guards(tools),
         ...extensionsBeforeExecution,
         ...execution.extensions,
         ...extensionsAfterExecution,

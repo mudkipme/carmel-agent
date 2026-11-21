@@ -1,6 +1,6 @@
 import { parse } from "yaml";
 import { basename, dirname, join } from "node:path";
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
 import { getOrThrow, type ExecutionEnv } from "@earendil-works/pi-durable/env";
 import { formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
 import { errorMessage } from "../../errors.ts";
@@ -121,17 +121,25 @@ export function formatSkillInvocation(skill: Skill, instructions = "") {
 }
 export function parseCommandArgs(text: string): string[] {
   // Pi's prompt helpers are still not package exports. This matches parseCommandArgs in
-  // pi-coding-agent 1.5.0, including quoted empty strings ("" or ''), which earlier copies dropped.
+  // pi-coding-agent 1.6.0: quoted empty strings ("" or '') are arguments, quotes open only at
+  // the start of an argument (so "doesn't" stays one word), \" escapes the open quote, and an
+  // unclosed quote is read as literal text.
   const args: string[] = [];
   let current = "";
   let hasToken = false;
   let quote: string | undefined;
-  for (const char of text) {
+  let quoteStart = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]!;
     if (quote) {
-      if (char === quote) quote = undefined;
+      if (char === "\\" && text[i + 1] === quote) {
+        current += quote;
+        i++;
+      } else if (char === quote) quote = undefined;
       else current += char;
-    } else if (char === '"' || char === "'") {
+    } else if ((char === '"' || char === "'") && !hasToken) {
       quote = char;
+      quoteStart = i;
       hasToken = true;
     } else if (/\s/.test(char)) {
       if (hasToken) {
@@ -142,6 +150,11 @@ export function parseCommandArgs(text: string): string[] {
     } else {
       current += char;
       hasToken = true;
+    }
+    if (quote && i === text.length - 1) {
+      quote = undefined;
+      current = text[quoteStart]!;
+      i = quoteStart;
     }
   }
   if (hasToken) args.push(current);

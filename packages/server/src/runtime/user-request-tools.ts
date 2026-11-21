@@ -1,10 +1,17 @@
 import { z } from "zod";
-import { LiveDoc, type ToolRegistration, type ToolExecutionApi } from "@earendil-works/pi-durable";
-import type { Context } from "@earendil-works/chord";
+import {
+  defineSignal,
+  type ToolExecutionApi,
+  type ToolExecutionResult,
+  type ToolPark,
+  type ToolRegistration,
+} from "@earendil-works/pi-durable";
+import { obj, oneOf } from "@earendil-works/pi-schema";
 import { questionInputSchema, secretRequestInputSchema } from "@carmel-agent/shared";
 import {
+  cancelCallUserRequest,
+  consumeCallUserRequest,
   createUserRequest,
-  blockingUserRequest,
   findCallUserRequest,
 } from "../services/user-requests.ts";
 import {
@@ -16,29 +23,49 @@ import {
 import { createSecretRedactor } from "./sandbox/redaction.ts";
 import { errorMessage } from "../errors.ts";
 
-const requestingTools = new Set(["ask_user_question", "request_secret"]);
-const aloneError = {
-  output: [
-    {
-      type: "text" as const,
-      text: "Request user input as the only tool call in the turn. Other tools in this round were not executed. Retry this request alone.",
-    },
-  ],
-  isError: true,
-};
-async function isAlone(api: ToolExecutionApi, context: Context) {
-  return ((await api.snapshot(LiveDoc, api.conversationId, context))?.tools?.length ?? 0) === 1;
+/**
+ * Wakes a request tool parked on the user. The response itself stays in Carmel's request record, so a credential
+ * never enters Pi's task storage; the value only says how the request ended.
+ */
+export const UserRequestResponse = defineSignal({
+  name: "carmel.user-request",
+  version: 1,
+  schema: obj({ status: oneOf(["answered", "cancelled", "expired"]) }),
+});
+export const USER_REQUEST_SIGNAL_KEY = "response";
+
+type RequestContext = { sessionId: string; userId: string; bash: boolean };
+
+function requestCall(context: RequestContext, api: ToolExecutionApi) {
+  return {
+    sessionId: context.sessionId,
+    conversationId: String(api.conversationId),
+    callId: String(api.taskId),
+  };
 }
 
-export function createUserRequestTools(context: {
-  sessionId: string;
-  userId: string;
-  bash: boolean;
-}): ToolRegistration[] {
+/** Holds no process until the user responds or the request expires; the call then runs again with `api.wake` set. */
+function park(expiresAt: number): ToolPark {
+  return {
+    sleep: { signals: [UserRequestResponse.key(USER_REQUEST_SIGNAL_KEY)], until: expiresAt },
+  };
+}
+
+function respond(context: RequestContext, api: ToolExecutionApi): ToolExecutionResult {
+  const response = consumeCallUserRequest(requestCall(context, api));
+  return {
+    output: [{ type: "text", text: response.text }],
+    details: { userRequestId: response.id, userRequestReceipt: response.receipt },
+  };
+}
+
+export function createUserRequestTools(context: RequestContext): ToolRegistration[] {
+  const cancel = async (_args: unknown, api: ToolExecutionApi) =>
+    cancelCallUserRequest(requestCall(context, api));
   const question: ToolRegistration = {
     name: "ask_user_question",
     description:
-      "Ask the user to select options or provide a text answer. Persists a request and ends this run until the user responds. Call directly, outside codemode, as the only tool in your turn. Never ask for credentials here; use request_secret.",
+      "Ask the user to select options or provide a text answer. The call waits until the user answers, declines, or the request expires, and returns the response. Call directly, outside codemode. Never ask for credentials here; use request_secret.",
     callers: ["model"],
     executionMode: "sequential",
     replay: "safe",
@@ -48,22 +75,15 @@ export function createUserRequestTools(context: {
     }),
     async execute(args, api, ctx) {
       ctx.abortSignal?.throwIfAborted();
-      if (!(await isAlone(api, ctx))) return aloneError;
+      if (api.wake) return respond(context, api);
       const request = createUserRequest(
-        {
-          sessionId: context.sessionId,
-          conversationId: String(api.conversationId),
-          callId: String(api.taskId),
-        },
+        requestCall(context, api),
         "question",
         questionInputSchema.parse(args),
       );
-      return {
-        output: [{ type: "text", text: `Waiting for the user's answer. Request: ${request.id}.` }],
-        details: { userRequestId: request.id },
-        control: { terminate: true },
-      };
+      return park(request.expiresAt);
     },
+    cancel,
   };
   if (!context.bash) return [question];
   return [
@@ -71,7 +91,7 @@ export function createUserRequestTools(context: {
     {
       name: "request_secret",
       description:
-        "Request a credential through a private form, never in chat. It is session-scoped by default and available to bash as the named environment variable. Returns metadata only if already configured; otherwise ends this run until supplied. Call directly, outside codemode, alone in the turn.",
+        "Request a credential through a private form, never in chat. It is session-scoped by default and available to bash as the named environment variable. Returns metadata at once if already configured; otherwise waits until the user supplies or declines it. Call directly, outside codemode.",
       callers: ["model"],
       executionMode: "sequential",
       replay: "safe",
@@ -81,20 +101,12 @@ export function createUserRequestTools(context: {
       }),
       async execute(args, api, ctx) {
         ctx.abortSignal?.throwIfAborted();
+        if (api.wake) return respond(context, api);
         const input = secretRequestInputSchema.parse(args);
-        if (!(await isAlone(api, ctx))) return aloneError;
-        const call = {
-          sessionId: context.sessionId,
-          conversationId: String(api.conversationId),
-          callId: String(api.taskId),
-        };
+        const call = requestCall(context, api);
+        // A rerun before the park was stored finds its request rather than a credential stored meanwhile.
         const saved = findCallUserRequest(call);
-        if (saved)
-          return {
-            output: [{ type: "text", text: `Waiting for credential request ${saved.id}.` }],
-            details: { userRequestId: saved.id },
-            control: { terminate: true },
-          };
+        if (saved) return park(saved.expiresAt);
         const credential = !input.replaceExisting
           ? findAvailableSecret(context.sessionId, input.name)
           : undefined;
@@ -111,23 +123,9 @@ export function createUserRequestTools(context: {
             ],
             details: credential,
           };
-        const request = createUserRequest(
-          {
-            sessionId: context.sessionId,
-            conversationId: String(api.conversationId),
-            callId: String(api.taskId),
-          },
-          "secret",
-          input,
-        );
-        return {
-          output: [
-            { type: "text", text: `Waiting for the credential form. Request: ${request.id}.` },
-          ],
-          details: { userRequestId: request.id },
-          control: { terminate: true },
-        };
+        return park(createUserRequest(call, "secret", input).expiresAt);
       },
+      cancel,
     },
     {
       name: "promote_secret",
@@ -158,8 +156,8 @@ export function createUserRequestTools(context: {
   ];
 }
 
-/** A malformed multi-tool turn must not run other commands alongside a human request. */
-export function guardUserRequests(
+/** Redacts the session's credentials from everything a tool reports. */
+export function redactSessionSecrets(
   tool: ToolRegistration,
   sessionId: string,
   environmentId: string,
@@ -167,23 +165,6 @@ export function guardUserRequests(
   return {
     ...tool,
     async execute(args, api, context) {
-      const pending = blockingUserRequest(sessionId);
-      const round = (await api.snapshot(LiveDoc, api.conversationId, context))?.tools ?? [];
-      const asks = round.some((slot) => requestingTools.has(slot.name));
-      if (
-        (pending && pending.callId !== String(api.taskId)) ||
-        (asks && !requestingTools.has(tool.name))
-      ) {
-        return {
-          output: [
-            {
-              type: "text",
-              text: "This tool was not executed because this turn requests user input. Reconsider it after the user responds.",
-            },
-          ],
-          control: { terminate: true },
-        };
-      }
       const secrets = readEnvironmentSecretEnv(environmentId, sessionId);
       if (!secrets.length) return tool.execute(args, api, context);
       // The sandbox already scrubs bash streams before spilling or emitting them.
@@ -229,6 +210,8 @@ export function guardUserRequests(
           },
           context,
         );
+        // Wrappers return their base's park unchanged; a copy would count as a park of their own.
+        if (result.sleep || result.wait) return result;
         return redactValue(result) as typeof result;
       } catch (error) {
         throw new Error(redact(errorMessage(error, "Tool failed.")));
@@ -243,7 +226,7 @@ export function guardUserRequests(
 export function userRequestInstructions(userId: string, sessionId: string, bash: boolean) {
   const available = bash ? readSessionSecrets(userId, sessionId) : [];
   return [
-    "For choices or clarification, use ask_user_question. Call request tools directly, outside codemode, as the turn's only tool; they pause the run for a human response. Decline/expiry does not authorize repeating a request.",
+    "For choices or clarification, use ask_user_question. Call request tools directly, outside codemode; the call waits for the user's response and returns it. Decline/expiry does not authorize repeating a request.",
     ...(bash
       ? [
           "For API keys/tokens, use request_secret, never chat or ordinary question fields. Secrets are stored separately and injected into bash; use environment variable names, never literal values. Do not print, encode, persist, commit, or send credentials except to the intended authentication service. Never use shell tracing with credentials.",

@@ -1,6 +1,6 @@
 # Pi Durable storage
 
-Carmel uses Pi 1.5.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
+Carmel uses Pi 1.6.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
 
 [Questions and session credentials](user-requests.md) use native run termination and idempotent submissions, with request lifecycle and encrypted credential storage owned by Carmel.
 
@@ -48,9 +48,9 @@ Tools default to `replay: "unsafe"`. Pi records intent before executing them; af
 - Native threshold, background, and overflow compaction. Small model windows get scaled reserve/tail settings: Durable's `enabled` flag controls overflow recovery too, so the old threshold-only disable workaround is removed.
 - Pi's `azure` provider identifier.
 
-Pi 1.5.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel's generic tool/result compatibility layers are gone.
+Pi 1.6.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel's generic tool/result compatibility layers are gone.
 
-Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are still not public exports (`parseCommandArgs` and `substituteArgs` live only in the package's internal `dist/core/prompt-templates` module), so their positional/default/slice semantics remain in the adapter, including the 1.3.0 rule that `""` and `''` are real arguments. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
+Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are still not public exports (`parseCommandArgs` and `substituteArgs` live only in the package's internal `dist/core/prompt-templates` module), so their positional/default/slice semantics remain in the adapter, including the 1.3.0 rule that `""` and `''` are real arguments and the 1.5.1 quoting fixes. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
 
 ## Tasks, subtasks, and background hosts
 
@@ -108,7 +108,31 @@ Carmel does not inject a clock into system instructions or user messages, matchi
 
 Named sections reduce redundant storage writes. They preserve the request prefix when the selected model supports mid-conversation system changes; otherwise Pi collapses section updates into the leading system prompt. Keeping a changing clock out of the prompt protects conversation-history caching in both cases. MCP tools are sorted by name within each configured server, keeping native declarations and Codemode's embedded catalog stable when a reconnect returns the same tools in another order.
 
-Pi Durable is experimental. Versions are pinned to 1.5.0, including `@earendil-works/chord`, which Pi Durable depends on at that exact version. The storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. Storage errors now fail and close the native session; pending waits reject instead of retrying operations on it. Existing task and live-document versions migrate through Pi's native definitions. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/v1.5.0/packages/durable).
+Pi Durable is experimental. Versions are pinned to 1.6.0, including `@earendil-works/chord`, which Pi Durable depends on at that exact version. The storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. Storage errors now fail and close the native session; pending waits reject instead of retrying operations on it. Existing task and live-document versions migrate through Pi's native definitions. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/v1.6.0/packages/durable).
+
+## Pi 1.6.0
+
+Back up the session directory before deployment. Pi 1.6 writes `pi.tool` version 4 and `pi.generation` version 3, which Pi 1.5 blocks as `task_too_old`. Live tool slots may now report `sleeping` or `waiting` for parked calls. A parked request call is hidden in the chat while its request card is open; other parked calls show as running.
+
+Chord 1.5.1 made its v2 runtime the package root, so `Context`, `JsonValue`, and `WatchHandle` come from `@earendil-works/chord/context`, `/json`, and `/watch`. Code that calls a tool's `execute()` directly handles the new `ToolPark` return.
+
+Adopted:
+
+- MCP servers are Codemode namespaces. Each connected server's tools come from their own extension with `namespace: { name: mcpNamespace(id), description, instructions }`; the description is the first line of the server's `initialize` instructions (`mcpServerSummary`), and `describeNamespace()` returns the full, redacted instructions, which Carmel previously dropped. Tool names are unchanged, so saved transcripts and cached prefixes stay valid.
+- `normalizeMcpInputSchema` replaces Carmel's object-schema coercion of MCP input schemas.
+- The `fit-images` extension fits images in any tool result the model gets (MCP, Codemode `image()`) to the model's limits, sharing `read`'s lazy Photon worker.
+- Grep context lines now come from ripgrep (1.5.1), so the guarded `GrepOperations.readFile` was removed. The search path is still authorized and remapped before rg starts.
+- The prompt argument adapter follows 1.5.1's parsing: apostrophes inside words stay literal, `\"` escapes the open quote, and an unclosed quote is text.
+- [User requests](user-requests.md) park their tool call on a signal instead of ending the run, and the response becomes the call's result. `PiRun` ends Carmel's run once only parked work is left (`Harness.wake()` inactive with a sleeping slot); a continuation delivers the signal and resumes.
+- Browser handoff, collaboration access, and session-secret redaction are one `carmel.guards` extension of per-tool `wraps`, so they apply to whichever same-named tool wins, for model calls and Codemode's nested calls alike. Wrappers return their base's park unchanged.
+- Attached chat images are fitted with `fitImages` before submission, sharing `read`'s Photon worker. The notes on what changed reach the model as hidden input context, like reference excerpts.
+
+Not adopted:
+
+- `createMcpToolName` (`mcp__<server>__<tool>`): namespaces no longer depend on name prefixes, and renaming would change every saved MCP tool call.
+- `limitMcpContent`: Durable already bounds returned tool output (`outputLimits`, 50 KB head by default), so a second MCP-only cap adds nothing.
+- `validateMcpServerConfig` and `@earendil-works/pi-mcp/oauth`: Carmel's server shape, secret expansion, and container transport differ from the `mcpServers` file format, and Carmel has no MCP OAuth flow yet.
+- Per-conversation `configure({ compaction })` and `onAbort: "keep"`: each Carmel session already has its own harness settings, and collaboration replies are delivered only between runs.
 
 ## Pi 1.5.0
 

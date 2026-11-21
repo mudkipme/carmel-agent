@@ -23,6 +23,7 @@ import { openTestHarness } from "../effectors/testing/pi-harness.ts";
 import { AgentMcpTools, expandMcpSecrets, mcpToolName } from "./mcp-tools.ts";
 import { createServerExecution } from "./tools.ts";
 import { HarnessAbortGate } from "./agent-runtime.ts";
+import { createCarmelCodemode } from "./codemode-tool.ts";
 
 initialize();
 function agent(
@@ -80,6 +81,56 @@ test("MCP reconnect ordering keeps native declarations and the Codemode catalog 
       );
     }
   } finally {
+    await remote.close();
+  }
+});
+
+test("Codemode groups each MCP server's tools under its namespace with redacted instructions", async () => {
+  const remote = await startMcpTestServer({
+    instructions: "Search the private-credential tracker.\nPrefer exact IDs.",
+  });
+  const mcp = new AgentMcpTools(agent([http(remote.url)]), makeEnvironment(), "/tmp/test");
+  try {
+    await mcp.connect({ secrets: [{ name: "TOKEN", value: "private-credential" }] });
+    assert.deepEqual(mcp.namespaces, [
+      {
+        extension: "carmel.mcp.remote",
+        namespace: {
+          name: "mcp__remote",
+          description: "Search the [redacted:TOKEN] tracker.",
+          instructions: "Search the [redacted:TOKEN] tracker.\nPrefer exact IDs.",
+        },
+        tools: [mcpToolName("remote", "echo")],
+      },
+    ]);
+    const faux = fauxProvider({ provider: `faux-mcp-${crypto.randomUUID()}` });
+    const models = createModels();
+    models.setProvider(faux.provider);
+    let prompt = "";
+    faux.setResponses([
+      (context) => {
+        prompt = JSON.stringify(context.messages);
+        return fauxAssistantMessage([fauxText("Done")]);
+      },
+    ]);
+    const codemode = createCarmelCodemode();
+    const pi = await openTestHarness(createSession().sessionId, {
+      models,
+      model: faux.getModel(),
+      tools: [...mcp.tools, ...codemode.tools!],
+      extensions: [codemode],
+      namespaces: mcp.namespaces,
+    });
+    try {
+      await pi.lane.prompt("Hi", undefined, pi.context);
+    } finally {
+      await pi.close();
+    }
+    assert.match(prompt, /## mcp__remote/);
+    assert.match(prompt, /Search the \[redacted:TOKEN\] tracker\./);
+    assert.doesNotMatch(prompt, /private-credential|Prefer exact IDs/);
+  } finally {
+    await mcp.close();
     await remote.close();
   }
 });

@@ -62,12 +62,7 @@ export function createCarmelCodemode(hooks: CodemodeHooks = {}): Extension {
           let barrier: Promise<unknown> = Promise.resolve();
           const pending = new Set<Promise<unknown>>();
           let ended = false;
-          const executeTool: ToolExecutionApi["executeTool"] = (
-            name,
-            args,
-            callContext,
-            options,
-          ) => {
+          const executeTool = ((name, args, callContext, options) => {
             const sequential = tools.get(name)?.executionMode === "sequential";
             const before = sequential ? Promise.allSettled(pending) : barrier;
             const call = before.then(async () => {
@@ -78,7 +73,9 @@ export function createCarmelCodemode(hooks: CodemodeHooks = {}): Extension {
                 (await api.snapshot(NestedCallDoc, api.taskId, options.key, callContext));
               if (!existing && ++calls > limits.maxCalls)
                 throw new Error("Codemode nested tool call limit reached.");
-              return api.executeTool(name, args, callContext, options);
+              return options?.wait === false
+                ? api.executeTool(name, args, callContext, options)
+                : api.executeTool(name, args, callContext, options);
             });
             pending.add(call);
             if (sequential) barrier = call.catch(() => {});
@@ -87,7 +84,7 @@ export function createCarmelCodemode(hooks: CodemodeHooks = {}): Extension {
               () => pending.delete(call),
             );
             return call;
-          };
+          }) as ToolExecutionApi["executeTool"];
           // close() settles after requesting worker shutdown. Wait for the actual exit so an
           // aborted script cannot leave a worker running into the next call.
           let workerExited = Promise.resolve();

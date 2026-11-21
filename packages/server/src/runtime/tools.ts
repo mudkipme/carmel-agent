@@ -2,6 +2,7 @@ import { receiverCollaboration, assertReceiverAccess } from "../collaborations/a
 import { db } from "../db/index.ts";
 import { sessions, agents } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
+import { defineExtension, type Extension } from "@earendil-works/pi-durable";
 import type { ToolRegistration, Context } from "../effectors/pi-durable/index.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { builtinToolProviders } from "./tool-providers/index.ts";
@@ -11,7 +12,7 @@ import { browserHelpTool, guardBrowserHandoff } from "./browser-tools.ts";
 import { browserControl } from "./browser-control.ts";
 import { availableBuiltinSkillNames, builtinSkillTool } from "./builtin-skills.ts";
 import { createKnowledgeTools } from "../knowledge/tools.ts";
-import { guardUserRequests } from "./user-request-tools.ts";
+import { redactSessionSecrets } from "./user-request-tools.ts";
 import {
   collectAgentTools,
   type ToolProvider,
@@ -20,6 +21,7 @@ import {
 export { remapContainerPath } from "./execution-env.ts";
 
 type AgentRecord = typeof agents.$inferSelect;
+const browserFreeTools = new Set(["request_browser_help", "ask_user_question", "request_secret"]);
 
 export function createServerExecution(
   agent: AgentRecord,
@@ -51,6 +53,7 @@ export function createServerExecution(
     env,
     extensions: codemode ? [codemode] : [],
     tools,
+    namespaces: mcp.namespaces,
     async prepare(signal?: AbortSignal) {
       await mcp.connect({ signal });
       tools.push(...mcp.tools);
@@ -80,31 +83,32 @@ export function createServerExecution(
       if (!consultation && availableBuiltinSkillNames(agent).length)
         available.push(builtinSkillTool(agent, userId));
       const composed = codemode ? [...available, ...codemode.tools!] : available;
-      // Gate the entire codemode batch so its deadline starts after human control ends.
-      const resolved = agent.permissions.bash
-        ? [
-            ...composed.map((tool) =>
-              guardBrowserHandoff(agent.environmentId, tool, browserRevision),
-            ),
-            browserHelpTool(agent, sessionId),
-          ]
-        : composed;
-      const checked = collaboration
-        ? resolved.map((tool) => ({
-            ...tool,
-            async execute(
-              args: unknown,
-              api: Parameters<typeof tool.execute>[1],
-              context: Parameters<typeof tool.execute>[2],
-            ) {
+      return agent.permissions.bash ? [...composed, browserHelpTool(agent, sessionId)] : composed;
+    },
+    /** Carmel's policy around each resolved tool, applied natively to whichever same-named tool wins. */
+    guards(resolved: readonly ToolRegistration[]): Extension {
+      const guard = (base: ToolRegistration) => {
+        let tool = base;
+        // Gate the entire codemode batch so its deadline starts after human control ends.
+        // Requests to the user never touch the browser, and a gate there could drop a woken response.
+        if (agent.permissions.bash && !browserFreeTools.has(tool.name))
+          tool = guardBrowserHandoff(agent.environmentId, tool, browserRevision);
+        if (collaboration) {
+          const inner = tool;
+          tool = {
+            ...inner,
+            async execute(args, api, context) {
               assertReceiverAccess(sessionId!, session?.issueId);
-              return tool.execute(args, api, context);
+              return inner.execute(args, api, context);
             },
-          }))
-        : resolved;
-      return sessionId
-        ? checked.map((tool) => guardUserRequests(tool, sessionId, agent.environmentId))
-        : checked;
+          };
+        }
+        return sessionId ? redactSessionSecrets(tool, sessionId, agent.environmentId) : tool;
+      };
+      return defineExtension({
+        name: "carmel.guards",
+        wraps: resolved.map((tool) => ({ tool: tool.name, wrap: guard })),
+      });
     },
     async cleanup(context: Context) {
       try {

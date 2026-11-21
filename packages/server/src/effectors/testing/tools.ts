@@ -1,4 +1,4 @@
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord/context";
 import type { ToolRegistration, ToolExecutionResult } from "@earendil-works/pi-durable";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
 import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
@@ -28,11 +28,13 @@ export async function executeNativeTool(
     ...tool,
     async execute(args, api, ctx) {
       try {
-        saved = await tool.execute(args, api, {
+        const returned = await tool.execute(args, api, {
           ...ctx,
           abortSignal: context.abortSignal ?? ctx.abortSignal,
         });
-        return saved;
+        if (returned.sleep || returned.wait) throw new Error("Tool fixtures do not park.");
+        saved = returned;
+        return returned;
       } catch (error) {
         failure = error;
         throw error;

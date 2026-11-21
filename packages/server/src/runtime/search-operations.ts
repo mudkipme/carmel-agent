@@ -12,7 +12,6 @@ export function createGrepOperations(env: ExecutionEnv): GrepOperations {
   return {
     isDirectory: async (absolutePath) =>
       (await followedFileInfo(env, absolutePath)).kind === "directory",
-    readFile: async (absolutePath) => getOrThrow(await env.readTextFile(absolutePath, ctx)),
   };
 }
 

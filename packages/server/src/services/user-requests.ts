@@ -23,12 +23,10 @@ import {
 type RequestRecord = typeof userRequests.$inferSelect;
 const requestLifetime = 7 * 24 * 60 * 60 * 1000;
 
-export function findCallUserRequest(context: {
-  sessionId: string;
-  conversationId: string;
-  callId: string;
-}) {
-  const row = db
+type RequestCall = { sessionId: string; conversationId: string; callId: string };
+
+function callRequest(context: RequestCall) {
+  return db
     .select()
     .from(userRequests)
     .where(
@@ -39,7 +37,36 @@ export function findCallUserRequest(context: {
       ),
     )
     .get();
+}
+
+export function findCallUserRequest(context: RequestCall) {
+  const row = callRequest(context);
   return row ? serializeUserRequest(row) : undefined;
+}
+
+/** The parked call woke: hand it the response, which also releases the session for new prompts. */
+export function consumeCallUserRequest(context: RequestCall) {
+  expireRequests(context.sessionId);
+  let row = callRequest(context);
+  if (!row) throw new Error("The user request for this call no longer exists.");
+  // Woken by its deadline on a clock slightly ahead of ours: the user did not answer in time.
+  const status = row.status === "pending" ? "expired" : row.status;
+  db.update(userRequests)
+    .set({ status, delivery: "submitted" })
+    .where(eq(userRequests.id, row.id))
+    .run();
+  row = { ...row, status, delivery: "submitted" };
+  return { id: row.id, ...userRequestResponse(row) };
+}
+
+/** The parked call was stopped: nothing is left to deliver, so an open request is declined. */
+export function cancelCallUserRequest(context: RequestCall) {
+  const row = callRequest(context);
+  if (!row) return;
+  db.update(userRequests)
+    .set({ status: row.status === "pending" ? "cancelled" : row.status, delivery: null })
+    .where(eq(userRequests.id, row.id))
+    .run();
 }
 
 /** Stable across replay; callId is the native tool task ID, not a provider's potentially reused call ID. */
@@ -219,15 +246,32 @@ export function cancelUserRequest(userId: string, sessionId: string, requestId: 
   return serializeUserRequest({ ...row, status: "cancelled", delivery: "pending" });
 }
 
+/**
+ * A response waiting for its run: `taskId` wakes the parked call. Requests made before calls parked ended their run;
+ * those get `text` as a new input instead.
+ */
 export function pendingUserReply(sessionId: string) {
   const row = blockingUserRequest(sessionId);
   if (!row || row.status === "pending") return undefined;
+  const response = userRequestResponse(row);
+  return {
+    id: row.id,
+    conversationId: row.conversationId,
+    taskId: row.callId,
+    status: row.status,
+    requestId: `user-request:${row.id}`,
+    receipt: response.receipt,
+    text: `Response to request ${row.id}:\n${response.text}`,
+  };
+}
+
+function userRequestResponse(row: RequestRecord) {
   let text: string;
   if (row.status !== "answered")
     text = `The user ${row.status === "expired" ? "did not answer before this request expired" : "declined this request"}. Do not repeat it unless the user asks.`;
   else if (row.kind === "secret") {
     const name = (row.input as SecretRequestInput).name;
-    const available = findAvailableSecret(sessionId, name);
+    const available = findAvailableSecret(row.sessionId, name);
     text = available
       ? `Credential ${name} is available as an environment variable for this ${available.scope}. Use $${name} in bash; never print, encode, or save its value. Secret reference: ${available.id}.`
       : `Credential ${name} was revoked before continuation. Do not assume it is available.`;
@@ -240,13 +284,7 @@ export function pendingUserReply(sessionId: string) {
       text: row.answer!.text,
     });
   }
-  return {
-    id: row.id,
-    conversationId: row.conversationId,
-    requestId: `user-request:${row.id}`,
-    receipt: requestReceipt(row),
-    text: `Response to request ${row.id}:\n${text}`,
-  };
+  return { text, receipt: requestReceipt(row) };
 }
 
 function requestReceipt(row: RequestRecord): UserRequestReceipt {

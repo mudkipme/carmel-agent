@@ -22,7 +22,7 @@ export type RunContributionContext = {
   promptDelivery?: {
     requestId: string;
     onSubmitted?: (entryId?: string) => void;
-    source: Record<string, import("@earendil-works/chord").JsonValue>;
+    source: Record<string, import("@earendil-works/chord/json").JsonValue>;
   };
   timezone?: string;
   notifyPlatform?: ImPlatform;

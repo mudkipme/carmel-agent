@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { initialize } from "../db/index.ts";
 import { createSession } from "../test-support.ts";
 import { openPiSession } from "../services/pi-session-storage.ts";
-import { attachTestHarness, fauxHarnessModels } from "./testing/pi-harness.ts";
+import { attachTestHarness, fauxHarnessModels, openTestHarness } from "./testing/pi-harness.ts";
 import { AgentDoc, type AgentState } from "@earendil-works/pi-durable";
 import { FakeSessionLog } from "./testing/fake-session-log.ts";
 import { runSessionLogContract } from "./testing/session-log-contract.ts";
@@ -123,10 +123,14 @@ test("templates retain quoted argument, fallback, and skill-name precedence", as
   await dispatchPrompt(driver, '/review "some file"');
   await dispatchPrompt(driver, "/skill:pdf go");
   await dispatchPrompt(driver, '/review "" next');
+  await dispatchPrompt(driver, `/review doesn't 'work'`);
+  await dispatchPrompt(driver, '/review "say \\"hi\\"" "open');
   assert.deepEqual(calls, [
     ["prompt", "some file | default | some file", undefined],
     ["prompt", "go", undefined],
     ["prompt", " | next |  next", undefined],
+    ["prompt", "doesn't | work | doesn't work", undefined],
+    ["prompt", 'say "hi" | "open | say "hi" "open', undefined],
   ]);
 });
 
@@ -181,5 +185,51 @@ test("a new run selects only its current extensions and refreshes models on an e
     assert.match(JSON.stringify((await second.branch()).at(-1)), /Fresh model/);
   } finally {
     await second.close();
+  }
+});
+
+test("attached images are fitted to the model before they are stored, with notes only the model sees", async () => {
+  // A minimal 24-bit BMP wider than Pi's default 2000-pixel image limit.
+  const width = 2400;
+  const height = 2;
+  const bitmap = Buffer.alloc(54 + width * height * 3, 255);
+  bitmap.fill(0, 0, 54);
+  bitmap.write("BM");
+  bitmap.writeUInt32LE(bitmap.length, 2);
+  bitmap.writeUInt32LE(54, 10);
+  bitmap.writeUInt32LE(40, 14);
+  bitmap.writeInt32LE(width, 18);
+  bitmap.writeInt32LE(height, 22);
+  bitmap.writeUInt16LE(1, 26);
+  bitmap.writeUInt16LE(24, 28);
+  const { sessionId } = createSession();
+  const provider = fauxHarnessModels();
+  let seen = "";
+  provider.faux.setResponses([
+    (context) => {
+      seen = JSON.stringify(context.messages);
+      return fauxAssistantMessage("A white strip.");
+    },
+  ]);
+  const run = await openTestHarness(sessionId, provider);
+  try {
+    await run.prompt("What is this?", [
+      { type: "image", mimeType: "image/bmp", data: bitmap.toString("base64") },
+    ]);
+    assert.match(seen, /Resized from 2400x2 to 2000x2/);
+    assert.match(seen, /image\/png/);
+    const user = (await run.branch()).find(
+      (entry) => entry.type === "message" && entry.message.role === "user",
+    );
+    const content =
+      user?.type === "message" && user.message.role === "user" ? user.message.content : [];
+    assert.ok(Array.isArray(content));
+    assert.deepEqual(
+      content.filter((part) => part.type === "text").map((part) => part.text),
+      ["What is this?"],
+    );
+    assert.ok(content.some((part) => part.type === "image" && part.mimeType === "image/png"));
+  } finally {
+    await run.close();
   }
 });

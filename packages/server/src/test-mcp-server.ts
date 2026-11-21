@@ -6,6 +6,7 @@ import type { JsonRpcRequest, CallToolResult, Tool } from "@earendil-works/pi-mc
 export async function startMcpTestServer(
   options: {
     tools?: Tool[];
+    instructions?: string;
     onCall?: (request: JsonRpcRequest, response: ServerResponse) => CallToolResult | undefined;
     onNotification?: (request: JsonRpcRequest) => void;
   } = {},
@@ -47,6 +48,7 @@ export async function startMcpTestServer(
         protocolVersion: "2025-11-25",
         serverInfo: { name: "fixture", version: "1" },
         capabilities: { tools: {} },
+        ...(options.instructions ? { instructions: options.instructions } : {}),
       };
     else if (message.method === "tools/list")
       result = {

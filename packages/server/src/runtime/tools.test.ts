@@ -10,7 +10,6 @@ import {
   formatSkillInvocation,
 } from "../effectors/pi-durable/index.ts";
 import { TEST_CONTEXT } from "../effectors/testing/pi-harness.ts";
-import { createGrepOperations } from "./search-operations.ts";
 import { createServerExecution, createServerToolDefinitions, remapContainerPath } from "./tools.ts";
 import { loadBuiltinSkills } from "./builtin-skills.ts";
 import type { agents, environments } from "../db/schema.ts";
@@ -510,10 +509,6 @@ test("grep rejects an explicit symlink outside AgentExecutionEnv roots", async (
         new AbortController().signal,
         env,
       ),
-    /outside the agent working directory/,
-  );
-  await assert.rejects(
-    async () => createGrepOperations(env).readFile(join(workingDir, "escape")),
     /outside the agent working directory/,
   );
 });

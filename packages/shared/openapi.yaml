@@ -3417,6 +3417,8 @@ components:
                         enum:
                           - pending
                           - running
+                          - sleeping
+                          - waiting
                           - done
                       output:
                         type: string
@@ -3440,6 +3442,8 @@ components:
                         enum:
                           - pending
                           - running
+                          - sleeping
+                          - waiting
                           - done
                       summary:
                         type: object
