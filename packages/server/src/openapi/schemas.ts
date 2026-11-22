@@ -945,6 +945,13 @@ export const SetupStatusSchema = z
   })
   .meta({ id: "SetupStatus" });
 
+export const OidcExchangeRequestSchema = z
+  .object({
+    code: z.string().min(1),
+    codeVerifier: z.string().min(43).max(128),
+  })
+  .meta({ id: "OidcExchangeRequest" });
+
 export const UserProfileRequestSchema = userRequestSchema.meta({ id: "UserProfileRequest" });
 
 export const UserRoleRequestSchema = updateUserRoleRequestSchema.meta({ id: "UserRoleRequest" });

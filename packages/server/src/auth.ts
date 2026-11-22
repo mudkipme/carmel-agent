@@ -158,7 +158,8 @@ function isPublicApiPath(path: string) {
     path === "/api/auth/status" ||
     path === "/api/auth/setup" ||
     path === "/api/auth/oidc/login" ||
-    path === "/api/auth/oidc/callback"
+    path === "/api/auth/oidc/callback" ||
+    path === "/api/auth/oidc/exchange"
   );
 }
 

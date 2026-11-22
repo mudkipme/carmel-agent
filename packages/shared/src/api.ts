@@ -868,6 +868,10 @@ export interface ApiSchemas {
   OK: {
     ok: boolean;
   };
+  OidcExchangeRequest: {
+    code: string;
+    codeVerifier: string;
+  };
   OpenWebUIImportRequest: {
     agentId: string;
     modelRefId: string;
@@ -1316,6 +1320,10 @@ export interface ApiInputSchemas {
       max?: string | null;
     };
   };
+  OidcExchangeRequest: {
+    code: string;
+    codeVerifier: string;
+  };
   ProviderRequest: {
     label: string;
     provider: string;
@@ -1367,7 +1375,9 @@ export interface ApiOperations {
   };
   startOidcLogin: {
     path: never;
-    query: never;
+    query: {
+      code_challenge?: string;
+    };
     body: never;
     response: void;
   };
@@ -1379,6 +1389,12 @@ export interface ApiOperations {
     };
     body: never;
     response: void;
+  };
+  exchangeOidcCode: {
+    path: never;
+    query: never;
+    body: ApiInputSchemas["OidcExchangeRequest"];
+    response: ApiSchemas["BootstrapPayload"];
   };
   login: {
     path: never;
@@ -2726,6 +2742,7 @@ export const apiRoutes = {
   getBootstrap: { method: "GET", path: "/api/bootstrap" },
   startOidcLogin: { method: "GET", path: "/api/auth/oidc/login" },
   completeOidcLogin: { method: "GET", path: "/api/auth/oidc/callback" },
+  exchangeOidcCode: { method: "POST", path: "/api/auth/oidc/exchange" },
   login: { method: "POST", path: "/api/auth/login" },
   logout: { method: "POST", path: "/api/auth/logout" },
   getAuthStatus: { method: "GET", path: "/api/auth/status" },

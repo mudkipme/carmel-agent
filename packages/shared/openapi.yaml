@@ -3051,6 +3051,19 @@ components:
           type: boolean
       required:
         - ok
+    OidcExchangeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        codeVerifier:
+          type: string
+          minLength: 43
+          maxLength: 128
+      required:
+        - code
+        - codeVerifier
     OpenWebUIImportRequest:
       type: object
       properties:
@@ -3808,10 +3821,21 @@ paths:
       tags:
         - Auth
       security: []
-      description: Browser navigation only. Redirects to the configured OpenID Connect provider and sets a short-lived flow cookie.
+      description: Browser navigation only. Redirects to the configured OpenID Connect provider and sets a short-lived flow cookie. Pass code_challenge for a native app callback handoff.
+      parameters:
+        - name: code_challenge
+          in: query
+          schema:
+            type: string
       responses:
         "302":
           description: Redirect to the provider
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: Error
           content:
@@ -3824,7 +3848,7 @@ paths:
       tags:
         - Auth
       security: []
-      description: Provider redirect target. Signs the browser in and redirects to /
+      description: Provider redirect target. Signs the browser in and redirects to /, or redirects to the native app with a single-use exchange code.
       parameters:
         - name: code
           in: query
@@ -3837,6 +3861,44 @@ paths:
       responses:
         "302":
           description: Redirect into the app
+        "404":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/auth/oidc/exchange:
+    post:
+      operationId: exchangeOidcCode
+      tags:
+        - Auth
+      security: []
+      description: Exchange a single-use native OIDC callback code and PKCE verifier for a session cookie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OidcExchangeRequest"
+      responses:
+        "200":
+          description: Signed-in bootstrap
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapPayload"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: Error
           content:

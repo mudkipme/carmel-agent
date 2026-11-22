@@ -516,6 +516,90 @@ test(
 );
 
 test(
+  "native OIDC flow redirects to the app scheme with a single-use PKCE exchange code",
+  withOidcEnv({}, async () => {
+    const sub = randomUUID();
+    const username = `native_${sub.slice(0, 8)}`;
+    const provider = createFakeProvider(() => ({
+      sub,
+      preferred_username: username,
+      email: `${username}@example.test`,
+      email_verified: true,
+      name: "Native Person",
+    }));
+    setOidcFetchForTests(provider.fetch as never);
+    const app = buildApp();
+    const verifier = `${randomUUID()}${randomUUID()}`.replaceAll("-", "");
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+
+    assert.equal((await app.request("/api/auth/oidc/login?code_challenge=too-short")).status, 400);
+
+    const start = await app.request(`/api/auth/oidc/login?code_challenge=${challenge}`);
+    assert.equal(start.status, 302);
+    const flowCookie = cookieValue(start, "carmel_oidc")!;
+    const callbackQuery = provider.authorize(new URL(start.headers.get("location")!));
+    const callback = await app.request(`/api/auth/oidc/callback${callbackQuery}`, {
+      headers: { cookie: flowCookie },
+    });
+    assert.equal(callback.status, 302);
+    assert.equal(cookieValue(callback, "carmel_session"), undefined);
+    const nativeUrl = new URL(callback.headers.get("location")!);
+    assert.equal(nativeUrl.protocol, "carmel-agent:");
+    assert.equal(nativeUrl.host, "auth");
+    assert.equal(nativeUrl.pathname, "/callback");
+    const code = nativeUrl.searchParams.get("code");
+    assert.ok(code);
+
+    const exchange = await app.request("/api/auth/oidc/exchange", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code, codeVerifier: verifier }),
+    });
+    assert.equal(exchange.status, 200);
+    const session = cookieValue(exchange, "carmel_session");
+    assert.ok(session);
+    const bootstrap = await exchange.json();
+    assert.ok(Array.isArray(bootstrap.users));
+
+    const replay = await app.request("/api/auth/oidc/exchange", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code, codeVerifier: verifier }),
+    });
+    assert.equal(replay.status, 401);
+
+    // Wrong verifier is rejected and consumes the code.
+    const secondStart = await app.request(`/api/auth/oidc/login?code_challenge=${challenge}`);
+    const secondCallback = await app.request(
+      `/api/auth/oidc/callback${provider.authorize(new URL(secondStart.headers.get("location")!))}`,
+      { headers: { cookie: cookieValue(secondStart, "carmel_oidc")! } },
+    );
+    const secondCode = new URL(secondCallback.headers.get("location")!).searchParams.get("code")!;
+    const wrongVerifier = await app.request("/api/auth/oidc/exchange", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: secondCode, codeVerifier: "x".repeat(43) }),
+    });
+    assert.equal(wrongVerifier.status, 401);
+    const afterWrong = await app.request("/api/auth/oidc/exchange", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: secondCode, codeVerifier: verifier }),
+    });
+    assert.equal(afterWrong.status, 401);
+
+    // Provider denial redirects back to the native scheme with auth_error.
+    const deniedStart = await app.request(`/api/auth/oidc/login?code_challenge=${challenge}`);
+    const deniedState = new URL(deniedStart.headers.get("location")!).searchParams.get("state");
+    const denied = await app.request(
+      `/api/auth/oidc/callback?error=access_denied&state=${deniedState}`,
+      { headers: { cookie: cookieValue(deniedStart, "carmel_oidc")! } },
+    );
+    assert.equal(denied.headers.get("location"), "carmel-agent://auth/callback?auth_error=denied");
+  }),
+);
+
+test(
   "a callback from a different browser, or with a forged state, is refused",
   withOidcEnv({}, async () => {
     const provider = createFakeProvider(() => ({ sub: randomUUID() }));
