@@ -9,7 +9,7 @@ Keep real credentials, sessions, and workspace files outside Git. Copy `.env.exa
 - Explain the user-visible problem and resulting behavior.
 - Run `pnpm format` to format files with oxfmt, then `pnpm check` for formatting, lint, server/client tests, type-checking, and the client build.
 - For UI changes, run `pnpm test:browser`. Install its matching CLI with `npm install -g agent-browser@0.38.2`, then `agent-browser install --with-deps`.
-- For runner changes, build `Dockerfile.runner` and run the sandbox identity and browser checks described in [deployment.md](docs/deployment.md#local-development).
+- For runner changes, build `Dockerfile.runner` and run the sandbox identity and browser checks described in [deployment.md](docs/development/index.md#integration-tests).
 - Update the relevant configuration or runtime documentation when behavior changes.
 
 Tests use Node's test runner. Prefer the smallest focused command while iterating, for example from `packages/server`: `DATABASE_URL=:memory: node --import tsx --test src/security.test.ts`. Browser regressions use an isolated fixture server; runtime integration checks use temporary data and their own containers. These checks do not need real model-provider credentials.

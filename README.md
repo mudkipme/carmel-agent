@@ -15,16 +15,16 @@ It runs on your machine or your server. Agents contact the model providers, webs
 - **A workspace beside the conversation.** Files, Changes, Terminal, and Browser share a resizable pane, with Markdown previews and source editing, Mermaid diagrams, remembered layout, and a single-pane view on narrow windows.
 - **A shared live browser.** Watch the agent browse, take control to sign in, then resume it in the same browser; the profile belongs to the agent.
 - **Files in the browser.** Browse, edit, upload, download, move, copy, and delete workspace files under the agent's permissions.
-- **Secrets and credentials.** Encrypted environment secrets for sandboxes and MCP connections, redacted from tool output, plus private forms for questions or session credentials that can be promoted later. See [Questions and session credentials](docs/user-requests.md).
-- **Tools and MCP.** Connect remote HTTP or sandboxed stdio MCP servers with allowlists and credentials; codemode lets agents script their permitted tools in a sandboxed JavaScript worker. See [MCP tools](docs/mcp.md) and [Codemode](docs/codemode.md).
-- **Private IM integrations.** Connect Telegram or Feishu/Lark, including QR setup, and receive private alerts from scheduled tasks. See [IM integrations](docs/im-integrations.md).
-- **Skills and knowledge.** Skills in `.agents/skills` appear as slash commands, and agents can search and cite Markdown folders with keyword, semantic, or hybrid retrieval. See [Knowledge](docs/knowledge.md).
-- **Tasks and schedules.** Queue work with discussion, live updates, and review, or schedule reminders and recurring runs from chat. See [Tasks](docs/issues.md) and [scheduled tasks](docs/runtime-and-security.md#scheduled-tasks-from-chat).
-- **Agents, Home, and memory.** Each agent has a private Home conversation with fresh context and paged history; Home memory keeps private notes, recalls relevant topics, and supports opt-in learning and forgetting. See [Home memory](docs/home-memory.md).
-- **Subtasks and collaboration.** Tasks can delegate read-only analysis or web research, and agents can consult or delegate to permitted peers. See [Agent collaboration](docs/agent-collaboration.md).
+- **Secrets and credentials.** Encrypted environment secrets for sandboxes and MCP connections, redacted from tool output, plus private forms for questions or session credentials that can be promoted later. See [Questions and session credentials](docs/guide/questions-and-credentials.md).
+- **Tools and MCP.** Connect remote HTTP or sandboxed stdio MCP servers with allowlists and credentials; codemode lets agents script their permitted tools in a sandboxed JavaScript worker. See [MCP tools](docs/guide/mcp.md) and [Codemode](docs/guide/codemode.md).
+- **Private IM integrations.** Connect Telegram or Feishu/Lark, including QR setup, and receive private alerts from scheduled tasks. See [IM integrations](docs/guide/messaging-apps.md).
+- **Skills and knowledge.** Skills in `.agents/skills` appear as slash commands, and agents can search and cite Markdown folders with keyword, semantic, or hybrid retrieval. See [Knowledge](docs/guide/knowledge.md).
+- **Tasks and schedules.** Queue work with discussion, live updates, and review, or schedule reminders and recurring runs from chat. See [Tasks](docs/guide/tasks.md) and [scheduled tasks](docs/guide/schedules.md).
+- **Agents, Home, and memory.** Each agent has a private Home conversation with fresh context and paged history; Home memory keeps private notes, recalls relevant topics, and supports opt-in learning and forgetting. See [Home memory](docs/guide/home-and-memory.md).
+- **Subtasks and collaboration.** Tasks can delegate read-only analysis or web research, and agents can consult or delegate to permitted peers. See [Agent collaboration](docs/guide/collaboration.md).
 - **Conversation control.** Fork, edit, truncate, pin, attach images, reference files, folders, conversations, or agents with `@`, and search across sessions.
 - **Multi-user with SSO.** Admins manage accounts and provider credentials; everyone gets private sessions, can share agents and model entries, and can sign in through Pocket ID or any OpenID Connect provider.
-- **Your providers and API.** Anthropic, OpenAI, other Pi providers, OpenAI-compatible endpoints, and Ollama; create API keys for the OpenAI-compatible `/api/v1` endpoint. See [the API details](docs/configuration.md#openai-compatible-api).
+- **Your providers and API.** Anthropic, OpenAI, other Pi providers, OpenAI-compatible endpoints, and Ollama; create API keys for the OpenAI-compatible `/api/v1` endpoint. See [the API details](docs/reference/openai-api.md).
 - **Bring your history.** Import Open WebUI JSON chat exports into an agent.
 
 ## Requirements
@@ -33,7 +33,7 @@ It runs on your machine or your server. Agents contact the model providers, webs
 - Rootless Podman (recommended), or rootful Podman/Docker without user namespace remapping. Rootless Docker and Docker with `userns-remap` are unsupported.
 - Compose (`podman compose` or `docker compose`).
 
-The container socket is only needed for the bash sandbox. Without it, Carmel still runs — chat, files, and network tools all work, and bash commands return a "sandbox unavailable" error.
+The container socket is only needed for the bash sandbox. Without it, Carmel Agent still runs — chat, files, and network tools all work, and bash commands return a "sandbox unavailable" error.
 
 ## Quick Start
 
@@ -74,9 +74,9 @@ printf 'CARMEL_USERNS_MODE=host\nCARMEL_RUNTIME_SOCKET=/var/run/docker.sock\nCAR
   "$(stat -c %g /var/run/docker.sock)" >> .env
 ```
 
-Keep these variables in your shell or Compose `.env`. The server and runners use your host UID/GID so workspace and home files retain your ownership. See the [upgrade notes](docs/deployment.md#upgrading-an-existing-deployment) for existing installations.
+Keep these variables in your shell or Compose `.env`. The server and runners use your host UID/GID so workspace and home files retain your ownership. See the [upgrade notes](docs/self-hosting/backups-and-upgrades.md#upgrading) for existing installations.
 
-For HTTPS, backups, reverse proxies, release pinning, and building custom images, see [docs/deployment.md](docs/deployment.md). Published images currently target Linux amd64.
+For HTTPS, backups, reverse proxies, release pinning, and building custom images, see [Self-hosting](docs/self-hosting/installation.md). Published images currently target Linux amd64.
 
 ## First Steps After Login
 
@@ -87,31 +87,24 @@ For HTTPS, backups, reverse proxies, release pinning, and building custom images
 
 New agents start with file read, write, and edit enabled; bash and network are off until you turn them on. Turning on bash requires the runner image and a reachable container socket.
 
-Each agent has a **Knowledge** page for searchable Markdown sources, and **Memory** in Home keeps private notes. See [Knowledge](docs/knowledge.md) and [Home memory](docs/home-memory.md).
+Each agent has a **Knowledge** page for searchable Markdown sources, and **Memory** in Home keeps private notes. See [Knowledge](docs/guide/knowledge.md) and [Home memory](docs/guide/home-and-memory.md).
 
 ## Users And Sharing
 
-Carmel is multi-user, and sharing is opt-in rather than automatic. Accounts are either administrator or user; admins manage users and provider credentials. Provider configs and their secrets are instance-level and never sent back to a browser. Model entries and agents belong to their creator and can be shared, while sessions always stay private — so one operator can hold the API keys and publish useful agents without exposing credentials or reading anyone's conversations.
+Carmel Agent is multi-user, and sharing is opt-in rather than automatic. Accounts are either administrator or user; admins manage users and provider credentials. Provider configs and their secrets are instance-level and never sent back to a browser. Model entries and agents belong to their creator and can be shared, while sessions always stay private — so one operator can hold the API keys and publish useful agents without exposing credentials or reading anyone's conversations.
 
 ## Import From Open WebUI
 
-Select the agent you want the chats to land in, open the import dialog from the sidebar, and pick an Open WebUI JSON export. Conversations arrive using that agent's default model and thinking level. Details and supported export shapes: [docs/open-webui-import.md](docs/open-webui-import.md).
+Select the agent you want the chats to land in, open the import dialog from the sidebar, and pick an Open WebUI JSON export. Conversations arrive using that agent's default model and thinking level. Details and supported export shapes: [Import from Open WebUI](docs/guide/import-open-webui.md).
 
 ## Documentation
 
-- [Deployment](docs/deployment.md) — Compose, manual containers, reverse proxies, and the production checklist.
-- [Configuration](docs/configuration.md) — environment variables, secrets, provider setup, data paths, sandbox settings, and the OpenAI-compatible API.
-- [Runtime And Security](docs/runtime-and-security.md) — how agents, tools, file access, sandboxing, roles, sharing, and scheduling actually work.
-- [Tasks](docs/issues.md) — queueing work, review, and task lifecycle.
-- [Agent collaboration](docs/agent-collaboration.md) — consultations, delegated tasks, and collaboration boundaries.
-- [MCP tools](docs/mcp.md) — configure remote and sandboxed servers, tool access, and authentication.
-- [Codemode](docs/codemode.md) — scripting permitted tools in a sandboxed JavaScript worker.
-- [Knowledge](docs/knowledge.md) — source registration, indexing, and retrieval.
-- [Home memory](docs/home-memory.md) — private notes, opt-in learning, recall, and forgetting.
-- [IM integrations](docs/im-integrations.md) — Telegram and Feishu/Lark setup, commands, and notifications.
-- [Questions and session credentials](docs/user-requests.md) — interactive questions, secret submission, and credential scope.
-- [Open WebUI Import](docs/open-webui-import.md) — supported import format and behavior.
-- [Pi Durable storage](docs/pi-durable.md) — session storage, recovery, replay, and streaming internals.
+The full documentation lives in [`docs/`](docs/) and builds into a static site with `pnpm docs:dev` or `pnpm docs:build`.
+
+- **Guide** — [Quick start](docs/guide/quick-start.md), [core concepts](docs/guide/concepts.md), [chat](docs/guide/chat.md), [agents](docs/guide/agents.md), [workspace, terminal, and browser](docs/guide/workspace.md), [Home and memory](docs/guide/home-and-memory.md), [Knowledge](docs/guide/knowledge.md), [Tasks](docs/guide/tasks.md), [Schedules](docs/guide/schedules.md), [collaboration](docs/guide/collaboration.md), [questions and credentials](docs/guide/questions-and-credentials.md), [messaging apps](docs/guide/messaging-apps.md), [skills and templates](docs/guide/skills-and-templates.md), [MCP](docs/guide/mcp.md), and [Codemode](docs/guide/codemode.md).
+- **Self-hosting** — [Installation](docs/self-hosting/installation.md), [production setup](docs/self-hosting/production.md), [users and sign-in](docs/self-hosting/users-and-sign-in.md), [providers and models](docs/self-hosting/providers-and-models.md), [sandbox and runner](docs/self-hosting/sandbox.md), and [backups and upgrades](docs/self-hosting/backups-and-upgrades.md).
+- **Reference** — [Environment variables](docs/reference/environment-variables.md), [built-in tools](docs/reference/tools.md), [OpenAI-compatible API](docs/reference/openai-api.md), [HTTP API](docs/reference/http-api.md), and the [security model](docs/reference/security.md).
+- **Development** — [Contributing](docs/development/index.md), [architecture](docs/development/architecture.md), and [session storage](docs/development/session-storage.md).
 
 ## Development
 
@@ -138,6 +131,7 @@ pnpm test         # run server and client tests
 pnpm test:browser # browser regressions (requires agent-browser and its Chromium)
 pnpm check        # check formatting, lint, migrations, tests, and build
 pnpm serve        # run the API without watching, serving the built client
+pnpm docs:dev     # preview the documentation site
 ```
 
 If the API runs somewhere other than `http://localhost:8797`, set `CARMEL_SERVER_URL` before `pnpm dev:client`. For LAN hostnames, set `CARMEL_DEV_HOSTS=host1,host2` so the Vite dev server allows them.
@@ -153,6 +147,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development and test guidance, and [S
 - `packages/server` — Hono API, SQLite/Drizzle metadata, Pi Durable session storage, auth, agent runtime, sandbox, file APIs.
 - `packages/client` — Vite + React UI for chat, files, settings, sessions, and agent management.
 - `packages/shared` — TypeScript types shared by client and server.
+- `docs` — the documentation site (VitePress).
 - `Dockerfile` — web/API server image.
 - `Dockerfile.runner` — bash sandbox image.
 - `compose.yaml` — Compose deployment (written for rootless Podman).

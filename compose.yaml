@@ -37,7 +37,7 @@ services:
       # CARMEL_KNOWLEDGE_MEMORY_MB: 4096
       # CARMEL_KNOWLEDGE_CPUS: 2
       # Single sign-on through an OIDC provider such as Pocket ID
-      # (see docs/configuration.md#single-sign-on-openid-connect):
+      # (see docs/self-hosting/users-and-sign-in.md#single-sign-on-openid-connect):
       # CARMEL_PUBLIC_URL: https://carmel.example.com
       # CARMEL_OIDC_ISSUER: https://id.example.com
       # CARMEL_OIDC_CLIENT_ID: your-client-id

@@ -1,5 +1,6 @@
 packages:
   - "packages/*"
+  - "docs"
 
 # Versions shared across packages. Pi packages must move together.
 catalog:

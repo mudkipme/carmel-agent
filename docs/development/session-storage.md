@@ -1,12 +1,14 @@
-# Pi Durable storage
+# Session storage
 
-Carmel uses Pi 1.6.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
+How Carmel Agent stores conversations and recovers runs with Pi Durable. This page is for contributors; for backups, see [Backups and upgrades](/self-hosting/backups-and-upgrades).
 
-[Questions and session credentials](user-requests.md) use native run termination and idempotent submissions, with request lifecycle and encrypted credential storage owned by Carmel.
+Carmel Agent uses Pi 1.6.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel Agent's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
+
+[Questions and session credentials](/guide/questions-and-credentials) use native run termination and idempotent submissions, with request lifecycle and encrypted credential storage owned by Carmel Agent.
 
 ## Storage and backups
 
-`CARMEL_PI_SESSION_DIR` selects the native storage directory, defaulting to `data/pi-sessions.sqlite.durable/`. It contains one SQLite file per Carmel session, named with a hash of the session ID. Separate native sessions keep tool registries, credentials, checkpoints, and entry lookups scoped to a single Carmel conversation.
+`CARMEL_PI_SESSION_DIR` selects the native storage directory, defaulting to `data/pi-sessions.sqlite.durable/`. It contains one SQLite file per Carmel Agent session, named with a hash of the session ID. Separate native sessions keep tool registries, credentials, checkpoints, and entry lookups scoped to a single Carmel Agent conversation.
 
 Back up the metadata database and the whole session directory with the server stopped. The runtime opens Durable storage directly; historical importers and metadata migrations have been retired after verification of the deployed data. Retired database files can be kept separately as archives, but the app never reads them.
 
@@ -18,7 +20,7 @@ Forks and edits use append-only conversation branches. A non-truncating edit cre
 
 The chat composer accepts files through the attachment picker, drag and drop, or paste. Images use native image input. Other files are uploaded unchanged to `uploads/<unique-id>/<filename>` inside the agent's workspace, then inserted into the draft as `@path` references. Each upload gets its own directory so repeated filenames cannot overwrite workspace files. Uploading workspace files requires the agent's read and write permissions and also works with text-only models. A message can include up to ten attachments and references; each uploaded file is limited to 20 MiB. Removing a mention removes its reference but keeps the uploaded file in the workspace, where it can be managed through the file browser.
 
-The prompt includes file paths, and the model uses filesystem tools to read their contents. Carmel does not automatically extract or inline uploaded documents. Plain text, Markdown, and CSV are readable through the native read tool; PDF and Office files require an appropriate tool or converter. Saved references preserve paths rather than snapshots of file contents, so later reads see the file's current contents.
+The prompt includes file paths, and the model uses filesystem tools to read their contents. Carmel Agent does not automatically extract or inline uploaded documents. Plain text, Markdown, and CSV are readable through the native read tool; PDF and Office files require an appropriate tool or converter. Saved references preserve paths rather than snapshots of file contents, so later reads see the file's current contents.
 
 Type `@` in the composer or use its mention button to choose workspace files, folders, or another conversation. Folder entries open for browsing; “Mention folder” selects the current folder. File and folder mentions insert their paths inline at the cursor, leaving the caret after the path so typing can continue. Paths with spaces are quoted. Removing an inline mention also removes its attached reference. Conversation references appear as removable chips. Saved references have clickable links. Up to ten references can accompany a message, including one with no text.
 
@@ -28,7 +30,7 @@ Durable's input `entry` stores a `carmel.referenced-input` with display text and
 
 ## Recovery and observation
 
-Pi owns generation checkpoints, tool intent, results, retry policy, compaction, steering submissions, and live progress. Carmel watches the native conversation view and forwards `pi.live` operations through the shared protocol. Chord's immutable delta application restores streamed messages and tool progress without custom text, thinking, or nested-tool reducers. `ConversationTranscript` fills missing pages when a slow observer falls behind the native transcript window; committed entry IDs prevent duplicate messages and tool-budget counts.
+Pi owns generation checkpoints, tool intent, results, retry policy, compaction, steering submissions, and live progress. Carmel Agent watches the native conversation view and forwards `pi.live` operations through the shared protocol. Chord's immutable delta application restores streamed messages and tool progress without custom text, thinking, or nested-tool reducers. `ConversationTranscript` fills missing pages when a slow observer falls behind the native transcript window; committed entry IDs prevent duplicate messages and tool-budget counts.
 
 After an unexpected process exit, requesting a run without new input resumes the selected conversation's checkpoint after installing current credentials and permitted tools. It does not rewind and resubmit the user message. A new prompt first settles pending work and then submits its new input. Read-only requests never start scheduling. A deliberate stop uses Durable's abort protocol and settles pending work rather than leaving it resumable.
 
@@ -44,17 +46,17 @@ Tools default to `replay: "unsafe"`. Pi records intent before executing them; af
 - OpenRouter's per-key model lists are cached under a hash of the credential and configured endpoint. Shared legacy OpenRouter rows are ignored by model runtimes, and each OpenRouter configuration refreshes separately. Other providers retain their shared catalog cache.
 - Native named prompt sections and atomic model/thinking/tool configuration. Already-named sessions skip title history reads; new titles use a bounded sample from native entry pages.
 - Native skill catalog formatting.
-- Native Durable Codemode, nested tool tasks, validated `// @options:` source headers, native tool discovery, and the bounded prompt catalog. Scripts can check `"name" in tools`, discover permitted tools with `searchTools()`/`describeTool()`, and show images with `image(block)`. Script options can lower Carmel's output and deadline limits, but cannot raise them.
+- Native Durable Codemode, nested tool tasks, validated `// @options:` source headers, native tool discovery, and the bounded prompt catalog. Scripts can check `"name" in tools`, discover permitted tools with `searchTools()`/`describeTool()`, and show images with `image(block)`. Script options can lower Carmel Agent's output and deadline limits, but cannot raise them.
 - Native threshold, background, and overflow compaction. Small model windows get scaled reserve/tail settings: Durable's `enabled` flag controls overflow recovery too, so the old threshold-only disable workaround is removed.
 - Pi's `azure` provider identifier.
 
-Pi 1.6.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel's generic tool/result compatibility layers are gone.
+Pi 1.6.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel Agent's generic tool/result compatibility layers are gone.
 
-Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel retains guarded discovery. Prompt argument helpers are still not public exports (`parseCommandArgs` and `substituteArgs` live only in the package's internal `dist/core/prompt-templates` module), so their positional/default/slice semantics remain in the adapter, including the 1.3.0 rule that `""` and `''` are real arguments and the 1.5.1 quoting fixes. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
+Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel Agent responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel Agent retains guarded discovery. Prompt argument helpers are still not public exports (`parseCommandArgs` and `substituteArgs` live only in the package's internal `dist/core/prompt-templates` module), so their positional/default/slice semantics remain in the adapter, including the 1.3.0 rule that `""` and `''` are real arguments and the 1.5.1 quoting fixes. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
 
 ## Tasks, subtasks, and background hosts
 
-Home exposes `create_task`, `read_task`, `list_tasks`, and task queue/update controls. A task's bounded brief and review lifecycle are Carmel application policy; its model execution uses Pi Durable. Task conversations can delegate read-only analysis or web research with `start_subtask`, inspect it with `list_subtasks`, steer it with `send_subtask_update`, join it with `wait_subtask`, or stop it with `stop_subtask`.
+Home exposes `create_task`, `read_task`, `list_tasks`, and task queue/update controls. A task's bounded brief and review lifecycle are Carmel Agent application policy; its model execution uses Pi Durable. Task conversations can delegate read-only analysis or web research with `start_subtask`, inspect it with `list_subtasks`, steer it with `send_subtask_update`, join it with `wait_subtask`, or stop it with `stop_subtask`.
 
 Subtasks are native child conversations in the parent's Pi database, with native task ownership, persisted checkpoints, isolated model context, and the same agent's readable workspace. They receive file reads, knowledge retrieval, private session retrieval, skill loading, and, when the agent has web access permission, web search and fetch. They cannot edit, execute commands, drive the interactive browser, send notifications, create tasks, or delegate again. Each session permits four active subtasks with five-minute execution deadlines. Existing delayed background work remains recoverable.
 
@@ -66,7 +68,7 @@ A subtask stores its result in native state and its own transcript, rather than 
 
 ## Durable Codemode
 
-Carmel registers Pi's native Codemode implementation and prompt section. Carmel supplies its guarded execution environment, permitted native tool registry, sequential scheduling, admission limits, and browser handoff. Pi owns argument repair/validation, replay intent, nested results, output limits, script journals, cancellation of owned work, and script recovery. Nested results do not become transcript messages.
+Carmel Agent registers Pi's native Codemode implementation and prompt section. Carmel Agent supplies its guarded execution environment, permitted native tool registry, sequential scheduling, admission limits, and browser handoff. Pi owns argument repair/validation, replay intent, nested results, output limits, script journals, cancellation of owned work, and script recovery. Nested results do not become transcript messages.
 
 The default limits remain 60 seconds, 64 MiB of VM memory, and 250 nested calls per script. Limits are memoized in the native tool task and admitted calls use native nested-call documents; reattaching an existing nested task does not consume run admission again. The deadline includes time spent interrupted. Native `store()` and `load()` keep JSON values per conversation, commit changes only on successful scripts, and fork as of the selected entry.
 
@@ -84,7 +86,7 @@ The previous `AgentHarness`/`AgentLane` facade, generic prompt-dispatch port, fi
 
 Native `live_update.ops` now cross the shared protocol into the client. Pi owns progress batching, and HTTP supplies authentication, sequence numbers, replay bounds, and a terminal application result. Deploy server and client together: this replaces the previous message-update and tool-lifecycle event protocol. Connection snapshots include the native live-state base needed to replay subsequent deltas.
 
-`PiRun` handles the application-specific boundary between committed input settlement and delivered HTTP observations. It waits for the idle conversation view before finalization and uses native transcript paging to recover missing committed entries. The small `SessionLog` port remains for Carmel's public branch IDs and retry restoration; its implementation calls native storage operations directly.
+`PiRun` handles the application-specific boundary between committed input settlement and delivered HTTP observations. It waits for the idle conversation view before finalization and uses native transcript paging to recover missing committed entries. The small `SessionLog` port remains for Carmel Agent's public branch IDs and retry restoration; its implementation calls native storage operations directly.
 
 Compaction errors come from native `pi.live.compactionFailure`, with one warning per failed task. Recovery is announced when a native compaction summary entry is placed, so a declined compaction cannot claim success. Native settings select only the current run's extensions.
 
@@ -94,17 +96,17 @@ The remaining bridges protect application behavior: guarded workspace/resource r
 
 Pi's optional `models.*` Codemode helpers remain disabled. Exposing classifiers and image generation needs application policy for which models and paid operations scripts may invoke; scripts currently reach the agent's configured tools.
 
-Deferred tools and native `tool_search` could reduce large MCP catalogs in the prompt. Adoption needs to reconcile Carmel's permission and allowlist filtering with Durable's separate model-visible and program-callable tools, including discovery after reconnect.
+Deferred tools and native `tool_search` could reduce large MCP catalogs in the prompt. Adoption needs to reconcile Carmel Agent's permission and allowlist filtering with Durable's separate model-visible and program-callable tools, including discovery after reconnect.
 
-The optional bounded `ExecutionEnv.listFiles` can support future tree listing after implementing Carmel's path and mount authorization.
+The optional bounded `ExecutionEnv.listFiles` can support future tree listing after implementing Carmel Agent's path and mount authorization.
 
 OpenRouter regional catalog filtering needs its configured endpoint passed into Pi's provider configuration before refresh; the cache scope alone does not configure the upstream request. Synchronous model serializers still use the shared catalog lookup and should eventually read the matching personalized catalog too.
 
-The upgrade also brings MCP structured results that may be arrays, primitives, or null, stricter misplaced Codemode options, and provider retry/timeout fixes. Carmel already passes structured MCP values through without an object-only restriction. Pi's terminal clipboard, themes, and CLI extension-start changes do not apply to Carmel's web client and Durable run path. See the [1.2.0 release](https://pi.dev/changelog/releases/1.2.0), [Durable changelog](https://github.com/earendil-works/pi/blob/v1.2.0/packages/durable/CHANGELOG.md), and [MCP changelog](https://github.com/earendil-works/pi/blob/v1.2.0/packages/mcp/CHANGELOG.md).
+The upgrade also brings MCP structured results that may be arrays, primitives, or null, stricter misplaced Codemode options, and provider retry/timeout fixes. Carmel Agent already passes structured MCP values through without an object-only restriction. Pi's terminal clipboard, themes, and CLI extension-start changes do not apply to Carmel Agent's web client and Durable run path. See the [1.2.0 release](https://pi.dev/changelog/releases/1.2.0), [Durable changelog](https://github.com/earendil-works/pi/blob/v1.2.0/packages/durable/CHANGELOG.md), and [MCP changelog](https://github.com/earendil-works/pi/blob/v1.2.0/packages/mcp/CHANGELOG.md).
 
 ## Prompt cache stability
 
-Carmel does not inject a clock into system instructions or user messages, matching Pi coding-agent/TUI's default prompt. For relative scheduling, the model checks time with bash when available or asks the user. Native message timestamps remain storage metadata.
+Carmel Agent does not inject a clock into system instructions or user messages, matching Pi coding-agent/TUI's default prompt. For relative scheduling, the model checks time with bash when available or asks the user. Native message timestamps remain storage metadata.
 
 Named sections reduce redundant storage writes. They preserve the request prefix when the selected model supports mid-conversation system changes; otherwise Pi collapses section updates into the leading system prompt. Keeping a changing clock out of the prompt protects conversation-history caching in both cases. MCP tools are sorted by name within each configured server, keeping native declarations and Codemode's embedded catalog stable when a reconnect returns the same tools in another order.
 
@@ -118,12 +120,12 @@ Chord 1.5.1 made its v2 runtime the package root, so `Context`, `JsonValue`, and
 
 Adopted:
 
-- MCP servers are Codemode namespaces. Each connected server's tools come from their own extension with `namespace: { name: mcpNamespace(id), description, instructions }`; the description is the first line of the server's `initialize` instructions (`mcpServerSummary`), and `describeNamespace()` returns the full, redacted instructions, which Carmel previously dropped. Tool names are unchanged, so saved transcripts and cached prefixes stay valid.
-- `normalizeMcpInputSchema` replaces Carmel's object-schema coercion of MCP input schemas.
+- MCP servers are Codemode namespaces. Each connected server's tools come from their own extension with `namespace: { name: mcpNamespace(id), description, instructions }`; the description is the first line of the server's `initialize` instructions (`mcpServerSummary`), and `describeNamespace()` returns the full, redacted instructions, which Carmel Agent previously dropped. Tool names are unchanged, so saved transcripts and cached prefixes stay valid.
+- `normalizeMcpInputSchema` replaces Carmel Agent's object-schema coercion of MCP input schemas.
 - The `fit-images` extension fits images in any tool result the model gets (MCP, Codemode `image()`) to the model's limits, sharing `read`'s lazy Photon worker.
 - Grep context lines now come from ripgrep (1.5.1), so the guarded `GrepOperations.readFile` was removed. The search path is still authorized and remapped before rg starts.
 - The prompt argument adapter follows 1.5.1's parsing: apostrophes inside words stay literal, `\"` escapes the open quote, and an unclosed quote is text.
-- [User requests](user-requests.md) park their tool call on a signal instead of ending the run, and the response becomes the call's result. `PiRun` ends Carmel's run once only parked work is left (`Harness.wake()` inactive with a sleeping slot); a continuation delivers the signal and resumes.
+- [User requests](/guide/questions-and-credentials) park their tool call on a signal instead of ending the run, and the response becomes the call's result. `PiRun` ends Carmel Agent's run once only parked work is left (`Harness.wake()` inactive with a sleeping slot); a continuation delivers the signal and resumes.
 - Browser handoff, collaboration access, and session-secret redaction are one `carmel.guards` extension of per-tool `wraps`, so they apply to whichever same-named tool wins, for model calls and Codemode's nested calls alike. Wrappers return their base's park unchanged.
 - Attached chat images are fitted with `fitImages` before submission, sharing `read`'s Photon worker. The notes on what changed reach the model as hidden input context, like reference excerpts.
 
@@ -131,8 +133,8 @@ Not adopted:
 
 - `createMcpToolName` (`mcp__<server>__<tool>`): namespaces no longer depend on name prefixes, and renaming would change every saved MCP tool call.
 - `limitMcpContent`: Durable already bounds returned tool output (`outputLimits`, 50 KB head by default), so a second MCP-only cap adds nothing.
-- `validateMcpServerConfig` and `@earendil-works/pi-mcp/oauth`: Carmel's server shape, secret expansion, and container transport differ from the `mcpServers` file format, and Carmel has no MCP OAuth flow yet.
-- Per-conversation `configure({ compaction })` and `onAbort: "keep"`: each Carmel session already has its own harness settings, and collaboration replies are delivered only between runs.
+- `validateMcpServerConfig` and `@earendil-works/pi-mcp/oauth`: Carmel Agent's server shape, secret expansion, and container transport differ from the `mcpServers` file format, and Carmel Agent has no MCP OAuth flow yet.
+- Per-conversation `configure({ compaction })` and `onAbort: "keep"`: each Carmel Agent session already has its own harness settings, and collaboration replies are delivered only between runs.
 
 ## Pi 1.5.0
 
@@ -140,38 +142,38 @@ Tool schemas use `@earendil-works/pi-schema`. Subtask tools use its typed builde
 
 Live progress is visible immediately through conversation watches, while Pi batches its storage writes for up to one second by default. A crash may lose that last second of partial text or running tool output; settled messages and results remain durable. Commit observers are reserved for persisted changes.
 
-Back up the session directory before deployment. Pi 1.5 writes newer `pi.live`, generation, and tool-task versions that Pi 1.4 cannot drive. Interrupted model requests now count against native retry policy, and restart-limited tasks settle with explicit errors. Carmel uses the renamed filesystem watch change types and tagged commit-observer changes.
+Back up the session directory before deployment. Pi 1.5 writes newer `pi.live`, generation, and tool-task versions that Pi 1.4 cannot drive. Interrupted model requests now count against native retry policy, and restart-limited tasks settle with explicit errors. Carmel Agent uses the renamed filesystem watch change types and tagged commit-observer changes.
 
-Native turn limits count tool rounds; Carmel's existing guard counts individual tool calls, including nested Codemode calls, so its budget remains application policy. Guarded resource loading, script limits, and cron/review policy also retain their application adapters. See the [Durable 1.5.0 changelog](https://github.com/earendil-works/pi/blob/v1.5.0/packages/durable/CHANGELOG.md).
+Native turn limits count tool rounds; Carmel Agent's existing guard counts individual tool calls, including nested Codemode calls, so its budget remains application policy. Guarded resource loading, script limits, and cron/review policy also retain their application adapters. See the [Durable 1.5.0 changelog](https://github.com/earendil-works/pi/blob/v1.5.0/packages/durable/CHANGELOG.md).
 
 ## Pi 1.4.0
 
-Opening a session SQLite file migrates Pi's task table to schema version 2. Back up the session directory before deployment: a migrated file cannot be reopened by Pi 1.3.0. Carmel's two session documents declare `checkpointWhen: () => false`, preserving their delta storage behavior under the new required API.
+Opening a session SQLite file migrates Pi's task table to schema version 2. Back up the session directory before deployment: a migrated file cannot be reopened by Pi 1.3.0. Carmel Agent's two session documents declare `checkpointWhen: () => false`, preserving their delta storage behavior under the new required API.
 
-Native `HarnessOptions.models` and `settings` getters replace Carmel's model forwarding proxy. Pi's `ClientIdentity` now supplies provider attribution and User-Agent headers to both Durable turns and direct model calls, replacing Carmel's local header map and stream wrapper. `PI_TELEMETRY=0` still disables attribution. Pi's `compaction.modelOverrides` can set thresholds per model, but Carmel already supplies scaled thresholds for the selected model at each run. Guarded resource loading, prompt argument parsing, and cron policy still need their application adapters.
+Native `HarnessOptions.models` and `settings` getters replace Carmel Agent's model forwarding proxy. Pi's `ClientIdentity` now supplies provider attribution and User-Agent headers to both Durable turns and direct model calls, replacing Carmel Agent's local header map and stream wrapper. `PI_TELEMETRY=0` still disables attribution. Pi's `compaction.modelOverrides` can set thresholds per model, but Carmel Agent already supplies scaled thresholds for the selected model at each run. Guarded resource loading, prompt argument parsing, and cron policy still need their application adapters.
 
-The new Durable sleeping-task status and five-restart crash-loop limit apply to Pi's internal tasks. Carmel does not call the removed `TaskRuntime.sleep()` API. See the [Durable 1.4.0 changelog](https://github.com/earendil-works/pi/blob/v1.4.0/packages/durable/CHANGELOG.md).
+The new Durable sleeping-task status and five-restart crash-loop limit apply to Pi's internal tasks. Carmel Agent does not call the removed `TaskRuntime.sleep()` API. See the [Durable 1.4.0 changelog](https://github.com/earendil-works/pi/blob/v1.4.0/packages/durable/CHANGELOG.md).
 
 ## Pi 1.3.0
 
-The 1.3.0 bump is small on top of the 1.2.0 adoption above. These behaviors arrive through the packages Carmel already calls, with no extra adapter:
+The 1.3.0 bump is small on top of the 1.2.0 adoption above. These behaviors arrive through the packages Carmel Agent already calls, with no extra adapter:
 
 - Model switching drops thinking blocks from earlier assistant messages produced by a different model, instead of sending them as text.
 - OpenAI GPT-6 thinking-level changes with an API key keep the prompt cache (`compat.supportsMidConvoEffort`).
 - Malformed final tool-call arguments fail validation with `argumentsError` and `arguments: {}`, instead of running on the JSON parsed before the error. The chat shows that error, including the raw text, in the tool input.
-- Provider retries cover `Unable to forward upstream stream` and `The service is temporarily unavailable`. Gemini 4 sends `thinkingLevel`. Xiaomi MiMo exposes only `off` and `high`. Claude Haiku 5.5 and Opus 5 send `thinking: {type: "disabled"}` for `off`. Kimi Code uses Chat Completions at `https://api.kimi.com/coding/v1`; a `models.json` base URL for `kimi-coding` must include `/v1`. Carmel has no built-in Kimi override.
+- Provider retries cover `Unable to forward upstream stream` and `The service is temporarily unavailable`. Gemini 4 sends `thinkingLevel`. Xiaomi MiMo exposes only `off` and `high`. Claude Haiku 5.5 and Opus 5 send `thinking: {type: "disabled"}` for `off`. Kimi Code uses Chat Completions at `https://api.kimi.com/coding/v1`; a `models.json` base URL for `kimi-coding` must include `/v1`. Carmel Agent has no built-in Kimi override.
 - After compaction, the system baseline leads the model context when the kept history includes an assistant message.
-- `toBase64` encodes images in 8 KiB chunks. Carmel does not share a SQLite file with host tables, so the new storage `prefix` option is unused. Chord's host-runtime rewrite is also unused: Carmel only uses `Context`, `JsonValue`, `BACKGROUND_CONTEXT`, and `withAbortSignal`.
+- `toBase64` encodes images in 8 KiB chunks. Carmel Agent does not share a SQLite file with host tables, so the new storage `prefix` option is unused. Chord's host-runtime rewrite is also unused: Carmel Agent only uses `Context`, `JsonValue`, `BACKGROUND_CONTEXT`, and `withAbortSignal`.
 
-`CodemodeSandbox.close()` now returns after requesting worker shutdown, not after the worker exits. Each Carmel script waits on `onWorkerStarted` until that worker exits, so an aborted script cannot leave a thread behind. Pi's CLI also caps live workers at two across its sessions. That cap is not copied: concurrent Carmel sessions each run their own script, and waiting for the worker this call started already bounds leaks to in-flight scripts. Node 24 is the runtime; the Bun hang this change avoids does not apply.
+`CodemodeSandbox.close()` now returns after requesting worker shutdown, not after the worker exits. Each Carmel Agent script waits on `onWorkerStarted` until that worker exits, so an aborted script cannot leave a thread behind. Pi's CLI also caps live workers at two across its sessions. That cap is not copied: concurrent Carmel Agent sessions each run their own script, and waiting for the worker this call started already bounds leaks to in-flight scripts. Node 24 is the runtime; the Bun hang this change avoids does not apply.
 
 Not adopted, because 1.3.0 does not replace the custom code:
 
 - Durable grep, find, and ls still do not exist. The guarded Agent-loop bridge stays. `ExecutionEnv.listFiles` is an optional tree listing, not those tools, and Pi's host resource loaders still bypass the guarded environment.
 - Prompt helpers remain internal. The adapter keeps their semantics, including empty quoted arguments.
-- Deferred tools and `@earendil-works/pi-durable/tool-search` still need Carmel's permission and allowlist filtering reconciled with Durable's separate model-visible and program-callable tools.
+- Deferred tools and `@earendil-works/pi-durable/tool-search` still need Carmel Agent's permission and allowlist filtering reconciled with Durable's separate model-visible and program-callable tools.
 - `models.classify()` and `models.generateImages()` stay off. Scripts may call the agent's configured tools; exposing paid classifier and image calls needs a separate policy.
 - OpenRouter regional catalog filtering still needs the configured endpoint passed into Pi's provider configuration before refresh. The cache scope alone does not set that request.
-- `/share`, `sessionShareDestination`, resumed-session `--tools`, themes, and terminal clipboard are CLI features. Carmel's web client and Durable run path do not use them.
+- `/share`, `sessionShareDestination`, resumed-session `--tools`, themes, and terminal clipboard are CLI features. Carmel Agent's web client and Durable run path do not use them.
 
 See the [1.3.0 release](https://github.com/earendil-works/pi/releases/tag/v1.3.0).
