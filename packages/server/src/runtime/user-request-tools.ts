@@ -47,7 +47,9 @@ function requestCall(context: RequestContext, api: ToolExecutionApi) {
 /** Holds no process until the user responds or the request expires; the call then runs again with `api.wake` set. */
 function park(expiresAt: number): ToolPark {
   return {
-    sleep: { signals: [UserRequestResponse.key(USER_REQUEST_SIGNAL_KEY)], until: expiresAt },
+    kind: "sleep",
+    signals: [UserRequestResponse.key(USER_REQUEST_SIGNAL_KEY)],
+    until: expiresAt,
   };
 }
 
@@ -211,7 +213,7 @@ export function redactSessionSecrets(
           context,
         );
         // Wrappers return their base's park unchanged; a copy would count as a park of their own.
-        if (result.sleep || result.wait) return result;
+        if (result.kind) return result;
         return redactValue(result) as typeof result;
       } catch (error) {
         throw new Error(redact(errorMessage(error, "Tool failed.")));

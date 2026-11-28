@@ -32,7 +32,7 @@ export async function executeNativeTool(
           ...ctx,
           abortSignal: context.abortSignal ?? ctx.abortSignal,
         });
-        if (returned.sleep || returned.wait) throw new Error("Tool fixtures do not park.");
+        if (returned.kind) throw new Error("Tool fixtures do not park.");
         saved = returned;
         return returned;
       } catch (error) {

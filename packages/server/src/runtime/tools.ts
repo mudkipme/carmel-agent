@@ -2,7 +2,7 @@ import { receiverCollaboration, assertReceiverAccess } from "../collaborations/a
 import { db } from "../db/index.ts";
 import { sessions, agents } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
-import { defineExtension, type Extension } from "@earendil-works/pi-durable";
+import { defineExtension, wrapTool, type Extension } from "@earendil-works/pi-durable";
 import type { ToolRegistration, Context } from "../effectors/pi-durable/index.ts";
 import { AgentExecutionEnv } from "./execution-env.ts";
 import { builtinToolProviders } from "./tool-providers/index.ts";
@@ -107,7 +107,7 @@ export function createServerExecution(
       };
       return defineExtension({
         name: "carmel.guards",
-        wraps: resolved.map((tool) => ({ tool: tool.name, wrap: guard })),
+        wraps: resolved.map((tool) => wrapTool(tool, guard)),
       });
     },
     async cleanup(context: Context) {

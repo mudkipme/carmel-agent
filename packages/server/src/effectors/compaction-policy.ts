@@ -59,7 +59,7 @@ export function homeCompactionExtension(contextWindow: number, fixedTokens = 0) 
             .filter((message) => message.role !== "system")
             .reduce((total, message) => total + estimateMessageTokens(message), 0);
           if (tokens < Math.min(8_000, Math.max(1, Math.floor(available / 8))))
-            return { decline: true };
+            return { kind: "decline" };
         },
       }),
     ],

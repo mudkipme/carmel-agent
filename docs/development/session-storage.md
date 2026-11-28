@@ -2,7 +2,7 @@
 
 How Carmel Agent stores conversations and recovers runs with Pi Durable. This page is for contributors; for backups, see [Backups and upgrades](/self-hosting/backups-and-upgrades).
 
-Carmel Agent uses Pi 1.6.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel Agent's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
+Carmel Agent uses Pi 1.7.0 and `@earendil-works/pi-durable` for execution and conversation storage. Pi Durable's native Node SQLite backend replaces `pi-session-backend-sqlite-node` and the harness formerly shipped inside `pi-agent-core`. Carmel Agent's metadata, authentication, issues, and schedules remain in the existing Drizzle database.
 
 [Questions and session credentials](/guide/questions-and-credentials) use native run termination and idempotent submissions, with request lifecycle and encrypted credential storage owned by Carmel Agent.
 
@@ -50,7 +50,7 @@ Tools default to `replay: "unsafe"`. Pi records intent before executing them; af
 - Native threshold, background, and overflow compaction. Small model windows get scaled reserve/tail settings: Durable's `enabled` flag controls overflow recovery too, so the old threshold-only disable workaround is removed.
 - Pi's `azure` provider identifier.
 
-Pi 1.6.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel Agent's generic tool/result compatibility layers are gone.
+Pi 1.7.0 still has no Durable grep/find/ls implementations. Those three guarded Agent-loop tools retain a small bridge into native `ToolRegistration`; Carmel Agent's generic tool/result compatibility layers are gone.
 
 Workspace authorization, container execution, credential selection, nested-call admission limits, and issue review/cron policy remain Carmel Agent responsibilities. Pi's host filesystem resource loaders bypass the guarded environment, so Carmel Agent retains guarded discovery. Prompt argument helpers are still not public exports (`parseCommandArgs` and `substituteArgs` live only in the package's internal `dist/core/prompt-templates` module), so their positional/default/slice semantics remain in the adapter, including the 1.3.0 rule that `""` and `''` are real arguments and the 1.5.1 quoting fixes. Native Durable task primitives could underpin future application workflows, but do not replace cron scheduling or issue review policy by themselves.
 
@@ -110,7 +110,25 @@ Carmel Agent does not inject a clock into system instructions or user messages, 
 
 Named sections reduce redundant storage writes. They preserve the request prefix when the selected model supports mid-conversation system changes; otherwise Pi collapses section updates into the leading system prompt. Keeping a changing clock out of the prompt protects conversation-history caching in both cases. MCP tools are sorted by name within each configured server, keeping native declarations and Codemode's embedded catalog stable when a reconnect returns the same tools in another order.
 
-Pi Durable is experimental. Versions are pinned to 1.6.0, including `@earendil-works/chord`, which Pi Durable depends on at that exact version. The storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. Storage errors now fail and close the native session; pending waits reject instead of retrying operations on it. Existing task and live-document versions migrate through Pi's native definitions. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/v1.6.0/packages/durable).
+Pi Durable is experimental. Versions are pinned to 1.7.0, including `@earendil-works/chord`, which Pi Durable depends on at that exact version. The storage contracts, stable entry IDs, restart replay policies, and streaming/reconnect behavior are covered by integration tests. Storage errors now fail and close the native session; pending waits reject instead of retrying operations on it. Existing task and live-document versions migrate through Pi's native definitions. See the [Pi Durable announcement](https://earendil.com/posts/pi-durable/) and [upstream package documentation](https://github.com/earendil-works/pi/tree/v1.7.0/packages/durable).
+
+## Pi 1.7.0
+
+This covers 1.6.1 and 1.7.0. Neither changes stored task or document versions, so 1.6 session files open without migration.
+
+Durable's unions are tagged by `kind`. Parks are flat (`{ kind: "sleep", signals, until }`), a result has no `kind`, and wrappers tell a base's park from its result by it. `wraps` entries come from `wrapTool()`, and `beforeCompact` declines with `{ kind: "decline" }`. Carmel Agent uses none of the other renamed forms (`admit(tx, draft)`, `SignalState`, `CommitResult`, `onYield`).
+
+Adopted:
+
+- `toMcpModelContent` replaces `toLlmContent` for MCP results the model reads. Embedded text and JSON blobs become text instead of an omitted placeholder, and resource links name their title, type, size, and description. Redaction runs on the converted text.
+- Provider fixes arrive without adapter changes: more transient failures are retried, codes such as `plugin_request_too_large` no longer count as context overflow, MCP servers that echo request IDs as strings no longer time out, and large SSE events no longer block the event loop.
+
+Not adopted:
+
+- `createMcpResultSchema`: scripts would receive the whole `CallToolResult` (`result.structuredContent.field`) instead of the structured value or text, which changes existing scripts and the Codemode catalog.
+- `toMcpModelContent`'s `saveOutput` and `readResourceTool`: saving binary resources needs a guarded workspace write path, and Carmel Agent has no MCP resource reader.
+- Codemode `models.generateImages()` options and Radius image and decision models: the `models.*` helpers stay disabled.
+- Pi no longer reads `PI_TELEMETRY` and always attributes coding-agent requests. Carmel Agent sets its own `ClientIdentity`, so `PI_TELEMETRY=0` still turns attribution off.
 
 ## Pi 1.6.0
 

@@ -4,14 +4,14 @@ packages:
 
 # Versions shared across packages. Pi packages must move together.
 catalog:
-  "@earendil-works/chord": 1.6.0
-  "@earendil-works/pi-agent-core": 1.6.0
-  "@earendil-works/pi-ai": 1.6.0
-  "@earendil-works/pi-codemode": 1.6.0
-  "@earendil-works/pi-coding-agent": 1.6.0
-  "@earendil-works/pi-durable": 1.6.0
-  "@earendil-works/pi-mcp": 1.6.0
-  "@earendil-works/pi-schema": 1.6.0
+  "@earendil-works/chord": 1.7.0
+  "@earendil-works/pi-agent-core": 1.7.0
+  "@earendil-works/pi-ai": 1.7.0
+  "@earendil-works/pi-codemode": 1.7.0
+  "@earendil-works/pi-coding-agent": 1.7.0
+  "@earendil-works/pi-durable": 1.7.0
+  "@earendil-works/pi-mcp": 1.7.0
+  "@earendil-works/pi-schema": 1.7.0
   "@types/node": ^26.6.6
   tsx: ^4.23.15
   typescript: ^7.0.2
@@ -32,13 +32,13 @@ allowBuilds:
   protobufjs: true
 
 minimumReleaseAgeExclude:
-  - "@earendil-works/chord@1.6.0"
-  - "@earendil-works/pi-agent-core@1.6.0"
-  - "@earendil-works/pi-ai@1.6.0"
-  - "@earendil-works/pi-coding-agent@1.6.0"
-  - "@earendil-works/pi-telemetry@1.6.0"
-  - "@earendil-works/pi-tui@1.6.0"
-  - "@earendil-works/pi-codemode@1.6.0"
-  - "@earendil-works/pi-mcp@1.6.0"
-  - "@earendil-works/pi-durable@1.6.0"
-  - "@earendil-works/pi-schema@1.6.0"
+  - "@earendil-works/chord@1.7.0"
+  - "@earendil-works/pi-agent-core@1.7.0"
+  - "@earendil-works/pi-ai@1.7.0"
+  - "@earendil-works/pi-coding-agent@1.7.0"
+  - "@earendil-works/pi-telemetry@1.7.0"
+  - "@earendil-works/pi-tui@1.7.0"
+  - "@earendil-works/pi-codemode@1.7.0"
+  - "@earendil-works/pi-mcp@1.7.0"
+  - "@earendil-works/pi-durable@1.7.0"
+  - "@earendil-works/pi-schema@1.7.0"

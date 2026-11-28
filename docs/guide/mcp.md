@@ -59,7 +59,7 @@ Closing the connection stops the server's process group, without affecting other
 
 Enabled servers connect when a run starts and disconnect when it ends, including scheduled runs. Tools are discovered fresh each run. If a server cannot connect, or an allowlisted tool is missing, the run fails to start with an error naming the server.
 
-Tool names are namespaced per server and kept within the 64-character limit models impose. Text, images, structured output, progress, and errors pass through unchanged.
+Tool names are namespaced per server and kept within the 64-character limit models impose. Text, images, structured output, progress, and errors pass through unchanged. Embedded text and JSON resources reach the model as text; other binary resources are omitted.
 
 ## Using MCP with Codemode
 

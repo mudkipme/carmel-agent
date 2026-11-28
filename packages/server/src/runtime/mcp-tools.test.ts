@@ -281,7 +281,25 @@ test("MCP progress, structured content, and tool failure flags survive the adapt
         `data: ${JSON.stringify({ jsonrpc: "2.0", method: "notifications/progress", params: { progressToken: token, progress: 1, total: 2, message: secret } })}\n\n`,
       );
       response.end(
-        `data: ${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { content: [{ type: "text", text: `Failure: ${secret}` }], structuredContent: { token: secret }, isError: true } })}\n\n`,
+        `data: ${JSON.stringify({
+          jsonrpc: "2.0",
+          id: message.id,
+          result: {
+            content: [
+              { type: "text", text: `Failure: ${secret}` },
+              {
+                type: "resource",
+                resource: {
+                  uri: "file:///state.json",
+                  mimeType: "application/json",
+                  blob: Buffer.from(JSON.stringify({ token: secret })).toString("base64"),
+                },
+              },
+            ],
+            structuredContent: { token: secret },
+            isError: true,
+          },
+        })}\n\n`,
       );
       return undefined;
     },
@@ -307,6 +325,7 @@ test("MCP progress, structured content, and tool failure flags survive the adapt
       },
     );
     assert.equal(result.isError, true);
+    assert.deepEqual(result.output?.[1], { type: "text", text: '{"token":"[redacted:TOKEN]"}' });
     assert.deepEqual((result.details as { structuredContent: unknown }).structuredContent, {
       token: "[redacted:TOKEN]",
     });

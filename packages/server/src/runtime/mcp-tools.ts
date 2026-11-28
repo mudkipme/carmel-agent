@@ -9,7 +9,7 @@ import {
   mcpNamespace,
   mcpServerSummary,
   normalizeMcpInputSchema,
-  toLlmContent,
+  toMcpModelContent,
   type McpTransport,
 } from "@earendil-works/pi-mcp";
 import type { agents } from "../db/schema.ts";
@@ -172,7 +172,7 @@ export class AgentMcpTools {
                     ? undefined
                     : (redactValue(result.structuredContent, secrets) as JsonValue);
                 return {
-                  output: toLlmContent(result).map((part) =>
+                  output: (await toMcpModelContent(server.id, result)).map((part) =>
                     part.type === "text" ? { ...part, text: redact(part.text, secrets) } : part,
                   ),
                   details: {
